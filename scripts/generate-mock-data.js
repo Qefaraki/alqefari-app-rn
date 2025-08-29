@@ -160,11 +160,12 @@ class FamilyTreeGenerator {
     this.marriages = [];
     this.nodeCount = 0;
     this.currentId = 1;
+    this.wifeCounter = 1; // Separate counter for wives
   }
 
-  generateProfile(parentNode = null, generation = 1, siblingOrder = 1) {
+  generateProfile(parentNode = null, generation = 1, siblingOrder = 1, forceGender = null) {
     const isRoot = !parentNode;
-    const gender = Math.random() < 0.5 ? 'male' : 'female';
+    const gender = forceGender || (Math.random() < 0.5 ? 'male' : 'female');
     const name = gender === 'male' ? randomItem(maleNames) : randomItem(femaleNames);
     
     // Determine profile completeness
@@ -172,10 +173,10 @@ class FamilyTreeGenerator {
     const isComplete = completeness < 0.2;
     const isMedium = completeness < 0.6;
     
-    // Calculate HID
+    // Calculate HID - proper structure from the start
     let hid;
     if (isRoot) {
-      hid = `R${this.currentId}`;
+      hid = '1'; // Single root with HID "1"
     } else {
       hid = `${parentNode.hid}.${siblingOrder}`;
     }
@@ -253,21 +254,23 @@ class FamilyTreeGenerator {
   }
 
   generateBranch(parentNode, generation, maxDepth, branchWidth) {
-    if (generation > maxDepth || this.nodeCount >= 1000) return;
+    if (generation > maxDepth || this.nodeCount >= 1200) return;
     
-    // Determine number of children (wider at top generations)
+    // Determine number of children - ensure we generate enough nodes
     let childCount;
     if (generation <= 2) {
-      childCount = randomInt(3, 8); // Wide branches at top
+      childCount = randomInt(4, 10); // Many children at top generations
     } else if (generation <= 4) {
-      childCount = randomInt(2, 5);
+      childCount = randomInt(2, 6);
+    } else if (generation <= 6) {
+      childCount = randomInt(1, 4);
     } else {
-      childCount = randomInt(0, 3);
+      childCount = randomInt(0, 2);
     }
     
     // Some nodes have many children (10+)
-    if (Math.random() < 0.05 && generation <= 3) {
-      childCount = randomInt(10, 15);
+    if (Math.random() < 0.1 && generation <= 4) {
+      childCount = randomInt(8, 12);
     }
     
     const children = [];
@@ -290,15 +293,16 @@ class FamilyTreeGenerator {
   }
 
   createMarriage(husband) {
-    // Create a wife profile (not in the main tree)
+    // Create a wife profile with valid HID format
+    // Use a separate branch (2000.x) for wives from outside the main family
     const wife = {
-      id: `wife-${this.currentId++}`,
-      tempId: `wife-${this.currentId - 1}`,
-      hid: `W${this.currentId - 1}`,
+      id: `wife-${this.wifeCounter}`,
+      tempId: `wife-${this.wifeCounter}`,
+      hid: `2000.${this.wifeCounter}`, // Valid HID format for external wives
       name: randomItem(femaleNames),
       gender: 'female',
       generation: husband.generation,
-      sibling_order: 0,
+      sibling_order: this.wifeCounter,
       father_id: null, // External to main family
       status: husband.status, // Same status as husband
       dob_is_public: false,
@@ -307,6 +311,8 @@ class FamilyTreeGenerator {
       dob_data: generateHijriDate(husband.generation)
     };
     
+    this.wifeCounter++;
+    
     this.nodes.push(wife);
     
     const marriage = {
@@ -314,12 +320,9 @@ class FamilyTreeGenerator {
       husband_id: husband.tempId,
       wife_id: wife.tempId,
       status: husband.status === 'deceased' ? 'widowed' : 'married',
-      start_date: String(husband.dob_data.hijri.year + randomInt(20, 30)) + 'هـ'
+      start_date: null, // Pass null instead of text
+      end_date: null
     };
-    
-    if (marriage.status === 'widowed' && husband.dod_data) {
-      marriage.end_date = husband.dod_data.display;
-    }
     
     this.marriages.push(marriage);
   }
@@ -327,25 +330,25 @@ class FamilyTreeGenerator {
   generateFamilyTree() {
     console.log('🌳 Generating family tree with ~1000 nodes...');
     
-    // Generate 3-4 root branches (different family lines)
-    const rootCount = 3;
-    const roots = [];
+    // Generate single root - سليمان القفاري
+    const root = this.generateProfile(null, 1, 1, 'male');
+    root.name = 'سليمان القفاري';
+    root.bio = 'جد عائلة القفاري - مؤسس العائلة الكريمة';
+    root.birth_place = 'نجد';
+    root.dob_data = {
+      hijri: { year: 1250 },
+      display: '1250هـ'
+    };
+    root.dod_data = {
+      hijri: { year: 1320 },
+      display: '1320هـ'
+    };
+    root.status = 'deceased';
+    root.achievements = ['مؤسس عائلة القفاري', 'من وجهاء نجد'];
     
-    for (let i = 0; i < rootCount; i++) {
-      const root = this.generateProfile(null, 1, i + 1);
-      roots.push(root);
-      
-      // Make root profiles complete
-      root.bio = `جد عائلة القفاري - الفرع ${i + 1}. مؤسس هذا الفرع من العائلة الكريمة.`;
-      root.achievements = ['مؤسس فرع العائلة', 'من وجهاء المنطقة'];
-    }
-    
-    // Generate branches with different characteristics
-    roots.forEach((root, index) => {
-      const maxDepth = 6 + index; // Vary depth by branch
-      const branchWidth = index === 0 ? 'wide' : index === 1 ? 'medium' : 'narrow';
-      this.generateBranch(root, 2, maxDepth, branchWidth);
-    });
+    // Generate a large family tree from this single root
+    // Target ~1000 nodes by creating multiple wide branches
+    this.generateBranch(root, 2, 8, 'wide');
     
     console.log(`✅ Generated ${this.nodes.length} nodes and ${this.marriages.length} marriages`);
     
@@ -400,7 +403,8 @@ async function insertData(data) {
           p_achievements: profile.achievements || null,
           p_timeline: profile.timeline || null,
           p_dob_is_public: profile.dob_is_public,
-          p_profile_visibility: profile.profile_visibility
+          p_profile_visibility: profile.profile_visibility,
+          p_hid: profile.hid  // Pass HID explicitly
         });
         
         if (error) {
@@ -438,8 +442,8 @@ async function insertData(data) {
           p_husband_id: husband.newId,
           p_wife_id: wife.newId,
           p_status: marriage.status,
-          p_start_date: marriage.start_date,
-          p_end_date: marriage.end_date || null
+          p_start_date: null, // Always null for mock data
+          p_end_date: null
         });
         
         if (error) {
