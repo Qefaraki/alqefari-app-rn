@@ -1,0 +1,41 @@
+# A standard Supabase project configuration file
+# See https://supabase.com/docs/guides/hosting/overview#configuration
+
+[api]
+enabled = true
+port = 54321
+max_rows = 1000
+
+[auth]
+enabled = true
+# Configure auth settings if needed
+
+[auth.external.apple]
+enabled = false
+client_id = ""
+secret = ""
+
+[db]
+port = 54322
+major_version = 15
+
+[db.pooler]
+enabled = true
+port = 54329
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+
+[storage.image_transformation]
+enabled = true
+
+[inbucket]
+enabled = true
+port = 54324
+
+[local]
+# Configure local development settings
