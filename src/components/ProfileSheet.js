@@ -38,6 +38,7 @@ const generationNames = ['الأول', 'الثاني', 'الثالث', 'الرا
 const ProfileSheet = () => {
   const selectedPersonId = useTreeStore(s => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore(s => s.setSelectedPersonId);
+  const treeData = useTreeStore(s => s.treeData);
   const bottomSheetRef = useRef(null);
   const scrollRef = useRef(null);
   const [copied, setCopied] = useState(false);
@@ -50,21 +51,39 @@ const ProfileSheet = () => {
   // Snap points matching original (0.4, 0.9, 1)
   const snapPoints = useMemo(() => ['40%', '90%', '100%'], []);
 
-  // Get person data
-  const person = useMemo(() => 
-    familyData.find(p => p.id === selectedPersonId),
-    [selectedPersonId]
-  );
+  // Get person data - try tree data first, fall back to familyData
+  const person = useMemo(() => {
+    if (treeData && treeData.length > 0) {
+      return treeData.find(p => p.id === selectedPersonId);
+    }
+    return familyData.find(p => p.id === selectedPersonId);
+  }, [selectedPersonId, treeData]);
 
-  const father = useMemo(() => 
-    person ? getFather(person.id, familyData) : null,
-    [person]
-  );
+  const father = useMemo(() => {
+    if (!person) return null;
+    const dataSource = treeData.length > 0 ? treeData : familyData;
+    
+    // If using backend data, find by father_id
+    if (person.father_id && treeData.length > 0) {
+      return dataSource.find(p => p.id === person.father_id);
+    }
+    
+    // Fall back to old method
+    return getFather(person.id, dataSource);
+  }, [person, treeData]);
 
-  const children = useMemo(() => 
-    person ? getChildren(person.id, familyData) : [],
-    [person]
-  );
+  const children = useMemo(() => {
+    if (!person) return [];
+    const dataSource = treeData.length > 0 ? treeData : familyData;
+    
+    // If using backend data, find by father_id
+    if (treeData.length > 0 && person.gender === 'male') {
+      return dataSource.filter(p => p.father_id === person.id);
+    }
+    
+    // Fall back to old method
+    return getChildren(person.id, dataSource);
+  }, [person, treeData]);
 
   // Oldest to youngest based on hierarchical HID suffix (higher number = older)
   const sortedChildren = useMemo(() => {
@@ -79,21 +98,30 @@ const ProfileSheet = () => {
   // Calculate metrics
   const descendantsCount = useMemo(() => {
     if (!person) return 0;
+    
+    // If backend data has descendants_count, use it
+    if (treeData.length > 0 && person.descendants_count !== undefined) {
+      return person.descendants_count;
+    }
+    
+    // Otherwise calculate it
+    const dataSource = treeData.length > 0 ? treeData : familyData;
     let count = 0;
     const countDescendants = (id) => {
-      const kids = getChildren(id, familyData);
+      const kids = dataSource.filter(p => p.father_id === id);
       count += kids.length;
       kids.forEach(child => countDescendants(child.id));
     };
     countDescendants(person.id);
     return count;
-  }, [person]);
+  }, [person, treeData]);
 
   const siblingsCount = useMemo(() => {
     if (!person || !father) return 0;
-    const siblings = getChildren(father.id, familyData) || [];
+    const dataSource = treeData.length > 0 ? treeData : familyData;
+    const siblings = dataSource.filter(p => p.father_id === father.id) || [];
     return Math.max(0, siblings.length - 1);
-  }, [person, father]);
+  }, [person, father, treeData]);
 
   // Full name exactly as in original web version (include person's name + connector)
   const fullName = useMemo(() => {

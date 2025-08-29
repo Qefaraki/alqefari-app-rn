@@ -183,10 +183,11 @@ const TreeView = () => {
   const maxZoom = useTreeStore(s => s.maxZoom);
   const selectedPersonId = useTreeStore(s => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore(s => s.setSelectedPersonId);
+  const setTreeData = useTreeStore(s => s.setTreeData);
   
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
-  const [treeData, setTreeData] = useState([]);
+  const [treeData, setLocalTreeData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Force RTL for Arabic text
@@ -234,18 +235,35 @@ const TreeView = () => {
     const loadTreeData = async () => {
       setIsLoading(true);
       try {
-        // Start with root branches
-        const { data, error } = await profilesService.getBranchData(null, 3, 200);
+        // First get the root node
+        const { data: rootData, error: rootError } = await profilesService.getBranchData(null, 1, 1);
+        if (rootError || !rootData || rootData.length === 0) {
+          console.error('Error loading root node:', rootError);
+          // Fall back to local data
+          setLocalTreeData(familyData);
+          setTreeData(familyData);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Then load the tree starting from the root HID
+        const rootHid = rootData[0].hid;
+        console.log(`🌳 Loading tree from backend (root: ${rootData[0].name})...`);
+        const { data, error } = await profilesService.getBranchData(rootHid, 8, 500);
         if (error) {
           console.error('Error loading tree data:', error);
           // Fall back to local data
+          setLocalTreeData(familyData);
           setTreeData(familyData);
         } else if (data) {
-          setTreeData(data);
+          console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
+          setLocalTreeData(data);
+          setTreeData(data); // Store in zustand for ProfileSheet
         }
       } catch (err) {
         console.error('Failed to load tree data:', err);
         // Fall back to local data
+        setLocalTreeData(familyData);
         setTreeData(familyData);
       } finally {
         setIsLoading(false);
@@ -253,7 +271,7 @@ const TreeView = () => {
     };
     
     loadTreeData();
-  }, []);
+  }, [setTreeData]);
   
   // Calculate layout
   const { nodes, connections } = useMemo(() => {

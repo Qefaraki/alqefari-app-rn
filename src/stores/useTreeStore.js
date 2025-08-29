@@ -17,6 +17,9 @@ export const useTreeStore = create((set, get) => ({
   
   // Selection state
   selectedPersonId: null,
+  
+  // Tree data from backend
+  treeData: [],
 
   // Actions to update the state
   setStage: (newStage) => set({ stage: newStage }),
@@ -24,6 +27,8 @@ export const useTreeStore = create((set, get) => ({
   setIsAnimating: (animating) => set({ isAnimating: animating }),
   
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
+  
+  setTreeData: (data) => set({ treeData: data }),
 
   // Zoom function with pointer anchoring
   zoom: (direction, pointerPosition, viewport) => {
