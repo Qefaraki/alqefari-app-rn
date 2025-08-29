@@ -202,8 +202,8 @@ const ProfileSheet = () => {
   useEffect(() => {
     if (selectedPersonId) {
       bottomSheetRef.current?.expand();
-      // Load marriages for the selected person
-      loadMarriages();
+      // Temporarily disabled due to backend date type issue
+      // loadMarriages();
     } else {
       bottomSheetRef.current?.close();
       setMarriages([]);
@@ -215,8 +215,14 @@ const ProfileSheet = () => {
     if (!person?.id) return;
     setLoadingMarriages(true);
     try {
-      const { data } = await profilesService.getPersonMarriages(person.id);
-      setMarriages(data || []);
+      const { data, error } = await profilesService.getPersonMarriages(person.id);
+      if (error) {
+        // Temporarily skip marriage loading due to backend date type issue
+        console.warn('Skipping marriages due to backend issue:', error);
+        setMarriages([]);
+      } else {
+        setMarriages(data || []);
+      }
     } catch (error) {
       console.error('Error loading marriages:', error);
       setMarriages([]);
