@@ -277,7 +277,7 @@ export const profilesService = {
       return { data, error: null };
     } catch (error) {
       console.error('bulkUpdateLayouts error:', error);
-      return { data, null, error: handleSupabaseError(error) };
+      return { data: null, error: handleSupabaseError(error) };
     }
   },
 
