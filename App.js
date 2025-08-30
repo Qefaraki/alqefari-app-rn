@@ -5,31 +5,34 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import TreeView from './src/components/TreeView';
 import ProfileSheet from './src/components/ProfileSheet';
+import { AdminModeProvider } from './src/contexts/AdminModeContext';
 import './global.css';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <View className="flex-1">
-          <StatusBar style="dark" />
-          
-          {/* Header */}
-          <View className="bg-white pt-12 pb-4 px-4 shadow-sm">
-            <Text className="text-2xl font-bold text-center text-gray-900">
-              شجرة عائلة القفاري
-            </Text>
-          </View>
-          
-          {/* Tree View */}
+      <AdminModeProvider>
+        <BottomSheetModalProvider>
           <View className="flex-1">
-            <TreeView />
-          </View>
+            <StatusBar style="dark" />
+            
+            {/* Header */}
+            <View className="bg-white pt-12 pb-4 px-4 shadow-sm">
+              <Text className="text-2xl font-bold text-center text-gray-900">
+                شجرة عائلة القفاري
+              </Text>
+            </View>
+            
+            {/* Tree View */}
+            <View className="flex-1">
+              <TreeView />
+            </View>
 
-          {/* Profile Sheet */}
-          <ProfileSheet />
-        </View>
-      </BottomSheetModalProvider>
+            {/* Profile Sheet */}
+            <ProfileSheet />
+          </View>
+        </BottomSheetModalProvider>
+      </AdminModeProvider>
     </GestureHandlerRootView>
   );
 }
