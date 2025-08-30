@@ -28,13 +28,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#667085',
     fontFamily: 'SF Arabic',
+    minWidth: 120,
+    textAlign: 'right',
   },
   value: {
     fontSize: 15,
     color: '#0f172a',
     fontFamily: 'SF Arabic',
-    textAlign: 'right',
-    flexShrink: 1,
+    textAlign: 'left',
+    flex: 1,
+    marginLeft: 16,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

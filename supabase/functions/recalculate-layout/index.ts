@@ -21,6 +21,11 @@ interface Profile {
   }
 }
 
+interface RequestData {
+  affected_node_id: string
+  job_id?: string
+}
+
 interface LayoutUpdate {
   id: string
   layout_position: {
@@ -49,6 +54,11 @@ function validateInput(data: any): { valid: boolean; error?: string } {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!uuidRegex.test(data.affected_node_id)) {
     return { valid: false, error: 'affected_node_id must be a valid UUID' }
+  }
+  
+  // Validate job_id if provided
+  if (data.job_id && !uuidRegex.test(data.job_id)) {
+    return { valid: false, error: 'job_id must be a valid UUID' }
   }
   
   return { valid: true }
@@ -242,14 +252,22 @@ serve(async (req) => {
       )
     }
     
-    const { affected_node_id } = requestData
+    const { affected_node_id, job_id } = requestData as RequestData
     
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseKey)
     
-    console.log(`Processing layout recalculation for node: ${affected_node_id}`)
+    console.log(`Processing layout recalculation for node: ${affected_node_id}${job_id ? ` (job: ${job_id})` : ''}`)
+    
+    // Update background job status to processing if job_id provided
+    if (job_id) {
+      await supabase.rpc('update_background_job_status', {
+        p_job_id: job_id,
+        p_status: 'processing'
+      })
+    }
     
     // Find the appropriate root for recalculation
     const affectedRoot = await findAffectedRoot(supabase, affected_node_id)
@@ -289,6 +307,14 @@ serve(async (req) => {
       })
       .eq('node_id', affected_node_id)
     
+    // Update background job status to complete if job_id provided
+    if (job_id) {
+      await supabase.rpc('update_background_job_status', {
+        p_job_id: job_id,
+        p_status: 'complete'
+      })
+    }
+    
     const executionTime = Date.now() - startTime
     
     // Log performance metrics
@@ -303,6 +329,7 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true,
         affected_node_id,
+        job_id,
         recalc_root_id: affectedRoot.rootId,
         updated_count: updates.length,
         execution_time_ms: executionTime,
@@ -316,7 +343,7 @@ serve(async (req) => {
     
     // Update queue status on error
     try {
-      const { affected_node_id } = await req.json()
+      const { affected_node_id, job_id } = await req.json() as RequestData
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       const supabase = createClient(supabaseUrl, supabaseKey)
@@ -328,6 +355,15 @@ serve(async (req) => {
           error_message: error.message
         })
         .eq('node_id', affected_node_id)
+      
+      // Update background job status to failed if job_id provided
+      if (job_id) {
+        await supabase.rpc('update_background_job_status', {
+          p_job_id: job_id,
+          p_status: 'failed',
+          p_error_message: error.message
+        })
+      }
     } catch (e) {
       console.error('Failed to update queue status:', e)
     }

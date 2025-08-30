@@ -20,6 +20,9 @@ export const useTreeStore = create((set, get) => ({
   
   // Tree data from backend
   treeData: [],
+  
+  // High-performance Map for instant node lookups
+  nodesMap: new Map(),
 
   // Actions to update the state
   setStage: (newStage) => set({ stage: newStage }),
@@ -28,7 +31,10 @@ export const useTreeStore = create((set, get) => ({
   
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
   
-  setTreeData: (data) => set({ treeData: data }),
+  setTreeData: (data) => set({ 
+    treeData: data,
+    nodesMap: new Map(data.map(node => [node.id, node]))
+  }),
 
   // Zoom function with pointer anchoring
   zoom: (direction, pointerPosition, viewport) => {

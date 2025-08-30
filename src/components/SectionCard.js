@@ -24,6 +24,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1a1a1a',
     marginBottom: 12,
+    textAlign: 'right',
+    fontFamily: 'SF Arabic',
   },
   content: {
     flex: 1,

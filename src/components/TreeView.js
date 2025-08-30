@@ -7,6 +7,8 @@ import Animated, {
   useSharedValue,
   withSpring,
   withDecay,
+  withTiming,
+  Easing,
   runOnJS,
   clamp,
   useAnimatedReaction,
@@ -19,6 +21,7 @@ import { calculateTreeLayout } from '../utils/treeLayout';
 import { useTreeStore } from '../stores/useTreeStore';
 import profilesService from '../services/profiles';
 import { formatDateDisplay } from '../services/migrationHelpers';
+import NavigateToRootButton from './NavigateToRootButton';
 
 const VIEWPORT_MARGIN = 200;
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -230,6 +233,7 @@ const TreeView = () => {
   const focalX = useSharedValue(0);
   const focalY = useSharedValue(0);
 
+
   // Load tree data using branch loading
   useEffect(() => {
     const loadTreeData = async () => {
@@ -403,10 +407,6 @@ const TreeView = () => {
     }
   }, [nodes, dimensions, treeBounds]);
 
-  // Sync gesture values with store
-  const updateStore = useCallback((x, y, s) => {
-    setStage({ x, y, scale: s });
-  }, [setStage]);
 
   // Pan gesture with momentum
   const panGesture = Gesture.Pan()
@@ -429,7 +429,6 @@ const TreeView = () => {
         velocity: e.velocityY,
         deceleration: 0.995,
       });
-      runOnJS(updateStore)(translateX.value, translateY.value, scale.value);
     });
 
   // Pinch gesture for zoom with pointer-anchored transform
@@ -450,7 +449,6 @@ const TreeView = () => {
     })
     .onEnd(() => {
       savedScale.value = scale.value;
-      runOnJS(updateStore)(translateX.value, translateY.value, scale.value);
     });
 
   // Tap gesture for selection with movement/time thresholds
@@ -765,6 +763,13 @@ const TreeView = () => {
           </Group>
         </Canvas>
       </GestureDetector>
+      
+      {/* Add navigation button */}
+      <NavigateToRootButton 
+        nodes={nodes} 
+        viewport={dimensions} 
+        sharedValues={{ translateX, translateY, scale }}
+      />
     </View>
   );
 };

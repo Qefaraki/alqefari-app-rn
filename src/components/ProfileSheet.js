@@ -33,12 +33,37 @@ import * as Sharing from 'expo-sharing';
 // Note: RTL requires app restart to take effect
 // For now, we'll use explicit right-aligned positioning
 
+// High-performance helper to construct full ancestry chain
+const constructCommonName = (person, nodesMap) => {
+  if (!person) return '';
+  
+  const names = [person.name];
+  let currentId = person.father_id;
+  
+  // Build the ancestry chain using O(1) lookups
+  while (currentId) {
+    const ancestor = nodesMap.get(currentId);
+    if (!ancestor) break;
+    names.push(ancestor.name);
+    currentId = ancestor.father_id;
+  }
+  
+  // If there are ancestors, add connector after first name only
+  if (names.length > 1) {
+    const connector = person.gender === 'female' ? ' بنت ' : ' بن ';
+    return names[0] + connector + names.slice(1).join(' ');
+  }
+  
+  return person.name;
+};
+
 const generationNames = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
 
 const ProfileSheet = () => {
   const selectedPersonId = useTreeStore(s => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore(s => s.setSelectedPersonId);
   const treeData = useTreeStore(s => s.treeData);
+  const nodesMap = useTreeStore(s => s.nodesMap);
   const bottomSheetRef = useRef(null);
   const scrollRef = useRef(null);
   const [copied, setCopied] = useState(false);
@@ -126,24 +151,27 @@ const ProfileSheet = () => {
   // Full name exactly as in original web version (include person's name + connector)
   const fullName = useMemo(() => {
     if (!person) return '';
-    const map = new Map();
-    familyData.forEach(p => map.set(p.id, p));
+    
     const names = [];
     let currentId = person.id;
+    
+    // Use the high-performance nodesMap
     while (currentId) {
-      const p = map.get(currentId);
+      const p = nodesMap.get(currentId);
       if (!p) break;
       names.push(p.name);
       currentId = p.father_id;
     }
+    
     names.push(FAMILY_NAME);
+    
     if (names.length > 1) {
       const connector = person.gender === 'female' ? 'بنت' : 'بن';
       // Omit the person's own first name to avoid duplication with the title
       return connector + ' ' + names.slice(1).join(' ');
     }
     return names.join(' ');
-  }, [person]);
+  }, [person, nodesMap]);
 
   // Handle sheet changes
   const handleSheetChange = useCallback((index) => {
@@ -215,14 +243,8 @@ const ProfileSheet = () => {
     if (!person?.id) return;
     setLoadingMarriages(true);
     try {
-      const { data, error } = await profilesService.getPersonMarriages(person.id);
-      if (error) {
-        // Temporarily skip marriage loading due to backend date type issue
-        console.warn('Skipping marriages due to backend issue:', error);
-        setMarriages([]);
-      } else {
-        setMarriages(data || []);
-      }
+      const data = await profilesService.getPersonMarriages(person.id);
+      setMarriages(data || []);
     } catch (error) {
       console.error('Error loading marriages:', error);
       setMarriages([]);

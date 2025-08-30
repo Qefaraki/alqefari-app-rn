@@ -68,64 +68,34 @@ export const profilesService = {
   },
 
   /**
-   * Get marriages for a specific person
-   * @param {string} personId - Profile ID
+   * Fetches all marriage and spouse details for a given person in a single,
+   * efficient backend call.
+   * @param {string} personId - The UUID of the person.
+   * @returns {Promise<Array>} - A promise that resolves to an array of marriage objects.
    */
   async getPersonMarriages(personId) {
+    if (!personId) {
+      console.warn('getPersonMarriages called with no personId');
+      return [];
+    }
     try {
-      // Workaround: Query marriages directly instead of using the problematic function
-      const { data: person } = await supabase
-        .from('profiles')
-        .select('gender')
-        .eq('id', personId)
-        .single();
-      
-      if (!person) throw new Error('Person not found');
-      
-      // Get marriages where person is either husband or wife
-      const { data: marriages, error } = await supabase
-        .from('marriages')
-        .select(`
-          id,
-          husband_id,
-          wife_id,
-          munasib,
-          status,
-          start_date,
-          end_date
-        `)
-        .or(`husband_id.eq.${personId},wife_id.eq.${personId}`);
-      
-      if (error) throw error;
-      
-      // Format the data to match expected structure
-      const formattedData = await Promise.all(marriages.map(async (marriage) => {
-        const spouseId = marriage.husband_id === personId ? marriage.wife_id : marriage.husband_id;
-        
-        // Get spouse info
-        const { data: spouse } = await supabase
-          .from('profiles')
-          .select('name, photo_url')
-          .eq('id', spouseId)
-          .single();
-        
-        return {
-          marriage_id: marriage.id,
-          spouse_id: spouseId,
-          spouse_name: spouse?.name || 'Unknown',
-          spouse_photo: spouse?.photo_url || null,
-          munasib: marriage.munasib,
-          status: marriage.status,
-          start_date: marriage.start_date,
-          end_date: marriage.end_date
-        };
-      }));
-      
-      return { data: formattedData, error: null };
+      // Call the new, high-performance RPC function on the backend.
+      const { data, error } = await supabase.rpc('get_person_marriages', {
+        p_id: personId
+      });
+
+      if (error) {
+        // Pass the specific database error up for better debugging.
+        throw error;
+      }
+
+      // The backend now does all the heavy lifting. Return the data directly.
+      // If there are no marriages, the backend will correctly return null, which we convert to an empty array.
+      return data || [];
     } catch (error) {
-      console.error('getPersonMarriages error:', error);
-      // Return empty array on error to prevent crashes
-      return { data: [], error: null };
+      console.error('Error fetching person marriages:', error.message);
+      // Return an empty array on failure to prevent the UI from crashing.
+      return [];
     }
   },
 
