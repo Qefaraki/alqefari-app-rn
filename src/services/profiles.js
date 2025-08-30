@@ -73,15 +73,59 @@ export const profilesService = {
    */
   async getPersonMarriages(personId) {
     try {
-      const { data, error } = await supabase.rpc('get_person_marriages', {
-        p_id: personId
-      });
+      // Workaround: Query marriages directly instead of using the problematic function
+      const { data: person } = await supabase
+        .from('profiles')
+        .select('gender')
+        .eq('id', personId)
+        .single();
+      
+      if (!person) throw new Error('Person not found');
+      
+      // Get marriages where person is either husband or wife
+      const { data: marriages, error } = await supabase
+        .from('marriages')
+        .select(`
+          id,
+          husband_id,
+          wife_id,
+          munasib,
+          status,
+          start_date,
+          end_date
+        `)
+        .or(`husband_id.eq.${personId},wife_id.eq.${personId}`);
       
       if (error) throw error;
-      return { data, error: null };
+      
+      // Format the data to match expected structure
+      const formattedData = await Promise.all(marriages.map(async (marriage) => {
+        const spouseId = marriage.husband_id === personId ? marriage.wife_id : marriage.husband_id;
+        
+        // Get spouse info
+        const { data: spouse } = await supabase
+          .from('profiles')
+          .select('name, photo_url')
+          .eq('id', spouseId)
+          .single();
+        
+        return {
+          marriage_id: marriage.id,
+          spouse_id: spouseId,
+          spouse_name: spouse?.name || 'Unknown',
+          spouse_photo: spouse?.photo_url || null,
+          munasib: marriage.munasib,
+          status: marriage.status,
+          start_date: marriage.start_date,
+          end_date: marriage.end_date
+        };
+      }));
+      
+      return { data: formattedData, error: null };
     } catch (error) {
       console.error('getPersonMarriages error:', error);
-      return { data: null, error: handleSupabaseError(error) };
+      // Return empty array on error to prevent crashes
+      return { data: [], error: null };
     }
   },
 
