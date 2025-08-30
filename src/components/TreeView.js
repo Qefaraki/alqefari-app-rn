@@ -22,6 +22,11 @@ import { useTreeStore } from '../stores/useTreeStore';
 import profilesService from '../services/profiles';
 import { formatDateDisplay } from '../services/migrationHelpers';
 import NavigateToRootButton from './NavigateToRootButton';
+import { useAdminMode } from '../contexts/AdminModeContext';
+import GlobalFAB from './admin/GlobalFAB';
+import SystemStatusIndicator from './admin/SystemStatusIndicator';
+import MultiAddChildrenModal from './admin/MultiAddChildrenModal';
+import { supabase } from '../services/supabase';
 
 const VIEWPORT_MARGIN = 200;
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -193,6 +198,11 @@ const TreeView = () => {
   const [treeData, setLocalTreeData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Admin mode state
+  const { isAdminMode } = useAdminMode();
+  const [showMultiAddModal, setShowMultiAddModal] = useState(false);
+  const [multiAddParent, setMultiAddParent] = useState(null);
+  
   // Force RTL for Arabic text
   useEffect(() => {
     I18nManager.forceRTL(true);
@@ -275,6 +285,75 @@ const TreeView = () => {
     };
     
     loadTreeData();
+  }, [setTreeData]);
+  
+  // Real-time subscription for profile updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('profiles_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        async (payload) => {
+          console.log('Profile change:', payload);
+          // Reload tree data when profiles change
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+            // Reload the affected branch
+            const affectedId = payload.new?.id || payload.old?.id;
+            if (affectedId) {
+              // TODO: Implement partial tree reload
+              // For now, reload the entire tree
+              const loadTreeData = async () => {
+                setIsLoading(true);
+                try {
+                  const { data: rootData, error: rootError } = await profilesService.getBranchData(null, 1, 1);
+                  if (rootError || !rootData || rootData.length === 0) {
+                    console.error('Error loading root node:', rootError);
+                    setLocalTreeData(familyData);
+                    setTreeData(familyData);
+                    setIsLoading(false);
+                    return;
+                  }
+                  const rootNode = rootData[0];
+                  const { data: fullTreeData, error } = await profilesService.getBranchData(rootNode.hid, 3, 200);
+                  if (error) {
+                    console.error('Error loading tree data:', error);
+                    setLocalTreeData(familyData);
+                    setTreeData(familyData);
+                  } else {
+                    const processedData = (fullTreeData || []).map(person => ({
+                      ...person,
+                      name: person.name || 'بدون اسم',
+                      marriages: person.marriages?.map(marriage => ({
+                        ...marriage,
+                        marriage_date: marriage.marriage_date ? formatDateDisplay(marriage.marriage_date) : null
+                      })) || []
+                    }));
+                    setLocalTreeData(processedData);
+                    setTreeData(processedData);
+                  }
+                } catch (error) {
+                  console.error('Error loading tree data:', error);
+                  setLocalTreeData(familyData);
+                  setTreeData(familyData);
+                } finally {
+                  setIsLoading(false);
+                }
+              };
+              loadTreeData();
+            }
+          }
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      channel.unsubscribe();
+    };
   }, [setTreeData]);
   
   // Calculate layout
@@ -473,9 +552,31 @@ const TreeView = () => {
         }
       }
       
-      runOnJS(setSelectedPersonId)(tappedNodeId);
+      runOnJS(handleNodeTap)(tappedNodeId);
     });
 
+  // Handle node tap - show add children modal in admin mode
+  const handleNodeTap = useCallback((nodeId) => {
+    setSelectedPersonId(nodeId);
+    
+    if (isAdminMode && nodeId) {
+      const node = nodes.find(n => n.id === nodeId);
+      if (node) {
+        setMultiAddParent({ id: nodeId, name: node.name });
+      }
+    }
+  }, [isAdminMode, nodes, setSelectedPersonId]);
+  
+  // Handle FAB press - add unlinked person
+  const handleFABPress = useCallback(() => {
+    if (multiAddParent) {
+      setShowMultiAddModal(true);
+    } else {
+      // TODO: Show add unlinked person modal
+      console.log('Add unlinked person');
+    }
+  }, [multiAddParent]);
+  
   // Compose gestures
   const composed = Gesture.Simultaneous(panGesture, pinchGesture, tapGesture);
 
@@ -770,6 +871,30 @@ const TreeView = () => {
         viewport={dimensions} 
         sharedValues={{ translateX, translateY, scale }}
       />
+      
+      {/* Admin components */}
+      {isAdminMode && (
+        <>
+          <SystemStatusIndicator />
+          <GlobalFAB 
+            onPress={handleFABPress} 
+            visible={true}
+          />
+        </>
+      )}
+      
+      {/* Multi-add children modal */}
+      {multiAddParent && (
+        <MultiAddChildrenModal
+          visible={showMultiAddModal}
+          onClose={() => {
+            setShowMultiAddModal(false);
+            setMultiAddParent(null);
+          }}
+          parentId={multiAddParent.id}
+          parentName={multiAddParent.name}
+        />
+      )}
     </View>
   );
 };

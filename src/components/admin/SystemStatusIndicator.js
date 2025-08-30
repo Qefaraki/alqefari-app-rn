@@ -1,119 +1,82 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated, ActivityIndicator } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import backgroundJobsService from '../../services/backgroundJobs';
+import { supabase } from '../../services/supabase';
 import { useAdminMode } from '../../contexts/AdminModeContext';
+import GlassMetricPill from '../glass/GlassMetricPill';
 
 const SystemStatusIndicator = () => {
   const { isAdminMode } = useAdminMode();
   const [activeJobs, setActiveJobs] = useState([]);
-  const [isVisible, setIsVisible] = useState(false);
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(-100);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
     if (!isAdminMode) return;
 
-    // Initial load
-    loadActiveJobs();
+    // Initial fetch of active jobs
+    fetchActiveJobs();
 
-    // Subscribe to job updates
-    const unsubscribe = backgroundJobsService.subscribeToJobs((payload) => {
-      handleJobUpdate(payload);
-    });
+    // Subscribe to background_jobs changes
+    const subscription = supabase
+      .channel('background_jobs_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'background_jobs',
+          filter: `status=in.(queued,processing)`,
+        },
+        () => {
+          fetchActiveJobs();
+        }
+      )
+      .subscribe();
 
     return () => {
-      unsubscribe();
+      subscription.unsubscribe();
     };
   }, [isAdminMode]);
 
   useEffect(() => {
-    // Animate visibility
-    if (activeJobs.length > 0 && isAdminMode) {
-      setIsVisible(true);
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: -100,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setIsVisible(false));
-    }
-  }, [activeJobs.length, isAdminMode]);
+    // Animate indicator based on active jobs
+    const hasActiveJobs = activeJobs.length > 0;
+    
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: hasActiveJobs ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: hasActiveJobs ? 0 : -100,
+        useNativeDriver: true,
+        tension: 40,
+        friction: 7,
+      }),
+    ]).start();
+  }, [activeJobs, fadeAnim, slideAnim]);
 
-  const loadActiveJobs = async () => {
-    const { data, error } = await backgroundJobsService.getActiveJobs();
+  const fetchActiveJobs = async () => {
+    const { data, error } = await supabase
+      .from('background_jobs')
+      .select('*')
+      .in('status', ['queued', 'processing'])
+      .order('created_at', { ascending: false })
+      .limit(5);
+
     if (!error && data) {
       setActiveJobs(data);
     }
   };
 
-  const handleJobUpdate = (payload) => {
-    const { eventType, new: newRecord, old: oldRecord } = payload;
+  if (!isAdminMode || activeJobs.length === 0) return null;
 
-    if (eventType === 'INSERT' || eventType === 'UPDATE') {
-      if (newRecord.status === 'queued' || newRecord.status === 'processing') {
-        setActiveJobs(prev => {
-          const exists = prev.find(job => job.id === newRecord.id);
-          if (exists) {
-            return prev.map(job => job.id === newRecord.id ? newRecord : job);
-          }
-          return [...prev, newRecord];
-        });
-      } else {
-        // Job completed or failed, remove from active list
-        setActiveJobs(prev => prev.filter(job => job.id !== newRecord.id));
-      }
-    } else if (eventType === 'DELETE') {
-      setActiveJobs(prev => prev.filter(job => job.id !== oldRecord.id));
-    }
-  };
-
-  const getStatusText = () => {
-    if (activeJobs.length === 0) return '';
-    
-    const processingJobs = activeJobs.filter(job => job.status === 'processing');
-    const queuedJobs = activeJobs.filter(job => job.status === 'queued');
-
-    if (processingJobs.length > 0) {
-      const job = processingJobs[0];
-      if (job.job_type === 'layout_recalculation') {
-        return 'إعادة حساب التخطيط...';
-      }
-      return 'معالجة...';
-    }
-
-    if (queuedJobs.length > 0) {
-      return `${queuedJobs.length} في الانتظار`;
-    }
-
-    return '';
-  };
-
-  if (!isVisible) return null;
+  const processingCount = activeJobs.filter(job => job.status === 'processing').length;
+  const queuedCount = activeJobs.filter(job => job.status === 'queued').length;
 
   return (
-    <Animated.View 
+    <Animated.View
       style={[
         styles.container,
         {
@@ -122,22 +85,28 @@ const SystemStatusIndicator = () => {
         },
       ]}
     >
-      <View style={styles.glassWrapper}>
-        <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFillObject} />
-        <LinearGradient
-          colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-        />
-        
-        <View style={styles.content}>
-          <ActivityIndicator size="small" color="#007AFF" style={styles.spinner} />
-          <Text style={styles.statusText}>{getStatusText()}</Text>
+      <View style={styles.content}>
+        <ActivityIndicator size="small" color="#007AFF" style={styles.spinner} />
+        <View style={styles.textContainer}>
+          <Text style={styles.title}>معالجة البيانات</Text>
+          <Text style={styles.subtitle}>
+            {processingCount > 0 && `${processingCount} قيد المعالجة`}
+            {processingCount > 0 && queuedCount > 0 && ' • '}
+            {queuedCount > 0 && `${queuedCount} في الانتظار`}
+          </Text>
         </View>
-        
-        <View style={styles.border} />
       </View>
+      
+      {/* Job type breakdown */}
+      {activeJobs.some(job => job.job_type === 'layout_recalculation') && (
+        <View style={styles.jobTypeContainer}>
+          <GlassMetricPill
+            label="إعادة حساب التخطيط"
+            value={activeJobs.filter(job => job.job_type === 'layout_recalculation').length}
+            color="#007AFF"
+          />
+        </View>
+      )}
     </Animated.View>
   );
 };
@@ -145,47 +114,49 @@ const SystemStatusIndicator = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 60,
-    alignSelf: 'center',
-    zIndex: 1000,
-  },
-  glassWrapper: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    top: 100,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 998,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    padding: 16,
   },
   spinner: {
-    marginRight: 8,
+    marginRight: 12,
   },
-  statusText: {
-    fontSize: 14,
+  textContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      android: 'Arial',
-    }),
+    color: '#000000',
+    marginBottom: 2,
+    textAlign: 'right',
   },
-  border: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.3)',
+  subtitle: {
+    fontSize: 13,
+    color: '#666666',
+    textAlign: 'right',
+  },
+  jobTypeContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
 });
 

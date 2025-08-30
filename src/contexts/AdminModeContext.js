@@ -45,24 +45,20 @@ export const AdminModeProvider = ({ children }) => {
         return;
       }
 
-      // Check if user has admin role
-      const { data: roles, error } = await supabase
-        .from('user_roles')
-        .select(`
-          role_id,
-          roles!inner(name)
-        `)
-        .eq('user_id', user.id);
+      // Check if user profile has admin role
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
 
       if (error) {
         console.error('Error checking admin role:', error);
         setIsAdmin(false);
         setIsAdminMode(false);
       } else {
-        const hasAdminRole = roles?.some(r => 
-          r.roles?.name === 'SUPER_ADMIN' || r.roles?.name === 'BRANCH_ADMIN'
-        );
-        setIsAdmin(hasAdminRole || false);
+        const hasAdminRole = profile?.role === 'admin';
+        setIsAdmin(hasAdminRole);
         
         // If not admin, ensure admin mode is off
         if (!hasAdminRole) {

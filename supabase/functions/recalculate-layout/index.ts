@@ -263,10 +263,17 @@ serve(async (req) => {
     
     // Update background job status to processing if job_id provided
     if (job_id) {
-      await supabase.rpc('update_background_job_status', {
-        p_job_id: job_id,
-        p_status: 'processing'
-      })
+      const { error: jobUpdateError } = await supabase
+        .from('background_jobs')
+        .update({
+          status: 'processing',
+          started_at: new Date().toISOString()
+        })
+        .eq('id', job_id)
+      
+      if (jobUpdateError) {
+        console.error('Failed to update job status to processing:', jobUpdateError)
+      }
     }
     
     // Find the appropriate root for recalculation
@@ -309,10 +316,32 @@ serve(async (req) => {
     
     // Update background job status to complete if job_id provided
     if (job_id) {
-      await supabase.rpc('update_background_job_status', {
-        p_job_id: job_id,
-        p_status: 'complete'
-      })
+      // Get existing details
+      const { data: jobData } = await supabase
+        .from('background_jobs')
+        .select('details')
+        .eq('id', job_id)
+        .single()
+      
+      const updatedDetails = {
+        ...(jobData?.details || {}),
+        updated_count: updates.length,
+        execution_time_ms: Date.now() - startTime,
+        recalc_root_id: affectedRoot.rootId
+      }
+      
+      const { error: jobCompleteError } = await supabase
+        .from('background_jobs')
+        .update({
+          status: 'complete',
+          completed_at: new Date().toISOString(),
+          details: updatedDetails
+        })
+        .eq('id', job_id)
+      
+      if (jobCompleteError) {
+        console.error('Failed to update job status to complete:', jobCompleteError)
+      }
     }
     
     const executionTime = Date.now() - startTime
@@ -358,11 +387,26 @@ serve(async (req) => {
       
       // Update background job status to failed if job_id provided
       if (job_id) {
-        await supabase.rpc('update_background_job_status', {
-          p_job_id: job_id,
-          p_status: 'failed',
-          p_error_message: error.message
-        })
+        const { data: jobData } = await supabase
+          .from('background_jobs')
+          .select('details')
+          .eq('id', job_id)
+          .single()
+        
+        const updatedDetails = {
+          ...(jobData?.details || {}),
+          error: error.message,
+          failed_at: new Date().toISOString()
+        }
+        
+        await supabase
+          .from('background_jobs')
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            details: updatedDetails
+          })
+          .eq('id', job_id)
       }
     } catch (e) {
       console.error('Failed to update queue status:', e)

@@ -1,132 +1,82 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  Modal,
   StyleSheet,
+  Modal,
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
-  Animated,
-  Alert,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 import GlassSurface from '../glass/GlassSurface';
+import GlassButton from '../glass/GlassButton';
+import useStore from '../../hooks/useStore';
 
-const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName, onSuccess }) => {
+const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
   const [children, setChildren] = useState([
     { id: Date.now(), name: '', gender: 'M', birthYear: '' }
   ]);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
-  const scrollViewRef = useRef();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { refreshProfile } = useStore();
 
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible]);
+  const addChildRow = useCallback(() => {
+    setChildren(prev => [
+      ...prev,
+      { id: Date.now() + Math.random(), name: '', gender: 'M', birthYear: '' }
+    ]);
+  }, []);
 
-  const addChild = () => {
-    const newChild = {
-      id: Date.now() + Math.random(),
-      name: '',
-      gender: 'M',
-      birthYear: '',
-    };
-    setChildren([...children, newChild]);
-    
-    // Scroll to bottom after adding
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 100);
-  };
+  const removeChildRow = useCallback((id) => {
+    setChildren(prev => prev.filter(child => child.id !== id));
+  }, []);
 
-  const removeChild = (id) => {
-    if (children.length > 1) {
-      setChildren(children.filter(child => child.id !== id));
-      // Clear any errors for this child
-      const newErrors = { ...errors };
-      delete newErrors[id];
-      setErrors(newErrors);
-    }
-  };
-
-  const updateChild = (id, field, value) => {
-    setChildren(children.map(child => 
+  const updateChild = useCallback((id, field, value) => {
+    setChildren(prev => prev.map(child => 
       child.id === id ? { ...child, [field]: value } : child
     ));
-    
-    // Clear error for this field
-    if (errors[id]?.[field]) {
-      const newErrors = { ...errors };
-      if (newErrors[id]) {
-        delete newErrors[id][field];
-        if (Object.keys(newErrors[id]).length === 0) {
-          delete newErrors[id];
-        }
-      }
-      setErrors(newErrors);
-    }
-  };
+  }, []);
 
   const validateChildren = () => {
-    const newErrors = {};
-    let isValid = true;
-
-    children.forEach((child, index) => {
-      const childErrors = {};
-
+    for (const child of children) {
       if (!child.name.trim()) {
-        childErrors.name = 'الاسم مطلوب';
-        isValid = false;
+        Alert.alert('خطأ', 'يرجى إدخال أسماء جميع الأطفال');
+        return false;
       }
-
-      if (!['M', 'F'].includes(child.gender)) {
-        childErrors.gender = 'الجنس مطلوب';
-        isValid = false;
-      }
-
       if (child.birthYear && (isNaN(child.birthYear) || child.birthYear < 1900 || child.birthYear > new Date().getFullYear())) {
-        childErrors.birthYear = 'سنة غير صالحة';
-        isValid = false;
+        Alert.alert('خطأ', 'سنة الميلاد غير صحيحة');
+        return false;
       }
-
-      if (Object.keys(childErrors).length > 0) {
-        newErrors[child.id] = childErrors;
-      }
-    });
-
-    setErrors(newErrors);
-    return isValid;
+    }
+    
+    // Check for duplicate names
+    const names = children.map(c => c.name.trim().toLowerCase());
+    const uniqueNames = new Set(names);
+    if (names.length !== uniqueNames.size) {
+      Alert.alert('تنبيه', 'يوجد أسماء مكررة. هل تريد المتابعة؟', [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'متابعة', onPress: () => submitChildren(true) }
+      ]);
+      return false;
+    }
+    
+    return true;
   };
 
-  const handleSubmit = async () => {
-    if (!validateChildren()) {
-      Alert.alert('خطأ', 'يرجى تصحيح الأخطاء قبل المتابعة');
-      return;
-    }
+  const submitChildren = async (skipValidation = false) => {
+    if (!skipValidation && !validateChildren()) return;
 
     setLoading(true);
-
     try {
       // Prepare children data for RPC
       const childrenData = children.map(child => ({
         name: child.name.trim(),
         gender: child.gender,
-        birth_year: child.birthYear ? parseInt(child.birthYear) : null,
-        notes: child.notes || '',
+        ...(child.birthYear && { birth_year: parseInt(child.birthYear) }),
       }));
 
       // Call bulk create RPC
@@ -137,15 +87,20 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName, onSucce
 
       if (error) throw error;
 
-      // Success
+      // Show success message
       Alert.alert(
         'نجح',
-        `تمت إضافة ${data.length} أطفال بنجاح`,
-        [{ text: 'حسناً', onPress: () => {
-          onSuccess?.(data);
-          handleClose();
-        }}]
+        `تمت إضافة ${data.length} طفل بنجاح`,
+        [{ text: 'حسناً', onPress: onClose }]
       );
+
+      // Refresh the parent profile to update the tree
+      if (refreshProfile) {
+        await refreshProfile(parentId);
+      }
+
+      // Reset form
+      setChildren([{ id: Date.now(), name: '', gender: 'M', birthYear: '' }]);
     } catch (error) {
       console.error('Error adding children:', error);
       Alert.alert('خطأ', error.message || 'حدث خطأ أثناء إضافة الأطفال');
@@ -154,161 +109,113 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName, onSucce
     }
   };
 
-  const handleClose = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => {
-      onClose();
-      // Reset state
-      setChildren([{ id: Date.now(), name: '', gender: 'M', birthYear: '' }]);
-      setErrors({});
-    });
-  };
-
   return (
     <Modal
       visible={visible}
-      transparent
       animationType="slide"
-      onRequestClose={handleClose}
+      presentationStyle="formSheet"
+      onRequestClose={onClose}
     >
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
-          <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={handleClose} />
-        </Animated.View>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>إضافة أطفال</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-        <View style={styles.modalContainer}>
-          <GlassSurface style={styles.modal} contentStyle={styles.modalContent}>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-              <Text style={styles.title}>إضافة أطفال إلى {parentName}</Text>
-            </View>
+        {/* Parent info */}
+        <GlassSurface style={styles.parentInfo}>
+          <Text style={styles.parentLabel}>إضافة أطفال لـ</Text>
+          <Text style={styles.parentName}>{parentName}</Text>
+        </GlassSurface>
 
-            {/* Children List */}
-            <ScrollView 
-              ref={scrollViewRef}
-              style={styles.scrollView}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {children.map((child, index) => (
-                <View key={child.id} style={styles.childRow}>
-                  <View style={styles.childHeader}>
-                    <Text style={styles.childNumber}>طفل {index + 1}</Text>
-                    {children.length > 1 && (
-                      <TouchableOpacity 
-                        onPress={() => removeChild(child.id)}
-                        style={styles.removeButton}
-                      >
-                        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-
-                  <View style={styles.inputRow}>
-                    <View style={[styles.inputContainer, { flex: 2 }]}>
-                      <Text style={styles.label}>الاسم *</Text>
-                      <TextInput
-                        style={[
-                          styles.input,
-                          errors[child.id]?.name && styles.inputError
-                        ]}
-                        value={child.name}
-                        onChangeText={(text) => updateChild(child.id, 'name', text)}
-                        placeholder="اسم الطفل"
-                        placeholderTextColor="#999"
-                      />
-                      {errors[child.id]?.name && (
-                        <Text style={styles.errorText}>{errors[child.id].name}</Text>
-                      )}
-                    </View>
-
-                    <View style={styles.inputContainer}>
-                      <Text style={styles.label}>الجنس *</Text>
-                      <View style={styles.genderButtons}>
-                        <TouchableOpacity
-                          style={[
-                            styles.genderButton,
-                            child.gender === 'M' && styles.genderButtonActive
-                          ]}
-                          onPress={() => updateChild(child.id, 'gender', 'M')}
-                        >
-                          <Text style={[
-                            styles.genderButtonText,
-                            child.gender === 'M' && styles.genderButtonTextActive
-                          ]}>ذكر</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.genderButton,
-                            child.gender === 'F' && styles.genderButtonActive
-                          ]}
-                          onPress={() => updateChild(child.id, 'gender', 'F')}
-                        >
-                          <Text style={[
-                            styles.genderButtonText,
-                            child.gender === 'F' && styles.genderButtonTextActive
-                          ]}>أنثى</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.label}>سنة الميلاد (اختياري)</Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        errors[child.id]?.birthYear && styles.inputError
-                      ]}
-                      value={child.birthYear}
-                      onChangeText={(text) => updateChild(child.id, 'birthYear', text)}
-                      placeholder="مثال: 1990"
-                      placeholderTextColor="#999"
-                      keyboardType="numeric"
-                      maxLength={4}
-                    />
-                    {errors[child.id]?.birthYear && (
-                      <Text style={styles.errorText}>{errors[child.id].birthYear}</Text>
-                    )}
-                  </View>
-                </View>
-              ))}
-
-              <TouchableOpacity style={styles.addButton} onPress={addChild}>
-                <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-                <Text style={styles.addButtonText}>إضافة طفل آخر</Text>
-              </TouchableOpacity>
-            </ScrollView>
-
-            {/* Footer */}
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <>
-                    <Text style={styles.submitButtonText}>
-                      إضافة {children.length} {children.length === 1 ? 'طفل' : 'أطفال'}
-                    </Text>
-                    <Ionicons name="checkmark-circle" size={24} color="white" />
-                  </>
+        {/* Children list */}
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {children.map((child, index) => (
+            <GlassSurface key={child.id} style={styles.childCard}>
+              <View style={styles.childHeader}>
+                <Text style={styles.childNumber}>الطفل {index + 1}</Text>
+                {children.length > 1 && (
+                  <TouchableOpacity 
+                    onPress={() => removeChildRow(child.id)}
+                    style={styles.removeButton}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
-            </View>
-          </GlassSurface>
+              </View>
+
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.nameInput}
+                  placeholder="الاسم (مطلوب)"
+                  value={child.name}
+                  onChangeText={(text) => updateChild(child.id, 'name', text)}
+                  textAlign="right"
+                />
+              </View>
+
+              <View style={styles.inputRow}>
+                <View style={styles.genderContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      child.gender === 'M' && styles.genderButtonActive
+                    ]}
+                    onPress={() => updateChild(child.id, 'gender', 'M')}
+                  >
+                    <Text style={[
+                      styles.genderText,
+                      child.gender === 'M' && styles.genderTextActive
+                    ]}>ذكر</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.genderButton,
+                      child.gender === 'F' && styles.genderButtonActive
+                    ]}
+                    onPress={() => updateChild(child.id, 'gender', 'F')}
+                  >
+                    <Text style={[
+                      styles.genderText,
+                      child.gender === 'F' && styles.genderTextActive
+                    ]}>أنثى</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TextInput
+                  style={styles.yearInput}
+                  placeholder="سنة الميلاد"
+                  value={child.birthYear}
+                  onChangeText={(text) => updateChild(child.id, 'birthYear', text)}
+                  keyboardType="numeric"
+                  textAlign="center"
+                />
+              </View>
+            </GlassSurface>
+          ))}
+
+          {/* Add another child button */}
+          <TouchableOpacity onPress={addChildRow} style={styles.addButton}>
+            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+            <Text style={styles.addButtonText}>إضافة طفل آخر</Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Footer actions */}
+        <View style={styles.footer}>
+          <GlassButton
+            title={`إضافة ${children.length} ${children.length === 1 ? 'طفل' : 'أطفال'}`}
+            onPress={() => submitChildren(false)}
+            loading={loading}
+            style={styles.submitButton}
+          />
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -318,56 +225,52 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName, onSucce
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContainer: {
-    maxHeight: '90%',
-    marginHorizontal: 10,
-    marginBottom: 10,
-  },
-  modal: {
-    borderRadius: 20,
-  },
-  modalContent: {
-    paddingTop: 0,
+    backgroundColor: '#F2F2F7',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    borderBottomColor: '#E5E5EA',
   },
   closeButton: {
-    position: 'absolute',
-    left: 20,
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  parentInfo: {
+    margin: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  parentLabel: {
+    fontSize: 14,
+    color: '#666666',
+    marginBottom: 4,
+  },
+  parentName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000',
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      android: 'Arial',
-    }),
+    color: '#000000',
   },
   scrollView: {
-    maxHeight: 400,
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    flex: 1,
+    paddingHorizontal: 16,
   },
-  childRow: {
-    marginBottom: 20,
+  childCard: {
+    marginBottom: 12,
     padding: 16,
-    backgroundColor: 'rgba(0,0,0,0.02)',
-    borderRadius: 12,
   },
   childHeader: {
     flexDirection: 'row',
@@ -376,77 +279,62 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   childNumber: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: '#000000',
   },
   removeButton: {
     padding: 4,
   },
   inputRow: {
-    flexDirection: 'row',
-    gap: 12,
     marginBottom: 12,
   },
-  inputContainer: {
-    flex: 1,
-  },
-  label: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 6,
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  nameInput: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
-    color: '#000',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
+    color: '#000000',
   },
-  inputError: {
-    borderColor: '#FF3B30',
-  },
-  errorText: {
-    fontSize: 11,
-    color: '#FF3B30',
-    marginTop: 4,
-  },
-  genderButtons: {
+  genderContainer: {
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 12,
   },
   genderButton: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
   },
   genderButtonActive: {
     backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
   },
-  genderButtonText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+  genderText: {
+    fontSize: 16,
+    color: '#666666',
   },
-  genderButtonTextActive: {
-    color: 'white',
+  genderTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  yearInput: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#000000',
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     paddingVertical: 16,
     marginBottom: 20,
+    gap: 8,
   },
   addButtonText: {
     fontSize: 16,
@@ -454,27 +342,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    padding: 16,
+    paddingBottom: 34,
+    backgroundColor: '#FFFFFF',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+    borderTopColor: '#E5E5EA',
   },
   submitButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    width: '100%',
   },
 });
 
