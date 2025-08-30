@@ -202,8 +202,8 @@ const ProfileSheet = () => {
   useEffect(() => {
     if (selectedPersonId) {
       bottomSheetRef.current?.expand();
-      // Temporarily disabled due to backend date type issue
-      // loadMarriages();
+      // Try to load marriages - will handle errors gracefully
+      loadMarriages();
     } else {
       bottomSheetRef.current?.close();
       setMarriages([]);
