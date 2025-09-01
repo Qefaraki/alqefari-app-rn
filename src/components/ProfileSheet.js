@@ -316,9 +316,51 @@ const ProfileSheet = ({ editMode = false }) => {
     
     setSaving(true);
     try {
+      // Validate email if provided
+      if (editedData.email && editedData.email.trim()) {
+        const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+        if (!emailRegex.test(editedData.email.trim())) {
+          Alert.alert('خطأ', 'البريد الإلكتروني غير صالح');
+          setSaving(false);
+          return;
+        }
+      }
+      
+      // Clean data before saving - convert empty strings to null for nullable fields
+      const cleanedData = {
+        ...editedData,
+        // Convert empty strings to null for nullable fields
+        email: editedData.email?.trim() || null,
+        phone: editedData.phone?.trim() || null,
+        kunya: editedData.kunya?.trim() || null,
+        nickname: editedData.nickname?.trim() || null,
+        bio: editedData.bio?.trim() || null,
+        birth_place: editedData.birth_place?.trim() || null,
+        current_residence: editedData.current_residence?.trim() || null,
+        occupation: editedData.occupation?.trim() || null,
+        education: editedData.education?.trim() || null,
+        photo_url: editedData.photo_url?.trim() || null,
+        // Keep non-nullable fields as is
+        name: editedData.name?.trim() || person.name, // Name is required
+        gender: editedData.gender,
+        status: editedData.status,
+        sibling_order: editedData.sibling_order,
+        // Keep complex fields as is
+        social_media_links: editedData.social_media_links,
+        achievements: editedData.achievements,
+        timeline: editedData.timeline,
+        dob_data: editedData.dob_data,
+        dod_data: editedData.dod_data,
+        dob_is_public: editedData.dob_is_public,
+        profile_visibility: editedData.profile_visibility,
+        father_id: editedData.father_id,
+        mother_id: editedData.mother_id,
+        role: editedData.role,
+      };
+      
       const { data, error } = await supabase
         .from('profiles')
-        .update(editedData)
+        .update(cleanedData)
         .eq('id', person.id)
         .select()
         .single();
