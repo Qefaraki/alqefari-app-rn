@@ -33,6 +33,11 @@
   - Sibling order in Information section
   - Proper data flow through editedData state
 
+- ✅ Fixed native animation conflicts in NameEditor
+  - Separated animated values for different purposes
+  - Used state-based styling for border color
+  - All animations now properly use native driver
+
 ### 🚧 In Progress
 
 #### Admin Edit Mode - Remaining Phases
