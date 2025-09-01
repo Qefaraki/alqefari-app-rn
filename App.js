@@ -8,6 +8,7 @@ import TreeView from './src/components/TreeView';
 import ProfileSheet from './src/components/ProfileSheet';
 import { AdminModeProvider } from './src/contexts/AdminModeContext';
 import AdminModeToggle from './src/components/admin/AdminModeToggle';
+import CompactAdminBar from './src/components/admin/CompactAdminBar';
 import AdminDashboard from './src/screens/AdminDashboard';
 import { supabase } from './src/services/supabase';
 import { checkAndCreateAdminProfile } from './src/utils/checkAdminProfile';
@@ -78,58 +79,51 @@ export default function App() {
           <View className="flex-1">
             <StatusBar style="dark" />
             
-            {/* Header */}
-            <View className="bg-white pt-12 pb-4 px-4 shadow-sm">
-              <Text className="text-2xl font-bold text-center text-gray-900">
-                شجرة عائلة القفاري
-              </Text>
-              
-              {/* Test Auth Buttons */}
-              <View className="flex-row justify-center mt-2">
-                {!user ? (
-                  <TouchableOpacity
-                    onPress={handleTestLogin}
-                    disabled={loading}
-                    className="bg-blue-500 px-4 py-2 rounded-md"
-                  >
-                    <Text className="text-white text-sm font-medium">
-                      {loading ? 'Loading...' : 'Test Admin Login'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View className="flex-row items-center">
-                    <Text className="text-sm text-gray-600 mr-2">
-                      {user.email}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={handleCheckAdminProfile}
-                      className="bg-green-500 px-3 py-1 rounded-md mr-2"
-                    >
-                      <Text className="text-white text-sm">Check Admin</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={handleSignOut}
-                      className="bg-red-500 px-3 py-1 rounded-md"
-                    >
-                      <Text className="text-white text-sm">Sign Out</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            </View>
-            
-            {/* Admin Mode Toggle */}
-            <AdminModeToggle />
-            
-            {/* Admin Dashboard Button */}
+            {/* Compact Admin Bar - Only when logged in */}
             {user && (
-              <View className="px-4 pb-2">
+              <View className="pt-12">
+                <CompactAdminBar
+                  user={user}
+                  onControlPanelPress={() => setShowAdminDashboard(true)}
+                  onUserPress={() => {
+                    Alert.alert(
+                      'Account',
+                      user.email,
+                      [
+                        { text: 'Check Admin Profile', onPress: handleCheckAdminProfile },
+                        { text: 'Sign Out', onPress: handleSignOut, style: 'destructive' },
+                        { text: 'Cancel', style: 'cancel' }
+                      ]
+                    );
+                  }}
+                />
+              </View>
+            )}
+            
+            {/* Login Button - Floating when not logged in */}
+            {!user && (
+              <View style={{ position: 'absolute', top: 60, right: 16, zIndex: 10 }}>
                 <TouchableOpacity
-                  onPress={() => setShowAdminDashboard(true)}
-                  className="bg-blue-500 px-4 py-3 rounded-lg flex-row items-center justify-center"
+                  onPress={handleTestLogin}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: '#007AFF',
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    borderRadius: 20,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                    elevation: 3,
+                  }}
                 >
-                  <Ionicons name="shield-checkmark" size={20} color="white" className="mr-2" />
-                  <Text className="text-white font-semibold ml-2">لوحة التحكم</Text>
+                  <Ionicons name="key" size={16} color="white" style={{ marginRight: 6 }} />
+                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                    {loading ? 'Loading...' : 'Admin'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
