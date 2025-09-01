@@ -38,6 +38,8 @@ export const useTreeStore = create((set, get) => ({
   
   // Update a single node without reloading the entire tree
   updateNode: (nodeId, updatedData) => set((state) => {
+    console.log('🔄 Updating node:', nodeId, 'with data:', updatedData.name);
+    
     // Create new array with the updated node
     const newTreeData = state.treeData.map(node => 
       node.id === nodeId ? { ...node, ...updatedData } : node
