@@ -193,11 +193,11 @@ const TreeView = ({ setProfileEditMode }) => {
   const maxZoom = useTreeStore(s => s.maxZoom);
   const selectedPersonId = useTreeStore(s => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore(s => s.setSelectedPersonId);
+  const treeData = useTreeStore(s => s.treeData);
   const setTreeData = useTreeStore(s => s.setTreeData);
   
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
-  const [treeData, setLocalTreeData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Admin mode state
@@ -259,7 +259,6 @@ const TreeView = ({ setProfileEditMode }) => {
         if (rootError || !rootData || rootData.length === 0) {
           console.error('Error loading root node:', rootError);
           // Fall back to local data
-          setLocalTreeData(familyData);
           setTreeData(familyData);
           setIsLoading(false);
           return;
@@ -272,11 +271,9 @@ const TreeView = ({ setProfileEditMode }) => {
         if (error) {
           console.error('Error loading tree data:', error);
           // Fall back to local data
-          setLocalTreeData(familyData);
           setTreeData(familyData);
         } else if (data) {
           console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
-          setLocalTreeData(data);
           setTreeData(data); // Store in zustand for ProfileSheet
         }
       } catch (err) {
@@ -321,11 +318,6 @@ const TreeView = ({ setProfileEditMode }) => {
               })) || []
             };
             
-            // Update in local state
-            setLocalTreeData(prev => prev.map(node => 
-              node.id === updatedNode.id ? updatedNode : node
-            ));
-            
             // Update in Zustand store
             useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
             
@@ -340,18 +332,12 @@ const TreeView = ({ setProfileEditMode }) => {
               })) || []
             };
             
-            // Add to local state
-            setLocalTreeData(prev => [...prev, newNode]);
-            
             // Add to Zustand store
             useTreeStore.getState().addNode(newNode);
             
           } else if (payload.eventType === 'DELETE' && payload.old) {
             // Remove node
             const nodeId = payload.old.id;
-            
-            // Remove from local state
-            setLocalTreeData(prev => prev.filter(node => node.id !== nodeId));
             
             // Remove from Zustand store
             useTreeStore.getState().removeNode(nodeId);
