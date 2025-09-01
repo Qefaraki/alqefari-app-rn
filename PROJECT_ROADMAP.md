@@ -38,6 +38,11 @@
   - Used state-based styling for border color
   - All animations now properly use native driver
 
+- ✅ Fixed database constraint violations on save
+  - Convert empty strings to null for nullable fields
+  - Added client-side email validation
+  - Properly handle all optional fields in database
+
 ### 🚧 In Progress
 
 #### Admin Edit Mode - Remaining Phases
