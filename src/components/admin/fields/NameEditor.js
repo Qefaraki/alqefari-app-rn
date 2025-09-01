@@ -15,7 +15,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
   const [isValid, setIsValid] = useState(true);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
-  const borderColorAnim = useRef(new Animated.Value(0)).current;
+  const clearButtonTranslateX = useRef(new Animated.Value(20)).current;
   const inputRef = useRef(null);
 
   // Validate name (minimum 2 characters)
@@ -42,13 +42,6 @@ const NameEditor = ({ value, onChange, placeholder }) => {
       stiffness: 400,
       useNativeDriver: true,
     }).start();
-    
-    // Animate border color
-    Animated.timing(borderColorAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: false,
-    }).start();
   };
 
   // Handle blur
@@ -61,13 +54,6 @@ const NameEditor = ({ value, onChange, placeholder }) => {
       damping: 15,
       stiffness: 400,
       useNativeDriver: true,
-    }).start();
-    
-    // Animate border color
-    Animated.timing(borderColorAnim, {
-      toValue: 0,
-      duration: 200,
-      useNativeDriver: false,
     }).start();
     
     // Trim whitespace on blur
@@ -87,28 +73,35 @@ const NameEditor = ({ value, onChange, placeholder }) => {
   // Animate clear button visibility
   useEffect(() => {
     const shouldShow = isFocused && value.length > 0;
+    
+    // Animate opacity
     Animated.timing(clearButtonOpacity, {
       toValue: shouldShow ? 1 : 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-  }, [isFocused, value, clearButtonOpacity]);
+    
+    // Animate translateX
+    Animated.timing(clearButtonTranslateX, {
+      toValue: shouldShow ? 0 : 20,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [isFocused, value, clearButtonOpacity, clearButtonTranslateX]);
 
-  // Interpolate border color
-  const borderColor = borderColorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [
-      !isValid ? 'rgba(239, 68, 68, 0.3)' : 'transparent',
-      !isValid ? '#EF4444' : '#007AFF'
-    ],
-  });
+  // Determine border color based on state
+  const getBorderColor = () => {
+    if (!isValid) return '#EF4444';
+    if (isFocused) return '#007AFF';
+    return 'transparent';
+  };
 
   return (
-    <Animated.View
+    <View
       style={[
         styles.container,
         {
-          borderColor,
+          borderColor: getBorderColor(),
           borderWidth: 2,
         },
       ]}
@@ -147,10 +140,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
               opacity: clearButtonOpacity,
               transform: [
                 {
-                  translateX: clearButtonOpacity.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [20, 0],
-                  }),
+                  translateX: clearButtonTranslateX,
                 },
               ],
             },
@@ -166,7 +156,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
-    </Animated.View>
+    </View>
   );
 };
 
