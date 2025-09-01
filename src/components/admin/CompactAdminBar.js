@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Switch, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Switch, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAdminMode } from '../../contexts/AdminModeContext';
 import { BlurView } from 'expo-blur';
@@ -12,19 +12,24 @@ const CompactAdminBar = ({ user, onControlPanelPress, onUserPress }) => {
   
   if (isCollapsed) {
     return (
-      <TouchableOpacity
-        style={styles.collapsedButton}
-        onPress={() => setIsCollapsed(false)}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="chevron-down" size={20} color="#007AFF" />
-      </TouchableOpacity>
+      <View style={styles.collapsedContainer}>
+        <TouchableOpacity
+          style={styles.collapsedButton}
+          onPress={() => setIsCollapsed(false)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chevron-down" size={20} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
     );
   }
   
+  const Container = Platform.OS === 'ios' ? BlurView : View;
+  const containerProps = Platform.OS === 'ios' ? { intensity: 80, tint: "light" } : {};
+  
   return (
-    <BlurView intensity={80} tint="light" style={styles.container}>
-      <View style={styles.content}>
+    <Container style={styles.container} {...containerProps}>
+      <View style={[styles.content, Platform.OS !== 'ios' && styles.androidContent]}>
         {/* User Section */}
         <TouchableOpacity 
           style={styles.userSection} 
@@ -69,7 +74,7 @@ const CompactAdminBar = ({ user, onControlPanelPress, onUserPress }) => {
           <Ionicons name="chevron-up" size={16} color="#999" />
         </TouchableOpacity>
       </View>
-    </BlurView>
+    </Container>
   );
 };
 
@@ -82,6 +87,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 3,
+    ...Platform.select({
+      android: {
+        backgroundColor: '#FFFFFF',
+      },
+    }),
   },
   content: {
     flexDirection: 'row',
@@ -127,20 +137,25 @@ const styles = StyleSheet.create({
     padding: 6,
     marginLeft: 8,
   },
-  collapsedButton: {
-    position: 'absolute',
-    top: 0,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 20,
+  collapsedContainer: {
+    alignItems: 'center',
     paddingVertical: 4,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+  },
+  collapsedButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 24,
+    paddingVertical: 6,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  androidContent: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
   },
 });
 

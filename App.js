@@ -80,8 +80,8 @@ export default function App() {
             <StatusBar style="dark" />
             
             {/* Compact Admin Bar - Only when logged in */}
-            {user && (
-              <View className="pt-12">
+            <View className="pt-12">
+              {user && (
                 <CompactAdminBar
                   user={user}
                   onControlPanelPress={() => setShowAdminDashboard(true)}
@@ -97,8 +97,8 @@ export default function App() {
                     );
                   }}
                 />
-              </View>
-            )}
+              )}
+            </View>
             
             {/* Login Button - Floating when not logged in */}
             {!user && (
