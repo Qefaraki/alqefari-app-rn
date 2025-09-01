@@ -186,7 +186,7 @@ const ImageNode = ({ url, x, y, width, height, radius }) => {
 };
 
 
-const TreeView = () => {
+const TreeView = ({ setProfileEditMode }) => {
   const stage = useTreeStore(s => s.stage);
   const setStage = useTreeStore(s => s.setStage);
   const minZoom = useTreeStore(s => s.minZoom);
@@ -209,7 +209,6 @@ const TreeView = () => {
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [editingProfile, setEditingProfile] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [profileEditMode, setProfileEditMode] = useState(false);
   
   // Force RTL for Arabic text
   useEffect(() => {
@@ -295,10 +294,6 @@ const TreeView = () => {
     loadTreeData();
   }, [setTreeData]);
   
-  // Reset edit mode when selection changes
-  useEffect(() => {
-    setProfileEditMode(false);
-  }, [selectedPersonId]);
   
   // Real-time subscription for profile updates
   useEffect(() => {

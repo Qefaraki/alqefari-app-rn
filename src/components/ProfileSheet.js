@@ -40,6 +40,9 @@ import GlassButton from './glass/GlassButton';
 import SocialMediaEditor from './admin/SocialMediaEditor';
 import AchievementsEditor from './admin/AchievementsEditor';
 import TimelineEditor from './admin/TimelineEditor';
+import NameEditor from './admin/fields/NameEditor';
+import BioEditor from './admin/fields/BioEditor';
+import SiblingOrderStepper from './admin/fields/SiblingOrderStepper';
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -89,6 +92,7 @@ const ProfileSheet = ({ editMode = false }) => {
   // Admin mode
   const { isAdminMode } = useAdminMode();
   const isEditing = editMode;
+  console.log('ProfileSheet: editMode prop received:', editMode);
   console.log('ProfileSheet: isAdminMode from context:', isAdminMode);
   console.log('ProfileSheet: isEditing value:', isEditing);
   
@@ -410,7 +414,15 @@ const ProfileSheet = ({ editMode = false }) => {
             </View>
 
             <View style={styles.descSection}>
-              <Text style={styles.nameText}>{person.name}</Text>
+              {isEditing ? (
+                <NameEditor
+                  value={editedData?.name || ''}
+                  onChange={(text) => setEditedData({...editedData, name: text})}
+                  placeholder={person.name}
+                />
+              ) : (
+                <Text style={styles.nameText}>{person.name}</Text>
+              )}
               <Pressable onPress={handleCopyName} style={{ width: '100%' }} accessibilityLabel="نسخ الاسم الكامل">
                 <Text style={styles.fullName}>
                   {fullName}
@@ -419,18 +431,26 @@ const ProfileSheet = ({ editMode = false }) => {
               </Pressable>
               {/* Header highlight chips */}
               {/* Chips removed; occupation and city moved into metrics grid */}
-              {person.biography ? (
-                <>
-                  <Text style={styles.biographyText} numberOfLines={bioExpanded ? undefined : 3}>
-                    {person.biography}
-                  </Text>
-                  {person.biography.length > 120 && (
-                    <Pressable onPress={() => setBioExpanded(v => !v)} accessibilityLabel="عرض المزيد من السيرة">
-                      <Text style={styles.readMore}>{bioExpanded ? 'عرض أقل' : 'عرض المزيد'}</Text>
-                    </Pressable>
-                  )}
-                </>
-              ) : null}
+              {isEditing ? (
+                <BioEditor
+                  value={editedData?.bio || ''}
+                  onChange={(text) => setEditedData({...editedData, bio: text})}
+                  maxLength={500}
+                />
+              ) : (
+                person.biography ? (
+                  <>
+                    <Text style={styles.biographyText} numberOfLines={bioExpanded ? undefined : 3}>
+                      {person.biography}
+                    </Text>
+                    {person.biography.length > 120 && (
+                      <Pressable onPress={() => setBioExpanded(v => !v)} accessibilityLabel="عرض المزيد من السيرة">
+                        <Text style={styles.readMore}>{bioExpanded ? 'عرض أقل' : 'عرض المزيد'}</Text>
+                      </Pressable>
+                    )}
+                  </>
+                ) : null
+              )}
 
               {/* Metrics row inside hero */}
               <View style={styles.metricsGrid}>
@@ -526,6 +546,16 @@ const ProfileSheet = ({ editMode = false }) => {
                     onChangeText={(text) => setEditedData({...editedData, nickname: text})}
                     placeholder="لقب اختياري"
                     textAlign="right"
+                  />
+                </View>
+                
+                {/* Sibling Order - HIGH PRIORITY */}
+                <View>
+                  <Text style={styles.fieldLabel}>ترتيب بين الإخوة</Text>
+                  <SiblingOrderStepper
+                    value={editedData?.sibling_order || 0}
+                    onChange={(value) => setEditedData({...editedData, sibling_order: value})}
+                    siblingCount={siblingsCount}
                   />
                 </View>
                 
