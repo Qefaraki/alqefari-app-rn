@@ -49,6 +49,12 @@
   - Real-time sync updates individual nodes, not entire tree
   - Scales to trees of any depth without performance impact
 
+- ✅ Fixed TreeView state management
+  - Removed duplicate local state in TreeView
+  - Single source of truth using Zustand store
+  - Tree automatically re-renders when any component updates data
+  - Fixes issue where edits weren't visible until restart
+
 ### 🚧 In Progress
 
 #### Admin Edit Mode - Remaining Phases
