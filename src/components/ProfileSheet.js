@@ -372,8 +372,13 @@ const ProfileSheet = ({ editMode = false }) => {
         useTreeStore.getState().updateNode(person.id, data);
       }
       
-      Alert.alert('نجح', 'تم حفظ التغييرات');
-      setSelectedPersonId(null); // Close sheet
+      // Close sheet first
+      setSelectedPersonId(null);
+      
+      // Show success message after closing
+      setTimeout(() => {
+        Alert.alert('نجح', 'تم حفظ التغييرات');
+      }, 100);
     } catch (error) {
       console.error('Error saving profile:', error);
       Alert.alert('خطأ', 'فشل حفظ التغييرات');
