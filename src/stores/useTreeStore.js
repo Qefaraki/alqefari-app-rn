@@ -35,6 +35,50 @@ export const useTreeStore = create((set, get) => ({
     treeData: data,
     nodesMap: new Map(data.map(node => [node.id, node]))
   }),
+  
+  // Update a single node without reloading the entire tree
+  updateNode: (nodeId, updatedData) => set((state) => {
+    // Create new array with the updated node
+    const newTreeData = state.treeData.map(node => 
+      node.id === nodeId ? { ...node, ...updatedData } : node
+    );
+    
+    // Update the nodesMap as well
+    const newNodesMap = new Map(state.nodesMap);
+    const existingNode = newNodesMap.get(nodeId);
+    if (existingNode) {
+      newNodesMap.set(nodeId, { ...existingNode, ...updatedData });
+    }
+    
+    return {
+      treeData: newTreeData,
+      nodesMap: newNodesMap
+    };
+  }),
+  
+  // Add a new node to the tree
+  addNode: (newNode) => set((state) => {
+    const newTreeData = [...state.treeData, newNode];
+    const newNodesMap = new Map(state.nodesMap);
+    newNodesMap.set(newNode.id, newNode);
+    
+    return {
+      treeData: newTreeData,
+      nodesMap: newNodesMap
+    };
+  }),
+  
+  // Remove a node from the tree
+  removeNode: (nodeId) => set((state) => {
+    const newTreeData = state.treeData.filter(node => node.id !== nodeId);
+    const newNodesMap = new Map(state.nodesMap);
+    newNodesMap.delete(nodeId);
+    
+    return {
+      treeData: newTreeData,
+      nodesMap: newNodesMap
+    };
+  }),
 
   // Zoom function with pointer anchoring
   zoom: (direction, pointerPosition, viewport) => {

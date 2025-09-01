@@ -308,52 +308,53 @@ const TreeView = ({ setProfileEditMode }) => {
         },
         async (payload) => {
           console.log('Profile change:', payload);
-          // Reload tree data when profiles change
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
-            // Reload the affected branch
-            const affectedId = payload.new?.id || payload.old?.id;
-            if (affectedId) {
-              // TODO: Implement partial tree reload
-              // For now, reload the entire tree
-              const loadTreeData = async () => {
-                setIsLoading(true);
-                try {
-                  const { data: rootData, error: rootError } = await profilesService.getBranchData(null, 1, 1);
-                  if (rootError || !rootData || rootData.length === 0) {
-                    console.error('Error loading root node:', rootError);
-                    setLocalTreeData(familyData);
-                    setTreeData(familyData);
-                    setIsLoading(false);
-                    return;
-                  }
-                  const rootNode = rootData[0];
-                  const { data: fullTreeData, error } = await profilesService.getBranchData(rootNode.hid, 3, 200);
-                  if (error) {
-                    console.error('Error loading tree data:', error);
-                    setLocalTreeData(familyData);
-                    setTreeData(familyData);
-                  } else {
-                    const processedData = (fullTreeData || []).map(person => ({
-                      ...person,
-                      name: person.name || 'بدون اسم',
-                      marriages: person.marriages?.map(marriage => ({
-                        ...marriage,
-                        marriage_date: marriage.marriage_date ? formatDateDisplay(marriage.marriage_date) : null
-                      })) || []
-                    }));
-                    setLocalTreeData(processedData);
-                    setTreeData(processedData);
-                  }
-                } catch (error) {
-                  console.error('Error loading tree data:', error);
-                  setLocalTreeData(familyData);
-                  setTreeData(familyData);
-                } finally {
-                  setIsLoading(false);
-                }
-              };
-              loadTreeData();
-            }
+          
+          // Handle different event types
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            // Update just the affected node
+            const updatedNode = {
+              ...payload.new,
+              name: payload.new.name || 'بدون اسم',
+              marriages: payload.new.marriages?.map(marriage => ({
+                ...marriage,
+                marriage_date: marriage.marriage_date ? formatDateDisplay(marriage.marriage_date) : null
+              })) || []
+            };
+            
+            // Update in local state
+            setLocalTreeData(prev => prev.map(node => 
+              node.id === updatedNode.id ? updatedNode : node
+            ));
+            
+            // Update in Zustand store
+            useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
+            
+          } else if (payload.eventType === 'INSERT' && payload.new) {
+            // Add new node
+            const newNode = {
+              ...payload.new,
+              name: payload.new.name || 'بدون اسم',
+              marriages: payload.new.marriages?.map(marriage => ({
+                ...marriage,
+                marriage_date: marriage.marriage_date ? formatDateDisplay(marriage.marriage_date) : null
+              })) || []
+            };
+            
+            // Add to local state
+            setLocalTreeData(prev => [...prev, newNode]);
+            
+            // Add to Zustand store
+            useTreeStore.getState().addNode(newNode);
+            
+          } else if (payload.eventType === 'DELETE' && payload.old) {
+            // Remove node
+            const nodeId = payload.old.id;
+            
+            // Remove from local state
+            setLocalTreeData(prev => prev.filter(node => node.id !== nodeId));
+            
+            // Remove from Zustand store
+            useTreeStore.getState().removeNode(nodeId);
           }
         }
       )

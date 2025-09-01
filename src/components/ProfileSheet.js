@@ -367,6 +367,11 @@ const ProfileSheet = ({ editMode = false }) => {
         
       if (error) throw error;
       
+      // Update the node in the tree immediately
+      if (data) {
+        useTreeStore.getState().updateNode(person.id, data);
+      }
+      
       Alert.alert('نجح', 'تم حفظ التغييرات');
       setSelectedPersonId(null); // Close sheet
     } catch (error) {
