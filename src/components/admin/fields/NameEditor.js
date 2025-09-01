@@ -108,55 +108,63 @@ const NameEditor = ({ value, onChange, placeholder }) => {
       style={[
         styles.container,
         {
-          transform: [{ scale: scaleAnim }],
           borderColor,
           borderWidth: 2,
         },
       ]}
     >
-      <TextInput
-        ref={inputRef}
-        style={[
-          styles.input,
-          !isValid && styles.invalidInput,
-        ]}
-        value={value}
-        onChangeText={handleChangeText}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        placeholder={placeholder || 'الاسم'}
-        placeholderTextColor="rgba(0, 0, 0, 0.3)"
-        textAlign="right"
-        autoCapitalize="words"
-        autoCorrect={false}
-        maxLength={100}
-        selectTextOnFocus
-      />
-      
       <Animated.View
         style={[
-          styles.clearButtonContainer,
+          styles.innerContainer,
           {
-            opacity: clearButtonOpacity,
-            transform: [
-              {
-                translateX: clearButtonOpacity.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0],
-                }),
-              },
-            ],
+            transform: [{ scale: scaleAnim }],
           },
         ]}
-        pointerEvents={value.length > 0 ? 'auto' : 'none'}
       >
-        <TouchableOpacity
-          onPress={handleClear}
-          style={styles.clearButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        <TextInput
+          ref={inputRef}
+          style={[
+            styles.input,
+            !isValid && styles.invalidInput,
+          ]}
+          value={value}
+          onChangeText={handleChangeText}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          placeholder={placeholder || 'الاسم'}
+          placeholderTextColor="rgba(0, 0, 0, 0.3)"
+          textAlign="right"
+          autoCapitalize="words"
+          autoCorrect={false}
+          maxLength={100}
+          selectTextOnFocus
+        />
+        
+        <Animated.View
+          style={[
+            styles.clearButtonContainer,
+            {
+              opacity: clearButtonOpacity,
+              transform: [
+                {
+                  translateX: clearButtonOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+          pointerEvents={value.length > 0 ? 'auto' : 'none'}
         >
-          <Ionicons name="close-circle" size={20} color="rgba(0, 0, 0, 0.3)" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleClear}
+            style={styles.clearButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close-circle" size={20} color="rgba(0, 0, 0, 0.3)" />
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
     </Animated.View>
   );
@@ -164,11 +172,13 @@ const NameEditor = ({ value, onChange, placeholder }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.02)',
     borderRadius: 16,
     overflow: 'hidden',
+  },
+  innerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   input: {
     flex: 1,
