@@ -6,6 +6,8 @@ import GlassSurface from '../glass/GlassSurface';
 const AdminModeToggle = () => {
   const { isAdmin, isAdminMode, toggleAdminMode, loading } = useAdminMode();
 
+  console.log('AdminModeToggle: Rendering with:', { isAdmin, isAdminMode, loading });
+
   if (loading || !isAdmin) return null;
 
   return (

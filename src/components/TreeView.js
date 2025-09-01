@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
-import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text } from 'react-native';
+import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert } from 'react-native';
 import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
@@ -26,6 +26,8 @@ import { useAdminMode } from '../contexts/AdminModeContext';
 import GlobalFAB from './admin/GlobalFAB';
 import SystemStatusIndicator from './admin/SystemStatusIndicator';
 import MultiAddChildrenModal from './admin/MultiAddChildrenModal';
+import NodeContextMenu from './admin/NodeContextMenu';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import { supabase } from '../services/supabase';
 
 const VIEWPORT_MARGIN = 200;
@@ -202,6 +204,12 @@ const TreeView = () => {
   const { isAdminMode } = useAdminMode();
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
   const [multiAddParent, setMultiAddParent] = useState(null);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuNode, setContextMenuNode] = useState(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [editingProfile, setEditingProfile] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [profileEditMode, setProfileEditMode] = useState(false);
   
   // Force RTL for Arabic text
   useEffect(() => {
@@ -243,10 +251,8 @@ const TreeView = () => {
   const focalX = useSharedValue(0);
   const focalY = useSharedValue(0);
 
-
   // Load tree data using branch loading
-  useEffect(() => {
-    const loadTreeData = async () => {
+  const loadTreeData = async () => {
       setIsLoading(true);
       try {
         // First get the root node
@@ -283,9 +289,16 @@ const TreeView = () => {
         setIsLoading(false);
       }
     };
-    
+  
+  // Load tree data on mount
+  useEffect(() => {
     loadTreeData();
   }, [setTreeData]);
+  
+  // Reset edit mode when selection changes
+  useEffect(() => {
+    setProfileEditMode(false);
+  }, [selectedPersonId]);
   
   // Real-time subscription for profile updates
   useEffect(() => {
@@ -534,6 +547,7 @@ const TreeView = () => {
   const tapGesture = Gesture.Tap()
     .maxDistance(10)
     .maxDuration(250)
+    .runOnJS(true)
     .onEnd((e) => {
       const canvasX = (e.x - translateX.value) / scale.value;
       const canvasY = (e.y - translateY.value) / scale.value;
@@ -552,33 +566,78 @@ const TreeView = () => {
         }
       }
       
-      runOnJS(handleNodeTap)(tappedNodeId);
+      handleNodeTap(tappedNodeId);
     });
-
-  // Handle node tap - show add children modal in admin mode
-  const handleNodeTap = useCallback((nodeId) => {
-    setSelectedPersonId(nodeId);
     
-    if (isAdminMode && nodeId) {
-      const node = nodes.find(n => n.id === nodeId);
-      if (node) {
-        setMultiAddParent({ id: nodeId, name: node.name });
-      }
-    }
-  }, [isAdminMode, nodes, setSelectedPersonId]);
+
+  // Handle node tap - show profile sheet (edit mode if admin)
+  const handleNodeTap = useCallback((nodeId) => {
+    console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
+    setSelectedPersonId(nodeId);
+    setProfileEditMode(isAdminMode);
+    console.log('TreeView: Setting profileEditMode to:', isAdminMode);
+  }, [setSelectedPersonId, isAdminMode]);
   
-  // Handle FAB press - add unlinked person
+  
+  // Handle FAB press - show unlinked person modal
   const handleFABPress = useCallback(() => {
-    if (multiAddParent) {
-      setShowMultiAddModal(true);
-    } else {
-      // TODO: Show add unlinked person modal
-      console.log('Add unlinked person');
+    // TODO: Show add unlinked person modal
+    console.log('Add unlinked person');
+  }, []);
+  
+  // Handle context menu actions
+  const handleContextMenuAction = useCallback((action) => {
+    if (!contextMenuNode) return;
+    
+    switch (action) {
+      case 'addChildren':
+        setMultiAddParent({ id: contextMenuNode.id, name: contextMenuNode.name });
+        setShowMultiAddModal(true);
+        break;
+      case 'edit':
+        setEditingProfile(contextMenuNode);
+        setShowEditModal(true);
+        break;
+      case 'viewDetails':
+        setSelectedPersonId(contextMenuNode.id);
+        break;
+      case 'delete':
+        Alert.alert(
+          'تأكيد الحذف',
+          `هل أنت متأكد من حذف ${contextMenuNode.name}؟`,
+          [
+            { text: 'إلغاء', style: 'cancel' },
+            {
+              text: 'حذف',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  const { error } = await supabase
+                    .from('profiles')
+                    .update({ deleted_at: new Date().toISOString() })
+                    .eq('id', contextMenuNode.id);
+
+                  if (error) throw error;
+                  Alert.alert('نجح', 'تم حذف الملف الشخصي');
+                  await loadTreeData();
+                } catch (error) {
+                  console.error('Error deleting profile:', error);
+                  Alert.alert('خطأ', 'فشل حذف الملف الشخصي');
+                }
+              },
+            },
+          ]
+        );
+        break;
     }
-  }, [multiAddParent]);
+  }, [contextMenuNode, setSelectedPersonId]);
   
   // Compose gestures
-  const composed = Gesture.Simultaneous(panGesture, pinchGesture, tapGesture);
+  const composed = Gesture.Simultaneous(
+    panGesture, 
+    pinchGesture, 
+    tapGesture
+  );
 
   // Render connection lines with proper elbow style
   const renderConnection = useCallback((connection) => {
@@ -883,6 +942,15 @@ const TreeView = () => {
         </>
       )}
       
+      {/* Node Context Menu */}
+      <NodeContextMenu
+        visible={showContextMenu}
+        position={contextMenuPosition}
+        node={contextMenuNode}
+        onClose={() => setShowContextMenu(false)}
+        onAction={handleContextMenuAction}
+      />
+      
       {/* Multi-add children modal */}
       {multiAddParent && (
         <MultiAddChildrenModal
@@ -895,6 +963,20 @@ const TreeView = () => {
           parentName={multiAddParent.name}
         />
       )}
+      
+      {/* Edit Profile Modal */}
+      <EditProfileScreen
+        visible={showEditModal}
+        profile={editingProfile}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingProfile(null);
+        }}
+        onSave={async (updatedProfile) => {
+          // Reload tree data to reflect changes
+          await loadTreeData();
+        }}
+      />
     </View>
   );
 };

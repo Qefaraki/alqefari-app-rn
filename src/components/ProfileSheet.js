@@ -9,11 +9,17 @@ import {
   Dimensions,
   Platform,
   Linking,
+  TextInput,
+  Switch,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
+import { Ionicons } from '@expo/vector-icons';
 import { useTreeStore } from '../stores/useTreeStore';
 import { familyData, FAMILY_NAME, getChildren, getFather } from '../data/family-data';
 import CardSurface from './ios/CardSurface';
@@ -28,6 +34,12 @@ import GlassTag from './GlassTag';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
+import { supabase } from '../services/supabase';
+import { useAdminMode } from '../contexts/AdminModeContext';
+import GlassButton from './glass/GlassButton';
+import SocialMediaEditor from './admin/SocialMediaEditor';
+import AchievementsEditor from './admin/AchievementsEditor';
+import TimelineEditor from './admin/TimelineEditor';
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -59,7 +71,8 @@ const constructCommonName = (person, nodesMap) => {
 
 const generationNames = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
 
-const ProfileSheet = () => {
+const ProfileSheet = ({ editMode = false }) => {
+  console.log('ProfileSheet: Received editMode prop:', editMode);
   const selectedPersonId = useTreeStore(s => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore(s => s.setSelectedPersonId);
   const treeData = useTreeStore(s => s.treeData);
@@ -72,6 +85,16 @@ const ProfileSheet = () => {
   const [familySectionY, setFamilySectionY] = useState(0);
   const [marriages, setMarriages] = useState([]);
   const [loadingMarriages, setLoadingMarriages] = useState(false);
+  
+  // Admin mode
+  const { isAdminMode } = useAdminMode();
+  const isEditing = editMode;
+  console.log('ProfileSheet: isAdminMode from context:', isAdminMode);
+  console.log('ProfileSheet: isEditing value:', isEditing);
+  
+  // Edit mode state
+  const [saving, setSaving] = useState(false);
+  const [editedData, setEditedData] = useState(null);
 
   // Snap points matching original (0.4, 0.9, 1)
   const snapPoints = useMemo(() => ['40%', '90%', '100%'], []);
@@ -238,6 +261,82 @@ const ProfileSheet = () => {
     }
   }, [selectedPersonId]);
   
+  // Initialize edit data when entering edit mode
+  useEffect(() => {
+    if (isEditing && person && !editedData) {
+      setEditedData({
+        // Personal Identity
+        name: person.name || '',
+        kunya: person.kunya || '',
+        nickname: person.nickname || '',
+        gender: person.gender || 'male',
+        status: person.status || 'alive',
+        
+        // Family Structure
+        father_id: person.father_id || null,
+        mother_id: person.mother_id || null,
+        sibling_order: person.sibling_order || 0,
+        
+        // Dates
+        dob_data: person.dob_data || null,
+        dod_data: person.dod_data || null,
+        
+        // Biography & Location
+        bio: person.bio || person.biography || '',
+        birth_place: person.birth_place || '',
+        current_residence: person.current_residence || '',
+        occupation: person.occupation || '',
+        education: person.education || '',
+        
+        // Contact & Media
+        phone: person.phone || '',
+        email: person.email || '',
+        photo_url: person.photo_url || '',
+        social_media_links: person.social_media_links || {},
+        
+        // Achievements & Timeline
+        achievements: person.achievements || [],
+        timeline: person.timeline || [],
+        
+        // Privacy & Admin
+        dob_is_public: person.dob_is_public || false,
+        profile_visibility: person.profile_visibility || 'public',
+        role: person.role || null,
+      });
+    }
+  }, [isEditing, person]);
+  
+  // Handle save
+  const handleSave = async () => {
+    if (!editedData || !person) return;
+    
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(editedData)
+        .eq('id', person.id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      Alert.alert('نجح', 'تم حفظ التغييرات');
+      setSelectedPersonId(null); // Close sheet
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('خطأ', 'فشل حفظ التغييرات');
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  // Handle cancel
+  const handleCancel = () => {
+    setEditedData(null);
+    setSelectedPersonId(null);
+  };
+  
   // Load marriage data
   const loadMarriages = async () => {
     if (!person?.id) return;
@@ -274,6 +373,14 @@ const ProfileSheet = () => {
         ref={scrollRef}
       >
         <View style={{ flex: 1 }}>
+          {/* Edit mode indicator */}
+          {isEditing && (
+            <View style={styles.editModeIndicator}>
+              <Ionicons name="create" size={16} color="#FFFFFF" />
+              <Text style={styles.editModeText}>وضع التحرير</Text>
+            </View>
+          )}
+          
           {/* Close button */}
           <Pressable onPress={() => setSelectedPersonId(null)} style={styles.closeButton} accessibilityLabel="إغلاق">
             <Text style={styles.closeButtonText}>×</Text>
@@ -377,22 +484,217 @@ const ProfileSheet = () => {
             </View>
           </View>
 
+          {/* Save/Cancel buttons in edit mode */}
+          {isEditing && (
+            <View style={styles.editActions}>
+              <GlassButton
+                title="حفظ التغييرات"
+                onPress={handleSave}
+                loading={saving}
+                style={[styles.saveButton, { flex: 1 }]}
+              />
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleCancel}
+              >
+                <Text style={styles.cancelButtonText}>إلغاء</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Information section */}
           <SectionCard title="المعلومات">
-            <DefinitionList
-              items={[
-                { label: 'تاريخ الميلاد', value: formatDateDisplay(person.dob_data) || '—' },
-                ...(person.dod_data ? [{ label: 'تاريخ الوفاة', value: formatDateDisplay(person.dod_data) }] : []),
-                ...(person.birth_place ? [{ label: 'مكان الميلاد', value: person.birth_place }] : []),
-                ...(person.current_residence ? [{ label: 'مكان الإقامة', value: person.current_residence }] : []),
-                ...(person.education ? [{ label: 'التعليم', value: person.education }] : []),
-                ...(marriages.length > 0 ? [{ label: 'الحالة الاجتماعية', value: marriages.map(m => m.spouse_name).join('، ') || `${marriages.length} أزواج` }] : []),
-              ]}
-            />
+            {isEditing ? (
+              <View style={{ gap: 16 }}>
+                {/* Personal Identity Fields */}
+                <View>
+                  <Text style={styles.fieldLabel}>الكنية</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.kunya || ''}
+                    onChangeText={(text) => setEditedData({...editedData, kunya: text})}
+                    placeholder="أبو فلان"
+                    textAlign="right"
+                  />
+                </View>
+                
+                <View>
+                  <Text style={styles.fieldLabel}>اللقب</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.nickname || ''}
+                    onChangeText={(text) => setEditedData({...editedData, nickname: text})}
+                    placeholder="لقب اختياري"
+                    textAlign="right"
+                  />
+                </View>
+                
+                {/* Gender & Status */}
+                <View>
+                  <Text style={styles.fieldLabel}>الجنس</Text>
+                  <View style={styles.toggleRow}>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.gender === 'male' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, gender: 'male'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.gender === 'male' && styles.toggleTextActive]}>ذكر</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.gender === 'female' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, gender: 'female'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.gender === 'female' && styles.toggleTextActive]}>أنثى</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                <View>
+                  <Text style={styles.fieldLabel}>الحالة</Text>
+                  <View style={styles.toggleRow}>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.status === 'alive' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, status: 'alive'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.status === 'alive' && styles.toggleTextActive]}>على قيد الحياة</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.status === 'deceased' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, status: 'deceased'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.status === 'deceased' && styles.toggleTextActive]}>متوفى</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                {/* Location Fields */}
+                <View>
+                  <Text style={styles.fieldLabel}>مكان الميلاد</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.birth_place || ''}
+                    onChangeText={(text) => setEditedData({...editedData, birth_place: text})}
+                    placeholder="المدينة أو الدولة"
+                    textAlign="right"
+                  />
+                </View>
+                
+                <View>
+                  <Text style={styles.fieldLabel}>مكان الإقامة الحالي</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.current_residence || ''}
+                    onChangeText={(text) => setEditedData({...editedData, current_residence: text})}
+                    placeholder="المدينة الحالية"
+                    textAlign="right"
+                  />
+                </View>
+                
+                <View>
+                  <Text style={styles.fieldLabel}>المهنة</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.occupation || ''}
+                    onChangeText={(text) => setEditedData({...editedData, occupation: text})}
+                    placeholder="الوظيفة أو العمل"
+                    textAlign="right"
+                  />
+                </View>
+                
+                <View>
+                  <Text style={styles.fieldLabel}>التعليم</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.education || ''}
+                    onChangeText={(text) => setEditedData({...editedData, education: text})}
+                    placeholder="المؤهل العلمي"
+                    textAlign="right"
+                  />
+                </View>
+                
+                {/* Contact Fields */}
+                <View>
+                  <Text style={styles.fieldLabel}>رقم الهاتف</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.phone || ''}
+                    onChangeText={(text) => setEditedData({...editedData, phone: text})}
+                    placeholder="05xxxxxxxx"
+                    textAlign="right"
+                    keyboardType="phone-pad"
+                  />
+                </View>
+                
+                <View>
+                  <Text style={styles.fieldLabel}>البريد الإلكتروني</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    value={editedData?.email || ''}
+                    onChangeText={(text) => setEditedData({...editedData, email: text})}
+                    placeholder="example@email.com"
+                    textAlign="right"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+                
+                {/* Privacy Settings */}
+                <View>
+                  <Text style={styles.fieldLabel}>إعدادات الخصوصية</Text>
+                  <View style={styles.privacyRow}>
+                    <Text style={styles.privacyLabel}>إظهار تاريخ الميلاد</Text>
+                    <Switch
+                      value={editedData?.dob_is_public || false}
+                      onValueChange={(value) => setEditedData({...editedData, dob_is_public: value})}
+                    />
+                  </View>
+                  <View style={styles.toggleRow}>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.profile_visibility === 'public' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, profile_visibility: 'public'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.profile_visibility === 'public' && styles.toggleTextActive]}>عام</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.profile_visibility === 'family' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, profile_visibility: 'family'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.profile_visibility === 'family' && styles.toggleTextActive]}>العائلة فقط</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.toggleButton, editedData?.profile_visibility === 'private' && styles.toggleActive]}
+                      onPress={() => setEditedData({...editedData, profile_visibility: 'private'})}
+                    >
+                      <Text style={[styles.toggleText, editedData?.profile_visibility === 'private' && styles.toggleTextActive]}>خاص</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <DefinitionList
+                items={[
+                  { label: 'تاريخ الميلاد', value: formatDateDisplay(person.dob_data) || '—' },
+                  ...(person.dod_data ? [{ label: 'تاريخ الوفاة', value: formatDateDisplay(person.dod_data) }] : []),
+                  ...(person.birth_place ? [{ label: 'مكان الميلاد', value: person.birth_place }] : []),
+                  ...(person.current_residence ? [{ label: 'مكان الإقامة', value: person.current_residence }] : []),
+                  ...(person.education ? [{ label: 'التعليم', value: person.education }] : []),
+                  ...(marriages.length > 0 ? [{ label: 'الحالة الاجتماعية', value: marriages.map(m => m.spouse_name).join('، ') || `${marriages.length} أزواج` }] : []),
+                ]}
+              />
+            )}
           </SectionCard>
 
+          {/* Social Media Links */}
+          {isEditing && (
+            <SectionCard>
+              <SocialMediaEditor
+                links={editedData?.social_media_links || {}}
+                onChange={(links) => setEditedData({...editedData, social_media_links: links})}
+              />
+            </SectionCard>
+          )}
+          
           {/* Contact/Social links (optional, shown only if any present) */}
-          {(() => {
+          {!isEditing && (() => {
             const socialMedia = getAllSocialMedia(person);
             const hasSocialLinks = person.phone || person.email || Object.keys(socialMedia).length > 0;
             
@@ -437,29 +739,47 @@ const ProfileSheet = () => {
           })()}
 
           {/* Achievements */}
-          {person.achievements && person.achievements.length > 0 && (
-            <SectionCard title="الإنجازات">
-              <AchievementsList items={person.achievements} />
+          {isEditing ? (
+            <SectionCard>
+              <AchievementsEditor
+                achievements={editedData?.achievements || []}
+                onChange={(achievements) => setEditedData({...editedData, achievements})}
+              />
             </SectionCard>
+          ) : (
+            person.achievements && person.achievements.length > 0 && (
+              <SectionCard title="الإنجازات">
+                <AchievementsList items={person.achievements} />
+              </SectionCard>
+            )
           )}
 
           {/* Timeline */}
-          {person.timeline && person.timeline.length > 0 && (
-            <SectionCard title="الأحداث المهمة">
-              <View style={{ gap: 12 }}>
-                {person.timeline.map((event, index) => (
-                  <View key={index} style={styles.timelineRow}>
-                    <View style={styles.timelineDot} />
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.timelineHeader}>
-                        <Text style={styles.timelineYear}>{event.year}هـ</Text>
-                        <Text style={styles.timelineEvent}>{event.event}</Text>
+          {isEditing ? (
+            <SectionCard>
+              <TimelineEditor
+                timeline={editedData?.timeline || []}
+                onChange={(timeline) => setEditedData({...editedData, timeline})}
+              />
+            </SectionCard>
+          ) : (
+            person.timeline && person.timeline.length > 0 && (
+              <SectionCard title="الأحداث المهمة">
+                <View style={{ gap: 12 }}>
+                  {person.timeline.map((event, index) => (
+                    <View key={index} style={styles.timelineRow}>
+                      <View style={styles.timelineDot} />
+                      <View style={{ flex: 1 }}>
+                        <View style={styles.timelineHeader}>
+                          <Text style={styles.timelineYear}>{event.year}هـ</Text>
+                          <Text style={styles.timelineEvent}>{event.event}</Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-            </SectionCard>
+                  ))}
+                </View>
+              </SectionCard>
+            )
           )}
 
           {/* Family list */}
@@ -833,6 +1153,108 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontFamily: 'SF Arabic',
+  },
+  
+  // Edit mode styles
+  editableInput: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#007AFF',
+    paddingBottom: 4,
+  },
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  editActions: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 16,
+    gap: 12,
+  },
+  saveButton: {
+    backgroundColor: '#34C759',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#000000',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
+  // Field editing styles
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+    marginBottom: 8,
+    textAlign: 'right',
+  },
+  fieldInput: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#000000',
+    textAlign: 'right',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    alignItems: 'center',
+  },
+  toggleActive: {
+    backgroundColor: '#007AFF',
+  },
+  toggleText: {
+    fontSize: 15,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  privacyLabel: {
+    fontSize: 15,
+    color: '#000000',
+  },
+  
+  // Edit mode indicator
+  editModeIndicator: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    zIndex: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  editModeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

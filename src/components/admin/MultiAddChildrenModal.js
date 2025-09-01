@@ -10,6 +10,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
@@ -113,13 +115,15 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="formSheet"
+      presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView 
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -136,7 +140,12 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
         </GlassSurface>
 
         {/* Children list */}
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {children.map((child, index) => (
             <GlassSurface key={child.id} style={styles.childCard}>
               <View style={styles.childHeader}>
@@ -203,7 +212,7 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
 
           {/* Add another child button */}
           <TouchableOpacity onPress={addChildRow} style={styles.addButton}>
-            <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+            <Ionicons name="add-circle-outline" size={24} color="#007AFF" style={{ marginRight: 8 }} />
             <Text style={styles.addButtonText}>إضافة طفل آخر</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -217,10 +226,13 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
             style={styles.submitButton}
           />
         </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 };
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -232,7 +244,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 60,
+    paddingTop: Platform.OS === 'ios' ? 20 : 30,
     paddingBottom: 20,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -266,7 +278,10 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
+    paddingBottom: 100,
   },
   childCard: {
     marginBottom: 12,
@@ -299,11 +314,11 @@ const styles = StyleSheet.create({
   },
   genderContainer: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
   genderButton: {
-    flex: 1,
+    flex: 0.48,
     paddingVertical: 12,
     borderRadius: 10,
     backgroundColor: 'rgba(0, 0, 0, 0.05)',
@@ -334,7 +349,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 16,
     marginBottom: 20,
-    gap: 8,
+    marginHorizontal: 16,
   },
   addButtonText: {
     fontSize: 16,

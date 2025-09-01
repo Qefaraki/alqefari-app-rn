@@ -50,20 +50,33 @@ export const AdminModeProvider = ({ children }) => {
         .from('profiles')
         .select('role')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error checking admin role:', error);
         setIsAdmin(false);
         setIsAdminMode(false);
+      } else if (!profile) {
+        // No profile exists for this user yet
+        console.log('No profile found for user:', user.email);
+        setIsAdmin(false);
+        setIsAdminMode(false);
       } else {
-        const hasAdminRole = profile?.role === 'admin';
+        const hasAdminRole = profile.role === 'admin';
         setIsAdmin(hasAdminRole);
         
         // If not admin, ensure admin mode is off
         if (!hasAdminRole) {
           setIsAdminMode(false);
         }
+        
+        // Log role info for debugging
+        console.log('User role info:', {
+          userId: user.id,
+          email: user.email,
+          role: profile.role,
+          isAdmin: hasAdminRole
+        });
       }
     } catch (error) {
       console.error('Error in checkAdminRole:', error);
@@ -76,7 +89,11 @@ export const AdminModeProvider = ({ children }) => {
 
   const toggleAdminMode = () => {
     if (isAdmin) {
-      setIsAdminMode(prev => !prev);
+      const newMode = !isAdminMode;
+      console.log('AdminModeContext: Toggling admin mode from', isAdminMode, 'to', newMode);
+      setIsAdminMode(newMode);
+    } else {
+      console.log('AdminModeContext: Cannot toggle admin mode - user is not admin');
     }
   };
 
