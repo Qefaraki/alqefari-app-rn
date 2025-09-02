@@ -30,7 +30,7 @@ import NodeContextMenu from './admin/NodeContextMenu';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import { supabase } from '../services/supabase';
 
-const VIEWPORT_MARGIN = 200;
+const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
 const NODE_WIDTH_WITH_PHOTO = 85;
 const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;
@@ -409,6 +409,9 @@ const TreeView = ({ setProfileEditMode }) => {
     minY: -VIEWPORT_MARGIN,
     maxY: dimensions.height + VIEWPORT_MARGIN
   });
+  
+  // Track last stable scale to detect significant changes
+  const lastStableScale = useRef(1);
 
   // Update visible bounds when transform changes
   useAnimatedReaction(
@@ -418,11 +421,14 @@ const TreeView = ({ setProfileEditMode }) => {
       scale: scale.value
     }),
     (current) => {
+      // Scale-dependent margin: larger margin when zoomed out
+      const dynamicMargin = VIEWPORT_MARGIN / current.scale;
+      
       const newBounds = {
-        minX: (-current.x - VIEWPORT_MARGIN) / current.scale,
-        maxX: (-current.x + dimensions.width + VIEWPORT_MARGIN) / current.scale,
-        minY: (-current.y - VIEWPORT_MARGIN) / current.scale,
-        maxY: (-current.y + dimensions.height + VIEWPORT_MARGIN) / current.scale
+        minX: (-current.x - dynamicMargin) / current.scale,
+        maxX: (-current.x + dimensions.width + dynamicMargin) / current.scale,
+        minY: (-current.y - dynamicMargin) / current.scale,
+        maxY: (-current.y + dimensions.height + dynamicMargin) / current.scale
       };
       
       runOnJS(setVisibleBounds)(newBounds);
@@ -441,6 +447,14 @@ const TreeView = ({ setProfileEditMode }) => {
   // Filter visible nodes for performance
   const visibleNodes = useMemo(() => {
     const startTime = performance.now();
+    
+    // Only update visibility if scale changed significantly (>5%)
+    const currentScale = scale.value;
+    const scaleChanged = Math.abs(currentScale - lastStableScale.current) / lastStableScale.current > 0.05;
+    if (scaleChanged) {
+      lastStableScale.current = currentScale;
+    }
+    
     const visible = nodes.filter(node => 
       node.x >= visibleBounds.minX && 
       node.x <= visibleBounds.maxX &&
@@ -473,6 +487,12 @@ const TreeView = ({ setProfileEditMode }) => {
       
       if (entered.length > 0 || exited.length > 0) {
         console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
+        
+        // Warn about large visibility changes that might cause jumping
+        if (entered.length + exited.length > 20) {
+          console.log(`  ⚠️ LARGE CHANGE: ${entered.length + exited.length} nodes changed visibility!`);
+          console.log(`  Viewport: X[${visibleBounds.minX.toFixed(0)}, ${visibleBounds.maxX.toFixed(0)}] Y[${visibleBounds.minY.toFixed(0)}, ${visibleBounds.maxY.toFixed(0)}]`);
+        }
         
         // Only log details if few changes
         if (entered.length > 0 && entered.length <= 5) {
@@ -600,13 +620,13 @@ const TreeView = ({ setProfileEditMode }) => {
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
       
-      // Store initial focal point for stability
-      focalX.value = e.focalX;
-      focalY.value = e.focalY;
+      // Store initial focal point for stability (rounded to prevent float issues)
+      focalX.value = Math.round(e.focalX);
+      focalY.value = Math.round(e.focalY);
       
       // Debug logging
       if (__DEV__) {
-        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${e.focalX},${e.focalY}) Fingers:${e.numberOfPointers}`);
+        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${Math.round(e.focalX)},${Math.round(e.focalY)}) Fingers:${e.numberOfPointers}`);
       }
     })
     .onUpdate((e) => {

@@ -76,6 +76,12 @@
   - Removed inline runOnJS from useAnimatedReaction
   - Fixed segmentation fault in simulator
   - Preserved other debug logs for troubleshooting
+  
+- ✅ Optimized debug logging to reduce spam (2025-09-03)
+  - Removed per-frame rendering logs
+  - Condensed all logs to single-line summaries
+  - Added helpful debug guide on startup
+  - Made logs easily shareable for troubleshooting
 
 ### 🚧 In Progress
 
