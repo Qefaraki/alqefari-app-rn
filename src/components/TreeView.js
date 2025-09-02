@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert } from 'react-native';
 import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -415,16 +415,6 @@ const TreeView = ({ setProfileEditMode }) => {
         minY: (-current.y - VIEWPORT_MARGIN) / current.scale,
         maxY: (-current.y + dimensions.height + VIEWPORT_MARGIN) / current.scale
       };
-      
-      // DEBUG: Log viewport bounds
-      if (__DEV__) {
-        runOnJS(() => {
-          console.log('📐 VIEWPORT BOUNDS UPDATE:');
-          console.log(`  Transform: scale=${current.scale.toFixed(3)}, x=${current.x.toFixed(2)}, y=${current.y.toFixed(2)}`);
-          console.log(`  Canvas Bounds: X[${newBounds.minX.toFixed(2)}, ${newBounds.maxX.toFixed(2)}] Y[${newBounds.minY.toFixed(2)}, ${newBounds.maxY.toFixed(2)}]`);
-          console.log(`  Viewport Size: ${dimensions.width}x${dimensions.height}`);
-        })();
-      }
       
       runOnJS(setVisibleBounds)(newBounds);
     }
