@@ -503,11 +503,21 @@ const TreeView = ({ setProfileEditMode }) => {
         velocity: e.velocityY,
         deceleration: 0.995,
       });
+      
+      // Save current values (before decay animation modifies them)
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
     });
 
   // Pinch gesture for zoom with pointer-anchored transform
   const pinchGesture = Gesture.Pinch()
     .onStart((e) => {
+      // CRITICAL: Cancel any running animations to prevent value drift
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      cancelAnimation(scale);
+      
+      // Now save the current stable values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
