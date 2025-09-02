@@ -522,10 +522,15 @@ const TreeView = ({ setProfileEditMode }) => {
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
       
+      // Store initial focal point for stability
+      focalX.value = e.focalX;
+      focalY.value = e.focalY;
+      
       // Debug logging
       if (__DEV__) {
         console.log('Pinch Start:', {
           focal: { x: e.focalX, y: e.focalY },
+          numberOfPointers: e.numberOfPointers,
           saved: { 
             scale: savedScale.value, 
             x: savedTranslateX.value, 
@@ -538,9 +543,13 @@ const TreeView = ({ setProfileEditMode }) => {
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
       const k = s / savedScale.value;
 
-      // Anchor zoom to the current focal point
-      translateX.value = e.focalX - (e.focalX - savedTranslateX.value) * k;
-      translateY.value = e.focalY - (e.focalY - savedTranslateY.value) * k;
+      // Use initial focal point for stability (prevents drift with repeated pinches)
+      const stableFocalX = focalX.value;
+      const stableFocalY = focalY.value;
+      
+      // Anchor zoom to the stable focal point
+      translateX.value = stableFocalX - (stableFocalX - savedTranslateX.value) * k;
+      translateY.value = stableFocalY - (stableFocalY - savedTranslateY.value) * k;
       scale.value = s;
     })
     .onEnd(() => {
