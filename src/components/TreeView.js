@@ -511,6 +511,18 @@ const TreeView = ({ setProfileEditMode }) => {
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
+      
+      // Debug logging
+      if (__DEV__) {
+        console.log('Pinch Start:', {
+          focal: { x: e.focalX, y: e.focalY },
+          saved: { 
+            scale: savedScale.value, 
+            x: savedTranslateX.value, 
+            y: savedTranslateY.value 
+          }
+        });
+      }
     })
     .onUpdate((e) => {
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
@@ -523,6 +535,19 @@ const TreeView = ({ setProfileEditMode }) => {
     })
     .onEnd(() => {
       savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      
+      // Debug logging
+      if (__DEV__) {
+        console.log('Pinch End:', {
+          final: { 
+            scale: scale.value, 
+            x: translateX.value, 
+            y: translateY.value 
+          }
+        });
+      }
     });
 
   // Tap gesture for selection with movement/time thresholds
