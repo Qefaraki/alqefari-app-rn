@@ -71,6 +71,11 @@
   - Pinch gesture transform calculations
   - Tap coordinate transformations
   - Node rendering position verification
+  
+- ✅ Fixed Reanimated crash in debug logging (2025-09-03)
+  - Removed inline runOnJS from useAnimatedReaction
+  - Fixed segmentation fault in simulator
+  - Preserved other debug logs for troubleshooting
 
 ### 🚧 In Progress
 
