@@ -356,7 +356,19 @@ const TreeView = ({ setProfileEditMode }) => {
     if (isLoading || treeData.length === 0) {
       return { nodes: [], connections: [] };
     }
-    return calculateTreeLayout(treeData);
+    const layout = calculateTreeLayout(treeData);
+    
+    // DEBUG: Log canvas coordinates (these should NEVER change)
+    if (__DEV__) {
+      console.log('🎯 CANVAS COORDINATES CALCULATED:');
+      console.log(`Total nodes: ${layout.nodes.length}`);
+      layout.nodes.slice(0, 5).forEach(node => {
+        console.log(`  Node ${node.id}: Canvas(${node.x.toFixed(2)}, ${node.y.toFixed(2)}) - ${node.name}`);
+      });
+      console.log(`Total connections: ${layout.connections.length}`);
+    }
+    
+    return layout;
   }, [treeData, isLoading]);
 
   // Calculate tree bounds
@@ -397,12 +409,24 @@ const TreeView = ({ setProfileEditMode }) => {
       scale: scale.value
     }),
     (current) => {
-      runOnJS(setVisibleBounds)({
+      const newBounds = {
         minX: (-current.x - VIEWPORT_MARGIN) / current.scale,
         maxX: (-current.x + dimensions.width + VIEWPORT_MARGIN) / current.scale,
         minY: (-current.y - VIEWPORT_MARGIN) / current.scale,
         maxY: (-current.y + dimensions.height + VIEWPORT_MARGIN) / current.scale
-      });
+      };
+      
+      // DEBUG: Log viewport bounds
+      if (__DEV__) {
+        runOnJS(() => {
+          console.log('📐 VIEWPORT BOUNDS UPDATE:');
+          console.log(`  Transform: scale=${current.scale.toFixed(3)}, x=${current.x.toFixed(2)}, y=${current.y.toFixed(2)}`);
+          console.log(`  Canvas Bounds: X[${newBounds.minX.toFixed(2)}, ${newBounds.maxX.toFixed(2)}] Y[${newBounds.minY.toFixed(2)}, ${newBounds.maxY.toFixed(2)}]`);
+          console.log(`  Viewport Size: ${dimensions.width}x${dimensions.height}`);
+        })();
+      }
+      
+      runOnJS(setVisibleBounds)(newBounds);
     }
   );
   
@@ -412,23 +436,89 @@ const TreeView = ({ setProfileEditMode }) => {
     // This would call profilesService.getVisibleNodes(visibleBounds, scale.value)
   }, [visibleBounds]);
 
+  // Track previous visible nodes for debugging
+  const prevVisibleNodesRef = useRef(new Set());
+  
   // Filter visible nodes for performance
   const visibleNodes = useMemo(() => {
-    return nodes.filter(node => 
+    const startTime = performance.now();
+    const visible = nodes.filter(node => 
       node.x >= visibleBounds.minX && 
       node.x <= visibleBounds.maxX &&
       node.y >= visibleBounds.minY && 
       node.y <= visibleBounds.maxY
     );
+    
+    // DEBUG: Track visibility changes
+    if (__DEV__) {
+      const currentVisibleIds = new Set(visible.map(n => n.id));
+      const prevVisibleIds = prevVisibleNodesRef.current;
+      
+      // Find nodes that entered/exited view
+      const entered = [];
+      const exited = [];
+      
+      currentVisibleIds.forEach(id => {
+        if (!prevVisibleIds.has(id)) {
+          const node = visible.find(n => n.id === id);
+          entered.push(node);
+        }
+      });
+      
+      prevVisibleIds.forEach(id => {
+        if (!currentVisibleIds.has(id)) {
+          const node = nodes.find(n => n.id === id);
+          if (node) exited.push(node);
+        }
+      });
+      
+      if (entered.length > 0 || exited.length > 0) {
+        console.log('👁️ NODE VISIBILITY CHANGES:');
+        console.log(`  Visible: ${prevVisibleIds.size} → ${currentVisibleIds.size} nodes`);
+        console.log(`  Filter time: ${(performance.now() - startTime).toFixed(2)}ms`);
+        
+        if (entered.length > 0) {
+          console.log(`  ✅ Entered view (${entered.length}):`);
+          entered.slice(0, 3).forEach(node => {
+            console.log(`    - ${node.name} at Canvas(${node.x.toFixed(2)}, ${node.y.toFixed(2)})`);
+          });
+          if (entered.length > 3) console.log(`    ... and ${entered.length - 3} more`);
+        }
+        
+        if (exited.length > 0) {
+          console.log(`  ❌ Exited view (${exited.length}):`);
+          exited.slice(0, 3).forEach(node => {
+            console.log(`    - ${node.name} at Canvas(${node.x.toFixed(2)}, ${node.y.toFixed(2)})`);
+          });
+          if (exited.length > 3) console.log(`    ... and ${exited.length - 3} more`);
+        }
+      }
+      
+      prevVisibleNodesRef.current = currentVisibleIds;
+    }
+    
+    return visible;
   }, [nodes, visibleBounds]);
 
+  // Track previous visible connections for debugging
+  const prevVisibleConnectionsRef = useRef(0);
+  
   // Filter visible connections
   const visibleConnections = useMemo(() => {
     const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-    return connections.filter(conn => {
+    const visible = connections.filter(conn => {
       return visibleNodeIds.has(conn.parent.id) || 
              conn.children.some(child => visibleNodeIds.has(child.id));
     });
+    
+    // DEBUG: Track connection visibility changes
+    if (__DEV__ && visible.length !== prevVisibleConnectionsRef.current) {
+      console.log('🔗 CONNECTION VISIBILITY CHANGE:');
+      console.log(`  Connections: ${prevVisibleConnectionsRef.current} → ${visible.length}`);
+      prevVisibleConnectionsRef.current = visible.length;
+    }
+    
+    return visible;
   }, [connections, visibleNodes]);
 
   // Pass 3: Invisible bridge check - horizontal sibling lines intersecting viewport
@@ -528,13 +618,18 @@ const TreeView = ({ setProfileEditMode }) => {
       
       // Debug logging
       if (__DEV__) {
-        console.log('Pinch Start:', {
+        console.log('🤏 PINCH START:', {
           focal: { x: e.focalX, y: e.focalY },
           numberOfPointers: e.numberOfPointers,
           saved: { 
             scale: savedScale.value, 
             x: savedTranslateX.value, 
             y: savedTranslateY.value 
+          },
+          currentTransform: {
+            scale: scale.value,
+            x: translateX.value,
+            y: translateY.value
           }
         });
       }
@@ -547,10 +642,29 @@ const TreeView = ({ setProfileEditMode }) => {
       const stableFocalX = focalX.value;
       const stableFocalY = focalY.value;
       
-      // Anchor zoom to the stable focal point
-      translateX.value = stableFocalX - (stableFocalX - savedTranslateX.value) * k;
-      translateY.value = stableFocalY - (stableFocalY - savedTranslateY.value) * k;
+      // Calculate new transform
+      const newX = stableFocalX - (stableFocalX - savedTranslateX.value) * k;
+      const newY = stableFocalY - (stableFocalY - savedTranslateY.value) * k;
+      
+      // Apply transform
+      translateX.value = newX;
+      translateY.value = newY;
       scale.value = s;
+      
+      // DEBUG: Log transform calculations
+      if (__DEV__ && Math.abs(e.scale - 1) > 0.05) { // Only log significant changes
+        console.log('🔄 PINCH UPDATE:', {
+          gestureScale: e.scale,
+          newScale: s,
+          scaleFactor: k,
+          focal: { x: stableFocalX, y: stableFocalY },
+          currentFocal: { x: e.focalX, y: e.focalY },
+          transform: {
+            from: { x: savedTranslateX.value, y: savedTranslateY.value },
+            to: { x: newX, y: newY }
+          }
+        });
+      }
     })
     .onEnd(() => {
       savedScale.value = scale.value;
@@ -559,11 +673,16 @@ const TreeView = ({ setProfileEditMode }) => {
       
       // Debug logging
       if (__DEV__) {
-        console.log('Pinch End:', {
+        console.log('✅ PINCH END:', {
           final: { 
             scale: scale.value, 
             x: translateX.value, 
             y: translateY.value 
+          },
+          saved: {
+            scale: savedScale.value,
+            x: savedTranslateX.value,
+            y: savedTranslateY.value
           }
         });
       }
@@ -578,6 +697,19 @@ const TreeView = ({ setProfileEditMode }) => {
       const canvasX = (e.x - translateX.value) / scale.value;
       const canvasY = (e.y - translateY.value) / scale.value;
       
+      // DEBUG: Log tap coordinates
+      if (__DEV__) {
+        console.log('👆 TAP EVENT:', {
+          screen: { x: e.x, y: e.y },
+          canvas: { x: canvasX.toFixed(2), y: canvasY.toFixed(2) },
+          transform: {
+            scale: scale.value,
+            x: translateX.value,
+            y: translateY.value
+          }
+        });
+      }
+      
       let tappedNodeId = null;
       for (const node of visibleNodes) {
         const nodeWidth = node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY;
@@ -588,6 +720,22 @@ const TreeView = ({ setProfileEditMode }) => {
             canvasY >= node.y - nodeHeight/2 && 
             canvasY <= node.y + nodeHeight/2) {
           tappedNodeId = node.id;
+          
+          // DEBUG: Log tapped node
+          if (__DEV__) {
+            console.log('🎯 TAPPED NODE:', {
+              id: node.id,
+              name: node.name,
+              nodeCanvas: { x: node.x, y: node.y },
+              nodeBounds: {
+                left: node.x - nodeWidth/2,
+                right: node.x + nodeWidth/2,
+                top: node.y - nodeHeight/2,
+                bottom: node.y + nodeHeight/2
+              }
+            });
+          }
+          
           break;
         }
       }
@@ -740,6 +888,11 @@ const TreeView = ({ setProfileEditMode }) => {
     
     const x = node.x - nodeWidth/2;
     const y = node.y - nodeHeight/2;
+    
+    // DEBUG: Log rendering details for first few nodes (to avoid spam)
+    if (__DEV__ && visibleNodes.indexOf(node) < 3) {
+      console.log(`🎨 RENDERING NODE: ${node.name} at Canvas(${node.x.toFixed(2)}, ${node.y.toFixed(2)}) -> Screen(${x.toFixed(2)}, ${y.toFixed(2)})`);
+    }
     
     return (
       <Group key={node.id}>

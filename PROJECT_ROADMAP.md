@@ -63,7 +63,21 @@
   - Added collapse option for cleaner view
   - Floating admin login when not authenticated
 
+- ✅ Implemented comprehensive debug logging system (2025-09-02)
+  - Canvas coordinate tracking (verifies nodes never move)
+  - Viewport bounds calculations with transform details
+  - Node visibility transitions (entry/exit tracking)
+  - Connection visibility changes
+  - Pinch gesture transform calculations
+  - Tap coordinate transformations
+  - Node rendering position verification
+
 ### 🚧 In Progress
+
+#### Zoom/Pan Issues on Physical Device
+- Investigating viewport culling behavior causing jumps
+- Debug system now tracks all coordinate transformations
+- Next: Analyze logs to identify root cause
 
 #### Admin Edit Mode - Remaining Phases
 - Phase 2: Visual Identity - Photo URL editor with live preview
