@@ -848,12 +848,10 @@ const TreeView = ({ setProfileEditMode }) => {
     }
   }, [contextMenuNode, setSelectedPersonId]);
   
-  // Compose gestures - make pan yield to pinch to prevent conflicts
-  panGesture.requireExternalGestureToFail(pinchGesture);
-  
-  const composed = Gesture.Race(
-    pinchGesture,
+  // Compose gestures
+  const composed = Gesture.Simultaneous(
     panGesture, 
+    pinchGesture,
     tapGesture
   );
 
