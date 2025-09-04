@@ -1,15 +1,24 @@
-# Backend Implementation Guide: Alqefari Family Tree (v2 - Refined)
+# Backend Implementation Guide: Alqefari Family Tree (v2 - Current State)
 
 ## Overview
 
-This document provides a comprehensive, step-by-step guide for implementing the backend infrastructure for the Alqefari Family Tree application using Supabase. The implementation follows our core architectural principles: the backend as the fortress of truth, performance-first design, cultural nuance encoding, and security at every layer.
+This document reflects the current backend implementation of the Alqefari Family Tree application using Supabase. 
 
-**Key Refinements in v2:**
-- Normalized schema removing all redundant fields
-- Asynchronous operations preventing UI freezing
-- Localized layout recalculation for 10k+ node trees
-- Comprehensive validation at every level
-- Safe data access patterns with virtualization
+**Last Updated:** 2025-09-04
+
+**Current Architecture:**
+- Normalized schema with single source of truth
+- Asynchronous layout recalculation via queue system
+- Branch-based loading for performance (3-5 depth max)
+- Comprehensive validation functions (date, social media, timeline)
+- Safe data access patterns with pagination
+
+**Implementation Status:**
+- ✅ Core tables (profiles, marriages, media_uploads, audit_log)
+- ✅ Validation functions (all implemented)
+- ✅ Admin RPC functions (create, update, delete, bulk operations)
+- ✅ Safe access functions (branch loading, search, visibility)
+- ⚠️ Some documented features not yet implemented (see notes)
 
 ## Prerequisites
 
@@ -17,6 +26,31 @@ This document provides a comprehensive, step-by-step guide for implementing the 
 - Access to Supabase project (credentials in .env)
 - Node.js 18+ for Edge Functions
 - Understanding of PostgreSQL and RLS
+
+---
+
+## Current vs Documented State
+
+### Tables Actually Implemented:
+- ✅ `profiles` (migration 001_create_profiles_table_v2.sql)
+- ✅ `marriages` (migration 002_create_marriages_table.sql)
+- ✅ `media_uploads` (migration 003_create_media_uploads_table.sql)
+- ✅ `audit_log` (migration 016_create_audit_log.sql)
+- ✅ `layout_recalc_queue` (created in 009_create_admin_functions_v2.sql)
+- ❌ `suggestions` (documented but not implemented)
+- ❌ `roles` & `user_roles` (RBAC not implemented, using profile.role column instead)
+
+### RPC Functions Status:
+**Implemented and Working:**
+- `admin_create_profile`, `admin_update_profile`, `admin_delete_profile`
+- `admin_bulk_create_children`, `admin_bulk_update_layouts`
+- `get_branch_data`, `get_visible_nodes`, `search_profiles_safe`
+- `get_person_marriages`, `admin_validation_dashboard`, `admin_auto_fix_issues`
+
+**Called by Frontend but Missing:**
+- `get_person_with_relations` - Frontend expects this but not implemented
+- `admin_create_marriage` - Frontend calls this but doesn't exist
+- `trigger_layout_recalc` - Frontend uses this name but backend has `trigger_layout_recalc_async`
 
 ---
 
@@ -36,9 +70,9 @@ supabase link --project-ref ezkioroyhzpavmbfavyn
 
 #### Step 2: Create Migration Files
 
-Create `supabase/migrations/001_create_profiles_table_v2.sql`:
+The profiles table is defined in `supabase/migrations/001_create_profiles_table_v2.sql`:
 
-**IMPORTANT: This refined schema enforces single source of truth by removing redundant fields**
+**NOTE: This is the current production schema with all optimizations**
 
 ```sql
 -- Enable UUID generation
@@ -127,7 +161,7 @@ COMMENT ON COLUMN profiles.version IS 'For optimistic locking to prevent edit co
 COMMENT ON COLUMN profiles.deleted_at IS 'For soft deletes. Non-null means profile is hidden';
 ```
 
-Create `supabase/migrations/002_create_marriages_table.sql`:
+The marriages table is defined in `supabase/migrations/002_create_marriages_table.sql`:
 
 ```sql
 -- Create marriages table (The Relationship Layer)
@@ -1209,12 +1243,37 @@ export default AddChildButton;
 4. **Partial Updates**: Only fetch affected subtrees
 5. **Batch Operations**: Use transactions for multiple updates
 
-## Next Steps
+## Migration Files Reference
 
-1. Set up Supabase CLI locally
-2. Run database migrations
-3. Deploy Edge Functions
-4. Begin frontend integration
-5. Implement admin UI components
+Here are the actual migration files in order of execution:
 
-This implementation guide provides a solid foundation for building your backend infrastructure. Each phase builds upon the previous one, ensuring a stable and scalable system.
+1. **001_create_profiles_table_v2.sql** - Core profiles table with all fields
+2. **002_create_marriages_table.sql** - Marriages relationship table
+3. **002_create_validation_functions.sql** - All validation functions (date, social media, etc.)
+4. **003_create_media_uploads_table.sql** - Media upload tracking
+5. **009_create_admin_functions_v2.sql** - Admin CRUD operations + layout queue
+6. **011_create_safe_access_functions.sql** - Branch loading, search, visibility
+7. **012_create_bulk_operations.sql** - Bulk update functions
+8. **013_fix_marriage_function.sql** - get_person_marriages optimization
+9. **014_create_background_jobs.sql** - Job queue infrastructure
+10. **015_admin_bulk_create_children.sql** - Bulk child creation
+11. **016_create_audit_log.sql** - Audit trail table
+12. **017_admin_revert_action.sql** - Undo functionality
+13. **018_add_role_to_profiles.sql** - Simple role-based access
+14. **020_create_storage_buckets.sql** - File storage setup
+15. **100_migrate_existing_to_v2.sql** - Data migration utilities
+
+## Important Implementation Notes
+
+1. **Missing RPC Functions**: Some functions called by the frontend don't exist yet:
+   - `get_person_with_relations` - Consider implementing or updating frontend
+   - `admin_create_marriage` - Not implemented, marriages created differently
+   - `trigger_layout_recalc` - Frontend should call `trigger_layout_recalc_async`
+
+2. **Simplified RBAC**: Instead of separate roles/user_roles tables, the system uses a `role` column on profiles
+
+3. **No Edge Functions Yet**: Layout recalculation uses a queue table, not Edge Functions
+
+4. **Validation is Comprehensive**: All JSONB validation functions are implemented and working
+
+This document reflects the actual implementation as of 2025-09-04.
