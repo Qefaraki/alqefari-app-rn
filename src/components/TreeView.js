@@ -308,10 +308,10 @@ const TreeView = ({ setProfileEditMode }) => {
           setTreeData(familyData);
         } else if (data) {
           console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
-          console.log('🐞 DEBUG MODE: Tracking zoom/pan issues. Look for:');
-          console.log('  - Node positions changing (they shouldn\'t)');
-          console.log('  - Large visibility changes during zoom');
-          console.log('  - Focal point jumps between pinches');
+          // console.log('🐞 DEBUG MODE: Tracking zoom/pan issues. Look for:');
+          // console.log('  - Node positions changing (they shouldn\'t)');
+          // console.log('  - Large visibility changes during zoom');
+          // console.log('  - Focal point jumps between pinches');
           setTreeData(data); // Store in zustand for ProfileSheet
         }
       } catch (err) {
@@ -342,7 +342,7 @@ const TreeView = ({ setProfileEditMode }) => {
           table: 'profiles'
         },
         async (payload) => {
-          console.log('Profile change:', payload);
+          // console.log('Profile change:', payload);
           
           // Handle different event types
           if (payload.eventType === 'UPDATE' && payload.new) {
@@ -397,19 +397,19 @@ const TreeView = ({ setProfileEditMode }) => {
     const layout = calculateTreeLayout(treeData);
     
     // DEBUG: Log canvas coordinates summary (these should NEVER change)
-    if (__DEV__ && layout.nodes.length > 0) {
-      const bounds = layout.nodes.reduce((acc, node) => ({
-        minX: Math.min(acc.minX, node.x),
-        maxX: Math.max(acc.maxX, node.x),
-        minY: Math.min(acc.minY, node.y),
-        maxY: Math.max(acc.maxY, node.y)
-      }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-      
-      console.log('🎯 LAYOUT CALCULATED:');
-      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
-      console.log(`  Bounds: X[${bounds.minX.toFixed(0)}, ${bounds.maxX.toFixed(0)}] Y[${bounds.minY.toFixed(0)}, ${bounds.maxY.toFixed(0)}]`);
-      console.log(`  Root: ${layout.nodes[0]?.name} at (${layout.nodes[0]?.x.toFixed(0)}, ${layout.nodes[0]?.y.toFixed(0)})`);
-    }
+    // if (__DEV__ && layout.nodes.length > 0) {
+    //   const bounds = layout.nodes.reduce((acc, node) => ({
+    //     minX: Math.min(acc.minX, node.x),
+    //     maxX: Math.max(acc.maxX, node.x),
+    //     minY: Math.min(acc.minY, node.y),
+    //     maxY: Math.max(acc.maxY, node.y)
+    //   }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+    //   
+    //   console.log('🎯 LAYOUT CALCULATED:');
+    //   console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
+    //   console.log(`  Bounds: X[${bounds.minX.toFixed(0)}, ${bounds.maxX.toFixed(0)}] Y[${bounds.minY.toFixed(0)}, ${bounds.maxY.toFixed(0)}]`);
+    //   console.log(`  Root: ${layout.nodes[0]?.name} at (${layout.nodes[0]?.x.toFixed(0)}, ${layout.nodes[0]?.y.toFixed(0)})`);
+    // }
     
     return layout;
   }, [treeData, isLoading]);
@@ -518,23 +518,23 @@ const TreeView = ({ setProfileEditMode }) => {
         }
       });
       
-      if (entered.length > 0 || exited.length > 0) {
-        console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
-        
-        // Warn about large visibility changes that might cause jumping
-        if (entered.length + exited.length > 20) {
-          console.log(`  ⚠️ LARGE CHANGE: ${entered.length + exited.length} nodes changed visibility!`);
-          console.log(`  Viewport: X[${visibleBounds.minX.toFixed(0)}, ${visibleBounds.maxX.toFixed(0)}] Y[${visibleBounds.minY.toFixed(0)}, ${visibleBounds.maxY.toFixed(0)}]`);
-        }
-        
-        // Only log details if few changes
-        if (entered.length > 0 && entered.length <= 5) {
-          console.log(`  Entered: ${entered.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
-        }
-        if (exited.length > 0 && exited.length <= 5) {
-          console.log(`  Exited: ${exited.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
-        }
-      }
+      // if (entered.length > 0 || exited.length > 0) {
+      //   console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
+      //   
+      //   // Warn about large visibility changes that might cause jumping
+      //   if (entered.length + exited.length > 20) {
+      //     console.log(`  ⚠️ LARGE CHANGE: ${entered.length + exited.length} nodes changed visibility!`);
+      //     console.log(`  Viewport: X[${visibleBounds.minX.toFixed(0)}, ${visibleBounds.maxX.toFixed(0)}] Y[${visibleBounds.minY.toFixed(0)}, ${visibleBounds.maxY.toFixed(0)}]`);
+      //   }
+      //   
+      //   // Only log details if few changes
+      //   if (entered.length > 0 && entered.length <= 5) {
+      //     console.log(`  Entered: ${entered.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
+      //   }
+      //   if (exited.length > 0 && exited.length <= 5) {
+      //     console.log(`  Exited: ${exited.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
+      //   }
+      // }
       
       prevVisibleNodesRef.current = currentVisibleIds;
     }
@@ -554,10 +554,10 @@ const TreeView = ({ setProfileEditMode }) => {
     });
     
     // DEBUG: Track connection visibility changes
-    if (__DEV__ && visible.length !== prevVisibleConnectionsRef.current) {
-      console.log(`🔗 CONNECTIONS: ${prevVisibleConnectionsRef.current}→${visible.length}`);
-      prevVisibleConnectionsRef.current = visible.length;
-    }
+    // if (__DEV__ && visible.length !== prevVisibleConnectionsRef.current) {
+    //   console.log(`🔗 CONNECTIONS: ${prevVisibleConnectionsRef.current}→${visible.length}`);
+    //   prevVisibleConnectionsRef.current = visible.length;
+    // }
     
     return visible;
   }, [connections, visibleNodes]);
@@ -658,9 +658,9 @@ const TreeView = ({ setProfileEditMode }) => {
       focalY.value = Math.round(e.focalY);
       
       // Debug logging
-      if (__DEV__) {
-        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${Math.round(e.focalX)},${Math.round(e.focalY)}) Fingers:${e.numberOfPointers}`);
-      }
+      // if (__DEV__) {
+      //   console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${Math.round(e.focalX)},${Math.round(e.focalY)}) Fingers:${e.numberOfPointers}`);
+      // }
     })
     .onUpdate((e) => {
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
@@ -680,9 +680,9 @@ const TreeView = ({ setProfileEditMode }) => {
       scale.value = s;
       
       // DEBUG: Log significant scale changes only
-      if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
-        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${stableFocalX.toFixed(0)},${stableFocalY.toFixed(0)}) | Δ:(${(newX - savedTranslateX.value).toFixed(0)},${(newY - savedTranslateY.value).toFixed(0)})`);
-      }
+      // if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
+      //   console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${stableFocalX.toFixed(0)},${stableFocalY.toFixed(0)}) | Δ:(${(newX - savedTranslateX.value).toFixed(0)},${(newY - savedTranslateY.value).toFixed(0)})`);
+      // }
     })
     .onEnd(() => {
       savedScale.value = scale.value;
@@ -690,9 +690,9 @@ const TreeView = ({ setProfileEditMode }) => {
       savedTranslateY.value = translateY.value;
       
       // Debug logging
-      if (__DEV__) {
-        console.log(`✅ PINCH END: Scale:${scale.value.toFixed(2)} Pos:(${translateX.value.toFixed(0)},${translateY.value.toFixed(0)})`);
-      }
+      // if (__DEV__) {
+      //   console.log(`✅ PINCH END: Scale:${scale.value.toFixed(2)} Pos:(${translateX.value.toFixed(0)},${translateY.value.toFixed(0)})`);
+      // }
     });
 
   // Tap gesture for selection with movement/time thresholds
@@ -705,9 +705,9 @@ const TreeView = ({ setProfileEditMode }) => {
       const canvasY = (e.y - translateY.value) / scale.value;
       
       // DEBUG: Log tap coordinates
-      if (__DEV__) {
-        console.log(`👆 TAP: Screen(${e.x.toFixed(0)},${e.y.toFixed(0)}) → Canvas(${canvasX.toFixed(0)},${canvasY.toFixed(0)}) @ Scale:${scale.value.toFixed(2)}`);
-      }
+      // if (__DEV__) {
+      //   console.log(`👆 TAP: Screen(${e.x.toFixed(0)},${e.y.toFixed(0)}) → Canvas(${canvasX.toFixed(0)},${canvasY.toFixed(0)}) @ Scale:${scale.value.toFixed(2)}`);
+      // }
       
       let tappedNodeId = null;
       for (const node of visibleNodes) {
@@ -721,9 +721,9 @@ const TreeView = ({ setProfileEditMode }) => {
           tappedNodeId = node.id;
           
           // DEBUG: Log tapped node
-          if (__DEV__) {
-            console.log(`  → Hit: ${node.name} at (${node.x.toFixed(0)},${node.y.toFixed(0)})`);
-          }
+          // if (__DEV__) {
+          //   console.log(`  → Hit: ${node.name} at (${node.x.toFixed(0)},${node.y.toFixed(0)})`);
+          // }
           
           break;
         }
@@ -735,17 +735,17 @@ const TreeView = ({ setProfileEditMode }) => {
 
   // Handle node tap - show profile sheet (edit mode if admin)
   const handleNodeTap = useCallback((nodeId) => {
-    console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
+    // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
     setSelectedPersonId(nodeId);
     setProfileEditMode(isAdminMode);
-    console.log('TreeView: Setting profileEditMode to:', isAdminMode);
+    // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
   }, [setSelectedPersonId, isAdminMode]);
   
   
   // Handle FAB press - show unlinked person modal
   const handleFABPress = useCallback(() => {
     // TODO: Show add unlinked person modal
-    console.log('Add unlinked person');
+    // console.log('Add unlinked person');
   }, []);
   
   // Handle context menu actions
@@ -784,7 +784,7 @@ const TreeView = ({ setProfileEditMode }) => {
                   Alert.alert('نجح', 'تم حذف الملف الشخصي');
                   await loadTreeData();
                 } catch (error) {
-                  console.error('Error deleting profile:', error);
+                  // console.error('Error deleting profile:', error);
                   Alert.alert('خطأ', 'فشل حذف الملف الشخصي');
                 }
               },
