@@ -320,7 +320,7 @@ export const profilesService = {
    */
   async triggerLayoutRecalc(nodeId) {
     try {
-      const { data, error } = await supabase.rpc('trigger_layout_recalc', {
+      const { data, error } = await supabase.rpc('trigger_layout_recalc_async', {
         p_node_id: nodeId
       });
       

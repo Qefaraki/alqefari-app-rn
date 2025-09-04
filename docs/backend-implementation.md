@@ -1266,14 +1266,54 @@ Here are the actual migration files in order of execution:
 ## Important Implementation Notes
 
 1. **Missing RPC Functions**: Some functions called by the frontend don't exist yet:
-   - `get_person_with_relations` - Consider implementing or updating frontend
-   - `admin_create_marriage` - Not implemented, marriages created differently
-   - `trigger_layout_recalc` - Frontend should call `trigger_layout_recalc_async`
+   - `get_person_with_relations` - Not implemented, only exists in service layer
+   - `admin_create_marriage` - Exists in scripts/deploy-admin-functions-simplified.sql but not deployed to main migrations
+   - `trigger_layout_recalc` - Frontend should call `trigger_layout_recalc_async` (naming mismatch)
 
 2. **Simplified RBAC**: Instead of separate roles/user_roles tables, the system uses a `role` column on profiles
 
 3. **No Edge Functions Yet**: Layout recalculation uses a queue table, not Edge Functions
 
 4. **Validation is Comprehensive**: All JSONB validation functions are implemented and working
+
+## Features to Implement
+
+### 1. Marriage Management UI
+**Current State**: 
+- Backend has marriages table and get_person_marriages function
+- ProfileSheet displays marriages but no UI to create/edit them
+- admin_create_marriage exists in scripts but not deployed
+
+**To Implement**:
+- Deploy admin_create_marriage function to production
+- Add marriage management section to admin edit mode
+- Create MarriageEditor component with:
+  - Spouse selector (filtered by gender and generation)
+  - Marriage dates (start/end)
+  - Status management (married/divorced/widowed)
+  - Munasib field for cultural context
+
+### 2. Person Relations View
+**Current State**: 
+- get_person_with_relations defined but never implemented
+- Currently fetching relations through separate calls
+
+**To Implement**:
+- Either implement the RPC function to aggregate all relations
+- Or remove the unused function from service layer
+- Consider if this would improve performance over current approach
+
+### 3. Fix Layout Recalculation
+**Current State**: 
+- Frontend calls wrong function name
+- Backend has trigger_layout_recalc_async
+
+**To Fix**:
+```javascript
+// In src/services/profiles.js, line 323:
+const { data, error } = await supabase.rpc('trigger_layout_recalc_async', {
+  p_node_id: nodeId
+});
+```
 
 This document reflects the actual implementation as of 2025-09-04.

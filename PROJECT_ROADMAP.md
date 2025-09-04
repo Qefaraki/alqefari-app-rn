@@ -8,6 +8,8 @@
 - ✅ Created optimized CLAUDE.md for AI assistant context
 - ✅ Removed outdated migration guide and security vulnerabilities
 - ✅ Verified validation functions and admin operations
+- ✅ Fixed trigger_layout_recalc_async naming mismatch
+- ✅ Documented missing features (marriage UI, get_person_with_relations)
 
 ## Phase 5: High-Velocity Admin Toolkit & Backend Engine
 
@@ -140,8 +142,20 @@
 - Phase 3: Smart Date Editing - Hijri/Gregorian date pickers
 - Phase 4: Relationship Selector - Parent selection UI
 - Phase 5: Advanced Controls - Admin-only fields
+- Phase 6: Marriage Management - Add/edit/delete marriages UI
 
 ### 📋 TODO
+
+#### High Priority Features to Implement
+1. **Marriage Management UI**
+   - Deploy admin_create_marriage function to production
+   - Create MarriageEditor component
+   - Add spouse selector with smart filtering
+   - Implement marriage CRUD operations in admin mode
+
+2. **Fix Missing Backend Functions**
+   - Either implement get_person_with_relations RPC or remove from service layer
+   - Consider if aggregating relations would improve performance
 
 1. Admin Features
    - Batch operations UI
@@ -179,3 +193,11 @@
 - ✅ EXIF metadata stripping for privacy
 - ✅ Progressive loading with retry mechanism
 - ✅ Fixed image display issues in ProfileSheet
+
+### v1.3.0 - Photo System Improvements Phase 1 (COMPLETED)
+- ✅ Implemented expo-image for native caching
+- ✅ Created unified CachedImage component
+- ✅ Added image cache service with size management
+- ✅ Unified loading states with shimmer effect
+- ✅ Image preloading for visible nodes
+- ✅ Fallback system for Supabase transformations

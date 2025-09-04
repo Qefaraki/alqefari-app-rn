@@ -79,36 +79,39 @@ This document outlines the phased implementation of the admin edit mode for the 
 **Status: ✅ COMPLETED (2025-09-04)**
 
 #### Fields
-1. **Photo URL** (رابط الصورة) ✅
-   - PhotoEditor component with live preview
+1. **Photo Upload** (رفع الصورة) ✅
+   - PhotoEditor component with native camera/gallery picker
    - Circular 160x160 preview with glass morphism
-   - URL validation (requires https:// or http://)
-   - Loading spinner during image fetch
+   - Direct upload to Supabase storage
+   - Client-side image optimization and EXIF stripping
+   - Loading progress during upload
    - Error state with icon and message
    - "Remove Photo" button with gradient style
 
 #### UX Specifications
 - **Photo Editor**
-  - Circular photo preview (60x60)
-  - Tap photo to focus URL input
-  - URL input below photo with paste button
-  - Live preview updates as you type (with debounce)
-  - Loading spinner during image fetch
+  - Circular photo preview (160x160)
+  - Tap photo to open picker sheet
+  - Action sheet with Camera/Gallery/Remove options
+  - Loading progress during optimization
+  - Upload progress indicator
   - Error state with person silhouette placeholder
   - "Remove Photo" button (requires confirmation)
   
 - **Interaction Flow**
   1. Tap photo circle or "Add Photo" button
-  2. URL input appears/focuses
-  3. Paste detection offers quick paste
-  4. Preview updates in real-time
-  5. Save commits the URL
+  2. Action sheet appears with options
+  3. Select Camera or Gallery
+  4. Image optimization starts automatically
+  5. Upload begins with progress indicator
+  6. Photo updates upon successful upload
 
 #### Technical Considerations
-- Validate URL format
-- Check image accessibility (CORS)
-- Cache preview for performance
-- Handle loading/error states gracefully
+- Client-side image compression
+- EXIF metadata stripping for privacy
+- Retry mechanism for failed uploads
+- Storage bucket with RLS policies
+- Automatic cleanup of old photos
 
 ---
 
@@ -223,6 +226,38 @@ This document outlines the phased implementation of the admin edit mode for the 
 - Role changes logged in audit trail
 - Only super admins can modify roles
 - HID never editable through UI
+
+---
+
+### Phase 6: Marriage Management 💑
+**Priority: HIGH**
+**Status: Not Started**
+
+#### Features
+1. **Marriage Editor Component**
+   - Add/Edit marriages for selected person
+   - Spouse selector with smart filtering:
+     - Filter by opposite gender
+     - Suggest appropriate generation matches
+     - Search by name with Arabic support
+   - Marriage details:
+     - Status (married/divorced/widowed)
+     - Start date (with date picker)
+     - End date (if divorced/widowed)
+     - Munasib (منسب) - cultural context field
+   
+2. **UI Integration**
+   - New section in ProfileSheet edit mode
+   - "Add Marriage" button
+   - List of existing marriages with edit/delete
+   - Validation to prevent duplicate marriages
+
+#### Technical Requirements
+- Deploy `admin_create_marriage` function from scripts
+- Create `admin_update_marriage` function
+- Create `admin_delete_marriage` function
+- Add MarriageEditor component
+- Integrate with existing admin mode
 
 ---
 
