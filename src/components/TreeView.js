@@ -224,6 +224,7 @@ const TreeView = ({ setProfileEditMode }) => {
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentScale, setCurrentScale] = useState(1);
   
   // Admin mode state
   const { isAdminMode } = useAdminMode();
@@ -274,6 +275,14 @@ const TreeView = ({ setProfileEditMode }) => {
   const savedTranslateY = useSharedValue(stage.y);
   const focalX = useSharedValue(0);
   const focalY = useSharedValue(0);
+
+  // Sync scale value to React state for use in render
+  useAnimatedReaction(
+    () => scale.value,
+    (current) => {
+      runOnJS(setCurrentScale)(current);
+    }
+  );
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
@@ -474,7 +483,6 @@ const TreeView = ({ setProfileEditMode }) => {
     const startTime = performance.now();
     
     // Only update visibility if scale changed significantly (>5%)
-    const currentScale = scale.value;
     const scaleChanged = Math.abs(currentScale - lastStableScale.current) / lastStableScale.current > 0.05;
     if (scaleChanged) {
       lastStableScale.current = currentScale;
@@ -532,7 +540,7 @@ const TreeView = ({ setProfileEditMode }) => {
     }
     
     return visible;
-  }, [nodes, visibleBounds]);
+  }, [nodes, visibleBounds, currentScale]);
 
   // Track previous visible connections for debugging
   const prevVisibleConnectionsRef = useRef(0);
