@@ -4,6 +4,8 @@
 
 This document outlines all validation rules, integrity checks, and error recovery procedures implemented in the Alqefari Family Tree backend. The system enforces data integrity at multiple levels to ensure consistency and reliability.
 
+**Document Status**: Current as of 2025-09-04. All validation functions, tables, and checks described here are implemented and functional in the codebase.
+
 ## Table of Contents
 
 1. [Schema-Level Validations](#schema-level-validations)
@@ -220,27 +222,33 @@ The `admin_validation_dashboard()` function performs comprehensive health checks
 
 ## Error Codes and Recovery
 
-### Common Error Messages
+### Common Error Patterns
 
-1. **"Validation failed: Check constraint violation"**
-   - Cause: Data doesn't meet schema constraints
-   - Recovery: Check specific constraint in error details
+1. **Check Constraint Violations**
+   - PostgreSQL Code: `23514`
+   - Example: Violating `check_hid_format`, `check_dob_data`, etc.
+   - Message includes constraint name
+   - Recovery: Check specific constraint requirements
 
-2. **"Circular parent relationship detected"**
-   - Cause: Attempting to create circular reference
-   - Recovery: Choose different parent
+2. **Foreign Key Violations** 
+   - PostgreSQL Code: `23503`
+   - Example: Invalid parent_id reference
+   - Recovery: Ensure referenced record exists
 
-3. **"Generation hierarchy violation"**
-   - Cause: Parent/child generation inconsistency
-   - Recovery: Adjust generation numbers
+3. **Unique Constraint Violations**
+   - PostgreSQL Code: `23505`
+   - Example: Duplicate HID
+   - Recovery: Use different identifier
 
-4. **"Profile not found or version mismatch"**
-   - Cause: Optimistic locking conflict
-   - Recovery: Refresh data and retry
+4. **Custom Function Exceptions**
+   - Raised by: Admin functions when permissions fail
+   - Messages: "Admin access required", "Insufficient permissions"
+   - Recovery: Ensure proper role assignment
 
-5. **"Insufficient permissions"**
-   - Cause: User lacks required role
-   - Recovery: Contact admin for role assignment
+5. **Validation Function Failures**
+   - Caught by: CHECK constraints using validation functions
+   - Example: Invalid JSONB structure for dates or social media
+   - Recovery: Fix data format according to specifications
 
 ### Recovery Procedures
 
@@ -305,19 +313,25 @@ SELECT * FROM admin_auto_fix_issues();
 
 ### 3. Error Handling in Frontend
 
+The frontend uses a centralized error handler (`handleSupabaseError`) in `src/services/supabase.js`:
+
 ```javascript
+// Current implementation
 try {
   const result = await supabase.rpc('admin_create_profile', data);
 } catch (error) {
-  if (error.message.includes('Circular parent')) {
-    // Handle circular relationship error
-  } else if (error.message.includes('Generation hierarchy')) {
-    // Handle generation error
-  } else if (error.message.includes('version mismatch')) {
-    // Handle optimistic locking conflict
-  }
+  const errorMessage = handleSupabaseError(error);
+  // Display errorMessage to user
 }
+
+// The handleSupabaseError function handles common PostgreSQL error codes:
+// - PGRST301: No data found
+// - 23505: Duplicate key violation (record already exists)
+// - 23503: Foreign key violation (cannot delete referenced record)
+// - Others: Returns the error message or generic error
 ```
+
+**Note**: While the backend validates relationships and raises exceptions, the current frontend implementation uses generic error handling. For better UX, specific error message parsing could be implemented in the future.
 
 ### 4. Regular Maintenance
 
