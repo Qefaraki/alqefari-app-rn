@@ -588,6 +588,7 @@ const TreeView = ({ setProfileEditMode }) => {
 
   // Track previous visible connections for debugging
   const prevVisibleConnectionsRef = useRef(0);
+  const prevVisibleConnectionRef = useRef(new Set());
   
   // Filter visible connections
   const visibleConnections = useMemo(() => {
@@ -603,8 +604,39 @@ const TreeView = ({ setProfileEditMode }) => {
       prevVisibleConnectionsRef.current = visible.length;
     }
     
+    // Track entry times for connection fade-in (production-safe)
+    if (!reduceMotion) {
+      const now = performance.now();
+      let started = 0;
+      
+      // Create unique keys for each parent->child edge
+      const current = new Set();
+      visible.forEach(conn => {
+        conn.children.forEach(child => {
+          current.add(`conn:${conn.parent.id}->${child.id}`);
+        });
+      });
+      
+      // Track entries with fade limit
+      current.forEach(key => {
+        if (!prevVisibleConnectionRef.current.has(key) && started < MAX_FADES_PER_FRAME) {
+          enterAt.set(key, now);
+          started++;
+        }
+      });
+      
+      // Clean up exits
+      prevVisibleConnectionRef.current.forEach(key => {
+        if (!current.has(key)) {
+          enterAt.delete(key);
+        }
+      });
+      
+      prevVisibleConnectionRef.current = current;
+    }
+    
     return visible;
-  }, [connections, visibleNodes]);
+  }, [connections, visibleNodes, reduceMotion, enterAt]);
 
   // Pass 3: Invisible bridge check - horizontal sibling lines intersecting viewport
   const bridgeSegments = useMemo(() => {
@@ -873,6 +905,11 @@ const TreeView = ({ setProfileEditMode }) => {
     const parent = nodes.find(n => n.id === connection.parent.id);
     if (!parent) return null;
     
+    // Calculate opacity for the connection
+    const key = `conn:${connection.parent.id}->all`;
+    const now = performance.now();
+    const opacity = fadeOpacityFor(key, now);
+    
     // Calculate bus line position
     const childYs = connection.children.map(child => child.y);
     const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
@@ -930,24 +967,34 @@ const TreeView = ({ setProfileEditMode }) => {
       );
     });
     
-    return lines;
-  }, [nodes]);
+    // Micro-optimization: skip Group wrapper if fully opaque
+    if (opacity === 1) {
+      return lines;
+    }
+    
+    return (
+      <Group key={key} opacity={opacity}>
+        {lines}
+      </Group>
+    );
+  }, [nodes, fadeOpacityFor]);
 
   // Easing function for smooth fade-in
   const easeOutCubic = useCallback((t) => {
     return 1 - Math.pow(1 - t, 3);
   }, []);
   
-  // Calculate fade opacity for a node
-  const fadeOpacityFor = useCallback((nodeId, now) => {
+  // Calculate fade opacity for a node or connection
+  const fadeOpacityFor = useCallback((key, now) => {
     if (reduceMotion) return 1;
     
-    const entryTime = enterAt.get(nodeId);
-    if (!entryTime) return 1;
+    const entry = enterAt.get(key);
+    if (!entry) return 1;
     
-    const elapsed = now - entryTime;
-    const t = Math.min(1, elapsed / 160); // 160ms duration
-    return easeOutCubic(t);
+    const elapsed = now - entry;
+    if (elapsed >= 160) return 1; // Fast path
+    
+    return easeOutCubic(elapsed / 160);
   }, [reduceMotion, enterAt, easeOutCubic]);
   
   // Render node component
@@ -1126,7 +1173,7 @@ const TreeView = ({ setProfileEditMode }) => {
         )}
       </Group>
     );
-  }, [selectedPersonId, fadeOpacityFor, ticker]);
+  }, [selectedPersonId, fadeOpacityFor]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
   // Scale FIRST, then translate (for screen-space translation)
