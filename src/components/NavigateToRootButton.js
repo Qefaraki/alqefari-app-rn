@@ -13,7 +13,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
       const root = nodes.find(n => n.generation === 1);
       if (root) {
         setRootNode(root);
-        console.log('Root node found:', root.name, 'at position:', root.x, root.y);
+        // console.log('Root node found:', root.name, 'at position:', root.x, root.y);
       }
     }
   }, [nodes]);
@@ -30,7 +30,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
 
   const handleNavigateToRoot = () => {
     if (!rootNode) {
-      console.warn('NavigateToRootButton: Root node not ready yet');
+      // console.warn('NavigateToRootButton: Root node not ready yet');
       return;
     }
     
@@ -47,7 +47,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
     );
     
     if (!sharedValues) {
-      console.warn('NavigateToRootButton: No shared values provided');
+      // console.warn('NavigateToRootButton: No shared values provided');
       return;
     }
     
@@ -56,11 +56,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
     const targetY = 200 - rootNode.y; // Position near top with padding
     const targetScale = 1; // Reset to default zoom
     
-    console.log('Navigate to root:', {
-      rootNode: { name: rootNode.name, x: rootNode.x, y: rootNode.y },
-      viewport: { width: viewport.width, height: viewport.height },
-      target: { x: targetX, y: targetY, scale: targetScale }
-    });
+    // console.log('Navigate to root:', {
+    //   rootNode: { name: rootNode.name, x: rootNode.x, y: rootNode.y },
+    //   viewport: { width: viewport.width, height: viewport.height },
+    //   target: { x: targetX, y: targetY, scale: targetScale }
+    // });
     
     // Animate the shared values directly
     sharedValues.translateX.value = withTiming(targetX, {

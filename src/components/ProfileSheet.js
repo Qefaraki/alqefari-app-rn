@@ -77,7 +77,7 @@ const constructCommonName = (person, nodesMap) => {
 const generationNames = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
 
 const ProfileSheet = ({ editMode = false }) => {
-  console.log('ProfileSheet: Received editMode prop:', editMode);
+  // console.log('ProfileSheet: Received editMode prop:', editMode);
   const selectedPersonId = useTreeStore(s => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore(s => s.setSelectedPersonId);
   const treeData = useTreeStore(s => s.treeData);
@@ -94,9 +94,9 @@ const ProfileSheet = ({ editMode = false }) => {
   // Admin mode
   const { isAdminMode } = useAdminMode();
   const isEditing = editMode;
-  console.log('ProfileSheet: editMode prop received:', editMode);
-  console.log('ProfileSheet: isAdminMode from context:', isAdminMode);
-  console.log('ProfileSheet: isEditing value:', isEditing);
+  // console.log('ProfileSheet: editMode prop received:', editMode);
+  // console.log('ProfileSheet: isAdminMode from context:', isAdminMode);
+  // console.log('ProfileSheet: isEditing value:', isEditing);
   
   // Edit mode state
   const [saving, setSaving] = useState(false);
