@@ -115,6 +115,13 @@ class ImageOptimizationService {
       return originalUrl;
     }
 
+    // Temporary: Check if transformation API is available
+    // If the URL contains /render/image/, it means we already tried and failed
+    if (originalUrl.includes('/render/image/')) {
+      console.warn('Image transformation failed, using original URL');
+      return originalUrl.replace('/render/image/', '/object/');
+    }
+
     const {
       width,
       height,
@@ -141,6 +148,29 @@ class ImageOptimizationService {
   }
 
   /**
+   * Check if Supabase image transformation is available
+   * @private
+   */
+  _transformationAvailable = null;
+  
+  async checkTransformationAvailability() {
+    if (this._transformationAvailable !== null) {
+      return this._transformationAvailable;
+    }
+    
+    try {
+      // Test with a known image URL
+      const testUrl = 'https://ezkioroyhzpavmbfavyn.supabase.co/storage/v1/render/image/public/profile-photos/test.jpg?width=50&height=50';
+      const response = await fetch(testUrl, { method: 'HEAD' });
+      this._transformationAvailable = response.ok;
+      return this._transformationAvailable;
+    } catch (error) {
+      this._transformationAvailable = false;
+      return false;
+    }
+  }
+
+  /**
    * Get optimized URLs for different use cases
    * @param {string} originalUrl - The original image URL
    * @returns {Object} Object with different optimized URLs
@@ -148,27 +178,32 @@ class ImageOptimizationService {
   getOptimizedUrls(originalUrl) {
     if (!originalUrl) return null;
 
+    // For now, return original URL for all sizes
+    // We'll implement client-side optimization if needed
     return {
-      thumbnail: this.getTransformedUrl(originalUrl, {
-        width: ImageOptimizationService.THUMBNAIL_SIZE,
-        height: ImageOptimizationService.THUMBNAIL_SIZE,
-        quality: 70,
-        format: 'webp',
-      }),
-      preview: this.getTransformedUrl(originalUrl, {
-        width: ImageOptimizationService.PREVIEW_SIZE,
-        height: ImageOptimizationService.PREVIEW_SIZE,
-        quality: 85,
-        format: 'webp',
-      }),
-      full: this.getTransformedUrl(originalUrl, {
-        width: ImageOptimizationService.MAX_DIMENSIONS.width,
-        height: ImageOptimizationService.MAX_DIMENSIONS.height,
-        quality: 90,
-        format: 'webp',
-      }),
+      thumbnail: originalUrl,
+      preview: originalUrl,
+      full: originalUrl,
       original: originalUrl,
     };
+  }
+  
+  /**
+   * Get optimized URL with specific dimensions (future implementation)
+   * @param {string} originalUrl - The original image URL
+   * @param {number} width - Target width
+   * @param {number} height - Target height
+   * @returns {string} Optimized URL
+   */
+  getOptimizedUrl(originalUrl, width, height) {
+    if (!originalUrl || !originalUrl.includes('supabase')) {
+      return originalUrl;
+    }
+    
+    // For now, return original URL
+    // When transformation service is fixed, we'll use:
+    // return this.getTransformedUrl(originalUrl, { width, height, format: 'webp' });
+    return originalUrl;
   }
 
   /**

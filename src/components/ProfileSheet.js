@@ -456,32 +456,30 @@ const ProfileSheet = ({ editMode = false }) => {
                   profileId={person.id}
                 />
               </View>
-            ) : (
+            ) : person.photo_url ? (
               <View style={styles.photoSection}>
                 <ProgressiveHeroImage
                   source={{ uri: person.photo_url }}
                   style={styles.heroImage}
                   resizeMode="cover"
                 />
-                {person.photo_url && (
-                  <>
-                    {/* Top gradient for legibility of the close control */}
-                    <LinearGradient
-                      colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
-                      start={{ x: 0.5, y: 0 }}
-                      end={{ x: 0.5, y: 1 }}
-                      style={[StyleSheet.absoluteFill, { height: 120 }]}
-                    />
-                    <LinearGradient
-                      colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.12)"]}
-                      start={{ x: 0.5, y: 0 }}
-                      end={{ x: 0.5, y: 1 }}
-                      style={StyleSheet.absoluteFill}
-                    />
-                  </>
-                )}
+                <>
+                  {/* Top gradient for legibility of the close control */}
+                  <LinearGradient
+                    colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={[StyleSheet.absoluteFill, { height: 120 }]}
+                  />
+                  <LinearGradient
+                    colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.12)"]}
+                    start={{ x: 0.5, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </>
               </View>
-            )}
+            ) : null}
 
             <View style={styles.descSection}>
               {isEditing ? (
