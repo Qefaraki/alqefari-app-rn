@@ -28,6 +28,8 @@ import { useAdminMode } from '../contexts/AdminModeContext';
 import GlobalFAB from './admin/GlobalFAB';
 import SystemStatusIndicator from './admin/SystemStatusIndicator';
 import MultiAddChildrenModal from './admin/MultiAddChildrenModal';
+import skiaImageCache from '../services/skiaImageCache';
+import { useCachedSkiaImage } from '../hooks/useCachedSkiaImage';
 import NodeContextMenu from './admin/NodeContextMenu';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import { supabase } from '../services/supabase';
@@ -157,7 +159,7 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
 
 // Image component for photos with skeleton loader
 const ImageNode = ({ url, x, y, width, height, radius }) => {
-  const image = useImage(url);
+  const image = useCachedSkiaImage(url, 256);
   
   // If no image yet, show simple skeleton placeholder
   if (!image) {
@@ -541,6 +543,42 @@ const TreeView = ({ setProfileEditMode }) => {
     
     return visible;
   }, [nodes, visibleBounds, currentScale]);
+
+  // Prefetch neighbor nodes for better performance
+  useEffect(() => {
+    if (!visibleNodes.length) return;
+    
+    // Create a set of visible node IDs for O(1) lookup
+    const visibleIds = new Set(visibleNodes.map(n => n.id));
+    const neighborUrls = new Set();
+    
+    // Find neighbors (parents and children of visible nodes)
+    for (const node of visibleNodes) {
+      // Add parent
+      if (node.father_id) {
+        const parent = nodes.find(n => n.id === node.father_id);
+        if (parent && !visibleIds.has(parent.id) && parent.photo_url) {
+          neighborUrls.add(parent.photo_url);
+        }
+      }
+      
+      // Add children
+      const children = nodes.filter(n => n.father_id === node.id);
+      for (const child of children) {
+        if (!visibleIds.has(child.id) && child.photo_url) {
+          neighborUrls.add(child.photo_url);
+        }
+      }
+    }
+    
+    // Prefetch up to 6 unique URLs
+    const urlsToPreload = Array.from(neighborUrls).slice(0, 6);
+    urlsToPreload.forEach(url => {
+      skiaImageCache.prefetch(url, 256).catch(() => {
+        // Prefetch errors are non-fatal, ignore
+      });
+    });
+  }, [visibleNodes, nodes]);
 
   // Track previous visible connections for debugging
   const prevVisibleConnectionsRef = useRef(0);
@@ -1103,6 +1141,25 @@ const TreeView = ({ setProfileEditMode }) => {
             visible={true}
           />
         </>
+      )}
+      
+      {/* Cache stats in dev mode */}
+      {__DEV__ && (
+        <View style={{
+          position: 'absolute',
+          bottom: 100,
+          left: 10,
+          backgroundColor: 'rgba(0,0,0,0.8)',
+          padding: 8,
+          borderRadius: 8,
+        }}>
+          <Text style={{ color: 'white', fontSize: 11, fontFamily: 'monospace' }}>
+            {(() => {
+              const stats = skiaImageCache.getStats();
+              return `Cache: ${stats.entries} images\n${stats.totalMB}MB / ${stats.budgetMB}MB (${stats.utilization})`;
+            })()}
+          </Text>
+        </View>
       )}
       
       {/* Node Context Menu */}

@@ -40,7 +40,7 @@ const CachedImage = ({
     setLoadStartTime(startTime);
     setLoading(true);
     setError(false);
-    console.log(`🖼️ CACHE: Loading started for ${imageUri?.substring(imageUri.lastIndexOf('/') + 1) || 'image'}`);
+    console.log(`👤 PROFILE CACHE: Loading started for ${imageUri?.substring(imageUri.lastIndexOf('/') + 1) || 'image'}`);
     onLoadStart?.();
   };
 
@@ -55,7 +55,7 @@ const CachedImage = ({
       const fromCache = loadTime < 50;
       const cacheStatus = fromCache ? '✅ CACHE HIT' : '🌐 NETWORK';
       
-      console.log(`🖼️ CACHE: ${cacheStatus} - ${fileName} loaded in ${loadTime.toFixed(0)}ms`);
+      console.log(`👤 PROFILE CACHE: ${cacheStatus} - ${fileName} loaded in ${loadTime.toFixed(0)}ms`);
     }
     
     onLoadEnd?.();
@@ -65,7 +65,7 @@ const CachedImage = ({
     setLoading(false);
     setError(true);
     const fileName = imageUri?.substring(imageUri.lastIndexOf('/') + 1) || 'image';
-    console.error(`🖼️ CACHE: ❌ ERROR loading ${fileName}:`, event.error);
+    console.error(`👤 PROFILE CACHE: ❌ ERROR loading ${fileName}:`, event.error);
     onError?.(event);
   };
 
