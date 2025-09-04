@@ -21,7 +21,7 @@ supabase init
 supabase link --project-ref ezkioroyhzpavmbfavyn
 ```
 
-When prompted, use the database password from your .env file: `FwxS5z3MseYqRy2Q`
+When prompted, use the database password from your .env file (check SUPABASE_DB_PASSWORD)
 
 ### 3. Run Database Migrations
 
