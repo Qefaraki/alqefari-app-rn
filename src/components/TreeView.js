@@ -721,11 +721,10 @@ const TreeView = ({ setProfileEditMode }) => {
       }
     });
 
-  // Pan gesture with momentum
+  // Pan gesture with momentum - constrained to single finger
   const panGesture = Gesture.Pan()
     .minPointers(1)
     .maxPointers(1)
-    .requireFailure(pinchGesture)
     .onStart(() => {
       cancelAnimation(translateX);
       cancelAnimation(translateY);
