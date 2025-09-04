@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio, AccessibilityInfo } from 'react-native';
-import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
+import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont, Paint, useCanvasRef } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -161,10 +161,42 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
 };
 
 // Image component for photos
-const ImageNode = ({ url, x, y, width, height, radius }) => {
+const ImageNode = ({ url, x, y, width, height, radius, canvasRef, pendingAssets, kickRAF }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
   const image = useImage(url);
   
-  if (!image) return null;
+  useEffect(() => {
+    if (url && !imageLoaded) {
+      pendingAssets.current++;
+      kickRAF();
+    }
+    
+    return () => {
+      if (url && !imageLoaded && pendingAssets.current > 0) {
+        pendingAssets.current--;
+      }
+    };
+  }, [url, imageLoaded, pendingAssets, kickRAF]);
+  
+  useEffect(() => {
+    if (image) {
+      setImageLoaded(true);
+      pendingAssets.current = Math.max(0, pendingAssets.current - 1);
+      canvasRef.current?.redraw();
+    }
+  }, [image, canvasRef]);
+  
+  // Always render placeholder to prevent pop-in
+  if (!image) {
+    return (
+      <Circle 
+        cx={x + radius}
+        cy={y + radius}
+        r={radius}
+        color="#F5F5F5"
+      />
+    );
+  }
   
   return (
     <Group>
@@ -251,13 +283,6 @@ const TreeView = ({ setProfileEditMode }) => {
       }
     })();
     
-    // Start ticker for fade animations
-    ticker.value = withRepeat(
-      withTiming(1, { duration: 1000 }), 
-      -1, // repeat forever
-      true // reverse
-    );
-    
     // Check accessibility preferences
     AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
       setReduceMotion(enabled);
@@ -280,8 +305,29 @@ const TreeView = ({ setProfileEditMode }) => {
   const prevFocalX = useSharedValue(0);
   const prevFocalY = useSharedValue(0);
   
-  // Ticker to force continuous Skia re-renders during fades
-  const ticker = useSharedValue(0);
+  // Canvas ref for forced redraws
+  const canvasRef = useCanvasRef();
+  const activeFades = useRef(0);
+  const rafRef = useRef(0);
+  const pendingAssets = useRef(0);
+  const DUR = 160;
+  
+  // Kick off RAF loop when fades or assets are loading
+  const kickRAF = useCallback(() => {
+    if (rafRef.current) return;
+    
+    const loop = () => {
+      if (activeFades.current > 0 || pendingAssets.current > 0) {
+        canvasRef.current?.redraw();
+        rafRef.current = requestAnimationFrame(loop);
+      } else {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = 0;
+      }
+    };
+    
+    rafRef.current = requestAnimationFrame(loop);
+  }, [canvasRef]);
   
   // Viewport update ref
   const viewportUpdateTimeout = useRef(null);
@@ -330,6 +376,15 @@ const TreeView = ({ setProfileEditMode }) => {
   useEffect(() => {
     loadTreeData();
   }, [setTreeData]);
+  
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
   
   
   // Real-time subscription for profile updates
@@ -553,6 +608,12 @@ const TreeView = ({ setProfileEditMode }) => {
           if (newFadesThisFrame < MAX_FADES_PER_FRAME) {
             enterAt.set(node.id, performance.now());
             newFadesThisFrame++;
+            
+            // Increment active fades and kick RAF if first
+            if (++activeFades.current === 1) kickRAF();
+            setTimeout(() => {
+              activeFades.current = Math.max(0, activeFades.current - 1);
+            }, DUR);
           }
         });
         
@@ -622,6 +683,12 @@ const TreeView = ({ setProfileEditMode }) => {
         if (!prevVisibleConnectionRef.current.has(key) && started < MAX_FADES_PER_FRAME) {
           enterAt.set(key, now);
           started++;
+          
+          // Increment active fades and kick RAF if first
+          if (++activeFades.current === 1) kickRAF();
+          setTimeout(() => {
+            activeFades.current = Math.max(0, activeFades.current - 1);
+          }, DUR);
         }
       });
       
@@ -972,8 +1039,9 @@ const TreeView = ({ setProfileEditMode }) => {
       return lines;
     }
     
+    const layer = <Paint opacity={opacity} />;
     return (
-      <Group key={key} opacity={opacity}>
+      <Group key={key} layer={layer}>
         {lines}
       </Group>
     );
@@ -1011,8 +1079,8 @@ const TreeView = ({ setProfileEditMode }) => {
     const x = node.x - nodeWidth/2;
     const y = node.y - nodeHeight/2;
     
-    return (
-      <Group key={node.id} opacity={opacity}>
+    const nodeContent = (
+      <>
         {/* Shadow */}
         <RoundedRect
           x={x + 1}
@@ -1071,6 +1139,9 @@ const TreeView = ({ setProfileEditMode }) => {
                 width={PHOTO_SIZE}
                 height={PHOTO_SIZE}
                 radius={PHOTO_SIZE/2}
+                canvasRef={canvasRef}
+                pendingAssets={pendingAssets}
+                kickRAF={kickRAF}
               />
             )}
             
@@ -1171,9 +1242,20 @@ const TreeView = ({ setProfileEditMode }) => {
             })()}
           </>
         )}
+      </>
+    );
+    
+    if (opacity === 1) {
+      return <Group key={node.id}>{nodeContent}</Group>;
+    }
+    
+    const layer = <Paint opacity={opacity} />;
+    return (
+      <Group key={node.id} layer={layer}>
+        {nodeContent}
       </Group>
     );
-  }, [selectedPersonId, fadeOpacityFor]);
+  }, [selectedPersonId, fadeOpacityFor, canvasRef, pendingAssets, kickRAF]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
   // Scale FIRST, then translate (for screen-space translation)
@@ -1198,7 +1280,7 @@ const TreeView = ({ setProfileEditMode }) => {
   return (
     <View className="flex-1 bg-gray-100">
       <GestureDetector gesture={composed}>
-        <Canvas style={{ flex: 1 }}>
+        <Canvas style={{ flex: 1 }} ref={canvasRef}>
           <Group transform={transform}>
             {/* Render visible connections first */}
             {visibleConnections.map(renderConnection)}
