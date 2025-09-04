@@ -8,6 +8,7 @@ import Animated, {
   withSpring,
   withDecay,
   withTiming,
+  withRepeat,
   Easing,
   runOnJS,
   clamp,
