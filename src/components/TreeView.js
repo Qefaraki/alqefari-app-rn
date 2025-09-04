@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio, AccessibilityInfo } from 'react-native';
-import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont, useClockValue } from '@shopify/react-native-skia';
+import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -213,7 +213,6 @@ const TreeView = ({ setProfileEditMode }) => {
   
   // Node fade-in tracking
   const enterAt = useRef(new Map()).current;
-  const clock = useClockValue();
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
   const [multiAddParent, setMultiAddParent] = useState(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -943,7 +942,7 @@ const TreeView = ({ setProfileEditMode }) => {
   // Render node component
   const renderNode = useCallback((node) => {
     // Calculate fade opacity
-    const now = clock.current || Date.now();
+    const now = Date.now();
     const opacity = fadeOpacityFor(node.id, now);
     const hasPhoto = !!node.photo_url;
     // Respect the node's custom width if it has one (for text sizing)
@@ -1116,7 +1115,7 @@ const TreeView = ({ setProfileEditMode }) => {
         )}
       </Group>
     );
-  }, [selectedPersonId, clock, fadeOpacityFor]);
+  }, [selectedPersonId, fadeOpacityFor]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
   // Scale FIRST, then translate (for screen-space translation)
