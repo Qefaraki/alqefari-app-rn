@@ -252,6 +252,14 @@ const TreeView = ({ setProfileEditMode }) => {
   const savedTranslateX = useSharedValue(stage.x);
   const savedTranslateY = useSharedValue(stage.y);
   
+  // Stable world anchor for pinch gesture
+  const pinchWorldX = useSharedValue(0);
+  const pinchWorldY = useSharedValue(0);
+  
+  // Previous focal points for micro-smoothing
+  const prevFocalX = useSharedValue(0);
+  const prevFocalY = useSharedValue(0);
+  
   // Viewport update ref
   const viewportUpdateTimeout = useRef(null);
 
@@ -652,6 +660,15 @@ const TreeView = ({ setProfileEditMode }) => {
         savedTranslateX.value = translateX.value;
         savedTranslateY.value = translateY.value;
         
+        // Calculate stable world anchor at gesture start
+        const fx = e.focalX; // DIP units
+        const fy = e.focalY; // DIP units
+        pinchWorldX.value = (fx - translateX.value) / scale.value;
+        pinchWorldY.value = (fy - translateY.value) / scale.value;
+        
+        // Initialize smoothing values
+        prevFocalX.value = fx;
+        prevFocalY.value = fy;
       }
       
       // Debug logging
@@ -670,22 +687,26 @@ const TreeView = ({ setProfileEditMode }) => {
       // Target scale
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
       
-      // Live focal in canvas units (DPR = 1 for DIP)
-      const fx = e.focalX * DPR;
-      const fy = e.focalY * DPR;
+      // Get current focal point (DIP units)
+      let fx = e.focalX;
+      let fy = e.focalY;
       
-      // Convert focal to world coords using transform at gesture start
-      const wx = (fx - savedTranslateX.value) / savedScale.value;
-      const wy = (fy - savedTranslateY.value) / savedScale.value;
+      // Optional micro-smoothing for anti-jitter
+      if (Math.abs(e.scale - 1) < 0.005) {
+        fx = (prevFocalX.value * 3 + fx) / 4;
+        fy = (prevFocalY.value * 3 + fy) / 4;
+      }
+      prevFocalX.value = fx;
+      prevFocalY.value = fy;
       
-      // Keep world point under fingers
-      translateX.value = fx - s * wx;
-      translateY.value = fy - s * wy;
+      // Use stable world anchor from gesture start
+      translateX.value = fx - s * pinchWorldX.value;
+      translateY.value = fy - s * pinchWorldY.value;
       scale.value = s;
       
       // DEBUG: Log significant scale changes only
       if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
-        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${fx.toFixed(0)},${fy.toFixed(0)}) | World:(${wx.toFixed(0)},${wy.toFixed(0)})`);
+        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${fx.toFixed(0)},${fy.toFixed(0)}) | World:(${pinchWorldX.value.toFixed(0)},${pinchWorldY.value.toFixed(0)})`);
       }
     })
     .onEnd(() => {
