@@ -250,6 +250,13 @@ const TreeView = ({ setProfileEditMode }) => {
       }
     })();
     
+    // Start ticker for fade animations
+    ticker.value = withRepeat(
+      withTiming(1, { duration: 1000 }), 
+      -1, // repeat forever
+      true // reverse
+    );
+    
     // Check accessibility preferences
     AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
       setReduceMotion(enabled);
@@ -271,6 +278,9 @@ const TreeView = ({ setProfileEditMode }) => {
   // Previous focal points for micro-smoothing
   const prevFocalX = useSharedValue(0);
   const prevFocalY = useSharedValue(0);
+  
+  // Ticker to force continuous Skia re-renders during fades
+  const ticker = useSharedValue(0);
   
   // Viewport update ref
   const viewportUpdateTimeout = useRef(null);
@@ -540,7 +550,7 @@ const TreeView = ({ setProfileEditMode }) => {
         let newFadesThisFrame = 0;
         entered.forEach(node => {
           if (newFadesThisFrame < MAX_FADES_PER_FRAME) {
-            enterAt.set(node.id, Date.now());
+            enterAt.set(node.id, performance.now());
             newFadesThisFrame++;
           }
         });
@@ -942,7 +952,7 @@ const TreeView = ({ setProfileEditMode }) => {
   // Render node component
   const renderNode = useCallback((node) => {
     // Calculate fade opacity
-    const now = Date.now();
+    const now = performance.now();
     const opacity = fadeOpacityFor(node.id, now);
     const hasPhoto = !!node.photo_url;
     // Respect the node's custom width if it has one (for text sizing)
@@ -1115,7 +1125,7 @@ const TreeView = ({ setProfileEditMode }) => {
         )}
       </Group>
     );
-  }, [selectedPersonId, fadeOpacityFor]);
+  }, [selectedPersonId, fadeOpacityFor, ticker]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
   // Scale FIRST, then translate (for screen-space translation)
