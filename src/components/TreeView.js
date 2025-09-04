@@ -162,29 +162,31 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
 
 // Image component for photos
 const ImageNode = ({ url, x, y, width, height, radius, canvasRef, pendingAssets, kickRAF }) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
   const image = useImage(url);
+  const [hasStartedLoading, setHasStartedLoading] = useState(false);
   
+  // Track when we start loading
   useEffect(() => {
-    if (url && !imageLoaded) {
+    if (url && !hasStartedLoading) {
+      setHasStartedLoading(true);
       pendingAssets.current++;
-      kickRAF();
+      kickRAF(); // Start RAF loop for loading state
     }
-    
-    return () => {
-      if (url && !imageLoaded && pendingAssets.current > 0) {
+  }, [url, hasStartedLoading, pendingAssets, kickRAF]);
+  
+  // Redraw when image loads or errors
+  useEffect(() => {
+    if (image && hasStartedLoading) {
+      // Image loaded successfully
+      if (pendingAssets.current > 0) {
         pendingAssets.current--;
       }
-    };
-  }, [url, imageLoaded, pendingAssets, kickRAF]);
-  
-  useEffect(() => {
-    if (image) {
-      setImageLoaded(true);
-      pendingAssets.current = Math.max(0, pendingAssets.current - 1);
+      // Force immediate redraw to show the image
       canvasRef.current?.redraw();
+      // Keep RAF running briefly to ensure smooth appearance
+      kickRAF();
     }
-  }, [image, canvasRef]);
+  }, [image, hasStartedLoading, canvasRef, pendingAssets, kickRAF]);
   
   // Always render placeholder to prevent pop-in
   if (!image) {
