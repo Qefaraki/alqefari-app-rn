@@ -30,25 +30,42 @@ const CachedImage = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [loadStartTime, setLoadStartTime] = useState(null);
 
   // Get optimized URL if needed
   const imageUri = source?.uri || source;
 
   const handleLoadStart = () => {
+    const startTime = performance.now();
+    setLoadStartTime(startTime);
     setLoading(true);
     setError(false);
+    console.log(`🖼️ CACHE: Loading started for ${imageUri?.substring(imageUri.lastIndexOf('/') + 1) || 'image'}`);
     onLoadStart?.();
   };
 
   const handleLoadEnd = () => {
     setLoading(false);
+    
+    if (loadStartTime) {
+      const loadTime = performance.now() - loadStartTime;
+      const fileName = imageUri?.substring(imageUri.lastIndexOf('/') + 1) || 'image';
+      
+      // Heuristic: if load time < 50ms, likely from cache
+      const fromCache = loadTime < 50;
+      const cacheStatus = fromCache ? '✅ CACHE HIT' : '🌐 NETWORK';
+      
+      console.log(`🖼️ CACHE: ${cacheStatus} - ${fileName} loaded in ${loadTime.toFixed(0)}ms`);
+    }
+    
     onLoadEnd?.();
   };
 
   const handleError = (event) => {
     setLoading(false);
     setError(true);
-    console.error('Image load error:', event.error);
+    const fileName = imageUri?.substring(imageUri.lastIndexOf('/') + 1) || 'image';
+    console.error(`🖼️ CACHE: ❌ ERROR loading ${fileName}:`, event.error);
     onError?.(event);
   };
 
