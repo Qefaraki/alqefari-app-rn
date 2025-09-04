@@ -13,7 +13,7 @@ A premium iOS-first family tree visualization application built with React Nativ
 
 ## 🛠 Tech Stack
 
-- **Frontend**: React Native (Expo SDK 51)
+- **Frontend**: React Native (Expo SDK 53)
 - **Database**: Supabase (PostgreSQL)
 - **Rendering**: React Native Skia for high-performance graphics
 - **State Management**: Zustand
@@ -44,9 +44,11 @@ A premium iOS-first family tree visualization application built with React Nativ
 3. **Set up environment variables**
    Create a `.env` file in the root directory:
    ```env
+   # Frontend environment variables
    EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
    EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   
+   # Supabase CLI variables (for database operations)
    SUPABASE_DB_PASSWORD=your_database_password
    ```
 
@@ -99,11 +101,9 @@ The app uses a custom "Liquid Glass" design system featuring:
 
 ### Key Commands
 
-- `npm start` - Start the Expo development server
-- `npm run ios` - Run on iOS simulator
-- `npm run android` - Run on Android emulator
-- `npm test` - Run tests
-- `npm run lint` - Run ESLint
+- `npm start` - Start the Expo development server (with iOS and Android)
+- `npm run ios` - Run on iOS simulator only
+- `npm run android` - Run on Android emulator only
 
 ### Code Style
 
