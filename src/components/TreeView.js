@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio, AccessibilityInfo } from 'react-native';
-import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont, Paint, useCanvasRef } from '@shopify/react-native-skia';
+import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert } from 'react-native';
+import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -8,7 +8,6 @@ import Animated, {
   withSpring,
   withDecay,
   withTiming,
-  withRepeat,
   Easing,
   runOnJS,
   clamp,
@@ -51,12 +50,6 @@ let sfArabicRegistered = false;
 
 const SF_ARABIC_ALIAS = 'SF Arabic';
 const SF_ARABIC_ASSET = require('../../assets/fonts/SF Arabic Regular.ttf');
-
-// Pixel ratio for consistent focal point calculations (1 for DIP-aligned Skia)
-const DPR = 1;
-
-// Max number of nodes that can start fading in per frame
-const MAX_FADES_PER_FRAME = 24;
 
 try {
   fontMgr = Skia.FontMgr.System();
@@ -161,34 +154,10 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
 };
 
 // Image component for photos
-const ImageNode = ({ url, x, y, width, height, radius, canvasRef, pendingAssets, kickRAF }) => {
+const ImageNode = ({ url, x, y, width, height, radius }) => {
   const image = useImage(url);
-  const [hasStartedLoading, setHasStartedLoading] = useState(false);
   
-  // Track when we start loading
-  useEffect(() => {
-    if (url && !hasStartedLoading) {
-      setHasStartedLoading(true);
-      pendingAssets.current++;
-      kickRAF(); // Start RAF loop for loading state
-    }
-  }, [url, hasStartedLoading, pendingAssets, kickRAF]);
-  
-  // Redraw when image loads or errors
-  useEffect(() => {
-    if (image && hasStartedLoading) {
-      // Image loaded successfully
-      if (pendingAssets.current > 0) {
-        pendingAssets.current--;
-      }
-      // Force immediate redraw to show the image
-      canvasRef.current?.redraw();
-      // Keep RAF running briefly to ensure smooth appearance
-      kickRAF();
-    }
-  }, [image, hasStartedLoading, canvasRef, pendingAssets, kickRAF]);
-  
-  // Always render placeholder to prevent pop-in
+  // Always render placeholder circle to prevent pop-in
   if (!image) {
     return (
       <Circle 
@@ -240,14 +209,9 @@ const TreeView = ({ setProfileEditMode }) => {
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentScale, setCurrentScale] = useState(1);
-  const [reduceMotion, setReduceMotion] = useState(false);
   
   // Admin mode state
   const { isAdminMode } = useAdminMode();
-  
-  // Node fade-in tracking
-  const enterAt = useRef(new Map()).current;
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
   const [multiAddParent, setMultiAddParent] = useState(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -284,11 +248,6 @@ const TreeView = ({ setProfileEditMode }) => {
         // Ignore loading errors; fall back to system fonts
       }
     })();
-    
-    // Check accessibility preferences
-    AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
-      setReduceMotion(enabled);
-    });
   }, []);
   
   // Gesture shared values
@@ -298,41 +257,8 @@ const TreeView = ({ setProfileEditMode }) => {
   const savedScale = useSharedValue(stage.scale);
   const savedTranslateX = useSharedValue(stage.x);
   const savedTranslateY = useSharedValue(stage.y);
-  
-  // Stable world anchor for pinch gesture
-  const pinchWorldX = useSharedValue(0);
-  const pinchWorldY = useSharedValue(0);
-  
-  // Previous focal points for micro-smoothing
-  const prevFocalX = useSharedValue(0);
-  const prevFocalY = useSharedValue(0);
-  
-  // Canvas ref for forced redraws
-  const canvasRef = useCanvasRef();
-  const activeFades = useRef(0);
-  const rafRef = useRef(0);
-  const pendingAssets = useRef(0);
-  const DUR = 160;
-  
-  // Kick off RAF loop when fades or assets are loading
-  const kickRAF = useCallback(() => {
-    if (rafRef.current) return;
-    
-    const loop = () => {
-      if (activeFades.current > 0 || pendingAssets.current > 0) {
-        canvasRef.current?.redraw();
-        rafRef.current = requestAnimationFrame(loop);
-      } else {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = 0;
-      }
-    };
-    
-    rafRef.current = requestAnimationFrame(loop);
-  }, [canvasRef]);
-  
-  // Viewport update ref
-  const viewportUpdateTimeout = useRef(null);
+  const focalX = useSharedValue(0);
+  const focalY = useSharedValue(0);
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
@@ -378,15 +304,6 @@ const TreeView = ({ setProfileEditMode }) => {
   useEffect(() => {
     loadTreeData();
   }, [setTreeData]);
-  
-  // Cleanup RAF on unmount
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, []);
   
   
   // Real-time subscription for profile updates
@@ -505,32 +422,7 @@ const TreeView = ({ setProfileEditMode }) => {
   
   // Track last stable scale to detect significant changes
   const lastStableScale = useRef(1);
-  const lastReportedScale = useRef(1);
 
-  // Sync scale value to React state with throttling
-  useAnimatedReaction(
-    () => scale.value,
-    (current) => {
-      // Only update if scale changed significantly (>5%)
-      const scaleDiff = Math.abs(current - lastReportedScale.current) / lastReportedScale.current;
-      if (scaleDiff > 0.05) {
-        lastReportedScale.current = current;
-        runOnJS(setCurrentScale)(current);
-      }
-    }
-  );
-
-  // Throttled viewport bounds update function
-  const updateViewportBounds = useCallback((newBounds) => {
-    if (viewportUpdateTimeout.current) {
-      clearTimeout(viewportUpdateTimeout.current);
-    }
-    
-    viewportUpdateTimeout.current = setTimeout(() => {
-      setVisibleBounds(newBounds);
-    }, 16); // 60fps throttle
-  }, []);
-  
   // Update visible bounds when transform changes
   useAnimatedReaction(
     () => ({
@@ -549,8 +441,7 @@ const TreeView = ({ setProfileEditMode }) => {
         maxY: (-current.y + dimensions.height + dynamicMargin) / current.scale
       };
       
-      // Use throttled update function
-      runOnJS(updateViewportBounds)(newBounds);
+      runOnJS(setVisibleBounds)(newBounds);
     }
   );
   
@@ -568,6 +459,7 @@ const TreeView = ({ setProfileEditMode }) => {
     const startTime = performance.now();
     
     // Only update visibility if scale changed significantly (>5%)
+    const currentScale = scale.value;
     const scaleChanged = Math.abs(currentScale - lastStableScale.current) / lastStableScale.current > 0.05;
     if (scaleChanged) {
       lastStableScale.current = currentScale;
@@ -603,28 +495,6 @@ const TreeView = ({ setProfileEditMode }) => {
         }
       });
       
-      // Track entry times for fade-in animation
-      if (!reduceMotion) {
-        let newFadesThisFrame = 0;
-        entered.forEach(node => {
-          if (newFadesThisFrame < MAX_FADES_PER_FRAME) {
-            enterAt.set(node.id, performance.now());
-            newFadesThisFrame++;
-            
-            // Increment active fades and kick RAF if first
-            if (++activeFades.current === 1) kickRAF();
-            setTimeout(() => {
-              activeFades.current = Math.max(0, activeFades.current - 1);
-            }, DUR);
-          }
-        });
-        
-        // Clean up exit times
-        exited.forEach(node => {
-          enterAt.delete(node.id);
-        });
-      }
-      
       if (entered.length > 0 || exited.length > 0) {
         console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
         
@@ -647,11 +517,10 @@ const TreeView = ({ setProfileEditMode }) => {
     }
     
     return visible;
-  }, [nodes, visibleBounds, currentScale]);
+  }, [nodes, visibleBounds]);
 
   // Track previous visible connections for debugging
   const prevVisibleConnectionsRef = useRef(0);
-  const prevVisibleConnectionRef = useRef(new Set());
   
   // Filter visible connections
   const visibleConnections = useMemo(() => {
@@ -667,45 +536,8 @@ const TreeView = ({ setProfileEditMode }) => {
       prevVisibleConnectionsRef.current = visible.length;
     }
     
-    // Track entry times for connection fade-in (production-safe)
-    if (!reduceMotion) {
-      const now = performance.now();
-      let started = 0;
-      
-      // Create unique keys for each parent->child edge
-      const current = new Set();
-      visible.forEach(conn => {
-        conn.children.forEach(child => {
-          current.add(`conn:${conn.parent.id}->${child.id}`);
-        });
-      });
-      
-      // Track entries with fade limit
-      current.forEach(key => {
-        if (!prevVisibleConnectionRef.current.has(key) && started < MAX_FADES_PER_FRAME) {
-          enterAt.set(key, now);
-          started++;
-          
-          // Increment active fades and kick RAF if first
-          if (++activeFades.current === 1) kickRAF();
-          setTimeout(() => {
-            activeFades.current = Math.max(0, activeFades.current - 1);
-          }, DUR);
-        }
-      });
-      
-      // Clean up exits
-      prevVisibleConnectionRef.current.forEach(key => {
-        if (!current.has(key)) {
-          enterAt.delete(key);
-        }
-      });
-      
-      prevVisibleConnectionRef.current = current;
-    }
-    
     return visible;
-  }, [connections, visibleNodes, reduceMotion, enterAt]);
+  }, [connections, visibleNodes]);
 
   // Pass 3: Invisible bridge check - horizontal sibling lines intersecting viewport
   const bridgeSegments = useMemo(() => {
@@ -758,85 +590,8 @@ const TreeView = ({ setProfileEditMode }) => {
   }, [nodes, dimensions, treeBounds]);
 
 
-  // Pinch gesture for zoom with pointer-anchored transform
-  const pinchGesture = Gesture.Pinch()
-    .onStart((e) => {
-      // Only process with two fingers
-      if (e.numberOfPointers === 2) {
-        // CRITICAL: Cancel any running animations to prevent value drift
-        cancelAnimation(translateX);
-        cancelAnimation(translateY);
-        cancelAnimation(scale);
-        
-        // Now save the current stable values
-        savedScale.value = scale.value;
-        savedTranslateX.value = translateX.value;
-        savedTranslateY.value = translateY.value;
-        
-        // Calculate stable world anchor at gesture start
-        const fx = e.focalX; // DIP units
-        const fy = e.focalY; // DIP units
-        pinchWorldX.value = (fx - translateX.value) / scale.value;
-        pinchWorldY.value = (fy - translateY.value) / scale.value;
-        
-        // Initialize smoothing values
-        prevFocalX.value = fx;
-        prevFocalY.value = fy;
-      }
-      
-      // Debug logging
-      if (__DEV__) {
-        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${e.focalX.toFixed(0)},${e.focalY.toFixed(0)}) Fingers:${e.numberOfPointers}`);
-      }
-    })
-    .onUpdate((e) => {
-      'worklet';
-      
-      // Only process updates with two fingers to prevent focal point jumps
-      if (e.numberOfPointers !== 2) {
-        return;
-      }
-      
-      // Target scale
-      const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
-      
-      // Get current focal point (DIP units)
-      let fx = e.focalX;
-      let fy = e.focalY;
-      
-      // Optional micro-smoothing for anti-jitter
-      if (Math.abs(e.scale - 1) < 0.005) {
-        fx = (prevFocalX.value * 3 + fx) / 4;
-        fy = (prevFocalY.value * 3 + fy) / 4;
-      }
-      prevFocalX.value = fx;
-      prevFocalY.value = fy;
-      
-      // Use stable world anchor from gesture start
-      translateX.value = fx - s * pinchWorldX.value;
-      translateY.value = fy - s * pinchWorldY.value;
-      scale.value = s;
-      
-      // DEBUG: Log significant scale changes only
-      if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
-        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${fx.toFixed(0)},${fy.toFixed(0)}) | World:(${pinchWorldX.value.toFixed(0)},${pinchWorldY.value.toFixed(0)})`);
-      }
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
-      
-      // Debug logging
-      if (__DEV__) {
-        console.log(`✅ PINCH END: Scale:${scale.value.toFixed(2)} Pos:(${translateX.value.toFixed(0)},${translateY.value.toFixed(0)})`);
-      }
-    });
-
-  // Pan gesture with momentum - constrained to single finger
+  // Pan gesture with momentum
   const panGesture = Gesture.Pan()
-    .minPointers(1)
-    .maxPointers(1)
     .onStart(() => {
       cancelAnimation(translateX);
       cancelAnimation(translateY);
@@ -860,6 +615,61 @@ const TreeView = ({ setProfileEditMode }) => {
       // Save current values (before decay animation modifies them)
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
+    });
+
+  // Pinch gesture for zoom with pointer-anchored transform
+  const pinchGesture = Gesture.Pinch()
+    .onStart((e) => {
+      // CRITICAL: Cancel any running animations to prevent value drift
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      cancelAnimation(scale);
+      
+      // Now save the current stable values
+      savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      
+      // Store initial focal point for stability (rounded to prevent float issues)
+      focalX.value = Math.round(e.focalX);
+      focalY.value = Math.round(e.focalY);
+      
+      // Debug logging
+      if (__DEV__) {
+        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${Math.round(e.focalX)},${Math.round(e.focalY)}) Fingers:${e.numberOfPointers}`);
+      }
+    })
+    .onUpdate((e) => {
+      const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
+      const k = s / savedScale.value;
+
+      // Use initial focal point for stability (prevents drift with repeated pinches)
+      const stableFocalX = focalX.value;
+      const stableFocalY = focalY.value;
+      
+      // Calculate new transform
+      const newX = stableFocalX - (stableFocalX - savedTranslateX.value) * k;
+      const newY = stableFocalY - (stableFocalY - savedTranslateY.value) * k;
+      
+      // Apply transform
+      translateX.value = newX;
+      translateY.value = newY;
+      scale.value = s;
+      
+      // DEBUG: Log significant scale changes only
+      if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
+        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${stableFocalX.toFixed(0)},${stableFocalY.toFixed(0)}) | Δ:(${(newX - savedTranslateX.value).toFixed(0)},${(newY - savedTranslateY.value).toFixed(0)})`);
+      }
+    })
+    .onEnd(() => {
+      savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      
+      // Debug logging
+      if (__DEV__) {
+        console.log(`✅ PINCH END: Scale:${scale.value.toFixed(2)} Pos:(${translateX.value.toFixed(0)},${translateY.value.toFixed(0)})`);
+      }
     });
 
   // Tap gesture for selection with movement/time thresholds
@@ -965,7 +775,7 @@ const TreeView = ({ setProfileEditMode }) => {
   // Compose gestures
   const composed = Gesture.Simultaneous(
     panGesture, 
-    pinchGesture,
+    pinchGesture, 
     tapGesture
   );
 
@@ -973,11 +783,6 @@ const TreeView = ({ setProfileEditMode }) => {
   const renderConnection = useCallback((connection) => {
     const parent = nodes.find(n => n.id === connection.parent.id);
     if (!parent) return null;
-    
-    // Calculate opacity for the connection
-    const key = `conn:${connection.parent.id}->all`;
-    const now = performance.now();
-    const opacity = fadeOpacityFor(key, now);
     
     // Calculate bus line position
     const childYs = connection.children.map(child => child.y);
@@ -1036,42 +841,11 @@ const TreeView = ({ setProfileEditMode }) => {
       );
     });
     
-    // Micro-optimization: skip Group wrapper if fully opaque
-    if (opacity === 1) {
-      return lines;
-    }
-    
-    const layer = <Paint opacity={opacity} />;
-    return (
-      <Group key={key} layer={layer}>
-        {lines}
-      </Group>
-    );
-  }, [nodes, fadeOpacityFor]);
+    return lines;
+  }, [nodes]);
 
-  // Easing function for smooth fade-in
-  const easeOutCubic = useCallback((t) => {
-    return 1 - Math.pow(1 - t, 3);
-  }, []);
-  
-  // Calculate fade opacity for a node or connection
-  const fadeOpacityFor = useCallback((key, now) => {
-    if (reduceMotion) return 1;
-    
-    const entry = enterAt.get(key);
-    if (!entry) return 1;
-    
-    const elapsed = now - entry;
-    if (elapsed >= 160) return 1; // Fast path
-    
-    return easeOutCubic(elapsed / 160);
-  }, [reduceMotion, enterAt, easeOutCubic]);
-  
   // Render node component
   const renderNode = useCallback((node) => {
-    // Calculate fade opacity
-    const now = performance.now();
-    const opacity = fadeOpacityFor(node.id, now);
     const hasPhoto = !!node.photo_url;
     // Respect the node's custom width if it has one (for text sizing)
     const nodeWidth = node.nodeWidth || (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
@@ -1081,8 +855,8 @@ const TreeView = ({ setProfileEditMode }) => {
     const x = node.x - nodeWidth/2;
     const y = node.y - nodeHeight/2;
     
-    const nodeContent = (
-      <>
+    return (
+      <Group key={node.id}>
         {/* Shadow */}
         <RoundedRect
           x={x + 1}
@@ -1141,9 +915,6 @@ const TreeView = ({ setProfileEditMode }) => {
                 width={PHOTO_SIZE}
                 height={PHOTO_SIZE}
                 radius={PHOTO_SIZE/2}
-                canvasRef={canvasRef}
-                pendingAssets={pendingAssets}
-                kickRAF={kickRAF}
               />
             )}
             
@@ -1244,28 +1015,16 @@ const TreeView = ({ setProfileEditMode }) => {
             })()}
           </>
         )}
-      </>
-    );
-    
-    if (opacity === 1) {
-      return <Group key={node.id}>{nodeContent}</Group>;
-    }
-    
-    const layer = <Paint opacity={opacity} />;
-    return (
-      <Group key={node.id} layer={layer}>
-        {nodeContent}
       </Group>
     );
-  }, [selectedPersonId, fadeOpacityFor, canvasRef, pendingAssets, kickRAF]);
+  }, [selectedPersonId]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
-  // Scale FIRST, then translate (for screen-space translation)
   const transform = useDerivedValue(() => {
     return [
-      { scale: scale.value },
-      { translateX: translateX.value / scale.value },
-      { translateY: translateY.value / scale.value }
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value }
     ];
   });
 
@@ -1282,7 +1041,7 @@ const TreeView = ({ setProfileEditMode }) => {
   return (
     <View className="flex-1 bg-gray-100">
       <GestureDetector gesture={composed}>
-        <Canvas style={{ flex: 1 }} ref={canvasRef}>
+        <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
             {/* Render visible connections first */}
             {visibleConnections.map(renderConnection)}
