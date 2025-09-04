@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
-  TextInput,
   StyleSheet,
   TouchableOpacity,
   Animated,
@@ -10,132 +9,189 @@ import {
   Text,
   Alert,
   Platform,
-  KeyboardAvoidingView,
+  ActionSheetIOS,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import CardSurface from '../../ios/CardSurface';
 import { LinearGradient } from 'expo-linear-gradient';
+import storageService from '../../../services/storage';
 
-const PLACEHOLDER_IMAGE = 'https://iamalqefari.com/wp-content/uploads/2023/08/img_2216.jpg?w=1024';
-const DEBOUNCE_DELAY = 800;
-
-const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخص' }) => {
-  const [localUrl, setLocalUrl] = useState(value || '');
+const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخص', profileId }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(value || currentPhotoUrl || PLACEHOLDER_IMAGE);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState(value || currentPhotoUrl || null);
   
   const scaleAnim = useRef(new Animated.Value(1)).current;
-  const imageOpacity = useRef(new Animated.Value(1)).current;
-  const debounceTimer = useRef(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // Validate URL format
-  const isValidUrl = (url) => {
-    if (!url) return true; // Empty is valid (will clear photo)
-    try {
-      const urlObj = new URL(url);
-      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-    } catch {
+  // Request permissions
+  const requestPermissions = async () => {
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    const { status: libraryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (cameraStatus !== 'granted' || libraryStatus !== 'granted') {
+      Alert.alert(
+        'الصلاحيات مطلوبة',
+        'نحتاج إلى صلاحية الوصول إلى الكاميرا ومكتبة الصور لتحميل صورة الملف الشخصي.',
+        [{ text: 'حسناً', style: 'default' }]
+      );
       return false;
     }
+    return true;
   };
 
-  // Handle URL changes with debounce
-  const handleUrlChange = (text) => {
-    setLocalUrl(text);
-    
-    // Clear previous timer
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
+  // Show photo picker options
+  const showPhotoPicker = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['إلغاء', 'التقاط صورة', 'اختيار من المعرض'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            takePhoto();
+          } else if (buttonIndex === 2) {
+            pickImage();
+          }
+        }
+      );
+    } else {
+      // Android
+      Alert.alert(
+        'اختر مصدر الصورة',
+        '',
+        [
+          { text: 'إلغاء', style: 'cancel' },
+          { text: 'التقاط صورة', onPress: takePhoto },
+          { text: 'اختيار من المعرض', onPress: pickImage },
+        ],
+        { cancelable: true }
+      );
     }
-
-    // Don't validate while typing
-    if (text && !isValidUrl(text)) {
-      setImageError(true);
-      return;
-    }
-
-    setImageError(false);
-
-    // Debounce the preview update
-    debounceTimer.current = setTimeout(() => {
-      if (text && isValidUrl(text)) {
-        setIsLoading(true);
-        setPreviewUrl(text);
-      } else if (!text) {
-        setPreviewUrl(currentPhotoUrl || PLACEHOLDER_IMAGE);
-        onChange(''); // Clear the photo URL
-      }
-    }, DEBOUNCE_DELAY);
   };
 
-  // Handle image load success
-  const handleImageLoad = () => {
-    setIsLoading(false);
-    setImageError(false);
-    onChange(localUrl);
-    
-    // Fade in animation
-    Animated.timing(imageOpacity, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+  // Take photo with camera
+  const takePhoto = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  // Handle image load error
-  const handleImageError = () => {
-    setIsLoading(false);
-    setImageError(true);
-    setPreviewUrl(currentPhotoUrl || PLACEHOLDER_IMAGE);
-    
-    Animated.timing(imageOpacity, {
-      toValue: 0.5,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  // Handle focus
-  const handleFocus = () => {
-    setIsFocused(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Scale animation
-    Animated.spring(scaleAnim, {
-      toValue: 1.02,
-      damping: 15,
-      stiffness: 400,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  // Handle blur
-  const handleBlur = () => {
-    setIsFocused(false);
-    
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      damping: 15,
-      stiffness: 400,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  // Handle paste
-  const handlePaste = useCallback(async () => {
     try {
-      // React Native doesn't have direct clipboard access like web
-      // This would need expo-clipboard or similar
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0]);
+      }
     } catch (error) {
-      console.error('Paste error:', error);
+      console.error('Camera error:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء التقاط الصورة');
     }
-  }, []);
+  };
+
+  // Pick image from gallery
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Picker error:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء اختيار الصورة');
+    }
+  };
+
+  // Upload image to Supabase
+  const uploadImage = async (asset) => {
+    try {
+      setIsLoading(true);
+      setUploadProgress(0);
+      
+      // Validate image
+      storageService.validateImage({ 
+        uri: asset.uri, 
+        fileSize: asset.fileSize 
+      });
+
+      // Animate progress
+      Animated.timing(progressAnim, {
+        toValue: 0,
+        duration: 0,
+        useNativeDriver: false,
+      }).start();
+
+      // Upload to storage
+      const { url, error } = await storageService.uploadProfilePhoto(
+        asset.uri,
+        profileId,
+        (progress) => {
+          setUploadProgress(progress);
+          Animated.timing(progressAnim, {
+            toValue: progress,
+            duration: 100,
+            useNativeDriver: false,
+          }).start();
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      // Update preview and notify parent
+      setPreviewUrl(url);
+      onChange(url);
+      
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert(
+        'خطأ في التحميل',
+        error.message || 'حدث خطأ أثناء تحميل الصورة',
+        [{ text: 'حسناً', style: 'default' }]
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setIsLoading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Handle press animation
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.95,
+      damping: 15,
+      stiffness: 400,
+      useNativeDriver: true,
+    }).start();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      damping: 15,
+      stiffness: 400,
+      useNativeDriver: true,
+    }).start();
+  };
 
   // Handle remove photo
   const handleRemovePhoto = () => {
@@ -147,9 +203,13 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
         {
           text: 'إزالة',
           style: 'destructive',
-          onPress: () => {
-            setLocalUrl('');
-            setPreviewUrl(currentPhotoUrl || PLACEHOLDER_IMAGE);
+          onPress: async () => {
+            // If it's a Supabase URL, delete from storage
+            if (previewUrl && previewUrl.includes('supabase')) {
+              await storageService.deleteProfilePhoto(previewUrl);
+            }
+            
+            setPreviewUrl(null);
             onChange('');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           },
@@ -159,112 +219,94 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
     );
   };
 
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, []);
-
-  const borderColor = !isFocused 
-    ? 'rgba(209, 213, 219, 0.3)' 
-    : imageError 
-      ? '#EF4444' 
-      : '#059669';
-
   return (
-    <Animated.View 
-      style={[
-        styles.container,
-        { transform: [{ scale: scaleAnim }] }
-      ]}
-    >
+    <View style={styles.container}>
       {/* Photo Preview */}
       <View style={styles.photoSection}>
-        <CardSurface style={styles.photoCard}>
-          <Animated.View style={[styles.imageContainer, { opacity: imageOpacity }]}>
-            <Image
-              source={{ uri: previewUrl }}
-              style={styles.profileImage}
-              onLoad={handleImageLoad}
-              onError={handleImageError}
-            />
-            {isLoading && (
-              <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="large" color="#059669" />
+        <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+          <TouchableOpacity
+            onPress={showPhotoPicker}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            <CardSurface style={styles.photoCard}>
+              <View style={styles.imageContainer}>
+                {previewUrl ? (
+                  <Image
+                    source={{ uri: previewUrl }}
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={styles.noPhotoContainer}>
+                    <Ionicons 
+                      name="person-circle-outline" 
+                      size={80} 
+                      color="#D1D5DB" 
+                    />
+                  </View>
+                )}
+                
+                {/* Loading overlay */}
+                {isLoading && (
+                  <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#059669" />
+                    {uploadProgress > 0 && (
+                      <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
+                    )}
+                  </View>
+                )}
+                
+                {/* Camera icon overlay */}
+                {!isLoading && (
+                  <View style={styles.cameraOverlay}>
+                    <LinearGradient
+                      colors={['rgba(5, 150, 105, 0.9)', 'rgba(16, 185, 129, 0.9)']}
+                      style={styles.cameraButton}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Ionicons name="camera" size={24} color="#FFFFFF" />
+                    </LinearGradient>
+                  </View>
+                )}
               </View>
-            )}
-            {imageError && (
-              <View style={styles.errorOverlay}>
-                <Ionicons name="image-outline" size={40} color="#9CA3AF" />
-                <Text style={styles.errorText}>صورة غير صالحة</Text>
-              </View>
-            )}
-          </Animated.View>
-          
-          {/* Remove button */}
-          {localUrl && (
-            <TouchableOpacity
-              style={styles.removeButton}
-              onPress={handleRemovePhoto}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <LinearGradient
-                colors={['#EF4444', '#DC2626']}
-                style={styles.removeButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="close" size={16} color="#FFFFFF" />
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-        </CardSurface>
+              
+              {/* Remove button */}
+              {previewUrl && !isLoading && (
+                <TouchableOpacity
+                  style={styles.removeButton}
+                  onPress={handleRemovePhoto}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <LinearGradient
+                    colors={['#EF4444', '#DC2626']}
+                    style={styles.removeButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="close" size={16} color="#FFFFFF" />
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+            </CardSurface>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
-      {/* URL Input */}
-      <View style={styles.inputSection}>
-        <Text style={styles.label}>رابط الصورة</Text>
-        <View style={[styles.inputContainer, { borderColor }]}>
-          <TextInput
-            style={styles.input}
-            value={localUrl}
-            onChangeText={handleUrlChange}
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-            placeholder="https://example.com/photo.jpg"
-            placeholderTextColor="#9CA3AF"
-            keyboardType="url"
-            autoCapitalize="none"
-            autoCorrect={false}
-            textAlign="left"
-            returnKeyType="done"
-          />
-          {localUrl.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearButton}
-              onPress={() => handleUrlChange('')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close-circle" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          )}
-        </View>
-        {imageError && localUrl && (
-          <Text style={styles.errorMessage}>
-            الرجاء إدخال رابط صحيح يبدأ بـ https:// أو http://
-          </Text>
-        )}
-      </View>
-    </Animated.View>
+      {/* Instructions */}
+      <Text style={styles.instructions}>
+        اضغط على الصورة لتغييرها
+      </Text>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    gap: 16,
+    alignItems: 'center',
+    gap: 12,
   },
   photoSection: {
     alignItems: 'center',
@@ -283,25 +325,42 @@ const styles = StyleSheet.create({
   profileImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F3F4F6',
+  },
+  noPhotoContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F9FAFB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(249, 250, 251, 0.95)',
+  progressText: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+  },
+  cameraButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   removeButton: {
     position: 'absolute',
@@ -320,40 +379,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  inputSection: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 15,
-    color: '#374151',
-    fontWeight: '600',
+  instructions: {
+    fontSize: 14,
+    color: '#6B7280',
     fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
-    textAlign: 'right',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  input: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: '#111827',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'System',
-  },
-  clearButton: {
-    marginLeft: 8,
-  },
-  errorMessage: {
-    fontSize: 13,
-    color: '#EF4444',
-    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
-    textAlign: 'right',
-    marginTop: 4,
+    textAlign: 'center',
   },
 });
 

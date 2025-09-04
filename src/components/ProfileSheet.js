@@ -452,28 +452,41 @@ const ProfileSheet = ({ editMode = false }) => {
                   onChange={(url) => setEditedData({...editedData, photo_url: url})}
                   currentPhotoUrl={person.photo_url}
                   personName={person.name}
+                  profileId={person.id}
                 />
               </View>
             ) : (
               <View style={styles.photoSection}>
-                <Image
-                  source={{ uri: person.photo_url || 'https://iamalqefari.com/wp-content/uploads/2023/08/img_2216.jpg?w=1024' }}
-                  style={styles.heroImage}
-                  resizeMode="cover"
-                />
-                {/* Top gradient for legibility of the close control */}
-                <LinearGradient
-                  colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={[StyleSheet.absoluteFill, { height: 120 }]}
-                />
-                <LinearGradient
-                  colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.12)"]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
+                {person.photo_url ? (
+                  <>
+                    <Image
+                      source={{ uri: person.photo_url }}
+                      style={styles.heroImage}
+                      resizeMode="cover"
+                    />
+                    {/* Top gradient for legibility of the close control */}
+                    <LinearGradient
+                      colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
+                      style={[StyleSheet.absoluteFill, { height: 120 }]}
+                    />
+                    <LinearGradient
+                      colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.12)"]}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </>
+                ) : (
+                  <View style={styles.noPhotoContainer}>
+                    <Ionicons 
+                      name="person-circle-outline" 
+                      size={120} 
+                      color="#D1D5DB" 
+                    />
+                  </View>
+                )}
               </View>
             )}
 
@@ -886,7 +899,9 @@ const ProfileSheet = ({ editMode = false }) => {
                       {father.photo_url ? (
                         <Image source={{ uri: father.photo_url }} style={styles.familyPhoto} />
                       ) : (
-                        <View style={[styles.familyPhoto, styles.photoPlaceholder]} />
+                        <View style={[styles.familyPhoto, styles.photoPlaceholder]}>
+                          <Ionicons name="person-outline" size={24} color="#9CA3AF" />
+                        </View>
                       )}
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.familyName}>{father.name}</Text>
@@ -906,7 +921,9 @@ const ProfileSheet = ({ editMode = false }) => {
                           {child.photo_url ? (
                             <Image source={{ uri: child.photo_url }} style={styles.familyPhoto} />
                           ) : (
-                            <View style={[styles.familyPhoto, styles.photoPlaceholder]} />
+                            <View style={[styles.familyPhoto, styles.photoPlaceholder]}>
+                              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
+                            </View>
                           )}
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.familyName}>{child.name}</Text>
@@ -1188,7 +1205,16 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   photoPlaceholder: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noPhotoContainer: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F9FAFB',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   familyName: {
     fontSize: 17,
