@@ -920,6 +920,57 @@ serve(async (req) => {
 
 ---
 
+## Data Validation Queries
+
+### Check Data Integrity
+These queries help validate the integrity of your family tree data:
+
+```sql
+-- Check for profiles without HID
+SELECT COUNT(*) FROM profiles WHERE hid IS NULL;
+
+-- Check for orphaned nodes (invalid parent references)
+SELECT * FROM profiles 
+WHERE father_id IS NOT NULL 
+AND father_id NOT IN (SELECT id FROM profiles);
+
+-- Find duplicate HIDs
+SELECT hid, COUNT(*), array_agg(id) as ids
+FROM profiles
+GROUP BY hid
+HAVING COUNT(*) > 1;
+
+-- Validate email formats
+SELECT id, email FROM profiles 
+WHERE email IS NOT NULL 
+AND email !~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$';
+
+-- Check generation consistency
+WITH RECURSIVE generation_check AS (
+    SELECT id, hid, generation, father_id, 
+           1 as calculated_generation
+    FROM profiles 
+    WHERE father_id IS NULL
+    
+    UNION ALL
+    
+    SELECT p.id, p.hid, p.generation, p.father_id,
+           gc.calculated_generation + 1
+    FROM profiles p
+    JOIN generation_check gc ON p.father_id = gc.id
+)
+SELECT * FROM generation_check 
+WHERE generation != calculated_generation;
+```
+
+### Run Comprehensive Validation
+```sql
+-- Use the validation dashboard for a complete check
+SELECT * FROM admin_validation_dashboard();
+```
+
+---
+
 ## Phase 4: Frontend Integration
 
 ### 4.1 Install Supabase Client
