@@ -9,7 +9,7 @@ export const useTreeStore = create((set, get) => ({
   },
 
   // Zoom limits
-  minZoom: 0.3,
+  minZoom: 0.15,  // Doubled zoom-out range for LOD
   maxZoom: 3.0,
 
   // Animation state

@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert } from 'react-native';
-import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
+import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio } from 'react-native';
+import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont, Path } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -43,6 +43,20 @@ const PHOTO_SIZE = 60;
 const LINE_COLOR = '#BDBDBD';
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
+
+// LOD Constants
+const SCALE_QUANTUM = 0.05;          // 5% quantization steps
+const HYSTERESIS = 0.15;             // ±15% hysteresis
+const T1_BASE = 48;                  // Full card threshold (px)
+const T2_BASE = 24;                  // Text pill threshold (px)
+const MAX_VISIBLE_NODES = 350;       // Hard cap per frame
+const MAX_VISIBLE_EDGES = 300;       // Hard cap per frame
+const LOD_ENABLED = true;            // Kill switch
+const AGGREGATION_ENABLED = true;    // T3 chips toggle
+
+// Image bucket hysteresis constants
+const BUCKET_HYSTERESIS = 0.15;      // ±15% hysteresis
+const BUCKET_DEBOUNCE_MS = 150;      // ms
 
 // Create font manager/provider once
 let fontMgr = null;
@@ -157,9 +171,26 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
   }
 };
 
+// Image buckets for LOD
+const IMAGE_BUCKETS = [64, 128, 256, 512];
+const selectBucket = (pixelSize) => {
+  return IMAGE_BUCKETS.find(b => b >= pixelSize) || 512;
+};
+
 // Image component for photos with skeleton loader
-const ImageNode = ({ url, x, y, width, height, radius }) => {
-  const image = useCachedSkiaImage(url, 256);
+const ImageNode = ({ url, x, y, width, height, radius, tier, scale, nodeId, selectBucket }) => {
+  // Only load images in Tier 1
+  const shouldLoad = tier === 1 && url;
+  const pixelSize = width * PixelRatio.get() * scale;
+  
+  // Use hysteresis bucket selection if provided, otherwise use simple selection
+  const bucket = shouldLoad ? (
+    selectBucket && nodeId 
+      ? selectBucket(nodeId, pixelSize * 2)
+      : IMAGE_BUCKETS.find(b => b >= pixelSize * 2) || 512
+  ) : null;
+  
+  const image = shouldLoad ? useCachedSkiaImage(url, bucket) : null;
   
   // If no image yet, show simple skeleton placeholder
   if (!image) {
@@ -212,6 +243,63 @@ const ImageNode = ({ url, x, y, width, height, radius }) => {
   );
 };
 
+// Spatial grid for efficient culling
+const GRID_CELL_SIZE = 512;
+
+class SpatialGrid {
+  constructor(nodes, cellSize = GRID_CELL_SIZE) {
+    this.cellSize = cellSize;
+    this.grid = new Map(); // "x,y" -> Set<nodeId>
+    
+    // Build grid
+    nodes.forEach(node => {
+      const cellX = Math.floor(node.x / cellSize);
+      const cellY = Math.floor(node.y / cellSize);
+      const key = `${cellX},${cellY}`;
+      
+      if (!this.grid.has(key)) {
+        this.grid.set(key, new Set());
+      }
+      this.grid.get(key).add(node.id);
+    });
+  }
+  
+  getVisibleNodes({ x, y, width, height }, scale, idToNode) {
+    // Transform viewport to world space
+    const worldMinX = -x / scale;
+    const worldMaxX = (-x + width) / scale;
+    const worldMinY = -y / scale;
+    const worldMaxY = (-y + height) / scale;
+    
+    // Get intersecting cells
+    const minCellX = Math.floor(worldMinX / this.cellSize);
+    const maxCellX = Math.floor(worldMaxX / this.cellSize);
+    const minCellY = Math.floor(worldMinY / this.cellSize);
+    const maxCellY = Math.floor(worldMaxY / this.cellSize);
+    
+    // Collect nodes from cells
+    const visibleIds = new Set();
+    for (let cx = minCellX; cx <= maxCellX; cx++) {
+      for (let cy = minCellY; cy <= maxCellY; cy++) {
+        const cellNodes = this.grid.get(`${cx},${cy}`);
+        if (cellNodes) {
+          cellNodes.forEach(id => visibleIds.add(id));
+        }
+      }
+    }
+    
+    // Convert to nodes and apply hard cap
+    const visibleNodes = [];
+    for (const id of visibleIds) {
+      if (visibleNodes.length >= MAX_VISIBLE_NODES) break;
+      const node = idToNode.get(id);
+      if (node) visibleNodes.push(node);
+    }
+    
+    return visibleNodes;
+  }
+}
+
 
 const TreeView = ({ setProfileEditMode }) => {
   const stage = useTreeStore(s => s.stage);
@@ -237,6 +325,120 @@ const TreeView = ({ setProfileEditMode }) => {
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [editingProfile, setEditingProfile] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  
+  // LOD tier state with hysteresis
+  const tierState = useRef({ current: 1, lastQuantizedScale: 1 });
+  
+  // Image bucket tracking for hysteresis
+  const nodeBucketsRef = useRef(new Map());
+  const bucketTimersRef = useRef(new Map());
+  
+  // Cleanup bucket timers on unmount
+  useEffect(() => {
+    return () => {
+      bucketTimersRef.current.forEach(clearTimeout);
+      bucketTimersRef.current.clear();
+    };
+  }, []);
+  
+  const selectBucketWithHysteresis = useCallback((nodeId, pixelSize) => {
+    const nodeBuckets = nodeBucketsRef.current;
+    const bucketTimers = bucketTimersRef.current;
+    
+    const current = nodeBuckets.get(nodeId) || 256;
+    const target = IMAGE_BUCKETS.find(b => b >= pixelSize) || 512;
+    
+    // Apply hysteresis
+    if (target > current && pixelSize < current * (1 + BUCKET_HYSTERESIS)) {
+      return current; // Stay at current
+    }
+    if (target < current && pixelSize > current * (1 - BUCKET_HYSTERESIS)) {
+      return current; // Stay at current
+    }
+    
+    // Debounce upgrades
+    if (target > current) {
+      clearTimeout(bucketTimers.get(nodeId));
+      bucketTimers.set(nodeId, setTimeout(() => {
+        nodeBuckets.set(nodeId, target);
+      }, BUCKET_DEBOUNCE_MS));
+      return current;
+    }
+    
+    // Immediate downgrade
+    nodeBuckets.set(nodeId, target);
+    return target;
+  }, []);
+  
+  const calculateLODTier = useCallback((scale) => {
+    if (!LOD_ENABLED) return 1; // Always use full detail if disabled
+    
+    const quantizedScale = Math.round(scale / SCALE_QUANTUM) * SCALE_QUANTUM;
+    const state = tierState.current;
+    
+    // Only recalculate if scale changed significantly
+    if (Math.abs(quantizedScale - state.lastQuantizedScale) < SCALE_QUANTUM) {
+      return state.current;
+    }
+    
+    const nodePx = NODE_WIDTH_WITH_PHOTO * PixelRatio.get() * scale;
+    let newTier = state.current;
+    
+    // Apply hysteresis boundaries
+    if (state.current === 1) {
+      if (nodePx < T1_BASE * (1 - HYSTERESIS)) newTier = 2;
+    } else if (state.current === 2) {
+      if (nodePx >= T1_BASE * (1 + HYSTERESIS)) newTier = 1;
+      else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
+    } else { // tier 3
+      if (nodePx >= T2_BASE * (1 + HYSTERESIS)) newTier = 2;
+    }
+    
+    if (newTier !== state.current) {
+      tierState.current = { 
+        current: newTier, 
+        lastQuantizedScale: quantizedScale 
+      };
+    }
+    
+    return newTier;
+  }, []);
+  
+  // Performance telemetry
+  const frameStatsRef = useRef({
+    tier: 1,
+    nodesDrawn: 0,
+    edgesDrawn: 0,
+    lastLogTime: Date.now()
+  });
+  
+  // Setup telemetry interval with cleanup
+  useEffect(() => {
+    if (!__DEV__ || !LOD_ENABLED) return;
+    
+    const interval = setInterval(() => {
+      const stats = frameStatsRef.current;
+      console.log(
+        `📊 LOD T${stats.tier} | Nodes: ${stats.nodesDrawn}/${MAX_VISIBLE_NODES} | ` +
+        `Edges: ${stats.edgesDrawn}/${MAX_VISIBLE_EDGES}`
+      );
+      
+      if (stats.nodesDrawn >= MAX_VISIBLE_NODES * 0.9) {
+        console.warn('⚠️ Approaching node render cap!');
+      }
+      if (stats.edgesDrawn >= MAX_VISIBLE_EDGES * 0.9) {
+        console.warn('⚠️ Approaching edge render cap!');
+      }
+      
+      // Log cache stats
+      const cacheStats = skiaImageCache.getStats();
+      console.log(
+        `💾 Cache: ${cacheStats.entries} entries | ${cacheStats.totalMB}MB / ${cacheStats.budgetMB}MB (${cacheStats.utilization})`
+      );
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
   
   // Force RTL for Arabic text
   useEffect(() => {
@@ -415,6 +617,127 @@ const TreeView = ({ setProfileEditMode }) => {
     
     return layout;
   }, [treeData, isLoading]);
+
+  // Build indices for LOD system with O(N) complexity
+  const indices = useMemo(() => {
+    if (nodes.length === 0) {
+      return {
+        idToNode: new Map(),
+        parentToChildren: new Map(),
+        depths: {},
+        subtreeSizes: {},
+        centroids: {},
+        heroes: new Set(),
+        heroNodes: []
+      };
+    }
+    
+    const idToNode = new Map();
+    const parentToChildren = new Map();
+    const depths = {};
+    const subtreeSizes = {};
+    const sumX = {};
+    const sumY = {};
+    const centroids = {};
+    
+    // Build maps - only truthy father_id
+    nodes.forEach(node => {
+      idToNode.set(node.id, node);
+      if (node.father_id) {
+        if (!parentToChildren.has(node.father_id)) {
+          parentToChildren.set(node.father_id, []);
+        }
+        parentToChildren.get(node.father_id).push(node);
+      }
+    });
+    
+    // BFS for depths
+    const root = nodes.find(n => !n.father_id);
+    if (!root) {
+      console.error('No root node found!');
+      return {
+        idToNode,
+        parentToChildren,
+        depths: {},
+        subtreeSizes: {},
+        centroids: {},
+        heroes: new Set(),
+        heroNodes: []
+      };
+    }
+    
+    const queue = [{ id: root.id, depth: 0 }];
+    while (queue.length > 0) {
+      const { id, depth } = queue.shift();
+      depths[id] = depth;
+      const children = parentToChildren.get(id) || [];
+      children.forEach(child => queue.push({ id: child.id, depth: depth + 1 }));
+    }
+    
+    // Iterative post-order for subtree sizes and centroids
+    const stack = [root.id];
+    const visited = new Set();
+    const postOrder = [];
+    
+    while (stack.length > 0) {
+      const nodeId = stack[stack.length - 1];
+      if (!visited.has(nodeId)) {
+        visited.add(nodeId);
+        const children = parentToChildren.get(nodeId) || [];
+        children.forEach(child => stack.push(child.id));
+      } else {
+        stack.pop();
+        postOrder.push(nodeId);
+      }
+    }
+    
+    // Calculate sizes and centroids (no reverse - already in correct order)
+    postOrder.forEach(nodeId => {
+      const node = idToNode.get(nodeId);
+      const children = parentToChildren.get(nodeId) || [];
+      
+      // Subtree sizes
+      subtreeSizes[nodeId] = 1 + children.reduce((sum, child) => 
+        sum + subtreeSizes[child.id], 0);
+      
+      // Sum positions for centroid
+      sumX[nodeId] = node.x + children.reduce((sum, child) => 
+        sum + sumX[child.id], 0);
+      sumY[nodeId] = node.y + children.reduce((sum, child) => 
+        sum + sumY[child.id], 0);
+      
+      // Compute centroid
+      centroids[nodeId] = {
+        x: sumX[nodeId] / subtreeSizes[nodeId],
+        y: sumY[nodeId] / subtreeSizes[nodeId]
+      };
+    });
+    
+    // Select heroes: root + top 2 gen-2 with children (depth === 1)
+    const gen2Nodes = nodes.filter(n => depths[n.id] === 1);
+    const gen2WithKids = gen2Nodes.filter(n => 
+      (parentToChildren.get(n.id) || []).length > 0
+    );
+    const heroGen2 = gen2WithKids
+      .sort((a, b) => subtreeSizes[b.id] - subtreeSizes[a.id])
+      .slice(0, 2);
+    
+    return {
+      idToNode,
+      parentToChildren,
+      depths,
+      subtreeSizes,
+      centroids,
+      heroes: new Set([root.id, ...heroGen2.map(n => n.id)]),
+      heroNodes: [root, ...heroGen2]
+    };
+  }, [nodes]);
+
+  // Create spatial grid for efficient culling
+  const spatialGrid = useMemo(() => {
+    if (nodes.length === 0) return null;
+    return new SpatialGrid(nodes);
+  }, [nodes]);
 
   // Calculate tree bounds
   const treeBounds = useMemo(() => {
@@ -739,6 +1062,35 @@ const TreeView = ({ setProfileEditMode }) => {
     .maxDuration(250)
     .runOnJS(true)
     .onEnd((e) => {
+      // Check if we're in T3 mode first
+      if (tier === 3 && AGGREGATION_ENABLED && indices.heroNodes) {
+        // Check for chip taps
+        for (const hero of indices.heroNodes) {
+          const centroid = indices.centroids[hero.id];
+          if (!centroid) continue;
+          
+          // Transform centroid to screen space
+          const screenX = centroid.x * scale.value + translateX.value;
+          const screenY = centroid.y * scale.value + translateY.value;
+          
+          const isRoot = !hero.father_id;
+          const chipScale = isRoot ? 1.3 : 1.0;
+          const chipWidth = 100 * chipScale;
+          const chipHeight = 36 * chipScale;
+          
+          // Check if tap is within chip bounds
+          if (e.x >= screenX - chipWidth / 2 && 
+              e.x <= screenX + chipWidth / 2 && 
+              e.y >= screenY - chipHeight / 2 && 
+              e.y <= screenY + chipHeight / 2) {
+            handleChipTap(hero);
+            return;
+          }
+        }
+        return; // No chip tapped and we're in T3, so ignore
+      }
+      
+      // Original node tap logic for T1/T2
       const canvasX = (e.x - translateX.value) / scale.value;
       const canvasY = (e.y - translateY.value) / scale.value;
       
@@ -778,6 +1130,71 @@ const TreeView = ({ setProfileEditMode }) => {
     setProfileEditMode(isAdminMode);
     // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
   }, [setSelectedPersonId, isAdminMode]);
+  
+  // Handle chip tap in T3 - zoom to branch
+  const handleChipTap = useCallback((hero) => {
+    // Calculate bounds of hero's subtree
+    const descendantIds = new Set();
+    const stack = [hero.id];
+    
+    while (stack.length > 0) {
+      const nodeId = stack.pop();
+      descendantIds.add(nodeId);
+      const children = indices.parentToChildren.get(nodeId) || [];
+      children.forEach(child => stack.push(child.id));
+    }
+    
+    // Find bounds of all descendants
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    descendantIds.forEach(id => {
+      const node = indices.idToNode.get(id);
+      if (node) {
+        minX = Math.min(minX, node.x);
+        maxX = Math.max(maxX, node.x);
+        minY = Math.min(minY, node.y);
+        maxY = Math.max(maxY, node.y);
+      }
+    });
+    
+    if (minX === Infinity) return; // No descendants found
+    
+    // Add padding
+    const padding = 100;
+    minX -= padding;
+    maxX += padding;
+    minY -= padding;
+    maxY += padding;
+    
+    // Calculate target scale to fit bounds
+    const boundsWidth = maxX - minX;
+    const boundsHeight = maxY - minY;
+    const targetScaleX = dimensions.width / boundsWidth;
+    const targetScaleY = dimensions.height / boundsHeight;
+    let targetScale = Math.min(targetScaleX, targetScaleY);
+    
+    // Ensure we reach at least T2 threshold
+    const minScaleForT2 = T2_BASE / (NODE_WIDTH_WITH_PHOTO * PixelRatio.get());
+    targetScale = Math.max(targetScale, minScaleForT2 * 1.2); // 20% above threshold
+    targetScale = clamp(targetScale, minZoom, maxZoom);
+    
+    // Calculate center and target position
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const targetX = dimensions.width / 2 - centerX * targetScale;
+    const targetY = dimensions.height / 2 - centerY * targetScale;
+    
+    // Animate to target
+    scale.value = withTiming(targetScale, { duration: 500 });
+    translateX.value = withTiming(targetX, { duration: 500 });
+    translateY.value = withTiming(targetY, { duration: 500 });
+    
+    // Update saved values after animation
+    setTimeout(() => {
+      savedScale.value = targetScale;
+      savedTranslateX.value = targetX;
+      savedTranslateY.value = targetY;
+    }, 500);
+  }, [indices, dimensions, minZoom, maxZoom]);
   
   
   // Handle FAB press - show unlinked person modal
@@ -905,7 +1322,224 @@ const TreeView = ({ setProfileEditMode }) => {
     return lines;
   }, [nodes]);
 
-  // Render node component
+  // Render edges with batching and capping
+  const renderEdgesBatched = useCallback((connections, visibleNodeIds, tier) => {
+    if (tier === 3) return { elements: null, count: 0 };
+    
+    let edgeCount = 0;
+    const paths = [];
+    let pathBuilder = Skia.Path.Make();
+    let currentBatch = 0;
+    
+    for (const conn of connections) {
+      if (edgeCount >= MAX_VISIBLE_EDGES) break;
+      
+      // Only render if parent or any child is visible
+      if (!visibleNodeIds.has(conn.parent.id) && 
+          !conn.children.some(c => visibleNodeIds.has(c.id))) {
+        continue;
+      }
+      
+      const parent = nodes.find(n => n.id === conn.parent.id);
+      if (!parent) continue;
+      
+      // Calculate positions
+      const childYs = conn.children.map(child => child.y);
+      const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
+      const parentHeight = parent.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+      
+      // Add parent vertical line
+      pathBuilder.moveTo(parent.x, parent.y + parentHeight/2);
+      pathBuilder.lineTo(parent.x, busY);
+      
+      // Add horizontal bus line if needed
+      if (conn.children.length > 1 || Math.abs(parent.x - conn.children[0].x) > 5) {
+        const childXs = conn.children.map(child => child.x);
+        const minChildX = Math.min(...childXs);
+        const maxChildX = Math.max(...childXs);
+        
+        pathBuilder.moveTo(minChildX, busY);
+        pathBuilder.lineTo(maxChildX, busY);
+      }
+      
+      // Add child vertical lines
+      conn.children.forEach(child => {
+        const childNode = nodes.find(n => n.id === child.id);
+        if (childNode) {
+          const childHeight = childNode.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+          pathBuilder.moveTo(childNode.x, busY);
+          pathBuilder.lineTo(childNode.x, childNode.y - childHeight/2);
+        }
+      });
+      
+      edgeCount += conn.children.length + 1;
+      currentBatch += conn.children.length + 1;
+      
+      // Flush batch every 50 edges
+      if (currentBatch >= 50) {
+        // Clone path before pushing
+        const flushed = Skia.Path.Make();
+        flushed.addPath(pathBuilder);
+        paths.push(
+          <Path 
+            key={`edges-${paths.length}`} 
+            path={flushed} 
+            color={LINE_COLOR}
+            style="stroke"
+            strokeWidth={LINE_WIDTH}
+          />
+        );
+        pathBuilder.reset();
+        currentBatch = 0;
+      }
+    }
+    
+    // Final batch
+    if (currentBatch > 0) {
+      const flushed = Skia.Path.Make();
+      flushed.addPath(pathBuilder);
+      paths.push(
+        <Path 
+          key={`edges-${paths.length}`} 
+          path={flushed} 
+          color={LINE_COLOR}
+          style="stroke"
+          strokeWidth={LINE_WIDTH}
+        />
+      );
+    }
+    
+    return { elements: paths, count: edgeCount };
+  }, [nodes]);
+
+  // Render T3 aggregation chips (only 3 chips for hero branches)
+  const renderTier3 = useCallback((heroNodes, indices, scale, translateX, translateY) => {
+    if (!AGGREGATION_ENABLED) return null;
+    
+    const chips = [];
+    
+    heroNodes.forEach((hero, index) => {
+      // Use precomputed centroid
+      const centroid = indices.centroids[hero.id];
+      if (!centroid) return;
+      
+      // Transform world to screen
+      const screenX = centroid.x * scale + translateX;
+      const screenY = centroid.y * scale + translateY;
+      
+      const isRoot = !hero.father_id;
+      const chipScale = isRoot ? 1.3 : 1.0;
+      const chipWidth = 100 * chipScale;
+      const chipHeight = 36 * chipScale;
+      
+      chips.push(
+        <Group key={`chip-${hero.id}`}>
+          <RoundedRect
+            x={screenX - chipWidth / 2}
+            y={screenY - chipHeight / 2}
+            width={chipWidth}
+            height={chipHeight}
+            r={16}
+            color="#FFFFFF"
+          />
+          <RoundedRect
+            x={screenX - chipWidth / 2}
+            y={screenY - chipHeight / 2}
+            width={chipWidth}
+            height={chipHeight}
+            r={16}
+            color="#E0E0E0"
+            style="stroke"
+            strokeWidth={0.5}
+          />
+          {/* Hero name + count */}
+          {arabicFont && (
+            <SkiaText
+              x={screenX}
+              y={screenY + 4}
+              text={`${hero.name} (${indices.subtreeSizes[hero.id]})`}
+              font={arabicFont}
+              textAlign="center"
+              fontSize={12 * chipScale}
+              color="#212121"
+            />
+          )}
+        </Group>
+      );
+    });
+    
+    return chips;
+  }, []);
+
+  // Render T2 text pill (simplified, no images)
+  const renderTier2Node = useCallback((node) => {
+    const nodeWidth = 60;
+    const nodeHeight = 26;
+    const x = node.x - nodeWidth/2;
+    const y = node.y - nodeHeight/2;
+    const isSelected = selectedPersonId === node.id;
+    
+    return (
+      <Group key={node.id}>
+        {/* Shadow (lighter for T2) */}
+        <RoundedRect
+          x={x + 0.5}
+          y={y + 0.5}
+          width={nodeWidth}
+          height={nodeHeight}
+          r={13}
+          color="#00000008"
+        />
+        
+        {/* Main pill background */}
+        <RoundedRect
+          x={x}
+          y={y}
+          width={nodeWidth}
+          height={nodeHeight}
+          r={13}
+          color="#FFFFFF"
+        />
+        
+        {/* Border */}
+        <RoundedRect
+          x={x}
+          y={y}
+          width={nodeWidth}
+          height={nodeHeight}
+          r={13}
+          color={isSelected ? "#212121" : "#E0E0E0"}
+          style="stroke"
+          strokeWidth={isSelected ? 1.5 : 1}
+        />
+        
+        {/* First name only */}
+        {(() => {
+          const firstName = node.name.split(' ')[0];
+          const nameParagraph = createArabicParagraph(
+            firstName,
+            'regular',
+            10,
+            "#212121",
+            nodeWidth
+          );
+          
+          if (!nameParagraph) return null;
+          
+          return (
+            <Paragraph
+              paragraph={nameParagraph}
+              x={x}
+              y={y + 7}
+              width={nodeWidth}
+            />
+          );
+        })()}
+      </Group>
+    );
+  }, [selectedPersonId]);
+
+  // Render node component (T1 - full detail)
   const renderNode = useCallback((node) => {
     const hasPhoto = !!node.photo_url;
     // Respect the node's custom width if it has one (for text sizing)
@@ -976,6 +1610,10 @@ const TreeView = ({ setProfileEditMode }) => {
                 width={PHOTO_SIZE}
                 height={PHOTO_SIZE}
                 radius={PHOTO_SIZE/2}
+                tier={node._tier || 1}
+                scale={node._scale || 1}
+                nodeId={node.id}
+                selectBucket={node._selectBucket}
               />
             )}
             
@@ -1099,16 +1737,85 @@ const TreeView = ({ setProfileEditMode }) => {
     );
   }
 
+  // Calculate current LOD tier
+  const tier = calculateLODTier(currentScale);
+  frameStatsRef.current.tier = tier;
+  
+  // TIER 3: Only render hero chips
+  if (tier === 3 && AGGREGATION_ENABLED) {
+    frameStatsRef.current.nodesDrawn = 3; // Only 3 chips
+    frameStatsRef.current.edgesDrawn = 0;
+    return (
+      <View className="flex-1 bg-gray-100">
+        <GestureDetector gesture={composed}>
+          <Canvas style={{ flex: 1 }}>
+            {renderTier3(indices.heroNodes, indices, scale.value, translateX.value, translateY.value)}
+          </Canvas>
+        </GestureDetector>
+        
+        {/* Navigation button still available */}
+        <NavigateToRootButton 
+          nodes={nodes} 
+          viewport={dimensions} 
+          sharedValues={{ translateX, translateY, scale }}
+        />
+      </View>
+    );
+  }
+  
+  // TIER 1 & 2: Use spatial culling
+  const culledNodes = spatialGrid ? spatialGrid.getVisibleNodes(
+    { 
+      x: translateX.value, 
+      y: translateY.value, 
+      width: dimensions.width,
+      height: dimensions.height 
+    },
+    scale.value,
+    indices.idToNode
+  ) : visibleNodes;
+  
+  // Update render callbacks to pass tier and scale
+  const renderNodeWithTier = useCallback((node) => {
+    if (tier === 2) {
+      return renderTier2Node(node);
+    }
+    // Tier 1 - full node with tier info for image loading
+    const modifiedNode = { 
+      ...node, 
+      _tier: tier, 
+      _scale: scale.value,
+      _selectBucket: selectBucketWithHysteresis
+    };
+    return renderNode(modifiedNode);
+  }, [tier, scale.value, renderNode, renderTier2Node, selectBucketWithHysteresis]);
+  
+  // Create visible node ID set for edge rendering
+  const visibleNodeIds = useMemo(() => 
+    new Set(culledNodes.map(n => n.id)), [culledNodes]
+  );
+  
+  // Render edges with batching
+  const { elements: edgeElements, count: edgesDrawn } = renderEdgesBatched(
+    connections,
+    visibleNodeIds,
+    tier
+  );
+  
+  // Update frame stats
+  frameStatsRef.current.nodesDrawn = culledNodes.length;
+  frameStatsRef.current.edgesDrawn = edgesDrawn;
+  
   return (
     <View className="flex-1 bg-gray-100">
       <GestureDetector gesture={composed}>
         <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
-            {/* Render visible connections first */}
-            {visibleConnections.map(renderConnection)}
+            {/* Render batched edges first */}
+            {edgeElements}
             
             {/* Render visible nodes */}
-            {visibleNodes.map(renderNode)}
+            {culledNodes.map(renderNodeWithTier)}
 
             {/* Pass 3: Invisible bridge lines intersecting viewport */}
             {bridgeSegments.map(seg => (
