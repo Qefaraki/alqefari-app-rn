@@ -646,33 +646,6 @@ const TreeView = ({ setProfileEditMode }) => {
   }, [nodes, dimensions, treeBounds]);
 
 
-  // Pan gesture with momentum
-  const panGesture = Gesture.Pan()
-    .onStart(() => {
-      cancelAnimation(translateX);
-      cancelAnimation(translateY);
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
-    })
-    .onUpdate((e) => {
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
-    })
-    .onEnd((e) => {
-      translateX.value = withDecay({
-        velocity: e.velocityX,
-        deceleration: 0.995,
-      });
-      translateY.value = withDecay({
-        velocity: e.velocityY,
-        deceleration: 0.995,
-      });
-      
-      // Save current values (before decay animation modifies them)
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
-    });
-
   // Pinch gesture for zoom with pointer-anchored transform
   const pinchGesture = Gesture.Pinch()
     .onStart((e) => {
@@ -746,6 +719,36 @@ const TreeView = ({ setProfileEditMode }) => {
       if (__DEV__) {
         console.log(`✅ PINCH END: Scale:${scale.value.toFixed(2)} Pos:(${translateX.value.toFixed(0)},${translateY.value.toFixed(0)})`);
       }
+    });
+
+  // Pan gesture with momentum
+  const panGesture = Gesture.Pan()
+    .minPointers(1)
+    .maxPointers(1)
+    .requireFailure(pinchGesture)
+    .onStart(() => {
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
+    })
+    .onEnd((e) => {
+      translateX.value = withDecay({
+        velocity: e.velocityX,
+        deceleration: 0.995,
+      });
+      translateY.value = withDecay({
+        velocity: e.velocityY,
+        deceleration: 0.995,
+      });
+      
+      // Save current values (before decay animation modifies them)
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
     });
 
   // Tap gesture for selection with movement/time thresholds
