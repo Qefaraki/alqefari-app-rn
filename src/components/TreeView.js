@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert } from 'react-native';
+import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio } from 'react-native';
 import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
@@ -50,6 +50,9 @@ let sfArabicRegistered = false;
 
 const SF_ARABIC_ALIAS = 'SF Arabic';
 const SF_ARABIC_ASSET = require('../../assets/fonts/SF Arabic Regular.ttf');
+
+// Pixel ratio for consistent focal point calculations (1 for DIP-aligned Skia)
+const DPR = 1;
 
 try {
   fontMgr = Skia.FontMgr.System();
@@ -199,6 +202,7 @@ const TreeView = ({ setProfileEditMode }) => {
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentScale, setCurrentScale] = useState(1);
   
   // Admin mode state
   const { isAdminMode } = useAdminMode();
@@ -247,8 +251,9 @@ const TreeView = ({ setProfileEditMode }) => {
   const savedScale = useSharedValue(stage.scale);
   const savedTranslateX = useSharedValue(stage.x);
   const savedTranslateY = useSharedValue(stage.y);
-  const focalX = useSharedValue(0);
-  const focalY = useSharedValue(0);
+  
+  // Viewport update ref
+  const viewportUpdateTimeout = useRef(null);
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
@@ -412,7 +417,32 @@ const TreeView = ({ setProfileEditMode }) => {
   
   // Track last stable scale to detect significant changes
   const lastStableScale = useRef(1);
+  const lastReportedScale = useRef(1);
 
+  // Sync scale value to React state with throttling
+  useAnimatedReaction(
+    () => scale.value,
+    (current) => {
+      // Only update if scale changed significantly (>5%)
+      const scaleDiff = Math.abs(current - lastReportedScale.current) / lastReportedScale.current;
+      if (scaleDiff > 0.05) {
+        lastReportedScale.current = current;
+        runOnJS(setCurrentScale)(current);
+      }
+    }
+  );
+
+  // Throttled viewport bounds update function
+  const updateViewportBounds = useCallback((newBounds) => {
+    if (viewportUpdateTimeout.current) {
+      clearTimeout(viewportUpdateTimeout.current);
+    }
+    
+    viewportUpdateTimeout.current = setTimeout(() => {
+      setVisibleBounds(newBounds);
+    }, 16); // 60fps throttle
+  }, []);
+  
   // Update visible bounds when transform changes
   useAnimatedReaction(
     () => ({
@@ -431,7 +461,8 @@ const TreeView = ({ setProfileEditMode }) => {
         maxY: (-current.y + dimensions.height + dynamicMargin) / current.scale
       };
       
-      runOnJS(setVisibleBounds)(newBounds);
+      // Use throttled update function
+      runOnJS(updateViewportBounds)(newBounds);
     }
   );
   
@@ -449,7 +480,6 @@ const TreeView = ({ setProfileEditMode }) => {
     const startTime = performance.now();
     
     // Only update visibility if scale changed significantly (>5%)
-    const currentScale = scale.value;
     const scaleChanged = Math.abs(currentScale - lastStableScale.current) / lastStableScale.current > 0.05;
     if (scaleChanged) {
       lastStableScale.current = currentScale;
@@ -507,7 +537,7 @@ const TreeView = ({ setProfileEditMode }) => {
     }
     
     return visible;
-  }, [nodes, visibleBounds]);
+  }, [nodes, visibleBounds, currentScale]);
 
   // Track previous visible connections for debugging
   const prevVisibleConnectionsRef = useRef(0);
@@ -610,45 +640,52 @@ const TreeView = ({ setProfileEditMode }) => {
   // Pinch gesture for zoom with pointer-anchored transform
   const pinchGesture = Gesture.Pinch()
     .onStart((e) => {
-      // CRITICAL: Cancel any running animations to prevent value drift
-      cancelAnimation(translateX);
-      cancelAnimation(translateY);
-      cancelAnimation(scale);
-      
-      // Now save the current stable values
-      savedScale.value = scale.value;
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
-      
-      // Store initial focal point for stability (rounded to prevent float issues)
-      focalX.value = Math.round(e.focalX);
-      focalY.value = Math.round(e.focalY);
+      // Only process with two fingers
+      if (e.numberOfPointers === 2) {
+        // CRITICAL: Cancel any running animations to prevent value drift
+        cancelAnimation(translateX);
+        cancelAnimation(translateY);
+        cancelAnimation(scale);
+        
+        // Now save the current stable values
+        savedScale.value = scale.value;
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+        
+      }
       
       // Debug logging
       if (__DEV__) {
-        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${Math.round(e.focalX)},${Math.round(e.focalY)}) Fingers:${e.numberOfPointers}`);
+        console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${e.focalX.toFixed(0)},${e.focalY.toFixed(0)}) Fingers:${e.numberOfPointers}`);
       }
     })
     .onUpdate((e) => {
+      'worklet';
+      
+      // Only process updates with two fingers to prevent focal point jumps
+      if (e.numberOfPointers !== 2) {
+        return;
+      }
+      
+      // Target scale
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
-      const k = s / savedScale.value;
-
-      // Use initial focal point for stability (prevents drift with repeated pinches)
-      const stableFocalX = focalX.value;
-      const stableFocalY = focalY.value;
       
-      // Calculate new transform
-      const newX = stableFocalX - (stableFocalX - savedTranslateX.value) * k;
-      const newY = stableFocalY - (stableFocalY - savedTranslateY.value) * k;
+      // Live focal in canvas units (DPR = 1 for DIP)
+      const fx = e.focalX * DPR;
+      const fy = e.focalY * DPR;
       
-      // Apply transform
-      translateX.value = newX;
-      translateY.value = newY;
+      // Convert focal to world coords using transform at gesture start
+      const wx = (fx - savedTranslateX.value) / savedScale.value;
+      const wy = (fy - savedTranslateY.value) / savedScale.value;
+      
+      // Keep world point under fingers
+      translateX.value = fx - s * wx;
+      translateY.value = fy - s * wy;
       scale.value = s;
       
       // DEBUG: Log significant scale changes only
       if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
-        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${stableFocalX.toFixed(0)},${stableFocalY.toFixed(0)}) | Δ:(${(newX - savedTranslateX.value).toFixed(0)},${(newY - savedTranslateY.value).toFixed(0)})`);
+        console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${fx.toFixed(0)},${fy.toFixed(0)}) | World:(${wx.toFixed(0)},${wy.toFixed(0)})`);
       }
     })
     .onEnd(() => {
@@ -762,10 +799,12 @@ const TreeView = ({ setProfileEditMode }) => {
     }
   }, [contextMenuNode, setSelectedPersonId]);
   
-  // Compose gestures
-  const composed = Gesture.Simultaneous(
+  // Compose gestures - make pan yield to pinch to prevent conflicts
+  panGesture.requireExternalGestureToFail(pinchGesture);
+  
+  const composed = Gesture.Race(
+    pinchGesture,
     panGesture, 
-    pinchGesture, 
     tapGesture
   );
 
@@ -1010,11 +1049,12 @@ const TreeView = ({ setProfileEditMode }) => {
   }, [selectedPersonId]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
+  // Scale FIRST, then translate (for screen-space translation)
   const transform = useDerivedValue(() => {
     return [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: scale.value }
+      { scale: scale.value },
+      { translateX: translateX.value / scale.value },
+      { translateY: translateY.value / scale.value }
     ];
   });
 
