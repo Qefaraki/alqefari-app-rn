@@ -1,163 +1,191 @@
-# Backend Implementation Summary
+# Backend Architecture Summary
 
-## What Was Accomplished
+## Overview
 
-### 1. Documentation
-- ✅ Created comprehensive backend implementation guide (`docs/backend-implementation.md`)
-- ✅ Detailed 6-phase implementation plan with code examples
-- ✅ Security considerations and performance optimizations documented
+The Alqefari Family Tree application uses Supabase as its backend, providing a PostgreSQL database, real-time subscriptions, authentication, and edge functions. The backend is fully implemented and optimized for managing family trees with 10,000+ nodes.
 
-### 2. Database Schema
-- ✅ Created migration files for core tables:
-  - `001_create_profiles_table.sql` - Heart of the system with all person data
-  - `002_create_marriages_table.sql` - Relationship management
-  - `003_create_media_uploads_table.sql` - Media approval workflow
+## Core Components
 
-### 3. Project Structure
-- ✅ Set up Supabase directory structure
-- ✅ Created configuration files (`config.toml`)
-- ✅ Added setup documentation (`supabase/setup.md`)
-- ✅ Created quickstart script (`supabase/quickstart.sh`)
+### 1. Database Schema
 
-### 4. Frontend Preparation
-- ✅ Created Supabase service configuration (`src/services/supabase.js`)
-- ✅ Added TypeScript types for all database tables (`src/types/supabase.ts`)
-- ✅ Prepared for API integration
+The database uses a normalized schema with these core tables:
 
-## Implementation Steps
+- **profiles** - Person data (name, bio, dates, relationships, etc.)
+- **marriages** - Marriage relationships between people
+- **background_jobs** - Async job queue for layout calculations
+- **audit_log** - Complete history of all admin actions
+- **media_uploads** - Profile photo management (pending approval workflow)
 
-### Database Setup Commands:
+Key design decisions:
+- Single source of truth (no redundant data)
+- JSONB fields for flexible data (dates, social media links)
+- Hierarchical ID (HID) system for human-readable positions
+- Soft deletes with `deleted_at` timestamps
 
-```bash
-# 1. Navigate to project
-cd "/Users/alqefari/Desktop/alqefari app/AlqefariTreeRN-Expo"
+### 2. Authentication & Authorization
 
-# 2. Initialize Supabase
-supabase init
+- **Supabase Auth** handles user authentication
+- **Role-based access** via `user_roles` table
+- **RLS policies** enforce row-level security
+- **Admin functions** use SECURITY DEFINER for elevated permissions
 
-# 3. Link to your project
-supabase link --project-ref ezkioroyhzpavmbfavyn
-# Password: (use SUPABASE_DB_PASSWORD from .env)
+Admin roles:
+- `SUPER_ADMIN` - Full system access
+- `BRANCH_ADMIN` - Limited to specific branches
+- Regular users - Read-only access
 
-# 4. Push migrations to create tables
-supabase db push
+### 3. API Functions (RPCs)
 
-# 5. Open Supabase dashboard to verify
-supabase dashboard
+Key RPC functions for the frontend:
+
+```javascript
+// Branch-based data loading (replaces full tree loading)
+supabase.rpc('get_branch_data', { p_hid, p_max_depth, p_limit })
+
+// Viewport-based loading for performance
+supabase.rpc('get_visible_nodes', { viewport, zoom_level })
+
+// Admin operations
+supabase.rpc('admin_create_profile', { profile_data })
+supabase.rpc('admin_bulk_create_children', { parent_id, children })
+supabase.rpc('admin_revert_action', { log_id })
 ```
 
-### Additional Implementation Tasks:
+### 4. Real-time Subscriptions
 
-1. **Complete Database Setup**
-   - Add remaining migration files (4-10)
-   - Implement RLS policies
-   - Create RPC functions
+The app uses Supabase real-time for live updates:
 
-2. **Frontend Integration**
-   - Install `@supabase/supabase-js` and `@react-native-async-storage/async-storage`
-   - Replace local data with Supabase queries
-   - Implement real-time subscriptions
+```javascript
+// Subscribe to all profile changes
+supabase.channel('profiles-all')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, handler)
 
-3. **Admin Toolkit**
-   - Build admin mode trigger
-   - Create profile management forms
-   - Implement parent selector
-
-## Key Files Created
-
-```
-AlqefariTreeRN-Expo/
-├── docs/
-│   ├── backend-implementation.md    # Complete guide
-│   └── backend-summary.md           # This file
-├── supabase/
-│   ├── migrations/
-│   │   ├── 001_create_profiles_table.sql
-│   │   ├── 002_create_marriages_table.sql
-│   │   └── 003_create_media_uploads_table.sql
-│   ├── config.toml                  # Supabase config
-│   ├── setup.md                     # Setup instructions
-│   └── quickstart.sh               # Quick start script
-└── src/
-    ├── services/
-    │   └── supabase.js             # Supabase client
-    └── types/
-        └── supabase.ts             # TypeScript types
+// Subscribe to background jobs
+supabase.channel('background-jobs')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'background_jobs' }, handler)
 ```
 
-## Important Notes
+### 5. Edge Functions
 
-1. **Security**: Your service role key is in `.env` - never expose it client-side
-2. **Performance**: The schema is optimized for 10,000+ nodes with proper indexes
-3. **Real-time**: Set up for real-time updates once connected
-4. **Admin-First**: Focus on building admin tools before public launch
+- **recalculate-layout** - Asynchronously recalculates tree layout positions
+  - Triggered after bulk operations
+  - Updates `background_jobs` table with progress
+  - Prevents UI freezing on large operations
 
-## Architecture Decisions Made
+### 6. Storage
 
-1. **Authentication**: Using Supabase Auth with admin role management
-2. **Edge Functions**: Implemented for layout recalculation and background jobs
-3. **Data Migration**: Migration scripts created for transitioning from local to cloud data
+- **profile-photos** bucket for user avatars
+- Integrated with `storage.js` service
+- Supports image upload with automatic resizing
 
 ## HID (Hierarchical ID) System
 
-The HID system provides a human-readable identifier for each person in the tree that encodes their position in the family hierarchy.
+Every person has a unique HID that encodes their position:
 
-### HID Format
-- **Root nodes**: `R1`, `R2`, etc.
-- **Children**: Parent's HID + `.` + sibling order (e.g., `R1.1`, `R1.2`, `R1.3`)
-- **Grandchildren**: Continue the pattern (e.g., `R1.1.1`, `R1.1.2`)
+- **Format**: `R1` (root), `R1.1` (first child), `R1.1.1` (grandchild)
+- **Benefits**: Human-readable, shows family relationships, enables efficient queries
+- **Generation**: Automatic via database functions
 
-### HID Generation Logic
+Example HID queries:
 ```sql
--- Generate HID for a new child
-CREATE OR REPLACE FUNCTION generate_child_hid(parent_id UUID)
-RETURNS TEXT AS $$
-DECLARE
-    parent_hid TEXT;
-    max_sibling INT;
-BEGIN
-    -- Get parent's HID
-    SELECT hid INTO parent_hid FROM profiles WHERE id = parent_id;
-    
-    -- Get the highest sibling order under this parent
-    SELECT COALESCE(MAX(sibling_order), -1) + 1 INTO max_sibling
-    FROM profiles 
-    WHERE father_id = parent_id 
-    AND deleted_at IS NULL;
-    
-    -- Return new HID
-    RETURN parent_hid || '.' || (max_sibling + 1);
-END;
-$$ LANGUAGE plpgsql;
+-- Get all descendants of a person
+SELECT * FROM profiles WHERE hid LIKE 'R1.2.%';
 
--- Fix missing HIDs (for migration or repair)
-WITH RECURSIVE hid_fix AS (
-    -- Start with root nodes
-    SELECT id, 
-           'R' || ROW_NUMBER() OVER (ORDER BY created_at) as new_hid
-    FROM profiles 
-    WHERE father_id IS NULL 
-    AND (hid IS NULL OR hid LIKE 'TEMP_%')
-),
-child_fix AS (
-    -- Process children recursively
-    SELECT p.id,
-           parent.new_hid || '.' || 
-           ROW_NUMBER() OVER (
-               PARTITION BY p.father_id 
-               ORDER BY p.sibling_order, p.created_at
-           ) as new_hid
-    FROM profiles p
-    JOIN hid_fix parent ON p.father_id = parent.id
-    WHERE p.hid IS NULL OR p.hid LIKE 'TEMP_%'
-)
-UPDATE profiles p
-SET hid = COALESCE(h.new_hid, c.new_hid)
-FROM hid_fix h
-FULL OUTER JOIN child_fix c ON p.id = c.id
-WHERE p.id IN (h.id, c.id);
+-- Get direct children
+SELECT * FROM profiles WHERE father_id = ? ORDER BY sibling_order;
 ```
 
-This system ensures every person has a unique, meaningful identifier that shows their exact position in the family tree.
+## Performance Optimizations
 
-The backend foundation is now ready. Once you run the Supabase commands above, your database will be live and ready for integration!
+1. **Branch-based loading** - Load only visible portions of the tree
+2. **Viewport culling** - Fetch only nodes in the current viewport
+3. **Indexed fields** - HID, father_id, generation for fast queries
+4. **Async operations** - Layout calculations run in background
+5. **Connection pooling** - Reuse database connections
+
+## Frontend Integration
+
+The frontend integrates via service files:
+
+- `src/services/supabase.js` - Supabase client initialization
+- `src/services/profiles.js` - Profile CRUD operations
+- `src/services/realtimeProfiles.js` - Real-time subscriptions
+- `src/services/backgroundJobs.js` - Job monitoring
+- `src/services/storage.js` - Photo uploads
+
+## Development Workflow
+
+### Running Migrations
+```bash
+# Push all migrations to Supabase
+supabase db push
+
+# Or deploy specific migration
+supabase migration up --file migrations/XXX_migration_name.sql
+```
+
+### Testing Locally
+```bash
+# Start local Supabase
+supabase start
+
+# Stop local Supabase
+supabase stop
+```
+
+### Accessing Dashboard
+```bash
+# Open Supabase dashboard
+supabase dashboard
+```
+
+## Key Files Reference
+
+```
+supabase/
+├── migrations/          # 16+ migration files
+│   ├── 001-003         # Core tables
+│   ├── 009-012         # Admin functions
+│   ├── 013-018         # Features & fixes
+│   └── 020+            # Storage & extras
+├── functions/          # Edge functions
+│   └── recalculate-layout/
+├── config.toml         # Supabase configuration
+└── seed.sql           # Sample data (if needed)
+```
+
+## Environment Variables
+
+Required for frontend:
+- `EXPO_PUBLIC_SUPABASE_URL` - Your Supabase project URL
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` - Public anonymous key
+
+Required for Supabase CLI:
+- `SUPABASE_DB_PASSWORD` - Database password for migrations
+
+## Common Operations
+
+### Check Data Integrity
+```sql
+-- Run validation dashboard
+SELECT * FROM admin_validation_dashboard();
+```
+
+### Monitor Background Jobs
+```sql
+-- View active jobs
+SELECT * FROM background_jobs WHERE status IN ('queued', 'processing');
+```
+
+### Debug Issues
+- Check Supabase logs in dashboard
+- Use `handleSupabaseError` helper for consistent error handling
+- Monitor real-time subscriptions in browser DevTools
+
+## Security Considerations
+
+1. Never expose service role key in frontend
+2. All admin operations go through RPC functions
+3. RLS policies enforce access control
+4. Audit log tracks all modifications
+5. Soft deletes preserve data integrity
