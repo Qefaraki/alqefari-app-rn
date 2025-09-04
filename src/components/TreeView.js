@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
-import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio } from 'react-native';
-import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont } from '@shopify/react-native-skia';
+import { View, Dimensions, useWindowDimensions, Platform, I18nManager, ActivityIndicator, Text, Alert, PixelRatio, AccessibilityInfo } from 'react-native';
+import { Canvas, Group, Rect, Line, Circle, vec, RoundedRect, useImage, Image as SkiaImage, Skia, Mask, Paragraph, listFontFamilies, Text as SkiaText, useFont, useClockValue } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
@@ -53,6 +53,9 @@ const SF_ARABIC_ASSET = require('../../assets/fonts/SF Arabic Regular.ttf');
 
 // Pixel ratio for consistent focal point calculations (1 for DIP-aligned Skia)
 const DPR = 1;
+
+// Max number of nodes that can start fading in per frame
+const MAX_FADES_PER_FRAME = 24;
 
 try {
   fontMgr = Skia.FontMgr.System();
@@ -203,9 +206,14 @@ const TreeView = ({ setProfileEditMode }) => {
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentScale, setCurrentScale] = useState(1);
+  const [reduceMotion, setReduceMotion] = useState(false);
   
   // Admin mode state
   const { isAdminMode } = useAdminMode();
+  
+  // Node fade-in tracking
+  const enterAt = useRef(new Map()).current;
+  const clock = useClockValue();
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
   const [multiAddParent, setMultiAddParent] = useState(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -242,6 +250,11 @@ const TreeView = ({ setProfileEditMode }) => {
         // Ignore loading errors; fall back to system fonts
       }
     })();
+    
+    // Check accessibility preferences
+    AccessibilityInfo.isReduceMotionEnabled().then(enabled => {
+      setReduceMotion(enabled);
+    });
   }, []);
   
   // Gesture shared values
@@ -522,6 +535,22 @@ const TreeView = ({ setProfileEditMode }) => {
           if (node) exited.push(node);
         }
       });
+      
+      // Track entry times for fade-in animation
+      if (!reduceMotion) {
+        let newFadesThisFrame = 0;
+        entered.forEach(node => {
+          if (newFadesThisFrame < MAX_FADES_PER_FRAME) {
+            enterAt.set(node.id, Date.now());
+            newFadesThisFrame++;
+          }
+        });
+        
+        // Clean up exit times
+        exited.forEach(node => {
+          enterAt.delete(node.id);
+        });
+      }
       
       if (entered.length > 0 || exited.length > 0) {
         console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
@@ -894,8 +923,28 @@ const TreeView = ({ setProfileEditMode }) => {
     return lines;
   }, [nodes]);
 
+  // Easing function for smooth fade-in
+  const easeOutCubic = useCallback((t) => {
+    return 1 - Math.pow(1 - t, 3);
+  }, []);
+  
+  // Calculate fade opacity for a node
+  const fadeOpacityFor = useCallback((nodeId, now) => {
+    if (reduceMotion) return 1;
+    
+    const entryTime = enterAt.get(nodeId);
+    if (!entryTime) return 1;
+    
+    const elapsed = now - entryTime;
+    const t = Math.min(1, elapsed / 160); // 160ms duration
+    return easeOutCubic(t);
+  }, [reduceMotion, enterAt, easeOutCubic]);
+  
   // Render node component
   const renderNode = useCallback((node) => {
+    // Calculate fade opacity
+    const now = clock.current || Date.now();
+    const opacity = fadeOpacityFor(node.id, now);
     const hasPhoto = !!node.photo_url;
     // Respect the node's custom width if it has one (for text sizing)
     const nodeWidth = node.nodeWidth || (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
@@ -906,7 +955,7 @@ const TreeView = ({ setProfileEditMode }) => {
     const y = node.y - nodeHeight/2;
     
     return (
-      <Group key={node.id}>
+      <Group key={node.id} opacity={opacity}>
         {/* Shadow */}
         <RoundedRect
           x={x + 1}
@@ -1067,7 +1116,7 @@ const TreeView = ({ setProfileEditMode }) => {
         )}
       </Group>
     );
-  }, [selectedPersonId]);
+  }, [selectedPersonId, clock, fadeOpacityFor]);
 
   // Create a derived value for the transform to avoid Reanimated warnings
   // Scale FIRST, then translate (for screen-space translation)
