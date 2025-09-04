@@ -8,6 +8,8 @@ import Animated, {
   withSpring,
   withDecay,
   withTiming,
+  withSequence,
+  withRepeat,
   Easing,
   runOnJS,
   clamp,
@@ -153,22 +155,35 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
   }
 };
 
-// Image component for photos
+// Image component for photos with skeleton loader
 const ImageNode = ({ url, x, y, width, height, radius }) => {
   const image = useImage(url);
   
-  // Always render placeholder circle to prevent pop-in
+  // If no image yet, show simple skeleton placeholder
   if (!image) {
     return (
-      <Circle 
-        cx={x + radius}
-        cy={y + radius}
-        r={radius}
-        color="#F5F5F5"
-      />
+      <Group>
+        {/* Base circle background */}
+        <Circle 
+          cx={x + radius}
+          cy={y + radius}
+          r={radius}
+          color="#F5F5F5"
+        />
+        {/* Lighter inner circle for depth */}
+        <Circle 
+          cx={x + radius}
+          cy={y + radius}
+          r={radius - 1}
+          color="#FAFAFA"
+          style="stroke"
+          strokeWidth={0.5}
+        />
+      </Group>
     );
   }
   
+  // Image loaded - show it with the mask
   return (
     <Group>
       <Mask 
