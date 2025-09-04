@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import CardSurface from '../../ios/CardSurface';
 import { LinearGradient } from 'expo-linear-gradient';
 import storageService from '../../../services/storage';
+import imageOptimizationService from '../../../services/imageOptimization';
 
 const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخص', profileId }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -124,10 +125,15 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
       setUploadProgress(0);
       
       // Validate image
-      storageService.validateImage({ 
-        uri: asset.uri, 
-        fileSize: asset.fileSize 
-      });
+      const validation = imageOptimizationService.validateImage(asset);
+      if (!validation.isValid) {
+        throw new Error(validation.errors[0]);
+      }
+      
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        console.log('Image warnings:', validation.warnings);
+      }
 
       // Animate progress
       Animated.timing(progressAnim, {
@@ -136,14 +142,28 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
         useNativeDriver: false,
       }).start();
 
-      // Upload to storage
+      // Update progress for optimization phase (0-30%)
+      setUploadProgress(10);
+
+      // Optimize image (compress, resize, strip EXIF)
+      const optimizedImage = await imageOptimizationService.optimizeForUpload(asset.uri, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.85,
+      });
+
+      setUploadProgress(30);
+
+      // Upload to storage (30-100%)
       const { url, error } = await storageService.uploadProfilePhoto(
-        asset.uri,
+        optimizedImage.uri,
         profileId,
         (progress) => {
-          setUploadProgress(progress);
+          // Scale progress from 30-100%
+          const scaledProgress = 30 + (progress * 0.7);
+          setUploadProgress(scaledProgress);
           Animated.timing(progressAnim, {
-            toValue: progress,
+            toValue: scaledProgress,
             duration: 100,
             useNativeDriver: false,
           }).start();
@@ -157,6 +177,12 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
       // Update preview and notify parent
       setPreviewUrl(url);
       onChange(url);
+      
+      // Store thumbnail for future use
+      if (optimizedImage.base64Thumbnail) {
+        // We can use this for blur-up effect later
+        console.log('Thumbnail generated for progressive loading');
+      }
       
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
@@ -253,7 +279,12 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
                   <View style={styles.loadingOverlay}>
                     <ActivityIndicator size="large" color="#059669" />
                     {uploadProgress > 0 && (
-                      <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
+                      <>
+                        <Text style={styles.progressText}>{Math.round(uploadProgress)}%</Text>
+                        <Text style={styles.progressLabel}>
+                          {uploadProgress < 30 ? 'تحسين الصورة...' : 'رفع الصورة...'}
+                        </Text>
+                      </>
                     )}
                   </View>
                 )}
@@ -344,6 +375,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#059669',
+  },
+  progressLabel: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   cameraOverlay: {
     position: 'absolute',

@@ -6,55 +6,76 @@ class StorageService {
   }
 
   /**
-   * Uploads a profile photo to Supabase storage
+   * Uploads a profile photo to Supabase storage with retry logic
    * @param {string} uri - The local URI of the image from ImagePicker
    * @param {string} profileId - The profile ID to associate the photo with
    * @param {function} onProgress - Optional callback for upload progress
    * @returns {Promise<{url: string, error: Error|null}>}
    */
   async uploadProfilePhoto(uri, profileId, onProgress = null) {
-    try {
-      // Fetch the image as a blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
-      // Generate unique filename with timestamp
-      const timestamp = new Date().getTime();
-      const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileName = `photo_${timestamp}.${fileExt}`;
-      const filePath = `profiles/${profileId}/${fileName}`;
+    const maxRetries = 3;
+    let lastError = null;
 
-      // Convert blob to array buffer
-      const arrayBuffer = await new Response(blob).arrayBuffer();
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Add exponential backoff for retries
+        if (attempt > 0) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
 
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from(this.bucketName)
-        .upload(filePath, arrayBuffer, {
-          contentType: blob.type || 'image/jpeg',
-          upsert: false, // Don't overwrite existing files
-          onUploadProgress: (progress) => {
-            if (onProgress) {
-              const percentComplete = (progress.loaded / progress.total) * 100;
-              onProgress(percentComplete);
+        // Fetch the image as a blob
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        
+        // Generate unique filename with timestamp
+        const timestamp = new Date().getTime();
+        const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
+        const fileName = `photo_${timestamp}.${fileExt}`;
+        const filePath = `profiles/${profileId}/${fileName}`;
+
+        // Convert blob to array buffer
+        const arrayBuffer = await new Response(blob).arrayBuffer();
+
+        // Upload to Supabase Storage
+        const { data, error } = await supabase.storage
+          .from(this.bucketName)
+          .upload(filePath, arrayBuffer, {
+            contentType: blob.type || 'image/jpeg',
+            upsert: false, // Don't overwrite existing files
+            onUploadProgress: (progress) => {
+              if (onProgress) {
+                const percentComplete = (progress.loaded / progress.total) * 100;
+                onProgress(percentComplete);
+              }
             }
-          }
-        });
+          });
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from(this.bucketName)
+          .getPublicUrl(filePath);
+
+        // Clean up old photos on successful upload
+        await this.cleanupOldPhotos(profileId, publicUrl);
+
+        return { url: publicUrl, error: null };
+      } catch (error) {
+        console.error(`Upload attempt ${attempt + 1} failed:`, error);
+        lastError = error;
+
+        // Don't retry for client errors
+        if (error.statusCode >= 400 && error.statusCode < 500) {
+          break;
+        }
       }
-
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(this.bucketName)
-        .getPublicUrl(filePath);
-
-      return { url: publicUrl, error: null };
-    } catch (error) {
-      console.error('Upload error:', error);
-      return { url: null, error };
     }
+
+    return { url: null, error: lastError || new Error('فشل رفع الصورة بعد عدة محاولات') };
   }
 
   /**

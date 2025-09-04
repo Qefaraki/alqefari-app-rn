@@ -44,6 +44,7 @@ import NameEditor from './admin/fields/NameEditor';
 import BioEditor from './admin/fields/BioEditor';
 import SiblingOrderStepper from './admin/fields/SiblingOrderStepper';
 import PhotoEditor from './admin/fields/PhotoEditor';
+import ProgressiveImage, { ProgressiveHeroImage, ProgressiveThumbnail } from './ProgressiveImage';
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -457,13 +458,13 @@ const ProfileSheet = ({ editMode = false }) => {
               </View>
             ) : (
               <View style={styles.photoSection}>
-                {person.photo_url ? (
+                <ProgressiveHeroImage
+                  source={{ uri: person.photo_url }}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+                {person.photo_url && (
                   <>
-                    <Image
-                      source={{ uri: person.photo_url }}
-                      style={styles.heroImage}
-                      resizeMode="cover"
-                    />
                     {/* Top gradient for legibility of the close control */}
                     <LinearGradient
                       colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
@@ -478,14 +479,6 @@ const ProfileSheet = ({ editMode = false }) => {
                       style={StyleSheet.absoluteFill}
                     />
                   </>
-                ) : (
-                  <View style={styles.noPhotoContainer}>
-                    <Ionicons 
-                      name="person-circle-outline" 
-                      size={120} 
-                      color="#D1D5DB" 
-                    />
-                  </View>
                 )}
               </View>
             )}
@@ -896,13 +889,11 @@ const ProfileSheet = ({ editMode = false }) => {
                 <CardSurface radius={12} style={styles.familyCard}>
                   <Pressable onPress={() => navigateToPerson(father.id)} style={[styles.familyRow]}>
                     <View style={styles.familyInfo}>
-                      {father.photo_url ? (
-                        <Image source={{ uri: father.photo_url }} style={styles.familyPhoto} />
-                      ) : (
-                        <View style={[styles.familyPhoto, styles.photoPlaceholder]}>
-                          <Ionicons name="person-outline" size={24} color="#9CA3AF" />
-                        </View>
-                      )}
+                      <ProgressiveThumbnail
+                        source={{ uri: father.photo_url }}
+                        size={48}
+                        style={styles.familyPhoto}
+                      />
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.familyName}>{father.name}</Text>
                         <Text style={styles.familyRelation}>الوالد</Text>
@@ -918,13 +909,11 @@ const ProfileSheet = ({ editMode = false }) => {
                     {sortedChildren.map((child, idx) => (
                       <Pressable key={child.id} onPress={() => navigateToPerson(child.id)} style={[styles.familyRow, idx < sortedChildren.length - 1 && styles.rowDivider]}>
                         <View style={styles.familyInfo}>
-                          {child.photo_url ? (
-                            <Image source={{ uri: child.photo_url }} style={styles.familyPhoto} />
-                          ) : (
-                            <View style={[styles.familyPhoto, styles.photoPlaceholder]}>
-                              <Ionicons name="person-outline" size={24} color="#9CA3AF" />
-                            </View>
-                          )}
+                          <ProgressiveThumbnail
+                            source={{ uri: child.photo_url }}
+                            size={48}
+                            style={styles.familyPhoto}
+                          />
                           <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.familyName}>{child.name}</Text>
                             <Text style={styles.familyRelation}>{child.gender === 'male' ? 'ابن' : 'ابنة'}</Text>
