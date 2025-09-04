@@ -43,6 +43,7 @@ import TimelineEditor from './admin/TimelineEditor';
 import NameEditor from './admin/fields/NameEditor';
 import BioEditor from './admin/fields/BioEditor';
 import SiblingOrderStepper from './admin/fields/SiblingOrderStepper';
+import PhotoEditor from './admin/fields/PhotoEditor';
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -444,26 +445,37 @@ const ProfileSheet = ({ editMode = false }) => {
 
           {/* Unified hero card: image + description + metrics */}
           <View style={styles.cardWrapper}>
-            <View style={styles.photoSection}>
-              <Image
-                source={{ uri: person.photo_url || 'https://iamalqefari.com/wp-content/uploads/2023/08/img_2216.jpg?w=1024' }}
-                style={styles.heroImage}
-                resizeMode="cover"
-              />
-              {/* Top gradient for legibility of the close control */}
-              <LinearGradient
-                colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={[StyleSheet.absoluteFill, { height: 120 }]}
-              />
-              <LinearGradient
-                colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.12)"]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-            </View>
+            {isEditing ? (
+              <View style={styles.photoEditSection}>
+                <PhotoEditor
+                  value={editedData?.photo_url || ''}
+                  onChange={(url) => setEditedData({...editedData, photo_url: url})}
+                  currentPhotoUrl={person.photo_url}
+                  personName={person.name}
+                />
+              </View>
+            ) : (
+              <View style={styles.photoSection}>
+                <Image
+                  source={{ uri: person.photo_url || 'https://iamalqefari.com/wp-content/uploads/2023/08/img_2216.jpg?w=1024' }}
+                  style={styles.heroImage}
+                  resizeMode="cover"
+                />
+                {/* Top gradient for legibility of the close control */}
+                <LinearGradient
+                  colors={["rgba(0,0,0,0.24)", "rgba(0,0,0,0)"]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={[StyleSheet.absoluteFill, { height: 120 }]}
+                />
+                <LinearGradient
+                  colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.12)"]}
+                  start={{ x: 0.5, y: 0 }}
+                  end={{ x: 0.5, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+              </View>
+            )}
 
             <View style={styles.descSection}>
               {isEditing ? (
@@ -945,6 +957,11 @@ const styles = StyleSheet.create({
   photoSection: {
     height: 280,
     backgroundColor: '#EEE',
+  },
+  photoEditSection: {
+    paddingVertical: 20,
+    backgroundColor: '#F7F7F8',
+    alignItems: 'center',
   },
   heroImage: {
     width: '100%',
