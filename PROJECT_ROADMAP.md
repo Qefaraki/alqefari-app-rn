@@ -83,12 +83,33 @@
   - Added helpful debug guide on startup
   - Made logs easily shareable for troubleshooting
 
-### 🚧 In Progress
+- ✅ Identified and fixed zoom jumping on physical devices (2025-09-03)
+  - Root cause: Viewport culling causing massive visibility changes
+  - Increased VIEWPORT_MARGIN from 200 to 800 pixels
+  - Added dynamic margin that scales with zoom level
+  - Rounded focal points to prevent float precision issues
+  - Added warnings for large visibility changes
 
-#### Zoom/Pan Issues on Physical Device
-- Investigating viewport culling behavior causing jumps
-- Debug system now tracks all coordinate transformations
-- Next: Analyze logs to identify root cause
+- ✅ Fixed physical device gesture handling differences (2025-09-03)
+  - Issue: Physical devices send duplicate gesture events with stuck scale values
+  - Added gesture debouncing to skip duplicate scale updates within 16ms
+  - Implemented focal point stabilization using stored values from gesture start
+  - Added 1% scale change threshold to prevent tiny updates
+  - Normalized touch coordinates to even numbers to reduce drift
+  - Throttled viewport bounds updates to 60fps maximum
+
+- ✅ Completely fixed zoom jumping on physical iOS devices (2025-09-04)
+  - Root cause: Storing focal point at gesture start instead of using live values
+  - Removed focalX/focalY shared values completely
+  - Now uses e.focalX/e.focalY directly in each onUpdate call
+  - Converts focal to world coordinates using transform at gesture start
+  - Keeps the world point consistently under the fingers as scale changes
+  - Fixed Skia transform order to scale first, then translate
+  - Changed gesture composition from Simultaneous to Race with pan yielding to pinch
+  - Added DPR constant (set to 1 for DIP-aligned Skia)
+  - Result: Smooth, stable zoom on both simulator and physical devices
+
+### 🚧 In Progress
 
 #### Admin Edit Mode - Remaining Phases
 - Phase 2: Visual Identity - Photo URL editor with live preview
