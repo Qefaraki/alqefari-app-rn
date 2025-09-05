@@ -45,6 +45,8 @@ import BioEditor from './admin/fields/BioEditor';
 import SiblingOrderStepper from './admin/fields/SiblingOrderStepper';
 import PhotoEditor from './admin/fields/PhotoEditor';
 import ProgressiveImage, { ProgressiveHeroImage, ProgressiveThumbnail } from './ProgressiveImage';
+import MultiAddChildrenModal from './admin/MultiAddChildrenModal';
+import MarriageEditor from './admin/MarriageEditor';
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -90,6 +92,8 @@ const ProfileSheet = ({ editMode = false }) => {
   const [familySectionY, setFamilySectionY] = useState(0);
   const [marriages, setMarriages] = useState([]);
   const [loadingMarriages, setLoadingMarriages] = useState(false);
+  const [showChildrenModal, setShowChildrenModal] = useState(false);
+  const [showMarriageModal, setShowMarriageModal] = useState(false);
   
   // Admin mode
   const { isAdminMode } = useAdminMode();
@@ -176,6 +180,11 @@ const ProfileSheet = ({ editMode = false }) => {
     const siblings = dataSource.filter(p => p.father_id === father.id) || [];
     return Math.max(0, siblings.length - 1);
   }, [person, father, treeData]);
+
+  const handleMarriageCreated = useCallback(() => {
+    // Refresh marriages list after creating a new one
+    loadMarriages();
+  }, []);
 
   // Full name exactly as in original web version (include person's name + connector)
   const fullName = useMemo(() => {
@@ -883,6 +892,24 @@ const ProfileSheet = ({ editMode = false }) => {
           {/* Family list */}
           <View style={{ marginHorizontal: 20 }} onLayout={(e) => setFamilySectionY(e.nativeEvent.layout.y)}>
             <SectionCard title="العائلة" style={{ marginBottom: 12 }} contentStyle={{ paddingHorizontal: 0 }}>
+              {isEditing && (
+                <View style={styles.familyActionsRow}>
+                  <TouchableOpacity
+                    style={[styles.familyActionBtn, { backgroundColor: 'rgba(52,199,89,0.12)', borderColor: '#34C759' }]}
+                    onPress={() => setShowChildrenModal(true)}
+                  >
+                    <Ionicons name="person-add" size={18} color="#34C759" style={{ marginLeft: 8 }} />
+                    <Text style={[styles.familyActionText, { color: '#34C759' }]}>إضافة أطفال</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.familyActionBtn, { backgroundColor: 'rgba(0,122,255,0.12)', borderColor: '#007AFF' }]}
+                    onPress={() => setShowMarriageModal(true)}
+                  >
+                    <Ionicons name="heart-outline" size={18} color="#007AFF" style={{ marginLeft: 8 }} />
+                    <Text style={[styles.familyActionText, { color: '#007AFF' }]}>إضافة زواج</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               {father && (
                 <CardSurface radius={12} style={styles.familyCard}>
                   <Pressable onPress={() => navigateToPerson(father.id)} style={[styles.familyRow]}>
@@ -923,6 +950,29 @@ const ProfileSheet = ({ editMode = false }) => {
                   </View>
                 </CardSurface>
               )}
+              {/* Spouses list */}
+              {!isEditing && marriages && marriages.length > 0 && (
+                <CardSurface radius={12} style={[styles.familyCard, { marginTop: 12 }] }>
+                  <View>
+                    {marriages.map((m, idx) => (
+                      <Pressable key={m.marriage_id || m.spouse_id || idx} onPress={() => navigateToPerson(m.spouse_id)} style={[styles.familyRow, idx < marriages.length - 1 && styles.rowDivider]}>
+                        <View style={styles.familyInfo}>
+                          <ProgressiveThumbnail
+                            source={{ uri: m.spouse_photo }}
+                            size={48}
+                            style={styles.familyPhoto}
+                          />
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={styles.familyName}>{m.spouse_name}</Text>
+                            <Text style={styles.familyRelation}>زوج/زوجة</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.chevron}>›</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </CardSurface>
+              )}
             </SectionCard>
           </View>
 
@@ -930,6 +980,28 @@ const ProfileSheet = ({ editMode = false }) => {
           <View style={{ height: 100 }} />
         </View>
       </BottomSheetScrollView>
+      {/* Family modals: Add Children & Add Marriage */}
+      {isEditing && (
+        <>
+          {person && (
+            <MultiAddChildrenModal
+              visible={showChildrenModal}
+              onClose={() => setShowChildrenModal(false)}
+              parentId={person.id}
+              parentName={person.name}
+              parentGender={person.gender}
+            />
+          )}
+          {person && (
+            <MarriageEditor
+              visible={showMarriageModal}
+              onClose={() => setShowMarriageModal(false)}
+              person={person}
+              onCreated={handleMarriageCreated}
+            />
+          )}
+        </>
+      )}
     </BottomSheet>
   );
 };
@@ -1030,6 +1102,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  familyActionsRow: {
+    flexDirection: 'row-reverse',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  familyActionBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  familyActionText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   pill: {
     flexGrow: 1,

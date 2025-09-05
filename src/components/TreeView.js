@@ -445,6 +445,14 @@ const TreeView = ({ setProfileEditMode }) => {
     I18nManager.forceRTL(true);
   }, []);
   
+  // Create ref to hold current values for gestures
+  const gestureStateRef = useRef({
+    transform: { x: 0, y: 0, scale: 1 },
+    tier: 1,
+    indices: null,
+    visibleNodes: []
+  });
+  
   // Load SF Arabic asset font and register with Paragraph font collection
   useEffect(() => {
     if (!arabicFontProvider || sfArabicRegistered) return;
@@ -1062,16 +1070,18 @@ const TreeView = ({ setProfileEditMode }) => {
     .maxDuration(250)
     .runOnJS(true)
     .onEnd((e) => {
+      const state = gestureStateRef.current;
+      
       // Check if we're in T3 mode first
-      if (tier === 3 && AGGREGATION_ENABLED && indices.heroNodes) {
+      if (state.tier === 3 && AGGREGATION_ENABLED && state.indices?.heroNodes) {
         // Check for chip taps
-        for (const hero of indices.heroNodes) {
-          const centroid = indices.centroids[hero.id];
+        for (const hero of state.indices.heroNodes) {
+          const centroid = state.indices.centroids[hero.id];
           if (!centroid) continue;
           
           // Transform centroid to screen space
-          const screenX = centroid.x * scale.value + translateX.value;
-          const screenY = centroid.y * scale.value + translateY.value;
+          const screenX = centroid.x * state.transform.scale + state.transform.x;
+          const screenY = centroid.y * state.transform.scale + state.transform.y;
           
           const isRoot = !hero.father_id;
           const chipScale = isRoot ? 1.3 : 1.0;
@@ -1091,8 +1101,8 @@ const TreeView = ({ setProfileEditMode }) => {
       }
       
       // Original node tap logic for T1/T2
-      const canvasX = (e.x - translateX.value) / scale.value;
-      const canvasY = (e.y - translateY.value) / scale.value;
+      const canvasX = (e.x - state.transform.x) / state.transform.scale;
+      const canvasY = (e.y - state.transform.y) / state.transform.scale;
       
       // DEBUG: Log tap coordinates
       // if (__DEV__) {
@@ -1100,7 +1110,7 @@ const TreeView = ({ setProfileEditMode }) => {
       // }
       
       let tappedNodeId = null;
-      for (const node of visibleNodes) {
+      for (const node of state.visibleNodes) {
         const nodeWidth = node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY;
         const nodeHeight = node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
         
@@ -1727,6 +1737,73 @@ const TreeView = ({ setProfileEditMode }) => {
     ];
   });
 
+  // Store current transform values to avoid accessing .value during render
+  const [currentTransform, setCurrentTransform] = useState({ x: 0, y: 0, scale: 1 });
+  
+  // Update transform values when they change
+  useAnimatedReaction(
+    () => ({
+      x: translateX.value,
+      y: translateY.value,
+      scale: scale.value
+    }),
+    (current) => {
+      runOnJS(setCurrentTransform)(current);
+    }
+  );
+  
+  // Calculate current LOD tier using the state instead of accessing .value directly
+  const tier = calculateLODTier(currentTransform.scale);
+  frameStatsRef.current.tier = tier;
+  
+  // Calculate culled nodes (with loading fallback)
+  const culledNodes = useMemo(() => {
+    if (isLoading) return [];
+    if (tier === 3) return [];
+    if (!spatialGrid) return visibleNodes;
+    return spatialGrid.getVisibleNodes(
+      { 
+        x: currentTransform.x, 
+        y: currentTransform.y, 
+        width: dimensions.width,
+        height: dimensions.height 
+      },
+      currentTransform.scale,
+      indices.idToNode
+    );
+  }, [isLoading, tier, spatialGrid, currentTransform, dimensions, indices.idToNode, visibleNodes]);
+  
+  // Update render callbacks to pass tier and scale
+  const renderNodeWithTier = useCallback((node) => {
+    if (!node) return null;
+    if (tier === 2) {
+      return renderTier2Node(node);
+    }
+    // Tier 1 - full node with tier info for image loading
+    const modifiedNode = { 
+      ...node, 
+      _tier: tier, 
+      _scale: currentTransform.scale,
+      _selectBucket: selectBucketWithHysteresis
+    };
+    return renderNode(modifiedNode);
+  }, [tier, currentTransform.scale, renderNode, renderTier2Node, selectBucketWithHysteresis]);
+  
+  // Create visible node ID set for edge rendering
+  const visibleNodeIds = useMemo(() => 
+    new Set(culledNodes.map(n => n.id)), [culledNodes]
+  );
+  
+  // Keep gestureStateRef in sync for tap gesture
+  useEffect(() => {
+    gestureStateRef.current = {
+      transform: currentTransform,
+      tier,
+      indices,
+      visibleNodes: culledNodes
+    };
+  }, [currentTransform, tier, indices, culledNodes]);
+  
   // Show loading state
   if (isLoading) {
     return (
@@ -1736,20 +1813,25 @@ const TreeView = ({ setProfileEditMode }) => {
       </View>
     );
   }
-
-  // Calculate current LOD tier
-  const tier = calculateLODTier(currentScale);
-  frameStatsRef.current.tier = tier;
+  
+  // Render edges with batching
+  const { elements: edgeElements, count: edgesDrawn } = renderEdgesBatched(
+    connections,
+    visibleNodeIds,
+    tier
+  );
+  
+  // Update frame stats
+  frameStatsRef.current.nodesDrawn = tier === 3 ? 3 : culledNodes.length;
+  frameStatsRef.current.edgesDrawn = tier === 3 ? 0 : edgesDrawn;
   
   // TIER 3: Only render hero chips
   if (tier === 3 && AGGREGATION_ENABLED) {
-    frameStatsRef.current.nodesDrawn = 3; // Only 3 chips
-    frameStatsRef.current.edgesDrawn = 0;
     return (
       <View className="flex-1 bg-gray-100">
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
-            {renderTier3(indices.heroNodes, indices, scale.value, translateX.value, translateY.value)}
+            {renderTier3(indices.heroNodes, indices, currentTransform.scale, currentTransform.x, currentTransform.y)}
           </Canvas>
         </GestureDetector>
         
@@ -1762,49 +1844,6 @@ const TreeView = ({ setProfileEditMode }) => {
       </View>
     );
   }
-  
-  // TIER 1 & 2: Use spatial culling
-  const culledNodes = spatialGrid ? spatialGrid.getVisibleNodes(
-    { 
-      x: translateX.value, 
-      y: translateY.value, 
-      width: dimensions.width,
-      height: dimensions.height 
-    },
-    scale.value,
-    indices.idToNode
-  ) : visibleNodes;
-  
-  // Update render callbacks to pass tier and scale
-  const renderNodeWithTier = useCallback((node) => {
-    if (tier === 2) {
-      return renderTier2Node(node);
-    }
-    // Tier 1 - full node with tier info for image loading
-    const modifiedNode = { 
-      ...node, 
-      _tier: tier, 
-      _scale: scale.value,
-      _selectBucket: selectBucketWithHysteresis
-    };
-    return renderNode(modifiedNode);
-  }, [tier, scale.value, renderNode, renderTier2Node, selectBucketWithHysteresis]);
-  
-  // Create visible node ID set for edge rendering
-  const visibleNodeIds = useMemo(() => 
-    new Set(culledNodes.map(n => n.id)), [culledNodes]
-  );
-  
-  // Render edges with batching
-  const { elements: edgeElements, count: edgesDrawn } = renderEdgesBatched(
-    connections,
-    visibleNodeIds,
-    tier
-  );
-  
-  // Update frame stats
-  frameStatsRef.current.nodesDrawn = culledNodes.length;
-  frameStatsRef.current.edgesDrawn = edgesDrawn;
   
   return (
     <View className="flex-1 bg-gray-100">
@@ -1888,6 +1927,7 @@ const TreeView = ({ setProfileEditMode }) => {
           }}
           parentId={multiAddParent.id}
           parentName={multiAddParent.name}
+          parentGender={contextMenuNode?.gender || 'male'}
         />
       )}
       

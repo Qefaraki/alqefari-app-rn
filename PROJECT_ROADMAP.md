@@ -2,6 +2,16 @@
 
 ## Latest Updates
 
+### Bug Fixes (2025-01-05)
+- ✅ Fixed React hooks order violation in TreeView component
+  - Moved all hooks (useCallback, useMemo, useEffect) before conditional returns
+  - Fixed "Rendered more hooks than during the previous render" error
+  - Ensured hooks are called in the same order on every render
+- ✅ Fixed Reanimated value access during render
+  - Created currentTransform state to avoid accessing .value during render
+  - Used useAnimatedReaction to sync transform values
+  - Updated gesture handlers to use synced state values
+
 ### Documentation Cleanup (2025-09-04)
 - ✅ Reviewed all documentation files against current codebase
 - ✅ Updated backend-implementation.md to reflect actual implementation

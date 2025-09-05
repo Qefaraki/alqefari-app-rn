@@ -15,11 +15,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
+import profilesService from '../../services/profiles';
 import GlassSurface from '../glass/GlassSurface';
 import GlassButton from '../glass/GlassButton';
 import useStore from '../../hooks/useStore';
 
-const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
+const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName, parentGender = 'male' }) => {
   const [children, setChildren] = useState([
     { id: Date.now(), name: '', gender: 'M', birthYear: '' }
   ]);
@@ -74,34 +75,37 @@ const MultiAddChildrenModal = ({ visible, onClose, parentId, parentName }) => {
 
     setLoading(true);
     try {
-      // Prepare children data for RPC
-      const childrenData = children.map(child => ({
-        name: child.name.trim(),
-        gender: child.gender,
-        ...(child.birthYear && { birth_year: parseInt(child.birthYear) }),
-      }));
-
-      // Call bulk create RPC
-      const { data, error } = await supabase.rpc('admin_bulk_create_children', {
-        p_parent_id: parentId,
-        p_children: childrenData,
-      });
-
-      if (error) throw error;
-
-      // Show success message
-      Alert.alert(
-        'نجح',
-        `تمت إضافة ${data.length} طفل بنجاح`,
-        [{ text: 'حسناً', onPress: onClose }]
-      );
-
-      // Refresh the parent profile to update the tree
-      if (refreshProfile) {
-        await refreshProfile(parentId);
+      // NOTE: v2 schema uses 'male'/'female' and father_id/mother_id.
+      // Current admin_create_profile RPC supports only father_id.
+      if (parentGender !== 'male') {
+        Alert.alert('تنبيه', 'إضافة الأطفال مدعومة حالياً عبر الأب فقط. يرجى اختيار والد لإضافة الأطفال.');
+        return;
       }
 
-      // Reset form
+      // Create each child using admin_create_profile
+      const created = [];
+      for (const child of children) {
+        const payload = {
+          name: child.name.trim(),
+          gender: child.gender === 'F' ? 'female' : 'male',
+          father_id: parentId,
+          generation: undefined, // let RPC compute via father
+          dob_data: child.birthYear ? { gregorian: { year: parseInt(child.birthYear, 10) } } : null,
+          photo_url: null,
+          bio: null,
+          current_residence: null,
+          occupation: null,
+          social_media_links: {},
+        };
+        const { data, error } = await profilesService.createProfile(payload);
+        if (error) throw new Error(error);
+        if (data) created.push(data);
+      }
+
+      Alert.alert('نجح', `تمت إضافة ${created.length} طفل بنجاح`, [{ text: 'حسناً', onPress: onClose }]);
+
+      if (refreshProfile) await refreshProfile(parentId);
+
       setChildren([{ id: Date.now(), name: '', gender: 'M', birthYear: '' }]);
     } catch (error) {
       console.error('Error adding children:', error);
