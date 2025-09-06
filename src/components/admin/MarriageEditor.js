@@ -79,6 +79,11 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
     [person?.gender],
   );
 
+  const spouseTitle = useMemo(
+    () => (person?.gender === 'male' ? 'الزوجة' : 'الزوج'),
+    [person?.gender],
+  );
+
   // Helper to get user-friendly error messages
   const getUserFriendlyError = error => {
     const errorMessage = error?.message || error;
@@ -147,37 +152,14 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
       setSuggestionDismissed(false);
       setSuggestedSearchName('');
 
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Remove animation since Modal handles slide
+      scaleAnim.setValue(1);
+      opacityAnim.setValue(1);
     } else {
-      Animated.parallel([
-        Animated.timing(scaleAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(confirmationOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Remove animation since Modal handles slide
+      scaleAnim.setValue(0);
+      opacityAnim.setValue(0);
+      confirmationOpacity.setValue(0);
     }
   }, [visible, scaleAnim, opacityAnim, confirmationOpacity]);
 
@@ -450,18 +432,6 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
           </View>
         </Animated.View>
       )}
-
-      {/* Link to search mode */}
-      <TouchableOpacity
-        style={styles.searchLinkButton}
-        onPress={() => {
-          setMode('link');
-          setQuery('');
-          setResults([]);
-        }}>
-        <Ionicons name="search" size={18} color="#007AFF" />
-        <Text style={styles.searchLinkText}>البحث عن شخص موجود</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 
@@ -539,19 +509,13 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   if (!visible) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="slide" presentationStyle="overFullScreen" onRequestClose={onClose}>
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => {}}>
           <Animated.View
-            style={[
-              styles.modalContainer,
-              {
-                transform: [{ scale: scaleAnim }],
-                opacity: opacityAnim,
-              },
-            ]}>
+            style={styles.modalContainer}>
             <View style={styles.modal}>
               {/* Modern iOS-style header */}
               <BlurView intensity={100} style={styles.headerBlur}>
@@ -565,7 +529,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
                     <Text style={styles.title}>{modalTitle}</Text>
                     {mode === 'link' && (
                       <Text style={styles.subtitle}>
-                        ابحث عن {person?.gender === 'male' ? 'الزوجة' : 'الزوج'} في الشجرة
+                        ابحث عن {spouseTitle} في الشجرة
                       </Text>
                     )}
                   </View>
@@ -619,15 +583,14 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',  // Align to bottom for slide animation
     alignItems: 'center',
-    paddingVertical: 25,
   },
   modalContainer: {
     width: SCREEN_WIDTH,
     maxWidth: 600,
-    height: SCREEN_HEIGHT - 50,
-    maxHeight: SCREEN_HEIGHT - 50,
+    height: SCREEN_HEIGHT * 0.92,  // 92% of screen height for better button visibility
+    maxHeight: SCREEN_HEIGHT * 0.92,
     alignSelf: 'center',
   },
   modal: {
@@ -942,7 +905,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 16,  // Reduced padding for better fit
     backgroundColor: 'transparent',
   },
   searchLinkButton: {
