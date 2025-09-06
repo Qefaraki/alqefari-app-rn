@@ -25,7 +25,6 @@ import profilesService from '../services/profiles';
 import { formatDateDisplay } from '../services/migrationHelpers';
 import NavigateToRootButton from './NavigateToRootButton';
 import { useAdminMode } from '../contexts/AdminModeContext';
-import GlobalFAB from './admin/GlobalFAB';
 import SystemStatusIndicator from './admin/SystemStatusIndicator';
 import MultiAddChildrenModal from './admin/MultiAddChildrenModal';
 import MarriageEditor from './admin/MarriageEditor';
@@ -1187,13 +1186,6 @@ const TreeView = ({ setProfileEditMode }) => {
     }, 500);
   }, [indices, dimensions, minZoom, maxZoom]);
   
-  
-  // Handle FAB press - show unlinked person modal
-  const handleFABPress = useCallback(() => {
-    // TODO: Show add unlinked person modal
-    // console.log('Add unlinked person');
-  }, []);
-  
   // Handle context menu actions
   const handleContextMenuAction = useCallback((action) => {
     if (!contextMenuNode) return;
@@ -1867,10 +1859,6 @@ const TreeView = ({ setProfileEditMode }) => {
       {isAdminMode && (
         <>
           <SystemStatusIndicator />
-          <GlobalFAB 
-            onPress={handleFABPress} 
-            visible={true}
-          />
         </>
       )}
       
