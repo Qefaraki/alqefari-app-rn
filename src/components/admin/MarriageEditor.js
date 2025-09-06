@@ -23,7 +23,7 @@ import profilesService from '../../services/profiles';
 import { handleSupabaseError } from '../../services/supabase';
 import appConfig from '../../config/appConfig';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const StatusOptions = [
   { id: 'married', label: 'متزوج' },
@@ -33,7 +33,7 @@ const StatusOptions = [
 
 export default function MarriageEditor({ visible, onClose, person, onCreated }) {
   // Mode: 'create' for new spouse, 'link' for existing
-  const [mode, setMode] = useState('link');
+  const [mode, setMode] = useState('create');
   
   // Search/Link mode states
   const [query, setQuery] = useState('');
@@ -133,7 +133,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   useEffect(() => {
     if (visible) {
       // reset on open
-      setMode('link');
+      setMode('create');
       setQuery('');
       setResults([]);
       setSelectedSpouse(null);
@@ -450,6 +450,18 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
           </View>
         </Animated.View>
       )}
+
+      {/* Link to search mode */}
+      <TouchableOpacity
+        style={styles.searchLinkButton}
+        onPress={() => {
+          setMode('link');
+          setQuery('');
+          setResults([]);
+        }}>
+        <Ionicons name="search" size={18} color="#007AFF" />
+        <Text style={styles.searchLinkText}>البحث عن شخص موجود</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 
@@ -531,7 +543,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
       <KeyboardAvoidingView
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => {}}>
           <Animated.View
             style={[
               styles.modalContainer,
@@ -607,18 +619,20 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 25,
   },
   modalContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.98,
+    maxWidth: 600,
+    height: SCREEN_HEIGHT - 50,
+    maxHeight: SCREEN_HEIGHT - 50,
+    alignSelf: 'center',
   },
   modal: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
@@ -629,6 +643,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 25,
     height: '100%',
+    flex: 1,
   },
   headerBlur: {
     paddingTop: 16,
@@ -680,7 +695,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     backgroundColor: '#F2F2F7',
-    minHeight: 400,
   },
   scrollContentContainer: {
     flexGrow: 1,
@@ -923,14 +937,26 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   footerBlur: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   footer: {
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     backgroundColor: 'transparent',
+  },
+  searchLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  searchLinkText: {
+    fontSize: 15,
+    color: '#007AFF',
+    fontWeight: '500',
   },
 });
