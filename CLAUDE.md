@@ -115,5 +115,47 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY   # Frontend
 SUPABASE_DB_PASSWORD            # CLI only
 ```
 
+## Git Workflow Rules
+
+### Branch Management
+1. **Create feature branches from master**:
+   ```bash
+   git checkout master && git pull origin master
+   git checkout -b feat/feature-name
+   ```
+2. **Branch naming conventions**:
+   - `feat/` - New features
+   - `fix/` - Bug fixes
+   - `chore/` - Maintenance
+   - `docs/` - Documentation
+   - `refactor/` - Code refactoring
+3. **Never commit directly to master**
+
+### Commit Standards
+1. **Atomic commits** - One logical change per commit
+2. **Format**: `type: Short description (50 chars)`
+3. **Include in all commits**:
+   ```
+   🤖 Generated with [Claude Code](https://claude.ai/code)
+   
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   ```
+4. **Commit after each completed feature/fix**
+
+### Before Pushing
+1. Run quality checks:
+   ```bash
+   npm run check-format
+   npm run lint
+   npm test
+   ```
+2. Pull latest changes: `git pull origin master`
+3. Push to feature branch: `git push origin branch-name`
+
+### GitHub Integration
+- **Repository**: https://github.com/Qefaraki/alqefari-app-rn
+- **Create PRs for all changes**
+- **Reference**: See `docs/git-workflow-guide.md` for detailed Git instructions
+
 ---
 *Always check docs/ for detailed implementation guides*
