@@ -23,7 +23,7 @@ import profilesService from '../../services/profiles';
 import { handleSupabaseError } from '../../services/supabase';
 import appConfig from '../../config/appConfig';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 
 const StatusOptions = [
   { id: 'married', label: 'متزوج' },
@@ -527,11 +527,11 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   if (!visible) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal transparent visible={visible} animationType="slide" presentationStyle="overFullScreen" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={styles.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => {}}>
+        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
           <Animated.View
             style={[
               styles.modalContainer,
@@ -607,26 +607,28 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'flex-end',
   },
   modalContainer: {
-    width: SCREEN_WIDTH - 16,
-    maxWidth: 600,
-    height: '95%',
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.98,
   },
   modal: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 10,
+      height: -3,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 30,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
     elevation: 25,
+    height: '100%',
   },
   headerBlur: {
     paddingTop: 16,
