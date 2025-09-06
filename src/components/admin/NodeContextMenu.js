@@ -58,6 +58,12 @@ const NodeContextMenu = ({ visible, position, node, onClose, onAction }) => {
       color: '#34C759',
     },
     {
+      id: 'addMarriage',
+      title: 'إضافة زواج',
+      icon: 'heart',
+      color: '#FF2D55',
+    },
+    {
       id: 'edit',
       title: 'تعديل',
       icon: 'pencil',

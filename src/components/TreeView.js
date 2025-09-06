@@ -28,6 +28,7 @@ import { useAdminMode } from '../contexts/AdminModeContext';
 import GlobalFAB from './admin/GlobalFAB';
 import SystemStatusIndicator from './admin/SystemStatusIndicator';
 import MultiAddChildrenModal from './admin/MultiAddChildrenModal';
+import MarriageEditor from './admin/MarriageEditor';
 import skiaImageCache from '../services/skiaImageCache';
 import { useCachedSkiaImage } from '../hooks/useCachedSkiaImage';
 import NodeContextMenu from './admin/NodeContextMenu';
@@ -325,6 +326,8 @@ const TreeView = ({ setProfileEditMode }) => {
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [editingProfile, setEditingProfile] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showMarriageModal, setShowMarriageModal] = useState(false);
+  const [marriagePerson, setMarriagePerson] = useState(null);
   
   // LOD tier state with hysteresis
   const tierState = useRef({ current: 1, lastQuantizedScale: 1 });
@@ -1222,6 +1225,10 @@ const TreeView = ({ setProfileEditMode }) => {
         setMultiAddParent({ id: contextMenuNode.id, name: contextMenuNode.name });
         setShowMultiAddModal(true);
         break;
+      case 'addMarriage':
+        setMarriagePerson(contextMenuNode);
+        setShowMarriageModal(true);
+        break;
       case 'edit':
         setEditingProfile(contextMenuNode);
         setShowEditModal(true);
@@ -1940,6 +1947,20 @@ const TreeView = ({ setProfileEditMode }) => {
           setEditingProfile(null);
         }}
         onSave={async (updatedProfile) => {
+          // Reload tree data to reflect changes
+          await loadTreeData();
+        }}
+      />
+      
+      {/* Marriage Editor Modal */}
+      <MarriageEditor
+        visible={showMarriageModal}
+        person={marriagePerson}
+        onClose={() => {
+          setShowMarriageModal(false);
+          setMarriagePerson(null);
+        }}
+        onCreated={async () => {
           // Reload tree data to reflect changes
           await loadTreeData();
         }}
