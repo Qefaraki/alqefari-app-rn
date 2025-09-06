@@ -417,30 +417,8 @@ const TreeView = ({ setProfileEditMode }) => {
   
   // Setup telemetry interval with cleanup
   useEffect(() => {
-    if (!__DEV__ || !LOD_ENABLED) return;
-    
-    const interval = setInterval(() => {
-      const stats = frameStatsRef.current;
-      console.log(
-        `📊 LOD T${stats.tier} | Nodes: ${stats.nodesDrawn}/${MAX_VISIBLE_NODES} | ` +
-        `Edges: ${stats.edgesDrawn}/${MAX_VISIBLE_EDGES}`
-      );
-      
-      if (stats.nodesDrawn >= MAX_VISIBLE_NODES * 0.9) {
-        console.warn('⚠️ Approaching node render cap!');
-      }
-      if (stats.edgesDrawn >= MAX_VISIBLE_EDGES * 0.9) {
-        console.warn('⚠️ Approaching edge render cap!');
-      }
-      
-      // Log cache stats
-      const cacheStats = skiaImageCache.getStats();
-      console.log(
-        `💾 Cache: ${cacheStats.entries} entries | ${cacheStats.totalMB}MB / ${cacheStats.budgetMB}MB (${cacheStats.utilization})`
-      );
-    }, 1000);
-    
-    return () => clearInterval(interval);
+    // Telemetry disabled to reduce console spam
+    return;
   }, []);
   
   // Force RTL for Arabic text
@@ -515,14 +493,14 @@ const TreeView = ({ setProfileEditMode }) => {
         
         // Then load the tree starting from the root HID
         const rootHid = rootData[0].hid;
-        console.log(`🌳 Loading tree from backend (root: ${rootData[0].name})...`);
+        // console.log(`🌳 Loading tree from backend (root: ${rootData[0].name})...`);
         const { data, error } = await profilesService.getBranchData(rootHid, 8, 500);
         if (error) {
           console.error('Error loading tree data:', error);
           // Fall back to local data
           setTreeData(familyData);
         } else if (data) {
-          console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
+          // console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
           // console.log('🐞 DEBUG MODE: Tracking zoom/pan issues. Look for:');
           // console.log('  - Node positions changing (they shouldn\'t)');
           // console.log('  - Large visibility changes during zoom');
@@ -1896,24 +1874,7 @@ const TreeView = ({ setProfileEditMode }) => {
         </>
       )}
       
-      {/* Cache stats in dev mode */}
-      {__DEV__ && (
-        <View style={{
-          position: 'absolute',
-          bottom: 100,
-          left: 10,
-          backgroundColor: 'rgba(0,0,0,0.8)',
-          padding: 8,
-          borderRadius: 8,
-        }}>
-          <Text style={{ color: 'white', fontSize: 11, fontFamily: 'monospace' }}>
-            {(() => {
-              const stats = skiaImageCache.getStats();
-              return `Cache: ${stats.entries} images\n${stats.totalMB}MB / ${stats.budgetMB}MB (${stats.utilization})`;
-            })()}
-          </Text>
-        </View>
-      )}
+      {/* Cache stats removed to reduce visual clutter */}
       
       {/* Node Context Menu */}
       <NodeContextMenu

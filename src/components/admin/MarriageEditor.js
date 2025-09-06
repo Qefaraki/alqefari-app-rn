@@ -455,7 +455,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
 
   const renderLinkMode = () => (
     <View style={{ flex: 1, backgroundColor: '#F2F2F7' }}>
-      <View style={{ padding: 24, paddingBottom: 0 }}>
+      <View style={{ padding: 16, paddingBottom: 0 }}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={22} color="#666666" />
           <TextInput
@@ -472,7 +472,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled">
         {loading ? (
           <View style={styles.loadingRow}>
@@ -508,7 +508,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
         )}
       </ScrollView>
 
-      <View style={{ padding: 24, paddingTop: 12 }}>
+      <View style={{ padding: 16, paddingTop: 12 }}>
         <TouchableOpacity
           style={styles.backToCreateButton}
           onPress={() => {
@@ -611,14 +611,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    width: SCREEN_WIDTH - 40,
+    width: SCREEN_WIDTH - 16,
     maxWidth: 600,
-    height: '85%',
-    maxHeight: 700,
+    height: '95%',
   },
   modal: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
@@ -638,9 +637,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 10 : 20,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 8 : 16,
+    paddingBottom: 10,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0, 0, 0, 0.08)',
@@ -683,8 +682,8 @@ const styles = StyleSheet.create({
   },
   scrollContentContainer: {
     flexGrow: 1,
-    padding: 24,
-    paddingBottom: 40,
+    padding: 16,
+    paddingBottom: 32,
   },
   formGroup: {
     marginBottom: 24,
@@ -792,10 +791,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.06)',
     shadowColor: '#000',
@@ -928,8 +927,8 @@ const styles = StyleSheet.create({
     right: 0,
   },
   footer: {
-    padding: 24,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    padding: 16,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 20,
     backgroundColor: 'transparent',
   },
 });
