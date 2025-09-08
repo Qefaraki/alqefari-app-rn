@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,37 +10,31 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
+  SafeAreaView,
 } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
   runOnJS,
-  FadeIn,
-  FadeOut,
-  Layout,
+  interpolate,
+  withTiming,
 } from "react-native-reanimated";
-import {
-  GestureDetector,
-  Gesture,
-  GestureHandlerRootView,
-} from "react-native-gesture-handler";
-import { BlurView } from "expo-blur";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
-import GlassSurface from "../glass/GlassSurface";
 import profilesService from "../../services/profiles";
-import { supabase } from "../../services/supabase";
 import useStore from "../../hooks/useStore";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const NODE_WIDTH = 100;
-const NODE_HEIGHT = 40;
-const NODE_SPACING = 20;
+// Node dimensions for preview
+const NODE_WIDTH = 90;
+const NODE_HEIGHT = 36;
+const NODE_SPACING = 15;
 
-// Draggable node component for reordering
+// Single draggable node component
 const DraggableNode = ({
   child,
   index,
@@ -53,25 +47,18 @@ const DraggableNode = ({
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const zIndex = useSharedValue(0);
-  const opacity = useSharedValue(isGhost ? 0.6 : 1);
+  const isDragging = useSharedValue(false);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
-      scale.value = withSpring(1.1);
+      isDragging.value = true;
+      scale.value = withSpring(1.05);
       zIndex.value = 1000;
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
     })
     .onUpdate((e) => {
       translateX.value = e.translationX + index * (NODE_WIDTH + NODE_SPACING);
       translateY.value = e.translationY;
-
-      // Calculate potential new index
-      const newIndex = Math.round(
-        translateX.value / (NODE_WIDTH + NODE_SPACING),
-      );
-      if (newIndex !== index && newIndex >= 0 && newIndex < totalChildren) {
-        runOnJS(Haptics.selectionAsync)();
-      }
     })
     .onEnd(() => {
       const newIndex = Math.round(
@@ -83,6 +70,7 @@ const DraggableNode = ({
       translateY.value = withSpring(0);
       scale.value = withSpring(1);
       zIndex.value = 0;
+      isDragging.value = false;
 
       if (clampedIndex !== index) {
         runOnJS(onReorder)(child.id, index, clampedIndex);
@@ -97,26 +85,19 @@ const DraggableNode = ({
       { scale: scale.value },
     ],
     zIndex: zIndex.value,
-    opacity: opacity.value,
   }));
 
+  // Update position when index changes
   useEffect(() => {
     translateX.value = withSpring(index * (NODE_WIDTH + NODE_SPACING));
   }, [index]);
 
-  // Update opacity when name changes
-  useEffect(() => {
-    if (isGhost) {
-      opacity.value = withTiming(child.name ? 1 : 0.6);
-    }
-  }, [child.name, isGhost]);
-
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View style={[styles.node, animatedStyle]}>
-        <GlassSurface
+      <Animated.View style={[styles.nodeWrapper, animatedStyle]}>
+        <View
           style={[
-            styles.nodeContent,
+            styles.node,
             isGhost && styles.ghostNode,
             isNew && styles.newNode,
           ]}
@@ -128,35 +109,30 @@ const DraggableNode = ({
             ]}
             numberOfLines={1}
           >
-            {child.name || "جديد..."}
+            {child.name || "جديد"}
           </Text>
-          {isNew && <Text style={styles.newBadge}>جديد</Text>}
-          <Text style={styles.orderBadge}>{index + 1}</Text>
-        </GlassSurface>
+        </View>
+        {/* Order badge */}
+        <View style={styles.orderBadge}>
+          <Text style={styles.orderBadgeText}>{index + 1}</Text>
+        </View>
       </Animated.View>
     </GestureDetector>
   );
 };
 
-const QuickAddOverlay = ({
-  visible,
-  parentNode,
-  siblings = [],
-  position,
-  onClose,
-  onSave,
-}) => {
+const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [newChildName, setNewChildName] = useState("");
   const [newChildGender, setNewChildGender] = useState("male");
   const [allChildren, setAllChildren] = useState([]);
-  const [newChildren, setNewChildren] = useState([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
   const { refreshProfile } = useStore();
 
-  // Initialize with existing siblings and one ghost node
+  // Initialize children list
   useEffect(() => {
     if (visible && parentNode) {
+      // Create ghost node for new child
       const ghost = {
         id: `ghost-${Date.now()}`,
         name: "",
@@ -165,22 +141,21 @@ const QuickAddOverlay = ({
         isNew: true,
       };
 
-      // Place ghost at the beginning (youngest)
+      // Ghost goes first (youngest)
       setAllChildren([ghost, ...siblings.map((s) => ({ ...s, isNew: false }))]);
-      setNewChildren([ghost]);
       setNewChildName("");
+      setNewChildGender("male");
 
-      // Focus input after a brief delay
+      // Auto-focus after modal animation
       setTimeout(() => {
         inputRef.current?.focus();
-      }, 300);
+      }, 400);
     }
   }, [visible, parentNode, siblings]);
 
   // Update ghost node as user types
   const handleNameChange = (text) => {
     setNewChildName(text);
-
     setAllChildren((prev) =>
       prev.map((child) =>
         child.isGhost
@@ -193,7 +168,6 @@ const QuickAddOverlay = ({
   // Handle gender change
   const handleGenderChange = (gender) => {
     setNewChildGender(gender);
-
     setAllChildren((prev) =>
       prev.map((child) => (child.isGhost ? { ...child, gender } : child)),
     );
@@ -202,19 +176,19 @@ const QuickAddOverlay = ({
   // Add another child
   const handleAddAnother = () => {
     if (!newChildName.trim()) {
-      Alert.alert("تنبيه", "يرجى إدخال اسم الطفل أولاً");
+      Alert.alert("تنبيه", "يرجى إدخال اسم الطفل");
       return;
     }
 
-    // Convert ghost to real child
+    // Convert current ghost to real child
     const currentGhost = allChildren.find((c) => c.isGhost);
     if (currentGhost) {
       currentGhost.isGhost = false;
-      currentGhost.name = newChildName;
+      currentGhost.name = newChildName.trim();
       currentGhost.gender = newChildGender;
     }
 
-    // Create new ghost
+    // Add new ghost
     const newGhost = {
       id: `ghost-${Date.now()}`,
       name: "",
@@ -223,19 +197,15 @@ const QuickAddOverlay = ({
       isNew: true,
     };
 
-    setAllChildren((prev) => {
-      const updated = [...prev];
-      // Insert new ghost at the beginning
-      updated.unshift(newGhost);
-      return updated;
-    });
-
-    setNewChildren((prev) => [...prev, newGhost]);
+    setAllChildren((prev) =>
+      [newGhost, ...prev.filter((c) => !c.isGhost), currentGhost].filter(
+        Boolean,
+      ),
+    );
     setNewChildName("");
     setNewChildGender("male");
-
-    // Refocus input
     inputRef.current?.focus();
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -251,77 +221,69 @@ const QuickAddOverlay = ({
 
   // Save all children
   const handleSaveAll = async () => {
-    // Filter out empty ghost and prepare data
     const childrenToSave = allChildren
       .filter((child) => child.isNew && !child.isGhost && child.name)
-      .map((child, index) => ({
+      .map((child) => ({
         name: child.name.trim(),
         gender: child.gender,
         sibling_order: allChildren.indexOf(child),
       }));
 
+    // Include current ghost if it has a name
+    if (newChildName.trim()) {
+      childrenToSave.push({
+        name: newChildName.trim(),
+        gender: newChildGender,
+        sibling_order: 0,
+      });
+    }
+
     if (childrenToSave.length === 0) {
-      if (newChildName.trim()) {
-        // Save the current ghost as well
-        childrenToSave.push({
-          name: newChildName.trim(),
-          gender: newChildGender,
-          sibling_order: 0,
-        });
-      } else {
-        Alert.alert("تنبيه", "لا يوجد أطفال جدد للحفظ");
-        return;
-      }
+      Alert.alert("تنبيه", "لا يوجد أطفال للحفظ");
+      return;
     }
 
     setLoading(true);
     try {
-      // Use bulk create RPC
-      const { data, error } = await profilesService.bulkCreateChildren(
+      // Try bulk create first
+      const { error } = await profilesService.bulkCreateChildren(
         parentNode.id,
         childrenToSave,
       );
 
       if (error) {
-        // Fallback to individual creates if bulk fails
-        console.warn(
-          "Bulk create failed, falling back to individual creates:",
-          error,
-        );
-        const promises = childrenToSave.map((child) =>
-          profilesService.createProfile({
+        // Fallback to individual creates
+        console.warn("Bulk create failed, using individual creates:", error);
+        for (const child of childrenToSave) {
+          await profilesService.createProfile({
             name: child.name,
             gender: child.gender,
             father_id: parentNode.gender === "male" ? parentNode.id : null,
             mother_id: parentNode.gender === "female" ? parentNode.id : null,
             sibling_order: child.sibling_order,
-          }),
-        );
-
-        await Promise.all(promises);
-      }
-
-      Alert.alert("نجح", `تمت إضافة ${childrenToSave.length} طفل بنجاح`);
-
-      // Update existing siblings' order if needed
-      const reorderedExisting = allChildren
-        .filter((child) => !child.isNew && !child.isGhost)
-        .map((child, index) => ({
-          id: child.id,
-          sibling_order: allChildren.indexOf(child),
-        }));
-
-      // Update sibling orders if any changed
-      for (const child of reorderedExisting) {
-        const original = siblings.find((s) => s.id === child.id);
-        if (original && original.sibling_order !== child.sibling_order) {
-          await profilesService.updateProfile(child.id, {
-            sibling_order: child.sibling_order,
           });
         }
       }
 
-      // Refresh the parent's profile to update the tree
+      // Update existing siblings' order if changed
+      const reorderedExisting = allChildren
+        .filter((child) => !child.isNew && !child.isGhost)
+        .forEach(async (child) => {
+          const newOrder = allChildren.indexOf(child);
+          const original = siblings.find((s) => s.id === child.id);
+          if (original && original.sibling_order !== newOrder) {
+            await profilesService.updateProfile(
+              child.id,
+              original.version || 1,
+              {
+                sibling_order: newOrder,
+              },
+            );
+          }
+        });
+
+      Alert.alert("نجح", `تمت إضافة ${childrenToSave.length} طفل بنجاح`);
+
       if (refreshProfile) {
         await refreshProfile(parentNode.id);
       }
@@ -329,198 +291,256 @@ const QuickAddOverlay = ({
       onClose();
     } catch (error) {
       console.error("Error saving children:", error);
-      Alert.alert("خطأ", "حدث خطأ أثناء حفظ الأطفال");
+      Alert.alert("خطأ", "حدث خطأ أثناء الحفظ");
     } finally {
       setLoading(false);
     }
   };
 
+  const newChildrenCount = allChildren.filter(
+    (c) => c.isNew && !c.isGhost && c.name,
+  ).length;
+
   if (!visible || !parentNode) return null;
 
   return (
-    <View style={styles.overlay}>
-      <BlurView intensity={80} style={StyleSheet.absoluteFillObject}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-      </BlurView>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoid}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={28} color="#000" />
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>إضافة أطفال</Text>
+              <Text style={styles.headerSubtitle}>{parentNode.name}</Text>
+            </View>
+            <View style={styles.headerRight} />
+          </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "position" : "height"}
-        style={styles.container}
-      >
-        {/* Parent Node */}
-        <View style={styles.parentSection}>
-          <GlassSurface style={styles.parentNode}>
-            <Text style={styles.parentName}>{parentNode.name}</Text>
-          </GlassSurface>
-          <View style={styles.connectionLine} />
-        </View>
+          {/* Preview Section */}
+          <View style={styles.previewSection}>
+            <Text style={styles.sectionLabel}>معاينة الترتيب</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.previewScroll}
+              style={styles.previewContainer}
+            >
+              {allChildren.map((child, index) => (
+                <DraggableNode
+                  key={child.id}
+                  child={child}
+                  index={index}
+                  totalChildren={allChildren.length}
+                  onReorder={handleReorder}
+                  isGhost={child.isGhost}
+                  isNew={child.isNew}
+                />
+              ))}
+            </ScrollView>
+            <Text style={styles.hint}>اسحب لإعادة الترتيب</Text>
+          </View>
 
-        {/* Children Preview Row */}
-        <GestureHandlerRootView>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.childrenRow}
-            style={styles.childrenScroll}
-          >
-            {allChildren.map((child, index) => (
-              <DraggableNode
-                key={child.id}
-                child={child}
-                index={index}
-                totalChildren={allChildren.length}
-                onReorder={handleReorder}
-                isGhost={child.isGhost}
-                isNew={child.isNew}
+          {/* Input Section */}
+          <View style={styles.inputSection}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>اسم الطفل</Text>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="أدخل الاسم..."
+                placeholderTextColor="#999"
+                value={newChildName}
+                onChangeText={handleNameChange}
+                onSubmitEditing={handleAddAnother}
+                returnKeyType="next"
+                textAlign="right"
               />
-            ))}
-          </ScrollView>
-        </GestureHandlerRootView>
+            </View>
 
-        {/* Input Section */}
-        <GlassSurface style={styles.inputSection}>
-          <View style={styles.inputRow}>
-            <TextInput
-              ref={inputRef}
-              style={styles.nameInput}
-              placeholder="اسم الطفل..."
-              placeholderTextColor="#999"
-              value={newChildName}
-              onChangeText={handleNameChange}
-              onSubmitEditing={handleAddAnother}
-              returnKeyType="next"
-              textAlign="right"
-            />
-          </View>
+            <View style={styles.genderSection}>
+              <Text style={styles.inputLabel}>الجنس</Text>
+              <View style={styles.genderButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.genderButton,
+                    newChildGender === "male" && styles.genderButtonActive,
+                  ]}
+                  onPress={() => handleGenderChange("male")}
+                >
+                  <Ionicons
+                    name="male"
+                    size={20}
+                    color={newChildGender === "male" ? "#FFF" : "#666"}
+                  />
+                  <Text
+                    style={[
+                      styles.genderText,
+                      newChildGender === "male" && styles.genderTextActive,
+                    ]}
+                  >
+                    ذكر
+                  </Text>
+                </TouchableOpacity>
 
-          <View style={styles.genderRow}>
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                newChildGender === "male" && styles.genderButtonActive,
-              ]}
-              onPress={() => handleGenderChange("male")}
-            >
-              <Text
-                style={[
-                  styles.genderText,
-                  newChildGender === "male" && styles.genderTextActive,
-                ]}
-              >
-                ♂ ذكر
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.genderButton,
-                newChildGender === "female" && styles.genderButtonActive,
-              ]}
-              onPress={() => handleGenderChange("female")}
-            >
-              <Text
-                style={[
-                  styles.genderText,
-                  newChildGender === "female" && styles.genderTextActive,
-                ]}
-              >
-                ♀ أنثى
-              </Text>
-            </TouchableOpacity>
-          </View>
+                <TouchableOpacity
+                  style={[
+                    styles.genderButton,
+                    newChildGender === "female" && styles.genderButtonActive,
+                  ]}
+                  onPress={() => handleGenderChange("female")}
+                >
+                  <Ionicons
+                    name="female"
+                    size={20}
+                    color={newChildGender === "female" ? "#FFF" : "#666"}
+                  />
+                  <Text
+                    style={[
+                      styles.genderText,
+                      newChildGender === "female" && styles.genderTextActive,
+                    ]}
+                  >
+                    أنثى
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionRow}>
+            {/* Add Another Button */}
             <TouchableOpacity
-              style={styles.addButton}
+              style={styles.addAnotherButton}
               onPress={handleAddAnother}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
-              <Text style={styles.addButtonText}>إضافة آخر</Text>
+              <Ionicons name="add-circle-outline" size={22} color="#007AFF" />
+              <Text style={styles.addAnotherText}>إضافة آخر</Text>
             </TouchableOpacity>
+          </View>
 
+          {/* Bottom Actions */}
+          <View style={styles.bottomActions}>
             <TouchableOpacity
               style={[styles.saveButton, loading && styles.saveButtonDisabled]}
               onPress={handleSaveAll}
-              disabled={loading}
+              disabled={loading || newChildrenCount === 0}
             >
               <Text style={styles.saveButtonText}>
-                {loading
-                  ? "جارِ الحفظ..."
-                  : `حفظ الكل (${newChildren.filter((c) => !c.isGhost).length})`}
+                {loading ? "جارِ الحفظ..." : `حفظ الكل (${newChildrenCount})`}
               </Text>
             </TouchableOpacity>
           </View>
-        </GlassSurface>
-      </KeyboardAvoidingView>
-    </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 9999,
-  },
   container: {
     flex: 1,
+    backgroundColor: "#F8F8F8",
+  },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#FFF",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E0E0E0",
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
   },
-  parentSection: {
+  headerCenter: {
+    flex: 1,
     alignItems: "center",
-    marginBottom: 20,
   },
-  parentNode: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  parentName: {
-    fontSize: 18,
+  headerTitle: {
+    fontSize: 17,
     fontWeight: "600",
     color: "#000",
   },
-  connectionLine: {
-    width: 2,
-    height: 30,
-    backgroundColor: "#BDBDBD",
-    marginTop: -1,
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 2,
   },
-  childrenScroll: {
-    maxHeight: 80,
+  headerRight: {
+    width: 44,
   },
-  childrenRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
+  previewSection: {
+    backgroundColor: "#FFF",
+    marginTop: 8,
+    paddingVertical: 16,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  previewContainer: {
+    height: 80,
+  },
+  previewScroll: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  hint: {
+    fontSize: 12,
+    color: "#999",
+    textAlign: "center",
+    marginTop: 8,
+  },
+  nodeWrapper: {
+    position: "relative",
+    marginRight: NODE_SPACING,
   },
   node: {
-    position: "absolute",
     width: NODE_WIDTH,
     height: NODE_HEIGHT,
-  },
-  nodeContent: {
-    flex: 1,
+    backgroundColor: "#FFF",
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   ghostNode: {
     borderStyle: "dashed",
     borderWidth: 2,
     borderColor: "#007AFF",
-    opacity: 0.7,
+    backgroundColor: "#F0F9FF",
   },
   newNode: {
-    backgroundColor: "rgba(52, 199, 89, 0.1)",
-    borderColor: "#34C759",
-    borderWidth: 1,
+    backgroundColor: "#E8F5E9",
+    borderColor: "#4CAF50",
   },
   nodeText: {
     fontSize: 14,
@@ -531,104 +551,110 @@ const styles = StyleSheet.create({
     color: "#999",
     fontStyle: "italic",
   },
-  newBadge: {
-    position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#34C759",
-    color: "#FFF",
-    fontSize: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 10,
-    fontWeight: "600",
-  },
   orderBadge: {
     position: "absolute",
     bottom: -8,
-    left: NODE_WIDTH / 2 - 10,
-    backgroundColor: "#007AFF",
+    left: NODE_WIDTH / 2 - 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  orderBadgeText: {
     color: "#FFF",
-    fontSize: 10,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    textAlign: "center",
-    lineHeight: 20,
+    fontSize: 12,
     fontWeight: "600",
   },
   inputSection: {
-    width: SCREEN_WIDTH - 40,
-    maxWidth: 400,
-    padding: 20,
-    borderRadius: 16,
-    marginTop: 20,
+    backgroundColor: "#FFF",
+    marginTop: 8,
+    padding: 16,
   },
-  inputRow: {
-    marginBottom: 16,
+  inputGroup: {
+    marginBottom: 20,
   },
-  nameInput: {
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    borderRadius: 12,
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  input: {
+    backgroundColor: "#F8F8F8",
+    borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 17,
+    fontSize: 16,
     color: "#000",
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.1)",
+    borderColor: "#E0E0E0",
   },
-  genderRow: {
+  genderSection: {
+    marginBottom: 20,
+  },
+  genderButtons: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 20,
   },
   genderButton: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backgroundColor: "#F8F8F8",
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.1)",
-    alignItems: "center",
+    borderColor: "#E0E0E0",
   },
   genderButtonActive: {
-    backgroundColor: "#007AFF",
-    borderColor: "#007AFF",
+    backgroundColor: "#000",
+    borderColor: "#000",
   },
   genderText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#666",
     fontWeight: "500",
   },
   genderTextActive: {
     color: "#FFF",
   },
-  actionRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  addButton: {
-    flex: 1,
+  addAnotherButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: "#F0F9FF",
     borderWidth: 1,
     borderColor: "#007AFF",
   },
-  addButtonText: {
-    fontSize: 16,
+  addAnotherText: {
+    fontSize: 15,
     color: "#007AFF",
     fontWeight: "600",
   },
+  bottomActions: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: "#FFF",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E0E0E0",
+    paddingBottom: Platform.OS === "ios" ? 34 : 16,
+  },
   saveButton: {
-    flex: 1,
-    paddingVertical: 14,
+    backgroundColor: "#000",
     borderRadius: 12,
-    backgroundColor: "#34C759",
+    paddingVertical: 16,
     alignItems: "center",
   },
   saveButtonDisabled: {
