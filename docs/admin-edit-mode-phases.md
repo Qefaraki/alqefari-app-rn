@@ -1,7 +1,7 @@
 # Admin Edit Mode Implementation Phases
 
 ## Overview
-This document outlines the phased implementation of the admin edit mode for the Alqefari family tree application. The goal is to create a world-class editing experience that feels native to iOS while maintaining the app's premium "Liquid Glass" design system.
+This document outlines the phased implementation of the admin edit mode for the Alqefari family tree application. The goal is to create a world-class editing experience that feels native to iOS while using a premium neo‑native design system (no glass/blur).
 
 ## Current Status
 - ✅ Admin authentication and role management
@@ -28,11 +28,11 @@ This document outlines the phased implementation of the admin edit mode for the 
    - Expandable textarea with BioEditor component
    - Auto-expanding from 3 to 10 lines
    - Arabic character counter (٢٥٠/٥٠٠)
-   - Glass card design
+   - Native card design (white surface, soft elevation)
    
 3. **Sibling Order** (ترتيب الإخوة) ✅
    - SiblingOrderStepper component
-   - Premium glass-style controls
+   - Premium native controls
    - Haptic feedback on interactions
    - Live preview text showing position
 
@@ -81,7 +81,7 @@ This document outlines the phased implementation of the admin edit mode for the 
 #### Fields
 1. **Photo Upload** (رفع الصورة) ✅
    - PhotoEditor component with native camera/gallery picker
-   - Circular 160x160 preview with glass morphism
+   - Circular 160x160 preview with native surface framing (no blur)
    - Direct upload to Supabase storage
    - Client-side image optimization and EXIF stripping
    - Loading progress during upload
@@ -289,7 +289,7 @@ This document outlines the phased implementation of the admin edit mode for the 
 2. **Feedback**: Instant visual feedback for all interactions
 3. **Safety**: Destructive actions require confirmation
 4. **Efficiency**: Common tasks should be fast
-5. **Consistency**: Follow iOS HIG and our Liquid Glass design system
+5. **Consistency**: Follow iOS HIG and our neo‑native design system (no glass)
 
 ## Success Metrics
 - Time to complete common edits < 30 seconds

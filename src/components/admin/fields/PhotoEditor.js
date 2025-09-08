@@ -19,7 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import storageService from '../../../services/storage';
 import imageOptimizationService from '../../../services/imageOptimization';
 
-const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخص', profileId }) => {
+const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخص', profileId, size = 160 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState(value || currentPhotoUrl || null);
@@ -257,12 +257,12 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
             disabled={isLoading}
             activeOpacity={0.8}
           >
-            <CardSurface style={styles.photoCard}>
-              <View style={styles.imageContainer}>
+            <CardSurface style={[styles.photoCard, { width: size, height: size, borderRadius: size / 2 }]}>
+              <View style={[styles.imageContainer, { width: size, height: size }] }>
                 {previewUrl ? (
                   <Image
                     source={{ uri: previewUrl }}
-                    style={styles.profileImage}
+                    style={[styles.profileImage, { width: size, height: size }]}
                   />
                 ) : (
                   <View style={styles.noPhotoContainer}>

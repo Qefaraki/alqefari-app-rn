@@ -77,7 +77,7 @@ The Quick Add Children feature provides a revolutionary way to add children to t
 
 #### Visual Elements
 
-- **Glass Morphism** - Consistent with app design
+- **Neo‑native Surfaces** - Crisp white surfaces, soft elevation (no blur)
 - **Spring Physics** - Natural animations
 - **Arabic RTL** - Full right-to-left support
 - **SF Symbols** - Native iOS icons

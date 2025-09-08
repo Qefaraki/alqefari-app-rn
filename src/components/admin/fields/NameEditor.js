@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-const NameEditor = ({ value, onChange, placeholder }) => {
+const NameEditor = ({ value, onChange, placeholder, fontSize = 36 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isValid, setIsValid] = useState(true);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -119,6 +119,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
           style={[
             styles.input,
             !isValid && styles.invalidInput,
+            { fontSize },
           ]}
           value={value}
           onChangeText={handleChangeText}

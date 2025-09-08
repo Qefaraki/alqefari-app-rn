@@ -219,6 +219,18 @@ const ProfileSheet = ({ editMode = false }) => {
     }
   }, []);
 
+  // Custom handle: subtle edit affordance without text
+  const renderHandle = useCallback(() => (
+    <View style={styles.handleContainer}>
+      <View style={styles.handleBar} />
+      {isEditing && (
+        <View style={styles.handleEditIcon} accessibilityLabel="وضع تحرير">
+          <Ionicons name="create" size={14} color="#2563eb" />
+        </View>
+      )}
+    </View>
+  ), [isEditing]);
+
   // Handle copy name
   const handleCopyName = useCallback(async () => {
     await Clipboard.setStringAsync(fullName);
@@ -428,7 +440,7 @@ const ProfileSheet = ({ editMode = false }) => {
       onChange={handleSheetChange}
       onClose={() => setSelectedPersonId(null)}
       backdropComponent={renderBackdrop}
-      handleIndicatorStyle={styles.handleIndicator}
+      handleComponent={renderHandle}
       backgroundStyle={styles.sheetBackground}
       enablePanDownToClose
       animateOnMount
@@ -440,13 +452,7 @@ const ProfileSheet = ({ editMode = false }) => {
         ref={scrollRef}
       >
         <View style={{ flex: 1 }}>
-          {/* Edit mode indicator */}
-          {isEditing && (
-            <View style={styles.editModeIndicator}>
-              <Ionicons name="create" size={16} color="#FFFFFF" />
-              <Text style={styles.editModeText}>وضع التحرير</Text>
-            </View>
-          )}
+          {/* No explicit banner; edit indicated by handle icon and active fields */}
           
           {/* Close button */}
           <Pressable onPress={() => setSelectedPersonId(null)} style={styles.closeButton} accessibilityLabel="إغلاق">
@@ -1440,24 +1446,31 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   
-  // Edit mode indicator
-  editModeIndicator: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    zIndex: 25,
-    flexDirection: 'row',
+  // Handle styles with subtle edit indicator
+  handleContainer: {
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    justifyContent: 'center',
+    paddingTop: 8,
+    paddingBottom: 6,
   },
-  editModeText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+  handleBar: {
+    width: 44,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D1D5DB',
+  },
+  handleEditIcon: {
+    position: 'absolute',
+    top: 6,
+    right: 16,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(37,99,235,0.12)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(37,99,235,0.30)',
   },
 });
 

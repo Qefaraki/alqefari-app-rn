@@ -41,7 +41,7 @@
   - Internal scroll when max height reached
 
 - ✅ Created SiblingOrderStepper component (HIGH PRIORITY)
-  - Premium glass-style stepper control
+  - Premium native stepper control (no blur)
   - Animated button presses with spring physics
   - Haptic feedback (light, success, error)
   - Arabic number display
@@ -78,7 +78,7 @@
 
 - ✅ Created compact admin interface
   - Removed large "شجرة عائلة القفاري" title taking up space
-  - Created CompactAdminBar with glass morphism effect
+  - Created CompactAdminBar with native styling (no blur)
   - Single row design: user | toggle | control panel
   - Reduced header from ~200px to ~50px  
   - Added collapse option for cleaner view
@@ -132,7 +132,7 @@
 
 #### Admin Edit Mode - Phase 2: Visual Identity (2025-09-04)
 - ✅ Created PhotoEditor component with premium iOS-style interface
-  - Circular photo preview (160x160) with glass morphism card
+  - Circular photo preview (160x160) with native card
   - URL input field with live preview (800ms debounce)
   - Loading spinner overlay during image fetch
   - Error state with icon and message for invalid URLs
@@ -194,7 +194,7 @@
 ### v1.1.0 - Edit Mode Phase 1 
 - ✅ Editable name, bio, and sibling order fields
 - ✅ World-class iOS-native UI/UX
-- ✅ Premium glass design system
+- ✅ Premium neo‑native design system (no blur)
 
 ### v1.2.0 - Photo Upload System (COMPLETED)
 - ✅ Native photo upload with camera/gallery picker

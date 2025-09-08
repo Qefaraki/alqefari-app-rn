@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,33 +12,47 @@ import {
   SafeAreaView,
   Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import profilesService from '../services/profiles';
-import GlassSurface from '../components/glass/GlassSurface';
-import GlassButton from '../components/glass/GlassButton';
+import { handleSupabaseError } from '../services/supabase';
+import HeaderBar from '../components/ui/HeaderBar';
+import Surface from '../components/ui/Surface';
+import Field from '../components/ui/Field';
+import Button from '../components/ui/Button';
+import SegmentedControl from '../components/ui/SegmentedControl';
+import tokens from '../components/ui/tokens';
+import NameEditor from '../components/admin/fields/NameEditor';
+import PhotoEditor from '../components/admin/fields/PhotoEditor';
 
 const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
     hid: '',
-    gender: 'M',
+    gender: 'male',
     birth_year: '',
     death_year: '',
-    notes: '',
+    bio: '',
+    photo_url: '',
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [initial, setInitial] = useState(null);
 
   useEffect(() => {
     if (profile) {
-      setFormData({
+      const birthYear = profile?.dob_data?.gregorian?.year || profile?.dob_data?.hijri?.year || '';
+      const deathYear = profile?.dod_data?.gregorian?.year || profile?.dod_data?.hijri?.year || '';
+      const next = {
         name: profile.name || '',
         hid: profile.hid || '',
-        gender: profile.gender || 'M',
-        birth_year: profile.birth_year?.toString() || '',
-        death_year: profile.death_year?.toString() || '',
-        notes: profile.notes || '',
-      });
+        gender: profile.gender || 'male',
+        birth_year: birthYear ? String(birthYear) : '',
+        death_year: deathYear ? String(deathYear) : '',
+        bio: profile.bio || profile.biography || '',
+        photo_url: profile.photo_url || '',
+      };
+      setFormData(next);
+      setInitial(next);
     }
   }, [profile]);
 
@@ -53,15 +67,15 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
       newErrors.hid = 'HID مطلوب';
     }
 
-    if (formData.birth_year && (isNaN(formData.birth_year) || formData.birth_year < 1800 || formData.birth_year > new Date().getFullYear())) {
+    if (formData.birth_year && (isNaN(formData.birth_year) || Number(formData.birth_year) < 1800 || Number(formData.birth_year) > new Date().getFullYear())) {
       newErrors.birth_year = 'سنة الميلاد غير صحيحة';
     }
 
     if (formData.death_year) {
-      if (isNaN(formData.death_year) || formData.death_year < 1800 || formData.death_year > new Date().getFullYear()) {
+      if (isNaN(formData.death_year) || Number(formData.death_year) < 1800 || Number(formData.death_year) > new Date().getFullYear()) {
         newErrors.death_year = 'سنة الوفاة غير صحيحة';
       }
-      if (formData.birth_year && formData.death_year < formData.birth_year) {
+      if (formData.birth_year && Number(formData.death_year) < Number(formData.birth_year)) {
         newErrors.death_year = 'سنة الوفاة يجب أن تكون بعد سنة الميلاد';
       }
     }
@@ -70,6 +84,28 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const isValid = useMemo(() => {
+    return (
+      formData.name.trim().length > 1 &&
+      formData.hid.trim().length > 0 &&
+      (!formData.birth_year || (!isNaN(formData.birth_year) && Number(formData.birth_year) >= 1800)) &&
+      (!formData.death_year || (!isNaN(formData.death_year) && Number(formData.death_year) >= 1800)) &&
+      (!formData.death_year || !formData.birth_year || Number(formData.death_year) >= Number(formData.birth_year))
+    );
+  }, [formData]);
+
+  const isDirty = useMemo(() => {
+    if (!initial) return false;
+    return (
+      initial.name !== formData.name ||
+      initial.gender !== formData.gender ||
+      initial.birth_year !== formData.birth_year ||
+      initial.death_year !== formData.death_year ||
+      initial.bio !== formData.bio ||
+      initial.photo_url !== formData.photo_url
+    );
+  }, [initial, formData]);
+
   const handleSave = async () => {
     if (!validateForm()) return;
 
@@ -77,50 +113,33 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
     try {
       const updateData = {
         name: formData.name.trim(),
-        gender: formData.gender,
-        notes: formData.notes.trim() || null,
+        gender: formData.gender, // 'male' | 'female'
+        bio: formData.bio?.trim() || null,
+        photo_url: formData.photo_url?.trim() || null,
+        dob_data: formData.birth_year
+          ? { gregorian: { year: parseInt(formData.birth_year, 10) } }
+          : null,
+        dod_data: formData.death_year
+          ? { gregorian: { year: parseInt(formData.death_year, 10) } }
+          : null,
       };
 
-      if (formData.birth_year) {
-        updateData.birth_year = parseInt(formData.birth_year);
-      } else {
-        updateData.birth_year = null;
-      }
-
-      if (formData.death_year) {
-        updateData.death_year = parseInt(formData.death_year);
-      } else {
-        updateData.death_year = null;
-      }
-
-      // Use admin RPC for profile updates instead of direct table write
-      const { data, error } = await profilesService.updateProfile(profile.id, updateData);
+      // Use admin RPC for profile updates with optimistic version
+      const currentVersion = profile?.version || 1;
+      const { data, error } = await profilesService.updateProfile(profile.id, currentVersion, updateData);
       
       if (error) throw error;
 
-      Alert.alert('نجح', 'تم تحديث الملف الشخصي بنجاح');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (onSave) onSave(data);
       onClose();
     } catch (error) {
-      Alert.alert('خطأ', 'فشل تحديث الملف الشخصي');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('خطأ', handleSupabaseError(error) || 'فشل تحديث الملف الشخصي');
     } finally {
       setLoading(false);
     }
   };
-
-  const InputField = ({ label, value, onChangeText, error, ...props }) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, error && styles.inputError]}
-        value={value}
-        onChangeText={onChangeText}
-        textAlign="right"
-        {...props}
-      />
-      {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
 
   return (
     <Modal
@@ -130,18 +149,21 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.title}>تعديل الملف الشخصي</Text>
-            <View style={{ width: 40 }} />
-          </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <HeaderBar
+            title="تعديل الملف الشخصي"
+            onClose={onClose}
+            rightSlot={(
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={loading || !isValid || !isDirty}
+                accessibilityLabel="حفظ"
+                style={{ opacity: loading || !isValid || !isDirty ? 0.5 : 1 }}
+              >
+                <Text style={{ color: tokens.colors.accent, fontSize: 16, fontWeight: '700' }}>حفظ</Text>
+              </TouchableOpacity>
+            )}
+          />
 
           {/* Form */}
           <ScrollView
@@ -150,123 +172,95 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <GlassSurface style={styles.formSection}>
-              <InputField
-                label="الاسم"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                error={errors.name}
-                placeholder="أدخل الاسم الكامل"
-              />
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>HID (للقراءة فقط)</Text>
-                <TextInput
-                  style={[styles.input, styles.readOnlyInput]}
-                  value={formData.hid}
-                  editable={false}
-                  textAlign="right"
+            {/* Hero section */}
+            <Surface style={styles.heroCard}>
+              <View style={styles.heroContent}>
+                <PhotoEditor
+                  value={formData.photo_url || ''}
+                  onChange={(url) => setFormData({ ...formData, photo_url: url })}
+                  currentPhotoUrl={formData.photo_url}
+                  personName={formData.name || profile?.name || 'الشخص'}
+                  profileId={profile?.id}
                 />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>الجنس</Text>
-                <View style={styles.genderContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.genderButton,
-                      formData.gender === 'M' && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setFormData({ ...formData, gender: 'M' })}
-                  >
-                    <Ionicons
-                      name="male"
-                      size={20}
-                      color={formData.gender === 'M' ? '#FFFFFF' : '#007AFF'}
-                    />
-                    <Text
-                      style={[
-                        styles.genderText,
-                        formData.gender === 'M' && styles.genderTextActive,
-                      ]}
-                    >
-                      ذكر
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.genderButton,
-                      formData.gender === 'F' && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setFormData({ ...formData, gender: 'F' })}
-                  >
-                    <Ionicons
-                      name="female"
-                      size={20}
-                      color={formData.gender === 'F' ? '#FFFFFF' : '#FF375F'}
-                    />
-                    <Text
-                      style={[
-                        styles.genderText,
-                        formData.gender === 'F' && styles.genderTextActive,
-                      ]}
-                    >
-                      أنثى
-                    </Text>
-                  </TouchableOpacity>
+                <View style={{ marginTop: 12 }}>
+                  <NameEditor
+                    value={formData.name}
+                    onChange={(text) => setFormData({ ...formData, name: text })}
+                    placeholder="الاسم الكامل"
+                  />
+                  {!!errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
                 </View>
               </View>
+            </Surface>
 
-              <View style={styles.yearRow}>
-                <View style={[styles.inputContainer, { flex: 1 }]}>
-                  <InputField
+            {/* Identity section */}
+            <Surface style={styles.sectionCard}>
+              <Field
+                label="HID (للقراءة فقط)"
+                value={formData.hid}
+                onChangeText={() => {}}
+                inputStyle={styles.readOnlyInput}
+                editable={false}
+              />
+
+              <View style={styles.inlineRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>الجنس</Text>
+                  <SegmentedControl
+                    value={formData.gender}
+                    onChange={(val) => setFormData({ ...formData, gender: val })}
+                    options={[
+                      { label: 'ذكر', value: 'male' },
+                      { label: 'أنثى', value: 'female' },
+                    ]}
+                  />
+                </View>
+              </View>
+            </Surface>
+
+            {/* Dates */}
+            <Surface style={styles.sectionCard}>
+              <View style={styles.inlineRow}> 
+                <View style={{ flex: 1 }}>
+                  <Field
                     label="سنة الميلاد"
                     value={formData.birth_year}
                     onChangeText={(text) => setFormData({ ...formData, birth_year: text })}
-                    error={errors.birth_year}
                     placeholder="مثال: 1980"
                     keyboardType="numeric"
                     maxLength={4}
+                    error={errors.birth_year}
                   />
                 </View>
-
                 <View style={{ width: 16 }} />
-
-                <View style={[styles.inputContainer, { flex: 1 }]}>
-                  <InputField
+                <View style={{ flex: 1 }}>
+                  <Field
                     label="سنة الوفاة"
                     value={formData.death_year}
                     onChangeText={(text) => setFormData({ ...formData, death_year: text })}
-                    error={errors.death_year}
                     placeholder="اختياري"
                     keyboardType="numeric"
                     maxLength={4}
+                    error={errors.death_year}
                   />
                 </View>
               </View>
+            </Surface>
 
-              <InputField
-                label="ملاحظات"
-                value={formData.notes}
-                onChangeText={(text) => setFormData({ ...formData, notes: text })}
+            {/* Bio */}
+            <Surface style={styles.sectionCard}>
+              <Field
+                label="نبذة"
+                value={formData.bio}
+                onChangeText={(text) => setFormData({ ...formData, bio: text })}
                 placeholder="أي معلومات إضافية"
                 multiline
-                numberOfLines={3}
-                style={styles.notesInput}
+                numberOfLines={4}
               />
-            </GlassSurface>
+            </Surface>
           </ScrollView>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <GlassButton
-              title="حفظ التغييرات"
-              onPress={handleSave}
-              loading={loading}
-              style={styles.saveButton}
-            />
-          </View>
+          {/* Footer removed – Save is in header */}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -276,28 +270,7 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000000',
+    backgroundColor: tokens.colors.bg,
   },
   scrollView: {
     flex: 1,
@@ -305,84 +278,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-  formSection: {
-    padding: 16,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666666',
+    color: tokens.colors.textMuted,
     marginBottom: 8,
     textAlign: 'right',
   },
-  input: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#000000',
-  },
-  inputError: {
-    borderWidth: 1,
-    borderColor: '#FF3B30',
-  },
   readOnlyInput: {
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    color: '#999999',
+    backgroundColor: '#F7F7FA',
+    color: '#9CA3AF',
   },
   errorText: {
     fontSize: 12,
-    color: '#FF3B30',
+    color: tokens.colors.danger,
     marginTop: 4,
     textAlign: 'right',
-  },
-  genderContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  genderButton: {
-    flex: 0.48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    gap: 8,
-  },
-  genderButtonActive: {
-    backgroundColor: '#007AFF',
-  },
-  genderText: {
-    fontSize: 16,
-    color: '#666666',
-    fontWeight: '500',
-  },
-  genderTextActive: {
-    color: '#FFFFFF',
   },
   yearRow: {
     flexDirection: 'row',
   },
-  notesInput: {
-    height: 80,
-    textAlignVertical: 'top',
-    paddingTop: 12,
+  inlineRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
   },
   footer: {
     padding: 16,
     paddingBottom: 34,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: tokens.colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: tokens.colors.divider,
   },
-  saveButton: {
-    width: '100%',
-  },
+  footerRow: { flexDirection: 'row-reverse', alignItems: 'center' },
+  sectionCard: { padding: 16, marginBottom: 12 },
+  heroCard: { padding: 16, marginBottom: 12 },
+  heroContent: { alignItems: 'center' },
 });
 
 export default EditProfileScreen;

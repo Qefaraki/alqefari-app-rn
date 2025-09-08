@@ -1,6 +1,6 @@
 # Alqefari Family Tree - AI Assistant Context
 
-Premium iOS-first family tree app with React Native Expo, Supabase backend, and glass morphism UI.
+Premium iOS-first family tree app with React Native Expo, Supabase backend, and neo‑native UI (no glass/blur).
 
 ## Commands
 
@@ -25,7 +25,7 @@ SELECT * FROM admin_auto_fix_issues();      # Fix common issues
 - ES modules only (`import/export`, no `require`)
 - Async/await over `.then()` chains
 - Arabic-first RTL design - all UI must support RTL
-- Glass morphism components in `src/components/glass/`
+- Neo‑native UI components in `src/components/ui/`
 - NO console.log in final code (remove after debugging)
 - Use handleSupabaseError for consistent error handling
 
@@ -36,7 +36,7 @@ src/
 ├── services/        # Supabase integration (profiles.js, storage.js)
 ├── components/      # UI components
 │   ├── admin/      # Admin-only components
-│   └── glass/      # Glass morphism design system
+│   └── ui/         # Neo‑native design system (no blur)
 ├── stores/         # Zustand state (useTreeStore.js)
 └── screens/        # Main app screens
 
