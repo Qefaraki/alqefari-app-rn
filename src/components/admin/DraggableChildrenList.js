@@ -3,10 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
   ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
   I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -134,6 +134,9 @@ const DraggableChildItem = ({
         >
           <View style={styles.childInfo}>
             <View style={styles.childHeader}>
+              <View style={styles.orderBadge}>
+                <Text style={styles.orderText}>{index + 1}</Text>
+              </View>
               <Text style={styles.childName}>{child.name}</Text>
               {child.gender === "male" ? (
                 <Ionicons name="male" size={16} color="#007AFF" />
@@ -183,6 +186,9 @@ const DraggableChildrenList = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteImpact, setDeleteImpact] = useState(null);
   const [loadingImpact, setLoadingImpact] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const originalOrder = useRef([]);
 
   const scrollViewRef = useRef(null);
   const scrollOffset = useSharedValue(0);
@@ -193,9 +199,11 @@ const DraggableChildrenList = ({
     const sortedChildren = [...(initialChildren || [])].sort((a, b) => {
       const orderA = a.sibling_order ?? 999;
       const orderB = b.sibling_order ?? 999;
-      return orderA - orderB;
+      return orderA - orderB; // Oldest first (lower sibling_order = older)
     });
     setChildren(sortedChildren);
+    originalOrder.current = sortedChildren.map((c) => c.id);
+    setHasChanges(false);
   }, [initialChildren]);
 
   // Group children by mother for better organization
@@ -229,16 +237,37 @@ const DraggableChildrenList = ({
       const newChildren = [...prev];
       const [movedChild] = newChildren.splice(fromIndex, 1);
       newChildren.splice(toIndex, 0, movedChild);
+
+      // Check if order has changed from original
+      const currentOrder = newChildren.map((c) => c.id);
+      const orderChanged = !originalOrder.current.every(
+        (id, index) => id === currentOrder[index],
+      );
+      setHasChanges(orderChanged);
+
       return newChildren;
     });
   }, []);
 
   // Save reordered children
   const saveOrder = useCallback(async () => {
-    if (onReorder) {
-      await onReorder(children);
+    if (!hasChanges || saving) return;
+
+    setSaving(true);
+    try {
+      if (onReorder) {
+        await onReorder(children);
+      }
+      originalOrder.current = children.map((c) => c.id);
+      setHasChanges(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error("Error saving order:", error);
+      Alert.alert("خطأ", "فشل حفظ الترتيب");
+    } finally {
+      setSaving(false);
     }
-  }, [children, onReorder]);
+  }, [children, onReorder, hasChanges, saving]);
 
   // Removed automatic debounced save - only save when explicitly reordering
   // This was causing the modal to close after 1 second
@@ -386,14 +415,32 @@ const DraggableChildrenList = ({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>الأبناء ({children.length})</Text>
-            {isAdmin && (
-              <TouchableOpacity
-                style={styles.addIconButton}
-                onPress={() => setShowQuickAdd(true)}
-              >
-                <Ionicons name="add-circle" size={24} color="#007AFF" />
-              </TouchableOpacity>
-            )}
+            <View style={styles.headerButtons}>
+              {isAdmin && hasChanges && (
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={saveOrder}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color="#FFF" />
+                      <Text style={styles.saveButtonText}>حفظ الترتيب</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.addIconButton}
+                  onPress={() => setShowQuickAdd(true)}
+                >
+                  <Ionicons name="add-circle" size={24} color="#007AFF" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Instructions */}
@@ -477,6 +524,26 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontFamily: "SF Arabic Regular",
   },
+  headerButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  saveButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  saveButtonText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "SF Arabic Regular",
+  },
   addIconButton: {
     padding: 4,
   },
@@ -555,8 +622,21 @@ const styles = StyleSheet.create({
   childHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     marginBottom: 4,
+  },
+  orderBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#E5E5EA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orderText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#8A8A8E",
   },
   childName: {
     fontSize: 16,

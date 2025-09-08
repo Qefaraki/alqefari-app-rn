@@ -74,8 +74,11 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
   }, [visible, profile]);
 
   const initializeData = async () => {
-    setLoading(true);
-    contentOpacity.value = 0;
+    // Only show loading spinner on first load
+    if (!editedProfile.id) {
+      setLoading(true);
+      contentOpacity.value = 0;
+    }
 
     try {
       // Set edited profile with proper defaults
@@ -91,8 +94,10 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
       // Load related data in parallel
       await Promise.all([loadMarriages(), loadChildren()]);
 
-      // Animate content in
-      contentOpacity.value = withTiming(1, { duration: 300 });
+      // Animate content in only if we were loading
+      if (!editedProfile.id) {
+        contentOpacity.value = withTiming(1, { duration: 300 });
+      }
     } catch (error) {
       console.error("Error initializing data:", error);
       Alert.alert("خطأ", "فشل تحميل البيانات");
@@ -286,6 +291,7 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
 
   // Handle children reorder
   const handleChildrenReorder = async (newOrder) => {
+    // Update local state immediately for responsive UI
     setChildren(newOrder);
 
     // Update sibling order in database
@@ -314,15 +320,15 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
       // Set the updated tree data which will trigger layout recalculation
       treeStore.setTreeData(updatedTreeData);
 
-      // Also trigger the parent's onUpdate callback
-      if (onUpdate) onUpdate();
+      // Don't trigger onUpdate to avoid disruptive reloads
+      // The tree will update automatically from the store change
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error("Error updating order:", error);
       Alert.alert("خطأ", "فشل تحديث الترتيب");
-      // Reload children to restore original order
-      loadChildren();
+      // Don't reload children - just show error
+      // This avoids disrupting the UI
     }
   };
 

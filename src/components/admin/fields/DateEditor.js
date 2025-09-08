@@ -13,6 +13,7 @@ import SegmentedControl from "../../ui/SegmentedControl";
 import {
   toDateData,
   toArabicNumerals,
+  fromArabicNumerals,
   createFromHijri,
   createFromGregorian,
 } from "../../../utils/dateUtils";
@@ -33,14 +34,92 @@ const DateEditor = ({ label, value, onChange, error }) => {
     if (value) {
       setIsApproximate(value.approximate || false);
 
-      if (activeCalendar === "hijri" && value.hijri) {
-        setDay(String(value.hijri.day || ""));
-        setMonth(String(value.hijri.month || ""));
-        setYear(String(value.hijri.year || ""));
-      } else if (activeCalendar === "gregorian" && value.gregorian) {
-        setDay(String(value.gregorian.day || ""));
-        setMonth(String(value.gregorian.month || ""));
-        setYear(String(value.gregorian.year || ""));
+      if (activeCalendar === "hijri") {
+        // Try hijri first, then fall back to converting from gregorian
+        if (
+          value.hijri_day !== undefined &&
+          value.hijri_month !== undefined &&
+          value.hijri_year !== undefined
+        ) {
+          // Direct hijri fields (legacy format)
+          setDay(String(value.hijri_day || ""));
+          setMonth(String(value.hijri_month || ""));
+          setYear(String(value.hijri_year || ""));
+        } else if (value.hijri) {
+          // Nested hijri object (new format)
+          setDay(String(value.hijri.day || ""));
+          setMonth(String(value.hijri.month || ""));
+          setYear(String(value.hijri.year || ""));
+        } else if (
+          value.day !== undefined &&
+          value.month !== undefined &&
+          value.year !== undefined
+        ) {
+          // Legacy gregorian format - convert to hijri for display
+          const m = createFromGregorian(value.year, value.month, value.day);
+          if (m && m.isValid()) {
+            setDay(String(m.iDate()));
+            setMonth(String(m.iMonth() + 1));
+            setYear(String(m.iYear()));
+          }
+        } else if (value.gregorian) {
+          // New format with gregorian - convert to hijri for display
+          const m = createFromGregorian(
+            value.gregorian.year,
+            value.gregorian.month,
+            value.gregorian.day,
+          );
+          if (m && m.isValid()) {
+            setDay(String(m.iDate()));
+            setMonth(String(m.iMonth() + 1));
+            setYear(String(m.iYear()));
+          }
+        }
+      } else {
+        // Gregorian calendar
+        if (
+          value.day !== undefined &&
+          value.month !== undefined &&
+          value.year !== undefined
+        ) {
+          // Legacy format
+          setDay(String(value.day || ""));
+          setMonth(String(value.month || ""));
+          setYear(String(value.year || ""));
+        } else if (value.gregorian) {
+          // New format
+          setDay(String(value.gregorian.day || ""));
+          setMonth(String(value.gregorian.month || ""));
+          setYear(String(value.gregorian.year || ""));
+        } else if (
+          value.hijri_day !== undefined &&
+          value.hijri_month !== undefined &&
+          value.hijri_year !== undefined
+        ) {
+          // Legacy hijri format - convert to gregorian for display
+          const m = createFromHijri(
+            value.hijri_year,
+            value.hijri_month,
+            value.hijri_day,
+          );
+          if (m && m.isValid()) {
+            setDay(String(m.date()));
+            setMonth(String(m.month() + 1));
+            setYear(String(m.year()));
+          }
+        } else if (value.hijri) {
+          // New format with hijri - convert to gregorian for display
+          const m = createFromHijri(
+            value.hijri.year,
+            value.hijri.month,
+            value.hijri.day,
+          );
+          if (m && m.isValid()) {
+            setDay(String(m.date()));
+            setMonth(String(m.month() + 1));
+            setYear(String(m.year()));
+          }
+        }
       }
     } else {
       setDay("");
@@ -88,8 +167,9 @@ const DateEditor = ({ label, value, onChange, error }) => {
 
   // Handle individual field changes
   const handleDayChange = (text) => {
-    // Only allow numbers
-    const cleaned = text.replace(/[^0-9]/g, "");
+    // Convert Arabic numerals to Western, then allow only numbers
+    const westernText = fromArabicNumerals(text);
+    const cleaned = westernText.replace(/[^0-9]/g, "");
     if (cleaned.length <= 2) {
       setDay(cleaned);
       updateDate(cleaned, month, year, isApproximate);
@@ -97,8 +177,9 @@ const DateEditor = ({ label, value, onChange, error }) => {
   };
 
   const handleMonthChange = (text) => {
-    // Only allow numbers
-    const cleaned = text.replace(/[^0-9]/g, "");
+    // Convert Arabic numerals to Western, then allow only numbers
+    const westernText = fromArabicNumerals(text);
+    const cleaned = westernText.replace(/[^0-9]/g, "");
     if (cleaned.length <= 2) {
       setMonth(cleaned);
       updateDate(day, cleaned, year, isApproximate);
@@ -106,8 +187,9 @@ const DateEditor = ({ label, value, onChange, error }) => {
   };
 
   const handleYearChange = (text) => {
-    // Only allow numbers
-    const cleaned = text.replace(/[^0-9]/g, "");
+    // Convert Arabic numerals to Western, then allow only numbers
+    const westernText = fromArabicNumerals(text);
+    const cleaned = westernText.replace(/[^0-9]/g, "");
     if (cleaned.length <= 4) {
       setYear(cleaned);
       updateDate(day, month, cleaned, isApproximate);

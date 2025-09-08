@@ -71,6 +71,29 @@ export const toArabicNumerals = (num) => {
 };
 
 /**
+ * Convert Eastern Arabic numerals to Western numerals
+ */
+export const fromArabicNumerals = (str) => {
+  if (!str) return "";
+  const westernNumbers = {
+    "٠": "0",
+    "١": "1",
+    "٢": "2",
+    "٣": "3",
+    "٤": "4",
+    "٥": "5",
+    "٦": "6",
+    "٧": "7",
+    "٨": "8",
+    "٩": "9",
+  };
+  return String(str).replace(
+    /[٠-٩]/g,
+    (digit) => westernNumbers[digit] || digit,
+  );
+};
+
+/**
  * Create a date object from Hijri components
  */
 export const createFromHijri = (year, month, day) => {
@@ -131,45 +154,57 @@ export const toDateData = (momentObj, approximate = false) => {
 
   try {
     // Get Gregorian values
-    const gregorian = {
-      year: momentObj.year(),
-      month: momentObj.month() + 1,
-      day: momentObj.date(),
-    };
+    const gregorianYear = momentObj.year();
+    const gregorianMonth = momentObj.month() + 1;
+    const gregorianDay = momentObj.date();
 
     // Get Hijri values with error handling
-    let hijri;
+    let hijriYear, hijriMonth, hijriDay;
     let display;
 
     try {
-      const hijriYear = momentObj.iYear();
-      const hijriMonth = momentObj.iMonth() + 1;
-      const hijriDay = momentObj.iDate();
+      hijriYear = momentObj.iYear();
+      hijriMonth = momentObj.iMonth() + 1;
+      hijriDay = momentObj.iDate();
 
       // Validate Hijri values
       if (!isNaN(hijriDay) && !isNaN(hijriMonth) && !isNaN(hijriYear)) {
-        hijri = {
-          year: hijriYear,
-          month: hijriMonth,
-          day: hijriDay,
-        };
-
         // Format display string (Hijri)
-        display = `${toArabicNumerals(hijri.day)}/${toArabicNumerals(hijri.month)}/${toArabicNumerals(hijri.year)} هـ`;
+        display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
       } else {
         // If Hijri conversion fails, use Gregorian display
-        hijri = null;
-        display = `${gregorian.day}/${gregorian.month}/${gregorian.year}`;
+        hijriYear = hijriMonth = hijriDay = null;
+        display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
       }
     } catch (hijriError) {
       // If Hijri conversion throws an error, use Gregorian display
-      hijri = null;
-      display = `${gregorian.day}/${gregorian.month}/${gregorian.year}`;
+      hijriYear = hijriMonth = hijriDay = null;
+      display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
     }
 
+    // Return structure compatible with database
     return {
-      gregorian,
-      hijri,
+      // Legacy flat fields for backwards compatibility
+      day: gregorianDay,
+      month: gregorianMonth,
+      year: gregorianYear,
+      hijri_day: hijriDay,
+      hijri_month: hijriMonth,
+      hijri_year: hijriYear,
+      // New nested structure
+      gregorian: {
+        year: gregorianYear,
+        month: gregorianMonth,
+        day: gregorianDay,
+      },
+      hijri:
+        hijriYear && hijriMonth && hijriDay
+          ? {
+              year: hijriYear,
+              month: hijriMonth,
+              day: hijriDay,
+            }
+          : null,
       approximate,
       display,
     };
