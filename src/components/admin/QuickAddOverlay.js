@@ -474,6 +474,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F8F8F8",
+    direction: "rtl",
   },
   keyboardAvoid: {
     flex: 1,
@@ -525,8 +526,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     textAlign: "right",
-    alignSelf: "flex-end",
-    width: "100%",
+    alignSelf: "stretch",
+    writingDirection: "rtl",
   },
   previewContainer: {
     height: 60,
@@ -615,8 +616,8 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 8,
     textAlign: "right",
-    alignSelf: "flex-end",
-    width: "100%",
+    alignSelf: "stretch",
+    writingDirection: "rtl",
   },
   input: {
     backgroundColor: "#F8F8F8",
