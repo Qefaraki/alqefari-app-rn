@@ -52,6 +52,9 @@ import MarriageEditor from './admin/MarriageEditor';
 // Note: RTL requires app restart to take effect
 // For now, we'll use explicit right-aligned positioning
 
+// Maintain hero image height parity between view and edit
+const HERO_HEIGHT = 280;
+
 // High-performance helper to construct full ancestry chain
 const constructCommonName = (person, nodesMap) => {
   if (!person) return '';
@@ -441,7 +444,7 @@ const ProfileSheet = ({ editMode = false }) => {
       onClose={() => setSelectedPersonId(null)}
       backdropComponent={renderBackdrop}
       handleComponent={renderHandle}
-      backgroundStyle={styles.sheetBackground}
+      backgroundStyle={[styles.sheetBackground, isEditing && styles.sheetBackgroundEditing]}
       enablePanDownToClose
       animateOnMount
     >
@@ -464,6 +467,10 @@ const ProfileSheet = ({ editMode = false }) => {
             {isEditing ? (
               <View style={styles.photoEditSection}>
                 <PhotoEditor
+                  variant="hero"
+                  heroHeight={HERO_HEIGHT}
+                  borderRadiusOverride={48}
+                  showHint={true}
                   value={editedData?.photo_url || ''}
                   onChange={(url) => setEditedData({...editedData, photo_url: url})}
                   currentPhotoUrl={person.photo_url}
@@ -1023,6 +1030,10 @@ const styles = StyleSheet.create({
   sheetBackground: {
     backgroundColor: '#FFFFFF',
   },
+  sheetBackgroundEditing: {
+    borderTopWidth: 2,
+    borderTopColor: '#2563eb',
+  },
   handleIndicator: {
     backgroundColor: '#d0d0d0',
     width: 48,
@@ -1037,7 +1048,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F7F7F8',
   },
   photoSection: {
-    height: 280,
+    height: HERO_HEIGHT,
     backgroundColor: '#EEE',
   },
   photoEditSection: {

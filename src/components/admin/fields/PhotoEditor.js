@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Image,
   ActivityIndicator,
   Text,
   Alert,
@@ -15,11 +14,23 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import CardSurface from '../../ios/CardSurface';
+import CachedImage, { CachedHeroImage } from '../../CachedImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import storageService from '../../../services/storage';
 import imageOptimizationService from '../../../services/imageOptimization';
 
-const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخص', profileId, size = 160 }) => {
+const PhotoEditor = ({
+  value,
+  onChange,
+  currentPhotoUrl,
+  personName = 'الشخص',
+  profileId,
+  size = 160,
+  variant = 'avatar', // 'avatar' | 'hero'
+  heroHeight = 280,
+  borderRadiusOverride,
+  showHint = true,
+}) => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState(value || currentPhotoUrl || null);
@@ -83,7 +94,7 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: variant === 'hero' ? [4, 3] : [1, 1],
         quality: 0.8,
       });
 
@@ -105,7 +116,7 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: variant === 'hero' ? [4, 3] : [1, 1],
         quality: 0.8,
       });
 
@@ -147,8 +158,8 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
 
       // Optimize image (compress, resize, strip EXIF)
       const optimizedImage = await imageOptimizationService.optimizeForUpload(asset.uri, {
-        maxWidth: 1200,
-        maxHeight: 1200,
+        maxWidth: variant === 'hero' ? 2000 : 1200,
+        maxHeight: variant === 'hero' ? 1500 : 1200,
         quality: 0.85,
       });
 
@@ -248,7 +259,7 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
   return (
     <View style={styles.container}>
       {/* Photo Preview */}
-      <View style={styles.photoSection}>
+      <View style={[styles.photoSection, variant === 'hero' && { alignItems: 'stretch', width: '100%' }]}>
         <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
           <TouchableOpacity
             onPress={showPhotoPicker}
@@ -257,13 +268,36 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
             disabled={isLoading}
             activeOpacity={0.8}
           >
-            <CardSurface style={[styles.photoCard, { width: size, height: size, borderRadius: size / 2 }]}>
-              <View style={[styles.imageContainer, { width: size, height: size }] }>
+            <CardSurface
+              style={[
+                styles.photoCard,
+                variant === 'avatar'
+                  ? { width: size, height: size, borderRadius: size / 2 }
+                  : { width: '100%', height: heroHeight, borderRadius: borderRadiusOverride ?? 28 },
+              ]}
+            >
+              <View
+                style={[
+                  styles.imageContainer,
+                  variant === 'avatar'
+                    ? { width: size, height: size }
+                    : { width: '100%', height: heroHeight },
+                ]}
+              >
                 {previewUrl ? (
-                  <Image
-                    source={{ uri: previewUrl }}
-                    style={[styles.profileImage, { width: size, height: size }]}
-                  />
+                  variant === 'hero' ? (
+                    <CachedHeroImage
+                      source={{ uri: previewUrl }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <CachedImage
+                      source={{ uri: previewUrl }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+                  )
                 ) : (
                   <View style={styles.noPhotoContainer}>
                     <Ionicons 
@@ -291,7 +325,10 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
                 
                 {/* Camera icon overlay */}
                 {!isLoading && (
-                  <View style={styles.cameraOverlay}>
+                  <View style={[
+                    styles.cameraOverlay,
+                    variant === 'hero' && { bottom: 12, right: 12 }
+                  ]}>
                     <LinearGradient
                       colors={['rgba(5, 150, 105, 0.9)', 'rgba(16, 185, 129, 0.9)']}
                       style={styles.cameraButton}
@@ -307,7 +344,10 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
               {/* Remove button */}
               {previewUrl && !isLoading && (
                 <TouchableOpacity
-                  style={styles.removeButton}
+                  style={[
+                    styles.removeButton,
+                    variant === 'hero' && { top: 12, right: 12 }
+                  ]}
                   onPress={handleRemovePhoto}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -327,9 +367,11 @@ const PhotoEditor = ({ value, onChange, currentPhotoUrl, personName = 'الشخ�
       </View>
 
       {/* Instructions */}
-      <Text style={styles.instructions}>
-        اضغط على الصورة لتغييرها
-      </Text>
+      {showHint && (
+        <Text style={styles.instructions}>
+          اضغط على الصورة لتغييرها
+        </Text>
+      )}
     </View>
   );
 };
