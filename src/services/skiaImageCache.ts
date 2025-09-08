@@ -70,7 +70,7 @@ class SkiaImageCache {
       if (__DEV__) {
         console.log(`🌳 TREE CACHE: Key not found in cache`);
         console.log(`  Looking for: ${key}`);
-        console.log(`  Cache keys: ${Array.from(this.cache.keys()).map(k => k.substring(k.lastIndexOf('/') + 1).split('?')[0]).join(', ')}`);
+        console.log(`  Cache keys: ${Array.from(this.cache.keys()).map(k => k ? k.substring(k.lastIndexOf('/') + 1).split('?')[0] : 'unknown').join(', ')}`);
       }
       return null;
     }
@@ -86,7 +86,7 @@ class SkiaImageCache {
     this.cache.set(key, entry);
     
     if (__DEV__) {
-      const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
+      const filename = key ? key.substring(key.lastIndexOf('/') + 1).split('?')[0] : 'unknown';
       console.log(`🌳 TREE CACHE HIT: ${filename}`);
     }
     
@@ -137,14 +137,14 @@ class SkiaImageCache {
       this.evictIfNeeded();
       
       if (__DEV__) {
-        const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
+        const filename = key ? key.substring(key.lastIndexOf('/') + 1).split('?')[0] : 'unknown';
         console.log(`🌳 TREE CACHE MISS: Loaded ${filename} (${img.width()}x${img.height()}, ${(bytes/1024/1024).toFixed(1)}MB)`);
       }
       
       return img;
     } catch (error) {
       if (__DEV__) {
-        const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
+        const filename = key ? key.substring(key.lastIndexOf('/') + 1).split('?')[0] : 'unknown';
         console.log(`🌳 TREE CACHE ERROR: Failed to load ${filename}`, error.message);
       }
       throw error;
@@ -243,7 +243,7 @@ class SkiaImageCache {
     }
     
     if (__DEV__) {
-      const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
+      const filename = key ? key.substring(key.lastIndexOf('/') + 1).split('?')[0] : 'unknown';
       console.log(`🌳 TREE CACHE: Evicted ${filename} (${(entry.bytes/1024/1024).toFixed(1)}MB)`);
     }
   }

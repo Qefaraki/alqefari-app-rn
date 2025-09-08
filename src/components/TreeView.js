@@ -1245,6 +1245,13 @@ const TreeView = ({ setProfileEditMode }) => {
       }
 
       if (pressedNode) {
+        console.log(
+          "Long-press on node:",
+          pressedNode.name,
+          "ID:",
+          pressedNode.id,
+        );
+
         // Haptic feedback
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -1254,6 +1261,17 @@ const TreeView = ({ setProfileEditMode }) => {
             (n) =>
               n.father_id === pressedNode.id || n.mother_id === pressedNode.id,
           ) || [];
+
+        console.log("Found children:", children.length);
+        console.log(
+          "Children details:",
+          children.map((c) => ({
+            name: c.name,
+            sibling_order: c.sibling_order,
+            father_id: c.father_id,
+            mother_id: c.mother_id,
+          })),
+        );
 
         // Sort children by sibling_order
         children.sort(
@@ -2161,17 +2179,22 @@ const TreeView = ({ setProfileEditMode }) => {
       <QuickAddOverlay
         visible={showQuickAdd}
         parentNode={quickAddParent}
-        siblings={
-          quickAddParent
-            ? (
-                treeData?.nodes?.filter(
-                  (n) =>
-                    n.father_id === quickAddParent.id ||
-                    n.mother_id === quickAddParent.id,
-                ) || []
-              ).sort((a, b) => (a.sibling_order || 0) - (b.sibling_order || 0))
-            : []
-        }
+        siblings={(() => {
+          if (!quickAddParent) return [];
+
+          const children =
+            treeData?.nodes?.filter(
+              (n) =>
+                n.father_id === quickAddParent.id ||
+                n.mother_id === quickAddParent.id,
+            ) || [];
+
+          console.log("Passing siblings to QuickAddOverlay:", children.length);
+
+          return children.sort(
+            (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),
+          );
+        })()}
         position={quickAddPosition}
         onClose={() => {
           setShowQuickAdd(false);
