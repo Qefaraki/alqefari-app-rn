@@ -488,32 +488,6 @@ const ProfileSheet = ({ editMode = false }) => {
         ref={scrollRef}
       >
         <View style={{ flex: 1 }}>
-          {/* Edit mode gradient accent at top */}
-          {isEditing && (
-            <LinearGradient
-              colors={["#2563eb", "rgba(37, 99, 235, 0)"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 60,
-                zIndex: 0,
-              }}
-            />
-          )}
-
-          {/* Close button */}
-          <Pressable
-            onPress={() => setSelectedPersonId(null)}
-            style={styles.closeButton}
-            accessibilityLabel="إغلاق"
-          >
-            <Text style={styles.closeButtonText}>×</Text>
-          </Pressable>
-
           {/* Unified hero card: image + description + metrics */}
           <View style={styles.cardWrapper}>
             {isEditing ? (
@@ -1349,8 +1323,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   sheetBackgroundEditing: {
-    borderTopWidth: 2,
-    borderTopColor: "#2563eb",
+    // Removed blue border for cleaner look
   },
   handleIndicator: {
     backgroundColor: "#d0d0d0",
@@ -1661,18 +1634,6 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(15,23,42,0.08)",
   },
 
-  closeButton: {
-    position: "absolute",
-    top: 8,
-    right: 12,
-    zIndex: 20,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   closeButtonText: {
     fontSize: 20,
     color: "#FFFFFF",
