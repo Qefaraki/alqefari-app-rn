@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,61 +10,88 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../services/supabase';
-import GlassSurface from '../glass/GlassSurface';
+import ProfileCard from './ProfileCard';
 import GlassButton from '../glass/GlassButton';
 import profilesService from '../../services/profiles';
+import { handleSupabaseError } from '../../services/supabase';
 
 const TreeEditorView = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedProfile, setSelectedProfile] = useState(null);
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [deletingId, setDeletingId] = useState(null);
+  const ITEMS_PER_PAGE = 50;
 
   useEffect(() => {
     loadProfiles();
-  }, []);
+  }, [searchQuery]);
 
-  const loadProfiles = async () => {
-    setLoading(true);
+  const loadProfiles = async (append = false) => {
+    if (!append) {
+      setLoading(true);
+      setOffset(0);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('hid', { ascending: true });
+      const currentOffset = append ? offset : 0;
+      const { data, error } = await profilesService.searchProfiles(
+        searchQuery || '',
+        ITEMS_PER_PAGE,
+        currentOffset
+      );
 
-      if (error) throw error;
-      setProfiles(data || []);
+      if (error) throw new Error(error);
+      
+      const results = data || [];
+      if (append) {
+        setProfiles(prev => [...prev, ...results]);
+      } else {
+        setProfiles(results);
+      }
+      
+      setHasMore(results.length === ITEMS_PER_PAGE);
+      setOffset(currentOffset + results.length);
     } catch (error) {
-      console.error('Error loading profiles:', error);
-      Alert.alert('خطأ', 'فشل تحميل البيانات');
+      Alert.alert('خطأ', handleSupabaseError(error) || 'فشل تحميل البيانات');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  const handleSearch = (text) => {
+  const handleSearch = useCallback((text) => {
     setSearchQuery(text);
-  };
+    setProfiles([]);
+    setOffset(0);
+    setHasMore(true);
+  }, []);
 
-  const filteredProfiles = profiles.filter(profile =>
-    profile.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    profile.hid.includes(searchQuery)
-  );
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      loadProfiles(true);
+    }
+  }, [loadingMore, hasMore, offset]);
 
-  const handleAddChildren = (profile) => {
+  // Search is now handled server-side, no need for client-side filtering
+  const filteredProfiles = profiles;
+
+  const handleAddChildren = useCallback((profile) => {
     navigation.navigate('TreeView', {
       adminAction: 'addChildren',
       targetProfile: profile,
     });
-  };
+  }, [navigation]);
 
-  const handleEditProfile = (profile) => {
+  const handleEditProfile = useCallback((profile) => {
     navigation.navigate('EditProfile', { profile });
-  };
+  }, [navigation]);
 
-  const handleDeleteProfile = async (profile) => {
+  const handleDeleteProfile = useCallback(async (profile) => {
     Alert.alert(
       'تأكيد الحذف',
       `هل أنت متأكد من حذف ${profile.name}؟`,
@@ -74,74 +101,38 @@ const TreeEditorView = ({ navigation }) => {
           text: 'حذف',
           style: 'destructive',
           onPress: async () => {
-            setActionLoading(true);
+            setDeletingId(profile.id);
+            
+            // Optimistic update - remove from UI immediately
+            setProfiles(prev => prev.filter(p => p.id !== profile.id));
+            
             try {
-              const { error } = await supabase
-                .from('profiles')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', profile.id);
+              const { error } = await profilesService.deleteProfile(
+                profile.id,
+                profile.version || 1
+              );
 
-              if (error) throw error;
+              if (error) {
+                // Revert optimistic update on error
+                setProfiles(prev => [...prev, profile].sort((a, b) => 
+                  a.hid.localeCompare(b.hid)
+                ));
+                throw new Error(error);
+              }
+              
               Alert.alert('نجح', 'تم حذف الملف الشخصي');
-              loadProfiles();
             } catch (error) {
-              console.error('Error deleting profile:', error);
-              Alert.alert('خطأ', 'فشل حذف الملف الشخصي');
+              Alert.alert('خطأ', handleSupabaseError(error) || 'فشل حذف الملف الشخصي');
             } finally {
-              setActionLoading(false);
+              setDeletingId(null);
             }
           },
         },
       ]
     );
-  };
+  }, []);
 
-  const ProfileCard = ({ profile }) => (
-    <GlassSurface style={styles.profileCard}>
-      <View style={styles.profileHeader}>
-        <View>
-          <Text style={styles.profileName}>{profile.name}</Text>
-          <Text style={styles.profileHID}>HID: {profile.hid}</Text>
-          {profile.birth_year && (
-            <Text style={styles.profileInfo}>مواليد: {profile.birth_year}</Text>
-          )}
-        </View>
-        <View style={styles.profileGender}>
-          <Ionicons
-            name={profile.gender === 'M' ? 'male' : 'female'}
-            size={24}
-            color={profile.gender === 'M' ? '#007AFF' : '#FF375F'}
-          />
-        </View>
-      </View>
-
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#34C759' }]}
-          onPress={() => handleAddChildren(profile)}
-        >
-          <Ionicons name="person-add" size={18} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>إضافة أطفال</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#007AFF' }]}
-          onPress={() => handleEditProfile(profile)}
-        >
-          <Ionicons name="pencil" size={18} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>تعديل</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#FF3B30' }]}
-          onPress={() => handleDeleteProfile(profile)}
-        >
-          <Ionicons name="trash" size={18} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>حذف</Text>
-        </TouchableOpacity>
-      </View>
-    </GlassSurface>
-  );
+  // ProfileCard component is now imported from separate file
 
   if (loading) {
     return (
@@ -188,24 +179,52 @@ const TreeEditorView = ({ navigation }) => {
       </View>
 
       {/* Profiles List */}
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {filteredProfiles.length === 0 ? (
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        onScrollEndDrag={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 50) {
+            loadMore();
+          }
+        }}
+      >
+        {filteredProfiles.length === 0 && !loading ? (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={48} color="#C7C7CC" />
             <Text style={styles.emptyStateText}>لا توجد نتائج</Text>
           </View>
         ) : (
-          filteredProfiles.map((profile) => (
-            <ProfileCard key={profile.id} profile={profile} />
-          ))
+          <>
+            {filteredProfiles.map((profile) => (
+              <ProfileCard 
+                key={profile.id} 
+                profile={profile}
+                onAddChildren={handleAddChildren}
+                onEditProfile={handleEditProfile}
+                onDeleteProfile={handleDeleteProfile}
+                disabled={deletingId === profile.id}
+              />
+            ))}
+            
+            {hasMore && (
+              <TouchableOpacity 
+                style={styles.loadMoreButton}
+                onPress={loadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text style={styles.loadMoreText}>تحميل المزيد</Text>
+                )}
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </ScrollView>
 
-      {actionLoading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
-        </View>
-      )}
+      {/* Removed global loading overlay - using per-card loading state instead */}
     </View>
   );
 };
@@ -263,54 +282,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  profileCard: {
-    marginBottom: 12,
-    padding: 16,
-  },
-  profileHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 4,
-  },
-  profileHID: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 2,
-  },
-  profileInfo: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  profileGender: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  loadMoreButton: {
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
+    paddingVertical: 16,
+    marginVertical: 8,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 18,
-    gap: 4,
-  },
-  actionButtonText: {
-    fontSize: 13,
-    color: '#FFFFFF',
+  loadMoreText: {
+    fontSize: 16,
+    color: '#007AFF',
     fontWeight: '600',
   },
   loadingContainer: {
@@ -332,16 +312,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#C7C7CC',
     marginTop: 12,
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 
