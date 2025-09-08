@@ -113,7 +113,7 @@ const DraggableNode = ({
             {child.name || "جديد"}
           </Text>
           <View style={styles.orderBadge}>
-            <Text style={styles.orderBadgeText}>{totalChildren - index}</Text>
+            <Text style={styles.orderBadgeText}>{index + 1}</Text>
           </View>
         </View>
       </Animated.View>
@@ -134,9 +134,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Initialize children list with RTL order
   useEffect(() => {
     if (visible && parentNode) {
-      console.log("QuickAddOverlay: parentNode:", parentNode);
-      console.log("QuickAddOverlay: siblings received:", siblings);
-
       // Create ghost node for new child
       const ghost = {
         id: `ghost-${Date.now()}`,
@@ -156,18 +153,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           isGhost: false,
         }));
 
-      console.log("QuickAddOverlay: sorted siblings:", sortedSiblings);
-
-      // RTL visual order: newest (left) to oldest (right)
-      // But in array: oldest first for correct numbering
-      setAllChildren([...sortedSiblings.reverse(), ghost]);
+      // For RTL: Put ghost (youngest) first, then existing siblings
+      setAllChildren([ghost, ...sortedSiblings]);
       setNewChildName("");
       setNewChildGender("male");
 
       // Auto-focus after modal animation
       setTimeout(() => {
         inputRef.current?.focus();
-        // No need to scroll, flex-direction: row-reverse handles RTL display
       }, 400);
     }
   }, [visible, parentNode, siblings]);
@@ -223,8 +216,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         sibling_order: updated.filter((c) => c.isNew).length,
       };
 
-      // Maintain proper order for numbering
-      return [...updated.filter((c) => !c.isGhost), newGhost];
+      // Put new ghost at beginning for RTL (youngest first)
+      return [newGhost, ...updated.filter((c) => !c.isGhost)];
     });
 
     setNewChildName("");
