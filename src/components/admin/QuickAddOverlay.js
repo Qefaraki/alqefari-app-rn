@@ -265,8 +265,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
     setLoading(true);
     try {
+      console.log(
+        "Saving children for parent:",
+        parentNode.id,
+        parentNode.name,
+      );
+      console.log("Children to save:", childrenToSave);
+
       // Try bulk create first
-      const { error } = await profilesService.bulkCreateChildren(
+      const { data, error } = await profilesService.bulkCreateChildren(
         parentNode.id,
         childrenToSave,
       );
@@ -275,14 +282,21 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         // Fallback to individual creates
         console.warn("Bulk create failed, using individual creates:", error);
         for (const child of childrenToSave) {
-          await profilesService.createProfile({
+          const result = await profilesService.createProfile({
             name: child.name,
             gender: child.gender,
             father_id: parentNode.gender === "male" ? parentNode.id : null,
             mother_id: parentNode.gender === "female" ? parentNode.id : null,
             sibling_order: child.sibling_order,
           });
+
+          if (result.error) {
+            console.error("Failed to create child:", child.name, result.error);
+            throw new Error(`Failed to create ${child.name}: ${result.error}`);
+          }
         }
+      } else {
+        console.log("Bulk create successful:", data);
       }
 
       // Update existing siblings' order if changed
