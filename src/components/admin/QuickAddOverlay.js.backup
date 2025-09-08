@@ -18,6 +18,8 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   runOnJS,
+  interpolate,
+  withTiming,
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
@@ -32,7 +34,7 @@ const NODE_WIDTH = 90;
 const NODE_HEIGHT = 36;
 const NODE_SPACING = 15;
 
-// Draggable node component
+// Single draggable node component
 const DraggableNode = ({
   child,
   index,
@@ -45,9 +47,11 @@ const DraggableNode = ({
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const zIndex = useSharedValue(0);
+  const isDragging = useSharedValue(false);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      isDragging.value = true;
       scale.value = withSpring(1.05);
       zIndex.value = 1000;
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
@@ -66,6 +70,7 @@ const DraggableNode = ({
       translateY.value = withSpring(0);
       scale.value = withSpring(1);
       zIndex.value = 0;
+      isDragging.value = false;
 
       if (clampedIndex !== index) {
         runOnJS(onReorder)(child.id, index, clampedIndex);
@@ -82,6 +87,7 @@ const DraggableNode = ({
     zIndex: zIndex.value,
   }));
 
+  // Update position when index changes
   useEffect(() => {
     translateX.value = withSpring(index * (NODE_WIDTH + NODE_SPACING));
   }, [index]);
@@ -106,6 +112,7 @@ const DraggableNode = ({
             {child.name || "جديد"}
           </Text>
         </View>
+        {/* Order badge */}
         <View style={styles.orderBadge}>
           <Text style={styles.orderBadgeText}>{index + 1}</Text>
         </View>
@@ -114,7 +121,6 @@ const DraggableNode = ({
   );
 };
 
-// Main QuickAddOverlay component
 const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [newChildName, setNewChildName] = useState("");
   const [newChildGender, setNewChildGender] = useState("male");
@@ -136,10 +142,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         gender: "male",
         isGhost: true,
         isNew: true,
-        sibling_order: siblings.length,
+        sibling_order: siblings.length, // New child gets highest order (youngest)
       };
 
       // Sort siblings by sibling_order (ascending = oldest to youngest)
+      // In RTL layout, this will display as right-to-left
       const sortedSiblings = [...siblings]
         .sort((a, b) => (a.sibling_order ?? 0) - (b.sibling_order ?? 0))
         .map((s) => ({
@@ -185,12 +192,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Add another child
   const handleAddAnother = () => {
     if (!newChildName.trim()) {
-      Alert.alert("تنبيه", "يرجى إدخال اسم الطفل");
+      Alert.alert('تنبيه', 'يرجى إدخال اسم الطفل');
       return;
     }
 
-    setAllChildren((prev) => {
-      const updated = prev.map((child) => {
+    // Convert current ghost to real child
+    setAllChildren(prev => {
+      const updated = prev.map(child => {
         if (child.isGhost) {
           return {
             ...child,
@@ -201,23 +209,36 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         }
         return child;
       });
-
-      // Add new ghost at the end
+      
+      // Add new ghost at the end (youngest position)
       const newGhost = {
         id: `ghost-${Date.now()}`,
-        name: "",
-        gender: "male",
+        name: '',
+        gender: 'male',
         isGhost: true,
         isNew: true,
         sibling_order: updated.length,
       };
-
+      
       return [...updated, newGhost];
     });
+    
+    setNewChildName('');
+    setNewChildGender('male');
+    inputRef.current?.focus();
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
+    setAllChildren((prev) =>
+      [newGhost, ...prev.filter((c) => !c.isGhost), currentGhost].filter(
+        Boolean,
+      ),
+    );
     setNewChildName("");
     setNewChildGender("male");
     inputRef.current?.focus();
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -246,7 +267,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       childrenToSave.push({
         name: newChildName.trim(),
         gender: newChildGender,
-        sibling_order: allChildren.findIndex((c) => c.isGhost),
+        sibling_order: 0,
       });
     }
 
@@ -278,15 +299,21 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       }
 
       // Update existing siblings' order if changed
-      for (const child of allChildren.filter((c) => !c.isNew && !c.isGhost)) {
-        const newOrder = allChildren.indexOf(child);
-        const original = siblings.find((s) => s.id === child.id);
-        if (original && original.sibling_order !== newOrder) {
-          await profilesService.updateProfile(child.id, original.version || 1, {
-            sibling_order: newOrder,
-          });
-        }
-      }
+      const reorderedExisting = allChildren
+        .filter((child) => !child.isNew && !child.isGhost)
+        .forEach(async (child) => {
+          const newOrder = allChildren.indexOf(child);
+          const original = siblings.find((s) => s.id === child.id);
+          if (original && original.sibling_order !== newOrder) {
+            await profilesService.updateProfile(
+              child.id,
+              original.version || 1,
+              {
+                sibling_order: newOrder,
+              },
+            );
+          }
+        });
 
       Alert.alert("نجح", `تمت إضافة ${childrenToSave.length} طفل بنجاح`);
 
@@ -303,10 +330,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     }
   };
 
-  // Calculate count for save button
-  const newChildrenCount =
-    allChildren.filter((c) => c.isNew && !c.isGhost && c.name).length +
-    (newChildName.trim() ? 1 : 0);
+  const newChildrenCount = allChildren.filter(
+    (c) => c.isNew && !c.isGhost && c.name,
+  ).length;
 
   if (!visible || !parentNode) return null;
 
@@ -337,11 +363,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           {/* Preview Section */}
           <View style={styles.previewSection}>
             <Text style={styles.sectionLabel}>معاينة الترتيب</Text>
-            <ScrollView
-              horizontal
+            <ScrollView 
+              horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.previewScroll}
               style={styles.previewContainer}
+              inverted={true} // For RTL display
             >
               {allChildren.length > 0 ? (
                 allChildren.map((child, index) => (
@@ -360,7 +387,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               )}
             </ScrollView>
             <Text style={styles.hint}>
-              {allChildren.length > 1 ? "اسحب لإعادة الترتيب" : "أضف طفل جديد"}
+              {allChildren.length > 1 ? 'اسحب لإعادة الترتيب' : 'أضف طفل جديد'}
             </Text>
           </View>
 
@@ -430,6 +457,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               </View>
             </View>
 
+            {/* Add Another Button */}
             <TouchableOpacity
               style={styles.addAnotherButton}
               onPress={handleAddAnother}
@@ -521,14 +549,14 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    color: "#999",
-    textAlign: "center",
+    color: '#999',
+    textAlign: 'center',
     marginTop: 8,
   },
   noChildrenText: {
     fontSize: 14,
-    color: "#999",
-    fontStyle: "italic",
+    color: '#999',
+    fontStyle: 'italic',
     padding: 20,
   },
   nodeWrapper: {
