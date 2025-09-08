@@ -30,7 +30,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 // Node dimensions for preview
 const NODE_WIDTH = 90;
 const NODE_HEIGHT = 36;
-const NODE_SPACING = 15;
+const NODE_SPACING = 12;
 
 // Draggable node component
 const DraggableNode = ({
@@ -41,34 +41,42 @@ const DraggableNode = ({
   isGhost,
   isNew,
 }) => {
-  const translateX = useSharedValue(index * (NODE_WIDTH + NODE_SPACING));
+  const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const zIndex = useSharedValue(0);
+  const opacity = useSharedValue(1);
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
-      scale.value = withSpring(1.05);
+      scale.value = withSpring(1.1);
       zIndex.value = 1000;
+      opacity.value = withSpring(0.8);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
     })
     .onUpdate((e) => {
-      translateX.value = e.translationX + index * (NODE_WIDTH + NODE_SPACING);
+      translateX.value = e.translationX;
       translateY.value = e.translationY;
     })
     .onEnd(() => {
-      const newIndex = Math.round(
-        translateX.value / (NODE_WIDTH + NODE_SPACING),
+      // Calculate which position this was dropped at
+      const currentX = translateX.value;
+      const nodeWithSpacing = NODE_WIDTH + NODE_SPACING;
+      const movement = Math.round(currentX / nodeWithSpacing);
+      const newIndex = Math.max(
+        0,
+        Math.min(totalChildren - 1, index + movement),
       );
-      const clampedIndex = Math.max(0, Math.min(totalChildren - 1, newIndex));
 
-      translateX.value = withSpring(clampedIndex * (NODE_WIDTH + NODE_SPACING));
+      // Animate back to original position
+      translateX.value = withSpring(0);
       translateY.value = withSpring(0);
       scale.value = withSpring(1);
       zIndex.value = 0;
+      opacity.value = withSpring(1);
 
-      if (clampedIndex !== index) {
-        runOnJS(onReorder)(child.id, index, clampedIndex);
+      if (newIndex !== index) {
+        runOnJS(onReorder)(child.id, index, newIndex);
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
       }
     });
@@ -80,11 +88,8 @@ const DraggableNode = ({
       { scale: scale.value },
     ],
     zIndex: zIndex.value,
+    opacity: opacity.value,
   }));
-
-  useEffect(() => {
-    translateX.value = withSpring(index * (NODE_WIDTH + NODE_SPACING));
-  }, [index]);
 
   return (
     <GestureDetector gesture={panGesture}>
@@ -121,6 +126,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [allChildren, setAllChildren] = useState([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
+  const scrollViewRef = useRef(null);
   const { refreshProfile } = useStore();
 
   // Initialize children list
@@ -158,6 +164,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       // Auto-focus after modal animation
       setTimeout(() => {
         inputRef.current?.focus();
+        // Scroll to show the ghost node at the end
+        if (scrollViewRef.current && sortedSiblings.length > 0) {
+          scrollViewRef.current.scrollToEnd({ animated: true });
+        }
       }, 400);
     }
   }, [visible, parentNode, siblings]);
@@ -338,6 +348,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           <View style={styles.previewSection}>
             <Text style={styles.sectionLabel}>معاينة الترتيب</Text>
             <ScrollView
+              ref={scrollViewRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.previewScroll}
@@ -513,11 +524,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   previewContainer: {
-    height: 80,
+    height: 60,
   },
   previewScroll: {
     paddingHorizontal: 16,
-    paddingBottom: 10,
+    alignItems: "center",
   },
   hint: {
     fontSize: 12,
@@ -532,8 +543,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   nodeWrapper: {
-    position: "relative",
-    marginRight: NODE_SPACING,
+    marginHorizontal: NODE_SPACING / 2,
   },
   node: {
     width: NODE_WIDTH,
@@ -571,11 +581,11 @@ const styles = StyleSheet.create({
   },
   orderBadge: {
     position: "absolute",
-    bottom: -8,
-    left: NODE_WIDTH / 2 - 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    bottom: -10,
+    alignSelf: "center",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: "#000",
     justifyContent: "center",
     alignItems: "center",

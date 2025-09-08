@@ -135,7 +135,6 @@ export default function App() {
 
             {/* Profile Sheet */}
             <ProfileSheet editMode={profileEditMode} />
-            {console.log('App.js: Passing profileEditMode to ProfileSheet:', profileEditMode)}
             
             {/* Admin Dashboard Modal */}
             <Modal

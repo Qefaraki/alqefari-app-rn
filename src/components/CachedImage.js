@@ -40,30 +40,17 @@ const CachedImage = ({
     setLoadStartTime(startTime);
     setLoading(true);
     setError(false);
-    const fileName = imageUri ? imageUri.substring(imageUri.lastIndexOf('/') + 1) : 'image';
     onLoadStart?.();
   };
 
   const handleLoadEnd = () => {
     setLoading(false);
-    
-    if (loadStartTime) {
-      const loadTime = performance.now() - loadStartTime;
-      const fileName = imageUri ? imageUri.substring(imageUri.lastIndexOf('/') + 1) : 'image';
-      
-      // Heuristic: if load time < 50ms, likely from cache
-      const fromCache = loadTime < 50;
-      const cacheStatus = fromCache ? '✅ CACHE HIT' : '🌐 NETWORK';
-      
-    }
-    
     onLoadEnd?.();
   };
 
   const handleError = (event) => {
     setLoading(false);
     setError(true);
-    const fileName = imageUri ? imageUri.substring(imageUri.lastIndexOf('/') + 1) : 'image';
     onError?.(event);
   };
 
