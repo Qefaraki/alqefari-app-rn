@@ -59,6 +59,10 @@ const weekdaysShortAr = [
  * Convert Arabic numerals to Eastern Arabic numerals
  */
 export const toArabicNumerals = (num) => {
+  // Handle null, undefined, or NaN
+  if (num === null || num === undefined || isNaN(num)) {
+    return "";
+  }
   const arabicNumbers = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
   return String(num).replace(
     /[0-9]/g,
@@ -70,20 +74,51 @@ export const toArabicNumerals = (num) => {
  * Create a date object from Hijri components
  */
 export const createFromHijri = (year, month, day) => {
-  return moment()
-    .iYear(year)
-    .iMonth(month - 1)
-    .iDate(day);
+  // Validate inputs
+  if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+    return null;
+  }
+
+  try {
+    // moment-hijri expects format: iYYYY/iM/iD
+    const hijriDateString = `${year}/${month}/${day}`;
+    const m = moment(hijriDateString, "iYYYY/iM/iD");
+
+    // Verify the date is valid
+    if (!m.isValid()) {
+      return null;
+    }
+
+    return m;
+  } catch (error) {
+    return null;
+  }
 };
 
 /**
  * Create a date object from Gregorian components
  */
 export const createFromGregorian = (year, month, day) => {
-  return moment()
-    .year(year)
-    .month(month - 1)
-    .date(day);
+  // Validate inputs
+  if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
+    return null;
+  }
+
+  try {
+    const m = moment()
+      .year(year)
+      .month(month - 1)
+      .date(day);
+
+    // Verify the date is valid
+    if (!m.isValid()) {
+      return null;
+    }
+
+    return m;
+  } catch (error) {
+    return null;
+  }
 };
 
 /**
@@ -94,29 +129,53 @@ export const toDateData = (momentObj, approximate = false) => {
     return null;
   }
 
-  // Get Gregorian values
-  const gregorian = {
-    year: momentObj.year(),
-    month: momentObj.month() + 1,
-    day: momentObj.date(),
-  };
+  try {
+    // Get Gregorian values
+    const gregorian = {
+      year: momentObj.year(),
+      month: momentObj.month() + 1,
+      day: momentObj.date(),
+    };
 
-  // Get Hijri values
-  const hijri = {
-    year: momentObj.iYear(),
-    month: momentObj.iMonth() + 1,
-    day: momentObj.iDate(),
-  };
+    // Get Hijri values with error handling
+    let hijri;
+    let display;
 
-  // Format display string (Hijri by default)
-  const display = `${toArabicNumerals(hijri.day)}/${toArabicNumerals(hijri.month)}/${toArabicNumerals(hijri.year)} هـ`;
+    try {
+      const hijriYear = momentObj.iYear();
+      const hijriMonth = momentObj.iMonth() + 1;
+      const hijriDay = momentObj.iDate();
 
-  return {
-    gregorian,
-    hijri,
-    approximate,
-    display,
-  };
+      // Validate Hijri values
+      if (!isNaN(hijriDay) && !isNaN(hijriMonth) && !isNaN(hijriYear)) {
+        hijri = {
+          year: hijriYear,
+          month: hijriMonth,
+          day: hijriDay,
+        };
+
+        // Format display string (Hijri)
+        display = `${toArabicNumerals(hijri.day)}/${toArabicNumerals(hijri.month)}/${toArabicNumerals(hijri.year)} هـ`;
+      } else {
+        // If Hijri conversion fails, use Gregorian display
+        hijri = null;
+        display = `${gregorian.day}/${gregorian.month}/${gregorian.year}`;
+      }
+    } catch (hijriError) {
+      // If Hijri conversion throws an error, use Gregorian display
+      hijri = null;
+      display = `${gregorian.day}/${gregorian.month}/${gregorian.year}`;
+    }
+
+    return {
+      gregorian,
+      hijri,
+      approximate,
+      display,
+    };
+  } catch (error) {
+    return null;
+  }
 };
 
 /**
@@ -125,22 +184,26 @@ export const toDateData = (momentObj, approximate = false) => {
 export const fromDateData = (dateData) => {
   if (!dateData) return null;
 
-  // Prefer Gregorian for internal consistency
-  if (dateData.gregorian) {
-    return createFromGregorian(
-      dateData.gregorian.year,
-      dateData.gregorian.month,
-      dateData.gregorian.day,
-    );
-  }
+  try {
+    // Prefer Gregorian for internal consistency
+    if (dateData.gregorian) {
+      return createFromGregorian(
+        dateData.gregorian.year,
+        dateData.gregorian.month,
+        dateData.gregorian.day,
+      );
+    }
 
-  // Fallback to Hijri if Gregorian not available
-  if (dateData.hijri) {
-    return createFromHijri(
-      dateData.hijri.year,
-      dateData.hijri.month,
-      dateData.hijri.day,
-    );
+    // Fallback to Hijri if Gregorian not available
+    if (dateData.hijri) {
+      return createFromHijri(
+        dateData.hijri.year,
+        dateData.hijri.month,
+        dateData.hijri.day,
+      );
+    }
+  } catch (error) {
+    return null;
   }
 
   return null;
@@ -150,6 +213,7 @@ export const fromDateData = (dateData) => {
  * Get month name in Arabic
  */
 export const getMonthName = (monthIndex, isHijri = true) => {
+  if (monthIndex < 0 || monthIndex > 11) return "";
   return isHijri ? hijriMonths[monthIndex] : gregorianMonthsAr[monthIndex];
 };
 
@@ -164,97 +228,115 @@ export const getWeekdayNames = (short = false) => {
  * Generate calendar days for a given month
  */
 export const generateCalendarDays = (year, month, isHijri = true) => {
-  let firstDay, daysInMonth, startingDayOfWeek;
+  if (!year || !month || isNaN(year) || isNaN(month)) {
+    return [];
+  }
 
-  if (isHijri) {
-    // Create a Hijri date for the first day of the month
-    const currentMonth = moment()
-      .iYear(year)
-      .iMonth(month - 1)
-      .iDate(1);
-    firstDay = currentMonth.clone().startOf("iMonth");
-    daysInMonth = currentMonth.iDaysInMonth();
-    startingDayOfWeek = firstDay.day();
+  try {
+    let firstDay, daysInMonth, startingDayOfWeek;
 
-    // Get previous month days
-    const prevMonth = currentMonth.clone().subtract(1, "iMonth");
-    const daysInPrevMonth = prevMonth.iDaysInMonth();
+    if (isHijri) {
+      // Create a Hijri date for the first day of the month
+      const currentMonth = moment()
+        .iYear(year)
+        .iMonth(month - 1)
+        .iDate(1);
 
-    const days = [];
+      if (!currentMonth.isValid()) {
+        return [];
+      }
 
-    // Previous month's trailing days
-    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      days.push({
-        day: daysInPrevMonth - i,
-        isCurrentMonth: false,
-        isPrevMonth: true,
-      });
+      firstDay = currentMonth.clone().startOf("iMonth");
+      daysInMonth = currentMonth.iDaysInMonth();
+      startingDayOfWeek = firstDay.day();
+
+      // Get previous month days
+      const prevMonth = currentMonth.clone().subtract(1, "iMonth");
+      const daysInPrevMonth = prevMonth.iDaysInMonth();
+
+      const days = [];
+
+      // Previous month's trailing days
+      for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+        days.push({
+          day: daysInPrevMonth - i,
+          isCurrentMonth: false,
+          isPrevMonth: true,
+        });
+      }
+
+      // Current month's days
+      for (let i = 1; i <= daysInMonth; i++) {
+        days.push({
+          day: i,
+          isCurrentMonth: true,
+          isPrevMonth: false,
+        });
+      }
+
+      // Next month's leading days (to fill the grid to 42 cells)
+      const remainingCells = 42 - days.length;
+      for (let i = 1; i <= remainingCells; i++) {
+        days.push({
+          day: i,
+          isCurrentMonth: false,
+          isPrevMonth: false,
+        });
+      }
+
+      return days;
+    } else {
+      // Gregorian calendar
+      const currentMonth = moment()
+        .year(year)
+        .month(month - 1)
+        .date(1);
+
+      if (!currentMonth.isValid()) {
+        return [];
+      }
+
+      firstDay = currentMonth.clone().startOf("month");
+      daysInMonth = currentMonth.daysInMonth();
+      startingDayOfWeek = firstDay.day();
+
+      const prevMonth = currentMonth.clone().subtract(1, "month");
+      const daysInPrevMonth = prevMonth.daysInMonth();
+
+      const days = [];
+
+      // Previous month's trailing days
+      for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+        days.push({
+          day: daysInPrevMonth - i,
+          isCurrentMonth: false,
+          isPrevMonth: true,
+        });
+      }
+
+      // Current month's days
+      for (let i = 1; i <= daysInMonth; i++) {
+        days.push({
+          day: i,
+          isCurrentMonth: true,
+          isPrevMonth: false,
+        });
+      }
+
+      // Next month's leading days (to fill the grid to 42 cells)
+      const remainingCells = 42 - days.length;
+      for (let i = 1; i <= remainingCells; i++) {
+        days.push({
+          day: i,
+          isCurrentMonth: false,
+          isPrevMonth: false,
+        });
+      }
+
+      return days;
     }
-
-    // Current month's days
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: true,
-        isPrevMonth: false,
-      });
-    }
-
-    // Next month's leading days (to fill the grid to 42 cells)
-    const remainingCells = 42 - days.length;
-    for (let i = 1; i <= remainingCells; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: false,
-        isPrevMonth: false,
-      });
-    }
-
-    return days;
-  } else {
-    // Gregorian calendar
-    const currentMonth = moment()
-      .year(year)
-      .month(month - 1)
-      .date(1);
-    firstDay = currentMonth.clone().startOf("month");
-    daysInMonth = currentMonth.daysInMonth();
-    startingDayOfWeek = firstDay.day();
-
-    const prevMonth = currentMonth.clone().subtract(1, "month");
-    const daysInPrevMonth = prevMonth.daysInMonth();
-
-    const days = [];
-
-    // Previous month's trailing days
-    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      days.push({
-        day: daysInPrevMonth - i,
-        isCurrentMonth: false,
-        isPrevMonth: true,
-      });
-    }
-
-    // Current month's days
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: true,
-        isPrevMonth: false,
-      });
-    }
-
-    // Next month's leading days (to fill the grid to 42 cells)
-    const remainingCells = 42 - days.length;
-    for (let i = 1; i <= remainingCells; i++) {
-      days.push({
-        day: i,
-        isCurrentMonth: false,
-        isPrevMonth: false,
-      });
-    }
-
-    return days;
+  } catch (error) {
+    return [];
   }
 };
 

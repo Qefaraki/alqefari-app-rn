@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
@@ -137,6 +138,9 @@ const ProfileSheet = ({ editMode = false }) => {
   const [saving, setSaving] = useState(false);
   const [editedData, setEditedData] = useState(null);
   const [dateErrors, setDateErrors] = useState({ dob: null, dod: null });
+
+  // Animation for death date field
+  const deathDateHeight = useRef(new Animated.Value(0)).current;
 
   // Snap points matching original (0.4, 0.9, 1)
   const snapPoints = useMemo(() => ["40%", "90%", "100%"], []);
@@ -368,6 +372,15 @@ const ProfileSheet = ({ editMode = false }) => {
       });
     }
   }, [isEditing, person]);
+
+  // Animate death date field visibility
+  useEffect(() => {
+    Animated.timing(deathDateHeight, {
+      toValue: editedData?.status === "deceased" ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [editedData?.status]);
 
   // Handle date changes with validation
   const handleDateChange = (field, value) => {
@@ -816,18 +829,26 @@ const ProfileSheet = ({ editMode = false }) => {
                       />
                     </View>
 
-                    {editedData?.status === "deceased" && (
-                      <View style={{ marginTop: 16 }}>
-                        <DateEditor
-                          label="تاريخ الوفاة"
-                          value={editedData?.dod_data}
-                          onChange={(value) =>
-                            handleDateChange("dod_data", value)
-                          }
-                          error={dateErrors.dod}
-                        />
-                      </View>
-                    )}
+                    <Animated.View
+                      style={{
+                        marginTop: 16,
+                        opacity: deathDateHeight,
+                        maxHeight: deathDateHeight.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 500],
+                        }),
+                        overflow: "hidden",
+                      }}
+                    >
+                      <DateEditor
+                        label="تاريخ الوفاة"
+                        value={editedData?.dod_data}
+                        onChange={(value) =>
+                          handleDateChange("dod_data", value)
+                        }
+                        error={dateErrors.dod}
+                      />
+                    </Animated.View>
                   </>
                 )}
 
