@@ -113,7 +113,7 @@ const DraggableNode = ({
             {child.name || "جديد"}
           </Text>
           <View style={styles.orderBadge}>
-            <Text style={styles.orderBadgeText}>{index + 1}</Text>
+            <Text style={styles.orderBadgeText}>{totalChildren - index}</Text>
           </View>
         </View>
       </Animated.View>
@@ -158,16 +158,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       console.log("QuickAddOverlay: sorted siblings:", sortedSiblings);
 
-      // RTL: Ghost (newest/youngest) goes FIRST (appears on left)
-      // Then siblings from oldest to youngest (right to left)
-      setAllChildren([ghost, ...sortedSiblings]);
+      // RTL visual order: newest (left) to oldest (right)
+      // But in array: oldest first for correct numbering
+      setAllChildren([...sortedSiblings.reverse(), ghost]);
       setNewChildName("");
       setNewChildGender("male");
 
-      // Auto-focus and scroll to beginning (left) after modal animation
+      // Auto-focus after modal animation
       setTimeout(() => {
         inputRef.current?.focus();
-        scrollViewRef.current?.scrollTo({ x: 0, animated: true });
+        // No need to scroll, flex-direction: row-reverse handles RTL display
       }, 400);
     }
   }, [visible, parentNode, siblings]);
@@ -223,18 +223,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         sibling_order: updated.filter((c) => c.isNew).length,
       };
 
-      // RTL: New ghost at beginning (left), then other children
-      return [newGhost, ...updated.filter((c) => !c.isGhost)];
+      // Maintain proper order for numbering
+      return [...updated.filter((c) => !c.isGhost), newGhost];
     });
 
     setNewChildName("");
     setNewChildGender("male");
     inputRef.current?.focus();
 
-    // Scroll to beginning (left) to show new ghost
-    setTimeout(() => {
-      scrollViewRef.current?.scrollTo({ x: 0, animated: true });
-    }, 100);
+    // No need to scroll, row-reverse handles RTL
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -454,7 +451,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               onPress={handleAddAnother}
             >
               <Ionicons name="add-circle-outline" size={22} color="#007AFF" />
-              <Text style={styles.addAnotherText}>إضافة آخر</Text>
+              <Text style={styles.addAnotherText}>إضافة طفل آخر</Text>
             </TouchableOpacity>
           </View>
 
@@ -466,7 +463,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               disabled={loading || newChildrenCount === 0}
             >
               <Text style={styles.saveButtonText}>
-                {loading ? "جارِ الحفظ..." : `حفظ الكل (${newChildrenCount})`}
+                {loading
+                  ? "جارِ الحفظ..."
+                  : newChildrenCount === 1
+                    ? "حفظ"
+                    : `حفظ الكل (${newChildrenCount})`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
   previewScroll: {
     paddingHorizontal: 16,
     alignItems: "center",
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: Start from right
   },
   hint: {
     fontSize: 12,
