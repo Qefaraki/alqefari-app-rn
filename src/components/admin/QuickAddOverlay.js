@@ -285,6 +285,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           const result = await profilesService.createProfile({
             name: child.name,
             gender: child.gender,
+            generation: parentNode.generation + 1,
             father_id: parentNode.gender === "male" ? parentNode.id : null,
             mother_id: parentNode.gender === "female" ? parentNode.id : null,
             sibling_order: child.sibling_order,
