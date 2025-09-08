@@ -1251,18 +1251,15 @@ const TreeView = ({ setProfileEditMode }) => {
           "ID:",
           pressedNode.id,
         );
+        console.log("Node already has children:", pressedNode.children);
 
         // Haptic feedback
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        // Get children of this node
-        const children =
-          treeData?.nodes?.filter(
-            (n) =>
-              n.father_id === pressedNode.id || n.mother_id === pressedNode.id,
-          ) || [];
+        // The node already has its children attached!
+        const children = pressedNode.children || [];
 
-        console.log("Found children:", children.length);
+        console.log("Found children from node.children:", children.length);
         console.log(
           "Children details:",
           children.map((c) => ({
@@ -1273,7 +1270,7 @@ const TreeView = ({ setProfileEditMode }) => {
           })),
         );
 
-        // Sort children by sibling_order
+        // Sort children by sibling_order (they should already be sorted)
         children.sort(
           (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),
         );
@@ -2182,14 +2179,11 @@ const TreeView = ({ setProfileEditMode }) => {
         siblings={(() => {
           if (!quickAddParent) return [];
 
-          const children =
-            treeData?.nodes?.filter(
-              (n) =>
-                n.father_id === quickAddParent.id ||
-                n.mother_id === quickAddParent.id,
-            ) || [];
+          // Use the children already attached to the parent node
+          const children = quickAddParent.children || [];
 
           console.log("Passing siblings to QuickAddOverlay:", children.length);
+          console.log("Siblings:", children);
 
           return children.sort(
             (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),

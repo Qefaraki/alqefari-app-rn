@@ -44,11 +44,7 @@ class SkiaImageCache {
         
         const finalUrl = urlObj.toString();
         
-        if (__DEV__) {
-          console.log(`🌳 TREE CACHE: Transforming URL for bucket ${bucket}`);
-          console.log(`  Original: ${url}`);
-          console.log(`  Transformed: ${finalUrl}`);
-        }
+        // Removed console.log for cleaner output
         
         return finalUrl;
       } catch (error) {
