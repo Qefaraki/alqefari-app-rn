@@ -574,7 +574,7 @@ const TreeView = ({ setProfileEditMode }) => {
     } catch (err) {
       console.error("Failed to load tree data:", err);
       // Fall back to local data
-      setLocalTreeData(familyData);
+      setTreeData(familyData);
       setTreeData(familyData);
     } finally {
       setIsLoading(false);
