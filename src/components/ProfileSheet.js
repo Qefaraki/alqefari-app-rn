@@ -1,26 +1,28 @@
 import React, {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
-  useEffect,
   useState,
 } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  ScrollView,
-  Pressable,
-  Dimensions,
-  Platform,
-  Linking,
-  TextInput,
-  Switch,
-  TouchableOpacity,
-  Alert,
   ActivityIndicator,
+  Alert,
   Animated,
+  Dimensions,
+  Image,
+  LayoutAnimation,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
@@ -130,12 +132,22 @@ const ProfileSheet = ({ editMode = false }) => {
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
 
+  // Calculate status bar height based on platform
+  // iOS: typically 44-47px depending on device
+  // Android: use StatusBar.currentHeight
+  const statusBarHeight =
+    Platform.OS === "ios" ? 47 : StatusBar.currentHeight || 24;
+
+  // Animated value for smooth header margin transitions
+  // Start with collapsed margin value
+  const animatedMargin = useRef(new Animated.Value(10)).current;
+
   // Admin mode
   const { isAdminMode } = useAdminMode();
   const isEditing = editMode;
-  // console.log('ProfileSheet: editMode prop received:', editMode);
-  // console.log('ProfileSheet: isAdminMode from context:', isAdminMode);
-  // console.log('ProfileSheet: isEditing value:', isEditing);
+  console.log("ProfileSheet: editMode prop received:", editMode);
+  console.log("ProfileSheet: isAdminMode from context:", isAdminMode);
+  console.log("ProfileSheet: isEditing value:", isEditing);
 
   // Edit mode state
   const [saving, setSaving] = useState(false);
@@ -258,12 +270,26 @@ const ProfileSheet = ({ editMode = false }) => {
   }, [person, nodesMap]);
 
   // Handle sheet changes
-  const handleSheetChange = useCallback((index) => {
-    setCurrentSnapIndex(index);
-    if (index !== -1) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  }, []);
+  const handleSheetChange = useCallback(
+    (index) => {
+      setCurrentSnapIndex(index);
+
+      // When sheet is at 100% (index 2), add status bar height to margin
+      // When collapsed/partial, use minimal margin
+      const targetMargin = index === 2 ? statusBarHeight + 10 : 10;
+
+      Animated.timing(animatedMargin, {
+        toValue: targetMargin,
+        duration: 100, // Very fast animation
+        useNativeDriver: false,
+      }).start();
+
+      if (index !== -1) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+    },
+    [animatedMargin, statusBarHeight],
+  );
 
   // Custom handle: subtle edit affordance without text
   const renderHandle = useCallback(
@@ -547,19 +573,58 @@ const ProfileSheet = ({ editMode = false }) => {
       enablePanDownToClose
       animateOnMount
     >
+      {/* Edit mode header with save/cancel - always at top */}
+      {isAdminMode && (
+        <Animated.View
+          style={[styles.editHeader, { marginTop: animatedMargin }]}
+        >
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleCancel}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={[styles.headerButtonText, styles.cancelText]}>
+              إلغاء
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={styles.headerTitle}>تعديل الملف</Text>
+
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleSave}
+            disabled={
+              !hasChanges || saving || !!dateErrors.dob || !!dateErrors.dod
+            }
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <Text
+                style={[
+                  styles.headerButtonText,
+                  styles.saveText,
+                  (!hasChanges || !!dateErrors.dob || !!dateErrors.dod) &&
+                    styles.disabledText,
+                ]}
+              >
+                حفظ
+              </Text>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+
       <BottomSheetScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         ref={scrollRef}
-        onScroll={(event) => {
-          setScrollOffset(event.nativeEvent.contentOffset.y);
-        }}
-        scrollEventThrottle={16}
       >
         <View style={{ flex: 1 }}>
-          {/* Edit mode header with save/cancel - sticky when scrolling */}
-          {isEditing && (
+          {/* Remove the old header from here */}
+          {false && (
             <View
               style={[
                 styles.editHeader,
@@ -613,11 +678,6 @@ const ProfileSheet = ({ editMode = false }) => {
                 )}
               </TouchableOpacity>
             </View>
-          )}
-
-          {/* Spacer when header is sticky to prevent content jump */}
-          {isEditing && scrollOffset > 10 && (
-            <View style={{ height: headerHeight }} />
           )}
 
           {/* Unified hero card: image + description + metrics */}
