@@ -240,16 +240,8 @@ const DraggableChildrenList = ({
     }
   }, [children, onReorder]);
 
-  // Debounced save
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (children !== initialChildren) {
-        saveOrder();
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [children]);
+  // Removed automatic debounced save - only save when explicitly reordering
+  // This was causing the modal to close after 1 second
 
   // Handle delete with impact preview
   const handleDeleteChild = async (child) => {

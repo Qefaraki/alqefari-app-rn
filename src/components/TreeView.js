@@ -56,6 +56,8 @@ import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
+import { useSettings } from "../contexts/SettingsContext";
+import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
@@ -357,6 +359,7 @@ const TreeView = ({ setProfileEditMode }) => {
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
+  const { settings } = useSettings();
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
@@ -610,7 +613,10 @@ const TreeView = ({ setProfileEditMode }) => {
                 payload.new.marriages?.map((marriage) => ({
                   ...marriage,
                   marriage_date: marriage.marriage_date
-                    ? formatDateDisplay(marriage.marriage_date)
+                    ? formatDateByPreference(
+                        marriage.marriage_date,
+                        settings.defaultCalendar,
+                      )
                     : null,
                 })) || [],
             };
@@ -626,7 +632,10 @@ const TreeView = ({ setProfileEditMode }) => {
                 payload.new.marriages?.map((marriage) => ({
                   ...marriage,
                   marriage_date: marriage.marriage_date
-                    ? formatDateDisplay(marriage.marriage_date)
+                    ? formatDateByPreference(
+                        marriage.marriage_date,
+                        settings.defaultCalendar,
+                      )
                     : null,
                 })) || [],
             };

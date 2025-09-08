@@ -71,6 +71,8 @@ import ProgressiveImage, {
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
 import MarriageEditor from "./admin/MarriageEditor";
 import RelationshipManagerV2 from "./admin/RelationshipManagerV2";
+import { useSettings } from "../contexts/SettingsContext";
+import { formatDateByPreference } from "../utils/dateDisplay";
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -120,6 +122,7 @@ const ProfileSheet = ({ editMode = false }) => {
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((s) => s.treeData);
   const nodesMap = useTreeStore((s) => s.nodesMap);
+  const { settings } = useSettings();
   const bottomSheetRef = useRef(null);
   const scrollRef = useRef(null);
   const [copied, setCopied] = useState(false);
@@ -1198,13 +1201,20 @@ const ProfileSheet = ({ editMode = false }) => {
                 items={[
                   {
                     label: "تاريخ الميلاد",
-                    value: formatDateDisplay(person.dob_data) || "—",
+                    value:
+                      formatDateByPreference(
+                        person.dob_data,
+                        settings.defaultCalendar,
+                      ) || "—",
                   },
                   ...(person.dod_data
                     ? [
                         {
                           label: "تاريخ الوفاة",
-                          value: formatDateDisplay(person.dod_data),
+                          value: formatDateByPreference(
+                            person.dod_data,
+                            settings.defaultCalendar,
+                          ),
                         },
                       ]
                     : []),
@@ -1556,7 +1566,7 @@ const ProfileSheet = ({ editMode = false }) => {
               profile={person}
               onUpdate={() => {
                 // Reload person data if needed
-                setShowRelationshipManager(false);
+                // Don't close the modal on update - just refresh data if needed
               }}
             />
           )}
