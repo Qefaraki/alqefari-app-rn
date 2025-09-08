@@ -789,7 +789,7 @@ const ProfileSheet = ({ editMode = false }) => {
                             styles.toggleTextActive,
                         ]}
                       >
-                        على قيد الحياة
+                        حي
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity

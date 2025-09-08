@@ -1,170 +1,138 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   Switch,
-  TextInput,
-  Pressable,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  interpolate,
-} from "react-native-reanimated";
 import CardSurface from "../../ios/CardSurface";
 import SegmentedControl from "../../ui/SegmentedControl";
 import {
   toDateData,
-  fromDateData,
-  generateCalendarDays,
-  getMonthName,
-  getWeekdayNames,
   toArabicNumerals,
   createFromHijri,
   createFromGregorian,
 } from "../../../utils/dateUtils";
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 const DateEditor = ({ label, value, onChange, error }) => {
   // Ensure onChange is a function
   const handleChange = onChange || (() => {});
+
   // State management
-  const [currentDate, setCurrentDate] = useState(value);
   const [activeCalendar, setActiveCalendar] = useState("hijri");
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [manualInput, setManualInput] = useState("");
+  const [day, setDay] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
+  const [isApproximate, setIsApproximate] = useState(false);
 
-  // Display month/year for calendar view
-  const momentDate = useMemo(() => fromDateData(currentDate), [currentDate]);
-  const [displayYear, setDisplayYear] = useState(() => {
-    if (!momentDate) {
-      const now = new Date();
-      return activeCalendar === "hijri" ? 1446 : now.getFullYear();
+  // Initialize from value prop
+  useEffect(() => {
+    if (value) {
+      setIsApproximate(value.approximate || false);
+
+      if (activeCalendar === "hijri" && value.hijri) {
+        setDay(String(value.hijri.day || ""));
+        setMonth(String(value.hijri.month || ""));
+        setYear(String(value.hijri.year || ""));
+      } else if (activeCalendar === "gregorian" && value.gregorian) {
+        setDay(String(value.gregorian.day || ""));
+        setMonth(String(value.gregorian.month || ""));
+        setYear(String(value.gregorian.year || ""));
+      }
+    } else {
+      setDay("");
+      setMonth("");
+      setYear("");
+      setIsApproximate(false);
     }
-    if (activeCalendar === "hijri") {
-      return momentDate.iYear();
-    }
-    return momentDate.year();
-  });
+  }, [value, activeCalendar]);
 
-  const [displayMonth, setDisplayMonth] = useState(() => {
-    if (!momentDate) {
-      const now = new Date();
-      return activeCalendar === "hijri" ? 1 : now.getMonth() + 1;
-    }
-    if (activeCalendar === "hijri") {
-      return momentDate.iMonth() + 1;
-    }
-    return momentDate.month() + 1;
-  });
+  // Update date when any field changes
+  const updateDate = useCallback(
+    (newDay, newMonth, newYear, newApproximate) => {
+      // Validate inputs
+      const dayNum = parseInt(newDay);
+      const monthNum = parseInt(newMonth);
+      const yearNum = parseInt(newYear);
 
-  // Animation values
-  const calendarHeight = useSharedValue(showCalendar ? 1 : 0);
-  const calendarOpacity = useSharedValue(showCalendar ? 1 : 0);
-
-  const calendarAnimatedStyle = useAnimatedStyle(() => ({
-    height: interpolate(calendarHeight.value, [0, 1], [0, 400]),
-    opacity: calendarOpacity.value,
-    overflow: "hidden",
-  }));
-
-  // Handle calendar toggle
-  const toggleCalendar = useCallback(() => {
-    const newShow = !showCalendar;
-    setShowCalendar(newShow);
-    calendarHeight.value = withSpring(newShow ? 1 : 0);
-    calendarOpacity.value = withTiming(newShow ? 1 : 0);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [showCalendar]);
-
-  // Handle calendar type switch
-  const handleCalendarTypeChange = useCallback(
-    (newType) => {
-      setActiveCalendar(newType);
-
-      // Update display month/year based on current date
-      if (momentDate) {
-        if (newType === "hijri") {
-          setDisplayYear(momentDate.iYear());
-          setDisplayMonth(momentDate.iMonth() + 1);
-        } else {
-          setDisplayYear(momentDate.year());
-          setDisplayMonth(momentDate.month() + 1);
-        }
+      if (
+        !newDay ||
+        !newMonth ||
+        !newYear ||
+        isNaN(dayNum) ||
+        isNaN(monthNum) ||
+        isNaN(yearNum)
+      ) {
+        // If any field is empty or invalid, don't update
+        return;
       }
 
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    },
-    [momentDate],
-  );
-
-  // Handle day selection
-  const handleDayPress = useCallback(
-    (day) => {
-      if (!day.isCurrentMonth) return;
-
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      let selectedDate;
+      // Create date based on active calendar
+      let momentDate;
       if (activeCalendar === "hijri") {
-        selectedDate = createFromHijri(displayYear, displayMonth, day.day);
+        momentDate = createFromHijri(yearNum, monthNum, dayNum);
       } else {
-        selectedDate = createFromGregorian(displayYear, displayMonth, day.day);
+        momentDate = createFromGregorian(yearNum, monthNum, dayNum);
       }
 
-      const newDateData = toDateData(
-        selectedDate,
-        currentDate?.approximate || false,
-      );
-      setCurrentDate(newDateData);
-      handleChange(newDateData);
+      if (momentDate && momentDate.isValid()) {
+        const dateData = toDateData(momentDate, newApproximate);
+        handleChange(dateData);
+      }
     },
-    [activeCalendar, displayYear, displayMonth, currentDate, handleChange],
+    [activeCalendar, handleChange],
   );
 
-  // Handle month navigation
-  const handlePrevMonth = useCallback(() => {
+  // Handle individual field changes
+  const handleDayChange = (text) => {
+    // Only allow numbers
+    const cleaned = text.replace(/[^0-9]/g, "");
+    if (cleaned.length <= 2) {
+      setDay(cleaned);
+      updateDate(cleaned, month, year, isApproximate);
+    }
+  };
+
+  const handleMonthChange = (text) => {
+    // Only allow numbers
+    const cleaned = text.replace(/[^0-9]/g, "");
+    if (cleaned.length <= 2) {
+      setMonth(cleaned);
+      updateDate(day, cleaned, year, isApproximate);
+    }
+  };
+
+  const handleYearChange = (text) => {
+    // Only allow numbers
+    const cleaned = text.replace(/[^0-9]/g, "");
+    if (cleaned.length <= 4) {
+      setYear(cleaned);
+      updateDate(day, month, cleaned, isApproximate);
+    }
+  };
+
+  // Handle calendar type change
+  const handleCalendarTypeChange = useCallback((newType) => {
+    setActiveCalendar(newType);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    if (displayMonth === 1) {
-      setDisplayMonth(12);
-      setDisplayYear(displayYear - 1);
-    } else {
-      setDisplayMonth(displayMonth - 1);
-    }
-  }, [displayMonth, displayYear]);
-
-  const handleNextMonth = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    if (displayMonth === 12) {
-      setDisplayMonth(1);
-      setDisplayYear(displayYear + 1);
-    } else {
-      setDisplayMonth(displayMonth + 1);
-    }
-  }, [displayMonth, displayYear]);
+    // Clear fields when switching calendar type
+    setDay("");
+    setMonth("");
+    setYear("");
+  }, []);
 
   // Handle approximate toggle
   const handleApproximateToggle = useCallback(
-    (value) => {
+    (newValue) => {
+      setIsApproximate(newValue);
+      updateDate(day, month, year, newValue);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      if (currentDate) {
-        const newDateData = { ...currentDate, approximate: value };
-        setCurrentDate(newDateData);
-        handleChange(newDateData);
-      }
     },
-    [currentDate, handleChange],
+    [day, month, year, updateDate],
   );
 
   // Handle presets
@@ -172,68 +140,46 @@ const DateEditor = ({ label, value, onChange, error }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Success);
 
     const today = new Date();
-    const todayMoment = createFromGregorian(
-      today.getFullYear(),
-      today.getMonth() + 1,
-      today.getDate(),
-    );
-    const newDateData = toDateData(todayMoment, false);
-    setCurrentDate(newDateData);
-    handleChange(newDateData);
+    if (activeCalendar === "gregorian") {
+      setDay(String(today.getDate()));
+      setMonth(String(today.getMonth() + 1));
+      setYear(String(today.getFullYear()));
 
-    // Update display to show today
-    if (activeCalendar === "hijri") {
-      setDisplayYear(todayMoment.iYear());
-      setDisplayMonth(todayMoment.iMonth() + 1);
+      const todayMoment = createFromGregorian(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        today.getDate(),
+      );
+      const dateData = toDateData(todayMoment, false);
+      handleChange(dateData);
     } else {
-      setDisplayYear(today.getFullYear());
-      setDisplayMonth(today.getMonth() + 1);
+      // For Hijri, we need to convert today's date
+      const todayMoment = createFromGregorian(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        today.getDate(),
+      );
+
+      if (todayMoment) {
+        const dateData = toDateData(todayMoment, false);
+        if (dateData && dateData.hijri) {
+          setDay(String(dateData.hijri.day));
+          setMonth(String(dateData.hijri.month));
+          setYear(String(dateData.hijri.year));
+          handleChange(dateData);
+        }
+      }
     }
   }, [activeCalendar, handleChange]);
 
-  const handleUnknown = useCallback(() => {
+  const handleClear = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCurrentDate(null);
+    setDay("");
+    setMonth("");
+    setYear("");
+    setIsApproximate(false);
     handleChange(null);
   }, [handleChange]);
-
-  // Generate calendar days
-  const calendarDays = useMemo(
-    () =>
-      generateCalendarDays(
-        displayYear,
-        displayMonth,
-        activeCalendar === "hijri",
-      ),
-    [displayYear, displayMonth, activeCalendar],
-  );
-
-  // Get weekday names
-  const weekdays = useMemo(() => getWeekdayNames(true), []);
-
-  // Check if a day is selected
-  const isSelectedDay = useCallback(
-    (day) => {
-      if (!day.isCurrentMonth || !currentDate) return false;
-
-      if (activeCalendar === "hijri" && currentDate.hijri) {
-        return (
-          currentDate.hijri.year === displayYear &&
-          currentDate.hijri.month === displayMonth &&
-          currentDate.hijri.day === day.day
-        );
-      } else if (activeCalendar === "gregorian" && currentDate.gregorian) {
-        return (
-          currentDate.gregorian.year === displayYear &&
-          currentDate.gregorian.month === displayMonth &&
-          currentDate.gregorian.day === day.day
-        );
-      }
-
-      return false;
-    },
-    [currentDate, activeCalendar, displayYear, displayMonth],
-  );
 
   return (
     <View style={styles.container}>
@@ -241,31 +187,8 @@ const DateEditor = ({ label, value, onChange, error }) => {
 
       <CardSurface>
         <View style={styles.content}>
-          {/* Display current date */}
-          <TouchableOpacity
-            style={styles.dateDisplay}
-            onPress={toggleCalendar}
-            activeOpacity={0.7}
-          >
-            <View style={styles.dateDisplayContent}>
-              <Text style={styles.dateDisplayText}>
-                {currentDate ? currentDate.display : "اختر التاريخ"}
-              </Text>
-              {currentDate?.approximate && (
-                <View style={styles.approximateBadge}>
-                  <Text style={styles.approximateText}>تقريبي</Text>
-                </View>
-              )}
-            </View>
-            <Ionicons
-              name={showCalendar ? "chevron-up" : "chevron-down"}
-              size={20}
-              color="#8A8A8E"
-            />
-          </TouchableOpacity>
-
           {/* Calendar type selector */}
-          <View style={styles.calendarTypeContainer}>
+          <View style={styles.segmentContainer}>
             <SegmentedControl
               options={[
                 { label: "هجري", value: "hijri" },
@@ -276,68 +199,67 @@ const DateEditor = ({ label, value, onChange, error }) => {
             />
           </View>
 
-          {/* Calendar view */}
-          <Animated.View style={calendarAnimatedStyle}>
-            {/* Calendar header */}
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity
-                onPress={handlePrevMonth}
-                style={styles.navButton}
-              >
-                <Ionicons name="chevron-forward" size={24} color="#007AFF" />
-              </TouchableOpacity>
+          {/* Date input fields */}
+          <View style={styles.inputRow}>
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>يوم</Text>
+              <TextInput
+                style={styles.input}
+                value={day}
+                onChangeText={handleDayChange}
+                placeholder={activeCalendar === "hijri" ? "١-٣٠" : "1-31"}
+                keyboardType="number-pad"
+                maxLength={2}
+                textAlign="center"
+              />
+            </View>
 
-              <Text style={styles.monthYearText}>
-                {getMonthName(displayMonth - 1, activeCalendar === "hijri")}{" "}
-                {toArabicNumerals(displayYear)}
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>شهر</Text>
+              <TextInput
+                style={styles.input}
+                value={month}
+                onChangeText={handleMonthChange}
+                placeholder="١-١٢"
+                keyboardType="number-pad"
+                maxLength={2}
+                textAlign="center"
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>سنة</Text>
+              <TextInput
+                style={[styles.input, styles.yearInput]}
+                value={year}
+                onChangeText={handleYearChange}
+                placeholder={activeCalendar === "hijri" ? "١٤٤٦" : "2024"}
+                keyboardType="number-pad"
+                maxLength={4}
+                textAlign="center"
+              />
+            </View>
+          </View>
+
+          {/* Display converted date */}
+          {value && (
+            <View style={styles.conversionDisplay}>
+              <Text style={styles.conversionLabel}>
+                {activeCalendar === "hijri"
+                  ? "التاريخ الميلادي:"
+                  : "التاريخ الهجري:"}
               </Text>
-
-              <TouchableOpacity
-                onPress={handleNextMonth}
-                style={styles.navButton}
-              >
-                <Ionicons name="chevron-back" size={24} color="#007AFF" />
-              </TouchableOpacity>
+              <Text style={styles.conversionText}>
+                {activeCalendar === "hijri"
+                  ? value.gregorian
+                    ? `${value.gregorian.day}/${value.gregorian.month}/${value.gregorian.year}`
+                    : "—"
+                  : value.hijri
+                    ? `${toArabicNumerals(value.hijri.day)}/${toArabicNumerals(value.hijri.month)}/${toArabicNumerals(value.hijri.year)} هـ`
+                    : "—"}
+              </Text>
             </View>
-
-            {/* Weekday headers */}
-            <View style={styles.weekdayRow}>
-              {weekdays.map((day, index) => (
-                <View key={index} style={styles.weekdayCell}>
-                  <Text style={styles.weekdayText}>{day}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Calendar grid */}
-            <View style={styles.calendarGrid}>
-              {calendarDays.map((day, index) => {
-                const isSelected = isSelectedDay(day);
-                return (
-                  <AnimatedPressable
-                    key={index}
-                    style={[
-                      styles.dayCell,
-                      !day.isCurrentMonth && styles.otherMonthDay,
-                      isSelected && styles.selectedDay,
-                    ]}
-                    onPress={() => handleDayPress(day)}
-                    disabled={!day.isCurrentMonth}
-                  >
-                    <Text
-                      style={[
-                        styles.dayText,
-                        !day.isCurrentMonth && styles.otherMonthDayText,
-                        isSelected && styles.selectedDayText,
-                      ]}
-                    >
-                      {toArabicNumerals(day.day)}
-                    </Text>
-                  </AnimatedPressable>
-                );
-              })}
-            </View>
-          </Animated.View>
+          )}
 
           {/* Controls */}
           <View style={styles.controls}>
@@ -345,7 +267,7 @@ const DateEditor = ({ label, value, onChange, error }) => {
             <View style={styles.approximateRow}>
               <Text style={styles.approximateLabel}>تاريخ تقريبي</Text>
               <Switch
-                value={currentDate?.approximate || false}
+                value={isApproximate}
                 onValueChange={handleApproximateToggle}
                 trackColor={{ false: "#E5E5EA", true: "#34C759" }}
                 thumbColor="#FFFFFF"
@@ -364,14 +286,12 @@ const DateEditor = ({ label, value, onChange, error }) => {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.presetButton, styles.unknownButton]}
-                onPress={handleUnknown}
+                style={[styles.presetButton, styles.clearButton]}
+                onPress={handleClear}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={[styles.presetButtonText, styles.unknownButtonText]}
-                >
-                  غير معروف
+                <Text style={[styles.presetButtonText, styles.clearButtonText]}>
+                  مسح
                 </Text>
               </TouchableOpacity>
             </View>
@@ -398,107 +318,61 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
   },
-  dateDisplay: {
+  segmentContainer: {
+    marginBottom: 20,
+  },
+  inputRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
+    gap: 12,
+    marginBottom: 16,
   },
-  dateDisplayContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  dateDisplayText: {
-    fontSize: 18,
-    color: "#000000",
-    fontFamily: "SF Arabic Regular",
-  },
-  approximateBadge: {
-    backgroundColor: "#FFF3CD",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  approximateText: {
-    fontSize: 12,
-    color: "#856404",
-    fontFamily: "SF Arabic Regular",
-  },
-  calendarTypeContainer: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  calendarHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-  },
-  navButton: {
-    padding: 8,
-  },
-  monthYearText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000000",
-    fontFamily: "SF Arabic Regular",
-  },
-  weekdayRow: {
-    flexDirection: "row",
-    paddingBottom: 8,
-  },
-  weekdayCell: {
+  inputWrapper: {
     flex: 1,
-    alignItems: "center",
   },
-  weekdayText: {
+  inputLabel: {
     fontSize: 12,
     color: "#8A8A8E",
+    marginBottom: 4,
+    textAlign: "center",
     fontFamily: "SF Arabic Regular",
   },
-  calendarGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  dayCell: {
-    width: "14.28%",
-    aspectRatio: 1,
-    alignItems: "center",
-    justifyContent: "center",
+  input: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
     borderRadius: 8,
+    fontSize: 18,
+    fontWeight: "500",
+    color: "#000000",
+    backgroundColor: "#FFFFFF",
   },
-  otherMonthDay: {
-    opacity: 0.3,
+  yearInput: {
+    flex: 1.5,
   },
-  selectedDay: {
-    backgroundColor: "#007AFF",
+  conversionDisplay: {
+    backgroundColor: "#F7F7FA",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
   },
-  dayText: {
+  conversionLabel: {
+    fontSize: 12,
+    color: "#8A8A8E",
+    marginBottom: 4,
+    fontFamily: "SF Arabic Regular",
+  },
+  conversionText: {
     fontSize: 16,
     color: "#000000",
     fontFamily: "SF Arabic Regular",
   },
-  otherMonthDayText: {
-    color: "#8A8A8E",
-  },
-  selectedDayText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-  },
   controls: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#E5E5EA",
+    gap: 16,
   },
   approximateRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 16,
   },
   approximateLabel: {
     fontSize: 16,
@@ -516,7 +390,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
   },
-  unknownButton: {
+  clearButton: {
     backgroundColor: "#E5E5EA",
   },
   presetButtonText: {
@@ -525,7 +399,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic Regular",
   },
-  unknownButtonText: {
+  clearButtonText: {
     color: "#8A8A8E",
   },
   errorText: {
