@@ -70,6 +70,7 @@ import ProgressiveImage, {
 } from "./ProgressiveImage";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
 import MarriageEditor from "./admin/MarriageEditor";
+import RelationshipManagerV2 from "./admin/RelationshipManagerV2";
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -132,6 +133,7 @@ const ProfileSheet = ({ editMode = false }) => {
   const [loadingMarriages, setLoadingMarriages] = useState(false);
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
+  const [showRelationshipManager, setShowRelationshipManager] = useState(false);
 
   // Calculate status bar height based on platform
   // iOS: typically 44-47px depending on device
@@ -146,9 +148,6 @@ const ProfileSheet = ({ editMode = false }) => {
   // Admin mode
   const { isAdminMode } = useAdminMode();
   const isEditing = editMode;
-  console.log("ProfileSheet: editMode prop received:", editMode);
-  console.log("ProfileSheet: isAdminMode from context:", isAdminMode);
-  console.log("ProfileSheet: isEditing value:", isEditing);
 
   // Edit mode state
   const [saving, setSaving] = useState(false);
@@ -750,10 +749,14 @@ const ProfileSheet = ({ editMode = false }) => {
                 style={{ width: "100%" }}
                 accessibilityLabel="نسخ الاسم الكامل"
               >
-                <Text style={styles.fullName}>
-                  {fullName}
-                  {copied && <Text style={styles.copiedText}> • تم النسخ</Text>}
-                </Text>
+                <View style={{ width: "100%" }}>
+                  <Text style={styles.fullName}>
+                    {fullName}
+                    {copied && (
+                      <Text style={styles.copiedText}> • تم النسخ</Text>
+                    )}
+                  </Text>
+                </View>
               </Pressable>
               {/* Header highlight chips */}
               {/* Chips removed; occupation and city moved into metrics grid */}
@@ -836,7 +839,19 @@ const ProfileSheet = ({ editMode = false }) => {
                 ) : null}
               </View>
 
-              {/* Primary action removed per request */}
+              {/* Admin Actions */}
+              {isAdminMode && person && (
+                <View style={styles.adminActions}>
+                  <TouchableOpacity
+                    style={styles.adminActionButton}
+                    onPress={() => setShowRelationshipManager(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="people" size={20} color="#007AFF" />
+                    <Text style={styles.adminActionText}>إدارة العلاقات</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
 
@@ -1532,6 +1547,19 @@ const ProfileSheet = ({ editMode = false }) => {
               onCreated={handleMarriageCreated}
             />
           )}
+
+          {/* Relationship Manager Modal */}
+          {person && (
+            <RelationshipManagerV2
+              visible={showRelationshipManager}
+              onClose={() => setShowRelationshipManager(false)}
+              profile={person}
+              onUpdate={() => {
+                // Reload person data if needed
+                setShowRelationshipManager(false);
+              }}
+            />
+          )}
         </>
       )}
     </BottomSheet>
@@ -1599,6 +1627,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
     lineHeight: 24,
     writingDirection: "rtl",
+    width: "100%",
   },
   copiedText: {
     color: "#059669",
@@ -1621,6 +1650,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#111827",
     fontFamily: "SF Arabic",
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 
   // Metrics grid
@@ -1656,6 +1687,8 @@ const styles = StyleSheet.create({
   familyActionText: {
     fontSize: 14,
     fontWeight: "600",
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   pill: {
     flexGrow: 1,
@@ -1869,7 +1902,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 12,
-    alignSelf: "flex-start",
+    alignSelf: "flex-end",
     backgroundColor: "#111827",
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -1879,6 +1912,8 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontFamily: "SF Arabic",
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 
   // Edit mode styles
@@ -1908,6 +1943,32 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  // Admin Actions
+  adminActions: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "#E5E5EA",
+  },
+  adminActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: "#F0F9FF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#007AFF20",
+  },
+  adminActionText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#007AFF",
+    fontFamily: "SF Arabic Regular",
+  },
+
   // Field editing styles
   fieldLabel: {
     fontSize: 14,
@@ -1926,7 +1987,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   toggleRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     gap: 8,
   },
   toggleButton: {
@@ -1943,12 +2004,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#666666",
     fontWeight: "500",
+    textAlign: "center",
+    writingDirection: "rtl",
   },
   toggleTextActive: {
     color: "#FFFFFF",
   },
   privacyRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
@@ -1956,6 +2019,8 @@ const styles = StyleSheet.create({
   privacyLabel: {
     fontSize: 15,
     color: "#000000",
+    textAlign: "right",
+    writingDirection: "rtl",
   },
 
   // Handle styles with subtle edit indicator
@@ -1988,7 +2053,7 @@ const styles = StyleSheet.create({
   // New edit header styles
   editHeader: {
     height: 44,
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,

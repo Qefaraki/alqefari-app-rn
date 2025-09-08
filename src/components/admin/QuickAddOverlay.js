@@ -25,6 +25,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
+import MotherSelector from "./fields/MotherSelector";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -127,6 +128,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [newChildGender, setNewChildGender] = useState("male");
   const [allChildren, setAllChildren] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedMotherId, setSelectedMotherId] = useState(null);
   const inputRef = useRef(null);
   const scrollViewRef = useRef(null);
   const { refreshProfile } = useStore();
@@ -157,6 +159,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       setAllChildren([ghost, ...sortedSiblings]);
       setNewChildName("");
       setNewChildGender("male");
+      setSelectedMotherId(null); // Reset mother selection
 
       // Auto-focus after modal animation
       setTimeout(() => {
@@ -272,11 +275,22 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       );
       console.log("Children to save:", childrenToSave);
 
-      // Try bulk create first
-      const { data, error } = await profilesService.bulkCreateChildren(
-        parentNode.id,
-        childrenToSave,
-      );
+      // Determine parent type and prepare parameters
+      const parentType = parentNode.gender === "male" ? "father" : "mother";
+
+      // If parent is male and a mother is selected, use new bulk create with mother
+      // Otherwise use standard bulk create
+      const { data, error } =
+        parentNode.gender === "male" && selectedMotherId
+          ? await profilesService.bulkCreateChildrenWithMother(
+              parentNode.id,
+              selectedMotherId,
+              childrenToSave,
+            )
+          : await profilesService.bulkCreateChildren(
+              parentNode.id,
+              childrenToSave,
+            );
 
       if (error) {
         // Fallback to individual creates
@@ -287,7 +301,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
             gender: child.gender,
             generation: parentNode.generation + 1,
             father_id: parentNode.gender === "male" ? parentNode.id : null,
-            mother_id: parentNode.gender === "female" ? parentNode.id : null,
+            mother_id:
+              parentNode.gender === "female" ? parentNode.id : selectedMotherId,
             sibling_order: child.sibling_order,
           });
 
@@ -459,6 +474,18 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Mother Selector - only show if parent is male */}
+            {parentNode?.gender === "male" && (
+              <View style={styles.motherSection}>
+                <MotherSelector
+                  fatherId={parentNode.id}
+                  value={selectedMotherId}
+                  onChange={setSelectedMotherId}
+                  label="الأم (اختياري)"
+                />
+              </View>
+            )}
 
             <TouchableOpacity
               style={styles.addAnotherButton}
@@ -676,6 +703,10 @@ const styles = StyleSheet.create({
   },
   genderTextActive: {
     color: "#FFF",
+  },
+  motherSection: {
+    marginTop: 16,
+    marginBottom: 8,
   },
   addAnotherButton: {
     flexDirection: "row",

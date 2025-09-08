@@ -176,11 +176,52 @@ export const profilesService = {
     try {
       const { data, error } = await supabase.rpc("admin_bulk_create_children", {
         p_parent_id: parentId,
+        p_parent_type: "father", // Default to father for backward compatibility
         p_children: children,
       });
 
       if (error) throw error;
       return { data, error: null };
+    } catch (error) {
+      return { data: null, error: error.message || handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Bulk create children with both parents
+   * @param {string} fatherId - Father profile ID
+   * @param {string} motherId - Mother profile ID
+   * @param {Array} children - Array of child objects with name, gender, etc.
+   */
+  async bulkCreateChildrenWithMother(fatherId, motherId, children) {
+    try {
+      // Use the existing bulk create function but with modified children data
+      const childrenWithParents = children.map((child) => ({
+        ...child,
+        father_id: fatherId,
+        mother_id: motherId,
+      }));
+
+      // Create children one by one with both parents set
+      const results = [];
+      for (const child of childrenWithParents) {
+        const { data, error } = await this.createProfile({
+          name: child.name,
+          gender: child.gender,
+          generation: child.generation || null,
+          father_id: fatherId,
+          mother_id: motherId,
+          sibling_order: child.sibling_order || 0,
+        });
+
+        if (error) {
+          console.error(`Failed to create child ${child.name}:`, error);
+          throw error;
+        }
+        results.push(data);
+      }
+
+      return { data: results, error: null };
     } catch (error) {
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
@@ -241,18 +282,80 @@ export const profilesService = {
   },
 
   /**
-   * Admin: Delete profile (soft delete)
+   * Admin: Preview delete impact - shows what would be deleted
+   * @param {string} profileId - Profile to check delete impact for
    */
-  async deleteProfile(profileId) {
+  async previewDeleteImpact(profileId) {
     try {
-      const { data, error } = await supabase.rpc("admin_delete_profile", {
-        p_id: profileId,
-      });
+      const { data, error } = await supabase.rpc(
+        "admin_preview_delete_impact",
+        {
+          p_profile_id: profileId,
+        },
+      );
+
+      if (error) throw error;
+      return { data: data?.[0] || null, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Delete profile with optional cascade
+   * @param {string} profileId - Profile to delete
+   * @param {boolean} cascade - Whether to cascade delete all descendants
+   */
+  async deleteProfile(profileId, cascade = false) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "admin_cascade_delete_profile",
+        {
+          p_profile_id: profileId,
+          p_confirm_cascade: cascade,
+        },
+      );
 
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
       return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Restore soft-deleted profile
+   * @param {string} profileId - Profile to restore
+   * @param {boolean} restoreDescendants - Whether to restore descendants too
+   */
+  async restoreProfile(profileId, restoreDescendants = false) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "admin_restore_deleted_profile",
+        {
+          p_profile_id: profileId,
+          p_restore_descendants: restoreDescendants,
+        },
+      );
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: List deleted profiles for restoration
+   */
+  async listDeletedProfiles() {
+    try {
+      const { data, error } = await supabase.rpc("admin_list_deleted_profiles");
+
+      if (error) throw error;
+      return { data: data || [], error: null };
+    } catch (error) {
+      return { data: [], error: handleSupabaseError(error) };
     }
   },
 
