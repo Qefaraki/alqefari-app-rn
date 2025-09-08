@@ -18,8 +18,8 @@ import Animated, {
   withTiming,
   interpolate,
 } from "react-native-reanimated";
-import { CardSurface } from "../../ios/CardSurface";
-import { SegmentedControl } from "../../ui/SegmentedControl";
+import CardSurface from "../../ios/CardSurface";
+import SegmentedControl from "../../ui/SegmentedControl";
 import {
   toDateData,
   fromDateData,
@@ -34,6 +34,8 @@ import {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const DateEditor = ({ label, value, onChange, error }) => {
+  // Ensure onChange is a function
+  const handleChange = onChange || (() => {});
   // State management
   const [currentDate, setCurrentDate] = useState(value);
   const [activeCalendar, setActiveCalendar] = useState("hijri");
@@ -41,27 +43,27 @@ const DateEditor = ({ label, value, onChange, error }) => {
   const [manualInput, setManualInput] = useState("");
 
   // Display month/year for calendar view
-  const dayjsDate = useMemo(() => fromDateData(currentDate), [currentDate]);
+  const momentDate = useMemo(() => fromDateData(currentDate), [currentDate]);
   const [displayYear, setDisplayYear] = useState(() => {
-    if (!dayjsDate) {
+    if (!momentDate) {
       const now = new Date();
       return activeCalendar === "hijri" ? 1446 : now.getFullYear();
     }
     if (activeCalendar === "hijri") {
-      return dayjsDate.toCalendarSystem("islamic-civil").year();
+      return momentDate.iYear();
     }
-    return dayjsDate.year();
+    return momentDate.year();
   });
 
   const [displayMonth, setDisplayMonth] = useState(() => {
-    if (!dayjsDate) {
+    if (!momentDate) {
       const now = new Date();
       return activeCalendar === "hijri" ? 1 : now.getMonth() + 1;
     }
     if (activeCalendar === "hijri") {
-      return dayjsDate.toCalendarSystem("islamic-civil").month() + 1;
+      return momentDate.iMonth() + 1;
     }
-    return dayjsDate.month() + 1;
+    return momentDate.month() + 1;
   });
 
   // Animation values
@@ -89,20 +91,19 @@ const DateEditor = ({ label, value, onChange, error }) => {
       setActiveCalendar(newType);
 
       // Update display month/year based on current date
-      if (dayjsDate) {
+      if (momentDate) {
         if (newType === "hijri") {
-          const hijriDate = dayjsDate.toCalendarSystem("islamic-civil");
-          setDisplayYear(hijriDate.year());
-          setDisplayMonth(hijriDate.month() + 1);
+          setDisplayYear(momentDate.iYear());
+          setDisplayMonth(momentDate.iMonth() + 1);
         } else {
-          setDisplayYear(dayjsDate.year());
-          setDisplayMonth(dayjsDate.month() + 1);
+          setDisplayYear(momentDate.year());
+          setDisplayMonth(momentDate.month() + 1);
         }
       }
 
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     },
-    [dayjsDate],
+    [momentDate],
   );
 
   // Handle day selection
@@ -124,9 +125,9 @@ const DateEditor = ({ label, value, onChange, error }) => {
         currentDate?.approximate || false,
       );
       setCurrentDate(newDateData);
-      onChange(newDateData);
+      handleChange(newDateData);
     },
-    [activeCalendar, displayYear, displayMonth, currentDate, onChange],
+    [activeCalendar, displayYear, displayMonth, currentDate, handleChange],
   );
 
   // Handle month navigation
@@ -160,10 +161,10 @@ const DateEditor = ({ label, value, onChange, error }) => {
       if (currentDate) {
         const newDateData = { ...currentDate, approximate: value };
         setCurrentDate(newDateData);
-        onChange(newDateData);
+        handleChange(newDateData);
       }
     },
-    [currentDate, onChange],
+    [currentDate, handleChange],
   );
 
   // Handle presets
@@ -171,31 +172,30 @@ const DateEditor = ({ label, value, onChange, error }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Success);
 
     const today = new Date();
-    const todayDayjs = createFromGregorian(
+    const todayMoment = createFromGregorian(
       today.getFullYear(),
       today.getMonth() + 1,
       today.getDate(),
     );
-    const newDateData = toDateData(todayDayjs, false);
+    const newDateData = toDateData(todayMoment, false);
     setCurrentDate(newDateData);
-    onChange(newDateData);
+    handleChange(newDateData);
 
     // Update display to show today
     if (activeCalendar === "hijri") {
-      const hijriToday = todayDayjs.toCalendarSystem("islamic-civil");
-      setDisplayYear(hijriToday.year());
-      setDisplayMonth(hijriToday.month() + 1);
+      setDisplayYear(todayMoment.iYear());
+      setDisplayMonth(todayMoment.iMonth() + 1);
     } else {
       setDisplayYear(today.getFullYear());
       setDisplayMonth(today.getMonth() + 1);
     }
-  }, [activeCalendar, onChange]);
+  }, [activeCalendar, handleChange]);
 
   const handleUnknown = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCurrentDate(null);
-    onChange(null);
-  }, [onChange]);
+    handleChange(null);
+  }, [handleChange]);
 
   // Generate calendar days
   const calendarDays = useMemo(
@@ -267,10 +267,12 @@ const DateEditor = ({ label, value, onChange, error }) => {
           {/* Calendar type selector */}
           <View style={styles.calendarTypeContainer}>
             <SegmentedControl
-              options={["هجري", "ميلادي"]}
-              values={["hijri", "gregorian"]}
-              selectedValue={activeCalendar}
-              onValueChange={handleCalendarTypeChange}
+              options={[
+                { label: "هجري", value: "hijri" },
+                { label: "ميلادي", value: "gregorian" },
+              ]}
+              value={activeCalendar}
+              onChange={handleCalendarTypeChange}
             />
           </View>
 
@@ -533,5 +535,7 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic Regular",
   },
 });
+
+DateEditor.displayName = "DateEditor";
 
 export default DateEditor;

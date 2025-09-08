@@ -1,8 +1,7 @@
-import dayjs from "dayjs";
-import calendarSystems from "@calidy/dayjs-calendarsystems";
+import moment from "moment-hijri";
 
-// Extend dayjs with calendar systems plugin for Hijri support
-dayjs.extend(calendarSystems);
+// Configure moment for Arabic locale
+moment.locale("ar");
 
 // Arabic month names for Hijri calendar
 const hijriMonths = [
@@ -71,44 +70,42 @@ export const toArabicNumerals = (num) => {
  * Create a date object from Hijri components
  */
 export const createFromHijri = (year, month, day) => {
-  return dayjs()
-    .toCalendarSystem("islamic-civil")
-    .year(year)
-    .month(month - 1)
-    .date(day);
+  return moment()
+    .iYear(year)
+    .iMonth(month - 1)
+    .iDate(day);
 };
 
 /**
  * Create a date object from Gregorian components
  */
 export const createFromGregorian = (year, month, day) => {
-  return dayjs()
+  return moment()
     .year(year)
     .month(month - 1)
     .date(day);
 };
 
 /**
- * Convert a dayjs object to our JSONB structure
+ * Convert a moment object to our JSONB structure
  */
-export const toDateData = (dayjsObj, approximate = false) => {
-  if (!dayjsObj || !dayjsObj.isValid()) {
+export const toDateData = (momentObj, approximate = false) => {
+  if (!momentObj || !momentObj.isValid()) {
     return null;
   }
 
   // Get Gregorian values
   const gregorian = {
-    year: dayjsObj.year(),
-    month: dayjsObj.month() + 1,
-    day: dayjsObj.date(),
+    year: momentObj.year(),
+    month: momentObj.month() + 1,
+    day: momentObj.date(),
   };
 
   // Get Hijri values
-  const hijriObj = dayjsObj.toCalendarSystem("islamic-civil");
   const hijri = {
-    year: hijriObj.year(),
-    month: hijriObj.month() + 1,
-    day: hijriObj.date(),
+    year: momentObj.iYear(),
+    month: momentObj.iMonth() + 1,
+    day: momentObj.iDate(),
   };
 
   // Format display string (Hijri by default)
@@ -123,7 +120,7 @@ export const toDateData = (dayjsObj, approximate = false) => {
 };
 
 /**
- * Parse a date data object to dayjs
+ * Parse a date data object to moment
  */
 export const fromDateData = (dateData) => {
   if (!dateData) return null;
@@ -167,62 +164,98 @@ export const getWeekdayNames = (short = false) => {
  * Generate calendar days for a given month
  */
 export const generateCalendarDays = (year, month, isHijri = true) => {
-  let firstDay, daysInMonth, daysInPrevMonth, startingDayOfWeek;
+  let firstDay, daysInMonth, startingDayOfWeek;
 
   if (isHijri) {
-    const currentMonth = dayjs()
-      .toCalendarSystem("islamic-civil")
-      .year(year)
-      .month(month - 1);
-    firstDay = currentMonth.startOf("month");
-    daysInMonth = currentMonth.daysInMonth();
+    // Create a Hijri date for the first day of the month
+    const currentMonth = moment()
+      .iYear(year)
+      .iMonth(month - 1)
+      .iDate(1);
+    firstDay = currentMonth.clone().startOf("iMonth");
+    daysInMonth = currentMonth.iDaysInMonth();
     startingDayOfWeek = firstDay.day();
 
-    const prevMonth = currentMonth.subtract(1, "month");
-    daysInPrevMonth = prevMonth.daysInMonth();
+    // Get previous month days
+    const prevMonth = currentMonth.clone().subtract(1, "iMonth");
+    const daysInPrevMonth = prevMonth.iDaysInMonth();
+
+    const days = [];
+
+    // Previous month's trailing days
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      days.push({
+        day: daysInPrevMonth - i,
+        isCurrentMonth: false,
+        isPrevMonth: true,
+      });
+    }
+
+    // Current month's days
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: true,
+        isPrevMonth: false,
+      });
+    }
+
+    // Next month's leading days (to fill the grid to 42 cells)
+    const remainingCells = 42 - days.length;
+    for (let i = 1; i <= remainingCells; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        isPrevMonth: false,
+      });
+    }
+
+    return days;
   } else {
-    const currentMonth = dayjs()
+    // Gregorian calendar
+    const currentMonth = moment()
       .year(year)
-      .month(month - 1);
-    firstDay = currentMonth.startOf("month");
+      .month(month - 1)
+      .date(1);
+    firstDay = currentMonth.clone().startOf("month");
     daysInMonth = currentMonth.daysInMonth();
     startingDayOfWeek = firstDay.day();
 
-    const prevMonth = currentMonth.subtract(1, "month");
-    daysInPrevMonth = prevMonth.daysInMonth();
+    const prevMonth = currentMonth.clone().subtract(1, "month");
+    const daysInPrevMonth = prevMonth.daysInMonth();
+
+    const days = [];
+
+    // Previous month's trailing days
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      days.push({
+        day: daysInPrevMonth - i,
+        isCurrentMonth: false,
+        isPrevMonth: true,
+      });
+    }
+
+    // Current month's days
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: true,
+        isPrevMonth: false,
+      });
+    }
+
+    // Next month's leading days (to fill the grid to 42 cells)
+    const remainingCells = 42 - days.length;
+    for (let i = 1; i <= remainingCells; i++) {
+      days.push({
+        day: i,
+        isCurrentMonth: false,
+        isPrevMonth: false,
+      });
+    }
+
+    return days;
   }
-
-  const days = [];
-
-  // Previous month's trailing days
-  for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-    days.push({
-      day: daysInPrevMonth - i,
-      isCurrentMonth: false,
-      isPrevMonth: true,
-    });
-  }
-
-  // Current month's days
-  for (let i = 1; i <= daysInMonth; i++) {
-    days.push({
-      day: i,
-      isCurrentMonth: true,
-      isPrevMonth: false,
-    });
-  }
-
-  // Next month's leading days (to fill the grid to 42 cells)
-  const remainingCells = 42 - days.length;
-  for (let i = 1; i <= remainingCells; i++) {
-    days.push({
-      day: i,
-      isCurrentMonth: false,
-      isPrevMonth: false,
-    });
-  }
-
-  return days;
 };
 
 /**
@@ -230,7 +263,7 @@ export const generateCalendarDays = (year, month, isHijri = true) => {
  */
 export const validateDates = (birthDate, deathDate) => {
   const errors = { dob: null, dod: null };
-  const now = dayjs();
+  const now = moment();
 
   if (birthDate) {
     const birth = fromDateData(birthDate);
@@ -256,4 +289,5 @@ export const validateDates = (birthDate, deathDate) => {
   return errors;
 };
 
-export default dayjs;
+// For compatibility with dayjs imports
+export default moment;

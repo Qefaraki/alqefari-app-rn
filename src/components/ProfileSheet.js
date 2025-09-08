@@ -58,6 +58,8 @@ import NameEditor from "./admin/fields/NameEditor";
 import BioEditor from "./admin/fields/BioEditor";
 import SiblingOrderStepper from "./admin/fields/SiblingOrderStepper";
 import PhotoEditor from "./admin/fields/PhotoEditor";
+import DateEditor from "./admin/fields/DateEditor";
+import { validateDates } from "../utils/dateUtils";
 import ProgressiveImage, {
   ProgressiveHeroImage,
   ProgressiveThumbnail,
@@ -134,6 +136,7 @@ const ProfileSheet = ({ editMode = false }) => {
   // Edit mode state
   const [saving, setSaving] = useState(false);
   const [editedData, setEditedData] = useState(null);
+  const [dateErrors, setDateErrors] = useState({ dob: null, dod: null });
 
   // Snap points matching original (0.4, 0.9, 1)
   const snapPoints = useMemo(() => ["40%", "90%", "100%"], []);
@@ -365,6 +368,21 @@ const ProfileSheet = ({ editMode = false }) => {
       });
     }
   }, [isEditing, person]);
+
+  // Handle date changes with validation
+  const handleDateChange = (field, value) => {
+    if (!editedData) return;
+
+    const newEditedData = { ...editedData, [field]: value };
+    setEditedData(newEditedData);
+
+    // Validate dates
+    const errors = validateDates(
+      newEditedData.dob_data,
+      newEditedData.dod_data,
+    );
+    setDateErrors(errors);
+  };
 
   // Handle save
   const handleSave = async () => {
@@ -639,6 +657,7 @@ const ProfileSheet = ({ editMode = false }) => {
                 title="حفظ التغييرات"
                 onPress={handleSave}
                 loading={saving}
+                disabled={!!dateErrors.dob || !!dateErrors.dod}
                 style={[styles.saveButton, { flex: 1 }]}
               />
               <TouchableOpacity
@@ -782,6 +801,35 @@ const ProfileSheet = ({ editMode = false }) => {
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* Date Fields */}
+                {editedData && (
+                  <>
+                    <View style={{ marginTop: 16 }}>
+                      <DateEditor
+                        label="تاريخ الميلاد"
+                        value={editedData?.dob_data}
+                        onChange={(value) =>
+                          handleDateChange("dob_data", value)
+                        }
+                        error={dateErrors.dob}
+                      />
+                    </View>
+
+                    {editedData?.status === "deceased" && (
+                      <View style={{ marginTop: 16 }}>
+                        <DateEditor
+                          label="تاريخ الوفاة"
+                          value={editedData?.dod_data}
+                          onChange={(value) =>
+                            handleDateChange("dod_data", value)
+                          }
+                          error={dateErrors.dod}
+                        />
+                      </View>
+                    )}
+                  </>
+                )}
 
                 {/* Location Fields */}
                 <View>
