@@ -22,6 +22,11 @@ class SkiaImageCache {
    * Transform URL to request specific size variant
    */
   urlForBucket(url: string, bucket: number): string {
+    // Guard against undefined/null URLs
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+    
     if (url.includes('supabase.co/storage/')) {
       try {
         // Transform from /object/ to /render/image/ for transformations

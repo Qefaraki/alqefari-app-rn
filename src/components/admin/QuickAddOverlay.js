@@ -132,6 +132,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Initialize children list
   useEffect(() => {
     if (visible && parentNode) {
+      console.log("QuickAddOverlay: parentNode:", parentNode);
+      console.log("QuickAddOverlay: siblings received:", siblings);
+
       // Create ghost node for new child
       const ghost = {
         id: `ghost-${Date.now()}`,
@@ -139,10 +142,23 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         gender: "male",
         isGhost: true,
         isNew: true,
+        sibling_order: siblings.length, // New child gets highest order (youngest)
       };
 
-      // Ghost goes first (youngest)
-      setAllChildren([ghost, ...siblings.map((s) => ({ ...s, isNew: false }))]);
+      // Sort siblings by sibling_order (ascending = oldest to youngest)
+      // In RTL layout, this will display as right-to-left
+      const sortedSiblings = [...siblings]
+        .sort((a, b) => (a.sibling_order ?? 0) - (b.sibling_order ?? 0))
+        .map((s) => ({
+          ...s,
+          isNew: false,
+          isGhost: false,
+        }));
+
+      console.log("QuickAddOverlay: sorted siblings:", sortedSiblings);
+
+      // Add ghost at the end (youngest position)
+      setAllChildren([...sortedSiblings, ghost]);
       setNewChildName("");
       setNewChildGender("male");
 
@@ -176,26 +192,43 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Add another child
   const handleAddAnother = () => {
     if (!newChildName.trim()) {
-      Alert.alert("تنبيه", "يرجى إدخال اسم الطفل");
+      Alert.alert('تنبيه', 'يرجى إدخال اسم الطفل');
       return;
     }
 
     // Convert current ghost to real child
-    const currentGhost = allChildren.find((c) => c.isGhost);
-    if (currentGhost) {
-      currentGhost.isGhost = false;
-      currentGhost.name = newChildName.trim();
-      currentGhost.gender = newChildGender;
-    }
-
-    // Add new ghost
-    const newGhost = {
-      id: `ghost-${Date.now()}`,
-      name: "",
-      gender: "male",
-      isGhost: true,
-      isNew: true,
-    };
+    setAllChildren(prev => {
+      const updated = prev.map(child => {
+        if (child.isGhost) {
+          return {
+            ...child,
+            isGhost: false,
+            name: newChildName.trim(),
+            gender: newChildGender,
+          };
+        }
+        return child;
+      });
+      
+      // Add new ghost at the end (youngest position)
+      const newGhost = {
+        id: `ghost-${Date.now()}`,
+        name: '',
+        gender: 'male',
+        isGhost: true,
+        isNew: true,
+        sibling_order: updated.length,
+      };
+      
+      return [...updated, newGhost];
+    });
+    
+    setNewChildName('');
+    setNewChildGender('male');
+    inputRef.current?.focus();
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
     setAllChildren((prev) =>
       [newGhost, ...prev.filter((c) => !c.isGhost), currentGhost].filter(
@@ -330,25 +363,32 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           {/* Preview Section */}
           <View style={styles.previewSection}>
             <Text style={styles.sectionLabel}>معاينة الترتيب</Text>
-            <ScrollView
-              horizontal
+            <ScrollView 
+              horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.previewScroll}
               style={styles.previewContainer}
+              inverted={true} // For RTL display
             >
-              {allChildren.map((child, index) => (
-                <DraggableNode
-                  key={child.id}
-                  child={child}
-                  index={index}
-                  totalChildren={allChildren.length}
-                  onReorder={handleReorder}
-                  isGhost={child.isGhost}
-                  isNew={child.isNew}
-                />
-              ))}
+              {allChildren.length > 0 ? (
+                allChildren.map((child, index) => (
+                  <DraggableNode
+                    key={child.id}
+                    child={child}
+                    index={index}
+                    totalChildren={allChildren.length}
+                    onReorder={handleReorder}
+                    isGhost={child.isGhost}
+                    isNew={child.isNew}
+                  />
+                ))
+              ) : (
+                <Text style={styles.noChildrenText}>لا يوجد أطفال</Text>
+              )}
             </ScrollView>
-            <Text style={styles.hint}>اسحب لإعادة الترتيب</Text>
+            <Text style={styles.hint}>
+              {allChildren.length > 1 ? 'اسحب لإعادة الترتيب' : 'أضف طفل جديد'}
+            </Text>
           </View>
 
           {/* Input Section */}
@@ -509,9 +549,15 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    color: "#999",
-    textAlign: "center",
+    color: '#999',
+    textAlign: 'center',
     marginTop: 8,
+  },
+  noChildrenText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+    padding: 20,
   },
   nodeWrapper: {
     position: "relative",
