@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Easing,
   Image,
   LayoutAnimation,
   Linking,
@@ -287,11 +288,15 @@ const ProfileSheet = ({ editMode = false }) => {
         targetMargin = 10;
       }
 
-      // Use spring animation for smooth, natural movement
-      Animated.spring(animatedMargin, {
+      // Stop any ongoing animation for instant response
+      animatedMargin.stopAnimation();
+
+      // Use timing with custom easing for instant but smooth animation
+      Animated.timing(animatedMargin, {
         toValue: targetMargin,
-        friction: 12, // Smooth controlled movement
-        tension: 80, // Moderate speed
+        duration: 200, // Slightly longer for smoothness
+        easing: Easing.out(Easing.cubic), // Smooth deceleration curve
+        delay: 0, // No delay - start immediately
         useNativeDriver: false,
       }).start();
 
