@@ -120,6 +120,9 @@ const ProfileSheet = ({ editMode = false }) => {
   const scrollRef = useRef(null);
   const [copied, setCopied] = useState(false);
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const headerHeight = 44;
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [bioExpanded, setBioExpanded] = useState(false);
   const [familySectionY, setFamilySectionY] = useState(0);
   const [marriages, setMarriages] = useState([]);
@@ -549,11 +552,31 @@ const ProfileSheet = ({ editMode = false }) => {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         ref={scrollRef}
+        onScroll={(event) => {
+          setScrollOffset(event.nativeEvent.contentOffset.y);
+        }}
+        scrollEventThrottle={16}
       >
         <View style={{ flex: 1 }}>
-          {/* Edit mode header with save/cancel */}
+          {/* Edit mode header with save/cancel - sticky when scrolling */}
           {isEditing && (
-            <View style={styles.editHeader}>
+            <View
+              style={[
+                styles.editHeader,
+                scrollOffset > 10 && {
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 1000,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 3,
+                  elevation: 4,
+                },
+              ]}
+            >
               <TouchableOpacity
                 style={styles.headerButton}
                 onPress={handleCancel}
@@ -590,6 +613,11 @@ const ProfileSheet = ({ editMode = false }) => {
                 )}
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* Spacer when header is sticky to prevent content jump */}
+          {isEditing && scrollOffset > 10 && (
+            <View style={{ height: headerHeight }} />
           )}
 
           {/* Unified hero card: image + description + metrics */}
@@ -1890,7 +1918,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(0,0,0,0.1)",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.97)",
+    backdropFilter: "blur(10px)",
   },
   headerButton: {
     minWidth: 44,
