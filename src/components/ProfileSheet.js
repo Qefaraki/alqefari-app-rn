@@ -137,7 +137,14 @@ const ProfileSheet = ({ editMode = false }) => {
   // Edit mode state
   const [saving, setSaving] = useState(false);
   const [editedData, setEditedData] = useState(null);
+  const [originalData, setOriginalData] = useState(null);
   const [dateErrors, setDateErrors] = useState({ dob: null, dod: null });
+
+  // Detect if there are unsaved changes
+  const hasChanges = useMemo(() => {
+    if (!editedData || !originalData) return false;
+    return JSON.stringify(editedData) !== JSON.stringify(originalData);
+  }, [editedData, originalData]);
 
   // Animation for death date field
   const deathDateHeight = useRef(new Animated.Value(0)).current;
@@ -331,7 +338,7 @@ const ProfileSheet = ({ editMode = false }) => {
   // Initialize edit data when entering edit mode
   useEffect(() => {
     if (isEditing && person && !editedData) {
-      setEditedData({
+      const initialData = {
         // Personal Identity
         name: person.name || "",
         kunya: person.kunya || "",
@@ -369,7 +376,9 @@ const ProfileSheet = ({ editMode = false }) => {
         dob_is_public: person.dob_is_public || false,
         profile_visibility: person.profile_visibility || "public",
         role: person.role || null,
-      });
+      };
+      setEditedData(initialData);
+      setOriginalData(initialData);
     }
   }, [isEditing, person]);
 
@@ -476,8 +485,31 @@ const ProfileSheet = ({ editMode = false }) => {
 
   // Handle cancel
   const handleCancel = () => {
-    setEditedData(null);
-    setSelectedPersonId(null);
+    if (hasChanges) {
+      Alert.alert(
+        "هل تريد إلغاء التغييرات؟",
+        "سيتم فقدان جميع التغييرات غير المحفوظة",
+        [
+          {
+            text: "متابعة التحرير",
+            style: "cancel",
+          },
+          {
+            text: "إلغاء التغييرات",
+            style: "destructive",
+            onPress: () => {
+              setEditedData(null);
+              setOriginalData(null);
+              setSelectedPersonId(null);
+            },
+          },
+        ],
+      );
+    } else {
+      setEditedData(null);
+      setOriginalData(null);
+      setSelectedPersonId(null);
+    }
   };
 
   // Load marriage data
@@ -519,6 +551,47 @@ const ProfileSheet = ({ editMode = false }) => {
         ref={scrollRef}
       >
         <View style={{ flex: 1 }}>
+          {/* Edit mode header with save/cancel */}
+          {isEditing && (
+            <View style={styles.editHeader}>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={handleCancel}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Text style={[styles.headerButtonText, styles.cancelText]}>
+                  إلغاء
+                </Text>
+              </TouchableOpacity>
+
+              <Text style={styles.headerTitle}>تعديل الملف</Text>
+
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={handleSave}
+                disabled={
+                  !hasChanges || saving || !!dateErrors.dob || !!dateErrors.dod
+                }
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text
+                    style={[
+                      styles.headerButtonText,
+                      styles.saveText,
+                      (!hasChanges || !!dateErrors.dob || !!dateErrors.dod) &&
+                        styles.disabledText,
+                    ]}
+                  >
+                    حفظ
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Unified hero card: image + description + metrics */}
           <View style={styles.cardWrapper}>
             {isEditing ? (
@@ -662,25 +735,6 @@ const ProfileSheet = ({ editMode = false }) => {
               {/* Primary action removed per request */}
             </View>
           </View>
-
-          {/* Save/Cancel buttons in edit mode */}
-          {isEditing && (
-            <View style={styles.editActions}>
-              <GlassButton
-                title="حفظ التغييرات"
-                onPress={handleSave}
-                loading={saving}
-                disabled={!!dateErrors.dob || !!dateErrors.dod}
-                style={[styles.saveButton, { flex: 1 }]}
-              />
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancel}
-              >
-                <Text style={styles.cancelButtonText}>إلغاء</Text>
-              </TouchableOpacity>
-            </View>
-          )}
 
           {/* Information section */}
           <SectionCard title="المعلومات">
@@ -1733,12 +1787,7 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: "top",
   },
-  editActions: {
-    flexDirection: "row",
-    marginHorizontal: 20,
-    marginTop: 16,
-    gap: 12,
-  },
+
   saveButton: {
     backgroundColor: "#34C759",
   },
@@ -1830,6 +1879,44 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(37,99,235,0.12)",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(37,99,235,0.30)",
+  },
+
+  // New edit header styles
+  editHeader: {
+    height: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(0,0,0,0.1)",
+    backgroundColor: "#FFFFFF",
+  },
+  headerButton: {
+    minWidth: 44,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerButtonText: {
+    fontSize: 17,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  cancelText: {
+    color: "#007AFF",
+  },
+  saveText: {
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+  disabledText: {
+    color: "#9CA3AF",
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#000000",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 });
 
