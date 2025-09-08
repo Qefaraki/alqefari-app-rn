@@ -1217,10 +1217,8 @@ const TreeView = ({ setProfileEditMode }) => {
               style: 'destructive',
               onPress: async () => {
                 try {
-                  const { error } = await supabase
-                    .from('profiles')
-                    .update({ deleted_at: new Date().toISOString() })
-                    .eq('id', contextMenuNode.id);
+                  // Use admin RPC for profile deletion instead of direct table write
+                  const { error } = await profilesService.deleteProfile(contextMenuNode.id);
 
                   if (error) throw error;
                   Alert.alert('نجح', 'تم حذف الملف الشخصي');

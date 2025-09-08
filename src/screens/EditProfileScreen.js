@@ -11,10 +11,9 @@ import {
   Platform,
   SafeAreaView,
   Modal,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../services/supabase';
+import profilesService from '../services/profiles';
 import GlassSurface from '../components/glass/GlassSurface';
 import GlassButton from '../components/glass/GlassButton';
 
@@ -94,20 +93,15 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
         updateData.death_year = null;
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', profile.id)
-        .select()
-        .single();
-
+      // Use admin RPC for profile updates instead of direct table write
+      const { data, error } = await profilesService.updateProfile(profile.id, updateData);
+      
       if (error) throw error;
 
       Alert.alert('نجح', 'تم تحديث الملف الشخصي بنجاح');
       if (onSave) onSave(data);
       onClose();
     } catch (error) {
-      console.error('Error updating profile:', error);
       Alert.alert('خطأ', 'فشل تحديث الملف الشخصي');
     } finally {
       setLoading(false);

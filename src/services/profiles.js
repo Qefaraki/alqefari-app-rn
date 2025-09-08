@@ -18,7 +18,7 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getBranchData error:', error);
+
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -40,7 +40,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getVisibleNodes error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -62,7 +61,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('searchProfiles error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -93,7 +91,6 @@ export const profilesService = {
       // If there are no marriages, the backend will correctly return null, which we convert to an empty array.
       return data || [];
     } catch (error) {
-      console.error('Error fetching person marriages:', error.message);
       // Return an empty array on failure to prevent the UI from crashing.
       return [];
     }
@@ -112,7 +109,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getPersonWithRelations error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -165,7 +161,6 @@ export const profilesService = {
       
       return { data, error: null };
     } catch (error) {
-      console.error('createProfile error:', error);
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
@@ -193,7 +188,6 @@ export const profilesService = {
       
       return { data, error: null };
     } catch (error) {
-      console.error('updateProfile error:', error);
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
@@ -219,14 +213,28 @@ export const profilesService = {
       
       return { data, error: null };
     } catch (error) {
-      console.error('deleteProfile error:', error);
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
 
   /**
-   * Admin: Create marriage
-   * @param {Object} marriageData - Marriage data
+   * Admin: Delete profile (soft delete)
+   */
+  async deleteProfile(profileId) {
+    try {
+      const { data, error } = await supabase.rpc('admin_delete_profile', {
+        p_id: profileId
+      });
+      
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Create marriage relationship
    */
   async createMarriage(marriageData) {
     try {
@@ -242,7 +250,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('createMarriage error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -257,7 +264,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getValidationDashboard error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -272,7 +278,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('runAutoFix error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -290,7 +295,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('bulkUpdateLayouts error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -309,7 +313,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getLayoutQueueStatus error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -327,7 +330,6 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('triggerLayoutRecalc error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   }
