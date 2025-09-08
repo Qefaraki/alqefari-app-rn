@@ -253,11 +253,6 @@ const ProfileSheet = ({ editMode = false }) => {
     () => (
       <View style={styles.handleContainer}>
         <View style={styles.handleBar} />
-        {isEditing && (
-          <View style={styles.handleEditIcon} accessibilityLabel="وضع تحرير">
-            <Ionicons name="create" size={14} color="#2563eb" />
-          </View>
-        )}
       </View>
     ),
     [isEditing],
@@ -493,7 +488,22 @@ const ProfileSheet = ({ editMode = false }) => {
         ref={scrollRef}
       >
         <View style={{ flex: 1 }}>
-          {/* No explicit banner; edit indicated by handle icon and active fields */}
+          {/* Edit mode gradient accent at top */}
+          {isEditing && (
+            <LinearGradient
+              colors={["#2563eb", "rgba(37, 99, 235, 0)"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 60,
+                zIndex: 0,
+              }}
+            />
+          )}
 
           {/* Close button */}
           <Pressable

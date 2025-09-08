@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   changeButtonOverlay: {
     position: "absolute",
     bottom: 16,
-    right: 16,
+    left: 16,
   },
   changeButton: {
     flexDirection: "row",
