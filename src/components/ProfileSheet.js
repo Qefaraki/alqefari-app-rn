@@ -274,13 +274,24 @@ const ProfileSheet = ({ editMode = false }) => {
     (index) => {
       setCurrentSnapIndex(index);
 
-      // When sheet is at 100% (index 2), add status bar height to margin
-      // When collapsed/partial, use minimal margin
-      const targetMargin = index === 2 ? statusBarHeight + 10 : 10;
+      // Calculate target margin based on snap point
+      let targetMargin;
+      if (index === 2) {
+        // Fully expanded - add status bar height
+        targetMargin = statusBarHeight + 10;
+      } else if (index === 1) {
+        // 90% expanded - start transitioning slightly
+        targetMargin = 15;
+      } else {
+        // Collapsed - minimal margin
+        targetMargin = 10;
+      }
 
-      Animated.timing(animatedMargin, {
+      // Use spring animation for smooth, natural movement
+      Animated.spring(animatedMargin, {
         toValue: targetMargin,
-        duration: 100, // Very fast animation
+        friction: 12, // Smooth controlled movement
+        tension: 80, // Moderate speed
         useNativeDriver: false,
       }).start();
 
