@@ -344,7 +344,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
           {/* Preview Section */}
           <View style={styles.previewSection}>
-            <Text style={styles.sectionLabel}>معاينة الترتيب</Text>
+            <View style={{ alignItems: "flex-end", paddingHorizontal: 16 }}>
+              <Text style={styles.sectionLabel}>معاينة الترتيب</Text>
+            </View>
             <ScrollView
               ref={scrollViewRef}
               horizontal
@@ -376,7 +378,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           {/* Input Section */}
           <View style={styles.inputSection}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>اسم الطفل</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.inputLabel}>اسم الطفل</Text>
+              </View>
               <TextInput
                 ref={inputRef}
                 style={styles.input}
@@ -391,7 +395,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
             </View>
 
             <View style={styles.genderSection}>
-              <Text style={styles.inputLabel}>الجنس</Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.inputLabel}>الجنس</Text>
+              </View>
               <View style={styles.genderButtons}>
                 <TouchableOpacity
                   style={[
@@ -523,11 +529,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#666",
-    marginHorizontal: 16,
     marginBottom: 12,
     textAlign: "right",
-    alignSelf: "stretch",
-    writingDirection: "rtl",
   },
   previewContainer: {
     height: 60,
@@ -616,8 +619,6 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 8,
     textAlign: "right",
-    alignSelf: "stretch",
-    writingDirection: "rtl",
   },
   input: {
     backgroundColor: "#F8F8F8",
