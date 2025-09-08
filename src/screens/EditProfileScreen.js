@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,35 +11,61 @@ import {
   Platform,
   SafeAreaView,
   Modal,
-  ActivityIndicator,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../services/supabase';
-import GlassSurface from '../components/glass/GlassSurface';
-import GlassButton from '../components/glass/GlassButton';
+} from "react-native";
+import * as Haptics from "expo-haptics";
+import profilesService from "../services/profiles";
+import { handleSupabaseError } from "../services/supabase";
+import HeaderBar from "../components/ui/HeaderBar";
+import Surface from "../components/ui/Surface";
+import Field from "../components/ui/Field";
+import Button from "../components/ui/Button";
+import SegmentedControl from "../components/ui/SegmentedControl";
+import tokens from "../components/ui/tokens";
+import NameEditor from "../components/admin/fields/NameEditor";
+import PhotoEditor from "../components/admin/fields/PhotoEditor";
+import DateEditor from "../components/admin/fields/DateEditor";
+import { validateDates } from "../utils/dateUtils";
 
 const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    hid: '',
-    gender: 'M',
-    birth_year: '',
-    death_year: '',
-    notes: '',
+    name: "",
+    hid: "",
+    gender: "male",
+    birth_year: "",
+    death_year: "",
+    bio: "",
+    photo_url: "",
+    dob_data: null,
+    dod_data: null,
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [dateErrors, setDateErrors] = useState({ dob: null, dod: null });
+  const [initial, setInitial] = useState(null);
 
   useEffect(() => {
     if (profile) {
-      setFormData({
-        name: profile.name || '',
-        hid: profile.hid || '',
-        gender: profile.gender || 'M',
-        birth_year: profile.birth_year?.toString() || '',
-        death_year: profile.death_year?.toString() || '',
-        notes: profile.notes || '',
-      });
+      const birthYear =
+        profile?.dob_data?.gregorian?.year ||
+        profile?.dob_data?.hijri?.year ||
+        "";
+      const deathYear =
+        profile?.dod_data?.gregorian?.year ||
+        profile?.dod_data?.hijri?.year ||
+        "";
+      const next = {
+        name: profile.name || "",
+        hid: profile.hid || "",
+        gender: profile.gender || "male",
+        birth_year: birthYear ? String(birthYear) : "",
+        death_year: deathYear ? String(deathYear) : "",
+        bio: profile.bio || profile.biography || "",
+        photo_url: profile.photo_url || "",
+        dob_data: profile.dob_data || null,
+        dod_data: profile.dod_data || null,
+      };
+      setFormData(next);
+      setInitial(next);
     }
   }, [profile]);
 
@@ -47,28 +73,80 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'الاسم مطلوب';
+      newErrors.name = "الاسم مطلوب";
     }
 
     if (!formData.hid.trim()) {
-      newErrors.hid = 'HID مطلوب';
+      newErrors.hid = "HID مطلوب";
     }
 
-    if (formData.birth_year && (isNaN(formData.birth_year) || formData.birth_year < 1800 || formData.birth_year > new Date().getFullYear())) {
-      newErrors.birth_year = 'سنة الميلاد غير صحيحة';
+    if (
+      formData.birth_year &&
+      (isNaN(formData.birth_year) ||
+        Number(formData.birth_year) < 1800 ||
+        Number(formData.birth_year) > new Date().getFullYear())
+    ) {
+      newErrors.birth_year = "سنة الميلاد غير صحيحة";
     }
 
     if (formData.death_year) {
-      if (isNaN(formData.death_year) || formData.death_year < 1800 || formData.death_year > new Date().getFullYear()) {
-        newErrors.death_year = 'سنة الوفاة غير صحيحة';
+      if (
+        isNaN(formData.death_year) ||
+        Number(formData.death_year) < 1800 ||
+        Number(formData.death_year) > new Date().getFullYear()
+      ) {
+        newErrors.death_year = "سنة الوفاة غير صحيحة";
       }
-      if (formData.birth_year && formData.death_year < formData.birth_year) {
-        newErrors.death_year = 'سنة الوفاة يجب أن تكون بعد سنة الميلاد';
+      if (
+        formData.birth_year &&
+        Number(formData.death_year) < Number(formData.birth_year)
+      ) {
+        newErrors.death_year = "سنة الوفاة يجب أن تكون بعد سنة الميلاد";
       }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const isValid = useMemo(() => {
+    return (
+      formData.name.trim().length > 1 &&
+      formData.hid.trim().length > 0 &&
+      (!formData.birth_year ||
+        (!isNaN(formData.birth_year) && Number(formData.birth_year) >= 1800)) &&
+      (!formData.death_year ||
+        (!isNaN(formData.death_year) && Number(formData.death_year) >= 1800)) &&
+      (!formData.death_year ||
+        !formData.birth_year ||
+        Number(formData.death_year) >= Number(formData.birth_year)) &&
+      !dateErrors.dob &&
+      !dateErrors.dod
+    );
+  }, [formData, dateErrors]);
+
+  const isDirty = useMemo(() => {
+    if (!initial) return false;
+    return (
+      initial.name !== formData.name ||
+      initial.gender !== formData.gender ||
+      initial.birth_year !== formData.birth_year ||
+      initial.death_year !== formData.death_year ||
+      initial.bio !== formData.bio ||
+      initial.photo_url !== formData.photo_url ||
+      JSON.stringify(initial.dob_data) !== JSON.stringify(formData.dob_data) ||
+      JSON.stringify(initial.dod_data) !== JSON.stringify(formData.dod_data)
+    );
+  }, [initial, formData]);
+
+  // Handle date changes with validation
+  const handleDateChange = (field, value) => {
+    const newFormData = { ...formData, [field]: value };
+    setFormData(newFormData);
+
+    // Validate dates
+    const errors = validateDates(newFormData.dob_data, newFormData.dod_data);
+    setDateErrors(errors);
   };
 
   const handleSave = async () => {
@@ -78,55 +156,44 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
     try {
       const updateData = {
         name: formData.name.trim(),
-        gender: formData.gender,
-        notes: formData.notes.trim() || null,
+        gender: formData.gender, // 'male' | 'female'
+        bio: formData.bio?.trim() || null,
+        photo_url: formData.photo_url?.trim() || null,
+        dob_data:
+          formData.dob_data ||
+          (formData.birth_year
+            ? { gregorian: { year: parseInt(formData.birth_year, 10) } }
+            : null),
+        dod_data:
+          formData.dod_data ||
+          (formData.death_year
+            ? { gregorian: { year: parseInt(formData.death_year, 10) } }
+            : null),
       };
 
-      if (formData.birth_year) {
-        updateData.birth_year = parseInt(formData.birth_year);
-      } else {
-        updateData.birth_year = null;
-      }
-
-      if (formData.death_year) {
-        updateData.death_year = parseInt(formData.death_year);
-      } else {
-        updateData.death_year = null;
-      }
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', profile.id)
-        .select()
-        .single();
+      // Use admin RPC for profile updates with optimistic version
+      const currentVersion = profile?.version || 1;
+      const { data, error } = await profilesService.updateProfile(
+        profile.id,
+        currentVersion,
+        updateData,
+      );
 
       if (error) throw error;
 
-      Alert.alert('نجح', 'تم تحديث الملف الشخصي بنجاح');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (onSave) onSave(data);
       onClose();
     } catch (error) {
-      console.error('Error updating profile:', error);
-      Alert.alert('خطأ', 'فشل تحديث الملف الشخصي');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert(
+        "خطأ",
+        handleSupabaseError(error) || "فشل تحديث الملف الشخصي",
+      );
     } finally {
       setLoading(false);
     }
   };
-
-  const InputField = ({ label, value, onChangeText, error, ...props }) => (
-    <View style={styles.inputContainer}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, error && styles.inputError]}
-        value={value}
-        onChangeText={onChangeText}
-        textAlign="right"
-        {...props}
-      />
-      {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
 
   return (
     <Modal
@@ -138,16 +205,30 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-            <Text style={styles.title}>تعديل الملف الشخصي</Text>
-            <View style={{ width: 40 }} />
-          </View>
+          <HeaderBar
+            title="تعديل الملف الشخصي"
+            onClose={onClose}
+            rightSlot={
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={loading || !isValid || !isDirty}
+                accessibilityLabel="حفظ"
+                style={{ opacity: loading || !isValid || !isDirty ? 0.5 : 1 }}
+              >
+                <Text
+                  style={{
+                    color: tokens.colors.accent,
+                    fontSize: 16,
+                    fontWeight: "700",
+                  }}
+                >
+                  حفظ
+                </Text>
+              </TouchableOpacity>
+            }
+          />
 
           {/* Form */}
           <ScrollView
@@ -156,123 +237,92 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <GlassSurface style={styles.formSection}>
-              <InputField
-                label="الاسم"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                error={errors.name}
-                placeholder="أدخل الاسم الكامل"
+            {/* Hero section */}
+            <Surface style={styles.heroCard}>
+              <View style={styles.heroContent}>
+                <PhotoEditor
+                  value={formData.photo_url || ""}
+                  onChange={(url) =>
+                    setFormData({ ...formData, photo_url: url })
+                  }
+                  currentPhotoUrl={formData.photo_url}
+                  personName={formData.name || profile?.name || "الشخص"}
+                  profileId={profile?.id}
+                />
+                <View style={{ marginTop: 12 }}>
+                  <NameEditor
+                    value={formData.name}
+                    onChange={(text) =>
+                      setFormData({ ...formData, name: text })
+                    }
+                    placeholder="الاسم الكامل"
+                  />
+                  {!!errors.name && (
+                    <Text style={styles.errorText}>{errors.name}</Text>
+                  )}
+                </View>
+              </View>
+            </Surface>
+
+            {/* Identity section */}
+            <Surface style={styles.sectionCard}>
+              <Field
+                label="HID (للقراءة فقط)"
+                value={formData.hid}
+                onChangeText={() => {}}
+                inputStyle={styles.readOnlyInput}
+                editable={false}
               />
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>HID (للقراءة فقط)</Text>
-                <TextInput
-                  style={[styles.input, styles.readOnlyInput]}
-                  value={formData.hid}
-                  editable={false}
-                  textAlign="right"
+              <View style={styles.inlineRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>الجنس</Text>
+                  <SegmentedControl
+                    value={formData.gender}
+                    onChange={(val) =>
+                      setFormData({ ...formData, gender: val })
+                    }
+                    options={[
+                      { label: "ذكر", value: "male" },
+                      { label: "أنثى", value: "female" },
+                    ]}
+                  />
+                </View>
+              </View>
+            </Surface>
+
+            {/* Dates */}
+            <Surface style={styles.sectionCard}>
+              <DateEditor
+                label="تاريخ الميلاد"
+                value={formData.dob_data}
+                onChange={(value) => handleDateChange("dob_data", value)}
+                error={dateErrors.dob}
+              />
+              <View style={{ marginTop: 16 }}>
+                <DateEditor
+                  label="تاريخ الوفاة"
+                  value={formData.dod_data}
+                  onChange={(value) => handleDateChange("dod_data", value)}
+                  error={dateErrors.dod}
                 />
               </View>
+            </Surface>
 
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>الجنس</Text>
-                <View style={styles.genderContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.genderButton,
-                      formData.gender === 'M' && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setFormData({ ...formData, gender: 'M' })}
-                  >
-                    <Ionicons
-                      name="male"
-                      size={20}
-                      color={formData.gender === 'M' ? '#FFFFFF' : '#007AFF'}
-                    />
-                    <Text
-                      style={[
-                        styles.genderText,
-                        formData.gender === 'M' && styles.genderTextActive,
-                      ]}
-                    >
-                      ذكر
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.genderButton,
-                      formData.gender === 'F' && styles.genderButtonActive,
-                    ]}
-                    onPress={() => setFormData({ ...formData, gender: 'F' })}
-                  >
-                    <Ionicons
-                      name="female"
-                      size={20}
-                      color={formData.gender === 'F' ? '#FFFFFF' : '#FF375F'}
-                    />
-                    <Text
-                      style={[
-                        styles.genderText,
-                        formData.gender === 'F' && styles.genderTextActive,
-                      ]}
-                    >
-                      أنثى
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.yearRow}>
-                <View style={[styles.inputContainer, { flex: 1 }]}>
-                  <InputField
-                    label="سنة الميلاد"
-                    value={formData.birth_year}
-                    onChangeText={(text) => setFormData({ ...formData, birth_year: text })}
-                    error={errors.birth_year}
-                    placeholder="مثال: 1980"
-                    keyboardType="numeric"
-                    maxLength={4}
-                  />
-                </View>
-
-                <View style={{ width: 16 }} />
-
-                <View style={[styles.inputContainer, { flex: 1 }]}>
-                  <InputField
-                    label="سنة الوفاة"
-                    value={formData.death_year}
-                    onChangeText={(text) => setFormData({ ...formData, death_year: text })}
-                    error={errors.death_year}
-                    placeholder="اختياري"
-                    keyboardType="numeric"
-                    maxLength={4}
-                  />
-                </View>
-              </View>
-
-              <InputField
-                label="ملاحظات"
-                value={formData.notes}
-                onChangeText={(text) => setFormData({ ...formData, notes: text })}
+            {/* Bio */}
+            <Surface style={styles.sectionCard}>
+              <Field
+                label="نبذة"
+                value={formData.bio}
+                onChangeText={(text) => setFormData({ ...formData, bio: text })}
                 placeholder="أي معلومات إضافية"
                 multiline
-                numberOfLines={3}
-                style={styles.notesInput}
+                numberOfLines={4}
               />
-            </GlassSurface>
+            </Surface>
           </ScrollView>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <GlassButton
-              title="حفظ التغييرات"
-              onPress={handleSave}
-              loading={loading}
-              style={styles.saveButton}
-            />
-          </View>
+          {/* Footer removed – Save is in header */}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -282,28 +332,7 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000000',
+    backgroundColor: tokens.colors.bg,
   },
   scrollView: {
     flex: 1,
@@ -311,84 +340,41 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-  formSection: {
-    padding: 16,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
+    fontWeight: "600",
+    color: tokens.colors.textMuted,
     marginBottom: 8,
-    textAlign: 'right',
-  },
-  input: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#000000',
-  },
-  inputError: {
-    borderWidth: 1,
-    borderColor: '#FF3B30',
+    textAlign: "right",
   },
   readOnlyInput: {
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-    color: '#999999',
+    backgroundColor: "#F7F7FA",
+    color: "#9CA3AF",
   },
   errorText: {
     fontSize: 12,
-    color: '#FF3B30',
+    color: tokens.colors.danger,
     marginTop: 4,
-    textAlign: 'right',
-  },
-  genderContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  genderButton: {
-    flex: 0.48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
-    gap: 8,
-  },
-  genderButtonActive: {
-    backgroundColor: '#007AFF',
-  },
-  genderText: {
-    fontSize: 16,
-    color: '#666666',
-    fontWeight: '500',
-  },
-  genderTextActive: {
-    color: '#FFFFFF',
+    textAlign: "right",
   },
   yearRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
-  notesInput: {
-    height: 80,
-    textAlignVertical: 'top',
-    paddingTop: 12,
+  inlineRow: {
+    flexDirection: "row-reverse",
+    alignItems: "flex-start",
   },
   footer: {
     padding: 16,
     paddingBottom: 34,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: tokens.colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: tokens.colors.divider,
   },
-  saveButton: {
-    width: '100%',
-  },
+  footerRow: { flexDirection: "row-reverse", alignItems: "center" },
+  sectionCard: { padding: 16, marginBottom: 12 },
+  heroCard: { padding: 16, marginBottom: 12 },
+  heroContent: { alignItems: "center" },
 });
 
 export default EditProfileScreen;

@@ -3,6 +3,7 @@
 ## Latest Updates
 
 ### Bug Fixes (2025-01-05)
+
 - ✅ Fixed React hooks order violation in TreeView component
   - Moved all hooks (useCallback, useMemo, useEffect) before conditional returns
   - Fixed "Rendered more hooks than during the previous render" error
@@ -13,6 +14,7 @@
   - Updated gesture handlers to use synced state values
 
 ### Documentation Cleanup (2025-09-04)
+
 - ✅ Reviewed all documentation files against current codebase
 - ✅ Updated backend-implementation.md to reflect actual implementation
 - ✅ Created optimized CLAUDE.md for AI assistant context
@@ -26,6 +28,7 @@
 ### ✅ Completed
 
 #### Admin Edit Mode - Phase 1: Core Identity Fields (2025-09-01)
+
 - ✅ Created NameEditor component with premium iOS-style text input
   - Large 36px font matching current design
   - Animated focus states with spring physics
@@ -41,7 +44,7 @@
   - Internal scroll when max height reached
 
 - ✅ Created SiblingOrderStepper component (HIGH PRIORITY)
-  - Premium glass-style stepper control
+  - Premium native stepper control (no blur)
   - Animated button presses with spring physics
   - Haptic feedback (light, success, error)
   - Arabic number display
@@ -78,9 +81,9 @@
 
 - ✅ Created compact admin interface
   - Removed large "شجرة عائلة القفاري" title taking up space
-  - Created CompactAdminBar with glass morphism effect
+  - Created CompactAdminBar with native styling (no blur)
   - Single row design: user | toggle | control panel
-  - Reduced header from ~200px to ~50px  
+  - Reduced header from ~200px to ~50px
   - Added collapse option for cleaner view
   - Floating admin login when not authenticated
 
@@ -92,12 +95,10 @@
   - Pinch gesture transform calculations
   - Tap coordinate transformations
   - Node rendering position verification
-  
 - ✅ Fixed Reanimated crash in debug logging (2025-09-03)
   - Removed inline runOnJS from useAnimatedReaction
   - Fixed segmentation fault in simulator
   - Preserved other debug logs for troubleshooting
-  
 - ✅ Optimized debug logging to reduce spam (2025-09-03)
   - Removed per-frame rendering logs
   - Condensed all logs to single-line summaries
@@ -131,15 +132,15 @@
   - Result: Smooth, stable zoom on both simulator and physical devices
 
 #### Admin Edit Mode - Phase 2: Visual Identity (2025-09-04)
+
 - ✅ Created PhotoEditor component with premium iOS-style interface
-  - Circular photo preview (160x160) with glass morphism card
+  - Circular photo preview (160x160) with native card
   - URL input field with live preview (800ms debounce)
   - Loading spinner overlay during image fetch
   - Error state with icon and message for invalid URLs
   - "Remove Photo" button with gradient style and confirmation dialog
   - Smooth animations and haptic feedback
   - URL validation (requires https:// or http://)
-  
 - ✅ Integrated PhotoEditor into ProfileSheet
   - Replaces static hero image in edit mode
   - Maintains existing photo display in view mode
@@ -148,8 +149,20 @@
 
 ### 🚧 In Progress
 
+#### Admin Edit Mode - Phase 3: Smart Date Editing (2025-01-08)
+
+- ✅ Created DateEditor component with dual calendar support
+  - Interactive Hijri/Gregorian calendar picker with seamless switching
+  - Real-time date conversion between calendar systems
+  - Month navigation with Arabic month names
+  - Approximate date toggle for historical records
+  - Preset buttons for "Today" and "Unknown"
+  - Full RTL layout with Arabic numerals
+  - Integrated validation (no future dates, death after birth)
+  - Smooth animations and haptic feedback
+
 #### Admin Edit Mode - Remaining Phases
-- Phase 3: Smart Date Editing - Hijri/Gregorian date pickers
+
 - Phase 4: Relationship Selector - Parent selection UI
 - Phase 5: Advanced Controls - Admin-only fields
 - Phase 6: Marriage Management - Add/edit/delete marriages UI
@@ -157,6 +170,7 @@
 ### 📋 TODO
 
 #### High Priority Features to Implement
+
 1. **Marriage Management UI**
    - Deploy admin_create_marriage function to production
    - Create MarriageEditor component
@@ -167,18 +181,18 @@
    - Either implement get_person_with_relations RPC or remove from service layer
    - Consider if aggregating relations would improve performance
 
-1. Admin Features
+3. Admin Features
    - Batch operations UI
    - Change history viewer
    - Field templates
    - Offline support with sync
 
-2. Performance Optimizations
+4. Performance Optimizations
    - Viewport-based node loading
    - WebGL rendering for large trees
    - Background data prefetching
 
-3. Enhanced Features
+5. Enhanced Features
    - AI-powered relationship suggestions
    - Smart data validation
    - Automated backups
@@ -187,16 +201,19 @@
 ## Version History
 
 ### v1.0.0 - Initial Release
+
 - Core tree visualization
 - Basic profile viewing
 - Admin authentication
 
-### v1.1.0 - Edit Mode Phase 1 
+### v1.1.0 - Edit Mode Phase 1
+
 - ✅ Editable name, bio, and sibling order fields
 - ✅ World-class iOS-native UI/UX
-- ✅ Premium glass design system
+- ✅ Premium neo‑native design system (no blur)
 
 ### v1.2.0 - Photo Upload System (COMPLETED)
+
 - ✅ Native photo upload with camera/gallery picker
 - ✅ Supabase storage integration
 - ✅ Client-side image optimization
@@ -205,6 +222,7 @@
 - ✅ Fixed image display issues in ProfileSheet
 
 ### v1.3.0 - Photo System Improvements Phase 1 (COMPLETED)
+
 - ✅ Implemented expo-image for native caching
 - ✅ Created unified CachedImage component
 - ✅ Added image cache service with size management

@@ -45,41 +45,25 @@ export const AdminModeProvider = ({ children }) => {
         return;
       }
 
-      // Check if user profile has admin role
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+      // Check if user has admin privileges via the is_current_user_admin view
+      const { data: adminCheck, error } = await supabase
+        .from('is_current_user_admin')
+        .select('is_admin')
+        .single();
 
-      if (error) {
-        console.error('Error checking admin role:', error);
-        setIsAdmin(false);
-        setIsAdminMode(false);
-      } else if (!profile) {
-        // No profile exists for this user yet
-        console.log('No profile found for user:', user.email);
+      if (error || !adminCheck) {
         setIsAdmin(false);
         setIsAdminMode(false);
       } else {
-        const hasAdminRole = profile.role === 'admin';
+        const hasAdminRole = adminCheck.is_admin;
         setIsAdmin(hasAdminRole);
         
         // If not admin, ensure admin mode is off
         if (!hasAdminRole) {
           setIsAdminMode(false);
         }
-        
-        // Log role info for debugging
-        console.log('User role info:', {
-          userId: user.id,
-          email: user.email,
-          role: profile.role,
-          isAdmin: hasAdminRole
-        });
       }
     } catch (error) {
-      console.error('Error in checkAdminRole:', error);
       setIsAdmin(false);
       setIsAdminMode(false);
     } finally {
@@ -90,10 +74,7 @@ export const AdminModeProvider = ({ children }) => {
   const toggleAdminMode = () => {
     if (isAdmin) {
       const newMode = !isAdminMode;
-      console.log('AdminModeContext: Toggling admin mode from', isAdminMode, 'to', newMode);
       setIsAdminMode(newMode);
-    } else {
-      console.log('AdminModeContext: Cannot toggle admin mode - user is not admin');
     }
   };
 

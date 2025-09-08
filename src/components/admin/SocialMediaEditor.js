@@ -1,20 +1,50 @@
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 const socialPlatforms = [
-  { key: 'twitter', label: 'Twitter/X', icon: 'logo-twitter', placeholder: 'https://twitter.com/username' },
-  { key: 'instagram', label: 'Instagram', icon: 'logo-instagram', placeholder: 'https://instagram.com/username' },
-  { key: 'linkedin', label: 'LinkedIn', icon: 'logo-linkedin', placeholder: 'https://linkedin.com/in/username' },
-  { key: 'facebook', label: 'Facebook', icon: 'logo-facebook', placeholder: 'https://facebook.com/username' },
-  { key: 'youtube', label: 'YouTube', icon: 'logo-youtube', placeholder: 'https://youtube.com/@username' },
-  { key: 'website', label: 'Website', icon: 'globe-outline', placeholder: 'https://example.com' },
+  {
+    key: "twitter",
+    label: "Twitter/X",
+    icon: "logo-twitter",
+    placeholder: "https://twitter.com/username",
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    icon: "logo-instagram",
+    placeholder: "https://instagram.com/username",
+  },
+  {
+    key: "linkedin",
+    label: "LinkedIn",
+    icon: "logo-linkedin",
+    placeholder: "https://linkedin.com/in/username",
+  },
+  {
+    key: "facebook",
+    label: "Facebook",
+    icon: "logo-facebook",
+    placeholder: "https://facebook.com/username",
+  },
+  {
+    key: "youtube",
+    label: "YouTube",
+    icon: "logo-youtube",
+    placeholder: "https://youtube.com/@username",
+  },
+  {
+    key: "website",
+    label: "Website",
+    icon: "globe-outline",
+    placeholder: "https://example.com",
+  },
 ];
 
 const SocialMediaEditor = ({ links, onChange }) => {
@@ -39,10 +69,10 @@ const SocialMediaEditor = ({ links, onChange }) => {
           </View>
           <TextInput
             style={styles.platformInput}
-            value={links[platform.key] || ''}
+            value={links[platform.key] || ""}
             onChangeText={(value) => handleLinkChange(platform.key, value)}
             placeholder={platform.placeholder}
-            textAlign="left"
+            textAlign="right"
             autoCapitalize="none"
             keyboardType="url"
           />
@@ -58,31 +88,59 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
+    fontWeight: "600",
+    color: "#000000",
     marginBottom: 8,
-    textAlign: 'right',
+    textAlign: "right",
+    writingDirection: "rtl",
+    fontFamily: "SF Arabic",
   },
   platformRow: {
     gap: 8,
   },
   platformHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row-reverse",
+    alignItems: "center",
     gap: 8,
     marginBottom: 4,
   },
   platformLabel: {
     fontSize: 14,
-    color: '#666666',
+    color: "#666666",
+    textAlign: "right",
+    writingDirection: "rtl",
+    fontFamily: "SF Arabic",
   },
   platformInput: {
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#000000',
+    color: "#000000",
+    textAlign: "right",
+    writingDirection: "rtl",
+  },
+  platformRow: {
+    gap: 8,
+  },
+  platformHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  platformLabel: {
+    fontSize: 14,
+    color: "#666666",
+  },
+  platformInput: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#000000",
   },
 });
 

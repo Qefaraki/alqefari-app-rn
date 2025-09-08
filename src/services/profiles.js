@@ -1,4 +1,4 @@
-import { supabase, handleSupabaseError } from './supabase';
+import { supabase, handleSupabaseError } from "./supabase";
 
 export const profilesService = {
   /**
@@ -9,16 +9,15 @@ export const profilesService = {
    */
   async getBranchData(hid = null, maxDepth = 3, limit = 200) {
     try {
-      const { data, error } = await supabase.rpc('get_branch_data', {
+      const { data, error } = await supabase.rpc("get_branch_data", {
         p_hid: hid,
         p_max_depth: maxDepth,
-        p_limit: limit
+        p_limit: limit,
       });
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getBranchData error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -31,16 +30,15 @@ export const profilesService = {
    */
   async getVisibleNodes(viewport, zoomLevel = 1.0, limit = 200) {
     try {
-      const { data, error } = await supabase.rpc('get_visible_nodes', {
+      const { data, error } = await supabase.rpc("get_visible_nodes", {
         p_viewport: viewport,
         p_zoom_level: zoomLevel,
-        p_limit: limit
+        p_limit: limit,
       });
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getVisibleNodes error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -53,16 +51,15 @@ export const profilesService = {
    */
   async searchProfiles(query, limit = 50, offset = 0) {
     try {
-      const { data, error } = await supabase.rpc('search_profiles_safe', {
+      const { data, error } = await supabase.rpc("search_profiles_safe", {
         p_query: query,
         p_limit: limit,
-        p_offset: offset
+        p_offset: offset,
       });
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('searchProfiles error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -75,13 +72,13 @@ export const profilesService = {
    */
   async getPersonMarriages(personId) {
     if (!personId) {
-      console.warn('getPersonMarriages called with no personId');
+      console.warn("getPersonMarriages called with no personId");
       return [];
     }
     try {
       // Call the new, high-performance RPC function on the backend.
-      const { data, error } = await supabase.rpc('get_person_marriages', {
-        p_id: personId
+      const { data, error } = await supabase.rpc("get_person_marriages", {
+        p_id: personId,
       });
 
       if (error) {
@@ -93,7 +90,6 @@ export const profilesService = {
       // If there are no marriages, the backend will correctly return null, which we convert to an empty array.
       return data || [];
     } catch (error) {
-      console.error('Error fetching person marriages:', error.message);
       // Return an empty array on failure to prevent the UI from crashing.
       return [];
     }
@@ -105,14 +101,13 @@ export const profilesService = {
    */
   async getPersonWithRelations(personId) {
     try {
-      const { data, error } = await supabase.rpc('get_person_with_relations', {
-        p_id: personId
+      const { data, error } = await supabase.rpc("get_person_with_relations", {
+        p_id: personId,
       });
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getPersonWithRelations error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -133,7 +128,7 @@ export const profilesService = {
         p_sibling_order: profileData.sibling_order || 1,
         p_kunya: profileData.kunya || null,
         p_nickname: profileData.nickname || null,
-        p_status: profileData.status || 'alive',
+        p_status: profileData.status || "alive",
         p_dob_data: profileData.dob_data || null,
         p_bio: profileData.bio || null,
         p_birth_place: profileData.birth_place || null,
@@ -147,25 +142,87 @@ export const profilesService = {
         p_achievements: profileData.achievements || null,
         p_timeline: profileData.timeline || null,
         p_dob_is_public: profileData.dob_is_public !== false,
-        p_profile_visibility: profileData.profile_visibility || 'public'
+        p_profile_visibility: profileData.profile_visibility || "public",
       };
 
-      const { data, error } = await supabase.rpc('admin_create_profile', params);
-      
+      const { data, error } = await supabase.rpc(
+        "admin_create_profile",
+        params,
+      );
+
       if (error) {
         // Handle specific validation errors
-        if (error.message.includes('Circular parent')) {
-          throw new Error('Cannot create circular relationship');
+        if (error.message.includes("Circular parent")) {
+          throw new Error("Cannot create circular relationship");
         }
-        if (error.message.includes('Generation hierarchy')) {
-          throw new Error('الجيل يجب أن يكون أكبر من جيل الوالد');
+        if (error.message.includes("Generation hierarchy")) {
+          throw new Error("الجيل يجب أن يكون أكبر من جيل الوالد");
         }
         throw error;
       }
-      
+
       return { data, error: null };
     } catch (error) {
-      console.error('createProfile error:', error);
+      return { data: null, error: error.message || handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Bulk create children for a parent
+   * @param {string} parentId - Parent profile ID
+   * @param {Array} children - Array of child objects with name, gender, etc.
+   */
+  async bulkCreateChildren(parentId, children) {
+    try {
+      const { data, error } = await supabase.rpc("admin_bulk_create_children", {
+        p_parent_id: parentId,
+        p_parent_type: "father", // Default to father for backward compatibility
+        p_children: children,
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: error.message || handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Bulk create children with both parents
+   * @param {string} fatherId - Father profile ID
+   * @param {string} motherId - Mother profile ID
+   * @param {Array} children - Array of child objects with name, gender, etc.
+   */
+  async bulkCreateChildrenWithMother(fatherId, motherId, children) {
+    try {
+      // Use the existing bulk create function but with modified children data
+      const childrenWithParents = children.map((child) => ({
+        ...child,
+        father_id: fatherId,
+        mother_id: motherId,
+      }));
+
+      // Create children one by one with both parents set
+      const results = [];
+      for (const child of childrenWithParents) {
+        const { data, error } = await this.createProfile({
+          name: child.name,
+          gender: child.gender,
+          generation: child.generation || null,
+          father_id: fatherId,
+          mother_id: motherId,
+          sibling_order: child.sibling_order || 0,
+        });
+
+        if (error) {
+          console.error(`Failed to create child ${child.name}:`, error);
+          throw error;
+        }
+        results.push(data);
+      }
+
+      return { data: results, error: null };
+    } catch (error) {
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
@@ -178,22 +235,23 @@ export const profilesService = {
    */
   async updateProfile(profileId, currentVersion, updates) {
     try {
-      const { data, error } = await supabase.rpc('admin_update_profile', {
+      const { data, error } = await supabase.rpc("admin_update_profile", {
         p_id: profileId,
         p_version: currentVersion,
-        p_updates: updates
+        p_updates: updates,
       });
-      
+
       if (error) {
-        if (error.message.includes('version mismatch')) {
-          throw new Error('تم تحديث البيانات من مستخدم آخر. يرجى التحديث والمحاولة مرة أخرى');
+        if (error.message.includes("version mismatch")) {
+          throw new Error(
+            "تم تحديث البيانات من مستخدم آخر. يرجى التحديث والمحاولة مرة أخرى",
+          );
         }
         throw error;
       }
-      
+
       return { data, error: null };
     } catch (error) {
-      console.error('updateProfile error:', error);
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
@@ -205,44 +263,119 @@ export const profilesService = {
    */
   async deleteProfile(profileId, currentVersion) {
     try {
-      const { data, error } = await supabase.rpc('admin_delete_profile', {
+      const { data, error } = await supabase.rpc("admin_delete_profile", {
         p_id: profileId,
-        p_version: currentVersion
+        p_version: currentVersion,
       });
-      
+
       if (error) {
-        if (error.message.includes('has children')) {
-          throw new Error('Cannot delete profile with children');
+        if (error.message.includes("has children")) {
+          throw new Error("Cannot delete profile with children");
         }
         throw error;
       }
-      
+
       return { data, error: null };
     } catch (error) {
-      console.error('deleteProfile error:', error);
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
 
   /**
-   * Admin: Create marriage
-   * @param {Object} marriageData - Marriage data
+   * Admin: Preview delete impact - shows what would be deleted
+   * @param {string} profileId - Profile to check delete impact for
+   */
+  async previewDeleteImpact(profileId) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "admin_preview_delete_impact",
+        {
+          p_profile_id: profileId,
+        },
+      );
+
+      if (error) throw error;
+      return { data: data?.[0] || null, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Delete profile with optional cascade
+   * @param {string} profileId - Profile to delete
+   * @param {boolean} cascade - Whether to cascade delete all descendants
+   */
+  async deleteProfile(profileId, cascade = false) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "admin_cascade_delete_profile",
+        {
+          p_profile_id: profileId,
+          p_confirm_cascade: cascade,
+        },
+      );
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Restore soft-deleted profile
+   * @param {string} profileId - Profile to restore
+   * @param {boolean} restoreDescendants - Whether to restore descendants too
+   */
+  async restoreProfile(profileId, restoreDescendants = false) {
+    try {
+      const { data, error } = await supabase.rpc(
+        "admin_restore_deleted_profile",
+        {
+          p_profile_id: profileId,
+          p_restore_descendants: restoreDescendants,
+        },
+      );
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: List deleted profiles for restoration
+   */
+  async listDeletedProfiles() {
+    try {
+      const { data, error } = await supabase.rpc("admin_list_deleted_profiles");
+
+      if (error) throw error;
+      return { data: data || [], error: null };
+    } catch (error) {
+      return { data: [], error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Create marriage relationship
    */
   async createMarriage(marriageData) {
     try {
-      const { data, error } = await supabase.rpc('admin_create_marriage', {
+      const { data, error } = await supabase.rpc("admin_create_marriage", {
         p_husband_id: marriageData.husband_id,
         p_wife_id: marriageData.wife_id,
         p_munasib: marriageData.munasib || null,
         p_start_date: marriageData.start_date || null,
         p_end_date: marriageData.end_date || null,
-        p_status: marriageData.status || 'married'
+        p_status: marriageData.status || "married",
       });
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('createMarriage error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -252,12 +385,11 @@ export const profilesService = {
    */
   async getValidationDashboard() {
     try {
-      const { data, error } = await supabase.rpc('admin_validation_dashboard');
-      
+      const { data, error } = await supabase.rpc("admin_validation_dashboard");
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getValidationDashboard error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -267,12 +399,11 @@ export const profilesService = {
    */
   async runAutoFix() {
     try {
-      const { data, error } = await supabase.rpc('admin_auto_fix_issues');
-      
+      const { data, error } = await supabase.rpc("admin_auto_fix_issues");
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('runAutoFix error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -283,14 +414,13 @@ export const profilesService = {
    */
   async bulkUpdateLayouts(updates) {
     try {
-      const { data, error } = await supabase.rpc('admin_bulk_update_layouts', {
-        p_updates: updates
+      const { data, error } = await supabase.rpc("admin_bulk_update_layouts", {
+        p_updates: updates,
       });
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('bulkUpdateLayouts error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -301,15 +431,14 @@ export const profilesService = {
   async getLayoutQueueStatus() {
     try {
       const { data, error } = await supabase
-        .from('layout_recalc_queue')
-        .select('*')
-        .order('queued_at', { ascending: false })
+        .from("layout_recalc_queue")
+        .select("*")
+        .order("queued_at", { ascending: false })
         .limit(10);
-      
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('getLayoutQueueStatus error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
@@ -320,17 +449,19 @@ export const profilesService = {
    */
   async triggerLayoutRecalc(nodeId) {
     try {
-      const { data, error } = await supabase.rpc('trigger_layout_recalc_async', {
-        p_node_id: nodeId
-      });
-      
+      const { data, error } = await supabase.rpc(
+        "trigger_layout_recalc_async",
+        {
+          p_node_id: nodeId,
+        },
+      );
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
-      console.error('triggerLayoutRecalc error:', error);
       return { data: null, error: handleSupabaseError(error) };
     }
-  }
+  },
 };
 
 // Export for backward compatibility

@@ -22,6 +22,11 @@ class SkiaImageCache {
    * Transform URL to request specific size variant
    */
   urlForBucket(url: string, bucket: number): string {
+    // Guard against undefined/null URLs
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+    
     if (url.includes('supabase.co/storage/')) {
       try {
         // Transform from /object/ to /render/image/ for transformations
@@ -39,17 +44,11 @@ class SkiaImageCache {
         
         const finalUrl = urlObj.toString();
         
-        if (__DEV__) {
-          console.log(`🌳 TREE CACHE: Transforming URL for bucket ${bucket}`);
-          console.log(`  Original: ${url}`);
-          console.log(`  Transformed: ${finalUrl}`);
-        }
+        // Removed console.log for cleaner output
         
         return finalUrl;
       } catch (error) {
-        if (__DEV__) {
-          console.log(`🌳 TREE CACHE: Failed to transform URL`, error.message);
-        }
+        // Silently handle transformation errors
         return url;
       }
     }
@@ -62,11 +61,7 @@ class SkiaImageCache {
   get(key: string): SkImage | null {
     const entry = this.cache.get(key);
     if (!entry) {
-      if (__DEV__) {
-        console.log(`🌳 TREE CACHE: Key not found in cache`);
-        console.log(`  Looking for: ${key}`);
-        console.log(`  Cache keys: ${Array.from(this.cache.keys()).map(k => k.substring(k.lastIndexOf('/') + 1).split('?')[0]).join(', ')}`);
-      }
+      // Cache miss - no logging needed
       return null;
     }
     
@@ -80,10 +75,7 @@ class SkiaImageCache {
     this.cache.delete(key);
     this.cache.set(key, entry);
     
-    if (__DEV__) {
-      const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
-      console.log(`🌳 TREE CACHE HIT: ${filename}`);
-    }
+    // Cache hit - returning cached image
     
     return entry.img;
   }
@@ -95,13 +87,7 @@ class SkiaImageCache {
     const finalUrl = this.urlForBucket(url, bucket);
     const key = finalUrl;
     
-    if (__DEV__) {
-      console.log(`🌳 TREE CACHE: getOrLoad called`);
-      console.log(`  URL: ${url}`);
-      console.log(`  Bucket: ${bucket}`);
-      console.log(`  Key: ${key}`);
-      console.log(`  Cache entries: ${this.cache.size}`);
-    }
+    // Check cache first
     
     // Check cache first
     const cached = this.get(key);
@@ -131,17 +117,11 @@ class SkiaImageCache {
       // Evict if needed
       this.evictIfNeeded();
       
-      if (__DEV__) {
-        const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
-        console.log(`🌳 TREE CACHE MISS: Loaded ${filename} (${img.width()}x${img.height()}, ${(bytes/1024/1024).toFixed(1)}MB)`);
-      }
+      // Image loaded and cached successfully
       
       return img;
     } catch (error) {
-      if (__DEV__) {
-        const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
-        console.log(`🌳 TREE CACHE ERROR: Failed to load ${filename}`, error.message);
-      }
+      // Load error will be propagated to caller
       throw error;
     } finally {
       this.inflight.delete(key);
@@ -163,9 +143,7 @@ class SkiaImageCache {
    * Load image from network
    */
   private async load(url: string, options?: LoadOptions): Promise<SkImage> {
-    if (__DEV__) {
-      console.log(`🌳 TREE CACHE: Fetching URL: ${url}`);
-    }
+    // Fetching image from network
     
     let response = await fetch(url, options?.fetchOptions);
     
@@ -176,9 +154,7 @@ class SkiaImageCache {
         '/storage/v1/object/public/'
       ).split('?')[0]; // Remove transformation params
       
-      if (__DEV__) {
-        console.log(`🌳 TREE CACHE: Transformation failed (${response.status}), falling back to original`);
-      }
+      // Falling back to original URL
       
       response = await fetch(fallbackUrl, options?.fetchOptions);
     }
@@ -195,12 +171,7 @@ class SkiaImageCache {
       throw new Error('Failed to decode image');
     }
     
-    if (__DEV__) {
-      console.log(`🌳 TREE CACHE: Image decoded - ${img.width()}x${img.height()}`);
-      if (img.width() > 512) {
-        console.warn(`⚠️ TREE CACHE: Large image loaded! Expected ≤512px, got ${img.width()}x${img.height()}`);
-      }
-    }
+    // Image decoded successfully
     
     return img;
   }
@@ -237,10 +208,7 @@ class SkiaImageCache {
       // Ignore disposal errors
     }
     
-    if (__DEV__) {
-      const filename = key.substring(key.lastIndexOf('/') + 1).split('?')[0];
-      console.log(`🌳 TREE CACHE: Evicted ${filename} (${(entry.bytes/1024/1024).toFixed(1)}MB)`);
-    }
+    // Entry evicted to free memory
   }
 
   /**

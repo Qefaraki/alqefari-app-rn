@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   Animated,
   Platform,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
-const NameEditor = ({ value, onChange, placeholder }) => {
+const NameEditor = ({ value, onChange, placeholder, fontSize = 36 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isValid, setIsValid] = useState(true);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -34,7 +34,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
   const handleFocus = () => {
     setIsFocused(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     // Animate scale
     Animated.spring(scaleAnim, {
       toValue: 1.02,
@@ -47,7 +47,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
   // Handle blur
   const handleBlur = () => {
     setIsFocused(false);
-    
+
     // Animate scale back
     Animated.spring(scaleAnim, {
       toValue: 1,
@@ -55,7 +55,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
       stiffness: 400,
       useNativeDriver: true,
     }).start();
-    
+
     // Trim whitespace on blur
     const trimmed = value.trim();
     if (trimmed !== value) {
@@ -65,7 +65,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
 
   // Handle clear button
   const handleClear = () => {
-    onChange('');
+    onChange("");
     inputRef.current?.focus();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -73,14 +73,14 @@ const NameEditor = ({ value, onChange, placeholder }) => {
   // Animate clear button visibility
   useEffect(() => {
     const shouldShow = isFocused && value.length > 0;
-    
+
     // Animate opacity
     Animated.timing(clearButtonOpacity, {
       toValue: shouldShow ? 1 : 0,
       duration: 200,
       useNativeDriver: true,
     }).start();
-    
+
     // Animate translateX
     Animated.timing(clearButtonTranslateX, {
       toValue: shouldShow ? 0 : 20,
@@ -91,9 +91,9 @@ const NameEditor = ({ value, onChange, placeholder }) => {
 
   // Determine border color based on state
   const getBorderColor = () => {
-    if (!isValid) return '#EF4444';
-    if (isFocused) return '#007AFF';
-    return 'transparent';
+    if (!isValid) return "#EF4444";
+    if (isFocused) return "#007AFF";
+    return "transparent";
   };
 
   return (
@@ -116,15 +116,12 @@ const NameEditor = ({ value, onChange, placeholder }) => {
       >
         <TextInput
           ref={inputRef}
-          style={[
-            styles.input,
-            !isValid && styles.invalidInput,
-          ]}
+          style={[styles.input, !isValid && styles.invalidInput, { fontSize }]}
           value={value}
           onChangeText={handleChangeText}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholder={placeholder || 'الاسم'}
+          placeholder={placeholder || "الاسم"}
           placeholderTextColor="rgba(0, 0, 0, 0.3)"
           textAlign="right"
           autoCapitalize="words"
@@ -132,7 +129,7 @@ const NameEditor = ({ value, onChange, placeholder }) => {
           maxLength={100}
           selectTextOnFocus
         />
-        
+
         <Animated.View
           style={[
             styles.clearButtonContainer,
@@ -145,14 +142,18 @@ const NameEditor = ({ value, onChange, placeholder }) => {
               ],
             },
           ]}
-          pointerEvents={value.length > 0 ? 'auto' : 'none'}
+          pointerEvents={value.length > 0 ? "auto" : "none"}
         >
           <TouchableOpacity
             onPress={handleClear}
             style={styles.clearButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close-circle" size={20} color="rgba(0, 0, 0, 0.3)" />
+            <Ionicons
+              name="close-circle"
+              size={20}
+              color="rgba(0, 0, 0, 0.3)"
+            />
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
@@ -162,32 +163,34 @@ const NameEditor = ({ value, onChange, placeholder }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+    backgroundColor: "rgba(0, 0, 0, 0.02)",
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   innerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row-reverse",
+    alignItems: "center",
   },
   input: {
     flex: 1,
     fontSize: 36,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: "bold",
+    color: "#111827",
     fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      default: 'System',
+      ios: "SF Arabic",
+      default: "System",
     }),
     paddingHorizontal: 16,
     paddingVertical: 12,
     minHeight: 60,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   invalidInput: {
-    color: '#EF4444',
+    color: "#EF4444",
   },
   clearButtonContainer: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
   },
   clearButton: {

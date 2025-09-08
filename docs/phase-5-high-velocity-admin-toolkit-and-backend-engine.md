@@ -1,6 +1,6 @@
 # Phase 5 — High‑Velocity Admin Toolkit & Backend Engine
 
-Purpose: Deliver a professional‑grade admin experience optimized for speed, safety, and clarity, enabling power users to build and manage the Alqefari family tree at scale. All UI is RTL‑first and follows Apple‑like liquid glass aesthetics.
+Purpose: Deliver a professional‑grade admin experience optimized for speed, safety, and clarity, enabling power users to build and manage the Alqefari family tree at scale. All UI is RTL‑first and follows an Apple‑like, neo‑native design (no glass/blur).
 
 
 ## 0) Scope and Non‑Goals
@@ -123,7 +123,7 @@ Purpose: Deliver a professional‑grade admin experience optimized for speed, sa
 
 ## 4) Frontend Workstream
 
-All UI RTL‑first and styled using existing glass components (`src/components/glass/*`, `ios/CardSurface`).
+All UI RTL‑first and styled using new neo‑native UI components (`src/components/ui/*`, `ios/CardSurface`).
 
 ### 4.1 Admin Mode & Global UI
 
@@ -248,7 +248,7 @@ All UI RTL‑first and styled using existing glass components (`src/components/g
 - Frontend E2E:
   - Multi‑Add 10 children; single job observed; tree reflects new nodes.
   - Activity view shows readable entries; revert works; UI updates.
-  - RTL layout and glass style consistency.
+  - RTL layout and neo‑native style consistency.
 
 
 ## 12) Ownership & Communication
@@ -275,4 +275,4 @@ All UI RTL‑first and styled using existing glass components (`src/components/g
 
 
 —
-This roadmap is definitive for Phase 5 and is intended to be implementation‑ready. All UI must be RTL‑first and follow the Apple‑like, liquid glass aesthetic consistent with existing components.
+This roadmap is definitive for Phase 5 and is intended to be implementation‑ready. All UI must be RTL‑first and follow the Apple‑like, neo‑native aesthetic consistent with the new UI components (no glass/blur).
