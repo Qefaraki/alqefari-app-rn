@@ -12,6 +12,7 @@ import {
   Alert,
   Modal,
   SafeAreaView,
+  I18nManager,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -26,6 +27,9 @@ import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Enable RTL
+I18nManager.forceRTL(true);
 
 // Node dimensions for preview
 const NODE_WIDTH = 90;
@@ -59,7 +63,6 @@ const DraggableNode = ({
       translateY.value = e.translationY;
     })
     .onEnd(() => {
-      // Calculate which position this was dropped at
       const currentX = translateX.value;
       const nodeWithSpacing = NODE_WIDTH + NODE_SPACING;
       const movement = Math.round(currentX / nodeWithSpacing);
@@ -68,7 +71,6 @@ const DraggableNode = ({
         Math.min(totalChildren - 1, index + movement),
       );
 
-      // Animate back to original position
       translateX.value = withSpring(0);
       translateY.value = withSpring(0);
       scale.value = withSpring(1);
@@ -110,9 +112,9 @@ const DraggableNode = ({
           >
             {child.name || "جديد"}
           </Text>
-        </View>
-        <View style={styles.orderBadge}>
-          <Text style={styles.orderBadgeText}>{index + 1}</Text>
+          <View style={styles.orderBadge}>
+            <Text style={styles.orderBadgeText}>{index + 1}</Text>
+          </View>
         </View>
       </Animated.View>
     </GestureDetector>
@@ -129,7 +131,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const scrollViewRef = useRef(null);
   const { refreshProfile } = useStore();
 
-  // Initialize children list
+  // Initialize children list with RTL order
   useEffect(() => {
     if (visible && parentNode) {
       console.log("QuickAddOverlay: parentNode:", parentNode);
@@ -156,18 +158,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       console.log("QuickAddOverlay: sorted siblings:", sortedSiblings);
 
-      // Add ghost at the end (youngest position)
-      setAllChildren([...sortedSiblings, ghost]);
+      // RTL: Ghost (newest/youngest) goes FIRST (appears on left)
+      // Then siblings from oldest to youngest (right to left)
+      setAllChildren([ghost, ...sortedSiblings]);
       setNewChildName("");
       setNewChildGender("male");
 
-      // Auto-focus after modal animation
+      // Auto-focus and scroll to beginning (left) after modal animation
       setTimeout(() => {
         inputRef.current?.focus();
-        // Scroll to show the ghost node at the end
-        if (scrollViewRef.current && sortedSiblings.length > 0) {
-          scrollViewRef.current.scrollToEnd({ animated: true });
-        }
+        scrollViewRef.current?.scrollTo({ x: 0, animated: true });
       }, 400);
     }
   }, [visible, parentNode, siblings]);
@@ -192,7 +192,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     );
   };
 
-  // Add another child
+  // Add another child - RTL aware
   const handleAddAnother = () => {
     if (!newChildName.trim()) {
       Alert.alert("تنبيه", "يرجى إدخال اسم الطفل");
@@ -200,6 +200,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     }
 
     setAllChildren((prev) => {
+      // Convert current ghost to real child
       const updated = prev.map((child) => {
         if (child.isGhost) {
           return {
@@ -212,22 +213,29 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         return child;
       });
 
-      // Add new ghost at the end
+      // Create new ghost for next child
       const newGhost = {
         id: `ghost-${Date.now()}`,
         name: "",
         gender: "male",
         isGhost: true,
         isNew: true,
-        sibling_order: updated.length,
+        sibling_order: updated.filter((c) => c.isNew).length,
       };
 
-      return [...updated, newGhost];
+      // RTL: New ghost at beginning (left), then other children
+      return [newGhost, ...updated.filter((c) => !c.isGhost)];
     });
 
     setNewChildName("");
     setNewChildGender("male");
     inputRef.current?.focus();
+
+    // Scroll to beginning (left) to show new ghost
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ x: 0, animated: true });
+    }, 100);
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -332,7 +340,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           style={styles.keyboardAvoid}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Header */}
+          {/* Header - RTL aligned */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={28} color="#000" />
@@ -500,11 +508,13 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: "#000",
+    textAlign: "center",
   },
   headerSubtitle: {
     fontSize: 14,
     color: "#666",
     marginTop: 2,
+    textAlign: "center",
   },
   headerRight: {
     width: 44,
@@ -518,10 +528,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: "#666",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
     marginHorizontal: 16,
     marginBottom: 12,
+    textAlign: "right",
   },
   previewContainer: {
     height: 60,
@@ -529,6 +538,7 @@ const styles = StyleSheet.create({
   previewScroll: {
     paddingHorizontal: 16,
     alignItems: "center",
+    flexDirection: "row",
   },
   hint: {
     fontSize: 12,
@@ -592,7 +602,7 @@ const styles = StyleSheet.create({
   },
   orderBadgeText: {
     color: "#FFF",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
   },
   inputSection: {
@@ -608,8 +618,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#666",
     marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    textAlign: "right",
   },
   input: {
     backgroundColor: "#F8F8F8",
@@ -620,6 +629,7 @@ const styles = StyleSheet.create({
     color: "#000",
     borderWidth: 1,
     borderColor: "#E0E0E0",
+    textAlign: "right",
   },
   genderSection: {
     marginBottom: 20,
