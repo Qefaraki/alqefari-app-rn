@@ -113,7 +113,7 @@ const DraggableNode = ({
             {child.name || "جديد"}
           </Text>
           <View style={styles.orderBadge}>
-            <Text style={styles.orderBadgeText}>{index + 1}</Text>
+            <Text style={styles.orderBadgeText}>{totalChildren - index}</Text>
           </View>
         </View>
       </Animated.View>
@@ -525,6 +525,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     textAlign: "right",
+    alignSelf: "flex-end",
+    width: "100%",
   },
   previewContainer: {
     height: 60,
@@ -613,6 +615,8 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 8,
     textAlign: "right",
+    alignSelf: "flex-end",
+    width: "100%",
   },
   input: {
     backgroundColor: "#F8F8F8",
