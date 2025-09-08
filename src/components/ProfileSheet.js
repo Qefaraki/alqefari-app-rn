@@ -467,10 +467,6 @@ const ProfileSheet = ({ editMode = false }) => {
             {isEditing ? (
               <View style={styles.photoEditSection}>
                 <PhotoEditor
-                  variant="hero"
-                  heroHeight={HERO_HEIGHT}
-                  borderRadiusOverride={48}
-                  showHint={true}
                   value={editedData?.photo_url || ''}
                   onChange={(url) => setEditedData({...editedData, photo_url: url})}
                   currentPhotoUrl={person.photo_url}
