@@ -11,20 +11,24 @@ import {
   Dimensions,
   RefreshControl,
   Modal,
+  I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import CardSurface from "../components/ios/CardSurface";
 import profilesService from "../services/profiles";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
-import { useTreeStore } from "../stores/useTreeStore";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// Force RTL
+I18nManager.forceRTL(true);
 
 const AdminDashboard = ({ navigation }) => {
   const { isAdmin, isAdminMode } = useAdminMode();
@@ -95,23 +99,21 @@ const AdminDashboard = ({ navigation }) => {
 
   const loadRecentActivity = async () => {
     try {
-      // Mock data for now - replace with actual audit log data
+      // Mock data with proper RTL names
       const activities = [
         {
           id: 1,
           type: "create",
           name: "محمد بن أحمد",
-          time: "منذ 5 دقائق",
+          time: "منذ ٥ دقائق",
           icon: "add-circle",
-          color: "#34C759",
         },
         {
           id: 2,
           type: "update",
           name: "فاطمة بنت علي",
-          time: "منذ 15 دقيقة",
+          time: "منذ ١٥ دقيقة",
           icon: "create",
-          color: "#007AFF",
         },
         {
           id: 3,
@@ -119,7 +121,6 @@ const AdminDashboard = ({ navigation }) => {
           name: "خالد بن سعد",
           time: "منذ ساعة",
           icon: "camera",
-          color: "#FF9500",
         },
       ];
       setRecentActivity(activities);
@@ -180,9 +181,9 @@ const AdminDashboard = ({ navigation }) => {
         break;
       case "export":
         Alert.alert("تصدير البيانات", "اختر صيغة التصدير", [
-          { text: "JSON", onPress: () => handleExport("json") },
-          { text: "CSV", onPress: () => handleExport("csv") },
           { text: "إلغاء", style: "cancel" },
+          { text: "CSV", onPress: () => handleExport("csv") },
+          { text: "JSON", onPress: () => handleExport("json") },
         ]);
         break;
       case "validate":
@@ -209,6 +210,32 @@ const AdminDashboard = ({ navigation }) => {
     }
   };
 
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case "create":
+        return "add-circle";
+      case "update":
+        return "create";
+      case "photo":
+        return "camera";
+      default:
+        return "ellipse";
+    }
+  };
+
+  const getActivityColor = (type) => {
+    switch (type) {
+      case "create":
+        return "#34C759";
+      case "update":
+        return "#007AFF";
+      case "photo":
+        return "#FF9500";
+      default:
+        return "#8E8E93";
+    }
+  };
+
   if (!isAdmin || !isAdminMode) {
     return (
       <SafeAreaView style={styles.container}>
@@ -231,10 +258,10 @@ const AdminDashboard = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color="#007AFF" />
+            <Ionicons name="chevron-forward" size={24} color="#007AFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>لوحة التحكم</Text>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 44 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
@@ -252,22 +279,23 @@ const AdminDashboard = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+          <Ionicons name="chevron-forward" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>لوحة التحكم</Text>
-        <View style={{ width: 40 }} />
+        <View style={{ width: 44 }} />
       </View>
 
-      {/* Error Banner */}
+      {/* Error Banner - Subtle */}
       {error && (
         <View style={styles.errorBanner}>
-          <View style={styles.errorContent}>
-            <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
-            <Text style={styles.errorBannerText}>{error}</Text>
-          </View>
-          <TouchableOpacity onPress={() => setError(null)}>
-            <Ionicons name="close" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          <BlurView intensity={80} tint="dark" style={styles.errorContent}>
+            <View style={styles.errorInner}>
+              <Text style={styles.errorBannerText}>{error}</Text>
+              <TouchableOpacity onPress={() => setError(null)}>
+                <Ionicons name="close-circle" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </BlurView>
         </View>
       )}
 
@@ -278,74 +306,64 @@ const AdminDashboard = ({ navigation }) => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Stats Cards Grid */}
+        {/* Stats Cards - Refined Colors */}
         <View style={styles.statsGrid}>
-          <TouchableOpacity activeOpacity={0.95} style={styles.statCard}>
-            <LinearGradient
-              colors={["#34C759", "#30A14E"]}
-              style={styles.statGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statCardInner, { backgroundColor: "#007AFF" }]}
             >
-              <View style={styles.statIcon}>
-                <Ionicons name="time" size={24} color="#FFFFFF" />
-              </View>
-              <Text style={styles.statNumber}>{stats.totalProfiles}</Text>
-              <Text style={styles.statLabel}>تغيير اليوم</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity activeOpacity={0.95} style={styles.statCard}>
-            <LinearGradient
-              colors={["#007AFF", "#0051D5"]}
-              style={styles.statGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
-              <View style={styles.statIcon}>
-                <Ionicons name="people" size={24} color="#FFFFFF" />
+              <View style={styles.statIconContainer}>
+                <Ionicons name="people" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.statNumber}>{stats.totalProfiles}</Text>
               <Text style={styles.statLabel}>ملف شخصي</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+            </View>
+          </View>
 
-          <TouchableOpacity
-            activeOpacity={0.95}
-            style={styles.statCard}
-            onPress={() => setShowValidationDashboard(true)}
-          >
-            <LinearGradient
-              colors={["#FF3B30", "#DC3023"]}
-              style={styles.statGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statCardInner, { backgroundColor: "#34C759" }]}
             >
-              <View style={styles.statIcon}>
-                <Ionicons name="alert-circle" size={24} color="#FFFFFF" />
+              <View style={styles.statIconContainer}>
+                <Ionicons name="time" size={20} color="#FFFFFF" />
               </View>
-              <Text style={styles.statNumber}>{stats.pendingValidation}</Text>
-              <Text style={styles.statLabel}>خطأ للإصلاح</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <Text style={styles.statNumber}>
+                {stats.recentChanges || stats.totalProfiles}
+              </Text>
+              <Text style={styles.statLabel}>تغيير اليوم</Text>
+            </View>
+          </View>
 
-          <TouchableOpacity activeOpacity={0.95} style={styles.statCard}>
-            <LinearGradient
-              colors={["#FF9500", "#FF6B35"]}
-              style={styles.statGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+          <View style={styles.statCard}>
+            <View
+              style={[styles.statCardInner, { backgroundColor: "#FF9500" }]}
             >
-              <View style={styles.statIcon}>
-                <Ionicons name="sync" size={24} color="#FFFFFF" />
+              <View style={styles.statIconContainer}>
+                <Ionicons name="sync" size={20} color="#FFFFFF" />
               </View>
               <Text style={styles.statNumber}>{stats.activeJobs}</Text>
               <Text style={styles.statLabel}>عملية نشطة</Text>
-            </LinearGradient>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => setShowValidationDashboard(true)}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[styles.statCardInner, { backgroundColor: "#FF3B30" }]}
+            >
+              <View style={styles.statIconContainer}>
+                <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{stats.pendingValidation}</Text>
+              <Text style={styles.statLabel}>خطأ للإصلاح</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - Subtle Design */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
           <View style={styles.quickActionsGrid}>
@@ -357,10 +375,10 @@ const AdminDashboard = ({ navigation }) => {
                 color: "#007AFF",
               },
               {
-                id: "backup",
-                icon: "save-outline",
-                label: "نسخ",
-                color: "#FF9500",
+                id: "export",
+                icon: "cloud-download-outline",
+                label: "تصدير",
+                color: "#34C759",
               },
               {
                 id: "validate",
@@ -369,10 +387,10 @@ const AdminDashboard = ({ navigation }) => {
                 color: "#5856D6",
               },
               {
-                id: "export",
-                icon: "cloud-download-outline",
-                label: "تصدير",
-                color: "#34C759",
+                id: "backup",
+                icon: "save-outline",
+                label: "نسخ",
+                color: "#FF9500",
               },
               {
                 id: "permissions",
@@ -390,7 +408,7 @@ const AdminDashboard = ({ navigation }) => {
                 <View
                   style={[
                     styles.quickActionIcon,
-                    { backgroundColor: `${action.color}15` },
+                    { backgroundColor: `${action.color}10` },
                   ]}
                 >
                   {exporting && action.id === "export" ? (
@@ -398,7 +416,7 @@ const AdminDashboard = ({ navigation }) => {
                   ) : (
                     <Ionicons
                       name={action.icon}
-                      size={24}
+                      size={22}
                       color={action.color}
                     />
                   )}
@@ -409,7 +427,7 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - Refined */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>النشاط الأخير</Text>
@@ -421,122 +439,133 @@ const AdminDashboard = ({ navigation }) => {
           {recentActivity.length > 0 ? (
             <View style={styles.activityList}>
               {recentActivity.map((activity) => (
-                <CardSurface key={activity.id} style={styles.activityItem}>
-                  <View
-                    style={[
-                      styles.activityIcon,
-                      { backgroundColor: `${activity.color}15` },
-                    ]}
-                  >
-                    <Ionicons
-                      name={activity.icon}
-                      size={18}
-                      color={activity.color}
-                    />
+                <View key={activity.id} style={styles.activityItem}>
+                  <View style={styles.activityLeft}>
+                    <View
+                      style={[
+                        styles.activityIcon,
+                        {
+                          backgroundColor: `${getActivityColor(activity.type)}10`,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={getActivityIcon(activity.type)}
+                        size={16}
+                        color={getActivityColor(activity.type)}
+                      />
+                    </View>
+                    <View style={styles.activityInfo}>
+                      <Text style={styles.activityName}>{activity.name}</Text>
+                      <Text style={styles.activityTime}>{activity.time}</Text>
+                    </View>
                   </View>
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityName}>{activity.name}</Text>
-                    <Text style={styles.activityTime}>{activity.time}</Text>
-                  </View>
-                </CardSurface>
+                </View>
               ))}
             </View>
           ) : (
-            <CardSurface style={styles.emptyCard}>
+            <View style={styles.emptyCard}>
               <Text style={styles.emptyText}>لا يوجد نشاط حديث</Text>
-            </CardSurface>
+            </View>
           )}
         </View>
 
-        {/* Demographics & Data Quality in one row */}
+        {/* Info Cards - Side by Side */}
         <View style={styles.section}>
           <View style={styles.infoCardsRow}>
             {/* Demographics Card */}
-            <CardSurface style={styles.infoCard}>
+            <View style={styles.infoCard}>
               <Text style={styles.infoCardTitle}>التركيبة السكانية</Text>
-              <View style={styles.demographicItem}>
-                <Text style={styles.demographicLabel}>ذكور</Text>
-                <Text style={styles.demographicValue}>{stats.maleCount}</Text>
+              <View style={styles.infoCardContent}>
+                <View style={styles.demographicRow}>
+                  <Text style={styles.demographicLabel}>ذكور</Text>
+                  <Text style={styles.demographicValue}>{stats.maleCount}</Text>
+                </View>
+                <View style={styles.demographicRow}>
+                  <Text style={styles.demographicLabel}>إناث</Text>
+                  <Text style={styles.demographicValue}>
+                    {stats.femaleCount}
+                  </Text>
+                </View>
+                <View style={styles.demographicRow}>
+                  <Text style={styles.demographicLabel}>أحياء</Text>
+                  <Text style={styles.demographicValue}>
+                    {stats.aliveCount}
+                  </Text>
+                </View>
+                <View style={styles.demographicRow}>
+                  <Text style={styles.demographicLabel}>متوفون</Text>
+                  <Text style={styles.demographicValue}>
+                    {stats.deceasedCount}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.demographicDivider} />
-              <View style={styles.demographicItem}>
-                <Text style={styles.demographicLabel}>إناث</Text>
-                <Text style={styles.demographicValue}>{stats.femaleCount}</Text>
-              </View>
-              <View style={styles.demographicDivider} />
-              <View style={styles.demographicItem}>
-                <Text style={styles.demographicLabel}>
-                  الجيل {stats.maxGeneration}
-                </Text>
-                <Text style={styles.demographicValue}>
-                  {stats.avgChildren || "0"}
-                </Text>
-              </View>
-            </CardSurface>
+            </View>
 
             {/* Data Quality Card */}
-            <CardSurface style={styles.infoCard}>
+            <View style={styles.infoCard}>
               <Text style={styles.infoCardTitle}>جودة البيانات</Text>
-              <View style={styles.qualityItem}>
-                <View style={styles.qualityHeader}>
-                  <Text style={styles.qualityLabel}>بصور</Text>
-                  <Text style={styles.qualityPercent}>
-                    {stats.totalProfiles > 0
-                      ? Math.round(
-                          (stats.profilesWithPhotos / stats.totalProfiles) *
-                            100,
-                        )
-                      : 0}
-                    %
-                  </Text>
+              <View style={styles.infoCardContent}>
+                <View style={styles.qualityItem}>
+                  <View style={styles.qualityHeader}>
+                    <Text style={styles.qualityLabel}>بصور</Text>
+                    <Text style={styles.qualityPercent}>
+                      {stats.totalProfiles > 0
+                        ? Math.round(
+                            (stats.profilesWithPhotos / stats.totalProfiles) *
+                              100,
+                          )
+                        : 0}
+                      %
+                    </Text>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${
+                            stats.totalProfiles > 0
+                              ? (stats.profilesWithPhotos /
+                                  stats.totalProfiles) *
+                                100
+                              : 0
+                          }%`,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${
-                          stats.totalProfiles > 0
-                            ? (stats.profilesWithPhotos / stats.totalProfiles) *
-                              100
-                            : 0
-                        }%`,
-                        backgroundColor: "#34C759",
-                      },
-                    ]}
-                  />
+                <View style={styles.qualityItem}>
+                  <View style={styles.qualityHeader}>
+                    <Text style={styles.qualityLabel}>بسيرة ذاتية</Text>
+                    <Text style={styles.qualityPercent}>
+                      {stats.totalProfiles > 0
+                        ? Math.round(
+                            (stats.profilesWithBio / stats.totalProfiles) * 100,
+                          )
+                        : 0}
+                      %
+                    </Text>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${
+                            stats.totalProfiles > 0
+                              ? (stats.profilesWithBio / stats.totalProfiles) *
+                                100
+                              : 0
+                          }%`,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
               </View>
-              <View style={styles.qualityItem}>
-                <View style={styles.qualityHeader}>
-                  <Text style={styles.qualityLabel}>بسيرة</Text>
-                  <Text style={styles.qualityPercent}>
-                    {stats.totalProfiles > 0
-                      ? Math.round(
-                          (stats.profilesWithBio / stats.totalProfiles) * 100,
-                        )
-                      : 0}
-                    %
-                  </Text>
-                </View>
-                <View style={styles.progressBar}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        width: `${
-                          stats.totalProfiles > 0
-                            ? (stats.profilesWithBio / stats.totalProfiles) *
-                              100
-                            : 0
-                        }%`,
-                        backgroundColor: "#007AFF",
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </CardSurface>
+            </View>
           </View>
         </View>
 
@@ -550,36 +579,29 @@ const AdminDashboard = ({ navigation }) => {
                 title: "استيراد البيانات",
                 description: "استيراد ملفات من CSV أو JSON",
                 icon: "cloud-upload-outline",
-                color: "#007AFF",
               },
               {
                 id: "merge",
                 title: "دمج المكررات",
                 description: "البحث عن ودمج الملفات المكررة",
                 icon: "git-merge-outline",
-                color: "#FF9500",
               },
               {
                 id: "cleanup",
                 title: "تنظيف البيانات",
                 description: "إزالة البيانات الفارغة والمعطوبة",
                 icon: "trash-outline",
-                color: "#FF3B30",
               },
             ].map((op) => (
               <TouchableOpacity
                 key={op.id}
+                style={styles.operationCard}
                 activeOpacity={0.7}
                 onPress={() => Alert.alert(op.title, "هذه الميزة قيد التطوير")}
               >
-                <CardSurface style={styles.operationCard}>
-                  <View
-                    style={[
-                      styles.operationIcon,
-                      { backgroundColor: `${op.color}15` },
-                    ]}
-                  >
-                    <Ionicons name={op.icon} size={24} color={op.color} />
+                <View style={styles.operationContent}>
+                  <View style={styles.operationIcon}>
+                    <Ionicons name={op.icon} size={20} color="#007AFF" />
                   </View>
                   <View style={styles.operationInfo}>
                     <Text style={styles.operationTitle}>{op.title}</Text>
@@ -587,8 +609,8 @@ const AdminDashboard = ({ navigation }) => {
                       {op.description}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-                </CardSurface>
+                </View>
+                <Ionicons name="chevron-back" size={20} color="#C7C7CC" />
               </TouchableOpacity>
             ))}
           </View>
@@ -646,15 +668,16 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
     color: "#000000",
+    textAlign: "center",
   },
   loadingContainer: {
     flex: 1,
@@ -663,67 +686,84 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
+    fontSize: 15,
     color: "#8E8E93",
+    textAlign: "right",
   },
   errorBanner: {
-    backgroundColor: "#FF3B30",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
+  errorContent: {
+    overflow: "hidden",
+  },
+  errorInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  errorContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
   errorBannerText: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
+    textAlign: "right",
+    flex: 1,
+    marginRight: 8,
   },
   content: {
     flex: 1,
   },
+
+  // Stats Cards - Refined
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     gap: 12,
   },
   statCard: {
     width: (SCREEN_WIDTH - 44) / 2,
-    height: 100,
+    height: 90,
   },
-  statGradient: {
+  statCardInner: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 12,
     justifyContent: "space-between",
   },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  statIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "flex-end",
   },
   statNumber: {
     fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
+    textAlign: "right",
   },
   statLabel: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.85)",
+    textAlign: "right",
   },
+
+  // Sections
   section: {
     paddingHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -732,16 +772,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "600",
     color: "#000000",
-    marginBottom: 12,
+    textAlign: "right",
   },
   seeAllText: {
     fontSize: 14,
     color: "#007AFF",
-    fontWeight: "600",
+    fontWeight: "500",
   },
+
+  // Quick Actions - Refined
   quickActionsGrid: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -752,88 +794,108 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   quickActionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 6,
+    backgroundColor: "#F2F2F7",
   },
   quickActionLabel: {
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#3C3C43",
+    textAlign: "center",
   },
+
+  // Recent Activity - Refined
   activityList: {
-    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
   },
   activityItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E5EA",
+  },
+  activityLeft: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    gap: 12,
   },
   activityIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 12,
   },
   activityInfo: {
     flex: 1,
+    alignItems: "flex-end",
   },
   activityName: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#000000",
     marginBottom: 2,
+    textAlign: "right",
   },
   activityTime: {
     fontSize: 12,
     color: "#8E8E93",
+    textAlign: "right",
   },
   emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     padding: 24,
     alignItems: "center",
   },
   emptyText: {
     fontSize: 14,
     color: "#8E8E93",
+    textAlign: "center",
   },
+
+  // Info Cards
   infoCardsRow: {
     flexDirection: "row",
     gap: 12,
   },
   infoCard: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
     padding: 16,
   },
   infoCardTitle: {
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#000000",
     marginBottom: 12,
+    textAlign: "right",
   },
-  demographicItem: {
+  infoCardContent: {
+    gap: 8,
+  },
+  demographicRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 6,
   },
   demographicLabel: {
     fontSize: 13,
     color: "#8E8E93",
+    textAlign: "right",
   },
   demographicValue: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "600",
     color: "#000000",
-  },
-  demographicDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#E5E5EA",
-    marginVertical: 4,
   },
   qualityItem: {
     marginBottom: 12,
@@ -846,52 +908,73 @@ const styles = StyleSheet.create({
   },
   qualityLabel: {
     fontSize: 13,
-    color: "#000000",
+    color: "#3C3C43",
+    textAlign: "right",
   },
   qualityPercent: {
     fontSize: 13,
     color: "#007AFF",
-    fontWeight: "700",
+    fontWeight: "600",
   },
   progressBar: {
-    height: 6,
+    height: 4,
     backgroundColor: "#E5E5EA",
-    borderRadius: 3,
+    borderRadius: 2,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 3,
+    backgroundColor: "#007AFF",
+    borderRadius: 2,
   },
+
+  // Operations List
   operationsList: {
-    gap: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    overflow: "hidden",
   },
   operationCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E5EA",
+  },
+  operationContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   operationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#F2F2F7",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginLeft: 12,
   },
   operationInfo: {
     flex: 1,
+    alignItems: "flex-end",
   },
   operationTitle: {
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#000000",
     marginBottom: 2,
+    textAlign: "right",
   },
   operationDescription: {
     fontSize: 13,
     color: "#8E8E93",
+    textAlign: "right",
   },
+
+  // Error State
   errorContainer: {
     flex: 1,
     justifyContent: "center",
@@ -904,6 +987,7 @@ const styles = StyleSheet.create({
     color: "#000000",
     marginTop: 16,
     marginBottom: 8,
+    textAlign: "center",
   },
   errorSubtext: {
     fontSize: 16,
