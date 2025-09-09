@@ -385,7 +385,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 13,
     color: "#6B7280",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   changeButtonOverlay: {
     position: "absolute",
@@ -406,7 +405,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "500",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   cameraButton: {
     width: 44,
@@ -440,7 +438,6 @@ const styles = StyleSheet.create({
   instructions: {
     fontSize: 14,
     color: "#6B7280",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     textAlign: "center",
   },
 });

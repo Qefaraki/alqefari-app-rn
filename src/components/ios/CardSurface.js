@@ -3,19 +3,21 @@ import { View, StyleSheet, Platform } from "react-native";
 
 // Minimal Apple-style card: white surface, soft shadow, rounded corners
 const CardSurface = ({ children, radius = 20, style, contentStyle }) => {
-  const shadowStyle =
-    Platform.OS === "ios"
-      ? {
-          shadowColor: "#000",
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 8 },
-        }
-      : { elevation: 3 };
-
   return (
     <View
-      style={[styles.wrapper, shadowStyle, style, { borderRadius: radius }]}
+      style={[
+        styles.wrapper,
+        Platform.OS === "ios"
+          ? {
+              shadowColor: "#000",
+              shadowOpacity: 0.08,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 8 },
+            }
+          : { elevation: 3 },
+        style,
+        { borderRadius: radius },
+      ]}
     >
       <View style={[styles.card, { borderRadius: radius }]}>
         <View style={[styles.content, contentStyle]}>{children}</View>

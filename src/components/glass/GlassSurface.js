@@ -24,19 +24,27 @@ const GlassSurface = ({
   contentStyle,
   ...rest
 }) => {
-  const elevationStyle =
-    Platform.OS === "ios"
-      ? glassTokens.elevation.ios
-      : glassTokens.elevation.android;
-  const surfaceBackgroundColor =
-    Platform.OS === "ios" ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.22)";
-
   return (
-    <View style={[styles.wrapper, elevationStyle, style]} {...rest}>
+    <View
+      style={[
+        styles.wrapper,
+        Platform.OS === "ios"
+          ? glassTokens.elevation.ios
+          : glassTokens.elevation.android,
+        style,
+      ]}
+      {...rest}
+    >
       <View
         style={[
           styles.surface,
-          { borderRadius: radius, backgroundColor: surfaceBackgroundColor },
+          {
+            borderRadius: radius,
+            backgroundColor:
+              Platform.OS === "ios"
+                ? "rgba(255,255,255,0.15)"
+                : "rgba(255,255,255,0.22)",
+          },
         ]}
       >
         {/* Blur */}

@@ -19,8 +19,6 @@ const Button = ({
   accessibilityLabel,
 }) => {
   const isDisabled = disabled || loading;
-  const shadowStyle =
-    Platform.OS === "ios" ? tokens.shadow.ios : tokens.shadow.android;
 
   const getVariantStyles = () => {
     switch (variant) {
@@ -51,7 +49,7 @@ const Button = ({
     <TouchableOpacity
       style={[
         styles.button,
-        shadowStyle,
+        Platform.OS === "ios" ? tokens.shadow.ios : tokens.shadow.android,
         variantStyles.button,
         isDisabled && styles.disabled,
         style,

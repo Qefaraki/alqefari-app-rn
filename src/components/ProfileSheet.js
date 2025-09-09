@@ -2168,7 +2168,6 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     fontSize: 17,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   cancelText: {
     color: "#007AFF",
@@ -2184,7 +2183,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: "#000000",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   relationshipSection: {
     marginTop: 24,
@@ -2195,7 +2193,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#000000",
     marginBottom: 16,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sectionHeader: {
     flexDirection: "row",

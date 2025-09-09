@@ -14,7 +14,12 @@ const Surface = ({
 
   return (
     <View
-      style={[styles.wrapper, shadowStyle, style, { borderRadius: radius }]}
+      style={[
+        styles.wrapper,
+        Platform.OS === "ios" ? tokens.shadow.ios : tokens.shadow.android,
+        style,
+        { borderRadius: radius },
+      ]}
     >
       <View style={[styles.card, { borderRadius: radius }]}>
         <View style={[styles.content, contentStyle]}>{children}</View>
