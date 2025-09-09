@@ -15,7 +15,13 @@ export const useSettings = () => {
 
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
-    defaultCalendar: "hijri", // 'hijri' or 'gregorian'
+    defaultCalendar: "gregorian", // 'hijri' or 'gregorian' - DEFAULT TO GREGORIAN
+    dateFormat: "numeric", // 'numeric' (DD/MM/YYYY), 'words' (15 January 2024), 'mixed' (15 Jan 2024)
+    dateOrder: "dmy", // 'dmy' (DD/MM/YYYY), 'mdy' (MM/DD/YYYY), 'ymd' (YYYY/MM/DD)
+    yearFormat: "full", // 'full' (2024), 'short' (24)
+    separator: "/", // '/', '-', '.'
+    showBothCalendars: false, // Show both Hijri and Gregorian dates
+    arabicNumerals: true, // Use Arabic numerals (١٢٣) for dates
   });
   const [loading, setLoading] = useState(true);
 

@@ -381,6 +381,80 @@ export const profilesService = {
   },
 
   /**
+   * Admin: Get dashboard statistics
+   */
+  async getAdminStatistics() {
+    try {
+      const { data, error } = await supabase.rpc("admin_get_statistics");
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      // Fallback to manual counting if RPC doesn't exist
+      try {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, gender, status, generation, photo_url, bio, father_id");
+
+        const stats = {
+          total_profiles: profiles?.length || 0,
+          male_count: profiles?.filter((p) => p.gender === "male").length || 0,
+          female_count:
+            profiles?.filter((p) => p.gender === "female").length || 0,
+          alive_count:
+            profiles?.filter((p) => p.status === "alive").length || 0,
+          deceased_count:
+            profiles?.filter((p) => p.status === "deceased").length || 0,
+          max_generation: Math.max(
+            ...(profiles?.map((p) => p.generation || 0) || [0]),
+          ),
+          profiles_with_photos:
+            profiles?.filter((p) => p.photo_url).length || 0,
+          profiles_with_bio: profiles?.filter((p) => p.bio).length || 0,
+          recent_changes: 0,
+          pending_validation: 0,
+          active_jobs: 0,
+          avg_children: 0,
+        };
+
+        return { data: stats, error: null };
+      } catch (fallbackError) {
+        return { data: null, error: handleSupabaseError(fallbackError) };
+      }
+    }
+  },
+
+  /**
+   * Admin: Export data in various formats
+   */
+  async exportData(format = "json") {
+    try {
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("hid");
+
+      if (error) throw error;
+
+      if (format === "csv") {
+        // Convert to CSV format
+        const headers = Object.keys(profiles[0] || {});
+        const csvData = [
+          headers.join(","),
+          ...profiles.map((p) =>
+            headers.map((h) => JSON.stringify(p[h] || "")).join(","),
+          ),
+        ].join("\n");
+        return { data: csvData, error: null };
+      }
+
+      return { data: profiles, error: null };
+    } catch (error) {
+      return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
    * Admin: Get validation dashboard
    */
   async getValidationDashboard() {

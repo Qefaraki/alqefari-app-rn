@@ -1310,10 +1310,7 @@ const ProfileSheet = ({ editMode = false }) => {
                   {
                     label: "تاريخ الميلاد",
                     value:
-                      formatDateByPreference(
-                        person.dob_data,
-                        settings.defaultCalendar,
-                      ) || "—",
+                      formatDateByPreference(person.dob_data, settings) || "—",
                   },
                   ...(person.dod_data
                     ? [
@@ -1321,7 +1318,7 @@ const ProfileSheet = ({ editMode = false }) => {
                           label: "تاريخ الوفاة",
                           value: formatDateByPreference(
                             person.dod_data,
-                            settings.defaultCalendar,
+                            settings,
                           ),
                         },
                       ]

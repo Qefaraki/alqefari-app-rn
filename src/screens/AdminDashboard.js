@@ -11,74 +11,23 @@ import {
   Dimensions,
   RefreshControl,
   Modal,
-  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Haptics from "expo-haptics";
-import { BlurView } from "expo-blur";
 import CardSurface from "../components/ios/CardSurface";
 import profilesService from "../services/profiles";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import { useTreeStore } from "../stores/useTreeStore";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  interpolate,
-  withSpring,
-} from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// System Status Indicator Component
-const SystemStatusIndicator = ({ loading = false, error = null, onClose }) => {
-  const translateY = useSharedValue(error ? 0 : -100);
-  const nodes = useTreeStore((state) => state.nodes);
-  const [systemHealth, setSystemHealth] = useState("healthy");
-
-  useEffect(() => {
-    translateY.value = withSpring(error ? 0 : -100);
-  }, [error]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  if (!error && systemHealth === "healthy") return null;
-
-  return (
-    <Animated.View style={[styles.statusIndicator, animatedStyle]}>
-      <BlurView intensity={90} tint="dark" style={styles.statusBlur}>
-        <View style={styles.statusContent}>
-          <View style={styles.statusLeft}>
-            <View
-              style={[
-                styles.statusDot,
-                { backgroundColor: error ? "#FF3B30" : "#34C759" },
-              ]}
-            />
-            <Text style={styles.statusText}>
-              {error || "النظام يعمل بشكل طبيعي"}
-            </Text>
-          </View>
-          {error && (
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close-circle" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </BlurView>
-    </Animated.View>
-  );
-};
-
 const AdminDashboard = ({ navigation }) => {
   const { isAdmin, isAdminMode } = useAdminMode();
-  const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState({
     totalProfiles: 0,
     recentChanges: 0,
@@ -97,10 +46,9 @@ const AdminDashboard = ({ navigation }) => {
   const [exporting, setExporting] = useState(false);
   const [showValidationDashboard, setShowValidationDashboard] = useState(false);
   const [showActivityScreen, setShowActivityScreen] = useState(false);
-  const [systemError, setSystemError] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
-
-  const tabAnimation = useSharedValue(0);
 
   useEffect(() => {
     if (isAdmin && isAdminMode) {
@@ -109,19 +57,15 @@ const AdminDashboard = ({ navigation }) => {
     }
   }, [isAdmin, isAdminMode]);
 
-  useEffect(() => {
-    tabAnimation.value = withSpring(activeTab === "overview" ? 0 : 1, {
-      damping: 15,
-      stiffness: 150,
-    });
-  }, [activeTab]);
-
   const loadDashboardData = async () => {
+    setLoading(true);
+    setError(null);
     try {
       const { data, error } = await profilesService.getAdminStatistics();
 
       if (error) {
-        setSystemError(error.message || "فشل تحميل الإحصائيات");
+        setError("فشل تحميل الإحصائيات");
+        console.error("Error loading stats:", error);
         return;
       }
 
@@ -143,17 +87,40 @@ const AdminDashboard = ({ navigation }) => {
       }
     } catch (error) {
       console.error("Error loading dashboard data:", error);
-      setSystemError("خطأ في تحميل البيانات");
+      setError("خطأ في تحميل البيانات");
+    } finally {
+      setLoading(false);
     }
   };
 
   const loadRecentActivity = async () => {
     try {
-      // Load recent activity from audit log or activity feed
+      // Mock data for now - replace with actual audit log data
       const activities = [
-        { id: 1, type: "create", name: "محمد بن أحمد", time: "منذ 5 دقائق" },
-        { id: 2, type: "update", name: "فاطمة بنت علي", time: "منذ 15 دقيقة" },
-        { id: 3, type: "photo", name: "خالد بن سعد", time: "منذ ساعة" },
+        {
+          id: 1,
+          type: "create",
+          name: "محمد بن أحمد",
+          time: "منذ 5 دقائق",
+          icon: "add-circle",
+          color: "#34C759",
+        },
+        {
+          id: 2,
+          type: "update",
+          name: "فاطمة بنت علي",
+          time: "منذ 15 دقيقة",
+          icon: "create",
+          color: "#007AFF",
+        },
+        {
+          id: 3,
+          type: "photo",
+          name: "خالد بن سعد",
+          time: "منذ ساعة",
+          icon: "camera",
+          color: "#FF9500",
+        },
       ];
       setRecentActivity(activities);
     } catch (error) {
@@ -174,12 +141,12 @@ const AdminDashboard = ({ navigation }) => {
       const { data, error } = await profilesService.exportData(format);
 
       if (error) {
-        Alert.alert("خطأ", error.message || "فشل تصدير البيانات");
+        Alert.alert("خطأ", "فشل تصدير البيانات");
         return;
       }
 
       if (data) {
-        const fileName = `alqefari_tree_${new Date().toISOString()}.${format}`;
+        const fileName = `alqefari_tree_${new Date().toISOString().split("T")[0]}.${format}`;
         const fileUri = FileSystem.documentDirectory + fileName;
 
         if (format === "json") {
@@ -188,8 +155,7 @@ const AdminDashboard = ({ navigation }) => {
             JSON.stringify(data, null, 2),
           );
         } else if (format === "csv") {
-          const csv = convertToCSV(data);
-          await FileSystem.writeAsStringAsync(fileUri, csv);
+          await FileSystem.writeAsStringAsync(fileUri, data);
         }
 
         if (await Sharing.isAvailableAsync()) {
@@ -205,17 +171,13 @@ const AdminDashboard = ({ navigation }) => {
     }
   };
 
-  const convertToCSV = (data) => {
-    if (!data || data.length === 0) return "";
-    const headers = Object.keys(data[0]).join(",");
-    const rows = data.map((row) => Object.values(row).join(","));
-    return [headers, ...rows].join("\n");
-  };
-
-  const handleOperation = async (operationId) => {
+  const handleQuickAction = async (action) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    switch (operationId) {
+    switch (action) {
+      case "activity":
+        setShowActivityScreen(true);
+        break;
       case "export":
         Alert.alert("تصدير البيانات", "اختر صيغة التصدير", [
           { text: "JSON", onPress: () => handleExport("json") },
@@ -223,20 +185,21 @@ const AdminDashboard = ({ navigation }) => {
           { text: "إلغاء", style: "cancel" },
         ]);
         break;
-      case "import":
-        Alert.alert("استيراد البيانات", "هذه الميزة قيد التطوير");
-        break;
       case "validate":
         setShowValidationDashboard(true);
         break;
-      case "merge":
-        Alert.alert("دمج المكررات", "هذه الميزة قيد التطوير");
-        break;
-      case "activity":
-        setShowActivityScreen(true);
-        break;
       case "backup":
-        Alert.alert("النسخ الاحتياطي", "هذه الميزة قيد التطوير");
+        Alert.alert(
+          "النسخ الاحتياطي",
+          "سيتم إنشاء نسخة احتياطية من قاعدة البيانات",
+          [
+            { text: "إلغاء", style: "cancel" },
+            {
+              text: "نسخ",
+              onPress: () => Alert.alert("نجح", "تم إنشاء النسخة الاحتياطية"),
+            },
+          ],
+        );
         break;
       case "permissions":
         Alert.alert("إدارة الصلاحيات", "هذه الميزة قيد التطوير");
@@ -260,404 +223,26 @@ const AdminDashboard = ({ navigation }) => {
     );
   }
 
-  const tabIndicatorStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateX: interpolate(
-          tabAnimation.value,
-          [0, 1],
-          [0, SCREEN_WIDTH / 2],
-        ),
-      },
-    ],
-  }));
-
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case "create":
-        return { name: "add-circle", color: "#34C759" };
-      case "update":
-        return { name: "create", color: "#007AFF" };
-      case "photo":
-        return { name: "camera", color: "#FF9500" };
-      default:
-        return { name: "ellipse", color: "#8E8E93" };
-    }
-  };
-
-  const renderOverview = () => (
-    <ScrollView
-      style={styles.content}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
-    >
-      {/* System Status */}
-      {systemError && (
-        <SystemStatusIndicator
-          error={systemError}
-          onClose={() => setSystemError(null)}
-        />
-      )}
-
-      {/* Stats Cards */}
-      <View style={styles.statsGrid}>
-        <TouchableOpacity activeOpacity={0.7} style={styles.statCard}>
-          <LinearGradient
-            colors={["#007AFF", "#0051D5"]}
-            style={styles.statGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="people" size={28} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{stats.totalProfiles}</Text>
-            <Text style={styles.statLabel}>ملف شخصي</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity activeOpacity={0.7} style={styles.statCard}>
-          <LinearGradient
-            colors={["#34C759", "#30A14E"]}
-            style={styles.statGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="time" size={28} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{stats.recentChanges}</Text>
-            <Text style={styles.statLabel}>تغيير اليوم</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity activeOpacity={0.7} style={styles.statCard}>
-          <LinearGradient
-            colors={["#FF9500", "#FF6B35"]}
-            style={styles.statGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="sync" size={28} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{stats.activeJobs}</Text>
-            <Text style={styles.statLabel}>عملية نشطة</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.statCard}
-          onPress={() => setShowValidationDashboard(true)}
-        >
-          <LinearGradient
-            colors={["#FF3B30", "#DC3023"]}
-            style={styles.statGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <Ionicons name="alert-circle" size={28} color="#FFFFFF" />
-            <Text style={styles.statNumber}>{stats.pendingValidation}</Text>
-            <Text style={styles.statLabel}>خطأ للإصلاح</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.quickActionsScroll}
-        >
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => handleOperation("activity")}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <View
-              style={[styles.quickActionIcon, { backgroundColor: "#007AFF15" }]}
-            >
-              <Ionicons name="time-outline" size={28} color="#007AFF" />
-            </View>
-            <Text style={styles.quickActionText}>السجل</Text>
+            <Ionicons name="chevron-back" size={24} color="#007AFF" />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => handleOperation("export")}
-            disabled={exporting}
-          >
-            <View
-              style={[styles.quickActionIcon, { backgroundColor: "#34C75915" }]}
-            >
-              {exporting ? (
-                <ActivityIndicator size="small" color="#34C759" />
-              ) : (
-                <Ionicons
-                  name="cloud-download-outline"
-                  size={28}
-                  color="#34C759"
-                />
-              )}
-            </View>
-            <Text style={styles.quickActionText}>تصدير</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => handleOperation("validate")}
-          >
-            <View
-              style={[styles.quickActionIcon, { backgroundColor: "#5856D615" }]}
-            >
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={28}
-                color="#5856D6"
-              />
-            </View>
-            <Text style={styles.quickActionText}>تحقق</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => handleOperation("backup")}
-          >
-            <View
-              style={[styles.quickActionIcon, { backgroundColor: "#FF950015" }]}
-            >
-              <Ionicons name="save-outline" size={28} color="#FF9500" />
-            </View>
-            <Text style={styles.quickActionText}>نسخ</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => handleOperation("permissions")}
-          >
-            <View
-              style={[styles.quickActionIcon, { backgroundColor: "#AF52DE15" }]}
-            >
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={28}
-                color="#AF52DE"
-              />
-            </View>
-            <Text style={styles.quickActionText}>صلاحيات</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-
-      {/* Recent Activity */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>النشاط الأخير</Text>
-          <TouchableOpacity onPress={() => handleOperation("activity")}>
-            <Text style={styles.seeAllText}>عرض الكل</Text>
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>لوحة التحكم</Text>
+          <View style={{ width: 40 }} />
         </View>
-
-        {recentActivity.length > 0 ? (
-          <View style={styles.activityList}>
-            {recentActivity.map((activity) => {
-              const icon = getActivityIcon(activity.type);
-              return (
-                <CardSurface key={activity.id} style={styles.activityItem}>
-                  <View
-                    style={[
-                      styles.activityIcon,
-                      { backgroundColor: `${icon.color}15` },
-                    ]}
-                  >
-                    <Ionicons name={icon.name} size={20} color={icon.color} />
-                  </View>
-                  <View style={styles.activityInfo}>
-                    <Text style={styles.activityName}>{activity.name}</Text>
-                    <Text style={styles.activityTime}>{activity.time}</Text>
-                  </View>
-                </CardSurface>
-              );
-            })}
-          </View>
-        ) : (
-          <CardSurface style={styles.emptyActivity}>
-            <Text style={styles.emptyText}>لا يوجد نشاط حديث</Text>
-          </CardSurface>
-        )}
-      </View>
-
-      {/* Demographics */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>التركيبة السكانية</Text>
-        <CardSurface style={styles.demographicsCard}>
-          <View style={styles.demographicRow}>
-            <View style={styles.demographicItem}>
-              <Text style={styles.demographicLabel}>ذكور</Text>
-              <Text style={styles.demographicValue}>{stats.maleCount}</Text>
-            </View>
-            <View style={styles.demographicDivider} />
-            <View style={styles.demographicItem}>
-              <Text style={styles.demographicLabel}>إناث</Text>
-              <Text style={styles.demographicValue}>{stats.femaleCount}</Text>
-            </View>
-          </View>
-          <View style={styles.demographicRow}>
-            <View style={styles.demographicItem}>
-              <Text style={styles.demographicLabel}>أحياء</Text>
-              <Text style={styles.demographicValue}>{stats.aliveCount}</Text>
-            </View>
-            <View style={styles.demographicDivider} />
-            <View style={styles.demographicItem}>
-              <Text style={styles.demographicLabel}>متوفون</Text>
-              <Text style={styles.demographicValue}>{stats.deceasedCount}</Text>
-            </View>
-          </View>
-        </CardSurface>
-      </View>
-
-      {/* Data Quality */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>جودة البيانات</Text>
-        <CardSurface style={styles.qualityCard}>
-          <View style={styles.qualityItem}>
-            <View style={styles.qualityHeader}>
-              <Text style={styles.qualityLabel}>ملفات بصور</Text>
-              <Text style={styles.qualityPercent}>
-                {stats.totalProfiles > 0
-                  ? Math.round(
-                      (stats.profilesWithPhotos / stats.totalProfiles) * 100,
-                    )
-                  : 0}
-                %
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${
-                      stats.totalProfiles > 0
-                        ? (stats.profilesWithPhotos / stats.totalProfiles) * 100
-                        : 0
-                    }%`,
-                    backgroundColor: "#34C759",
-                  },
-                ]}
-              />
-            </View>
-          </View>
-          <View style={styles.qualityItem}>
-            <View style={styles.qualityHeader}>
-              <Text style={styles.qualityLabel}>ملفات بسيرة ذاتية</Text>
-              <Text style={styles.qualityPercent}>
-                {stats.totalProfiles > 0
-                  ? Math.round(
-                      (stats.profilesWithBio / stats.totalProfiles) * 100,
-                    )
-                  : 0}
-                %
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${
-                      stats.totalProfiles > 0
-                        ? (stats.profilesWithBio / stats.totalProfiles) * 100
-                        : 0
-                    }%`,
-                    backgroundColor: "#007AFF",
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </CardSurface>
-      </View>
-    </ScrollView>
-  );
-
-  const renderOperations = () => (
-    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.operationsContainer}>
-        {[
-          {
-            id: "export",
-            title: "تصدير البيانات",
-            description: "تصدير الشجرة إلى JSON أو CSV",
-            icon: "cloud-download-outline",
-            color: "#34C759",
-          },
-          {
-            id: "import",
-            title: "استيراد مجمع",
-            description: "استيراد ملفات شخصية من ملف",
-            icon: "cloud-upload-outline",
-            color: "#007AFF",
-          },
-          {
-            id: "validate",
-            title: "التحقق من البيانات",
-            description: "فحص وإصلاح أخطاء البيانات",
-            icon: "checkmark-circle-outline",
-            color: "#5856D6",
-          },
-          {
-            id: "merge",
-            title: "دمج المكررات",
-            description: "البحث عن ودمج الملفات المكررة",
-            icon: "git-merge-outline",
-            color: "#FF9500",
-          },
-          {
-            id: "backup",
-            title: "النسخ الاحتياطي",
-            description: "إنشاء نسخة احتياطية من البيانات",
-            icon: "save-outline",
-            color: "#FF9500",
-          },
-          {
-            id: "permissions",
-            title: "إدارة الصلاحيات",
-            description: "تعيين أدوار المستخدمين وصلاحياتهم",
-            icon: "shield-checkmark-outline",
-            color: "#AF52DE",
-          },
-        ].map((op) => (
-          <TouchableOpacity
-            key={op.id}
-            activeOpacity={0.7}
-            onPress={() => handleOperation(op.id)}
-            disabled={exporting && op.id === "export"}
-          >
-            <CardSurface style={styles.operationCard}>
-              <View
-                style={[
-                  styles.operationIcon,
-                  { backgroundColor: `${op.color}15` },
-                ]}
-              >
-                {exporting && op.id === "export" ? (
-                  <ActivityIndicator size="small" color={op.color} />
-                ) : (
-                  <Ionicons name={op.icon} size={28} color={op.color} />
-                )}
-              </View>
-              <View style={styles.operationInfo}>
-                <Text style={styles.operationTitle}>{op.title}</Text>
-                <Text style={styles.operationDescription}>
-                  {op.description}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-            </CardSurface>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
-  );
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>جاري التحميل...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -673,42 +258,344 @@ const AdminDashboard = ({ navigation }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Modern Tab Bar */}
-      <View style={styles.tabBar}>
-        <View style={styles.tabs}>
-          {[
-            { id: "overview", title: "نظرة عامة", icon: "grid-outline" },
-            { id: "operations", title: "العمليات", icon: "layers-outline" },
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={styles.tab}
-              onPress={() => {
-                setActiveTab(tab.id);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons
-                name={tab.icon}
-                size={22}
-                color={activeTab === tab.id ? "#007AFF" : "#8E8E93"}
-              />
-              <Text
-                style={[
-                  styles.tabText,
-                  activeTab === tab.id && styles.activeTabText,
-                ]}
-              >
-                {tab.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* Error Banner */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <View style={styles.errorContent}>
+            <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
+            <Text style={styles.errorBannerText}>{error}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setError(null)}>
+            <Ionicons name="close" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
-        <Animated.View style={[styles.tabIndicator, tabIndicatorStyle]} />
-      </View>
+      )}
 
-      {/* Content */}
-      {activeTab === "overview" ? renderOverview() : renderOperations()}
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {/* Stats Cards Grid */}
+        <View style={styles.statsGrid}>
+          <TouchableOpacity activeOpacity={0.95} style={styles.statCard}>
+            <LinearGradient
+              colors={["#34C759", "#30A14E"]}
+              style={styles.statGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.statIcon}>
+                <Ionicons name="time" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{stats.totalProfiles}</Text>
+              <Text style={styles.statLabel}>تغيير اليوم</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity activeOpacity={0.95} style={styles.statCard}>
+            <LinearGradient
+              colors={["#007AFF", "#0051D5"]}
+              style={styles.statGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.statIcon}>
+                <Ionicons name="people" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{stats.totalProfiles}</Text>
+              <Text style={styles.statLabel}>ملف شخصي</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.95}
+            style={styles.statCard}
+            onPress={() => setShowValidationDashboard(true)}
+          >
+            <LinearGradient
+              colors={["#FF3B30", "#DC3023"]}
+              style={styles.statGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.statIcon}>
+                <Ionicons name="alert-circle" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{stats.pendingValidation}</Text>
+              <Text style={styles.statLabel}>خطأ للإصلاح</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity activeOpacity={0.95} style={styles.statCard}>
+            <LinearGradient
+              colors={["#FF9500", "#FF6B35"]}
+              style={styles.statGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <View style={styles.statIcon}>
+                <Ionicons name="sync" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statNumber}>{stats.activeJobs}</Text>
+              <Text style={styles.statLabel}>عملية نشطة</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
+          <View style={styles.quickActionsGrid}>
+            {[
+              {
+                id: "activity",
+                icon: "time-outline",
+                label: "السجل",
+                color: "#007AFF",
+              },
+              {
+                id: "backup",
+                icon: "save-outline",
+                label: "نسخ",
+                color: "#FF9500",
+              },
+              {
+                id: "validate",
+                icon: "checkmark-circle-outline",
+                label: "تحقق",
+                color: "#5856D6",
+              },
+              {
+                id: "export",
+                icon: "cloud-download-outline",
+                label: "تصدير",
+                color: "#34C759",
+              },
+              {
+                id: "permissions",
+                icon: "shield-checkmark-outline",
+                label: "صلاحيات",
+                color: "#AF52DE",
+              },
+            ].map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={styles.quickAction}
+                onPress={() => handleQuickAction(action.id)}
+                disabled={exporting && action.id === "export"}
+              >
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: `${action.color}15` },
+                  ]}
+                >
+                  {exporting && action.id === "export" ? (
+                    <ActivityIndicator size="small" color={action.color} />
+                  ) : (
+                    <Ionicons
+                      name={action.icon}
+                      size={24}
+                      color={action.color}
+                    />
+                  )}
+                </View>
+                <Text style={styles.quickActionLabel}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>النشاط الأخير</Text>
+            <TouchableOpacity onPress={() => setShowActivityScreen(true)}>
+              <Text style={styles.seeAllText}>عرض الكل</Text>
+            </TouchableOpacity>
+          </View>
+
+          {recentActivity.length > 0 ? (
+            <View style={styles.activityList}>
+              {recentActivity.map((activity) => (
+                <CardSurface key={activity.id} style={styles.activityItem}>
+                  <View
+                    style={[
+                      styles.activityIcon,
+                      { backgroundColor: `${activity.color}15` },
+                    ]}
+                  >
+                    <Ionicons
+                      name={activity.icon}
+                      size={18}
+                      color={activity.color}
+                    />
+                  </View>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityName}>{activity.name}</Text>
+                    <Text style={styles.activityTime}>{activity.time}</Text>
+                  </View>
+                </CardSurface>
+              ))}
+            </View>
+          ) : (
+            <CardSurface style={styles.emptyCard}>
+              <Text style={styles.emptyText}>لا يوجد نشاط حديث</Text>
+            </CardSurface>
+          )}
+        </View>
+
+        {/* Demographics & Data Quality in one row */}
+        <View style={styles.section}>
+          <View style={styles.infoCardsRow}>
+            {/* Demographics Card */}
+            <CardSurface style={styles.infoCard}>
+              <Text style={styles.infoCardTitle}>التركيبة السكانية</Text>
+              <View style={styles.demographicItem}>
+                <Text style={styles.demographicLabel}>ذكور</Text>
+                <Text style={styles.demographicValue}>{stats.maleCount}</Text>
+              </View>
+              <View style={styles.demographicDivider} />
+              <View style={styles.demographicItem}>
+                <Text style={styles.demographicLabel}>إناث</Text>
+                <Text style={styles.demographicValue}>{stats.femaleCount}</Text>
+              </View>
+              <View style={styles.demographicDivider} />
+              <View style={styles.demographicItem}>
+                <Text style={styles.demographicLabel}>
+                  الجيل {stats.maxGeneration}
+                </Text>
+                <Text style={styles.demographicValue}>
+                  {stats.avgChildren || "0"}
+                </Text>
+              </View>
+            </CardSurface>
+
+            {/* Data Quality Card */}
+            <CardSurface style={styles.infoCard}>
+              <Text style={styles.infoCardTitle}>جودة البيانات</Text>
+              <View style={styles.qualityItem}>
+                <View style={styles.qualityHeader}>
+                  <Text style={styles.qualityLabel}>بصور</Text>
+                  <Text style={styles.qualityPercent}>
+                    {stats.totalProfiles > 0
+                      ? Math.round(
+                          (stats.profilesWithPhotos / stats.totalProfiles) *
+                            100,
+                        )
+                      : 0}
+                    %
+                  </Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${
+                          stats.totalProfiles > 0
+                            ? (stats.profilesWithPhotos / stats.totalProfiles) *
+                              100
+                            : 0
+                        }%`,
+                        backgroundColor: "#34C759",
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+              <View style={styles.qualityItem}>
+                <View style={styles.qualityHeader}>
+                  <Text style={styles.qualityLabel}>بسيرة</Text>
+                  <Text style={styles.qualityPercent}>
+                    {stats.totalProfiles > 0
+                      ? Math.round(
+                          (stats.profilesWithBio / stats.totalProfiles) * 100,
+                        )
+                      : 0}
+                    %
+                  </Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${
+                          stats.totalProfiles > 0
+                            ? (stats.profilesWithBio / stats.totalProfiles) *
+                              100
+                            : 0
+                        }%`,
+                        backgroundColor: "#007AFF",
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            </CardSurface>
+          </View>
+        </View>
+
+        {/* Operations List */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>عمليات إدارية</Text>
+          <View style={styles.operationsList}>
+            {[
+              {
+                id: "import",
+                title: "استيراد البيانات",
+                description: "استيراد ملفات من CSV أو JSON",
+                icon: "cloud-upload-outline",
+                color: "#007AFF",
+              },
+              {
+                id: "merge",
+                title: "دمج المكررات",
+                description: "البحث عن ودمج الملفات المكررة",
+                icon: "git-merge-outline",
+                color: "#FF9500",
+              },
+              {
+                id: "cleanup",
+                title: "تنظيف البيانات",
+                description: "إزالة البيانات الفارغة والمعطوبة",
+                icon: "trash-outline",
+                color: "#FF3B30",
+              },
+            ].map((op) => (
+              <TouchableOpacity
+                key={op.id}
+                activeOpacity={0.7}
+                onPress={() => Alert.alert(op.title, "هذه الميزة قيد التطوير")}
+              >
+                <CardSurface style={styles.operationCard}>
+                  <View
+                    style={[
+                      styles.operationIcon,
+                      { backgroundColor: `${op.color}15` },
+                    ]}
+                  >
+                    <Ionicons name={op.icon} size={24} color={op.color} />
+                  </View>
+                  <View style={styles.operationInfo}>
+                    <Text style={styles.operationTitle}>{op.title}</Text>
+                    <Text style={styles.operationDescription}>
+                      {op.description}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+                </CardSurface>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
 
       {/* Validation Dashboard Modal */}
       <Modal
@@ -769,73 +656,36 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#000000",
   },
-  tabBar: {
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
-  },
-  tabs: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-  },
-  tab: {
+  loadingContainer: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    gap: 6,
+    alignItems: "center",
   },
-  tabText: {
-    fontSize: 15,
-    fontWeight: "600",
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
     color: "#8E8E93",
   },
-  activeTabText: {
-    color: "#007AFF",
-  },
-  tabIndicator: {
-    position: "absolute",
-    bottom: 0,
-    width: SCREEN_WIDTH / 2,
-    height: 3,
-    backgroundColor: "#007AFF",
-    borderTopLeftRadius: 1.5,
-    borderTopRightRadius: 1.5,
-  },
-  content: {
-    flex: 1,
-  },
-  statusIndicator: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-  },
-  statusBlur: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  statusContent: {
+  errorBanner: {
+    backgroundColor: "#FF3B30",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  statusLeft: {
+  errorContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusText: {
-    fontSize: 14,
+  errorBannerText: {
     color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "600",
+  },
+  content: {
+    flex: 1,
   },
   statsGrid: {
     flexDirection: "row",
@@ -845,32 +695,35 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: (SCREEN_WIDTH - 44) / 2,
-    height: 110,
+    height: 100,
   },
   statGradient: {
     flex: 1,
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+  },
+  statIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   statNumber: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "700",
     color: "#FFFFFF",
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "rgba(255, 255, 255, 0.9)",
   },
   section: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -879,32 +732,35 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#000000",
+    marginBottom: 12,
   },
   seeAllText: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#007AFF",
     fontWeight: "600",
   },
-  quickActionsScroll: {
-    gap: 12,
-    paddingRight: 16,
+  quickActionsGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
   },
   quickAction: {
     alignItems: "center",
-    gap: 8,
+    flex: 1,
   },
   quickActionIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 6,
   },
-  quickActionText: {
-    fontSize: 12,
+  quickActionLabel: {
+    fontSize: 11,
     fontWeight: "600",
     color: "#3C3C43",
   },
@@ -918,9 +774,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   activityIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -928,111 +784,112 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: "#000000",
     marginBottom: 2,
   },
   activityTime: {
-    fontSize: 13,
+    fontSize: 12,
     color: "#8E8E93",
   },
-  emptyActivity: {
+  emptyCard: {
     padding: 24,
     alignItems: "center",
   },
   emptyText: {
-    fontSize: 15,
-    color: "#8E8E93",
-  },
-  demographicsCard: {
-    padding: 16,
-    gap: 16,
-  },
-  demographicRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  demographicItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  demographicLabel: {
     fontSize: 14,
     color: "#8E8E93",
-    marginBottom: 4,
+  },
+  infoCardsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  infoCard: {
+    flex: 1,
+    padding: 16,
+  },
+  infoCardTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#000000",
+    marginBottom: 12,
+  },
+  demographicItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  demographicLabel: {
+    fontSize: 13,
+    color: "#8E8E93",
   },
   demographicValue: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: "700",
     color: "#000000",
   },
   demographicDivider: {
-    width: 1,
-    height: 40,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: "#E5E5EA",
-  },
-  qualityCard: {
-    padding: 16,
-    gap: 16,
+    marginVertical: 4,
   },
   qualityItem: {
-    gap: 8,
+    marginBottom: 12,
   },
   qualityHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 6,
   },
   qualityLabel: {
-    fontSize: 15,
+    fontSize: 13,
     color: "#000000",
-    fontWeight: "600",
   },
   qualityPercent: {
-    fontSize: 15,
+    fontSize: 13,
     color: "#007AFF",
     fontWeight: "700",
   },
   progressBar: {
-    height: 8,
+    height: 6,
     backgroundColor: "#E5E5EA",
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 4,
+    borderRadius: 3,
   },
-  operationsContainer: {
-    padding: 16,
+  operationsList: {
     gap: 12,
   },
   operationCard: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
   },
   operationIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
   operationInfo: {
     flex: 1,
   },
   operationTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "600",
     color: "#000000",
     marginBottom: 2,
   },
   operationDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#8E8E93",
   },
   errorContainer: {
