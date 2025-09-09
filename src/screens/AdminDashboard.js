@@ -58,7 +58,6 @@ const AdminDashboard = ({ navigation }) => {
       // Load statistics
       const result = await profilesService.getAdminStatistics();
       if (result?.data) {
-        // Map snake_case to camelCase
         setStats({
           totalProfiles: result.data.total_profiles || 0,
           maleCount: result.data.male_count || 0,
@@ -73,31 +72,36 @@ const AdminDashboard = ({ navigation }) => {
         });
       }
 
-      // Load recent activities
+      // Mock activities with better data
       const mockActivities = [
         {
           id: 1,
-          type: "create",
-          name: "محمد بن أحمد",
-          time: "منذ ٥ دقائق",
+          type: "add",
+          title: "أضيف ملف جديد",
+          subtitle: "محمد بن أحمد القفاري",
+          time: "قبل ٥ دقائق",
+          icon: "person-add",
         },
         {
           id: 2,
           type: "edit",
-          name: "فاطمة بنت عبدالله",
-          time: "منذ ١٥ دقيقة",
+          title: "تم تحديث البيانات",
+          subtitle: "فاطمة بنت عبدالله",
+          time: "قبل ساعة",
+          icon: "pencil",
         },
         {
           id: 3,
-          type: "delete",
-          name: "ملف مكرر",
-          time: "منذ ساعة",
+          type: "photo",
+          title: "إضافة صورة",
+          subtitle: "خالد بن سعد",
+          time: "قبل ٣ ساعات",
+          icon: "camera",
         },
       ];
       setRecentActivity(mockActivities);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
-      Alert.alert("خطأ", "فشل تحميل بيانات لوحة التحكم");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -113,12 +117,6 @@ const AdminDashboard = ({ navigation }) => {
     setExporting(true);
     try {
       const result = await profilesService.exportData(format);
-
-      if (result?.error) {
-        Alert.alert("خطأ", "فشل تصدير البيانات");
-        return;
-      }
-
       if (result?.data) {
         const fileName = `alqefari_tree_${new Date().toISOString().split("T")[0]}.${format}`;
         const fileUri = FileSystem.documentDirectory + fileName;
@@ -128,14 +126,12 @@ const AdminDashboard = ({ navigation }) => {
             fileUri,
             JSON.stringify(result.data, null, 2),
           );
-        } else if (format === "csv") {
+        } else {
           await FileSystem.writeAsStringAsync(fileUri, result.data);
         }
 
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(fileUri);
-        } else {
-          Alert.alert("نجح", `تم حفظ الملف: ${fileName}`);
         }
       }
     } catch (error) {
@@ -145,7 +141,7 @@ const AdminDashboard = ({ navigation }) => {
     }
   };
 
-  const handleQuickAction = async (action) => {
+  const handleQuickAction = (action) => {
     switch (action) {
       case "activity":
         setShowActivityScreen(true);
@@ -161,43 +157,14 @@ const AdminDashboard = ({ navigation }) => {
         setShowValidationDashboard(true);
         break;
       case "backup":
-        Alert.alert(
-          "النسخ الاحتياطي",
-          "سيتم إنشاء نسخة احتياطية من قاعدة البيانات",
-          [
-            { text: "إلغاء", style: "cancel" },
-            {
-              text: "نسخ",
-              onPress: () => Alert.alert("نجح", "تم إنشاء النسخة الاحتياطية"),
-            },
-          ],
-        );
+        Alert.alert("النسخ الاحتياطي", "سيتم إنشاء نسخة احتياطية", [
+          { text: "إلغاء", style: "cancel" },
+          {
+            text: "نسخ",
+            onPress: () => Alert.alert("نجح", "تم النسخ الاحتياطي"),
+          },
+        ]);
         break;
-      default:
-        Alert.alert("قيد التطوير", "هذه الميزة قيد التطوير");
-        break;
-    }
-  };
-
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case "create":
-        return "add-circle-outline";
-      case "edit":
-        return "create-outline";
-      case "delete":
-        return "trash-outline";
-      default:
-        return "ellipse-outline";
-    }
-  };
-
-  const getActivityDotColor = (type) => {
-    switch (type) {
-      case "delete":
-        return "#FF3B30";
-      default:
-        return "#007AFF";
     }
   };
 
@@ -205,11 +172,11 @@ const AdminDashboard = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="lock-closed" size={48} color="#C7C7CC" />
-          <Text style={styles.errorText}>ليس لديك صلاحية الوصول</Text>
-          <Text style={styles.errorSubtext}>
-            يجب أن تكون مسؤولاً للوصول إلى هذه الصفحة
-          </Text>
+          <View style={styles.lockIcon}>
+            <Ionicons name="lock-closed" size={32} color="#8E8E93" />
+          </View>
+          <Text style={styles.errorTitle}>وصول مقيد</Text>
+          <Text style={styles.errorSubtitle}>هذه الصفحة للمشرفين فقط</Text>
         </View>
       </SafeAreaView>
     );
@@ -218,19 +185,18 @@ const AdminDashboard = ({ navigation }) => {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+        <View style={styles.modernHeader}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.headerButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-forward" size={24} color="#000000" />
+            <Ionicons name="chevron-forward" size={28} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>لوحة التحكم</Text>
           <View style={{ width: 44 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000000" />
-          <Text style={styles.loadingText}>جاري التحميل...</Text>
+          <ActivityIndicator size="large" color="#000" />
         </View>
       </SafeAreaView>
     );
@@ -238,16 +204,19 @@ const AdminDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Ultra-minimal Header */}
-      <View style={styles.header}>
+      {/* Modern Floating Header */}
+      <View style={styles.modernHeader}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={styles.headerButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-forward" size={22} color="#000000" />
+          <Ionicons name="chevron-forward" size={28} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>لوحة التحكم</Text>
-        <View style={{ width: 44 }} />
+        <TouchableOpacity style={styles.headerButton}>
+          <View style={styles.notificationDot} />
+          <Ionicons name="notifications-outline" size={24} color="#000" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -257,148 +226,232 @@ const AdminDashboard = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#000000"
+            tintColor="#000"
           />
         }
-        contentContainerStyle={styles.scrollContent}
       >
-        {/* Primary Stat - Ultra Clean */}
-        <View style={styles.primarySection}>
-          <Text style={styles.primaryNumber}>{stats.totalProfiles}</Text>
-          <Text style={styles.primaryLabel}>إجمالي الملفات</Text>
-        </View>
-
-        {/* Secondary Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.maleCount}</Text>
-            <Text style={styles.statLabel}>ذكور</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.femaleCount}</Text>
-            <Text style={styles.statLabel}>إناث</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.aliveCount}</Text>
-            <Text style={styles.statLabel}>أحياء</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{stats.deceasedCount}</Text>
-            <Text style={styles.statLabel}>متوفون</Text>
-          </View>
-        </View>
-
-        {/* Quick Actions - Icons Only */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-          <View style={styles.actionsRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => handleQuickAction("activity")}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionIconContainer}>
-                <Ionicons name="time-outline" size={26} color="#000000" />
+        {/* Hero Stats Section - Modern Cards */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroCard}>
+            <View style={styles.heroCardContent}>
+              <Text style={styles.heroNumber}>{stats.totalProfiles}</Text>
+              <Text style={styles.heroLabel}>إجمالي الملفات الشخصية</Text>
+              <View style={styles.heroTrend}>
+                <Ionicons name="trending-up" size={16} color="#00C851" />
+                <Text style={styles.trendText}>+12% هذا الشهر</Text>
               </View>
-              <Text style={styles.actionText}>السجل</Text>
+            </View>
+            <View style={styles.heroIconContainer}>
+              <View style={styles.heroIconBg}>
+                <Ionicons name="people" size={32} color="#000" />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Stats Grid - Modern Minimal Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statRow}>
+            <View style={[styles.statCard, styles.statCardLeft]}>
+              <View style={styles.statContent}>
+                <View style={styles.statHeader}>
+                  <View
+                    style={[styles.statDot, { backgroundColor: "#007AFF" }]}
+                  />
+                  <Text style={styles.statLabel}>ذكور</Text>
+                </View>
+                <Text style={styles.statNumber}>{stats.maleCount}</Text>
+                <Text style={styles.statPercentage}>
+                  {stats.totalProfiles > 0
+                    ? `${Math.round((stats.maleCount / stats.totalProfiles) * 100)}%`
+                    : "0%"}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.statCard, styles.statCardRight]}>
+              <View style={styles.statContent}>
+                <View style={styles.statHeader}>
+                  <View
+                    style={[styles.statDot, { backgroundColor: "#FF2D55" }]}
+                  />
+                  <Text style={styles.statLabel}>إناث</Text>
+                </View>
+                <Text style={styles.statNumber}>{stats.femaleCount}</Text>
+                <Text style={styles.statPercentage}>
+                  {stats.totalProfiles > 0
+                    ? `${Math.round((stats.femaleCount / stats.totalProfiles) * 100)}%`
+                    : "0%"}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.statRow}>
+            <View style={[styles.statCard, styles.statCardLeft]}>
+              <View style={styles.statContent}>
+                <View style={styles.statHeader}>
+                  <View
+                    style={[styles.statDot, { backgroundColor: "#34C759" }]}
+                  />
+                  <Text style={styles.statLabel}>أحياء</Text>
+                </View>
+                <Text style={styles.statNumber}>{stats.aliveCount}</Text>
+                <Text style={styles.statPercentage}>نشط</Text>
+              </View>
+            </View>
+
+            <View style={[styles.statCard, styles.statCardRight]}>
+              <View style={styles.statContent}>
+                <View style={styles.statHeader}>
+                  <View
+                    style={[styles.statDot, { backgroundColor: "#8E8E93" }]}
+                  />
+                  <Text style={styles.statLabel}>متوفون</Text>
+                </View>
+                <Text style={styles.statNumber}>{stats.deceasedCount}</Text>
+                <Text style={styles.statPercentage}>في الذاكرة</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Quick Actions - Modern Buttons */}
+        <View style={styles.quickActionsSection}>
+          <View style={styles.sectionHeaderActions}>
+            <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.actionsScroll}
+            inverted={I18nManager.isRTL}
+          >
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: "#F6F6F8" }]}
+              onPress={() => handleQuickAction("activity")}
+              activeOpacity={0.8}
+            >
+              <View
+                style={[styles.actionIconBg, { backgroundColor: "#007AFF15" }]}
+              >
+                <Ionicons name="time" size={24} color="#007AFF" />
+              </View>
+              <Text style={styles.actionTitle}>السجل</Text>
+              <Text style={styles.actionSubtitle}>عرض كل النشاطات</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionCard, { backgroundColor: "#FFF5F5" }]}
               onPress={() => handleQuickAction("validate")}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <View style={styles.actionIconContainer}>
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={26}
-                  color="#000000"
-                />
+              <View
+                style={[styles.actionIconBg, { backgroundColor: "#FF2D5515" }]}
+              >
+                <Ionicons name="shield-checkmark" size={24} color="#FF2D55" />
                 {stats.pendingValidation > 0 && (
-                  <View style={styles.badge}>
+                  <View style={styles.actionBadge}>
                     <Text style={styles.badgeText}>
                       {stats.pendingValidation}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.actionText}>تحقق</Text>
+              <Text style={styles.actionTitle}>التحقق</Text>
+              <Text style={styles.actionSubtitle}>فحص البيانات</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionCard, { backgroundColor: "#F5FFF5" }]}
               onPress={() => handleQuickAction("export")}
               disabled={exporting}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <View style={styles.actionIconContainer}>
+              <View
+                style={[styles.actionIconBg, { backgroundColor: "#34C75915" }]}
+              >
                 {exporting ? (
-                  <ActivityIndicator size="small" color="#000000" />
+                  <ActivityIndicator size="small" color="#34C759" />
                 ) : (
-                  <Ionicons name="download-outline" size={26} color="#000000" />
+                  <Ionicons name="download" size={24} color="#34C759" />
                 )}
               </View>
-              <Text style={styles.actionText}>تصدير</Text>
+              <Text style={styles.actionTitle}>تصدير</Text>
+              <Text style={styles.actionSubtitle}>حفظ البيانات</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[styles.actionCard, { backgroundColor: "#FFF9F5" }]}
               onPress={() => handleQuickAction("backup")}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
             >
-              <View style={styles.actionIconContainer}>
-                <Ionicons name="save-outline" size={26} color="#000000" />
+              <View
+                style={[styles.actionIconBg, { backgroundColor: "#FF950015" }]}
+              >
+                <Ionicons name="cloud-upload" size={24} color="#FF9500" />
               </View>
-              <Text style={styles.actionText}>نسخ</Text>
+              <Text style={styles.actionTitle}>نسخ احتياطي</Text>
+              <Text style={styles.actionSubtitle}>حفظ آمن</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
 
-        {/* Data Quality - Ultra Minimal */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>جودة البيانات</Text>
-          <View style={styles.qualityContainer}>
-            <View style={styles.qualityRow}>
-              <Text style={styles.qualityLabel}>ملفات بصور</Text>
-              <View style={styles.qualityRight}>
-                <Text style={styles.qualityValue}>
-                  {stats.profilesWithPhotos}/{stats.totalProfiles}
-                </Text>
+        {/* Data Quality - Modern Progress */}
+        <View style={styles.qualitySection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>جودة البيانات</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllButton}>تفاصيل</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.qualityCard}>
+            <View style={styles.qualityItem}>
+              <View style={styles.qualityInfo}>
+                <Ionicons name="camera" size={20} color="#007AFF" />
+                <Text style={styles.qualityLabel}>ملفات بصور</Text>
               </View>
+              <Text style={styles.qualityCount}>
+                {stats.profilesWithPhotos} من {stats.totalProfiles}
+              </Text>
             </View>
-            <View style={styles.progressBar}>
+            <View style={styles.modernProgress}>
               <View
                 style={[
-                  styles.progressFill,
+                  styles.modernProgressFill,
                   {
                     width: `${
                       stats.totalProfiles > 0
                         ? (stats.profilesWithPhotos / stats.totalProfiles) * 100
                         : 0
                     }%`,
+                    backgroundColor: "#007AFF",
                   },
                 ]}
               />
             </View>
 
-            <View style={[styles.qualityRow, { marginTop: 20 }]}>
-              <Text style={styles.qualityLabel}>ملفات بسيرة ذاتية</Text>
-              <View style={styles.qualityRight}>
-                <Text style={styles.qualityValue}>
-                  {stats.profilesWithBio}/{stats.totalProfiles}
-                </Text>
+            <View style={[styles.qualityItem, { marginTop: 24 }]}>
+              <View style={styles.qualityInfo}>
+                <Ionicons name="document-text" size={20} color="#34C759" />
+                <Text style={styles.qualityLabel}>ملفات بسيرة ذاتية</Text>
               </View>
+              <Text style={styles.qualityCount}>
+                {stats.profilesWithBio} من {stats.totalProfiles}
+              </Text>
             </View>
-            <View style={styles.progressBar}>
+            <View style={styles.modernProgress}>
               <View
                 style={[
-                  styles.progressFill,
+                  styles.modernProgressFill,
                   {
                     width: `${
                       stats.totalProfiles > 0
                         ? (stats.profilesWithBio / stats.totalProfiles) * 100
                         : 0
                     }%`,
+                    backgroundColor: "#34C759",
                   },
                 ]}
               />
@@ -406,45 +459,57 @@ const AdminDashboard = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Recent Activity - Ultra Clean */}
-        <View style={styles.section}>
+        {/* Recent Activity - Modern Timeline */}
+        <View style={styles.activitySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>النشاط الأخير</Text>
             <TouchableOpacity onPress={() => setShowActivityScreen(true)}>
-              <Text style={styles.viewAllText}>عرض الكل</Text>
+              <Text style={styles.seeAllButton}>عرض الكل</Text>
             </TouchableOpacity>
           </View>
 
-          {recentActivity.length > 0 ? (
-            <View style={styles.activityList}>
-              {recentActivity.map((activity, index) => (
-                <TouchableOpacity
-                  key={activity.id}
+          <View style={styles.activityTimeline}>
+            {recentActivity.map((activity, index) => (
+              <TouchableOpacity
+                key={activity.id}
+                style={styles.activityCard}
+                activeOpacity={0.7}
+              >
+                <View
                   style={[
-                    styles.activityItem,
-                    index === recentActivity.length - 1 &&
-                      styles.lastActivityItem,
+                    styles.activityIconContainer,
+                    {
+                      backgroundColor:
+                        activity.type === "add"
+                          ? "#007AFF10"
+                          : activity.type === "edit"
+                            ? "#FF950010"
+                            : "#34C75910",
+                    },
                   ]}
-                  activeOpacity={0.7}
                 >
-                  <View style={styles.activityContent}>
-                    <Text style={styles.activityName}>{activity.name}</Text>
-                    <Text style={styles.activityTime}>{activity.time}</Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.activityIndicator,
-                      { backgroundColor: getActivityDotColor(activity.type) },
-                    ]}
+                  <Ionicons
+                    name={activity.icon}
+                    size={20}
+                    color={
+                      activity.type === "add"
+                        ? "#007AFF"
+                        : activity.type === "edit"
+                          ? "#FF9500"
+                          : "#34C759"
+                    }
                   />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>لا يوجد نشاط حديث</Text>
-            </View>
-          )}
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>{activity.title}</Text>
+                  <Text style={styles.activitySubtitle}>
+                    {activity.subtitle}
+                  </Text>
+                </View>
+                <Text style={styles.activityTime}>{activity.time}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         <View style={{ height: 100 }} />
@@ -460,7 +525,6 @@ const AdminDashboard = ({ navigation }) => {
         <ValidationDashboard
           navigation={{
             goBack: () => setShowValidationDashboard(false),
-            navigate: (screen) => console.log("Navigate to:", screen),
           }}
         />
       </Modal>
@@ -474,7 +538,6 @@ const AdminDashboard = ({ navigation }) => {
         <ActivityScreen
           navigation={{
             goBack: () => setShowActivityScreen(false),
-            navigate: (screen) => console.log("Navigate to:", screen),
           }}
         />
       </Modal>
@@ -485,262 +548,362 @@ const AdminDashboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#F2F2F7",
   },
 
-  // Header - Ultra Minimal
-  header: {
+  // Modern Header with Depth
+  modernHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 16,
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  backButton: {
+  headerButton: {
     width: 44,
     height: 44,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#000000",
-    letterSpacing: -0.4,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#000",
+    letterSpacing: 0.3,
   },
-
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: "#8E8E93",
+  notificationDot: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FF2D55",
   },
 
   // Content
   content: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 20,
-  },
 
-  // Primary Stat - Hero Style
-  primarySection: {
-    alignItems: "center",
-    paddingVertical: 40,
+  // Hero Section - Modern Card Design
+  heroSection: {
+    padding: 20,
+  },
+  heroCard: {
     backgroundColor: "#FFFFFF",
-    marginBottom: 8,
-  },
-  primaryNumber: {
-    fontSize: 72,
-    fontWeight: "200",
-    color: "#000000",
-    letterSpacing: -3,
-    marginBottom: 8,
-  },
-  primaryLabel: {
-    fontSize: 15,
-    color: "#8E8E93",
-    letterSpacing: -0.2,
-  },
-
-  // Stats Grid - Ultra Clean
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 8,
-  },
-  statCard: {
-    width: "50%",
-    alignItems: "center",
-    paddingVertical: 20,
-  },
-  statNumber: {
-    fontSize: 34,
-    fontWeight: "300",
-    color: "#000000",
-    letterSpacing: -1,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: "#8E8E93",
-    letterSpacing: -0.1,
-  },
-
-  // Sections
-  section: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 8,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#000000",
-    letterSpacing: -0.5,
-  },
-  viewAllText: {
-    fontSize: 15,
-    color: "#007AFF",
-  },
-
-  // Quick Actions - Ultra Minimal
-  actionsRow: {
+    borderRadius: 20,
+    padding: 24,
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
-  },
-  actionButton: {
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  heroCardContent: {
     flex: 1,
   },
-  actionIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#F5F5F7",
+  heroNumber: {
+    fontSize: 48,
+    fontWeight: "800",
+    color: "#000",
+    marginBottom: 4,
+  },
+  heroLabel: {
+    fontSize: 16,
+    color: "#6C6C70",
+    marginBottom: 12,
+  },
+  heroTrend: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  trendText: {
+    fontSize: 14,
+    color: "#00C851",
+    fontWeight: "600",
+  },
+  heroIconContainer: {
+    marginLeft: 20,
+  },
+  heroIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: "#F2F2F7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+  },
+
+  // Stats Grid - Clean Modern Cards
+  statsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  statRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statCardLeft: {
+    marginRight: 6,
+  },
+  statCardRight: {
+    marginLeft: 6,
+  },
+  statContent: {
+    alignItems: "flex-end",
+  },
+  statHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: "#6C6C70",
+    fontWeight: "500",
+  },
+  statNumber: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#000",
+    marginBottom: 4,
+    alignSelf: "flex-end",
+  },
+  statPercentage: {
+    fontSize: 13,
+    color: "#8E8E93",
+    alignSelf: "flex-end",
+  },
+
+  // Quick Actions - Horizontal Scroll Cards
+  quickActionsSection: {
+    marginBottom: 20,
+  },
+  sectionHeaderActions: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    alignItems: "flex-end",
+  },
+  actionsScroll: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  actionCard: {
+    width: 140,
+    padding: 20,
+    borderRadius: 16,
+    marginRight: 12,
+  },
+  actionIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
     position: "relative",
   },
-  actionText: {
-    fontSize: 11,
-    color: "#8E8E93",
-    letterSpacing: -0.1,
-  },
-  badge: {
+  actionBadge: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    backgroundColor: "#FF3B30",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF2D55",
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
   },
   badgeText: {
     fontSize: 11,
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000",
+    marginBottom: 4,
+  },
+  actionSubtitle: {
+    fontSize: 13,
+    color: "#6C6C70",
   },
 
-  // Data Quality - Ultra Clean
-  qualityContainer: {
-    marginTop: 8,
-  },
-  qualityRow: {
+  // Sections Common
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#000",
+    letterSpacing: 0.3,
+  },
+  seeAllButton: {
+    fontSize: 15,
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+
+  // Data Quality - Modern Design
+  qualitySection: {
+    marginBottom: 20,
+  },
+  qualityCard: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  qualityItem: {
+    marginBottom: 12,
+  },
+  qualityInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     marginBottom: 8,
   },
   qualityLabel: {
     fontSize: 15,
-    color: "#000000",
+    color: "#000",
+    fontWeight: "600",
   },
-  qualityRight: {
-    flexDirection: "row",
-    alignItems: "center",
+  qualityCount: {
+    fontSize: 14,
+    color: "#6C6C70",
+    textAlign: "right",
   },
-  qualityValue: {
-    fontSize: 15,
-    color: "#8E8E93",
-  },
-  progressBar: {
-    height: 2,
-    backgroundColor: "#F0F0F0",
-    borderRadius: 1,
+  modernProgress: {
+    height: 6,
+    backgroundColor: "#F2F2F7",
+    borderRadius: 3,
     overflow: "hidden",
   },
-  progressFill: {
+  modernProgressFill: {
     height: "100%",
-    backgroundColor: "#000000",
+    borderRadius: 3,
   },
 
-  // Activity List - Ultra Minimal
-  activityList: {
-    marginTop: 8,
+  // Activity Timeline - Modern Cards
+  activitySection: {
+    marginBottom: 20,
   },
-  activityItem: {
+  activityTimeline: {
+    paddingHorizontal: 20,
+  },
+  activityCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  lastActivityItem: {
-    borderBottomWidth: 0,
+  activityIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 12,
   },
   activityContent: {
     flex: 1,
     alignItems: "flex-end",
   },
-  activityName: {
+  activityTitle: {
     fontSize: 15,
-    color: "#000000",
+    fontWeight: "600",
+    color: "#000",
     marginBottom: 2,
   },
-  activityTime: {
+  activitySubtitle: {
     fontSize: 13,
-    color: "#8E8E93",
+    color: "#6C6C70",
   },
-  activityIndicator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginLeft: 12,
+  activityTime: {
+    fontSize: 12,
+    color: "#8E8E93",
+    marginRight: 12,
   },
 
-  // Empty State
-  emptyState: {
-    paddingVertical: 24,
+  // Loading & Error States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
   },
-  emptyText: {
-    fontSize: 15,
-    color: "#C7C7CC",
-  },
-
-  // Error State
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: 40,
   },
-  errorText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#000000",
-    marginTop: 16,
+  lockIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: "#F2F2F7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#000",
     marginBottom: 8,
   },
-  errorSubtext: {
+  errorSubtitle: {
     fontSize: 16,
-    color: "#8E8E93",
+    color: "#6C6C70",
     textAlign: "center",
   },
 });
