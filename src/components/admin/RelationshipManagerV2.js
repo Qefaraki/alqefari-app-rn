@@ -182,7 +182,10 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
         .order("sibling_order", { ascending: true });
 
       if (error) throw error;
-      setChildren(data || []);
+      // Reverse the order for display (keep youngest at top of list)
+      // But maintain original sibling_order values
+      const reversed = [...(data || [])].reverse();
+      setChildren(reversed);
     } catch (error) {
       console.error("Error loading children:", error);
       setChildren([]);
@@ -295,13 +298,19 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
     setChildren(newOrder);
 
     // Update sibling order in database
+    // IMPORTANT: Since we display reversed, we need to reverse the indices
     try {
-      const updates = newOrder.map((child, index) =>
-        supabase
+      const totalChildren = newOrder.length;
+      const updates = newOrder.map((child, displayIndex) => {
+        // Convert display position back to actual sibling_order
+        // Display: youngest at top (index 0), oldest at bottom
+        // Database: oldest = 0, youngest = highest number
+        const actualSiblingOrder = totalChildren - 1 - displayIndex;
+        return supabase
           .from("profiles")
-          .update({ sibling_order: index })
-          .eq("id", child.id),
-      );
+          .update({ sibling_order: actualSiblingOrder })
+          .eq("id", child.id);
+      });
 
       await Promise.all(updates);
 
@@ -310,9 +319,13 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
 
       // Create updated tree data with new sibling_order values
       const updatedTreeData = treeStore.treeData.map((node) => {
-        const childIndex = newOrder.findIndex((child) => child.id === node.id);
-        if (childIndex !== -1) {
-          return { ...node, sibling_order: childIndex };
+        const displayIndex = newOrder.findIndex(
+          (child) => child.id === node.id,
+        );
+        if (displayIndex !== -1) {
+          // Convert display position back to actual sibling_order
+          const actualSiblingOrder = totalChildren - 1 - displayIndex;
+          return { ...node, sibling_order: actualSiblingOrder };
         }
         return node;
       });

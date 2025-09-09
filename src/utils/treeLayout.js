@@ -110,15 +110,16 @@ export function calculateTreeLayout(familyData) {
   });
 
   // Sort children by sibling_order for each parent
+  // IMPORTANT: sibling_order is the single source of truth for birth order
   function sortChildrenByOrder(node) {
     if (node.children && node.children.length > 0) {
-      // Sort children by sibling_order (ascending - oldest first)
-      // On tree: Right to Left = Oldest to Youngest (Arabic RTL)
-      // In lists: Top to Bottom = Oldest to Youngest
+      // Sort by sibling_order: 0 = oldest (firstborn), 1 = second oldest, etc.
+      // Tree display (RTL): Oldest appears rightmost, youngest leftmost
+      // List display: Oldest at top, youngest at bottom
       node.children.sort((a, b) => {
         const orderA = a.sibling_order ?? 999;
         const orderB = b.sibling_order ?? 999;
-        return orderA - orderB; // Lower number = older = appears first (rightmost in RTL)
+        return orderA - orderB; // Ascending order: 0, 1, 2, 3...
       });
 
       // Recursively sort grandchildren

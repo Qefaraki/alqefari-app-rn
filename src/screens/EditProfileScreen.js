@@ -11,10 +11,11 @@ import {
   Platform,
   SafeAreaView,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import profilesService from "../services/profiles";
-import { handleSupabaseError } from "../services/supabase";
+import { handleSupabaseError, supabase } from "../services/supabase";
 import HeaderBar from "../components/ui/HeaderBar";
 import Surface from "../components/ui/Surface";
 import Field from "../components/ui/Field";
@@ -24,9 +25,16 @@ import tokens from "../components/ui/tokens";
 import NameEditor from "../components/admin/fields/NameEditor";
 import PhotoEditor from "../components/admin/fields/PhotoEditor";
 import DateEditor from "../components/admin/fields/DateEditor";
+import FatherSelector from "../components/admin/fields/FatherSelector";
+import MotherSelector from "../components/admin/fields/MotherSelector";
+import DraggableChildrenList from "../components/admin/DraggableChildrenList";
+import MarriageEditor from "../components/admin/MarriageEditor";
 import { validateDates } from "../utils/dateUtils";
+import { useAdminMode } from "../contexts/AdminModeContext";
 
 const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
+  const { isAdmin } = useAdminMode();
+
   const [formData, setFormData] = useState({
     name: "",
     hid: "",
@@ -37,35 +45,53 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
     photo_url: "",
     dob_data: null,
     dod_data: null,
+    father_id: null,
+    mother_id: null,
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [dateErrors, setDateErrors] = useState({ dob: null, dod: null });
   const [initial, setInitial] = useState(null);
 
+  // Relationship data
+  const [marriages, setMarriages] = useState([]);
+  const [children, setChildren] = useState([]);
+  const [showMarriageEditor, setShowMarriageEditor] = useState(false);
+  const [loadingRelationships, setLoadingRelationships] = useState(false);
+
   useEffect(() => {
     if (profile) {
       const birthYear =
         profile?.dob_data?.gregorian?.year ||
         profile?.dob_data?.hijri?.year ||
+        profile?.birth_year ||
         "";
+
       const deathYear =
         profile?.dod_data?.gregorian?.year ||
         profile?.dod_data?.hijri?.year ||
+        profile?.death_year ||
         "";
-      const next = {
+
+      const initialData = {
         name: profile.name || "",
         hid: profile.hid || "",
         gender: profile.gender || "male",
-        birth_year: birthYear ? String(birthYear) : "",
-        death_year: deathYear ? String(deathYear) : "",
-        bio: profile.bio || profile.biography || "",
+        birth_year: birthYear,
+        death_year: deathYear,
+        bio: profile.bio || "",
         photo_url: profile.photo_url || "",
         dob_data: profile.dob_data || null,
         dod_data: profile.dod_data || null,
+        father_id: profile.father_id || null,
+        mother_id: profile.mother_id || null,
       };
-      setFormData(next);
-      setInitial(next);
+
+      setFormData(initialData);
+      setInitial(initialData);
+
+      // Load relationships
+      loadRelationships();
     }
   }, [profile]);
 
@@ -134,10 +160,53 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
       initial.death_year !== formData.death_year ||
       initial.bio !== formData.bio ||
       initial.photo_url !== formData.photo_url ||
+      initial.father_id !== formData.father_id ||
+      initial.mother_id !== formData.mother_id ||
       JSON.stringify(initial.dob_data) !== JSON.stringify(formData.dob_data) ||
       JSON.stringify(initial.dod_data) !== JSON.stringify(formData.dod_data)
     );
   }, [initial, formData]);
+
+  // Load relationships data
+  const loadRelationships = async () => {
+    if (!profile?.id) return;
+
+    setLoadingRelationships(true);
+    try {
+      // Load marriages
+      if (profile.gender === "male") {
+        const { data: marriageData, error: marriageError } = await supabase.rpc(
+          "admin_get_person_marriages",
+          { person_id: profile.id },
+        );
+
+        if (!marriageError && marriageData) {
+          setMarriages(marriageData);
+        }
+      }
+
+      // Load children
+      const { data: childrenData, error: childrenError } = await supabase
+        .from("profiles")
+        .select(
+          `
+          id, name, gender, hid, birth_date, death_date, 
+          status, sibling_order, dob_data, dod_data,
+          mother:mother_id(id, name)
+        `,
+        )
+        .or(`father_id.eq.${profile.id},mother_id.eq.${profile.id}`)
+        .order("sibling_order", { ascending: true });
+
+      if (!childrenError && childrenData) {
+        setChildren(childrenData);
+      }
+    } catch (error) {
+      console.error("Error loading relationships:", error);
+    } finally {
+      setLoadingRelationships(false);
+    }
+  };
 
   // Handle date changes with validation
   const handleDateChange = (field, value) => {
@@ -146,7 +215,15 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
 
     // Validate dates
     const errors = validateDates(newFormData.dob_data, newFormData.dod_data);
-    setDateErrors(errors);
+    setDateErrors({
+      dob: errors.dob || null,
+      dod: errors.dod || null,
+    });
+  };
+
+  // Handle parent changes
+  const handleParentChange = async (parentType, parentId) => {
+    setFormData({ ...formData, [parentType]: parentId });
   };
 
   const handleSave = async () => {
@@ -159,6 +236,8 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
         gender: formData.gender, // 'male' | 'female'
         bio: formData.bio?.trim() || null,
         photo_url: formData.photo_url?.trim() || null,
+        father_id: formData.father_id,
+        mother_id: formData.mother_id,
         dob_data:
           formData.dob_data ||
           (formData.birth_year
@@ -320,11 +399,101 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
                 numberOfLines={4}
               />
             </Surface>
+
+            {/* Parents Section */}
+            {isAdmin && (
+              <Surface style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>الوالدين</Text>
+                <View style={styles.parentSelectors}>
+                  <FatherSelector
+                    value={formData.father_id}
+                    onChange={(id) => handleParentChange("father_id", id)}
+                    currentPersonId={profile?.id}
+                    excludeIds={[profile?.id]}
+                  />
+                  <View style={{ marginTop: 12 }}>
+                    <MotherSelector
+                      value={formData.mother_id}
+                      onChange={(id) => handleParentChange("mother_id", id)}
+                      currentPersonId={profile?.id}
+                      excludeIds={[profile?.id]}
+                    />
+                  </View>
+                </View>
+              </Surface>
+            )}
+
+            {/* Marriages Section - Only for males */}
+            {profile?.gender === "male" && isAdmin && (
+              <Surface style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>الزوجات</Text>
+                  <TouchableOpacity
+                    style={styles.addButton}
+                    onPress={() => setShowMarriageEditor(true)}
+                  >
+                    <Text style={styles.addButtonText}>+ إضافة زواج</Text>
+                  </TouchableOpacity>
+                </View>
+                {loadingRelationships ? (
+                  <ActivityIndicator style={{ padding: 20 }} />
+                ) : marriages.length > 0 ? (
+                  <View style={styles.marriagesList}>
+                    {marriages.map((marriage) => (
+                      <View key={marriage.id} style={styles.marriageItem}>
+                        <Text style={styles.marriageText}>
+                          {marriage.wife_name || "غير محدد"}
+                        </Text>
+                        {marriage.is_current && (
+                          <View style={styles.currentBadge}>
+                            <Text style={styles.currentText}>حالي</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+                )}
+              </Surface>
+            )}
+
+            {/* Children Section */}
+            {profile?.id && (
+              <Surface style={[styles.sectionCard, { paddingBottom: 0 }]}>
+                <Text style={[styles.sectionTitle, { paddingHorizontal: 16 }]}>
+                  الأبناء
+                </Text>
+                {loadingRelationships ? (
+                  <ActivityIndicator style={{ padding: 20 }} />
+                ) : (
+                  <DraggableChildrenList
+                    initialChildren={children}
+                    parentProfile={profile}
+                    onUpdate={loadRelationships}
+                    isAdmin={isAdmin}
+                  />
+                )}
+              </Surface>
+            )}
           </ScrollView>
 
           {/* Footer removed – Save is in header */}
         </KeyboardAvoidingView>
       </SafeAreaView>
+
+      {/* Marriage Editor Modal */}
+      {showMarriageEditor && (
+        <MarriageEditor
+          visible={showMarriageEditor}
+          onClose={() => setShowMarriageEditor(false)}
+          husbandId={profile?.id}
+          onSave={() => {
+            setShowMarriageEditor(false);
+            loadRelationships();
+          }}
+        />
+      )}
     </Modal>
   );
 };
@@ -352,29 +521,70 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
   },
   errorText: {
-    fontSize: 12,
     color: tokens.colors.danger,
+    fontSize: 12,
     marginTop: 4,
     textAlign: "right",
   },
-  yearRow: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: tokens.colors.text,
+    marginBottom: 16,
+  },
+  sectionHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  inlineRow: {
-    flexDirection: "row-reverse",
-    alignItems: "flex-start",
+  parentSelectors: {
+    gap: 12,
   },
-  footer: {
-    padding: 16,
-    paddingBottom: 34,
-    backgroundColor: tokens.colors.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.divider,
+  addButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: tokens.colors.accent,
+    borderRadius: 8,
   },
-  footerRow: { flexDirection: "row-reverse", alignItems: "center" },
-  sectionCard: { padding: 16, marginBottom: 12 },
-  heroCard: { padding: 16, marginBottom: 12 },
-  heroContent: { alignItems: "center" },
+  addButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  marriagesList: {
+    gap: 8,
+  },
+  marriageItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F7F7FA",
+    borderRadius: 8,
+    gap: 8,
+  },
+  marriageText: {
+    flex: 1,
+    fontSize: 16,
+    color: tokens.colors.text,
+  },
+  currentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#E8F5E9",
+    borderRadius: 4,
+  },
+  currentText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontWeight: "600",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: tokens.colors.textMuted,
+    textAlign: "center",
+    padding: 20,
+  },
 });
 
 export default EditProfileScreen;

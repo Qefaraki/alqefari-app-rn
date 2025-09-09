@@ -31,15 +31,42 @@ SELECT * FROM admin_auto_fix_issues();      # Fix common issues
 
 ## Children Ordering Rules (CRITICAL)
 
-**ALWAYS maintain this ordering for siblings:**
+### Single Source of Truth: `sibling_order`
+
+- **`sibling_order` field is the ONLY authority for birth order**
+- HID is for hierarchical identification only, NOT for ordering
+- Never use `created_at` or HID to determine age order
+- Always ORDER BY sibling_order ASC in queries
+
+### Ordering Convention:
+
+- **`sibling_order = 0`** = Oldest child (firstborn)
+- **`sibling_order = 1`** = Second oldest
+- **`sibling_order = 2`** = Third oldest
+- And so on... (youngest has highest number)
+
+### Display Rules:
 
 - **Lists (Top to Bottom)**: Oldest child at top, youngest at bottom
+  - Display order number badges: 1 (oldest), 2, 3...
 - **Tree View (RTL Layout)**: Oldest child on right, youngest on left
-- **Database**: `sibling_order = 0` is oldest, incrementing for younger siblings
-- **Example**: If Ahmed has 3 children (Fatima born 1990, Omar born 1995, Sara born 2000):
-  - Database: Fatima (0), Omar (1), Sara (2)
-  - List UI: Fatima (top), Omar (middle), Sara (bottom)
-  - Tree UI: Fatima (rightmost), Omar (middle), Sara (leftmost)
+  - This follows Arabic reading order (right-to-left)
+- **Drag to Reorder**: Updates sibling_order in database immediately
+
+### Example:
+
+If Ahmed has 3 children (Fatima oldest, Omar middle, Sara youngest):
+
+- Database: Fatima (sibling_order=0), Omar (1), Sara (2)
+- List UI: [1] Fatima (top), [2] Omar, [3] Sara (bottom)
+- Tree UI: Fatima (rightmost), Omar (middle), Sara (leftmost)
+
+### Implementation Notes:
+
+- RelationshipManagerV2 uses: `ORDER BY sibling_order ASC`
+- Tree layout sorts children by sibling_order before rendering
+- When adding new children, assign next available sibling_order
+- When reordering, update all affected siblings' sibling_order values
 
 ## Project Structure
 
