@@ -38,7 +38,8 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   const performSearch = useCallback(
     async (searchText) => {
-      if (!searchText || searchText.length < 2) {
+      if (!searchText || searchText.length < 1) {
+        // Lower threshold
         setResults([]);
         setShowResults(false);
         resultsHeight.value = withTiming(0, { duration: 200 });
@@ -54,25 +55,36 @@ const SearchBar = ({ onSelectResult, style }) => {
           .split(/\s+/)
           .filter((name) => name.length > 0);
 
+        console.log("Searching for:", names);
+
         const { data, error } = await supabase.rpc("search_name_chain", {
           p_names: names,
-          p_limit: 10,
+          p_limit: 20, // More results
         });
 
         if (error) {
           console.error("Search error:", error);
           setResults([]);
+          setShowResults(false);
         } else {
+          console.log("Search results:", data?.length || 0, "items");
           setResults(data || []);
           setShowResults((data || []).length > 0);
-          resultsHeight.value = withTiming(
-            Math.min(350, (data || []).length * 70 + 10),
-            { duration: 200 },
-          );
+
+          // Animate results dropdown
+          if (data && data.length > 0) {
+            resultsHeight.value = withTiming(
+              Math.min(400, data.length * 70 + 20),
+              { duration: 250 },
+            );
+          } else {
+            resultsHeight.value = withTiming(0, { duration: 200 });
+          }
         }
       } catch (err) {
         console.error("Search exception:", err);
         setResults([]);
+        setShowResults(false);
       } finally {
         setLoading(false);
       }
@@ -174,68 +186,91 @@ const SearchBar = ({ onSelectResult, style }) => {
   }, [query, resultsHeight]);
 
   return (
-    <View style={[styles.container, style]}>
-      <View style={styles.searchBarContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#8A8A8E"
-            style={styles.searchIcon}
-          />
+    <>
+      {/* Backdrop when results are showing */}
+      {showResults && (
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => {
+            setShowResults(false);
+            resultsHeight.value = withTiming(0, { duration: 200 });
+            Keyboard.dismiss();
+          }}
+        />
+      )}
 
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            placeholder="ابحث بالأسماء... محمد عبدالله سالم"
-            placeholderTextColor="#8A8A8E"
-            value={query}
-            onChangeText={handleChangeText}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-            textAlign="right"
-          />
+      <View style={[styles.container, style]}>
+        <View style={styles.searchBarContainer}>
+          <View style={styles.searchBar}>
+            <Ionicons
+              name="search"
+              size={20}
+              color="#8A8A8E"
+              style={styles.searchIcon}
+            />
 
-          {query.length > 0 && (
-            <Pressable onPress={handleClear} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#8A8A8E" />
-            </Pressable>
-          )}
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="ابحث بالأسماء... محمد عبدالله سالم"
+              placeholderTextColor="#8A8A8E"
+              value={query}
+              onChangeText={handleChangeText}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              textAlign="right"
+            />
 
-          {loading && (
-            <ActivityIndicator
-              size="small"
-              color="#007AFF"
-              style={styles.loader}
+            {query.length > 0 && (
+              <Pressable onPress={handleClear} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={20} color="#8A8A8E" />
+              </Pressable>
+            )}
+
+            {loading && (
+              <ActivityIndicator
+                size="small"
+                color="#007AFF"
+                style={styles.loader}
+              />
+            )}
+          </View>
+        </View>
+
+        <Animated.View style={[styles.resultsContainer, resultsStyle]}>
+          {showResults && (
+            <FlatList
+              data={results}
+              keyExtractor={(item) => item.id}
+              renderItem={renderResult}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              style={styles.resultsList}
+              contentContainerStyle={styles.resultsContent}
             />
           )}
-        </View>
+        </Animated.View>
       </View>
-
-      <Animated.View style={[styles.resultsContainer, resultsStyle]}>
-        {showResults && (
-          <FlatList
-            data={results}
-            keyExtractor={(item) => item.id}
-            renderItem={renderResult}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            style={styles.resultsList}
-            contentContainerStyle={styles.resultsContent}
-          />
-        )}
-      </Animated.View>
-    </View>
+    </>
   );
 };
 
 const styles = {
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    zIndex: 999,
+  },
   container: {
     position: "absolute",
-    top: 60,
-    left: 16,
-    right: 16,
+    top: 50, // Move higher up
+    left: 12,
+    right: 12,
     zIndex: 1000,
   },
   searchBarContainer: {
@@ -249,18 +284,21 @@ const styles = {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    borderRadius: 22, // More rounded for modern look
+    paddingHorizontal: 16,
+    height: 48, // Slightly taller
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
   },
   searchIcon: {
     marginRight: 8,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 17,
     fontFamily: "SF Arabic",
     color: "#000000",
+    paddingVertical: 4,
   },
   clearButton: {
     padding: 4,
