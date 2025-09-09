@@ -32,8 +32,8 @@ import profilesService from "../../services/profiles";
 // Enable RTL
 I18nManager.forceRTL(true);
 
-const ITEM_HEIGHT = 120;
-const ITEM_WIDTH = 100;
+const ITEM_HEIGHT = 80;
+const ITEM_WIDTH = 90;
 
 // Individual draggable child item
 const DraggableChildItem = ({
@@ -127,23 +127,11 @@ const DraggableChildItem = ({
             onPress={() => onPress(child)}
             activeOpacity={0.7}
           >
-            {child.gender === "male" ? (
-              <Ionicons name="male" size={20} color="#3B82F6" />
-            ) : (
-              <Ionicons name="female" size={20} color="#EC4899" />
-            )}
             <Text style={styles.childName} numberOfLines={1}>
               {child.name}
             </Text>
-            {child.birth_date && (
-              <Text style={styles.childDate} numberOfLines={1}>
-                {formatDisplayDate(child.birth_date)}
-              </Text>
-            )}
             {child.status === "deceased" && (
-              <View style={styles.deceasedBadge}>
-                <Text style={styles.deceasedText}>متوفى</Text>
-              </View>
+              <Text style={styles.deceasedText}>الله يرحمه</Text>
             )}
           </TouchableOpacity>
           {onDelete && (
@@ -535,13 +523,13 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic Regular",
   },
   scrollView: {
-    height: ITEM_HEIGHT + 40,
+    height: ITEM_HEIGHT + 20,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
   },
   motherGroup: {
     marginRight: 16,
@@ -573,8 +561,8 @@ const styles = StyleSheet.create({
   childItem: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 8,
+    borderRadius: 10,
+    padding: 6,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -589,33 +577,19 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingTop: 4,
   },
   childName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#000000",
     fontFamily: "SF Arabic Regular",
-    marginTop: 4,
     textAlign: "center",
   },
-  childDate: {
+  deceasedText: {
     fontSize: 10,
     color: "#8A8A8E",
     fontFamily: "SF Arabic Regular",
-    marginTop: 2,
-  },
-  deceasedBadge: {
-    backgroundColor: "#F5F5F5",
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 3,
-    marginTop: 4,
-  },
-  deceasedText: {
-    fontSize: 9,
-    color: "#8A8A8E",
-    fontFamily: "SF Arabic Regular",
+    marginTop: 3,
   },
   deleteButton: {
     position: "absolute",
