@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,14 +9,30 @@ import {
   RefreshControl,
   Alert,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../services/supabase';
-import GlassSurface from '../components/glass/GlassSurface';
-import { useAdminMode } from '../contexts/AdminModeContext';
-import { formatDistanceToNow } from 'date-fns';
-import { ar } from 'date-fns/locale';
+  SafeAreaView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../services/supabase";
+import GlassSurface from "../components/glass/GlassSurface";
+import { useAdminMode } from "../contexts/AdminModeContext";
+
+// Simple date formatting function (replace with date-fns if needed)
+const formatDistanceToNow = (date) => {
+  const now = new Date();
+  const past = new Date(date);
+  const diffInSeconds = Math.floor((now - past) / 1000);
+
+  if (diffInSeconds < 60) return "منذ ثواني";
+  if (diffInSeconds < 3600)
+    return `منذ ${Math.floor(diffInSeconds / 60)} دقيقة`;
+  if (diffInSeconds < 86400)
+    return `منذ ${Math.floor(diffInSeconds / 3600)} ساعة`;
+  if (diffInSeconds < 2592000)
+    return `منذ ${Math.floor(diffInSeconds / 86400)} يوم`;
+  if (diffInSeconds < 31536000)
+    return `منذ ${Math.floor(diffInSeconds / 2592000)} شهر`;
+  return `منذ ${Math.floor(diffInSeconds / 31536000)} سنة`;
+};
 
 const ActivityScreen = ({ navigation }) => {
   const { isAdmin } = useAdminMode();
@@ -30,23 +46,23 @@ const ActivityScreen = ({ navigation }) => {
       navigation.goBack();
       return;
     }
-    
+
     loadActivities();
-    
+
     // Subscribe to audit log changes
     const subscription = supabase
-      .channel('audit-log-changes')
+      .channel("audit-log-changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'audit_log',
+          event: "*",
+          schema: "public",
+          table: "audit_log",
         },
         () => {
           // Reload activities when audit log changes
           loadActivities();
-        }
+        },
       )
       .subscribe();
 
@@ -57,16 +73,19 @@ const ActivityScreen = ({ navigation }) => {
 
   const loadActivities = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_revertible_audit_entries', {
-        p_limit: 50,
-        p_offset: 0,
-      });
+      const { data, error } = await supabase.rpc(
+        "get_revertible_audit_entries",
+        {
+          p_limit: 50,
+          p_offset: 0,
+        },
+      );
 
       if (error) throw error;
       setActivities(data || []);
     } catch (error) {
-      console.error('Error loading activities:', error);
-      Alert.alert('خطأ', 'فشل تحميل السجل');
+      console.error("Error loading activities:", error);
+      Alert.alert("خطأ", "فشل تحميل السجل");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -79,17 +98,17 @@ const ActivityScreen = ({ navigation }) => {
   };
 
   const getActionDescription = (item) => {
-    const actorName = item.actor_name || 'مستخدم';
-    const targetName = item.target_profile_name || 'ملف شخصي';
+    const actorName = item.actor_name || "مستخدم";
+    const targetName = item.target_profile_name || "ملف شخصي";
 
     switch (item.action) {
-      case 'INSERT':
+      case "INSERT":
         return `${actorName} أضاف ${targetName}`;
-      case 'UPDATE':
+      case "UPDATE":
         return `${actorName} عدّل ${targetName}`;
-      case 'DELETE':
+      case "DELETE":
         return `${actorName} حذف ${targetName}`;
-      case 'REVERT':
+      case "REVERT":
         return `${actorName} تراجع عن تغيير`;
       default:
         return `${actorName} ${item.action} ${targetName}`;
@@ -98,16 +117,16 @@ const ActivityScreen = ({ navigation }) => {
 
   const getActionIcon = (action) => {
     switch (action) {
-      case 'INSERT':
-        return { name: 'add-circle-outline', color: '#34C759' };
-      case 'UPDATE':
-        return { name: 'create-outline', color: '#007AFF' };
-      case 'DELETE':
-        return { name: 'trash-outline', color: '#FF3B30' };
-      case 'REVERT':
-        return { name: 'arrow-undo-outline', color: '#FF9500' };
+      case "INSERT":
+        return { name: "add-circle-outline", color: "#34C759" };
+      case "UPDATE":
+        return { name: "create-outline", color: "#007AFF" };
+      case "DELETE":
+        return { name: "trash-outline", color: "#FF3B30" };
+      case "REVERT":
+        return { name: "arrow-undo-outline", color: "#FF9500" };
       default:
-        return { name: 'ellipse-outline', color: '#8E8E93' };
+        return { name: "ellipse-outline", color: "#8E8E93" };
     }
   };
 
@@ -117,51 +136,57 @@ const ActivityScreen = ({ navigation }) => {
 
     try {
       // Get dry run preview
-      const { data: preview, error: previewError } = await supabase.rpc('admin_revert_action', {
-        p_audit_log_id: item.id,
-        p_dry_run: true,
-      });
+      const { data: preview, error: previewError } = await supabase.rpc(
+        "admin_revert_action",
+        {
+          p_audit_log_id: item.id,
+          p_dry_run: true,
+        },
+      );
 
       if (previewError) throw previewError;
 
       // Show confirmation with preview
       Alert.alert(
-        'تأكيد التراجع',
-        `${preview.summary || 'سيتم التراجع عن هذا التغيير'}\n\nهل أنت متأكد؟`,
+        "تأكيد التراجع",
+        `${preview.summary || "سيتم التراجع عن هذا التغيير"}\n\nهل أنت متأكد؟`,
         [
           {
-            text: 'إلغاء',
-            style: 'cancel',
+            text: "إلغاء",
+            style: "cancel",
             onPress: () => setReverting({}),
           },
           {
-            text: 'تراجع',
-            style: 'destructive',
+            text: "تراجع",
+            style: "destructive",
             onPress: async () => {
               try {
                 // Perform actual revert
-                const { data, error } = await supabase.rpc('admin_revert_action', {
-                  p_audit_log_id: item.id,
-                  p_dry_run: false,
-                });
+                const { data, error } = await supabase.rpc(
+                  "admin_revert_action",
+                  {
+                    p_audit_log_id: item.id,
+                    p_dry_run: false,
+                  },
+                );
 
                 if (error) throw error;
 
-                Alert.alert('نجح', data.summary || 'تم التراجع بنجاح');
+                Alert.alert("نجح", data.summary || "تم التراجع بنجاح");
                 loadActivities();
               } catch (error) {
-                console.error('Error reverting:', error);
-                Alert.alert('خطأ', error.message || 'فشل التراجع');
+                console.error("Error reverting:", error);
+                Alert.alert("خطأ", error.message || "فشل التراجع");
               } finally {
                 setReverting({});
               }
             },
           },
-        ]
+        ],
       );
     } catch (error) {
-      console.error('Error getting preview:', error);
-      Alert.alert('خطأ', 'فشل الحصول على معاينة التراجع');
+      console.error("Error getting preview:", error);
+      Alert.alert("خطأ", "فشل الحصول على معاينة التراجع");
       setReverting({});
     }
   };
@@ -171,27 +196,45 @@ const ActivityScreen = ({ navigation }) => {
     const isReverting = reverting[item.id];
 
     return (
-      <GlassSurface style={styles.activityCard} contentStyle={styles.activityContent}>
+      <GlassSurface
+        style={styles.activityCard}
+        contentStyle={styles.activityContent}
+      >
         <View style={styles.activityLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: `${icon.color}20` }]}>
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: `${icon.color}20` },
+            ]}
+          >
             <Ionicons name={icon.name} size={24} color={icon.color} />
           </View>
           <View style={styles.activityInfo}>
-            <Text style={styles.activityDescription}>
+            <Text
+              style={[
+                styles.activityDescription,
+                { fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Arial" },
+              ]}
+            >
               {getActionDescription(item)}
             </Text>
-            <Text style={styles.activityTime}>
-              {formatDistanceToNow(new Date(item.created_at), { 
-                addSuffix: true,
-                locale: ar,
-              })}
+            <Text
+              style={[
+                styles.activityTime,
+                { fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Arial" },
+              ]}
+            >
+              {formatDistanceToNow(new Date(item.created_at))}
             </Text>
           </View>
         </View>
 
         {item.is_revertible && (
           <TouchableOpacity
-            style={[styles.revertButton, isReverting && styles.revertButtonDisabled]}
+            style={[
+              styles.revertButton,
+              isReverting && styles.revertButtonDisabled,
+            ]}
             onPress={() => handleRevert(item)}
             disabled={isReverting}
           >
@@ -213,7 +256,10 @@ const ActivityScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
             <Ionicons name="chevron-back" size={28} color="#007AFF" />
           </TouchableOpacity>
           <Text style={styles.title}>سجل النشاط</Text>
@@ -228,10 +274,20 @@ const ActivityScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={28} color="#007AFF" />
         </TouchableOpacity>
-        <Text style={styles.title}>سجل النشاط</Text>
+        <Text
+          style={[
+            styles.title,
+            { fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Arial" },
+          ]}
+        >
+          سجل النشاط
+        </Text>
       </View>
 
       <FlatList
@@ -249,7 +305,14 @@ const ActivityScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={48} color="#C7C7CC" />
-            <Text style={styles.emptyText}>لا يوجد نشاط حتى الآن</Text>
+            <Text
+              style={[
+                styles.emptyText,
+                { fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Arial" },
+              ]}
+            >
+              لا يوجد نشاط حتى الآن
+            </Text>
           </View>
         }
       />
@@ -260,36 +323,32 @@ const ActivityScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: "#F2F2F7",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: "#E5E5EA",
   },
   backButton: {
-    position: 'absolute',
+    position: "absolute",
     left: 16,
     padding: 4,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      android: 'Arial',
-    }),
+    fontWeight: "600",
+    color: "#000",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   listContent: {
     padding: 16,
@@ -299,22 +358,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   activityContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 16,
   },
   activityLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   iconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   activityInfo: {
@@ -322,28 +381,20 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     fontSize: 16,
-    color: '#000',
+    color: "#000",
     marginBottom: 4,
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      android: 'Arial',
-    }),
   },
   activityTime: {
     fontSize: 13,
-    color: '#8E8E93',
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      android: 'Arial',
-    }),
+    color: "#8E8E93",
   },
   revertButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#FF950010',
+    backgroundColor: "#FF950010",
     borderRadius: 16,
   },
   revertButtonDisabled: {
@@ -351,23 +402,19 @@ const styles = StyleSheet.create({
   },
   revertButtonText: {
     fontSize: 13,
-    color: '#FF9500',
-    fontWeight: '500',
+    color: "#FF9500",
+    fontWeight: "500",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingVertical: 100,
   },
   emptyText: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginTop: 12,
-    fontFamily: Platform.select({
-      ios: 'SF Arabic',
-      android: 'Arial',
-    }),
   },
 });
 
