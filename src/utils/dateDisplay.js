@@ -67,43 +67,16 @@ const gregorianMonthsShort = [
 function formatDate(day, month, year, type = "gregorian", settings = {}) {
   if (!day || !month || !year) return "";
 
-  const {
-    dateFormat = "numeric",
-    dateOrder = "dmy",
-    yearFormat = "full",
-    separator = "/",
-    arabicNumerals = false,
-  } = settings;
+  const { dateFormat = "numeric", arabicNumerals = false } = settings;
 
-  // Format year based on preference
-  let formattedYear = year;
-  if (yearFormat === "short" && year > 1000) {
-    formattedYear = year % 100;
-  }
-
-  // Format based on type
+  // Format based on type - Always use DD/MM/YYYY format
   if (dateFormat === "numeric") {
-    // Numeric format: DD/MM/YYYY or variations
-    let parts = [];
+    // Numeric format: DD/MM/YYYY only
     const dayStr = day.toString().padStart(2, "0");
     const monthStr = month.toString().padStart(2, "0");
-    const yearStr = formattedYear.toString();
+    const yearStr = year.toString();
 
-    switch (dateOrder) {
-      case "dmy":
-        parts = [dayStr, monthStr, yearStr];
-        break;
-      case "mdy":
-        parts = [monthStr, dayStr, yearStr];
-        break;
-      case "ymd":
-        parts = [yearStr, monthStr, dayStr];
-        break;
-      default:
-        parts = [dayStr, monthStr, yearStr];
-    }
-
-    let result = parts.join(separator);
+    let result = `${dayStr}/${monthStr}/${yearStr}`;
 
     // Add calendar indicator
     if (type === "hijri") {
@@ -117,29 +90,35 @@ function formatDate(day, month, year, type = "gregorian", settings = {}) {
 
     return result;
   } else if (dateFormat === "words") {
-    // Full words format: 15 January 2024
+    // Full words format: 15 يناير 2024
     if (type === "hijri") {
       const monthName = hijriMonths[month - 1] || month;
-      const result = `${day} ${monthName} ${formattedYear} هـ`;
+      const result = `${day} ${monthName} ${year} هـ`;
       return arabicNumerals ? toArabicNumerals(result) : result;
     } else {
       const monthName = gregorianMonthsAr[month - 1] || month;
-      return `${day} ${monthName} ${formattedYear}`;
+      return `${day} ${monthName} ${year}`;
     }
   } else if (dateFormat === "mixed") {
-    // Mixed format: 15 Jan 2024
+    // Mixed format: 15 يناير 2024 (shortened)
     if (type === "hijri") {
       const monthName = hijriMonths[month - 1] || month;
-      const result = `${day} ${monthName.substring(0, 3)} ${formattedYear} هـ`;
+      // Use first 3-4 chars for shortened month names
+      const shortMonth =
+        monthName.length > 4 ? monthName.substring(0, 3) : monthName;
+      const result = `${day} ${shortMonth} ${year} هـ`;
       return arabicNumerals ? toArabicNumerals(result) : result;
     } else {
-      const monthName = gregorianMonthsShort[month - 1] || month;
-      return `${day} ${monthName} ${formattedYear}`;
+      // Use Arabic short versions instead of English
+      const monthName = gregorianMonthsAr[month - 1] || month;
+      const shortMonth =
+        monthName.length > 4 ? monthName.substring(0, 3) : monthName;
+      return `${day} ${shortMonth} ${year}`;
     }
   }
 
   // Fallback to numeric
-  return `${day}${separator}${month}${separator}${formattedYear}`;
+  return `${day}/${month}/${year}`;
 }
 
 /**
@@ -151,13 +130,10 @@ function formatDate(day, month, year, type = "gregorian", settings = {}) {
 export function formatDateByPreference(dateData, settings = {}) {
   if (!dateData) return "";
 
-  // Use default settings if not provided
+  // Use default settings if not provided - simplified
   const finalSettings = {
     defaultCalendar: "gregorian",
     dateFormat: "numeric",
-    dateOrder: "dmy",
-    yearFormat: "full",
-    separator: "/",
     showBothCalendars: false,
     arabicNumerals: false,
     ...settings,

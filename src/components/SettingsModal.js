@@ -9,19 +9,24 @@ import {
   SafeAreaView,
   ScrollView,
   Alert,
+  I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
+import { gregorianToHijri } from "../utils/hijriConverter";
 
 export default function SettingsModal({ visible, onClose }) {
   const { settings, updateSetting } = useSettings();
   const [expandedSection, setExpandedSection] = useState("date");
 
-  // Sample date for preview
+  // Sample date for preview - using a valid date
+  const sampleGregorian = { day: 15, month: 3, year: 2024 };
+  const sampleHijri = gregorianToHijri(2024, 3, 15);
+
   const sampleDate = {
-    gregorian: { day: 15, month: 3, year: 2024 },
-    hijri: { day: 5, month: 9, year: 1445 },
+    gregorian: sampleGregorian,
+    hijri: sampleHijri || { day: 5, month: 9, year: 1445 }, // Fallback if conversion fails
   };
 
   const toggleSection = (section) => {
@@ -29,12 +34,12 @@ export default function SettingsModal({ visible, onClose }) {
   };
 
   const renderDatePreview = () => {
+    const previewText = formatDateByPreference(sampleDate, settings);
+
     return (
       <View style={styles.previewContainer}>
         <Text style={styles.previewTitle}>معاينة:</Text>
-        <Text style={styles.previewText}>
-          {formatDateByPreference(sampleDate, settings)}
-        </Text>
+        <Text style={styles.previewText}>{previewText || "15/03/2024"}</Text>
       </View>
     );
   };
@@ -88,6 +93,11 @@ export default function SettingsModal({ visible, onClose }) {
             onPress={() => toggleSection("date")}
             activeOpacity={0.7}
           >
+            <Ionicons
+              name={expandedSection === "date" ? "chevron-up" : "chevron-down"}
+              size={20}
+              color="#6B7280"
+            />
             <View style={styles.sectionHeaderContent}>
               <Text style={styles.sectionTitle}>تنسيق التاريخ</Text>
               {expandedSection !== "date" && (
@@ -101,11 +111,6 @@ export default function SettingsModal({ visible, onClose }) {
                 </Text>
               )}
             </View>
-            <Ionicons
-              name={expandedSection === "date" ? "chevron-up" : "chevron-down"}
-              size={20}
-              color="#6B7280"
-            />
           </TouchableOpacity>
 
           {expandedSection === "date" && (
@@ -140,53 +145,8 @@ export default function SettingsModal({ visible, onClose }) {
                 <Text style={styles.optionHint}>
                   {settings.dateFormat === "numeric" && "15/03/2024"}
                   {settings.dateFormat === "words" && "15 مارس 2024"}
-                  {settings.dateFormat === "mixed" && "15 Mar 2024"}
+                  {settings.dateFormat === "mixed" && "15 مار 2024"}
                 </Text>
-              </View>
-
-              {/* Date Order (only for numeric) */}
-              {settings.dateFormat === "numeric" && (
-                <View style={styles.optionGroup}>
-                  <Text style={styles.optionGroupLabel}>ترتيب التاريخ</Text>
-                  {renderSegmentedControl(
-                    [
-                      { label: "يوم/شهر/سنة", value: "dmy" },
-                      { label: "شهر/يوم/سنة", value: "mdy" },
-                      { label: "سنة/شهر/يوم", value: "ymd" },
-                    ],
-                    settings.dateOrder,
-                    (value) => updateSetting("dateOrder", value),
-                  )}
-                </View>
-              )}
-
-              {/* Separator (only for numeric) */}
-              {settings.dateFormat === "numeric" && (
-                <View style={styles.optionGroup}>
-                  <Text style={styles.optionGroupLabel}>الفاصل</Text>
-                  {renderSegmentedControl(
-                    [
-                      { label: "/", value: "/" },
-                      { label: "-", value: "-" },
-                      { label: ".", value: "." },
-                    ],
-                    settings.separator,
-                    (value) => updateSetting("separator", value),
-                  )}
-                </View>
-              )}
-
-              {/* Year Format */}
-              <View style={styles.optionGroup}>
-                <Text style={styles.optionGroupLabel}>تنسيق السنة</Text>
-                {renderSegmentedControl(
-                  [
-                    { label: "كاملة (2024)", value: "full" },
-                    { label: "مختصرة (24)", value: "short" },
-                  ],
-                  settings.yearFormat,
-                  (value) => updateSetting("yearFormat", value),
-                )}
               </View>
 
               {/* Show Both Calendars */}
@@ -200,14 +160,6 @@ export default function SettingsModal({ visible, onClose }) {
                 }
                 activeOpacity={0.7}
               >
-                <View style={styles.switchOptionContent}>
-                  <Text style={styles.switchOptionLabel}>
-                    عرض التقويمين معاً
-                  </Text>
-                  <Text style={styles.switchOptionHint}>
-                    عرض التاريخ الهجري والميلادي
-                  </Text>
-                </View>
                 <Switch
                   value={settings.showBothCalendars}
                   onValueChange={(value) =>
@@ -217,6 +169,14 @@ export default function SettingsModal({ visible, onClose }) {
                   thumbColor="#FFFFFF"
                   ios_backgroundColor="#D1D5DB"
                 />
+                <View style={styles.switchOptionContent}>
+                  <Text style={styles.switchOptionLabel}>
+                    عرض التقويمين معاً
+                  </Text>
+                  <Text style={styles.switchOptionHint}>
+                    عرض التاريخ الهجري والميلادي
+                  </Text>
+                </View>
               </TouchableOpacity>
 
               {/* Arabic Numerals (for Hijri) */}
@@ -228,14 +188,6 @@ export default function SettingsModal({ visible, onClose }) {
                   }
                   activeOpacity={0.7}
                 >
-                  <View style={styles.switchOptionContent}>
-                    <Text style={styles.switchOptionLabel}>
-                      الأرقام العربية
-                    </Text>
-                    <Text style={styles.switchOptionHint}>
-                      استخدام ١٢٣ بدلاً من 123
-                    </Text>
-                  </View>
                   <Switch
                     value={settings.arabicNumerals}
                     onValueChange={(value) =>
@@ -245,6 +197,14 @@ export default function SettingsModal({ visible, onClose }) {
                     thumbColor="#FFFFFF"
                     ios_backgroundColor="#D1D5DB"
                   />
+                  <View style={styles.switchOptionContent}>
+                    <Text style={styles.switchOptionLabel}>
+                      الأرقام العربية
+                    </Text>
+                    <Text style={styles.switchOptionHint}>
+                      استخدام ١٢٣ بدلاً من 123
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               )}
             </View>
@@ -256,9 +216,6 @@ export default function SettingsModal({ visible, onClose }) {
             onPress={() => toggleSection("privacy")}
             activeOpacity={0.7}
           >
-            <View style={styles.sectionHeaderContent}>
-              <Text style={styles.sectionTitle}>الخصوصية</Text>
-            </View>
             <Ionicons
               name={
                 expandedSection === "privacy" ? "chevron-up" : "chevron-down"
@@ -266,6 +223,9 @@ export default function SettingsModal({ visible, onClose }) {
               size={20}
               color="#6B7280"
             />
+            <View style={styles.sectionHeaderContent}>
+              <Text style={styles.sectionTitle}>الخصوصية</Text>
+            </View>
           </TouchableOpacity>
 
           {expandedSection === "privacy" && (
@@ -291,9 +251,6 @@ export default function SettingsModal({ visible, onClose }) {
                     onPress: () => {
                       updateSetting("defaultCalendar", "gregorian");
                       updateSetting("dateFormat", "numeric");
-                      updateSetting("dateOrder", "dmy");
-                      updateSetting("yearFormat", "full");
-                      updateSetting("separator", "/");
                       updateSetting("showBothCalendars", false);
                       updateSetting("arabicNumerals", false);
                     },
@@ -345,7 +302,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-end", // RTL alignment
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -357,20 +314,23 @@ const styles = StyleSheet.create({
   },
   sectionHeaderContent: {
     flex: 1,
+    marginLeft: 12, // Space from chevron
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: "#111827",
-    textAlign: "right",
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: "rtl",
   },
   sectionSubtitle: {
     fontSize: 14,
     fontFamily: "SF Arabic",
     color: "#6B7280",
     marginTop: 2,
-    textAlign: "right",
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: "rtl",
   },
   section: {
     backgroundColor: "#FFFFFF",
@@ -396,24 +356,27 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: "#111827",
     fontWeight: "500",
+    textAlign: "center",
   },
   optionGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   optionGroupLabel: {
     fontSize: 15,
     fontFamily: "SF Arabic",
     color: "#374151",
-    marginBottom: 10,
-    textAlign: "right",
     fontWeight: "500",
+    marginBottom: 12,
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: "rtl",
   },
   optionHint: {
     fontSize: 13,
     fontFamily: "SF Arabic",
     color: "#6B7280",
     marginTop: 8,
-    textAlign: "center",
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: "rtl",
   },
   segmentedControl: {
     flexDirection: "row",
@@ -424,17 +387,16 @@ const styles = StyleSheet.create({
   segment: {
     flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
     alignItems: "center",
+    borderRadius: 8,
   },
   segmentActive: {
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
   segmentText: {
     fontSize: 14,
@@ -455,20 +417,23 @@ const styles = StyleSheet.create({
   },
   switchOptionContent: {
     flex: 1,
-    marginRight: 12,
+    marginLeft: 12,
   },
   switchOptionLabel: {
     fontSize: 15,
     fontFamily: "SF Arabic",
     color: "#111827",
-    marginBottom: 2,
-    textAlign: "right",
+    fontWeight: "500",
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: "rtl",
   },
   switchOptionHint: {
     fontSize: 13,
     fontFamily: "SF Arabic",
     color: "#6B7280",
-    textAlign: "right",
+    marginTop: 2,
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: "rtl",
   },
   resetButton: {
     margin: 20,
@@ -480,7 +445,7 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: 15,
     fontFamily: "SF Arabic",
-    color: "#EF4444",
+    color: "#DC2626",
     fontWeight: "500",
   },
 });

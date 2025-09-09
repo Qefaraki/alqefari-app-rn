@@ -2,161 +2,134 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
   ScrollView,
-  Alert,
-  ActivityIndicator,
-  Dimensions,
+  TouchableOpacity,
+  StyleSheet,
   RefreshControl,
-  Modal,
+  ActivityIndicator,
+  Alert,
   I18nManager,
+  Dimensions,
+  Modal,
+  SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
-import * as Haptics from "expo-haptics";
-import { BlurView } from "expo-blur";
-import CardSurface from "../components/ios/CardSurface";
-import profilesService from "../services/profiles";
+import { profilesService } from "../services/profiles";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+
+// Force RTL for Arabic
+I18nManager.forceRTL(true);
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// Force RTL
-I18nManager.forceRTL(true);
-
 const AdminDashboard = ({ navigation }) => {
-  const { isAdmin, isAdminMode } = useAdminMode();
+  const { isAdminMode, isAdmin } = useAdminMode();
   const [stats, setStats] = useState({
     totalProfiles: 0,
-    recentChanges: 0,
-    pendingValidation: 0,
-    activeJobs: 0,
     maleCount: 0,
     femaleCount: 0,
     aliveCount: 0,
     deceasedCount: 0,
-    maxGeneration: 0,
-    avgChildren: 0,
     profilesWithPhotos: 0,
     profilesWithBio: 0,
+    activeJobs: 0,
+    pendingValidation: 0,
+    recentChanges: 0,
   });
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [showValidationDashboard, setShowValidationDashboard] = useState(false);
   const [showActivityScreen, setShowActivityScreen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    if (isAdmin && isAdminMode) {
-      loadDashboardData();
-      loadRecentActivity();
-    }
-  }, [isAdmin, isAdminMode]);
+    loadDashboardData();
+  }, []);
 
   const loadDashboardData = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      const { data, error } = await profilesService.getAdminStatistics();
+      setLoading(true);
 
-      if (error) {
-        setError("فشل تحميل الإحصائيات");
-        console.error("Error loading stats:", error);
-        return;
-      }
-
-      if (data) {
+      // Load statistics
+      const result = await profilesService.getAdminStatistics();
+      if (result?.data) {
+        // Map snake_case to camelCase
         setStats({
-          totalProfiles: data.total_profiles || 0,
-          recentChanges: data.recent_changes || 0,
-          pendingValidation: data.pending_validation || 0,
-          activeJobs: data.active_jobs || 0,
-          maleCount: data.male_count || 0,
-          femaleCount: data.female_count || 0,
-          aliveCount: data.alive_count || 0,
-          deceasedCount: data.deceased_count || 0,
-          maxGeneration: data.max_generation || 0,
-          avgChildren: data.avg_children || 0,
-          profilesWithPhotos: data.profiles_with_photos || 0,
-          profilesWithBio: data.profiles_with_bio || 0,
+          totalProfiles: result.data.total_profiles || 0,
+          maleCount: result.data.male_count || 0,
+          femaleCount: result.data.female_count || 0,
+          aliveCount: result.data.alive_count || 0,
+          deceasedCount: result.data.deceased_count || 0,
+          profilesWithPhotos: result.data.profiles_with_photos || 0,
+          profilesWithBio: result.data.profiles_with_bio || 0,
+          activeJobs: result.data.active_jobs || 0,
+          pendingValidation: result.data.pending_validation || 0,
+          recentChanges: result.data.recent_changes || 0,
         });
       }
-    } catch (error) {
-      console.error("Error loading dashboard data:", error);
-      setError("خطأ في تحميل البيانات");
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const loadRecentActivity = async () => {
-    try {
-      // Mock data with proper RTL names
-      const activities = [
+      // Load recent activities
+      const mockActivities = [
         {
           id: 1,
           type: "create",
           name: "محمد بن أحمد",
           time: "منذ ٥ دقائق",
-          icon: "add-circle",
         },
         {
           id: 2,
-          type: "update",
-          name: "فاطمة بنت علي",
+          type: "edit",
+          name: "فاطمة بنت عبدالله",
           time: "منذ ١٥ دقيقة",
-          icon: "create",
         },
         {
           id: 3,
-          type: "photo",
-          name: "خالد بن سعد",
+          type: "delete",
+          name: "ملف مكرر",
           time: "منذ ساعة",
-          icon: "camera",
         },
       ];
-      setRecentActivity(activities);
+      setRecentActivity(mockActivities);
     } catch (error) {
-      console.error("Error loading recent activity:", error);
+      console.error("Error loading dashboard data:", error);
+      Alert.alert("خطأ", "فشل تحميل بيانات لوحة التحكم");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    await loadDashboardData();
-    await loadRecentActivity();
-    setRefreshing(false);
+    loadDashboardData();
   };
 
   const handleExport = async (format) => {
     setExporting(true);
     try {
-      const { data, error } = await profilesService.exportData(format);
+      const result = await profilesService.exportData(format);
 
-      if (error) {
+      if (result?.error) {
         Alert.alert("خطأ", "فشل تصدير البيانات");
         return;
       }
 
-      if (data) {
+      if (result?.data) {
         const fileName = `alqefari_tree_${new Date().toISOString().split("T")[0]}.${format}`;
         const fileUri = FileSystem.documentDirectory + fileName;
 
         if (format === "json") {
           await FileSystem.writeAsStringAsync(
             fileUri,
-            JSON.stringify(data, null, 2),
+            JSON.stringify(result.data, null, 2),
           );
         } else if (format === "csv") {
-          await FileSystem.writeAsStringAsync(fileUri, data);
+          await FileSystem.writeAsStringAsync(fileUri, result.data);
         }
 
         if (await Sharing.isAvailableAsync()) {
@@ -173,8 +146,6 @@ const AdminDashboard = ({ navigation }) => {
   };
 
   const handleQuickAction = async (action) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     switch (action) {
       case "activity":
         setShowActivityScreen(true);
@@ -202,10 +173,8 @@ const AdminDashboard = ({ navigation }) => {
           ],
         );
         break;
-      case "permissions":
-        Alert.alert("إدارة الصلاحيات", "هذه الميزة قيد التطوير");
-        break;
       default:
+        Alert.alert("قيد التطوير", "هذه الميزة قيد التطوير");
         break;
     }
   };
@@ -213,26 +182,22 @@ const AdminDashboard = ({ navigation }) => {
   const getActivityIcon = (type) => {
     switch (type) {
       case "create":
-        return "add-circle";
-      case "update":
-        return "create";
-      case "photo":
-        return "camera";
+        return "add-circle-outline";
+      case "edit":
+        return "create-outline";
+      case "delete":
+        return "trash-outline";
       default:
-        return "ellipse";
+        return "ellipse-outline";
     }
   };
 
-  const getActivityColor = (type) => {
+  const getActivityDotColor = (type) => {
     switch (type) {
-      case "create":
-        return "#34C759";
-      case "update":
-        return "#007AFF";
-      case "photo":
-        return "#FF9500";
+      case "delete":
+        return "#FF3B30";
       default:
-        return "#8E8E93";
+        return "#007AFF";
     }
   };
 
@@ -240,7 +205,7 @@ const AdminDashboard = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="lock-closed" size={48} color="#8E8E93" />
+          <Ionicons name="lock-closed" size={48} color="#C7C7CC" />
           <Text style={styles.errorText}>ليس لديك صلاحية الوصول</Text>
           <Text style={styles.errorSubtext}>
             يجب أن تكون مسؤولاً للوصول إلى هذه الصفحة
@@ -258,13 +223,13 @@ const AdminDashboard = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+            <Ionicons name="chevron-forward" size={24} color="#000000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>لوحة التحكم</Text>
           <View style={{ width: 44 }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#000000" />
           <Text style={styles.loadingText}>جاري التحميل...</Text>
         </View>
       </SafeAreaView>
@@ -273,353 +238,219 @@ const AdminDashboard = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Ultra-minimal Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+          <Ionicons name="chevron-forward" size={22} color="#000000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>لوحة التحكم</Text>
         <View style={{ width: 44 }} />
       </View>
 
-      {/* Error Banner - Subtle */}
-      {error && (
-        <View style={styles.errorBanner}>
-          <BlurView intensity={80} tint="dark" style={styles.errorContent}>
-            <View style={styles.errorInner}>
-              <Text style={styles.errorBannerText}>{error}</Text>
-              <TouchableOpacity onPress={() => setError(null)}>
-                <Ionicons name="close-circle" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </BlurView>
-        </View>
-      )}
-
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor="#000000"
+          />
         }
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Stats Cards - Refined Colors */}
+        {/* Primary Stat - Ultra Clean */}
+        <View style={styles.primarySection}>
+          <Text style={styles.primaryNumber}>{stats.totalProfiles}</Text>
+          <Text style={styles.primaryLabel}>إجمالي الملفات</Text>
+        </View>
+
+        {/* Secondary Stats Grid */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <View
-              style={[styles.statCardInner, { backgroundColor: "#007AFF" }]}
-            >
-              <View style={styles.statIconContainer}>
-                <Ionicons name="people" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={styles.statNumber}>{stats.totalProfiles}</Text>
-              <Text style={styles.statLabel}>ملف شخصي</Text>
-            </View>
+            <Text style={styles.statNumber}>{stats.maleCount}</Text>
+            <Text style={styles.statLabel}>ذكور</Text>
           </View>
-
           <View style={styles.statCard}>
-            <View
-              style={[styles.statCardInner, { backgroundColor: "#34C759" }]}
-            >
-              <View style={styles.statIconContainer}>
-                <Ionicons name="time" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={styles.statNumber}>
-                {stats.recentChanges || stats.totalProfiles}
-              </Text>
-              <Text style={styles.statLabel}>تغيير اليوم</Text>
-            </View>
+            <Text style={styles.statNumber}>{stats.femaleCount}</Text>
+            <Text style={styles.statLabel}>إناث</Text>
           </View>
-
           <View style={styles.statCard}>
-            <View
-              style={[styles.statCardInner, { backgroundColor: "#FF9500" }]}
-            >
-              <View style={styles.statIconContainer}>
-                <Ionicons name="sync" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={styles.statNumber}>{stats.activeJobs}</Text>
-              <Text style={styles.statLabel}>عملية نشطة</Text>
-            </View>
+            <Text style={styles.statNumber}>{stats.aliveCount}</Text>
+            <Text style={styles.statLabel}>أحياء</Text>
           </View>
-
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => setShowValidationDashboard(true)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[styles.statCardInner, { backgroundColor: "#FF3B30" }]}
-            >
-              <View style={styles.statIconContainer}>
-                <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
-              </View>
-              <Text style={styles.statNumber}>{stats.pendingValidation}</Text>
-              <Text style={styles.statLabel}>خطأ للإصلاح</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.deceasedCount}</Text>
+            <Text style={styles.statLabel}>متوفون</Text>
+          </View>
         </View>
 
-        {/* Quick Actions - Subtle Design */}
+        {/* Quick Actions - Icons Only */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-          <View style={styles.quickActionsGrid}>
-            {[
-              {
-                id: "activity",
-                icon: "time-outline",
-                label: "السجل",
-                color: "#007AFF",
-              },
-              {
-                id: "export",
-                icon: "cloud-download-outline",
-                label: "تصدير",
-                color: "#34C759",
-              },
-              {
-                id: "validate",
-                icon: "checkmark-circle-outline",
-                label: "تحقق",
-                color: "#5856D6",
-              },
-              {
-                id: "backup",
-                icon: "save-outline",
-                label: "نسخ",
-                color: "#FF9500",
-              },
-              {
-                id: "permissions",
-                icon: "shield-checkmark-outline",
-                label: "صلاحيات",
-                color: "#AF52DE",
-              },
-            ].map((action) => (
-              <TouchableOpacity
-                key={action.id}
-                style={styles.quickAction}
-                onPress={() => handleQuickAction(action.id)}
-                disabled={exporting && action.id === "export"}
-              >
-                <View
-                  style={[
-                    styles.quickActionIcon,
-                    { backgroundColor: `${action.color}10` },
-                  ]}
-                >
-                  {exporting && action.id === "export" ? (
-                    <ActivityIndicator size="small" color={action.color} />
-                  ) : (
-                    <Ionicons
-                      name={action.icon}
-                      size={22}
-                      color={action.color}
-                    />
-                  )}
-                </View>
-                <Text style={styles.quickActionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleQuickAction("activity")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="time-outline" size={26} color="#000000" />
+              </View>
+              <Text style={styles.actionText}>السجل</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleQuickAction("validate")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={26}
+                  color="#000000"
+                />
+                {stats.pendingValidation > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {stats.pendingValidation}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.actionText}>تحقق</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleQuickAction("export")}
+              disabled={exporting}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionIconContainer}>
+                {exporting ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
+                  <Ionicons name="download-outline" size={26} color="#000000" />
+                )}
+              </View>
+              <Text style={styles.actionText}>تصدير</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => handleQuickAction("backup")}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="save-outline" size={26} color="#000000" />
+              </View>
+              <Text style={styles.actionText}>نسخ</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Recent Activity - Refined */}
+        {/* Data Quality - Ultra Minimal */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>جودة البيانات</Text>
+          <View style={styles.qualityContainer}>
+            <View style={styles.qualityRow}>
+              <Text style={styles.qualityLabel}>ملفات بصور</Text>
+              <View style={styles.qualityRight}>
+                <Text style={styles.qualityValue}>
+                  {stats.profilesWithPhotos}/{stats.totalProfiles}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${
+                      stats.totalProfiles > 0
+                        ? (stats.profilesWithPhotos / stats.totalProfiles) * 100
+                        : 0
+                    }%`,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={[styles.qualityRow, { marginTop: 20 }]}>
+              <Text style={styles.qualityLabel}>ملفات بسيرة ذاتية</Text>
+              <View style={styles.qualityRight}>
+                <Text style={styles.qualityValue}>
+                  {stats.profilesWithBio}/{stats.totalProfiles}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${
+                      stats.totalProfiles > 0
+                        ? (stats.profilesWithBio / stats.totalProfiles) * 100
+                        : 0
+                    }%`,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Recent Activity - Ultra Clean */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>النشاط الأخير</Text>
             <TouchableOpacity onPress={() => setShowActivityScreen(true)}>
-              <Text style={styles.seeAllText}>عرض الكل</Text>
+              <Text style={styles.viewAllText}>عرض الكل</Text>
             </TouchableOpacity>
           </View>
 
           {recentActivity.length > 0 ? (
             <View style={styles.activityList}>
-              {recentActivity.map((activity) => (
-                <View key={activity.id} style={styles.activityItem}>
-                  <View style={styles.activityLeft}>
-                    <View
-                      style={[
-                        styles.activityIcon,
-                        {
-                          backgroundColor: `${getActivityColor(activity.type)}10`,
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={getActivityIcon(activity.type)}
-                        size={16}
-                        color={getActivityColor(activity.type)}
-                      />
-                    </View>
-                    <View style={styles.activityInfo}>
-                      <Text style={styles.activityName}>{activity.name}</Text>
-                      <Text style={styles.activityTime}>{activity.time}</Text>
-                    </View>
+              {recentActivity.map((activity, index) => (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={[
+                    styles.activityItem,
+                    index === recentActivity.length - 1 &&
+                      styles.lastActivityItem,
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityName}>{activity.name}</Text>
+                    <Text style={styles.activityTime}>{activity.time}</Text>
                   </View>
-                </View>
+                  <View
+                    style={[
+                      styles.activityIndicator,
+                      { backgroundColor: getActivityDotColor(activity.type) },
+                    ]}
+                  />
+                </TouchableOpacity>
               ))}
             </View>
           ) : (
-            <View style={styles.emptyCard}>
+            <View style={styles.emptyState}>
               <Text style={styles.emptyText}>لا يوجد نشاط حديث</Text>
             </View>
           )}
         </View>
 
-        {/* Info Cards - Side by Side */}
-        <View style={styles.section}>
-          <View style={styles.infoCardsRow}>
-            {/* Demographics Card */}
-            <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>التركيبة السكانية</Text>
-              <View style={styles.infoCardContent}>
-                <View style={styles.demographicRow}>
-                  <Text style={styles.demographicLabel}>ذكور</Text>
-                  <Text style={styles.demographicValue}>{stats.maleCount}</Text>
-                </View>
-                <View style={styles.demographicRow}>
-                  <Text style={styles.demographicLabel}>إناث</Text>
-                  <Text style={styles.demographicValue}>
-                    {stats.femaleCount}
-                  </Text>
-                </View>
-                <View style={styles.demographicRow}>
-                  <Text style={styles.demographicLabel}>أحياء</Text>
-                  <Text style={styles.demographicValue}>
-                    {stats.aliveCount}
-                  </Text>
-                </View>
-                <View style={styles.demographicRow}>
-                  <Text style={styles.demographicLabel}>متوفون</Text>
-                  <Text style={styles.demographicValue}>
-                    {stats.deceasedCount}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Data Quality Card */}
-            <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>جودة البيانات</Text>
-              <View style={styles.infoCardContent}>
-                <View style={styles.qualityItem}>
-                  <View style={styles.qualityHeader}>
-                    <Text style={styles.qualityLabel}>بصور</Text>
-                    <Text style={styles.qualityPercent}>
-                      {stats.totalProfiles > 0
-                        ? Math.round(
-                            (stats.profilesWithPhotos / stats.totalProfiles) *
-                              100,
-                          )
-                        : 0}
-                      %
-                    </Text>
-                  </View>
-                  <View style={styles.progressBar}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${
-                            stats.totalProfiles > 0
-                              ? (stats.profilesWithPhotos /
-                                  stats.totalProfiles) *
-                                100
-                              : 0
-                          }%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-                <View style={styles.qualityItem}>
-                  <View style={styles.qualityHeader}>
-                    <Text style={styles.qualityLabel}>بسيرة ذاتية</Text>
-                    <Text style={styles.qualityPercent}>
-                      {stats.totalProfiles > 0
-                        ? Math.round(
-                            (stats.profilesWithBio / stats.totalProfiles) * 100,
-                          )
-                        : 0}
-                      %
-                    </Text>
-                  </View>
-                  <View style={styles.progressBar}>
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${
-                            stats.totalProfiles > 0
-                              ? (stats.profilesWithBio / stats.totalProfiles) *
-                                100
-                              : 0
-                          }%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Operations List */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>عمليات إدارية</Text>
-          <View style={styles.operationsList}>
-            {[
-              {
-                id: "import",
-                title: "استيراد البيانات",
-                description: "استيراد ملفات من CSV أو JSON",
-                icon: "cloud-upload-outline",
-              },
-              {
-                id: "merge",
-                title: "دمج المكررات",
-                description: "البحث عن ودمج الملفات المكررة",
-                icon: "git-merge-outline",
-              },
-              {
-                id: "cleanup",
-                title: "تنظيف البيانات",
-                description: "إزالة البيانات الفارغة والمعطوبة",
-                icon: "trash-outline",
-              },
-            ].map((op) => (
-              <TouchableOpacity
-                key={op.id}
-                style={styles.operationCard}
-                activeOpacity={0.7}
-                onPress={() => Alert.alert(op.title, "هذه الميزة قيد التطوير")}
-              >
-                <View style={styles.operationContent}>
-                  <View style={styles.operationIcon}>
-                    <Ionicons name={op.icon} size={20} color="#007AFF" />
-                  </View>
-                  <View style={styles.operationInfo}>
-                    <Text style={styles.operationTitle}>{op.title}</Text>
-                    <Text style={styles.operationDescription}>
-                      {op.description}
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-back" size={20} color="#C7C7CC" />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Validation Dashboard Modal */}
+      {/* Modals */}
       <Modal
         visible={showValidationDashboard}
         animationType="slide"
@@ -634,7 +465,6 @@ const AdminDashboard = ({ navigation }) => {
         />
       </Modal>
 
-      {/* Activity Screen Modal */}
       <Modal
         visible={showActivityScreen}
         animationType="slide"
@@ -655,14 +485,16 @@ const AdminDashboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#FAFAFA",
   },
+
+  // Header - Ultra Minimal
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(0, 0, 0, 0.1)",
@@ -677,8 +509,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: "#000000",
-    textAlign: "center",
+    letterSpacing: -0.4,
   },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -688,290 +522,206 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 15,
     color: "#8E8E93",
-    textAlign: "right",
   },
-  errorBanner: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-  },
-  errorContent: {
-    overflow: "hidden",
-  },
-  errorInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  errorBannerText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "500",
-    textAlign: "right",
-    flex: 1,
-    marginRight: 8,
-  },
+
+  // Content
   content: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 20,
+  },
 
-  // Stats Cards - Refined
+  // Primary Stat - Hero Style
+  primarySection: {
+    alignItems: "center",
+    paddingVertical: 40,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 8,
+  },
+  primaryNumber: {
+    fontSize: 72,
+    fontWeight: "200",
+    color: "#000000",
+    letterSpacing: -3,
+    marginBottom: 8,
+  },
+  primaryLabel: {
+    fontSize: 15,
+    color: "#8E8E93",
+    letterSpacing: -0.2,
+  },
+
+  // Stats Grid - Ultra Clean
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 8,
   },
   statCard: {
-    width: (SCREEN_WIDTH - 44) / 2,
-    height: 90,
-  },
-  statCardInner: {
-    flex: 1,
-    borderRadius: 12,
-    padding: 12,
-    justifyContent: "space-between",
-  },
-  statIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: "50%",
     alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "flex-end",
+    paddingVertical: 20,
   },
   statNumber: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textAlign: "right",
+    fontSize: 34,
+    fontWeight: "300",
+    color: "#000000",
+    letterSpacing: -1,
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "rgba(255, 255, 255, 0.85)",
-    textAlign: "right",
+    fontSize: 13,
+    color: "#8E8E93",
+    letterSpacing: -0.1,
   },
 
   // Sections
   section: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 8,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "700",
     color: "#000000",
-    textAlign: "right",
+    letterSpacing: -0.5,
   },
-  seeAllText: {
-    fontSize: 14,
-    color: "#007AFF",
-    fontWeight: "500",
-  },
-
-  // Quick Actions - Refined
-  quickActionsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  quickAction: {
-    alignItems: "center",
-    flex: 1,
-  },
-  quickActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-    backgroundColor: "#F2F2F7",
-  },
-  quickActionLabel: {
-    fontSize: 11,
-    fontWeight: "500",
-    color: "#3C3C43",
-    textAlign: "center",
-  },
-
-  // Recent Activity - Refined
-  activityList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  activityItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
-  },
-  activityLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  activityIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 12,
-  },
-  activityInfo: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-  activityName: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#000000",
-    marginBottom: 2,
-    textAlign: "right",
-  },
-  activityTime: {
-    fontSize: 12,
-    color: "#8E8E93",
-    textAlign: "right",
-  },
-  emptyCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 24,
-    alignItems: "center",
-  },
-  emptyText: {
-    fontSize: 14,
-    color: "#8E8E93",
-    textAlign: "center",
-  },
-
-  // Info Cards
-  infoCardsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  infoCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-  },
-  infoCardTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#000000",
-    marginBottom: 12,
-    textAlign: "right",
-  },
-  infoCardContent: {
-    gap: 8,
-  },
-  demographicRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  demographicLabel: {
-    fontSize: 13,
-    color: "#8E8E93",
-    textAlign: "right",
-  },
-  demographicValue: {
+  viewAllText: {
     fontSize: 15,
+    color: "#007AFF",
+  },
+
+  // Quick Actions - Ultra Minimal
+  actionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  actionButton: {
+    alignItems: "center",
+    flex: 1,
+  },
+  actionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#F5F5F7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    position: "relative",
+  },
+  actionText: {
+    fontSize: 11,
+    color: "#8E8E93",
+    letterSpacing: -0.1,
+  },
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    fontSize: 11,
+    color: "#FFFFFF",
     fontWeight: "600",
-    color: "#000000",
   },
-  qualityItem: {
-    marginBottom: 12,
+
+  // Data Quality - Ultra Clean
+  qualityContainer: {
+    marginTop: 8,
   },
-  qualityHeader: {
+  qualityRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 8,
   },
   qualityLabel: {
-    fontSize: 13,
-    color: "#3C3C43",
-    textAlign: "right",
+    fontSize: 15,
+    color: "#000000",
   },
-  qualityPercent: {
-    fontSize: 13,
-    color: "#007AFF",
-    fontWeight: "600",
+  qualityRight: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  qualityValue: {
+    fontSize: 15,
+    color: "#8E8E93",
   },
   progressBar: {
-    height: 4,
-    backgroundColor: "#E5E5EA",
-    borderRadius: 2,
+    height: 2,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 1,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#007AFF",
-    borderRadius: 2,
+    backgroundColor: "#000000",
   },
 
-  // Operations List
-  operationsList: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    overflow: "hidden",
+  // Activity List - Ultra Minimal
+  activityList: {
+    marginTop: 8,
   },
-  operationCard: {
+  activityItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
+    borderBottomColor: "rgba(0, 0, 0, 0.05)",
   },
-  operationContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
+  lastActivityItem: {
+    borderBottomWidth: 0,
   },
-  operationIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: "#F2F2F7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 12,
-  },
-  operationInfo: {
+  activityContent: {
     flex: 1,
     alignItems: "flex-end",
   },
-  operationTitle: {
+  activityName: {
     fontSize: 15,
-    fontWeight: "500",
     color: "#000000",
     marginBottom: 2,
-    textAlign: "right",
   },
-  operationDescription: {
+  activityTime: {
     fontSize: 13,
     color: "#8E8E93",
-    textAlign: "right",
+  },
+  activityIndicator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginLeft: 12,
+  },
+
+  // Empty State
+  emptyState: {
+    paddingVertical: 24,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 15,
+    color: "#C7C7CC",
   },
 
   // Error State
@@ -987,7 +737,6 @@ const styles = StyleSheet.create({
     color: "#000000",
     marginTop: 16,
     marginBottom: 8,
-    textAlign: "center",
   },
   errorSubtext: {
     fontSize: 16,
