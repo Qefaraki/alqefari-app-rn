@@ -394,6 +394,22 @@ const TreeView = ({ setProfileEditMode }) => {
   const highlightedNodeId = useSharedValue(null);
   const highlightOpacity = useSharedValue(0);
 
+  // Derive highlight state for use in render
+  const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
+  const [highlightOpacityState, setHighlightOpacityState] = useState(0);
+
+  // Sync highlight values to React state
+  useAnimatedReaction(
+    () => ({
+      nodeId: highlightedNodeId.value,
+      opacity: highlightOpacity.value,
+    }),
+    (current) => {
+      runOnJS(setHighlightedNodeIdState)(current.nodeId);
+      runOnJS(setHighlightOpacityState)(current.opacity);
+    },
+  );
+
   // LOD tier state with hysteresis
   const tierState = useRef({ current: 1, lastQuantizedScale: 1 });
 
@@ -1855,7 +1871,7 @@ const TreeView = ({ setProfileEditMode }) => {
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
 
-      const isHighlighted = highlightedNodeId.value === node.id;
+      const isHighlighted = highlightedNodeIdState === node.id;
 
       return (
         <Group key={node.id}>
@@ -1871,7 +1887,7 @@ const TreeView = ({ setProfileEditMode }) => {
                 color="#FFD700"
                 style="stroke"
                 strokeWidth={3}
-                opacity={highlightOpacity}
+                opacity={highlightOpacityState}
               />
               <RoundedRect
                 x={x - 8}
@@ -1882,7 +1898,7 @@ const TreeView = ({ setProfileEditMode }) => {
                 color="#FFA500"
                 style="stroke"
                 strokeWidth={2}
-                opacity={highlightOpacity.value * 0.5}
+                opacity={highlightOpacityState * 0.5}
               />
             </>
           )}
@@ -2052,7 +2068,7 @@ const TreeView = ({ setProfileEditMode }) => {
         </Group>
       );
     },
-    [selectedPersonId],
+    [selectedPersonId, highlightedNodeIdState, highlightOpacityState],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings

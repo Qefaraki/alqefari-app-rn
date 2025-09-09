@@ -11,13 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
 
@@ -29,68 +23,48 @@ const SearchBar = ({ onSelectResult, style }) => {
   const [searchTimer, setSearchTimer] = useState(null);
   const inputRef = useRef(null);
 
-  const resultsHeight = useSharedValue(0);
+  const performSearch = useCallback(async (searchText) => {
+    if (!searchText || searchText.length < 1) {
+      setResults([]);
+      setShowResults(false);
+      return;
+    }
 
-  const resultsStyle = useAnimatedStyle(() => ({
-    maxHeight: resultsHeight.value,
-    opacity: resultsHeight.value > 0 ? 1 : 0,
-  }));
+    setLoading(true);
 
-  const performSearch = useCallback(
-    async (searchText) => {
-      if (!searchText || searchText.length < 1) {
-        // Lower threshold
+    try {
+      // Split the query by spaces to create name chain
+      const names = searchText
+        .trim()
+        .split(/\s+/)
+        .filter((name) => name.length > 0);
+
+      console.log("Searching for:", names);
+
+      const { data, error } = await supabase.rpc("search_name_chain", {
+        p_names: names,
+        p_limit: 20,
+      });
+
+      if (error) {
+        console.error("Search error:", error);
         setResults([]);
         setShowResults(false);
-        resultsHeight.value = withTiming(0, { duration: 200 });
-        return;
+      } else {
+        console.log("Search results:", data?.length || 0, "items");
+        console.log("First result:", data?.[0]);
+        setResults(data || []);
+        setShowResults((data || []).length > 0);
+        console.log("showResults will be:", (data || []).length > 0);
       }
-
-      setLoading(true);
-
-      try {
-        // Split the query by spaces to create name chain
-        const names = searchText
-          .trim()
-          .split(/\s+/)
-          .filter((name) => name.length > 0);
-
-        console.log("Searching for:", names);
-
-        const { data, error } = await supabase.rpc("search_name_chain", {
-          p_names: names,
-          p_limit: 20, // More results
-        });
-
-        if (error) {
-          console.error("Search error:", error);
-          setResults([]);
-          setShowResults(false);
-        } else {
-          console.log("Search results:", data?.length || 0, "items");
-          setResults(data || []);
-          setShowResults((data || []).length > 0);
-
-          // Animate results dropdown
-          if (data && data.length > 0) {
-            resultsHeight.value = withTiming(
-              Math.min(400, data.length * 70 + 20),
-              { duration: 250 },
-            );
-          } else {
-            resultsHeight.value = withTiming(0, { duration: 200 });
-          }
-        }
-      } catch (err) {
-        console.error("Search exception:", err);
-        setResults([]);
-        setShowResults(false);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [resultsHeight],
-  );
+    } catch (err) {
+      console.error("Search exception:", err);
+      setResults([]);
+      setShowResults(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleChangeText = useCallback(
     (text) => {
@@ -113,20 +87,18 @@ const SearchBar = ({ onSelectResult, style }) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setQuery("");
       setShowResults(false);
-      resultsHeight.value = withTiming(0, { duration: 200 });
       Keyboard.dismiss();
       onSelectResult(item);
     },
-    [onSelectResult, resultsHeight],
+    [onSelectResult],
   );
 
   const handleClear = useCallback(() => {
     setQuery("");
     setResults([]);
     setShowResults(false);
-    resultsHeight.value = withTiming(0, { duration: 200 });
     inputRef.current?.focus();
-  }, [resultsHeight]);
+  }, []);
 
   const renderResult = ({ item }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
@@ -176,14 +148,13 @@ const SearchBar = ({ onSelectResult, style }) => {
     const keyboardHideListener = Keyboard.addListener("keyboardDidHide", () => {
       if (query.length === 0) {
         setShowResults(false);
-        resultsHeight.value = withTiming(0, { duration: 200 });
       }
     });
 
     return () => {
       keyboardHideListener.remove();
     };
-  }, [query, resultsHeight]);
+  }, [query]);
 
   return (
     <>
@@ -193,7 +164,6 @@ const SearchBar = ({ onSelectResult, style }) => {
           style={styles.backdrop}
           onPress={() => {
             setShowResults(false);
-            resultsHeight.value = withTiming(0, { duration: 200 });
             Keyboard.dismiss();
           }}
         />
@@ -238,8 +208,11 @@ const SearchBar = ({ onSelectResult, style }) => {
           </View>
         </View>
 
-        <Animated.View style={[styles.resultsContainer, resultsStyle]}>
-          {showResults && (
+        {showResults && results.length > 0 && (
+          <View style={styles.resultsContainer}>
+            <Text style={{ padding: 10, color: "#000" }}>
+              {results.length} نتيجة
+            </Text>
             <FlatList
               data={results}
               keyExtractor={(item) => item.id}
@@ -249,8 +222,8 @@ const SearchBar = ({ onSelectResult, style }) => {
               style={styles.resultsList}
               contentContainerStyle={styles.resultsContent}
             />
-          )}
-        </Animated.View>
+          </View>
+        )}
       </View>
     </>
   );
@@ -264,14 +237,16 @@ const styles = {
     right: 0,
     bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.3)",
-    zIndex: 999,
+    zIndex: 9999,
+    elevation: 999,
   },
   container: {
     position: "absolute",
     top: 50, // Move higher up
     left: 12,
     right: 12,
-    zIndex: 1000,
+    zIndex: 10000, // Much higher z-index
+    elevation: 1000, // For Android
   },
   searchBarContainer: {
     shadowColor: "#000",
@@ -312,11 +287,14 @@ const styles = {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
     overflow: "hidden",
+    maxHeight: 400, // Fixed max height
+    borderWidth: 2,
+    borderColor: "#007AFF", // Blue border to make it visible
   },
   resultsList: {
     flex: 1,
