@@ -1724,14 +1724,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111827",
     marginBottom: 4,
-    fontFamily: "SF Arabic",
     textAlign: "right",
     writingDirection: "rtl",
   },
   fullName: {
     fontSize: 17,
     color: "#374151",
-    fontFamily: "SF Arabic",
     textAlign: "right",
     lineHeight: 24,
     writingDirection: "rtl",
@@ -1757,7 +1755,6 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     color: "#111827",
-    fontFamily: "SF Arabic",
     textAlign: "right",
     writingDirection: "rtl",
   },
@@ -1816,7 +1813,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 12,
     color: "#1a1a1a",
-    fontFamily: "SF Arabic",
     textAlign: "right",
     writingDirection: "rtl",
   },
@@ -1824,7 +1820,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 26,
     color: "#333",
-    fontFamily: "SF Arabic",
     textAlign: "right",
     writingDirection: "rtl",
   },
@@ -1832,7 +1827,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: 14,
     color: "#2563eb",
-    fontFamily: "SF Arabic",
     textAlign: "right",
   },
 
@@ -1856,12 +1850,10 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 13,
     color: "#64748b",
-    fontFamily: "SF Arabic",
   },
   rowValue: {
     fontSize: 14,
     color: "#0f172a",
-    fontFamily: "SF Arabic",
     textAlign: "right",
   },
 
@@ -1880,7 +1872,6 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 15,
     color: "#2563eb",
-    fontFamily: "SF Arabic",
   },
 
   // Achievements
@@ -1899,7 +1890,6 @@ const styles = StyleSheet.create({
   bodyText: {
     fontSize: 15,
     color: "#1f2937",
-    fontFamily: "SF Arabic",
     textAlign: "right",
   },
 
