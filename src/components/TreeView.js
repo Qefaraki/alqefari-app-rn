@@ -68,6 +68,8 @@ import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
 import NodeContextMenu from "./admin/NodeContextMenu";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import QuickAddOverlay from "./admin/QuickAddOverlay";
+import SearchModal from "./SearchModal";
+import SearchButton from "./SearchButton";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 
@@ -386,6 +388,13 @@ const TreeView = ({ setProfileEditMode }) => {
   const [quickAddParent, setQuickAddParent] = useState(null);
   const [quickAddPosition, setQuickAddPosition] = useState({ x: 0, y: 0 });
   const longPressTimer = useRef(null);
+
+  // Search modal state
+  const [showSearchModal, setShowSearchModal] = useState(false);
+
+  // Highlight state for golden effect
+  const highlightedNodeId = useSharedValue(null);
+  const highlightOpacity = useSharedValue(0);
 
   // LOD tier state with hysteresis
   const tierState = useRef({ current: 1, lastQuantizedScale: 1 });
@@ -1055,6 +1064,90 @@ const TreeView = ({ setProfileEditMode }) => {
       setStage({ x: offsetX, y: offsetY, scale: 1 });
     }
   }, [nodes, dimensions, treeBounds]);
+
+  // Navigate to a specific node with animation
+  const navigateToNode = useCallback(
+    (nodeId) => {
+      const targetNode = indices.idToNode.get(nodeId);
+      if (!targetNode) {
+        console.warn("Node not found for navigation:", nodeId);
+        return;
+      }
+
+      // Calculate center position
+      const targetX = dimensions.width / 2 - targetNode.x;
+      const targetY = dimensions.height / 2 - targetNode.y;
+      const targetScale = 1.5; // Zoom in slightly for focus
+
+      // Cancel any ongoing animations
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      cancelAnimation(scale);
+
+      // Smooth animation to node
+      translateX.value = withTiming(targetX, {
+        duration: 800,
+        easing: Easing.inOut(Easing.cubic),
+      });
+      translateY.value = withTiming(targetY, {
+        duration: 800,
+        easing: Easing.inOut(Easing.cubic),
+      });
+      scale.value = withTiming(targetScale, {
+        duration: 800,
+        easing: Easing.inOut(Easing.cubic),
+      });
+
+      // Update saved values
+      savedTranslateX.value = targetX;
+      savedTranslateY.value = targetY;
+      savedScale.value = targetScale;
+
+      // Trigger highlight after navigation
+      setTimeout(() => {
+        highlightNode(nodeId);
+      }, 850);
+    },
+    [indices, dimensions, translateX, translateY, scale],
+  );
+
+  // Highlight node with golden effect
+  const highlightNode = useCallback(
+    (nodeId) => {
+      // Set the highlighted node
+      highlightedNodeId.value = nodeId;
+
+      // Animate highlight
+      highlightOpacity.value = withSequence(
+        withTiming(1, { duration: 300 }), // Fade in
+        withTiming(0.8, { duration: 1400 }), // Hold with subtle pulse
+        withTiming(0, { duration: 300 }), // Fade out
+      );
+
+      // Clear highlight after animation
+      setTimeout(() => {
+        highlightedNodeId.value = null;
+      }, 2000);
+
+      // Haptic feedback
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+    [highlightedNodeId, highlightOpacity],
+  );
+
+  // Handle search result selection
+  const handleSearchResultSelect = useCallback(
+    (result) => {
+      // Close search modal
+      setShowSearchModal(false);
+
+      // Navigate to the selected node
+      if (result.id) {
+        navigateToNode(result.id);
+      }
+    },
+    [navigateToNode],
+  );
 
   // Pan gesture with momentum
   const panGesture = Gesture.Pan()
@@ -1764,8 +1857,38 @@ const TreeView = ({ setProfileEditMode }) => {
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
 
+      const isHighlighted = highlightedNodeId.value === node.id;
+
       return (
         <Group key={node.id}>
+          {/* Golden highlight ring (rendered behind node) */}
+          {isHighlighted && (
+            <>
+              <RoundedRect
+                x={x - 4}
+                y={y - 4}
+                width={nodeWidth + 8}
+                height={nodeHeight + 8}
+                r={CORNER_RADIUS + 2}
+                color="#FFD700"
+                style="stroke"
+                strokeWidth={3}
+                opacity={highlightOpacity}
+              />
+              <RoundedRect
+                x={x - 8}
+                y={y - 8}
+                width={nodeWidth + 16}
+                height={nodeHeight + 16}
+                r={CORNER_RADIUS + 4}
+                color="#FFA500"
+                style="stroke"
+                strokeWidth={2}
+                opacity={highlightOpacity.value * 0.5}
+              />
+            </>
+          )}
+
           {/* Shadow */}
           <RoundedRect
             x={x + 1}
@@ -2119,6 +2242,16 @@ const TreeView = ({ setProfileEditMode }) => {
         nodes={nodes}
         viewport={dimensions}
         sharedValues={{ translateX, translateY, scale }}
+      />
+
+      {/* Search button */}
+      <SearchButton onPress={() => setShowSearchModal(true)} />
+
+      {/* Search modal */}
+      <SearchModal
+        visible={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        onSelectResult={handleSearchResultSelect}
       />
 
       {/* Admin components */}
