@@ -237,31 +237,27 @@ export const toDateData = (momentObj, approximate = false) => {
     }
 
     // Return structure compatible with database
-    return {
-      // Legacy flat fields for backwards compatibility
-      day: gregorianDay,
-      month: gregorianMonth,
-      year: gregorianYear,
-      hijri_day: hijriDay,
-      hijri_month: hijriMonth,
-      hijri_year: hijriYear,
-      // New nested structure
+    // Using nested structure as primary format
+    const result = {
       gregorian: {
         year: gregorianYear,
         month: gregorianMonth,
         day: gregorianDay,
       },
-      hijri:
-        hijriYear && hijriMonth && hijriDay
-          ? {
-              year: hijriYear,
-              month: hijriMonth,
-              day: hijriDay,
-            }
-          : null,
-      approximate,
+      approximate: approximate || false,
       display,
     };
+
+    // Add Hijri if available
+    if (hijriYear && hijriMonth && hijriDay) {
+      result.hijri = {
+        year: hijriYear,
+        month: hijriMonth,
+        day: hijriDay,
+      };
+    }
+
+    return result;
   } catch (error) {
     console.error("Error converting to date data:", error);
     return null;
