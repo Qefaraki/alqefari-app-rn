@@ -384,45 +384,33 @@ export const profilesService = {
    * Admin: Get dashboard statistics
    */
   async getAdminStatistics() {
+    // Skip the RPC call that causes user_roles error and go straight to manual counting
     try {
-      // Try the RPC first
-      const { data, error } = await supabase.rpc("admin_get_statistics");
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, gender, status, generation, photo_url, bio, father_id");
 
-      if (error) {
-        console.log("RPC failed, using fallback:", error.message);
-        // Fallback to direct query
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, gender, status, generation, photo_url, bio, father_id")
-          .is("deleted_at", null);
+      const stats = {
+        total_profiles: profiles?.length || 0,
+        male_count: profiles?.filter((p) => p.gender === "male").length || 0,
+        female_count:
+          profiles?.filter((p) => p.gender === "female").length || 0,
+        alive_count: profiles?.filter((p) => p.status === "alive").length || 0,
+        deceased_count:
+          profiles?.filter((p) => p.status === "deceased").length || 0,
+        max_generation: Math.max(
+          ...(profiles?.map((p) => p.generation || 0) || [0]),
+        ),
+        profiles_with_photos: profiles?.filter((p) => p.photo_url).length || 0,
+        profiles_with_bio: profiles?.filter((p) => p.bio).length || 0,
+        recent_changes: 0,
+        pending_validation: 0,
+        active_jobs: 0,
+        avg_children: 0,
+      };
 
-        const stats = {
-          total_profiles: profiles?.length || 0,
-          male_count: profiles?.filter((p) => p.gender === "male").length || 0,
-          female_count:
-            profiles?.filter((p) => p.gender === "female").length || 0,
-          alive_count:
-            profiles?.filter((p) => p.status === "alive").length || 0,
-          deceased_count:
-            profiles?.filter((p) => p.status === "deceased").length || 0,
-          max_generation: Math.max(
-            ...(profiles?.map((p) => p.generation || 0) || [0]),
-          ),
-          profiles_with_photos:
-            profiles?.filter((p) => p.photo_url).length || 0,
-          profiles_with_bio: profiles?.filter((p) => p.bio).length || 0,
-          recent_changes: 0,
-          pending_validation: 0,
-          active_jobs: 0,
-          avg_children: 0,
-        };
-
-        return { data: stats, error: null };
-      }
-
-      return { data, error: null };
+      return { data: stats, error: null };
     } catch (error) {
-      console.error("Error in getAdminStatistics:", error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },

@@ -148,16 +148,7 @@ export default function SettingsModal({ visible, onClose }) {
               </View>
 
               {/* Show Both Calendars */}
-              <TouchableOpacity
-                style={styles.switchOption}
-                onPress={() =>
-                  updateSetting(
-                    "showBothCalendars",
-                    !settings.showBothCalendars,
-                  )
-                }
-                activeOpacity={0.7}
-              >
+              <View style={styles.switchOption}>
                 <Switch
                   value={settings.showBothCalendars}
                   onValueChange={(value) =>
@@ -175,16 +166,10 @@ export default function SettingsModal({ visible, onClose }) {
                     عرض التاريخ الهجري والميلادي
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </View>
 
               {/* Arabic Numerals (for both calendar types) */}
-              <TouchableOpacity
-                style={styles.switchOption}
-                onPress={() =>
-                  updateSetting("arabicNumerals", !settings.arabicNumerals)
-                }
-                activeOpacity={0.7}
-              >
+              <View style={styles.switchOption}>
                 <Switch
                   value={settings.arabicNumerals}
                   onValueChange={(value) =>
@@ -200,7 +185,7 @@ export default function SettingsModal({ visible, onClose }) {
                     استخدام ١٢٣ بدلاً من 123
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             </View>
           )}
 

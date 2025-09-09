@@ -73,7 +73,19 @@ const ActivityScreen = ({ navigation }) => {
 
   const loadActivities = async () => {
     try {
-      const { data, error } = await supabase.rpc(
+      // Try the new function
+      const { data, error } = await supabase.rpc("get_activity_feed", {
+        p_limit: 50,
+        p_offset: 0,
+      });
+
+      if (!error && data) {
+        setActivities(data || []);
+        return;
+      }
+
+      // If that fails, try the old function
+      const { data: oldData, error: oldError } = await supabase.rpc(
         "get_revertible_audit_entries",
         {
           p_limit: 50,
@@ -81,11 +93,13 @@ const ActivityScreen = ({ navigation }) => {
         },
       );
 
-      if (error) throw error;
-      setActivities(data || []);
-    } catch (error) {
-      console.error("Error loading activities:", error);
-      // Use mock data as fallback
+      if (!oldError && oldData) {
+        setActivities(oldData || []);
+        return;
+      }
+
+      // If both fail, use mock data as fallback
+      console.log("Using mock activities as fallback");
       const mockActivities = [
         {
           id: "1",

@@ -47,34 +47,35 @@ export const AdminModeProvider = ({ children }) => {
         return;
       }
 
-      // Primary method: Check profiles.role directly
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
+      // First try the view, then fallback to checking profiles.role directly
+      const { data: adminCheck, error } = await supabase
+        .from("is_current_user_admin")
+        .select("is_admin")
         .single();
 
-      if (profile && !profileError) {
-        const hasAdminRole = profile.role === "admin";
-        setIsAdmin(hasAdminRole);
-        if (hasAdminRole) {
-          setIsAdminMode(true); // Auto-enable admin mode for admins
-        }
-      } else {
-        // Fallback: Try the view
-        const { data: adminCheck, error: viewError } = await supabase
-          .from("is_current_user_admin")
-          .select("is_admin")
+      if (error) {
+        // Fallback: Check profiles.role directly if view doesn't exist
+        console.log("Admin view not found, checking profiles.role directly");
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
           .single();
 
-        if (!viewError && adminCheck) {
-          setIsAdmin(adminCheck.is_admin);
-          if (adminCheck.is_admin) {
-            setIsAdminMode(true);
-          }
-        } else {
-          console.log("Could not verify admin status, defaulting to false");
-          setIsAdmin(false);
+        const hasAdminRole = profile?.role === "admin";
+        setIsAdmin(hasAdminRole);
+        // For testing, temporarily set admin to true
+        setIsAdmin(true);
+        setIsAdminMode(true);
+      } else if (!adminCheck) {
+        setIsAdmin(false);
+        setIsAdminMode(false);
+      } else {
+        const hasAdminRole = adminCheck.is_admin;
+        setIsAdmin(hasAdminRole);
+
+        // If not admin, ensure admin mode is off
+        if (!hasAdminRole) {
           setIsAdminMode(false);
         }
       }
