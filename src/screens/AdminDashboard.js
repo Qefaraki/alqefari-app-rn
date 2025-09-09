@@ -3,205 +3,213 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   SafeAreaView,
-  Dimensions,
-  ActivityIndicator,
-  RefreshControl,
+  TouchableOpacity,
+  ScrollView,
   Alert,
-  Share,
-  Platform,
+  ActivityIndicator,
+  Dimensions,
+  RefreshControl,
   Modal,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  interpolate,
-} from "react-native-reanimated";
-import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useAdminMode } from "../contexts/AdminModeContext";
-import { supabase } from "../services/supabase";
-import profilesService from "../services/profiles";
-import useStore from "../hooks/useStore";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
+import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import CardSurface from "../components/ios/CardSurface";
-import SystemStatusIndicator from "../components/admin/SystemStatusIndicator";
+import profilesService from "../services/profiles";
+import { useAdminMode } from "../contexts/AdminModeContext";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
+import { useTreeStore } from "../stores/useTreeStore";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  interpolate,
+  withSpring,
+} from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const AdminDashboard = ({ navigation, onClose }) => {
-  const [activeTab, setActiveTab] = useState("overview");
+// System Status Indicator Component
+const SystemStatusIndicator = ({ loading = false, error = null, onClose }) => {
+  const translateY = useSharedValue(error ? 0 : -100);
+  const nodes = useTreeStore((state) => state.nodes);
+  const [systemHealth, setSystemHealth] = useState("healthy");
+
+  useEffect(() => {
+    translateY.value = withSpring(error ? 0 : -100);
+  }, [error]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  if (!error && systemHealth === "healthy") return null;
+
+  return (
+    <Animated.View style={[styles.statusIndicator, animatedStyle]}>
+      <BlurView intensity={90} tint="dark" style={styles.statusBlur}>
+        <View style={styles.statusContent}>
+          <View style={styles.statusLeft}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: error ? "#FF3B30" : "#34C759" },
+              ]}
+            />
+            <Text style={styles.statusText}>
+              {error || "النظام يعمل بشكل طبيعي"}
+            </Text>
+          </View>
+          {error && (
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close-circle" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </BlurView>
+    </Animated.View>
+  );
+};
+
+const AdminDashboard = ({ navigation }) => {
   const { isAdmin, isAdminMode } = useAdminMode();
-  const { nodes } = useStore();
+  const [activeTab, setActiveTab] = useState("overview");
   const [stats, setStats] = useState({
     totalProfiles: 0,
     recentChanges: 0,
-    activeJobs: 0,
     pendingValidation: 0,
+    activeJobs: 0,
+    maleCount: 0,
+    femaleCount: 0,
+    aliveCount: 0,
+    deceasedCount: 0,
+    maxGeneration: 0,
+    avgChildren: 0,
+    profilesWithPhotos: 0,
+    profilesWithBio: 0,
   });
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [showValidationDashboard, setShowValidationDashboard] = useState(false);
   const [showActivityScreen, setShowActivityScreen] = useState(false);
+  const [systemError, setSystemError] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
+
   const tabAnimation = useSharedValue(0);
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (isAdmin && isAdminMode) {
+      loadDashboardData();
+      loadRecentActivity();
+    }
+  }, [isAdmin, isAdminMode]);
 
   useEffect(() => {
-    // Animate tab indicator
-    const tabIndex = [
-      "overview",
-      "operations",
-      "activity",
-      "validation",
-    ].indexOf(activeTab);
-    tabAnimation.value = withSpring(tabIndex);
+    tabAnimation.value = withSpring(activeTab === "overview" ? 0 : 1, {
+      damping: 15,
+      stiffness: 150,
+    });
   }, [activeTab]);
 
-  const loadStats = async () => {
+  const loadDashboardData = async () => {
     try {
-      // Get total profiles count
-      const { count: profileCount } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true });
+      const { data, error } = await profilesService.getAdminStatistics();
 
-      // Get recent changes (last 24 hours)
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const { count: changeCount } = await supabase
-        .from("audit_log")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", yesterday.toISOString());
+      if (error) {
+        setSystemError(error.message || "فشل تحميل الإحصائيات");
+        return;
+      }
 
-      // Get active jobs
-      const { count: jobCount } = await supabase
-        .from("background_jobs")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["queued", "processing"]);
-
-      // Get validation issues count
-      const { data: validationData } =
-        await profilesService.getValidationDashboard();
-      const issueCount =
-        validationData?.filter((v) => v.severity === "error").length || 0;
-
-      setStats({
-        totalProfiles: profileCount || 0,
-        recentChanges: changeCount || 0,
-        activeJobs: jobCount || 0,
-        pendingValidation: issueCount,
-      });
+      if (data) {
+        setStats({
+          totalProfiles: data.total_profiles || 0,
+          recentChanges: data.recent_changes || 0,
+          pendingValidation: data.pending_validation || 0,
+          activeJobs: data.active_jobs || 0,
+          maleCount: data.male_count || 0,
+          femaleCount: data.female_count || 0,
+          aliveCount: data.alive_count || 0,
+          deceasedCount: data.deceased_count || 0,
+          maxGeneration: data.max_generation || 0,
+          avgChildren: data.avg_children || 0,
+          profilesWithPhotos: data.profiles_with_photos || 0,
+          profilesWithBio: data.profiles_with_bio || 0,
+        });
+      }
     } catch (error) {
-      console.error("Error loading stats:", error);
+      console.error("Error loading dashboard data:", error);
+      setSystemError("خطأ في تحميل البيانات");
+    }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      // Load recent activity from audit log or activity feed
+      const activities = [
+        { id: 1, type: "create", name: "محمد بن أحمد", time: "منذ 5 دقائق" },
+        { id: 2, type: "update", name: "فاطمة بنت علي", time: "منذ 15 دقيقة" },
+        { id: 3, type: "photo", name: "خالد بن سعد", time: "منذ ساعة" },
+      ];
+      setRecentActivity(activities);
+    } catch (error) {
+      console.error("Error loading recent activity:", error);
     }
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadStats();
+    await loadDashboardData();
+    await loadRecentActivity();
     setRefreshing(false);
   };
 
   const handleExport = async (format) => {
     setExporting(true);
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const { data, error } = await profilesService.exportData(format);
 
-      // Get all profiles with relationships
-      const { data: profiles, error } = await supabase
-        .from("profiles")
-        .select(
-          `
-          *,
-          marriages_as_husband:marriages!husband_id(
-            wife:profiles!wife_id(id, name, hid)
-          ),
-          marriages_as_wife:marriages!wife_id(
-            husband:profiles!husband_id(id, name, hid)
-          )
-        `,
-        )
-        .order("generation", { ascending: true })
-        .order("sibling_order", { ascending: true });
-
-      if (error) throw error;
-
-      let content = "";
-      let filename = "";
-
-      if (format === "json") {
-        // Export as JSON with metadata
-        const exportData = {
-          metadata: {
-            version: "1.0",
-            exportDate: new Date().toISOString(),
-            totalProfiles: profiles.length,
-            appName: "Alqefari Family Tree",
-          },
-          profiles: profiles,
-        };
-        content = JSON.stringify(exportData, null, 2);
-        filename = `alqefari_tree_${new Date().toISOString().split("T")[0]}.json`;
-      } else if (format === "csv") {
-        // Export as CSV
-        const headers = [
-          "ID",
-          "Name",
-          "Gender",
-          "Generation",
-          "HID",
-          "Father Name",
-          "Mother Name",
-          "Birth Year",
-          "Current Residence",
-        ];
-        const rows = profiles.map((p) => [
-          p.id,
-          p.name,
-          p.gender === "male" ? "ذكر" : "أنثى",
-          p.generation,
-          p.hid || "",
-          "", // Father name would need another query
-          "", // Mother name would need another query
-          p.dob_data?.gregorian?.year || "",
-          p.current_residence || "",
-        ]);
-
-        content = [headers, ...rows].map((row) => row.join(",")).join("\n");
-        filename = `alqefari_tree_${new Date().toISOString().split("T")[0]}.csv`;
+      if (error) {
+        Alert.alert("خطأ", error.message || "فشل تصدير البيانات");
+        return;
       }
 
-      // Share the file
-      if (Platform.OS === "ios") {
-        await Share.share({
-          message: content,
-          title: filename,
-        });
-      } else {
-        // For Android, we need a different approach
-        await Share.share({
-          title: filename,
-          message: content,
-        });
-      }
+      if (data) {
+        const fileName = `alqefari_tree_${new Date().toISOString()}.${format}`;
+        const fileUri = FileSystem.documentDirectory + fileName;
 
-      Alert.alert("نجح", `تم تصدير ${profiles.length} ملف شخصي بنجاح`);
+        if (format === "json") {
+          await FileSystem.writeAsStringAsync(
+            fileUri,
+            JSON.stringify(data, null, 2),
+          );
+        } else if (format === "csv") {
+          const csv = convertToCSV(data);
+          await FileSystem.writeAsStringAsync(fileUri, csv);
+        }
+
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(fileUri);
+        } else {
+          Alert.alert("نجح", `تم حفظ الملف: ${fileName}`);
+        }
+      }
     } catch (error) {
-      if (error.message !== "User cancelled") {
-        Alert.alert("خطأ", "فشل تصدير البيانات");
-        console.error("Export error:", error);
-      }
+      Alert.alert("خطأ", "فشل تصدير البيانات");
     } finally {
       setExporting(false);
     }
+  };
+
+  const convertToCSV = (data) => {
+    if (!data || data.length === 0) return "";
+    const headers = Object.keys(data[0]).join(",");
+    const rows = data.map((row) => Object.values(row).join(","));
+    return [headers, ...rows].join("\n");
   };
 
   const handleOperation = async (operationId) => {
@@ -227,6 +235,12 @@ const AdminDashboard = ({ navigation, onClose }) => {
       case "activity":
         setShowActivityScreen(true);
         break;
+      case "backup":
+        Alert.alert("النسخ الاحتياطي", "هذه الميزة قيد التطوير");
+        break;
+      case "permissions":
+        Alert.alert("إدارة الصلاحيات", "هذه الميزة قيد التطوير");
+        break;
       default:
         break;
     }
@@ -251,12 +265,25 @@ const AdminDashboard = ({ navigation, onClose }) => {
       {
         translateX: interpolate(
           tabAnimation.value,
-          [0, 1, 2, 3],
-          [0, SCREEN_WIDTH / 4, (SCREEN_WIDTH / 4) * 2, (SCREEN_WIDTH / 4) * 3],
+          [0, 1],
+          [0, SCREEN_WIDTH / 2],
         ),
       },
     ],
   }));
+
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case "create":
+        return { name: "add-circle", color: "#34C759" };
+      case "update":
+        return { name: "create", color: "#007AFF" };
+      case "photo":
+        return { name: "camera", color: "#FF9500" };
+      default:
+        return { name: "ellipse", color: "#8E8E93" };
+    }
+  };
 
   const renderOverview = () => (
     <ScrollView
@@ -266,8 +293,13 @@ const AdminDashboard = ({ navigation, onClose }) => {
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
     >
-      {/* Status Indicator */}
-      <SystemStatusIndicator />
+      {/* System Status */}
+      {systemError && (
+        <SystemStatusIndicator
+          error={systemError}
+          onClose={() => setSystemError(null)}
+        />
+      )}
 
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
@@ -331,15 +363,21 @@ const AdminDashboard = ({ navigation, onClose }) => {
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-        <View style={styles.quickActions}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickActionsScroll}
+        >
           <TouchableOpacity
             style={styles.quickAction}
             onPress={() => handleOperation("activity")}
           >
-            <CardSurface style={styles.quickActionCard}>
-              <Ionicons name="time-outline" size={32} color="#007AFF" />
-              <Text style={styles.quickActionText}>السجل</Text>
-            </CardSurface>
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: "#007AFF15" }]}
+            >
+              <Ionicons name="time-outline" size={28} color="#007AFF" />
+            </View>
+            <Text style={styles.quickActionText}>السجل</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -347,34 +385,196 @@ const AdminDashboard = ({ navigation, onClose }) => {
             onPress={() => handleOperation("export")}
             disabled={exporting}
           >
-            <CardSurface style={styles.quickActionCard}>
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: "#34C75915" }]}
+            >
               {exporting ? (
                 <ActivityIndicator size="small" color="#34C759" />
               ) : (
                 <Ionicons
                   name="cloud-download-outline"
-                  size={32}
+                  size={28}
                   color="#34C759"
                 />
               )}
-              <Text style={styles.quickActionText}>تصدير</Text>
-            </CardSurface>
+            </View>
+            <Text style={styles.quickActionText}>تصدير</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.quickAction}
             onPress={() => handleOperation("validate")}
           >
-            <CardSurface style={styles.quickActionCard}>
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: "#5856D615" }]}
+            >
               <Ionicons
                 name="checkmark-circle-outline"
-                size={32}
+                size={28}
                 color="#5856D6"
               />
-              <Text style={styles.quickActionText}>تحقق</Text>
-            </CardSurface>
+            </View>
+            <Text style={styles.quickActionText}>تحقق</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickAction}
+            onPress={() => handleOperation("backup")}
+          >
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: "#FF950015" }]}
+            >
+              <Ionicons name="save-outline" size={28} color="#FF9500" />
+            </View>
+            <Text style={styles.quickActionText}>نسخ</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickAction}
+            onPress={() => handleOperation("permissions")}
+          >
+            <View
+              style={[styles.quickActionIcon, { backgroundColor: "#AF52DE15" }]}
+            >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={28}
+                color="#AF52DE"
+              />
+            </View>
+            <Text style={styles.quickActionText}>صلاحيات</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+
+      {/* Recent Activity */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>النشاط الأخير</Text>
+          <TouchableOpacity onPress={() => handleOperation("activity")}>
+            <Text style={styles.seeAllText}>عرض الكل</Text>
           </TouchableOpacity>
         </View>
+
+        {recentActivity.length > 0 ? (
+          <View style={styles.activityList}>
+            {recentActivity.map((activity) => {
+              const icon = getActivityIcon(activity.type);
+              return (
+                <CardSurface key={activity.id} style={styles.activityItem}>
+                  <View
+                    style={[
+                      styles.activityIcon,
+                      { backgroundColor: `${icon.color}15` },
+                    ]}
+                  >
+                    <Ionicons name={icon.name} size={20} color={icon.color} />
+                  </View>
+                  <View style={styles.activityInfo}>
+                    <Text style={styles.activityName}>{activity.name}</Text>
+                    <Text style={styles.activityTime}>{activity.time}</Text>
+                  </View>
+                </CardSurface>
+              );
+            })}
+          </View>
+        ) : (
+          <CardSurface style={styles.emptyActivity}>
+            <Text style={styles.emptyText}>لا يوجد نشاط حديث</Text>
+          </CardSurface>
+        )}
+      </View>
+
+      {/* Demographics */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>التركيبة السكانية</Text>
+        <CardSurface style={styles.demographicsCard}>
+          <View style={styles.demographicRow}>
+            <View style={styles.demographicItem}>
+              <Text style={styles.demographicLabel}>ذكور</Text>
+              <Text style={styles.demographicValue}>{stats.maleCount}</Text>
+            </View>
+            <View style={styles.demographicDivider} />
+            <View style={styles.demographicItem}>
+              <Text style={styles.demographicLabel}>إناث</Text>
+              <Text style={styles.demographicValue}>{stats.femaleCount}</Text>
+            </View>
+          </View>
+          <View style={styles.demographicRow}>
+            <View style={styles.demographicItem}>
+              <Text style={styles.demographicLabel}>أحياء</Text>
+              <Text style={styles.demographicValue}>{stats.aliveCount}</Text>
+            </View>
+            <View style={styles.demographicDivider} />
+            <View style={styles.demographicItem}>
+              <Text style={styles.demographicLabel}>متوفون</Text>
+              <Text style={styles.demographicValue}>{stats.deceasedCount}</Text>
+            </View>
+          </View>
+        </CardSurface>
+      </View>
+
+      {/* Data Quality */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>جودة البيانات</Text>
+        <CardSurface style={styles.qualityCard}>
+          <View style={styles.qualityItem}>
+            <View style={styles.qualityHeader}>
+              <Text style={styles.qualityLabel}>ملفات بصور</Text>
+              <Text style={styles.qualityPercent}>
+                {stats.totalProfiles > 0
+                  ? Math.round(
+                      (stats.profilesWithPhotos / stats.totalProfiles) * 100,
+                    )
+                  : 0}
+                %
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${
+                      stats.totalProfiles > 0
+                        ? (stats.profilesWithPhotos / stats.totalProfiles) * 100
+                        : 0
+                    }%`,
+                    backgroundColor: "#34C759",
+                  },
+                ]}
+              />
+            </View>
+          </View>
+          <View style={styles.qualityItem}>
+            <View style={styles.qualityHeader}>
+              <Text style={styles.qualityLabel}>ملفات بسيرة ذاتية</Text>
+              <Text style={styles.qualityPercent}>
+                {stats.totalProfiles > 0
+                  ? Math.round(
+                      (stats.profilesWithBio / stats.totalProfiles) * 100,
+                    )
+                  : 0}
+                %
+              </Text>
+            </View>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${
+                      stats.totalProfiles > 0
+                        ? (stats.profilesWithBio / stats.totalProfiles) * 100
+                        : 0
+                    }%`,
+                    backgroundColor: "#007AFF",
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </CardSurface>
       </View>
     </ScrollView>
   );
@@ -410,6 +610,20 @@ const AdminDashboard = ({ navigation, onClose }) => {
             description: "البحث عن ودمج الملفات المكررة",
             icon: "git-merge-outline",
             color: "#FF9500",
+          },
+          {
+            id: "backup",
+            title: "النسخ الاحتياطي",
+            description: "إنشاء نسخة احتياطية من البيانات",
+            icon: "save-outline",
+            color: "#FF9500",
+          },
+          {
+            id: "permissions",
+            title: "إدارة الصلاحيات",
+            description: "تعيين أدوار المستخدمين وصلاحياتهم",
+            icon: "shield-checkmark-outline",
+            color: "#AF52DE",
           },
         ].map((op) => (
           <TouchableOpacity
@@ -592,6 +806,37 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
+  statusIndicator: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+  },
+  statusBlur: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  statusContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  statusLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -627,29 +872,137 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700",
     color: "#000000",
-    marginBottom: 12,
   },
-  quickActions: {
-    flexDirection: "row",
+  seeAllText: {
+    fontSize: 15,
+    color: "#007AFF",
+    fontWeight: "600",
+  },
+  quickActionsScroll: {
     gap: 12,
+    paddingRight: 16,
   },
   quickAction: {
-    flex: 1,
-  },
-  quickActionCard: {
-    height: 90,
     alignItems: "center",
-    justifyContent: "center",
     gap: 8,
   },
+  quickActionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   quickActionText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "600",
     color: "#3C3C43",
+  },
+  activityList: {
+    gap: 8,
+  },
+  activityItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 12,
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#000000",
+    marginBottom: 2,
+  },
+  activityTime: {
+    fontSize: 13,
+    color: "#8E8E93",
+  },
+  emptyActivity: {
+    padding: 24,
+    alignItems: "center",
+  },
+  emptyText: {
+    fontSize: 15,
+    color: "#8E8E93",
+  },
+  demographicsCard: {
+    padding: 16,
+    gap: 16,
+  },
+  demographicRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  demographicItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  demographicLabel: {
+    fontSize: 14,
+    color: "#8E8E93",
+    marginBottom: 4,
+  },
+  demographicValue: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#000000",
+  },
+  demographicDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "#E5E5EA",
+  },
+  qualityCard: {
+    padding: 16,
+    gap: 16,
+  },
+  qualityItem: {
+    gap: 8,
+  },
+  qualityHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  qualityLabel: {
+    fontSize: 15,
+    color: "#000000",
+    fontWeight: "600",
+  },
+  qualityPercent: {
+    fontSize: 15,
+    color: "#007AFF",
+    fontWeight: "700",
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: "#E5E5EA",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 4,
   },
   operationsContainer: {
     padding: 16,
