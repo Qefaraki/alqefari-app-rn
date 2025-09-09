@@ -13,6 +13,7 @@ import AdminDashboard from "./src/screens/AdminDashboard";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
 import { checkAndCreateAdminProfile } from "./src/utils/checkAdminProfile";
+import useTreeStore from "./src/stores/useTreeStore";
 import "./global.css";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [profileEditMode, setProfileEditMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -87,29 +89,40 @@ export default function App() {
             <View className="flex-1">
               <StatusBar style="dark" />
 
-              {/* Settings Icon - Top Left */}
-              <View
-                style={{ position: "absolute", top: 60, left: 16, zIndex: 10 }}
-              >
-                <TouchableOpacity
-                  onPress={() => setShowSettings(true)}
+              {/* Settings Icon - Top Left (Hidden when profile is open) */}
+              {!selectedPersonId && !profileEditMode && (
+                <View
                   style={{
-                    backgroundColor: "white",
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
+                    position: "absolute",
+                    top: 60,
+                    left: 16,
+                    zIndex: 10,
                   }}
                 >
-                  <Ionicons name="settings-outline" size={24} color="#374151" />
-                </TouchableOpacity>
-              </View>
+                  <TouchableOpacity
+                    onPress={() => setShowSettings(true)}
+                    style={{
+                      backgroundColor: "white",
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 4,
+                      elevation: 3,
+                    }}
+                  >
+                    <Ionicons
+                      name="settings-outline"
+                      size={24}
+                      color="#374151"
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Compact Admin Bar - Only when logged in */}
               <View className="pt-12">
