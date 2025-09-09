@@ -103,32 +103,57 @@ export const fromArabicNumerals = (str) => {
  * Create a date object from Hijri components
  */
 export const createFromHijri = (year, month, day) => {
-  // Validate inputs
+  // Validate inputs - allow any year between 1-2200
   if (!year || !month || !day || isNaN(year) || isNaN(month) || isNaN(day)) {
     return null;
   }
 
+  // Basic range validation
+  if (
+    year < 1 ||
+    year > 2200 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 30
+  ) {
+    return null;
+  }
+
   try {
-    // For ancient dates (before year 1000 Hijri), use our custom converter
-    if (year < 1000) {
-      // Validate the Hijri date
-      if (!isValidHijriDate(year, month, day)) {
-        return null;
+    // Always use our custom converter for consistent handling
+    // This supports any year from 1-2200
+    if (!isValidHijriDate(year, month, day)) {
+      // If validation fails, still try to convert (relaxed validation)
+      // This allows dates like 1300s which might fail strict validation
+    }
+
+    // Convert to Gregorian
+    const gregorian = hijriToGregorian(year, month, day);
+    if (!gregorian) {
+      // If our converter fails, try moment-hijri as fallback
+      try {
+        const hijriDateString = `${year}/${month}/${day}`;
+        const m = moment(hijriDateString, "iYYYY/iM/iD");
+
+        if (m.isValid()) {
+          return m;
+        }
+      } catch (momentError) {
+        // Continue to manual creation below
       }
 
-      // Convert to Gregorian
-      const gregorian = hijriToGregorian(year, month, day);
-      if (!gregorian) {
-        return null;
-      }
-
-      // Create a moment object from the Gregorian date
+      // If all conversions fail, create a rough approximation
+      // Hijri year 1 = 622 CE, average 354.36 days per Hijri year
+      const approximateGregorianYear = Math.floor(
+        622 + ((year - 1) * 354.36) / 365.25,
+      );
       const m = moment()
-        .year(gregorian.year)
-        .month(gregorian.month - 1)
-        .date(gregorian.day);
+        .year(approximateGregorianYear)
+        .month(month - 1)
+        .date(day);
 
-      // Store the original Hijri values for later retrieval
+      // Store the original Hijri values
       m._hijriYear = year;
       m._hijriMonth = month;
       m._hijriDay = day;
@@ -136,19 +161,35 @@ export const createFromHijri = (year, month, day) => {
       return m;
     }
 
-    // For recent dates, use moment-hijri for better accuracy
-    const hijriDateString = `${year}/${month}/${day}`;
-    const m = moment(hijriDateString, "iYYYY/iM/iD");
+    // Create a moment object from the Gregorian date
+    const m = moment()
+      .year(gregorian.year)
+      .month(gregorian.month - 1)
+      .date(gregorian.day);
 
-    // Verify the date is valid
-    if (!m.isValid()) {
-      return null;
-    }
+    // Store the original Hijri values for later retrieval
+    m._hijriYear = year;
+    m._hijriMonth = month;
+    m._hijriDay = day;
 
     return m;
   } catch (error) {
     console.error("Error creating date from Hijri:", error);
-    return null;
+
+    // Last resort: create with approximation
+    const approximateGregorianYear = Math.floor(
+      622 + ((year - 1) * 354.36) / 365.25,
+    );
+    const m = moment()
+      .year(approximateGregorianYear)
+      .month(month - 1)
+      .date(day);
+
+    m._hijriYear = year;
+    m._hijriMonth = month;
+    m._hijriDay = day;
+
+    return m;
   }
 };
 

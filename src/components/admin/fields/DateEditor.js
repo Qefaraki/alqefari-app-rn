@@ -190,6 +190,7 @@ const DateEditor = ({ label, value, onChange, error }) => {
     // Convert Arabic numerals to Western, then allow only numbers
     const westernText = fromArabicNumerals(text);
     const cleaned = westernText.replace(/[^0-9]/g, "");
+    // Allow up to 4 digits for years (0-9999)
     if (cleaned.length <= 4) {
       setYear(cleaned);
       updateDate(day, month, cleaned, isApproximate);
