@@ -33,7 +33,6 @@ import profilesService from "../../services/profiles";
 I18nManager.forceRTL(true);
 
 const ITEM_HEIGHT = 80;
-const ITEM_WIDTH = 90;
 
 // Individual draggable child item
 const DraggableChildItem = ({
@@ -72,8 +71,10 @@ const DraggableChildItem = ({
       translateX.value = ctx.startX + event.translationX;
 
       // Calculate new index based on drag position (horizontal)
+      // Using approximate width for gesture calculation
+      const avgWidth = 100;
       const newIndex = Math.floor(
-        (ctx.startX + event.translationX + ITEM_WIDTH / 2) / ITEM_WIDTH,
+        (ctx.startX + event.translationX + avgWidth / 2) / avgWidth,
       );
       const clampedIndex = Math.max(0, Math.min(newIndex, totalCount - 1));
 
@@ -127,9 +128,9 @@ const DraggableChildItem = ({
             onPress={() => onPress(child)}
             activeOpacity={0.7}
           >
-            <Text style={styles.childName} numberOfLines={1}>
-              {child.name}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.childName}>{child.name}</Text>
+            </View>
             {child.status === "deceased" && (
               <Text style={styles.deceasedText}>الله يرحمه</Text>
             )}
@@ -529,7 +530,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: "row",
-    gap: 8,
   },
   motherGroup: {
     marginRight: 16,
@@ -555,14 +555,15 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic Regular",
   },
   childItemContainer: {
-    width: ITEM_WIDTH,
     height: ITEM_HEIGHT,
+    marginHorizontal: 4,
   },
   childItem: {
-    flex: 1,
+    height: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
-    padding: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -570,26 +571,29 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: "#F0F0F5",
-    alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
   },
   childContent: {
     flex: 1,
+    justifyContent: "space-between",
+  },
+  nameRow: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
   },
   childName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
     color: "#000000",
     fontFamily: "SF Arabic Regular",
-    textAlign: "center",
   },
   deceasedText: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#8A8A8E",
     fontFamily: "SF Arabic Regular",
-    marginTop: 3,
+    alignSelf: "center",
+    marginBottom: 2,
   },
   deleteButton: {
     position: "absolute",
