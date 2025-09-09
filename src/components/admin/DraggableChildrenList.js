@@ -32,7 +32,8 @@ import profilesService from "../../services/profiles";
 // Enable RTL
 I18nManager.forceRTL(true);
 
-const ITEM_HEIGHT = 80;
+const ITEM_HEIGHT = 120;
+const ITEM_WIDTH = 100;
 
 // Individual draggable child item
 const DraggableChildItem = ({
@@ -45,7 +46,7 @@ const DraggableChildItem = ({
   scrollOffset,
   scrollViewHeight,
 }) => {
-  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
   const isDragging = useSharedValue(false);
   const currentIndex = useSharedValue(index);
   const opacity = useSharedValue(1);
@@ -61,19 +62,18 @@ const DraggableChildItem = ({
 
   const gestureHandler = useAnimatedGestureHandler({
     onStart: (_, ctx) => {
-      ctx.startY = translateY.value;
+      ctx.startX = translateX.value;
       isDragging.value = true;
       itemHeight.value = withSpring(itemHeight.value * 1.05);
       opacity.value = withTiming(0.8);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
     },
     onActive: (event, ctx) => {
-      translateY.value = ctx.startY + event.translationY;
+      translateX.value = ctx.startX + event.translationX;
 
-      // Calculate new index based on drag position
+      // Calculate new index based on drag position (horizontal)
       const newIndex = Math.floor(
-        (ctx.startY + event.translationY + itemHeight.value / 2) /
-          itemHeight.value,
+        (ctx.startX + event.translationX + ITEM_WIDTH / 2) / ITEM_WIDTH,
       );
       const clampedIndex = Math.max(0, Math.min(newIndex, totalCount - 1));
 
@@ -82,28 +82,28 @@ const DraggableChildItem = ({
       }
     },
     onEnd: () => {
-      translateY.value = withSpring(0);
+      translateX.value = withSpring(0);
       isDragging.value = false;
-      itemHeight.value = withSpring(80);
+      itemHeight.value = withSpring(ITEM_HEIGHT);
       opacity.value = withTiming(1);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
     },
     onFail: () => {
-      translateY.value = withSpring(0);
+      translateX.value = withSpring(0);
       isDragging.value = false;
-      itemHeight.value = withSpring(80);
+      itemHeight.value = withSpring(ITEM_HEIGHT);
       opacity.value = withTiming(1);
     },
     onCancel: () => {
-      translateY.value = withSpring(0);
+      translateX.value = withSpring(0);
       isDragging.value = false;
-      itemHeight.value = withSpring(80);
+      itemHeight.value = withSpring(ITEM_HEIGHT);
       opacity.value = withTiming(1);
     },
   });
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateX: translateX.value }],
     zIndex: isDragging.value ? 1000 : 0,
     opacity: opacity.value,
     elevation: isDragging.value ? 5 : 1,
@@ -120,54 +120,42 @@ const DraggableChildItem = ({
       style={[styles.childItemContainer, animatedStyle]}
       layout={Layout.springify()}
     >
-      <Animated.View style={[styles.childItem, containerStyle]}>
-        <PanGestureHandler onGestureEvent={gestureHandler}>
-          <Animated.View style={styles.dragHandle}>
-            <Ionicons name="reorder-three" size={24} color="#C7C7CC" />
-          </Animated.View>
-        </PanGestureHandler>
-
-        <TouchableOpacity
-          style={styles.childContent}
-          onPress={() => onPress(child)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.childInfo}>
-            <View style={styles.childHeader}>
-              <View style={styles.orderBadge}>
-                <Text style={styles.orderText}>{index + 1}</Text>
+      <PanGestureHandler onGestureEvent={gestureHandler}>
+        <Animated.View style={[styles.childItem, containerStyle]}>
+          <TouchableOpacity
+            style={styles.childContent}
+            onPress={() => onPress(child)}
+            activeOpacity={0.7}
+          >
+            {child.gender === "male" ? (
+              <Ionicons name="male" size={20} color="#3B82F6" />
+            ) : (
+              <Ionicons name="female" size={20} color="#EC4899" />
+            )}
+            <Text style={styles.childName} numberOfLines={1}>
+              {child.name}
+            </Text>
+            {child.birth_date && (
+              <Text style={styles.childDate} numberOfLines={1}>
+                {formatDisplayDate(child.birth_date)}
+              </Text>
+            )}
+            {child.status === "deceased" && (
+              <View style={styles.deceasedBadge}>
+                <Text style={styles.deceasedText}>متوفى</Text>
               </View>
-              <Text style={styles.childName}>{child.name}</Text>
-              {child.gender === "male" ? (
-                <Ionicons name="male" size={16} color="#007AFF" />
-              ) : (
-                <Ionicons name="female" size={16} color="#E91E63" />
-              )}
-            </View>
-
-            <View style={styles.childMeta}>
-              <Text style={styles.childMetaText}>HID: {child.hid}</Text>
-              {child.status === "deceased" && (
-                <View style={styles.deceasedBadge}>
-                  <Text style={styles.deceasedText}>متوفى</Text>
-                </View>
-              )}
-              {child.mother?.name && (
-                <Text style={styles.childMetaText}>
-                  الأم: {child.mother.name}
-                </Text>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => onDelete(child)}
-        >
-          <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-        </TouchableOpacity>
-      </Animated.View>
+            )}
+          </TouchableOpacity>
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => onDelete(child)}
+            >
+              <Ionicons name="close-circle" size={18} color="#FF3B30" />
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </PanGestureHandler>
     </Animated.View>
   );
 };
@@ -194,15 +182,12 @@ const DraggableChildrenList = ({
   const scrollOffset = useSharedValue(0);
   const scrollViewHeight = useSharedValue(0);
 
-  // Update children when prop changes - ensure they're sorted by sibling_order
+  // Update children when prop changes
+  // Children come pre-sorted from RelationshipManagerV2 (reversed for display)
   React.useEffect(() => {
-    const sortedChildren = [...(initialChildren || [])].sort((a, b) => {
-      const orderA = a.sibling_order ?? 999;
-      const orderB = b.sibling_order ?? 999;
-      return orderA - orderB; // Oldest first (lower sibling_order = older = should appear at top)
-    });
-    setChildren(sortedChildren);
-    originalOrder.current = sortedChildren.map((c) => c.id);
+    // Don't re-sort here - we receive them in the correct display order
+    setChildren(initialChildren || []);
+    originalOrder.current = (initialChildren || []).map((c) => c.id);
     setHasChanges(false);
   }, [initialChildren]);
 
@@ -345,30 +330,20 @@ const DraggableChildrenList = ({
       parentProfile?.gender === "male" &&
       Object.keys(groupedChildren).length > 1
     ) {
-      // Render grouped by mother
-      return Object.entries(groupedChildren).map(([motherId, group]) => (
-        <View key={motherId} style={styles.motherGroup}>
-          <View style={styles.motherHeader}>
-            <Text style={styles.motherName}>أم: {group.mother.name}</Text>
-            <Text style={styles.motherChildCount}>
-              {group.children.length} أطفال
-            </Text>
-          </View>
-
-          {group.children.map((child, index) => (
-            <DraggableChildItem
-              key={child.id}
-              child={child}
-              index={children.indexOf(child)}
-              totalCount={children.length}
-              onMove={handleMove}
-              onDelete={isAdmin ? handleDeleteChild : null}
-              onPress={handleChildPress}
-              scrollOffset={scrollOffset}
-              scrollViewHeight={scrollViewHeight}
-            />
-          ))}
-        </View>
+      // Render grouped by mother - for horizontal layout, render all children flat
+      // but show mother labels as dividers
+      return children.map((child, index) => (
+        <DraggableChildItem
+          key={child.id}
+          child={child}
+          index={index}
+          totalCount={children.length}
+          onMove={handleMove}
+          onDelete={isAdmin ? handleDeleteChild : null}
+          onPress={handleChildPress}
+          scrollOffset={scrollOffset}
+          scrollViewHeight={scrollViewHeight}
+        />
       ));
     } else {
       // Render flat list
@@ -460,18 +435,17 @@ const DraggableChildrenList = ({
           {/* Children List */}
           <ScrollView
             ref={scrollViewRef}
+            horizontal
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+            showsHorizontalScrollIndicator={false}
             onScroll={(e) => {
-              scrollOffset.value = e.nativeEvent.contentOffset.y;
+              scrollOffset.value = e.nativeEvent.contentOffset.x;
             }}
             onLayout={(e) => {
-              scrollViewHeight.value = e.nativeEvent.layout.height;
+              scrollViewHeight.value = e.nativeEvent.layout.width;
             }}
             scrollEventThrottle={16}
-            nestedScrollEnabled={true}
-            keyboardShouldPersistTaps="handled"
           >
             {renderChildrenList()}
           </ScrollView>
@@ -561,20 +535,23 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic Regular",
   },
   scrollView: {
-    maxHeight: 400,
+    height: ITEM_HEIGHT + 40,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    flexDirection: "row",
+    gap: 12,
   },
   motherGroup: {
-    marginBottom: 24,
+    marginRight: 16,
   },
   motherHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 12,
-    marginBottom: 12,
+    paddingBottom: 8,
+    marginBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E5E5EA",
   },
@@ -590,15 +567,14 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic Regular",
   },
   childItemContainer: {
+    width: ITEM_WIDTH,
     height: ITEM_HEIGHT,
-    marginBottom: 8,
   },
   childItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    flex: 1,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding: 12,
+    padding: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -606,74 +582,50 @@ const styles = StyleSheet.create({
     elevation: 1,
     borderWidth: 1,
     borderColor: "#F0F0F5",
-  },
-  dragHandle: {
-    padding: 8,
-    marginRight: 8,
-  },
-  childContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  childInfo: {
-    flex: 1,
-  },
-  childHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  orderBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#E5E5EA",
     alignItems: "center",
     justifyContent: "center",
   },
-  orderText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#8A8A8E",
+  childContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 4,
   },
   childName: {
-    fontSize: 16,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "600",
     color: "#000000",
     fontFamily: "SF Arabic Regular",
+    marginTop: 4,
+    textAlign: "center",
   },
-  childMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  childMetaText: {
-    fontSize: 13,
+  childDate: {
+    fontSize: 10,
     color: "#8A8A8E",
     fontFamily: "SF Arabic Regular",
+    marginTop: 2,
   },
   deceasedBadge: {
     backgroundColor: "#F5F5F5",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 3,
+    marginTop: 4,
   },
   deceasedText: {
-    fontSize: 11,
+    fontSize: 9,
     color: "#8A8A8E",
     fontFamily: "SF Arabic Regular",
   },
   deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#FFF5F5",
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 8,
   },
   emptyContainer: {
     alignItems: "center",
