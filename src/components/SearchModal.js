@@ -29,7 +29,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
-import CardSurface from "./ui/CardSurface";
 
 const SearchModal = ({ visible, onClose, onSelectResult }) => {
   // State for progressive name inputs
@@ -179,7 +178,7 @@ const SearchModal = ({ visible, onClose, onSelectResult }) => {
     return (
       <Pressable onPress={() => handleSelectResult(item)}>
         <Animated.View entering={FadeIn.delay(100)}>
-          <CardSurface style={styles.resultCard}>
+          <View style={styles.resultCard}>
             {/* Photo */}
             <View style={styles.photoContainer}>
               {item.photo_url ? (
@@ -217,7 +216,7 @@ const SearchModal = ({ visible, onClose, onSelectResult }) => {
 
             {/* Arrow */}
             <Ionicons name="chevron-forward" size={20} color="#8A8A8E" />
-          </CardSurface>
+          </View>
         </Animated.View>
       </Pressable>
     );
