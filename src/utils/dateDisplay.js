@@ -31,36 +31,6 @@ const gregorianMonthsAr = [
   "ديسمبر",
 ];
 
-const gregorianMonthsEn = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const gregorianMonthsShort = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
 /**
  * Format a date based on user preferences
  */
@@ -84,7 +54,7 @@ function formatDate(day, month, year, type = "gregorian", settings = {}) {
     }
 
     // Convert to Arabic numerals if needed
-    if (arabicNumerals && type === "hijri") {
+    if (arabicNumerals) {
       result = toArabicNumerals(result);
     }
 
@@ -97,23 +67,8 @@ function formatDate(day, month, year, type = "gregorian", settings = {}) {
       return arabicNumerals ? toArabicNumerals(result) : result;
     } else {
       const monthName = gregorianMonthsAr[month - 1] || month;
-      return `${day} ${monthName} ${year}`;
-    }
-  } else if (dateFormat === "mixed") {
-    // Mixed format: 15 يناير 2024 (shortened)
-    if (type === "hijri") {
-      const monthName = hijriMonths[month - 1] || month;
-      // Use first 3-4 chars for shortened month names
-      const shortMonth =
-        monthName.length > 4 ? monthName.substring(0, 3) : monthName;
-      const result = `${day} ${shortMonth} ${year} هـ`;
+      const result = `${day} ${monthName} ${year}`;
       return arabicNumerals ? toArabicNumerals(result) : result;
-    } else {
-      // Use Arabic short versions instead of English
-      const monthName = gregorianMonthsAr[month - 1] || month;
-      const shortMonth =
-        monthName.length > 4 ? monthName.substring(0, 3) : monthName;
-      return `${day} ${shortMonth} ${year}`;
     }
   }
 

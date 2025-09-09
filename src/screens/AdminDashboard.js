@@ -712,7 +712,8 @@ const styles = StyleSheet.create({
   sectionHeaderActions: {
     paddingHorizontal: 20,
     marginBottom: 16,
-    alignItems: "flex-end",
+    flexDirection: "row",
+    justifyContent: "flex-start", // In RTL, flex-start goes to the RIGHT!
   },
   actionsScroll: {
     paddingHorizontal: 20,

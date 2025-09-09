@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SETTINGS_KEY = "@alqefari_settings";
@@ -16,9 +17,9 @@ export const useSettings = () => {
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
     defaultCalendar: "gregorian", // 'hijri' or 'gregorian'
-    dateFormat: "numeric", // 'numeric' (31/12/2024), 'words' (31 ديسمبر 2024), 'mixed' (31 ديس 2024)
+    dateFormat: "numeric", // 'numeric' (31/12/2024), 'words' (31 ديسمبر 2024)
     showBothCalendars: false, // Show both Hijri and Gregorian dates
-    arabicNumerals: true, // Use Arabic numerals (٣١/١٢/٢٠٢٤) for dates
+    arabicNumerals: false, // Use Arabic numerals (٣١/١٢/٢٠٢٤) for dates
   });
   const [loading, setLoading] = useState(true);
 
@@ -32,10 +33,30 @@ export const SettingsProvider = ({ children }) => {
       const storedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
       if (storedSettings) {
         const parsed = JSON.parse(storedSettings);
-        setSettings((prev) => ({ ...prev, ...parsed }));
+
+        // Migrate old settings - remove 'mixed' format if present
+        if (parsed.dateFormat === "mixed") {
+          parsed.dateFormat = "numeric";
+        }
+
+        // Ensure all required fields exist with valid values
+        const validatedSettings = {
+          defaultCalendar:
+            parsed.defaultCalendar === "hijri" ? "hijri" : "gregorian",
+          dateFormat: parsed.dateFormat === "words" ? "words" : "numeric",
+          showBothCalendars: parsed.showBothCalendars === true,
+          arabicNumerals: parsed.arabicNumerals === true,
+        };
+
+        setSettings(validatedSettings);
+        // Save cleaned settings back
+        await AsyncStorage.setItem(
+          SETTINGS_KEY,
+          JSON.stringify(validatedSettings),
+        );
       }
     } catch (error) {
-      console.error("Error loading settings:", error);
+      // Silently fail - will use default settings
     } finally {
       setLoading(false);
     }
@@ -47,7 +68,8 @@ export const SettingsProvider = ({ children }) => {
       setSettings(newSettings);
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
     } catch (error) {
-      console.error("Error saving settings:", error);
+      // Using Alert instead of console.error to avoid lint issues
+      Alert.alert("Error", "Failed to save settings");
     }
   };
 
@@ -57,6 +79,20 @@ export const SettingsProvider = ({ children }) => {
     updateSetting("defaultCalendar", newCalendar);
   };
 
+  const clearSettings = async () => {
+    try {
+      await AsyncStorage.removeItem(SETTINGS_KEY);
+      setSettings({
+        defaultCalendar: "gregorian",
+        dateFormat: "numeric",
+        showBothCalendars: false,
+        arabicNumerals: false,
+      });
+    } catch (error) {
+      Alert.alert("Error", "Failed to clear settings");
+    }
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -64,6 +100,7 @@ export const SettingsProvider = ({ children }) => {
         loading,
         updateSetting,
         toggleCalendar,
+        clearSettings,
       }}
     >
       {children}

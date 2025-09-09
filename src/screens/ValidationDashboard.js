@@ -170,10 +170,9 @@ const ValidationDashboard = ({ navigation }) => {
     );
   }
 
-  const totalIssues = validationData.reduce(
-    (sum, item) => sum + item.issue_count,
-    0,
-  );
+  const totalIssues = Array.isArray(validationData)
+    ? validationData.reduce((sum, item) => sum + (item.issue_count || 0), 0)
+    : 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -210,7 +209,9 @@ const ValidationDashboard = ({ navigation }) => {
           </View>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryLabel}>الفئات</Text>
-            <Text style={styles.summaryValue}>{validationData.length}</Text>
+            <Text style={styles.summaryValue}>
+              {Array.isArray(validationData) ? validationData.length : 0}
+            </Text>
           </View>
         </View>
 
@@ -226,7 +227,7 @@ const ValidationDashboard = ({ navigation }) => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
-        {validationData.length === 0 ? (
+        {!Array.isArray(validationData) || validationData.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="checkmark-circle" size={64} color="#34C759" />
             <Text style={styles.emptyStateTitle}>لا توجد مشكلات</Text>

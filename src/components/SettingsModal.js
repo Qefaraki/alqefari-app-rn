@@ -17,7 +17,7 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 
 export default function SettingsModal({ visible, onClose }) {
-  const { settings, updateSetting } = useSettings();
+  const { settings, updateSetting, clearSettings } = useSettings();
   const [expandedSection, setExpandedSection] = useState("date");
 
   // Sample date for preview - using a valid date
@@ -137,7 +137,6 @@ export default function SettingsModal({ visible, onClose }) {
                   [
                     { label: "رقمي", value: "numeric" },
                     { label: "كلمات", value: "words" },
-                    { label: "مختلط", value: "mixed" },
                   ],
                   settings.dateFormat,
                   (value) => updateSetting("dateFormat", value),
@@ -145,7 +144,6 @@ export default function SettingsModal({ visible, onClose }) {
                 <Text style={styles.optionHint}>
                   {settings.dateFormat === "numeric" && "15/03/2024"}
                   {settings.dateFormat === "words" && "15 مارس 2024"}
-                  {settings.dateFormat === "mixed" && "15 مار 2024"}
                 </Text>
               </View>
 
@@ -179,34 +177,30 @@ export default function SettingsModal({ visible, onClose }) {
                 </View>
               </TouchableOpacity>
 
-              {/* Arabic Numerals (for Hijri) */}
-              {settings.defaultCalendar === "hijri" && (
-                <TouchableOpacity
-                  style={styles.switchOption}
-                  onPress={() =>
-                    updateSetting("arabicNumerals", !settings.arabicNumerals)
+              {/* Arabic Numerals (for both calendar types) */}
+              <TouchableOpacity
+                style={styles.switchOption}
+                onPress={() =>
+                  updateSetting("arabicNumerals", !settings.arabicNumerals)
+                }
+                activeOpacity={0.7}
+              >
+                <Switch
+                  value={settings.arabicNumerals}
+                  onValueChange={(value) =>
+                    updateSetting("arabicNumerals", value)
                   }
-                  activeOpacity={0.7}
-                >
-                  <Switch
-                    value={settings.arabicNumerals}
-                    onValueChange={(value) =>
-                      updateSetting("arabicNumerals", value)
-                    }
-                    trackColor={{ false: "#D1D5DB", true: "#10B981" }}
-                    thumbColor="#FFFFFF"
-                    ios_backgroundColor="#D1D5DB"
-                  />
-                  <View style={styles.switchOptionContent}>
-                    <Text style={styles.switchOptionLabel}>
-                      الأرقام العربية
-                    </Text>
-                    <Text style={styles.switchOptionHint}>
-                      استخدام ١٢٣ بدلاً من 123
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+                  trackColor={{ false: "#D1D5DB", true: "#10B981" }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor="#D1D5DB"
+                />
+                <View style={styles.switchOptionContent}>
+                  <Text style={styles.switchOptionLabel}>الأرقام العربية</Text>
+                  <Text style={styles.switchOptionHint}>
+                    استخدام ١٢٣ بدلاً من 123
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -248,12 +242,7 @@ export default function SettingsModal({ visible, onClose }) {
                   {
                     text: "إعادة تعيين",
                     style: "destructive",
-                    onPress: () => {
-                      updateSetting("defaultCalendar", "gregorian");
-                      updateSetting("dateFormat", "numeric");
-                      updateSetting("showBothCalendars", false);
-                      updateSetting("arabicNumerals", false);
-                    },
+                    onPress: clearSettings,
                   },
                 ],
                 { cancelable: true },
