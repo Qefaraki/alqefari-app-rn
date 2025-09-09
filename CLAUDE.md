@@ -29,6 +29,18 @@ SELECT * FROM admin_auto_fix_issues();      # Fix common issues
 - NO console.log in final code (remove after debugging)
 - Use handleSupabaseError for consistent error handling
 
+## Children Ordering Rules (CRITICAL)
+
+**ALWAYS maintain this ordering for siblings:**
+
+- **Lists (Top to Bottom)**: Oldest child at top, youngest at bottom
+- **Tree View (RTL Layout)**: Oldest child on right, youngest on left
+- **Database**: `sibling_order = 0` is oldest, incrementing for younger siblings
+- **Example**: If Ahmed has 3 children (Fatima born 1990, Omar born 1995, Sara born 2000):
+  - Database: Fatima (0), Omar (1), Sara (2)
+  - List UI: Fatima (top), Omar (middle), Sara (bottom)
+  - Tree UI: Fatima (rightmost), Omar (middle), Sara (leftmost)
+
 ## Project Structure
 
 ```
@@ -56,15 +68,17 @@ supabase/
 ## Key Patterns
 
 ### Database Operations
+
 ```javascript
 // Always use RPC for admin operations
-await supabase.rpc('admin_create_profile', params);
+await supabase.rpc("admin_create_profile", params);
 
 // Use branch-based loading
-await supabase.rpc('get_branch_data', { p_hid, p_max_depth: 3 });
+await supabase.rpc("get_branch_data", { p_hid, p_max_depth: 3 });
 ```
 
 ### State Management
+
 ```javascript
 // Single source of truth in Zustand
 const { nodes, updateNode } = useTreeStore();
@@ -72,10 +86,11 @@ const { nodes, updateNode } = useTreeStore();
 ```
 
 ### Error Handling
+
 ```javascript
 const { data, error } = await profilesService.createProfile(profileData);
 if (error) {
-  Alert.alert('خطأ', handleSupabaseError(error));
+  Alert.alert("خطأ", handleSupabaseError(error));
 }
 ```
 
@@ -118,6 +133,7 @@ SUPABASE_DB_PASSWORD            # CLI only
 ## Git Workflow Rules
 
 ### Branch Management
+
 1. **Create feature branches from master**:
    ```bash
    git checkout master && git pull origin master
@@ -132,17 +148,21 @@ SUPABASE_DB_PASSWORD            # CLI only
 3. **Never commit directly to master**
 
 ### Commit Standards
+
 1. **Atomic commits** - One logical change per commit
 2. **Format**: `type: Short description (50 chars)`
 3. **Include in all commits**:
+
    ```
    🤖 Generated with [Claude Code](https://claude.ai/code)
-   
+
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
+
 4. **Commit after each completed feature/fix**
 
 ### Before Pushing
+
 1. Run quality checks:
    ```bash
    npm run check-format
@@ -153,9 +173,11 @@ SUPABASE_DB_PASSWORD            # CLI only
 3. Push to feature branch: `git push origin branch-name`
 
 ### GitHub Integration
+
 - **Repository**: https://github.com/Qefaraki/alqefari-app-rn
 - **Create PRs for all changes**
 - **Reference**: See `docs/git-workflow-guide.md` for detailed Git instructions
 
 ---
-*Always check docs/ for detailed implementation guides*
+
+_Always check docs/ for detailed implementation guides_

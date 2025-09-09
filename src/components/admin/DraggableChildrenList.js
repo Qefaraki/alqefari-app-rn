@@ -199,7 +199,7 @@ const DraggableChildrenList = ({
     const sortedChildren = [...(initialChildren || [])].sort((a, b) => {
       const orderA = a.sibling_order ?? 999;
       const orderB = b.sibling_order ?? 999;
-      return orderA - orderB; // Oldest first (lower sibling_order = older)
+      return orderA - orderB; // Oldest first (lower sibling_order = older = should appear at top)
     });
     setChildren(sortedChildren);
     originalOrder.current = sortedChildren.map((c) => c.id);

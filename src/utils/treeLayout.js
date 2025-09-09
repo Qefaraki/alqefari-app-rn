@@ -112,11 +112,13 @@ export function calculateTreeLayout(familyData) {
   // Sort children by sibling_order for each parent
   function sortChildrenByOrder(node) {
     if (node.children && node.children.length > 0) {
-      // Sort children by sibling_order (ascending)
+      // Sort children by sibling_order (ascending - oldest first)
+      // On tree: Right to Left = Oldest to Youngest (Arabic RTL)
+      // In lists: Top to Bottom = Oldest to Youngest
       node.children.sort((a, b) => {
         const orderA = a.sibling_order ?? 999;
         const orderB = b.sibling_order ?? 999;
-        return orderA - orderB;
+        return orderA - orderB; // Lower number = older = appears first (rightmost in RTL)
       });
 
       // Recursively sort grandchildren
