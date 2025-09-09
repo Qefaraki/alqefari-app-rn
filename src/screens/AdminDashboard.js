@@ -88,7 +88,7 @@ const AdminDashboard = ({ onClose }) => {
       // Try to load enhanced statistics first
       try {
         const { data: enhancedStats } = await supabase.rpc(
-          "get_enhanced_statistics",
+          "admin_get_enhanced_statistics",
         );
 
         // Check if we got the old structure (no 'basic' property)

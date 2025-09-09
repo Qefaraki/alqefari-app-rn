@@ -68,8 +68,7 @@ import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
 import NodeContextMenu from "./admin/NodeContextMenu";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import QuickAddOverlay from "./admin/QuickAddOverlay";
-import SearchModal from "./SearchModal";
-import SearchButton from "./SearchButton";
+import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 
@@ -390,7 +389,6 @@ const TreeView = ({ setProfileEditMode }) => {
   const longPressTimer = useRef(null);
 
   // Search modal state
-  const [showSearchModal, setShowSearchModal] = useState(false);
 
   // Highlight state for golden effect
   const highlightedNodeId = useSharedValue(null);
@@ -2244,15 +2242,8 @@ const TreeView = ({ setProfileEditMode }) => {
         sharedValues={{ translateX, translateY, scale }}
       />
 
-      {/* Search button */}
-      <SearchButton onPress={() => setShowSearchModal(true)} />
-
-      {/* Search modal */}
-      <SearchModal
-        visible={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
-        onSelectResult={handleSearchResultSelect}
-      />
+      {/* Search bar */}
+      <SearchBar onSelectResult={handleSearchResultSelect} />
 
       {/* Admin components */}
       {isAdminMode && (
