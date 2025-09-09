@@ -138,7 +138,6 @@ const ProfileSheet = ({ editMode = false }) => {
   const [loadingMarriages, setLoadingMarriages] = useState(false);
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
-  const [showRelationshipManager, setShowRelationshipManager] = useState(false);
 
   // Calculate status bar height based on platform
   // iOS: typically 44-47px depending on device
@@ -880,20 +879,6 @@ const ProfileSheet = ({ editMode = false }) => {
                   />
                 ) : null}
               </View>
-
-              {/* Admin Actions */}
-              {isAdminMode && person && (
-                <View style={styles.adminActions}>
-                  <TouchableOpacity
-                    style={styles.adminActionButton}
-                    onPress={() => setShowRelationshipManager(true)}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="people" size={20} color="#007AFF" />
-                    <Text style={styles.adminActionText}>إدارة العلاقات</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           </View>
 
