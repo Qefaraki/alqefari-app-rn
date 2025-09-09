@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -14,45 +20,50 @@ import {
   KeyboardAvoidingView,
   Animated,
   Dimensions,
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import GlassSurface from '../glass/GlassSurface';
-import GlassButton from '../glass/GlassButton';
-import profilesService from '../../services/profiles';
-import { handleSupabaseError } from '../../services/supabase';
-import appConfig from '../../config/appConfig';
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import GlassSurface from "../glass/GlassSurface";
+import GlassButton from "../glass/GlassButton";
+import profilesService from "../../services/profiles";
+import { handleSupabaseError } from "../../services/supabase";
+import appConfig from "../../config/appConfig";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const StatusOptions = [
-  { id: 'married', label: 'متزوج' },
-  { id: 'divorced', label: 'مطلق' },
-  { id: 'widowed', label: 'أرمل' },
+  { id: "married", label: "متزوج" },
+  { id: "divorced", label: "مطلق" },
+  { id: "widowed", label: "أرمل" },
 ];
 
-export default function MarriageEditor({ visible, onClose, person, onCreated }) {
+export default function MarriageEditor({
+  visible,
+  onClose,
+  person,
+  onCreated,
+}) {
   // Mode: 'create' for new spouse, 'link' for existing
-  const [mode, setMode] = useState('create');
-  
+  const [mode, setMode] = useState("create");
+
   // Search/Link mode states
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
   const [selectedSpouse, setSelectedSpouse] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Create mode states
-  const [spouseName, setSpouseName] = useState('');
+  const [spouseName, setSpouseName] = useState("");
   const [parsedName, setParsedName] = useState({
-    firstName: '',
+    firstName: "",
     middleChain: [],
-    familyName: '',
+    familyName: "",
   });
 
   // Family suggestion states
   const [showFamilySuggestion, setShowFamilySuggestion] = useState(false);
-  const [suggestedSearchName, setSuggestedSearchName] = useState('');
+  const [suggestedSearchName, setSuggestedSearchName] = useState("");
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -62,52 +73,55 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
 
   // Auto-determine spouse gender (opposite of person's gender)
   const spouseGender = useMemo(
-    () => (person?.gender === 'male' ? 'female' : 'male'),
+    () => (person?.gender === "male" ? "female" : "male"),
     [person?.gender],
   );
 
   // Dynamic labels based on person's gender
   const modalTitle = useMemo(() => {
-    if (!person) return '';
-    return person.gender === 'male' 
+    if (!person) return "";
+    return person.gender === "male"
       ? `إضافة زوجة لـ ${person.name}`
       : `إضافة زوج لـ ${person.name}`;
   }, [person]);
 
   const inputLabel = useMemo(
-    () => (person?.gender === 'male' ? 'اسم الزوجة' : 'اسم الزوج'),
+    () => (person?.gender === "male" ? "اسم الزوجة" : "اسم الزوج"),
     [person?.gender],
   );
 
   const spouseTitle = useMemo(
-    () => (person?.gender === 'male' ? 'الزوجة' : 'الزوج'),
+    () => (person?.gender === "male" ? "الزوجة" : "الزوج"),
     [person?.gender],
   );
 
   // Helper to get user-friendly error messages
-  const getUserFriendlyError = error => {
+  const getUserFriendlyError = (error) => {
     const errorMessage = error?.message || error;
 
     // Map technical errors to Arabic
-    if (errorMessage?.includes('PCRST202') || errorMessage?.includes('duplicate')) {
-      return 'هذا الشخص موجود بالفعل في شجرة العائلة';
+    if (
+      errorMessage?.includes("PCRST202") ||
+      errorMessage?.includes("duplicate")
+    ) {
+      return "هذا الشخص موجود بالفعل في شجرة العائلة";
     }
-    if (errorMessage?.includes('network') || errorMessage?.includes('fetch')) {
-      return 'تأكد من اتصال الإنترنت وحاول مرة أخرى';
+    if (errorMessage?.includes("network") || errorMessage?.includes("fetch")) {
+      return "تأكد من اتصال الإنترنت وحاول مرة أخرى";
     }
-    if (errorMessage?.includes('23505')) {
-      return 'هذا الزواج مسجل مسبقاً';
+    if (errorMessage?.includes("23505")) {
+      return "هذا الزواج مسجل مسبقاً";
     }
 
     // Use handleSupabaseError for other codes
-    return handleSupabaseError(error) || 'حدث خطأ. حاول مرة أخرى';
+    return handleSupabaseError(error) || "حدث خطأ. حاول مرة أخرى";
   };
 
-  const parseName = useCallback(fullName => {
-    const trimmed = fullName?.trim() || '';
+  const parseName = useCallback((fullName) => {
+    const trimmed = fullName?.trim() || "";
     if (!trimmed) return null;
 
-    const words = trimmed.split(/\s+/).filter(w => w.length > 0);
+    const words = trimmed.split(/\s+/).filter((w) => w.length > 0);
     if (words.length < 2) return null;
 
     return {
@@ -118,15 +132,15 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   }, []);
 
   const formatDisplayName = useCallback(() => {
-    if (!parsedName.firstName || !parsedName.familyName) return '';
+    if (!parsedName.firstName || !parsedName.familyName) return "";
 
     const { firstName, middleChain, familyName } = parsedName;
-    const genderPrefix = spouseGender === 'male' ? 'بن' : 'بنت';
+    const genderPrefix = spouseGender === "male" ? "بن" : "بنت";
 
     // Build the name with proper Arabic formatting
     let displayName = firstName;
     if (middleChain.length > 0) {
-      displayName += ` ${genderPrefix} ${middleChain.join(' ')}`;
+      displayName += ` ${genderPrefix} ${middleChain.join(" ")}`;
     }
 
     // Always show family name in the format "من عائلة X"
@@ -138,19 +152,19 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   useEffect(() => {
     if (visible) {
       // reset on open
-      setMode('create');
-      setQuery('');
+      setMode("create");
+      setQuery("");
       setResults([]);
       setSelectedSpouse(null);
-      setSpouseName('');
+      setSpouseName("");
       setParsedName({
-        firstName: '',
+        firstName: "",
         middleChain: [],
-        familyName: '',
+        familyName: "",
       });
       setShowFamilySuggestion(false);
       setSuggestionDismissed(false);
-      setSuggestedSearchName('');
+      setSuggestedSearchName("");
 
       // Remove animation since Modal handles slide
       scaleAnim.setValue(1);
@@ -164,7 +178,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   }, [visible, scaleAnim, opacityAnim, confirmationOpacity]);
 
   const handleNameChange = useCallback(
-    input => {
+    (input) => {
       setSpouseName(input);
       const parsed = parseName(input);
 
@@ -183,7 +197,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
           parsed.familyName &&
           parsed.firstName &&
           appConfig.family.familyNameVariations.some(
-            variant => parsed.familyName.toLowerCase() === variant.toLowerCase(),
+            (variant) =>
+              parsed.familyName.toLowerCase() === variant.toLowerCase(),
           )
         ) {
           setSuggestedSearchName(input);
@@ -197,9 +212,9 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
         }
       } else {
         setParsedName({
-          firstName: '',
+          firstName: "",
           middleChain: [],
-          familyName: '',
+          familyName: "",
         });
         Animated.timing(confirmationOpacity, {
           toValue: 0,
@@ -212,7 +227,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   );
 
   const performSearch = useCallback(
-    async text => {
+    async (text) => {
       const q = text?.trim();
       if (!q || q.length < appConfig.search.minSearchLength) {
         setResults([]);
@@ -227,8 +242,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
         );
         if (error) throw new Error(error);
         const filtered = (data || [])
-          .filter(p => p.id !== person.id)
-          .filter(p => p.gender === spouseGender);
+          .filter((p) => p.id !== person.id)
+          .filter((p) => p.gender === spouseGender);
         setResults(filtered);
       } catch (e) {
         setResults([]);
@@ -240,51 +255,56 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   );
 
   useEffect(() => {
-    if (mode === 'link') {
-      const t = setTimeout(() => performSearch(query), appConfig.search.debounceDelay);
+    if (mode === "link") {
+      const t = setTimeout(
+        () => performSearch(query),
+        appConfig.search.debounceDelay,
+      );
       return () => clearTimeout(t);
     }
   }, [query, performSearch, mode]);
 
   const handleCreateNewSpouse = async () => {
     if (!parsedName.firstName || !parsedName.familyName) {
-      Alert.alert('تنبيه', 'يرجى كتابة الاسم الكامل');
+      Alert.alert("تنبيه", "يرجى كتابة الاسم الكامل");
       return;
     }
 
     setSubmitting(true);
     try {
-      // First, create the new person
+      // First, create the new person as Munasib (no HID)
+      // Note: Currently the admin_create_profile function auto-generates HID
+      // This will need to be handled differently when the database supports nullable HIDs
       const newPersonData = {
         name: spouseName.trim(),
         gender: spouseGender,
         generation: person.generation, // Same generation as spouse
         is_root: false,
+        // TODO: Add is_munasib: true when database supports it
+        // This flag would prevent HID generation for married-in spouses
       };
 
-      const { data: newPerson, error: createError } = await profilesService.createProfile(
-        newPersonData,
-      );
+      const { data: newPerson, error: createError } =
+        await profilesService.createProfile(newPersonData);
       if (createError) throw createError;
 
       // Then create the marriage
-      const husband_id = person.gender === 'male' ? person.id : newPerson.id;
-      const wife_id = person.gender === 'female' ? person.id : newPerson.id;
+      const husband_id = person.gender === "male" ? person.id : newPerson.id;
+      const wife_id = person.gender === "female" ? person.id : newPerson.id;
       const marriagePayload = {
         husband_id,
         wife_id,
       };
 
-      const { data: marriage, error: marriageError } = await profilesService.createMarriage(
-        marriagePayload,
-      );
+      const { data: marriage, error: marriageError } =
+        await profilesService.createMarriage(marriagePayload);
       if (marriageError) throw marriageError;
 
       if (onCreated) onCreated(marriage);
-      Alert.alert('نجح', 'تم إضافة الزواج بنجاح');
+      Alert.alert("نجح", "تم إضافة الزواج بنجاح");
       onClose();
     } catch (e) {
-      Alert.alert('خطأ', getUserFriendlyError(e));
+      Alert.alert("خطأ", getUserFriendlyError(e));
     } finally {
       setSubmitting(false);
     }
@@ -292,13 +312,15 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
 
   const handleLinkExisting = async () => {
     if (!selectedSpouse) {
-      Alert.alert('تنبيه', 'يرجى اختيار الزوج/الزوجة');
+      Alert.alert("تنبيه", "يرجى اختيار الزوج/الزوجة");
       return;
     }
     setSubmitting(true);
     try {
-      const husband_id = person.gender === 'male' ? person.id : selectedSpouse.id;
-      const wife_id = person.gender === 'female' ? person.id : selectedSpouse.id;
+      const husband_id =
+        person.gender === "male" ? person.id : selectedSpouse.id;
+      const wife_id =
+        person.gender === "female" ? person.id : selectedSpouse.id;
       const payload = {
         husband_id,
         wife_id,
@@ -306,10 +328,10 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
       const { data, error } = await profilesService.createMarriage(payload);
       if (error) throw new Error(error);
       if (onCreated) onCreated(data);
-      Alert.alert('نجح', 'تم إضافة الزواج بنجاح');
+      Alert.alert("نجح", "تم إضافة الزواج بنجاح");
       onClose();
     } catch (e) {
-      Alert.alert('خطأ', getUserFriendlyError(e));
+      Alert.alert("خطأ", getUserFriendlyError(e));
     } finally {
       setSubmitting(false);
     }
@@ -320,7 +342,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
       style={{ flex: 1 }}
       contentContainerStyle={styles.scrollContentContainer}
       showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled">
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.formGroup}>
         <Text style={styles.label}>{inputLabel}</Text>
         <TextInput
@@ -333,7 +356,9 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
           autoCorrect={false}
           autoCapitalize="words"
         />
-        <Text style={styles.helpText}>الاسم الأول واسم العائلة مطلوبان • يمكنك إضافة اسم الأب</Text>
+        <Text style={styles.helpText}>
+          الاسم الأول واسم العائلة مطلوبان • يمكنك إضافة اسم الأب
+        </Text>
       </View>
 
       {parsedName.firstName && parsedName.familyName && (
@@ -351,7 +376,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
                 },
               ],
             },
-          ]}>
+          ]}
+        >
           <View style={styles.previewContent}>
             <View style={styles.previewIcon}>
               <Ionicons name="checkmark-circle" size={22} color="#93C5A9" />
@@ -382,7 +408,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
                 },
               ],
             },
-          ]}>
+          ]}
+        >
           <View style={styles.suggestionContent}>
             <View style={styles.suggestionHeader}>
               <Ionicons name="information-circle" size={24} color="#FFCC80" />
@@ -391,14 +418,16 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
               </Text>
             </View>
 
-            <Text style={styles.suggestionText}>تحقق أولاً من أنه غير موجود في الشجرة</Text>
+            <Text style={styles.suggestionText}>
+              تحقق أولاً من أنه غير موجود في الشجرة
+            </Text>
 
             <View style={styles.suggestionActions}>
               <TouchableOpacity
                 style={styles.suggestionPrimaryButton}
                 onPress={() => {
                   // Transition to search mode with pre-filled query
-                  setMode('link');
+                  setMode("link");
                   setQuery(suggestedSearchName);
                   setShowFamilySuggestion(false);
                   Animated.timing(suggestionAnim, {
@@ -410,7 +439,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
                   setTimeout(() => {
                     performSearch(suggestedSearchName);
                   }, 300);
-                }}>
+                }}
+              >
                 <Ionicons name="search" size={18} color="#FFFFFF" />
                 <Text style={styles.suggestionPrimaryText}>بحث في الشجرة</Text>
               </TouchableOpacity>
@@ -425,8 +455,11 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
                     duration: 200,
                     useNativeDriver: true,
                   }).start();
-                }}>
-                <Text style={styles.suggestionSecondaryText}>متابعة الإضافة</Text>
+                }}
+              >
+                <Text style={styles.suggestionSecondaryText}>
+                  متابعة الإضافة
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -436,7 +469,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   );
 
   const renderLinkMode = () => (
-    <View style={{ flex: 1, backgroundColor: '#F2F2F7' }}>
+    <View style={{ flex: 1, backgroundColor: "#F2F2F7" }}>
       <View style={{ padding: 16, paddingBottom: 0 }}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={22} color="#666666" />
@@ -455,7 +488,8 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 100 }}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+      >
         {loading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color="#007AFF" />
@@ -465,25 +499,40 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={56} color="#999999" />
             <Text style={styles.emptyStateText}>لم نجد نتائج</Text>
-            <Text style={styles.emptyStateHint}>جرب اسماً آخر أو ارجع لإضافة شخص جديد</Text>
+            <Text style={styles.emptyStateHint}>
+              جرب اسماً آخر أو ارجع لإضافة شخص جديد
+            </Text>
           </View>
         ) : (
-          results.map(p => {
+          results.map((p) => {
             const isActive = selectedSpouse?.id === p.id;
             return (
               <TouchableOpacity
                 key={p.id}
                 style={[styles.resultRow, isActive && styles.resultRowActive]}
-                onPress={() => setSelectedSpouse(p)}>
-                <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                  <Text style={[styles.resultName, isActive && styles.resultNameActive]}>
+                onPress={() => setSelectedSpouse(p)}
+              >
+                <View style={{ flex: 1, alignItems: "flex-end" }}>
+                  <Text
+                    style={[
+                      styles.resultName,
+                      isActive && styles.resultNameActive,
+                    ]}
+                  >
                     {p.name}
                   </Text>
-                  <Text style={[styles.resultMeta, isActive && styles.resultMetaActive]}>
+                  <Text
+                    style={[
+                      styles.resultMeta,
+                      isActive && styles.resultMetaActive,
+                    ]}
+                  >
                     HID: {p.hid}
                   </Text>
                 </View>
-                {isActive && <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />}
+                {isActive && (
+                  <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+                )}
               </TouchableOpacity>
             );
           })
@@ -494,11 +543,12 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
         <TouchableOpacity
           style={styles.backToCreateButton}
           onPress={() => {
-            setMode('create');
-            setQuery('');
+            setMode("create");
+            setQuery("");
             setResults([]);
             setSelectedSpouse(null);
-          }}>
+          }}
+        >
           <Ionicons name="arrow-forward" size={20} color="#6B93B5" />
           <Text style={styles.backToCreateText}>العودة للإضافة</Text>
         </TouchableOpacity>
@@ -509,25 +559,37 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
   if (!visible) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => {}}>
-          <Animated.View
-            style={styles.modalContainer}>
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={() => {}}
+        >
+          <Animated.View style={styles.modalContainer}>
             <View style={styles.modal}>
               {/* Modern iOS-style header */}
               <BlurView intensity={100} style={styles.headerBlur}>
                 <View style={styles.header}>
-                  <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <TouchableOpacity
+                    onPress={onClose}
+                    style={styles.closeButton}
+                  >
                     <View style={styles.closeButtonCircle}>
                       <Ionicons name="close" size={20} color="#666" />
                     </View>
                   </TouchableOpacity>
                   <View style={styles.titleContainer}>
                     <Text style={styles.title}>{modalTitle}</Text>
-                    {mode === 'link' && (
+                    {mode === "link" && (
                       <Text style={styles.subtitle}>
                         ابحث عن {spouseTitle} في الشجرة
                       </Text>
@@ -538,7 +600,7 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
               </BlurView>
 
               <View style={styles.content}>
-                {mode === 'create' ? renderCreateMode() : renderLinkMode()}
+                {mode === "create" ? renderCreateMode() : renderLinkMode()}
               </View>
 
               {/* Modern iOS-style footer */}
@@ -546,27 +608,33 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
                 <View style={styles.footer}>
                   <GlassButton
                     title={
-                      mode === 'create'
+                      mode === "create"
                         ? parsedName.firstName && parsedName.familyName
-                          ? 'حفظ'
-                          : 'اكتب الاسم أولاً'
+                          ? "حفظ"
+                          : "اكتب الاسم أولاً"
                         : selectedSpouse
-                          ? 'ربط الزواج'
-                          : 'اختر شخصاً أولاً'
+                          ? "ربط الزواج"
+                          : "اختر شخصاً أولاً"
                     }
-                    onPress={mode === 'create' ? handleCreateNewSpouse : handleLinkExisting}
+                    onPress={
+                      mode === "create"
+                        ? handleCreateNewSpouse
+                        : handleLinkExisting
+                    }
                     loading={submitting}
                     disabled={
-                      mode === 'create' 
+                      mode === "create"
                         ? !parsedName.firstName || !parsedName.familyName
                         : !selectedSpouse
                     }
-                    style={{ width: '100%' }}
+                    style={{ width: "100%" }}
                     variant={
-                      (mode === 'create' && parsedName.firstName && parsedName.familyName) ||
-                      (mode === 'link' && selectedSpouse)
-                        ? 'primary'
-                        : 'secondary'
+                      (mode === "create" &&
+                        parsedName.firstName &&
+                        parsedName.familyName) ||
+                      (mode === "link" && selectedSpouse)
+                        ? "primary"
+                        : "secondary"
                     }
                   />
                 </View>
@@ -582,22 +650,22 @@ export default function MarriageEditor({ visible, onClose, person, onCreated }) 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',  // Align to bottom for slide animation
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end", // Align to bottom for slide animation
+    alignItems: "center",
   },
   modalContainer: {
     width: SCREEN_WIDTH,
     maxWidth: 600,
-    height: SCREEN_HEIGHT * 0.92,  // 92% of screen height for better button visibility
+    height: SCREEN_HEIGHT * 0.92, // 92% of screen height for better button visibility
     maxHeight: SCREEN_HEIGHT * 0.92,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   modal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
+    overflow: "hidden",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: -3,
@@ -605,59 +673,59 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 25,
-    height: '100%',
+    height: "100%",
     flex: 1,
   },
   headerBlur: {
     paddingTop: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 8 : 16,
+    paddingTop: Platform.OS === "ios" ? 8 : 16,
     paddingBottom: 10,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    borderBottomColor: "rgba(0, 0, 0, 0.08)",
   },
   closeButton: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   closeButtonCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(120, 120, 128, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(120, 120, 128, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   titleContainer: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#000',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#000",
+    textAlign: "center",
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 13,
-    fontWeight: '400',
-    color: '#8E8E93',
-    textAlign: 'center',
+    fontWeight: "400",
+    color: "#8E8E93",
+    textAlign: "center",
   },
   content: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: "#F2F2F7",
   },
   scrollContentContainer: {
     flexGrow: 1,
@@ -669,22 +737,22 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    color: '#000000',
+    color: "#000000",
     marginBottom: 12,
-    textAlign: 'right',
-    fontWeight: '500',
+    textAlign: "right",
+    fontWeight: "500",
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 18,
     fontSize: 18,
-    color: '#000',
+    color: "#000",
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: "rgba(0, 0, 0, 0.06)",
     minHeight: 60,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -695,50 +763,50 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginTop: 8,
-    textAlign: 'right',
+    textAlign: "right",
     lineHeight: 18,
-    fontStyle: 'normal',
+    fontStyle: "normal",
   },
   namePreview: {
     marginBottom: 20,
   },
   previewContent: {
-    backgroundColor: 'rgba(147, 197, 169, 0.1)',
+    backgroundColor: "rgba(147, 197, 169, 0.1)",
     borderRadius: 14,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     borderWidth: 1,
-    borderColor: 'rgba(147, 197, 169, 0.3)',
+    borderColor: "rgba(147, 197, 169, 0.3)",
   },
   previewIcon: {
     width: 36,
     height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(147, 197, 169, 0.15)',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(147, 197, 169, 0.15)",
     borderRadius: 18,
   },
   previewText: {
     fontSize: 17,
-    color: '#2C3E50',
-    fontWeight: '500',
-    textAlign: 'right',
+    color: "#2C3E50",
+    fontWeight: "500",
+    textAlign: "right",
     flex: 1,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
-    shadowColor: '#000',
+    borderColor: "rgba(0, 0, 0, 0.06)",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -751,32 +819,32 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     marginLeft: 12,
-    color: '#000',
-    textAlign: 'right',
+    color: "#000",
+    textAlign: "right",
   },
   loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 40,
     gap: 12,
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    color: "#666666",
   },
   resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.06)',
-    shadowColor: '#000',
+    borderColor: "rgba(0, 0, 0, 0.06)",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -786,118 +854,118 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   resultRowActive: {
-    backgroundColor: '#9CC0D9',
-    borderColor: '#9CC0D9',
+    backgroundColor: "#9CC0D9",
+    borderColor: "#9CC0D9",
   },
   resultName: {
     fontSize: 18,
-    color: '#000',
-    fontWeight: '500',
+    color: "#000",
+    fontWeight: "500",
   },
   resultNameActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   resultMeta: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: "#8E8E93",
     marginTop: 4,
   },
   resultMetaActive: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: "rgba(255, 255, 255, 0.8)",
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 60,
   },
   emptyStateText: {
     fontSize: 18,
-    color: '#666666',
+    color: "#666666",
     marginTop: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   emptyStateHint: {
     fontSize: 14,
-    color: '#999999',
+    color: "#999999",
     marginTop: 8,
   },
   backToCreateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
     paddingVertical: 16,
-    backgroundColor: 'rgba(156, 192, 217, 0.15)',
+    backgroundColor: "rgba(156, 192, 217, 0.15)",
     borderRadius: 12,
   },
   backToCreateText: {
     fontSize: 15,
-    color: '#6B93B5',
-    fontWeight: '500',
+    color: "#6B93B5",
+    fontWeight: "500",
   },
   suggestionCard: {
     marginBottom: 20,
     marginTop: 12,
   },
   suggestionContent: {
-    backgroundColor: 'rgba(255, 237, 204, 0.4)',
+    backgroundColor: "rgba(255, 237, 204, 0.4)",
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 204, 128, 0.5)',
-    position: 'relative',
+    borderColor: "rgba(255, 204, 128, 0.5)",
+    position: "relative",
   },
   suggestionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     marginBottom: 8,
   },
   suggestionTitle: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     flex: 1,
-    textAlign: 'right',
+    textAlign: "right",
   },
   suggestionText: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 16,
-    textAlign: 'right',
+    textAlign: "right",
     lineHeight: 20,
   },
   suggestionActions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
   suggestionPrimaryButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 204, 128, 0.8)',
+    backgroundColor: "rgba(255, 204, 128, 0.8)",
     paddingVertical: 12,
     borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
   suggestionPrimaryText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   suggestionSecondaryButton: {
     flex: 1,
-    backgroundColor: 'rgba(255, 204, 128, 0.1)',
+    backgroundColor: "rgba(255, 204, 128, 0.1)",
     paddingVertical: 12,
     borderRadius: 10,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'rgba(255, 204, 128, 0.5)',
+    borderColor: "rgba(255, 204, 128, 0.5)",
   },
   suggestionSecondaryText: {
-    color: '#D4A574',
+    color: "#D4A574",
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   footerBlur: {
     borderBottomLeftRadius: 16,
@@ -905,13 +973,13 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 16,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 16,  // Reduced padding for better fit
-    backgroundColor: 'transparent',
+    paddingBottom: Platform.OS === "ios" ? 24 : 16, // Reduced padding for better fit
+    backgroundColor: "transparent",
   },
   searchLinkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     paddingVertical: 16,
     marginTop: 20,
@@ -919,7 +987,7 @@ const styles = StyleSheet.create({
   },
   searchLinkText: {
     fontSize: 15,
-    color: '#007AFF',
-    fontWeight: '500',
+    color: "#007AFF",
+    fontWeight: "500",
   },
 });
