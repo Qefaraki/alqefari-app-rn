@@ -1,37 +1,46 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Platform, View } from 'react-native';
-import tokens from './tokens';
+import React from "react";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  View,
+} from "react-native";
+import tokens from "./tokens";
 
-const Button = ({ 
-  title, 
-  onPress, 
-  loading = false, 
+const Button = ({
+  title,
+  onPress,
+  loading = false,
   disabled = false,
   style,
-  variant = 'primary', // 'primary' | 'secondary' | 'danger'
+  variant = "primary", // 'primary' | 'secondary' | 'danger'
   accessibilityLabel,
 }) => {
   const isDisabled = disabled || loading;
+  const shadowStyle =
+    Platform.OS === "ios" ? tokens.shadow.ios : tokens.shadow.android;
 
   const getVariantStyles = () => {
     switch (variant) {
-      case 'secondary':
+      case "secondary":
         return {
           button: styles.secondaryButton,
           text: styles.secondaryText,
           spinner: tokens.colors.accent,
         };
-      case 'danger':
+      case "danger":
         return {
           button: styles.dangerButton,
           text: styles.primaryText,
-          spinner: '#FFFFFF',
+          spinner: "#FFFFFF",
         };
       default:
         return {
           button: styles.primaryButton,
           text: styles.primaryText,
-          spinner: '#FFFFFF',
+          spinner: "#FFFFFF",
         };
     }
   };
@@ -42,6 +51,7 @@ const Button = ({
     <TouchableOpacity
       style={[
         styles.button,
+        shadowStyle,
         variantStyles.button,
         isDisabled && styles.disabled,
         style,
@@ -66,10 +76,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderRadius: tokens.radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     minHeight: 50,
-    ...(Platform.OS === 'ios' ? tokens.shadow.ios : tokens.shadow.android),
+    // Shadow styles applied dynamically in render
   },
   primaryButton: {
     backgroundColor: tokens.colors.accent,
@@ -87,10 +97,10 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   secondaryText: {
     color: tokens.colors.accent,
@@ -98,4 +108,3 @@ const styles = StyleSheet.create({
 });
 
 export default Button;
-
