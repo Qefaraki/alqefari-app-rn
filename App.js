@@ -13,7 +13,7 @@ import AdminDashboard from "./src/screens/AdminDashboard";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
 import { checkAndCreateAdminProfile } from "./src/utils/checkAdminProfile";
-import useTreeStore from "./src/stores/useTreeStore";
+import { useTreeStore } from "./src/stores/useTreeStore";
 import "./global.css";
 
 export default function App() {

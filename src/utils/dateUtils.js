@@ -1,4 +1,10 @@
 import moment from "moment-hijri";
+import {
+  hijriToGregorian,
+  gregorianToHijri,
+  isValidHijriDate,
+  isValidGregorianDate,
+} from "./hijriConverter";
 
 // Configure moment for Arabic locale
 moment.locale("ar");
@@ -103,7 +109,34 @@ export const createFromHijri = (year, month, day) => {
   }
 
   try {
-    // moment-hijri expects format: iYYYY/iM/iD
+    // For ancient dates (before year 1000 Hijri), use our custom converter
+    if (year < 1000) {
+      // Validate the Hijri date
+      if (!isValidHijriDate(year, month, day)) {
+        return null;
+      }
+
+      // Convert to Gregorian
+      const gregorian = hijriToGregorian(year, month, day);
+      if (!gregorian) {
+        return null;
+      }
+
+      // Create a moment object from the Gregorian date
+      const m = moment()
+        .year(gregorian.year)
+        .month(gregorian.month - 1)
+        .date(gregorian.day);
+
+      // Store the original Hijri values for later retrieval
+      m._hijriYear = year;
+      m._hijriMonth = month;
+      m._hijriDay = day;
+
+      return m;
+    }
+
+    // For recent dates, use moment-hijri for better accuracy
     const hijriDateString = `${year}/${month}/${day}`;
     const m = moment(hijriDateString, "iYYYY/iM/iD");
 
@@ -114,6 +147,7 @@ export const createFromHijri = (year, month, day) => {
 
     return m;
   } catch (error) {
+    console.error("Error creating date from Hijri:", error);
     return null;
   }
 };
@@ -162,24 +196,44 @@ export const toDateData = (momentObj, approximate = false) => {
     let hijriYear, hijriMonth, hijriDay;
     let display;
 
-    try {
-      hijriYear = momentObj.iYear();
-      hijriMonth = momentObj.iMonth() + 1;
-      hijriDay = momentObj.iDate();
+    // Check if we have stored Hijri values (for ancient dates)
+    if (momentObj._hijriYear && momentObj._hijriMonth && momentObj._hijriDay) {
+      hijriYear = momentObj._hijriYear;
+      hijriMonth = momentObj._hijriMonth;
+      hijriDay = momentObj._hijriDay;
+      display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+    } else {
+      // For dates without stored Hijri values, try different approaches
+      try {
+        // First try moment-hijri's built-in conversion
+        hijriYear = momentObj.iYear();
+        hijriMonth = momentObj.iMonth() + 1;
+        hijriDay = momentObj.iDate();
 
-      // Validate Hijri values
-      if (!isNaN(hijriDay) && !isNaN(hijriMonth) && !isNaN(hijriYear)) {
-        // Format display string (Hijri)
-        display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
-      } else {
-        // If Hijri conversion fails, use Gregorian display
-        hijriYear = hijriMonth = hijriDay = null;
-        display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
+        // Validate Hijri values
+        if (!isNaN(hijriDay) && !isNaN(hijriMonth) && !isNaN(hijriYear)) {
+          display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+        } else {
+          throw new Error("Invalid Hijri conversion");
+        }
+      } catch (hijriError) {
+        // If moment-hijri fails, use our custom converter
+        const hijriConverted = gregorianToHijri(
+          gregorianYear,
+          gregorianMonth,
+          gregorianDay,
+        );
+        if (hijriConverted) {
+          hijriYear = hijriConverted.year;
+          hijriMonth = hijriConverted.month;
+          hijriDay = hijriConverted.day;
+          display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+        } else {
+          // If all conversions fail, use Gregorian display
+          hijriYear = hijriMonth = hijriDay = null;
+          display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
+        }
       }
-    } catch (hijriError) {
-      // If Hijri conversion throws an error, use Gregorian display
-      hijriYear = hijriMonth = hijriDay = null;
-      display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
     }
 
     // Return structure compatible with database
@@ -209,6 +263,7 @@ export const toDateData = (momentObj, approximate = false) => {
       display,
     };
   } catch (error) {
+    console.error("Error converting to date data:", error);
     return null;
   }
 };
