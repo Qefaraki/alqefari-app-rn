@@ -191,8 +191,8 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
         .select(
           `
           id, name, gender, hid, birth_date, death_date, 
-          status, sibling_order, dob_data, dod_data,
-          mother:mother_id(id, name)
+          status, sibling_order, dob_data, dod_data, father_id, mother_id,
+          mother:profiles!mother_id(id, name)
         `,
         )
         .or(`father_id.eq.${profile.id},mother_id.eq.${profile.id}`)

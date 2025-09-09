@@ -70,7 +70,9 @@ import ProgressiveImage, {
 } from "./ProgressiveImage";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
 import MarriageEditor from "./admin/MarriageEditor";
-import RelationshipManagerV2 from "./admin/RelationshipManagerV2";
+import FatherSelector from "./admin/fields/FatherSelector";
+import MotherSelector from "./admin/fields/MotherSelector";
+import DraggableChildrenList from "./admin/DraggableChildrenList";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 // Direct translation of the original web ProfileSheet.jsx to Expo
@@ -157,6 +159,12 @@ const ProfileSheet = ({ editMode = false }) => {
   const [editedData, setEditedData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
   const [dateErrors, setDateErrors] = useState({ dob: null, dod: null });
+
+  // Relationship data for editing
+  const [relationshipChildren, setRelationshipChildren] = useState([]);
+  const [loadingRelationshipChildren, setLoadingRelationshipChildren] =
+    useState(false);
+  const [showMarriageEditor, setShowMarriageEditor] = useState(false);
 
   // Detect if there are unsaved changes
   const hasChanges = useMemo(() => {
@@ -382,9 +390,40 @@ const ProfileSheet = ({ editMode = false }) => {
     }
   }, [selectedPersonId]);
 
+  // Load relationship children for editing
+  const loadRelationshipChildren = async () => {
+    if (!person?.id) return;
+
+    setLoadingRelationshipChildren(true);
+    try {
+      const { data: childrenData, error: childrenError } = await supabase
+        .from("profiles")
+        .select(
+          `
+          id, name, gender, hid, birth_date, death_date, 
+          status, sibling_order, dob_data, dod_data, father_id, mother_id,
+          mother:profiles!mother_id(id, name)
+        `,
+        )
+        .or(`father_id.eq.${person.id},mother_id.eq.${person.id}`)
+        .order("sibling_order", { ascending: true });
+
+      if (!childrenError && childrenData) {
+        setRelationshipChildren(childrenData);
+      }
+    } catch (error) {
+      console.error("Error loading relationship children:", error);
+    } finally {
+      setLoadingRelationshipChildren(false);
+    }
+  };
+
   // Initialize edit data when entering edit mode
   useEffect(() => {
     if (isEditing && person && !editedData) {
+      // Load children for relationship editing
+      loadRelationshipChildren();
+
       const initialData = {
         // Personal Identity
         name: person.name || "",
@@ -1195,6 +1234,90 @@ const ProfileSheet = ({ editMode = false }) => {
                     </TouchableOpacity>
                   </View>
                 </View>
+
+                {/* Parents Section - Admin Only */}
+                {isAdminMode && (
+                  <View style={styles.relationshipSection}>
+                    <Text style={styles.sectionTitle}>الوالدين</Text>
+                    <FatherSelector
+                      value={editedData?.father_id}
+                      onChange={(id) =>
+                        setEditedData({ ...editedData, father_id: id })
+                      }
+                      currentPersonId={person?.id}
+                      excludeIds={[person?.id]}
+                    />
+                    <View style={{ marginTop: 12 }}>
+                      <MotherSelector
+                        value={editedData?.mother_id}
+                        onChange={(id) =>
+                          setEditedData({ ...editedData, mother_id: id })
+                        }
+                        currentPersonId={person?.id}
+                        excludeIds={[person?.id]}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* Marriages Section - Males Only, Admin Only */}
+                {person?.gender === "male" && isAdminMode && (
+                  <View style={styles.relationshipSection}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>الزوجات</Text>
+                      <TouchableOpacity
+                        style={styles.addButton}
+                        onPress={() => setShowMarriageEditor(true)}
+                      >
+                        <Text style={styles.addButtonText}>+ إضافة</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {marriages.length > 0 ? (
+                      <View style={styles.marriagesList}>
+                        {marriages.map((marriage) => (
+                          <View key={marriage.id} style={styles.marriageItem}>
+                            <Text style={styles.marriageText}>
+                              {marriage.wife_name || "غير محدد"}
+                            </Text>
+                            {marriage.is_current && (
+                              <View style={styles.currentBadge}>
+                                <Text style={styles.currentText}>حالي</Text>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+                    )}
+                  </View>
+                )}
+
+                {/* Children Section */}
+                {person?.id && (
+                  <View
+                    style={[
+                      styles.relationshipSection,
+                      { paddingHorizontal: 0 },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.sectionTitle, { paddingHorizontal: 16 }]}
+                    >
+                      الأبناء
+                    </Text>
+                    {loadingRelationshipChildren ? (
+                      <ActivityIndicator style={{ padding: 20 }} />
+                    ) : (
+                      <DraggableChildrenList
+                        initialChildren={relationshipChildren}
+                        parentProfile={person}
+                        onUpdate={loadRelationshipChildren}
+                        isAdmin={isAdminMode}
+                      />
+                    )}
+                  </View>
+                )}
               </View>
             ) : (
               <DefinitionList
@@ -1551,22 +1674,12 @@ const ProfileSheet = ({ editMode = false }) => {
           )}
           {person && (
             <MarriageEditor
-              visible={showMarriageModal}
-              onClose={() => setShowMarriageModal(false)}
-              person={person}
-              onCreated={handleMarriageCreated}
-            />
-          )}
-
-          {/* Relationship Manager Modal */}
-          {person && (
-            <RelationshipManagerV2
-              visible={showRelationshipManager}
-              onClose={() => setShowRelationshipManager(false)}
-              profile={person}
-              onUpdate={() => {
-                // Reload person data if needed
-                // Don't close the modal on update - just refresh data if needed
+              visible={showMarriageEditor}
+              onClose={() => setShowMarriageEditor(false)}
+              husbandId={person?.id}
+              onSave={() => {
+                setShowMarriageEditor(false);
+                loadMarriages();
               }}
             />
           )}
@@ -2097,6 +2210,67 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000000",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  relationshipSection: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#000000",
+    marginBottom: 16,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  addButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#007AFF",
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  marriagesList: {
+    gap: 8,
+  },
+  marriageItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F7F7FA",
+    borderRadius: 8,
+    gap: 8,
+  },
+  marriageText: {
+    flex: 1,
+    fontSize: 16,
+    color: "#000000",
+  },
+  currentBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#E8F5E9",
+    borderRadius: 4,
+  },
+  currentText: {
+    fontSize: 12,
+    color: "#4CAF50",
+    fontWeight: "600",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#8A8A8E",
+    textAlign: "center",
+    padding: 20,
   },
 });
 

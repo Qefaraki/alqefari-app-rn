@@ -1,22 +1,4 @@
--- EMERGENCY FIX: Restore get_branch_data function with date fields
--- This fixes the "column reference ambiguous" error and restores all generations
-
--- First, drop all broken versions
-DO $$ 
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN 
-        SELECT oid::regprocedure AS func_signature
-        FROM pg_proc 
-        WHERE proname = 'get_branch_data'
-    LOOP
-        EXECUTE 'DROP FUNCTION IF EXISTS ' || r.func_signature || ' CASCADE';
-        RAISE NOTICE 'Dropped: %', r.func_signature;
-    END LOOP;
-END $$;
-
--- Create the WORKING version based on migration 033
+-- Fix ambiguous column references in get_branch_data
 CREATE OR REPLACE FUNCTION get_branch_data(
     p_hid TEXT,
     p_max_depth INT DEFAULT 3,
@@ -38,8 +20,22 @@ RETURNS TABLE (
     layout_position JSONB,
     descendants_count INT,
     has_more_descendants BOOLEAN,
+    -- Add missing date fields
     dob_data JSONB,
-    dod_data JSONB
+    dod_data JSONB,
+    -- Add other useful fields
+    bio TEXT,
+    birth_place TEXT,
+    education TEXT,
+    phone TEXT,
+    email TEXT,
+    social_media_links JSONB,
+    achievements JSONB,
+    timeline JSONB,
+    kunya TEXT,
+    nickname TEXT,
+    profile_visibility TEXT,
+    dob_is_public BOOLEAN
 ) AS $$
 DECLARE
     root_depth INT;
@@ -57,9 +53,9 @@ BEGIN
     IF p_hid IS NULL THEN
         root_depth := 1;
     ELSE
-        SELECT p.generation INTO root_depth
-        FROM profiles p
-        WHERE p.hid = p_hid;
+        SELECT profiles.generation INTO root_depth
+        FROM profiles
+        WHERE profiles.hid = p_hid;
         
         IF root_depth IS NULL THEN
             RAISE EXCEPTION 'Profile with hid % not found', p_hid;
@@ -68,7 +64,7 @@ BEGIN
 
     RETURN QUERY
     WITH RECURSIVE descendant_tree AS (
-        -- Base case: starting node(s) - explicitly list columns to avoid ambiguity
+        -- Base case: starting node(s)
         SELECT 
             p.id,
             p.hid,
@@ -85,6 +81,18 @@ BEGIN
             p.layout_position,
             p.dob_data,
             p.dod_data,
+            p.bio,
+            p.birth_place,
+            p.education,
+            p.phone,
+            p.email,
+            p.social_media_links,
+            p.achievements,
+            p.timeline,
+            p.kunya,
+            p.nickname,
+            p.profile_visibility,
+            p.dob_is_public,
             0 as relative_depth,
             COUNT(c.id) OVER (PARTITION BY p.id) as child_count
         FROM profiles p
@@ -94,7 +102,7 @@ BEGIN
         
         UNION ALL
         
-        -- Recursive case: get descendants - explicitly list columns
+        -- Recursive case: get descendants
         SELECT 
             p.id,
             p.hid,
@@ -111,6 +119,18 @@ BEGIN
             p.layout_position,
             p.dob_data,
             p.dod_data,
+            p.bio,
+            p.birth_place,
+            p.education,
+            p.phone,
+            p.email,
+            p.social_media_links,
+            p.achievements,
+            p.timeline,
+            p.kunya,
+            p.nickname,
+            p.profile_visibility,
+            p.dob_is_public,
             dt.relative_depth + 1,
             COUNT(c.id) OVER (PARTITION BY p.id) as child_count
         FROM profiles p
@@ -141,21 +161,24 @@ BEGIN
         dt.occupation,
         dt.layout_position,
         COALESCE(ds.total_descendants, 0)::INT as descendants_count,
-        CASE 
-            WHEN dt.relative_depth >= p_max_depth - 1 AND dt.child_count > 0 THEN true
-            ELSE false
-        END as has_more_descendants,
+        (dt.child_count > 0 AND dt.relative_depth >= p_max_depth - 1) as has_more_descendants,
         dt.dob_data,
-        dt.dod_data
+        dt.dod_data,
+        dt.bio,
+        dt.birth_place,
+        dt.education,
+        dt.phone,
+        dt.email,
+        dt.social_media_links,
+        dt.achievements,
+        dt.timeline,
+        dt.kunya,
+        dt.nickname,
+        dt.profile_visibility,
+        dt.dob_is_public
     FROM descendant_tree dt
     LEFT JOIN descendants_summary ds ON ds.id = dt.id
-    ORDER BY dt.generation, dt.sibling_order
+    ORDER BY dt.generation, dt.sibling_order, dt.hid
     LIMIT p_limit;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
-
--- Grant permissions
-GRANT EXECUTE ON FUNCTION get_branch_data TO anon, authenticated, service_role;
-
--- Test it works
-SELECT 'Function restored with date fields!' as status;
+$$ LANGUAGE plpgsql STABLE;
