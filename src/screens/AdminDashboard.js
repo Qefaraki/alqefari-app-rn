@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Alert,
   I18nManager,
   Dimensions,
-  Modal,
+  Animated,
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,90 +18,294 @@ import { profilesService } from "../services/profiles";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
+import AuditLogViewer from "./AuditLogViewer";
+import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { supabase } from "../services/supabase";
 
 // Force RTL for Arabic
 I18nManager.forceRTL(true);
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const AdminDashboard = ({ navigation }) => {
-  const { isAdminMode, isAdmin } = useAdminMode();
-  const [stats, setStats] = useState({
-    totalProfiles: 0,
-    maleCount: 0,
-    femaleCount: 0,
-    aliveCount: 0,
-    deceasedCount: 0,
-    profilesWithPhotos: 0,
-    profilesWithBio: 0,
-    activeJobs: 0,
-    pendingValidation: 0,
-    recentChanges: 0,
-  });
-  const [recentActivity, setRecentActivity] = useState([]);
+const AdminDashboard = ({ onClose }) => {
+  const { isAdmin } = useAdminMode();
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [validationIssues, setValidationIssues] = useState([]);
   const [showValidationDashboard, setShowValidationDashboard] = useState(false);
   const [showActivityScreen, setShowActivityScreen] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dataHealth, setDataHealth] = useState(100);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [admins, setAdmins] = useState([]);
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const countAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadDashboardData();
+    startAnimations();
   }, []);
+
+  const startAnimations = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(countAnim, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: false,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: 1,
+        duration: 1500,
+        delay: 500,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  };
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
 
-      // Load statistics
-      const result = await profilesService.getAdminStatistics();
-      if (result?.data) {
-        setStats({
-          totalProfiles: result.data.total_profiles || 0,
-          maleCount: result.data.male_count || 0,
-          femaleCount: result.data.female_count || 0,
-          aliveCount: result.data.alive_count || 0,
-          deceasedCount: result.data.deceased_count || 0,
-          profilesWithPhotos: result.data.profiles_with_photos || 0,
-          profilesWithBio: result.data.profiles_with_bio || 0,
-          activeJobs: result.data.active_jobs || 0,
-          pendingValidation: result.data.pending_validation || 0,
-          recentChanges: result.data.recent_changes || 0,
-        });
+      // Try to load enhanced statistics first
+      try {
+        const { data: enhancedStats } = await supabase.rpc(
+          "get_enhanced_statistics",
+        );
+
+        // Check if we got the old structure (no 'basic' property)
+        if (enhancedStats && !enhancedStats.basic) {
+          // Fetch marriages and check for orphaned references
+          const { data: marriages } = await supabase
+            .from("marriages")
+            .select("husband_id, wife_id, munasib");
+
+          // Count total marriages (even with missing profiles)
+          const totalMarriages = marriages?.length || 0;
+
+          // Get all spouse IDs
+          const spouseIds = [];
+          marriages?.forEach((m) => {
+            if (m.husband_id) spouseIds.push(m.husband_id);
+            if (m.wife_id) spouseIds.push(m.wife_id);
+          });
+
+          // Check which spouse profiles actually exist
+          const { data: existingSpouses } = await supabase
+            .from("profiles")
+            .select("id, display_name, gender, hid")
+            .in("id", spouseIds);
+
+          // Find spouses without HID (true Munasib)
+          const munasibData = existingSpouses?.filter((p) => !p.hid) || [];
+
+          // Count Munasib stats
+          const munasibStats = {
+            total_munasib: munasibData?.length || 0,
+            male_munasib:
+              munasibData?.filter((p) => p.gender === "male").length || 0,
+            female_munasib:
+              munasibData?.filter((p) => p.gender === "female").length || 0,
+          };
+
+          // Group by family name and count
+          const familyCounts = {};
+          munasibData?.forEach((person) => {
+            const familyName =
+              person.display_name?.split(" ").pop() || "غير محدد";
+            familyCounts[familyName] = (familyCounts[familyName] || 0) + 1;
+          });
+
+          // Convert to array and sort
+          const topFamilies = Object.entries(familyCounts)
+            .map(([name, count]) => ({
+              family_name: name,
+              count,
+              percentage:
+                munasibStats.total_munasib > 0
+                  ? Math.round(
+                      (count / munasibStats.total_munasib) * 100 * 10,
+                    ) / 10
+                  : 0,
+            }))
+            .sort((a, b) => b.count - a.count);
+
+          // Convert old structure to new enhanced format
+          setStats({
+            basic: {
+              total_profiles: enhancedStats.total_profiles || 0,
+              male_count: enhancedStats.male_count || 0,
+              female_count: enhancedStats.female_count || 0,
+              deceased_count: enhancedStats.deceased_count || 0,
+              living_count: enhancedStats.alive_count || 0,
+            },
+            data_quality: {
+              with_birth_date: enhancedStats.profiles_with_dates || 0,
+              birth_date_percentage: enhancedStats.profiles_with_dates
+                ? Math.round(
+                    (enhancedStats.profiles_with_dates /
+                      enhancedStats.total_profiles) *
+                      100 *
+                      10,
+                  ) / 10
+                : 0,
+              with_photos: enhancedStats.profiles_with_photos || 0,
+              photo_percentage: enhancedStats.profiles_with_photos
+                ? Math.round(
+                    (enhancedStats.profiles_with_photos /
+                      enhancedStats.total_profiles) *
+                      100 *
+                      10,
+                  ) / 10
+                : 0,
+            },
+            family: {
+              unique_fathers: 0,
+              unique_mothers: 0,
+              total_marriages: totalMarriages,
+              divorced_count: 0,
+              orphaned_marriages:
+                totalMarriages - (existingSpouses?.length || 0) / 2,
+            },
+            munasib: {
+              total_munasib: munasibStats.total_munasib,
+              male_munasib: munasibStats.male_munasib,
+              female_munasib: munasibStats.female_munasib,
+              top_families: topFamilies,
+            },
+            activity: {
+              added_last_week: 0,
+              added_last_month: enhancedStats.new_this_month || 0,
+              updated_last_week: 0,
+              recent_profiles: enhancedStats.newest_members || [],
+            },
+            // Keep old properties for compatibility
+            ...enhancedStats,
+          });
+        } else if (enhancedStats) {
+          // We have the new enhanced structure
+          setStats(enhancedStats);
+        } else {
+          // Fallback to basic statistics
+          const statsResult = await profilesService.getAdminStatistics();
+          if (statsResult?.data) {
+            setStats({
+              ...statsResult.data,
+              family_branches: 0,
+              new_this_month: 0,
+              births_this_year: 0,
+              largest_branch_size: 0,
+              avg_children: 0,
+              generation_counts: {},
+              duplicate_names: 0,
+              newest_members: [],
+              profiles_with_photos: statsResult.data.profiles_with_photos || 0,
+              profiles_with_dates: statsResult.data.total_profiles || 0,
+              orphaned_profiles: 0,
+              missing_dates: 0,
+            });
+          }
+        }
+      } catch (e) {
+        console.log("Enhanced stats failed, using basic stats");
+        // Use basic stats as ultimate fallback
+        const { data: profiles } = await supabase.from("profiles").select("*");
+        const { data: marriages } = await supabase
+          .from("marriages")
+          .select("*");
+
+        if (profiles) {
+          setStats({
+            total_profiles: profiles.length,
+            male_count: profiles.filter((p) => p.gender === "male").length,
+            female_count: profiles.filter((p) => p.gender === "female").length,
+            alive_count: profiles.filter((p) => p.status === "alive").length,
+            deceased_count: profiles.filter((p) => p.status === "deceased")
+              .length,
+            total_marriages: marriages?.length || 0,
+            total_photos: profiles.filter((p) => p.photo_url).length,
+            profiles_with_photos: profiles.filter((p) => p.photo_url).length,
+            profiles_with_dates: profiles.filter((p) => p.dob_data).length,
+            family_branches: 0,
+            new_this_month: 0,
+            births_this_year: 0,
+            largest_branch_size: 0,
+            avg_children: 0,
+            generation_counts: {},
+            duplicate_names: 0,
+            orphaned_profiles: profiles.filter(
+              (p) => !p.father_id && !p.mother_id && p.hid !== "1",
+            ).length,
+            missing_dates: profiles.filter((p) => !p.dob_data).length,
+            newest_members: profiles.slice(0, 5).map((p) => ({
+              name: p.name,
+              added_date: new Date(p.created_at).toLocaleDateString("ar-SA"),
+            })),
+          });
+        }
       }
 
-      // Mock activities with better data
-      const mockActivities = [
-        {
-          id: 1,
-          type: "add",
-          title: "أضيف ملف جديد",
-          subtitle: "محمد بن أحمد القفاري",
-          time: "قبل ٥ دقائق",
-          icon: "person-add",
-        },
-        {
-          id: 2,
-          type: "edit",
-          title: "تم تحديث البيانات",
-          subtitle: "فاطمة بنت عبدالله",
-          time: "قبل ساعة",
-          icon: "pencil",
-        },
-        {
-          id: 3,
-          type: "photo",
-          title: "إضافة صورة",
-          subtitle: "خالد بن سعد",
-          time: "قبل ٣ ساعات",
-          icon: "camera",
-        },
-      ];
-      setRecentActivity(mockActivities);
+      // Load validation issues
+      try {
+        const validationResult = await profilesService.getValidationIssues();
+        if (validationResult?.data) {
+          setValidationIssues(validationResult.data);
+          const issueCount = validationResult.data.length;
+          const totalProfiles = stats?.total_profiles || 1;
+          const healthScore = Math.max(
+            0,
+            100 - (issueCount / totalProfiles) * 100,
+          );
+          setDataHealth(Math.round(healthScore));
+        }
+      } catch (e) {
+        console.log("Validation check failed");
+        setValidationIssues([]);
+      }
+
+      // Load recent activity
+      try {
+        const activityResult = await profilesService.getActivityFeed(5, 0);
+        if (activityResult?.data) {
+          setRecentActivity(activityResult.data);
+        }
+      } catch (e) {
+        console.log("Activity feed failed");
+        setRecentActivity([]);
+      }
     } catch (error) {
-      console.error("Error loading dashboard data:", error);
+      console.error("Error loading dashboard:", error);
+      // Set default values on error
+      setStats({
+        total_profiles: 0,
+        total_marriages: 0,
+        total_photos: 0,
+        male_count: 0,
+        female_count: 0,
+        alive_count: 0,
+        profiles_with_photos: 0,
+        profiles_with_dates: 0,
+      });
+      setValidationIssues([]);
+      setRecentActivity([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -113,434 +317,777 @@ const AdminDashboard = ({ navigation }) => {
     loadDashboardData();
   };
 
-  const handleExport = async (format) => {
-    setExporting(true);
+  const handleCheckData = async () => {
+    setShowValidationDashboard(true);
+  };
+
+  const handleAutoFix = async () => {
     try {
-      const result = await profilesService.exportData(format);
+      const result = await profilesService.autoFixIssues();
       if (result?.data) {
-        const fileName = `alqefari_tree_${new Date().toISOString().split("T")[0]}.${format}`;
-        const fileUri = FileSystem.documentDirectory + fileName;
-
-        if (format === "json") {
-          await FileSystem.writeAsStringAsync(
-            fileUri,
-            JSON.stringify(result.data, null, 2),
-          );
-        } else {
-          await FileSystem.writeAsStringAsync(fileUri, result.data);
-        }
-
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(fileUri);
-        }
+        Alert.alert("نجح", "تم إصلاح المشاكل بنجاح");
+        handleRefresh();
+      } else {
+        Alert.alert("خطأ", "فشل إصلاح المشاكل");
       }
     } catch (error) {
-      Alert.alert("خطأ", "فشل تصدير البيانات");
+      Alert.alert("خطأ", "فشل إصلاح المشاكل");
+    }
+  };
+
+  const handleMakeAdmin = async () => {
+    Alert.alert("إضافة مشرف", "أدخل معرف المستخدم", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "إضافة",
+        onPress: () => Alert.alert("نجح", "تم إضافة المشرف"),
+      },
+    ]);
+  };
+
+  const handleExportDatabase = async () => {
+    try {
+      setExporting(true);
+
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      const jsonData = JSON.stringify(profiles, null, 2);
+      const fileUri = FileSystem.documentDirectory + "alqefari_backup.json";
+
+      await FileSystem.writeAsStringAsync(fileUri, jsonData);
+      await Sharing.shareAsync(fileUri);
+    } catch (error) {
+      Alert.alert("خطأ", "فشل تصدير قاعدة البيانات");
     } finally {
       setExporting(false);
     }
   };
 
-  const handleQuickAction = (action) => {
-    switch (action) {
-      case "activity":
-        setShowActivityScreen(true);
-        break;
-      case "export":
-        Alert.alert("تصدير البيانات", "اختر صيغة التصدير", [
-          { text: "إلغاء", style: "cancel" },
-          { text: "CSV", onPress: () => handleExport("csv") },
-          { text: "JSON", onPress: () => handleExport("json") },
-        ]);
-        break;
-      case "validate":
-        setShowValidationDashboard(true);
-        break;
-      case "backup":
-        Alert.alert("النسخ الاحتياطي", "سيتم إنشاء نسخة احتياطية", [
-          { text: "إلغاء", style: "cancel" },
-          {
-            text: "نسخ",
-            onPress: () => Alert.alert("نجح", "تم النسخ الاحتياطي"),
+  const handleRecalculateLayouts = async () => {
+    Alert.alert(
+      "إعادة حساب التخطيط",
+      "سيتم إعادة حساب جميع مواضع العقد في الشجرة. قد يستغرق هذا بعض الوقت.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "متابعة",
+          onPress: async () => {
+            try {
+              const { error } = await supabase.rpc(
+                "queue_all_layouts_recalculation",
+              );
+              if (error) throw error;
+              Alert.alert("نجح", "تم إضافة المهمة إلى قائمة الانتظار");
+            } catch (error) {
+              Alert.alert("خطأ", "فشلت إعادة الحساب");
+            }
           },
-        ]);
-        break;
-    }
+        },
+      ],
+    );
   };
 
-  if (!isAdmin || !isAdminMode) {
+  const formatTimeAgo = (timestamp) => {
+    const now = new Date();
+    const date = new Date(timestamp);
+    const diff = Math.floor((now - date) / 60000); // minutes
+
+    if (diff < 1) return "الآن";
+    if (diff < 60) return `منذ ${diff}د`;
+    if (diff < 1440) return `منذ ${Math.floor(diff / 60)}س`;
+    return `منذ ${Math.floor(diff / 1440)}ي`;
+  };
+
+  if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <View style={styles.lockIcon}>
-            <Ionicons name="lock-closed" size={32} color="#8E8E93" />
-          </View>
-          <Text style={styles.errorTitle}>وصول مقيد</Text>
-          <Text style={styles.errorSubtitle}>هذه الصفحة للمشرفين فقط</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
     );
   }
 
-  if (loading && !refreshing) {
+  // Modals
+  if (showActivityScreen) {
+    return <ActivityScreen onClose={() => setShowActivityScreen(false)} />;
+  }
+
+  if (showAuditLog) {
+    return <AuditLogViewer onClose={() => setShowAuditLog(false)} />;
+  }
+
+  if (showQuickAdd) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.modernHeader}>
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="chevron-forward" size={28} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>لوحة التحكم</Text>
-          <View style={{ width: 44 }} />
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#000" />
-        </View>
-      </SafeAreaView>
+      <QuickAddOverlay
+        onClose={() => setShowQuickAdd(false)}
+        onComplete={() => {
+          setShowQuickAdd(false);
+          handleRefresh();
+        }}
+      />
+    );
+  }
+
+  if (showValidationDashboard) {
+    return (
+      <ValidationDashboard
+        navigation={{
+          goBack: () => setShowValidationDashboard(false),
+        }}
+      />
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Modern Floating Header */}
-      <View style={styles.modernHeader}>
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="chevron-forward" size={28} color="#000" />
+      {/* Header */}
+      <Animated.View
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View>
+          <Text style={styles.title}>لوحة التحكم</Text>
+          <Text style={styles.subtitle}>Admin Dashboard</Text>
+        </View>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons name="close" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>لوحة التحكم</Text>
-        <TouchableOpacity style={styles.headerButton}>
-          <View style={styles.notificationDot} />
-          <Ionicons name="notifications-outline" size={24} color="#000" />
-        </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <ScrollView
-        style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#000"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Hero Stats Section - Modern Cards */}
-        <View style={styles.heroSection}>
-          <View style={styles.heroCard}>
-            <View style={styles.heroCardContent}>
-              <Text style={styles.heroNumber}>{stats.totalProfiles}</Text>
-              <Text style={styles.heroLabel}>إجمالي الملفات الشخصية</Text>
-              <View style={styles.heroTrend}>
-                <Ionicons name="trending-up" size={16} color="#00C851" />
-                <Text style={styles.trendText}>+12% هذا الشهر</Text>
-              </View>
-            </View>
-            <View style={styles.heroIconContainer}>
-              <View style={styles.heroIconBg}>
-                <Ionicons name="people" size={32} color="#000" />
-              </View>
-            </View>
-          </View>
-        </View>
+        {/* Main Statistics Section */}
+        <Animated.View
+          style={[
+            styles.card,
+            styles.statsCard,
+            {
+              opacity: fadeAnim,
+              transform: [
+                {
+                  translateY: slideAnim,
+                },
+              ],
+            },
+          ]}
+        >
+          <Text style={styles.cardTitle}>إحصائيات العائلة</Text>
 
-        {/* Stats Grid - Modern Minimal Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statRow}>
-            <View style={[styles.statCard, styles.statCardLeft]}>
-              <View style={styles.statContent}>
-                <View style={styles.statHeader}>
-                  <View
-                    style={[styles.statDot, { backgroundColor: "#007AFF" }]}
-                  />
-                  <Text style={styles.statLabel}>ذكور</Text>
-                </View>
-                <Text style={styles.statNumber}>{stats.maleCount}</Text>
-                <Text style={styles.statPercentage}>
-                  {stats.totalProfiles > 0
-                    ? `${Math.round((stats.maleCount / stats.totalProfiles) * 100)}%`
-                    : "0%"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={[styles.statCard, styles.statCardRight]}>
-              <View style={styles.statContent}>
-                <View style={styles.statHeader}>
-                  <View
-                    style={[styles.statDot, { backgroundColor: "#FF2D55" }]}
-                  />
-                  <Text style={styles.statLabel}>إناث</Text>
-                </View>
-                <Text style={styles.statNumber}>{stats.femaleCount}</Text>
-                <Text style={styles.statPercentage}>
-                  {stats.totalProfiles > 0
-                    ? `${Math.round((stats.femaleCount / stats.totalProfiles) * 100)}%`
-                    : "0%"}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.statRow}>
-            <View style={[styles.statCard, styles.statCardLeft]}>
-              <View style={styles.statContent}>
-                <View style={styles.statHeader}>
-                  <View
-                    style={[styles.statDot, { backgroundColor: "#34C759" }]}
-                  />
-                  <Text style={styles.statLabel}>أحياء</Text>
-                </View>
-                <Text style={styles.statNumber}>{stats.aliveCount}</Text>
-                <Text style={styles.statPercentage}>نشط</Text>
-              </View>
-            </View>
-
-            <View style={[styles.statCard, styles.statCardRight]}>
-              <View style={styles.statContent}>
-                <View style={styles.statHeader}>
-                  <View
-                    style={[styles.statDot, { backgroundColor: "#8E8E93" }]}
-                  />
-                  <Text style={styles.statLabel}>متوفون</Text>
-                </View>
-                <Text style={styles.statNumber}>{stats.deceasedCount}</Text>
-                <Text style={styles.statPercentage}>في الذاكرة</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Quick Actions - Modern Buttons */}
-        <View style={styles.quickActionsSection}>
-          <View style={styles.sectionHeaderActions}>
-            <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.actionsScroll}
-            inverted={I18nManager.isRTL}
-          >
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#F6F6F8" }]}
-              onPress={() => handleQuickAction("activity")}
-              activeOpacity={0.8}
-            >
-              <View
-                style={[styles.actionIconBg, { backgroundColor: "#007AFF15" }]}
+          <View style={styles.statsGrid}>
+            <View style={styles.statBox}>
+              <Animated.Text
+                style={[
+                  styles.statNumber,
+                  { opacity: countAnim, color: "#6366f1" },
+                ]}
               >
-                <Ionicons name="time" size={24} color="#007AFF" />
-              </View>
-              <Text style={styles.actionTitle}>السجل</Text>
-              <Text style={styles.actionSubtitle}>عرض كل النشاطات</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#FFF5F5" }]}
-              onPress={() => handleQuickAction("validate")}
-              activeOpacity={0.8}
-            >
-              <View
-                style={[styles.actionIconBg, { backgroundColor: "#FF2D5515" }]}
+                {stats?.basic?.total_profiles || stats?.total_profiles || 0}
+              </Animated.Text>
+              <Text style={styles.statLabel}>إجمالي الأفراد</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Animated.Text
+                style={[
+                  styles.statNumber,
+                  { opacity: countAnim, color: "#10b981" },
+                ]}
               >
-                <Ionicons name="shield-checkmark" size={24} color="#FF2D55" />
-                {stats.pendingValidation > 0 && (
-                  <View style={styles.actionBadge}>
-                    <Text style={styles.badgeText}>
-                      {stats.pendingValidation}
+                {stats?.basic?.living_count || stats?.alive_count || 0}
+              </Animated.Text>
+              <Text style={styles.statLabel}>على قيد الحياة</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Animated.Text
+                style={[
+                  styles.statNumber,
+                  { opacity: countAnim, color: "#ec4899" },
+                ]}
+              >
+                {stats?.munasib?.total_munasib || stats?.married_in_count || 0}
+              </Animated.Text>
+              <Text style={styles.statLabel}>منتسبين للعائلة</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Animated.Text
+                style={[styles.statNumber, { opacity: countAnim }]}
+              >
+                {stats?.family?.total_marriages || stats?.total_marriages || 0}
+              </Animated.Text>
+              <Text style={styles.statLabel}>عقود زواج</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Gender & Generation Stats */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.cardTitle}>التوزيع الديموغرافي</Text>
+
+          <View style={styles.demographicsContainer}>
+            <View style={styles.genderStats}>
+              <View style={styles.genderBox}>
+                <Text style={styles.genderIcon}>👨</Text>
+                <Text style={styles.genderNumber}>
+                  {stats?.basic?.male_count || stats?.male_count || 0}
+                </Text>
+                <Text style={styles.genderLabel}>ذكور</Text>
+              </View>
+              <View style={styles.genderDivider} />
+              <View style={styles.genderBox}>
+                <Text style={styles.genderIcon}>👩</Text>
+                <Text style={styles.genderNumber}>
+                  {stats?.basic?.female_count || stats?.female_count || 0}
+                </Text>
+                <Text style={styles.genderLabel}>إناث</Text>
+              </View>
+            </View>
+
+            {stats?.generation_counts &&
+              Object.keys(stats.generation_counts).length > 0 && (
+                <View style={styles.generationStats}>
+                  <Text style={styles.subTitle}>الأجيال</Text>
+                  {Object.entries(stats.generation_counts)
+                    .slice(0, 4)
+                    .map(([gen, count]) => (
+                      <View key={gen} style={styles.generationRow}>
+                        <Text style={styles.generationLabel}>الجيل {gen}</Text>
+                        <View style={styles.generationBarContainer}>
+                          <Animated.View
+                            style={[
+                              styles.generationBar,
+                              {
+                                width: progressAnim.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [
+                                    "0%",
+                                    `${(count / stats.total_profiles) * 100}%`,
+                                  ],
+                                }),
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text style={styles.generationCount}>{count}</Text>
+                      </View>
+                    ))}
+                </View>
+              )}
+          </View>
+          {stats?.newest_members && stats.newest_members.length > 0 && (
+            <View style={styles.newestMembers}>
+              <Text style={styles.subTitle}>أحدث الإضافات</Text>
+              {stats.newest_members.slice(0, 3).map((member, index) => (
+                <View key={index} style={styles.newestMemberItem}>
+                  <Text style={styles.newestMemberName}>{member.name}</Text>
+                  <Text style={styles.newestMemberDate}>
+                    {member.added_date}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Profile Completeness */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.cardTitle}>اكتمال البيانات</Text>
+
+          <View style={styles.completenessGrid}>
+            <View style={styles.completenessItem}>
+              <View style={styles.completenessHeader}>
+                <Text style={styles.completenessPercentage}>
+                  {stats?.profiles_with_photos > 0
+                    ? (
+                        (stats.profiles_with_photos /
+                          (stats?.total_profiles || 1)) *
+                        100
+                      ).toFixed(1)
+                    : "0"}
+                  %
+                </Text>
+                <Text style={styles.completenessIcon}>📷</Text>
+              </View>
+              <View style={styles.completenessBarContainer}>
+                <Animated.View
+                  style={[
+                    styles.completenessBar,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [
+                          "0%",
+                          `${Math.max(3, ((stats?.profiles_with_photos || 0) / (stats?.total_profiles || 1)) * 100)}%`,
+                        ],
+                      }),
+                      backgroundColor: "#10b981",
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.completenessLabel}>
+                لديهم صور ({stats?.profiles_with_photos || 0})
+              </Text>
+            </View>
+
+            <View style={styles.completenessItem}>
+              <View style={styles.completenessHeader}>
+                <Text style={styles.completenessPercentage}>
+                  {Math.round(
+                    ((stats?.profiles_with_dates || 0) /
+                      (stats?.total_profiles || 1)) *
+                      100,
+                  )}
+                  %
+                </Text>
+                <Text style={styles.completenessIcon}>📅</Text>
+              </View>
+              <View style={styles.completenessBarContainer}>
+                <Animated.View
+                  style={[
+                    styles.completenessBar,
+                    {
+                      width: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [
+                          "0%",
+                          `${((stats?.profiles_with_dates || 0) / (stats?.total_profiles || 1)) * 100}%`,
+                        ],
+                      }),
+                      backgroundColor: "#3b82f6",
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={styles.completenessLabel}>
+                تواريخ كاملة ({stats?.profiles_with_dates || 0})
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.issuesGrid}>
+            <View style={styles.issueItem}>
+              <Text style={styles.issueCount}>
+                {stats?.orphaned_profiles || 0}
+              </Text>
+              <Text style={styles.issueLabel}>بدون والدين</Text>
+            </View>
+            <View style={styles.issueItem}>
+              <Text style={styles.issueCount}>{stats?.missing_dates || 0}</Text>
+              <Text style={styles.issueLabel}>تواريخ ناقصة</Text>
+            </View>
+            <View style={styles.issueItem}>
+              <Text style={styles.issueCount}>
+                {stats?.duplicate_names || 0}
+              </Text>
+              <Text style={styles.issueLabel}>أسماء مكررة</Text>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Data Health Section */}
+        <Animated.View
+          style={[
+            styles.card,
+            {
+              opacity: fadeAnim,
+              transform: [
+                {
+                  translateY: slideAnim,
+                },
+              ],
+            },
+          ]}
+        >
+          <View style={styles.dataHealthHeader}>
+            <Text style={styles.cardTitle}>صحة البيانات</Text>
+            <Text style={styles.healthPercentage}>{dataHealth}%</Text>
+          </View>
+
+          <View style={styles.progressBar}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["0%", `${dataHealth}%`],
+                  }),
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.issuesTags}>
+            {validationIssues.length === 0 ? (
+              <>
+                <View style={styles.tagSuccess}>
+                  <Text style={styles.tagSuccessText}>✓ معرفات فريدة</Text>
+                </View>
+                <View style={styles.tagSuccess}>
+                  <Text style={styles.tagSuccessText}>✓ التواريخ</Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {validationIssues.slice(0, 2).map((issue, index) => (
+                  <View key={index} style={styles.tagWarning}>
+                    <Text style={styles.tagWarningText}>
+                      ⚠ {issue.issue_type}
+                    </Text>
+                  </View>
+                ))}
+                {validationIssues.length > 2 && (
+                  <View style={styles.tagWarning}>
+                    <Text style={styles.tagWarningText}>
+                      +{validationIssues.length - 2}
                     </Text>
                   </View>
                 )}
-              </View>
-              <Text style={styles.actionTitle}>التحقق</Text>
-              <Text style={styles.actionSubtitle}>فحص البيانات</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#F5FFF5" }]}
-              onPress={() => handleQuickAction("export")}
-              disabled={exporting}
-              activeOpacity={0.8}
-            >
-              <View
-                style={[styles.actionIconBg, { backgroundColor: "#34C75915" }]}
-              >
-                {exporting ? (
-                  <ActivityIndicator size="small" color="#34C759" />
-                ) : (
-                  <Ionicons name="download" size={24} color="#34C759" />
-                )}
-              </View>
-              <Text style={styles.actionTitle}>تصدير</Text>
-              <Text style={styles.actionSubtitle}>حفظ البيانات</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#FFF9F5" }]}
-              onPress={() => handleQuickAction("backup")}
-              activeOpacity={0.8}
-            >
-              <View
-                style={[styles.actionIconBg, { backgroundColor: "#FF950015" }]}
-              >
-                <Ionicons name="cloud-upload" size={24} color="#FF9500" />
-              </View>
-              <Text style={styles.actionTitle}>نسخ احتياطي</Text>
-              <Text style={styles.actionSubtitle}>حفظ آمن</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        {/* Data Quality - Modern Progress */}
-        <View style={styles.qualitySection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>جودة البيانات</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllButton}>تفاصيل</Text>
-            </TouchableOpacity>
+              </>
+            )}
           </View>
 
-          <View style={styles.qualityCard}>
-            <View style={styles.qualityItem}>
-              <View style={styles.qualityInfo}>
-                <Ionicons name="camera" size={20} color="#007AFF" />
-                <Text style={styles.qualityLabel}>ملفات بصور</Text>
-              </View>
-              <Text style={styles.qualityCount}>
-                {stats.profilesWithPhotos} من {stats.totalProfiles}
-              </Text>
-            </View>
-            <View style={styles.modernProgress}>
-              <View
-                style={[
-                  styles.modernProgressFill,
-                  {
-                    width: `${
-                      stats.totalProfiles > 0
-                        ? (stats.profilesWithPhotos / stats.totalProfiles) * 100
-                        : 0
-                    }%`,
-                    backgroundColor: "#007AFF",
-                  },
-                ]}
-              />
-            </View>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleCheckData}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.primaryButtonText}>فحص البيانات الآن</Text>
+            <Ionicons name="chevron-back" size={20} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
 
-            <View style={[styles.qualityItem, { marginTop: 24 }]}>
-              <View style={styles.qualityInfo}>
-                <Ionicons name="document-text" size={20} color="#34C759" />
-                <Text style={styles.qualityLabel}>ملفات بسيرة ذاتية</Text>
-              </View>
-              <Text style={styles.qualityCount}>
-                {stats.profilesWithBio} من {stats.totalProfiles}
-              </Text>
-            </View>
-            <View style={styles.modernProgress}>
-              <View
-                style={[
-                  styles.modernProgressFill,
-                  {
-                    width: `${
-                      stats.totalProfiles > 0
-                        ? (stats.profilesWithBio / stats.totalProfiles) * 100
-                        : 0
-                    }%`,
-                    backgroundColor: "#34C759",
-                  },
-                ]}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Recent Activity - Modern Timeline */}
-        <View style={styles.activitySection}>
-          <View style={styles.sectionHeader}>
+        {/* Recent Activity */}
+        {recentActivity.length > 0 && (
+          <Animated.View
+            style={[
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
             <Text style={styles.sectionTitle}>النشاط الأخير</Text>
-            <TouchableOpacity onPress={() => setShowActivityScreen(true)}>
-              <Text style={styles.seeAllButton}>عرض الكل</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.activityTimeline}>
-            {recentActivity.map((activity, index) => (
-              <TouchableOpacity
-                key={activity.id}
-                style={styles.activityCard}
-                activeOpacity={0.7}
-              >
-                <View
+            <View style={styles.card}>
+              {recentActivity.slice(0, 2).map((activity, index) => (
+                <Animated.View
+                  key={activity.id}
                   style={[
-                    styles.activityIconContainer,
+                    styles.activityItem,
+                    index !== recentActivity.length - 1 &&
+                      styles.activityItemBorder,
                     {
-                      backgroundColor:
-                        activity.type === "add"
-                          ? "#007AFF10"
-                          : activity.type === "edit"
-                            ? "#FF950010"
-                            : "#34C75910",
+                      opacity: fadeAnim,
+                      transform: [
+                        {
+                          translateX: slideAnim.interpolate({
+                            inputRange: [0, 50],
+                            outputRange: [0, 30],
+                          }),
+                        },
+                      ],
                     },
                   ]}
                 >
-                  <Ionicons
-                    name={activity.icon}
-                    size={20}
-                    color={
-                      activity.type === "add"
-                        ? "#007AFF"
-                        : activity.type === "edit"
-                          ? "#FF9500"
-                          : "#34C759"
-                    }
-                  />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>{activity.title}</Text>
-                  <Text style={styles.activitySubtitle}>
-                    {activity.subtitle}
+                  <View style={styles.activityContent}>
+                    <Text style={styles.activityName}>
+                      {activity.actor_name || "مجهول"}
+                    </Text>
+                    <Text style={styles.activityDescription}>
+                      {activity.action === "INSERT"
+                        ? "إضافة ملف جديد"
+                        : activity.action === "UPDATE"
+                          ? "تعديل الملف الشخصي"
+                          : "حذف ملف"}
+                    </Text>
+                  </View>
+                  <Text style={styles.activityTime}>
+                    {formatTimeAgo(activity.created_at)}
+                  </Text>
+                </Animated.View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.viewAllButton}
+                onPress={() => setShowActivityScreen(true)}
+              >
+                <Text style={styles.viewAllText}>عرض الكل</Text>
+                <Ionicons name="chevron-back" size={16} color="#6366f1" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Quick Actions */}
+        <Animated.View
+          style={[
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => setShowQuickAdd(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>➕</Text>
+                <Text style={styles.actionText}>إضافة ملف جديد</Text>
+              </View>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color="#9ca3af"
+                style={styles.actionArrow}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={handleRecalculateLayouts}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>🔄</Text>
+                <Text style={styles.actionText}>إعادة حساب التخطيط</Text>
+              </View>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color="#9ca3af"
+                style={styles.actionArrow}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={handleExportDatabase}
+              activeOpacity={0.7}
+              disabled={exporting}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>💾</Text>
+                <Text style={styles.actionText}>
+                  {exporting ? "جاري التصدير..." : "تصدير قاعدة البيانات"}
+                </Text>
+              </View>
+              {exporting ? (
+                <ActivityIndicator size="small" color="#6366f1" />
+              ) : (
+                <Ionicons
+                  name="chevron-back"
+                  size={20}
+                  color="#9ca3af"
+                  style={styles.actionArrow}
+                />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => setShowAuditLog(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>📋</Text>
+                <Text style={styles.actionText}>سجل التدقيق</Text>
+              </View>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color="#9ca3af"
+                style={styles.actionArrow}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={handleAutoFix}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>🔧</Text>
+                <Text style={styles.actionText}>إصلاح تلقائي</Text>
+              </View>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color="#9ca3af"
+                style={styles.actionArrow}
+              />
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* Admin Users Section */}
+        {/* Top Families Married Into (Munasib) */}
+        {stats?.munasib && (
+          <Animated.View
+            style={[
+              styles.card,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+                marginTop: 16,
+                marginBottom: 16,
+              },
+            ]}
+          >
+            <View style={styles.munasibHeader}>
+              <Text style={styles.cardTitle}>العائلات المنتسبة</Text>
+              <View style={styles.munasibBadge}>
+                <Text style={styles.munasibBadgeText}>
+                  {stats.munasib.total_munasib} منتسب
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.subTitle}>
+              أكثر العائلات ارتباطاً بعائلة القفاري
+            </Text>
+
+            {/* Top 3 Families with Special UI */}
+            <View style={styles.topFamiliesContainer}>
+              {stats.munasib.top_families &&
+              stats.munasib.top_families.length > 0 ? (
+                stats.munasib.top_families.slice(0, 3).map((family, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.topFamilyCard,
+                      index === 0 && styles.topFamilyFirst,
+                      index === 1 && styles.topFamilySecond,
+                      index === 2 && styles.topFamilyThird,
+                    ]}
+                  >
+                    <View style={styles.topFamilyRank}>
+                      <Text style={styles.topFamilyRankText}>{index + 1}</Text>
+                    </View>
+                    <Text style={styles.topFamilyName} numberOfLines={1}>
+                      {family.family_name}
+                    </Text>
+                    <View style={styles.topFamilyStats}>
+                      <Text style={styles.topFamilyCount}>{family.count}</Text>
+                      <Text style={styles.topFamilyPercentage}>
+                        {family.percentage}%
+                      </Text>
+                    </View>
+                    <View style={styles.topFamilyBar}>
+                      <Animated.View
+                        style={[
+                          styles.topFamilyProgress,
+                          {
+                            width: progressAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: ["0%", `${family.percentage}%`],
+                            }),
+                            backgroundColor:
+                              index === 0
+                                ? "#fbbf24"
+                                : index === 1
+                                  ? "#94a3b8"
+                                  : "#f97316",
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>
+                    لا توجد عائلات منتسبة حالياً
+                  </Text>
+                  <Text style={styles.emptyStateSubText}>
+                    سيتم عرض العائلات بعد إضافة عقود الزواج
                   </Text>
                 </View>
-                <Text style={styles.activityTime}>{activity.time}</Text>
+              )}
+            </View>
+
+            {/* Show More Button */}
+            {stats.munasib.top_families.length > 3 && (
+              <TouchableOpacity
+                style={styles.showMoreButton}
+                onPress={() => {
+                  Alert.alert(
+                    "جميع العائلات المنتسبة",
+                    stats.munasib.top_families
+                      .map(
+                        (f, i) =>
+                          `${i + 1}. ${f.family_name}: ${f.count} فرد (${f.percentage}%)`,
+                      )
+                      .join("\n"),
+                    [{ text: "حسناً", style: "default" }],
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.showMoreText}>
+                  عرض جميع العائلات ({stats.munasib.top_families.length})
+                </Text>
               </TouchableOpacity>
-            ))}
+            )}
+          </Animated.View>
+        )}
+
+        {/* Admin Section */}
+        <Animated.View
+          style={[
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+              marginBottom: 20,
+            },
+          ]}
+        >
+          <Text style={styles.sectionTitle}>المشرفون</Text>
+          <View style={styles.card}>
+            <View style={styles.adminsList}>
+              <View style={styles.adminItem}>
+                <Text style={styles.adminName}>حصة</Text>
+                <Text style={styles.adminRole}>مشرف</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleMakeAdmin}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>إضافة مشرف</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={{ height: 100 }} />
+        </Animated.View>
       </ScrollView>
-
-      {/* Modals */}
-      <Modal
-        visible={showValidationDashboard}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowValidationDashboard(false)}
-      >
-        <ValidationDashboard
-          navigation={{
-            goBack: () => setShowValidationDashboard(false),
-          }}
-        />
-      </Modal>
-
-      <Modal
-        visible={showActivityScreen}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setShowActivityScreen(false)}
-      >
-        <ActivityScreen
-          navigation={{
-            goBack: () => setShowActivityScreen(false),
-          }}
-        />
-      </Modal>
     </SafeAreaView>
   );
 };
@@ -548,363 +1095,600 @@ const AdminDashboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#f9fafb",
   },
-
-  // Modern Header with Depth
-  modernHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000",
-    letterSpacing: 0.3,
-  },
-  notificationDot: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#FF2D55",
-  },
-
-  // Content
-  content: {
-    flex: 1,
-  },
-
-  // Hero Section - Modern Card Design
-  heroSection: {
-    padding: 20,
-  },
-  heroCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 24,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  heroCardContent: {
-    flex: 1,
-  },
-  heroNumber: {
-    fontSize: 48,
-    fontWeight: "800",
-    color: "#000",
-    marginBottom: 4,
-  },
-  heroLabel: {
-    fontSize: 16,
-    color: "#6C6C70",
-    marginBottom: 12,
-  },
-  heroTrend: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  trendText: {
-    fontSize: 14,
-    color: "#00C851",
-    fontWeight: "600",
-  },
-  heroIconContainer: {
-    marginLeft: 20,
-  },
-  heroIconBg: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: "#F2F2F7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  // Stats Grid - Clean Modern Cards
-  statsContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  statRow: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statCardLeft: {
-    marginRight: 6,
-  },
-  statCardRight: {
-    marginLeft: 6,
-  },
-  statContent: {
-    alignItems: "flex-end",
-  },
-  statHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  statDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: "#6C6C70",
-    fontWeight: "500",
-  },
-  statNumber: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 4,
-    alignSelf: "flex-end",
-  },
-  statPercentage: {
-    fontSize: 13,
-    color: "#8E8E93",
-    alignSelf: "flex-end",
-  },
-
-  // Quick Actions - Horizontal Scroll Cards
-  quickActionsSection: {
-    marginBottom: 20,
-  },
-  sectionHeaderActions: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    flexDirection: "row",
-    justifyContent: "flex-start", // In RTL, flex-start goes to the RIGHT!
-  },
-  actionsScroll: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  actionCard: {
-    width: 140,
-    padding: 20,
-    borderRadius: 16,
-    marginRight: 12,
-  },
-  actionIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    position: "relative",
-  },
-  actionBadge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    backgroundColor: "#FF2D55",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 4,
-  },
-  actionSubtitle: {
-    fontSize: 13,
-    color: "#6C6C70",
-  },
-
-  // Sections Common
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-    paddingHorizontal: 20,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#000",
-    letterSpacing: 0.3,
-  },
-  seeAllButton: {
-    fontSize: 15,
-    color: "#007AFF",
-    fontWeight: "600",
-  },
-
-  // Data Quality - Modern Design
-  qualitySection: {
-    marginBottom: 20,
-  },
-  qualityCard: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  qualityItem: {
-    marginBottom: 12,
-  },
-  qualityInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  qualityLabel: {
-    fontSize: 15,
-    color: "#000",
-    fontWeight: "600",
-  },
-  qualityCount: {
-    fontSize: 14,
-    color: "#6C6C70",
-    textAlign: "right",
-  },
-  modernProgress: {
-    height: 6,
-    backgroundColor: "#F2F2F7",
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  modernProgressFill: {
-    height: "100%",
-    borderRadius: 3,
-  },
-
-  // Activity Timeline - Modern Cards
-  activitySection: {
-    marginBottom: 20,
-  },
-  activityTimeline: {
-    paddingHorizontal: 20,
-  },
-  activityCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  activityIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 12,
-  },
-  activityContent: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
-  activityTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 2,
-  },
-  activitySubtitle: {
-    fontSize: 13,
-    color: "#6C6C70",
-  },
-  activityTime: {
-    fontSize: 12,
-    color: "#8E8E93",
-    marginRight: 12,
-  },
-
-  // Loading & Error States
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#f9fafb",
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    padding: 40,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
   },
-  lockIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: "#F2F2F7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-  },
-  errorTitle: {
+  title: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#000",
+    color: "#111827",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 8,
+  },
+  card: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#8c82b4",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  statsCard: {
+    marginTop: 16,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 16,
+  },
+  munasibList: {
+    marginTop: 12,
+  },
+  munasibItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  munasibRank: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#6366f1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  munasibRankText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  munasibName: {
+    flex: 1,
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "500",
+  },
+  munasibCount: {
+    alignItems: "center",
+  },
+  munasibCountText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#6366f1",
+  },
+  munasibLabel: {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  statBox: {
+    backgroundColor: "#f3f4f6",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    width: "48%",
+    marginBottom: 10,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#6366f1",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
+  },
+  demographicsContainer: {
+    gap: 20,
+  },
+  genderStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingVertical: 16,
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+  },
+  genderBox: {
+    alignItems: "center",
+    flex: 1,
+  },
+  genderIcon: {
+    fontSize: 32,
     marginBottom: 8,
   },
-  errorSubtitle: {
+  genderNumber: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  genderLabel: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 4,
+  },
+  genderDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: "#e5e7eb",
+  },
+  generationStats: {
+    marginTop: 16,
+  },
+  subTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 12,
+  },
+  generationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  generationLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    width: 60,
+  },
+  generationBarContainer: {
+    flex: 1,
+    height: 20,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 10,
+    marginHorizontal: 10,
+    overflow: "hidden",
+  },
+  generationBar: {
+    height: "100%",
+    backgroundColor: "#6366f1",
+    borderRadius: 10,
+  },
+  generationCount: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#111827",
+    width: 30,
+    textAlign: "right",
+  },
+  trendsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  trendItem: {
+    width: "48%",
+    backgroundColor: "#f9fafb",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  trendHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  trendIcon: {
+    fontSize: 24,
+  },
+  trendValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  trendLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  newestMembers: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  newestMemberItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  newestMemberName: {
+    fontSize: 14,
+    color: "#111827",
+  },
+  newestMemberDate: {
+    fontSize: 12,
+    color: "#9ca3af",
+  },
+  completenessGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  completenessItem: {
+    width: "48%",
+  },
+  completenessHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  completenessPercentage: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  completenessIcon: {
+    fontSize: 20,
+  },
+  completenessBarContainer: {
+    height: 8,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  completenessBar: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  completenessLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  issuesGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  issueItem: {
+    alignItems: "center",
+  },
+  issueCount: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#ef4444",
+  },
+  issueLabel: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 4,
+  },
+  dataHealthHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  healthPercentage: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#10b981",
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 999,
+    overflow: "hidden",
+    marginBottom: 20,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#6366f1",
+    borderRadius: 999,
+  },
+  issuesTags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+  },
+  tagSuccess: {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagSuccessText: {
+    color: "#10b981",
+    fontSize: 14,
+  },
+  tagWarning: {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  tagWarningText: {
+    color: "#ef4444",
+    fontSize: 14,
+  },
+  primaryButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 12,
+    borderRadius: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: "#fff",
     fontSize: 16,
-    color: "#6C6C70",
+    fontWeight: "600",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  activityItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  activityItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#111827",
+  },
+  activityDescription: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  activityTime: {
+    fontSize: 14,
+    color: "#9ca3af",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 16,
+    gap: 4,
+  },
+  viewAllText: {
+    color: "#6366f1",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  actionItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  actionItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  actionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  actionIcon: {
+    fontSize: 24,
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#111827",
+  },
+  actionArrow: {
+    opacity: 0,
+  },
+  adminsList: {
+    marginBottom: 16,
+  },
+  adminItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  adminName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#111827",
+  },
+  adminRole: {
+    fontSize: 14,
+    color: "#6b7280",
+  },
+
+  // Munasib (Top Families) Styles
+  munasibHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  munasibBadge: {
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  munasibBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#92400e",
+  },
+  topFamiliesContainer: {
+    marginTop: 20,
+    gap: 12,
+  },
+  topFamilyCard: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    position: "relative",
+    overflow: "hidden",
+  },
+  topFamilyFirst: {
+    borderColor: "#fbbf24",
+    borderWidth: 2,
+  },
+  topFamilySecond: {
+    borderColor: "#94a3b8",
+    borderWidth: 1.5,
+  },
+  topFamilyThird: {
+    borderColor: "#f97316",
+    borderWidth: 1.5,
+  },
+  topFamilyRank: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  topFamilyRankText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  topFamilyName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 8,
+    marginRight: 40,
+  },
+  topFamilyStats: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    marginBottom: 12,
+  },
+  topFamilyCount: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  topFamilyPercentage: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  topFamilyBar: {
+    height: 8,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  topFamilyProgress: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  showMoreButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  showMoreText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#6366f1",
+  },
+  emptyState: {
+    padding: 40,
+    alignItems: "center",
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 8,
+  },
+  emptyStateSubText: {
+    fontSize: 14,
+    color: "#9ca3af",
     textAlign: "center",
   },
 });

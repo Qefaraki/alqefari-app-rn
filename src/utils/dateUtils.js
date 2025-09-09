@@ -64,13 +64,13 @@ const weekdaysShortAr = [
 /**
  * Convert Arabic numerals to Eastern Arabic numerals
  */
-export const toArabicNumerals = (num) => {
-  // Handle null, undefined, or NaN
-  if (num === null || num === undefined || isNaN(num)) {
+export const toArabicNumerals = (str) => {
+  // Handle null or undefined
+  if (str === null || str === undefined || str === "") {
     return "";
   }
   const arabicNumbers = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
-  return String(num).replace(
+  return String(str).replace(
     /[0-9]/g,
     (digit) => arabicNumbers[parseInt(digit)],
   );

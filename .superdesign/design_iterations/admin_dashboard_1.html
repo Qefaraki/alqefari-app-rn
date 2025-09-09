@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin_theme_2.css">
+    <style>
+        * {
+            font-family: var(--font-sans) !important;
+        }
+
+        body {
+            background: var(--background) !important;
+            color: var(--foreground) !important;
+            letter-spacing: var(--tracking-normal);
+        }
+
+        /* Smooth animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+                filter: blur(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+                filter: blur(0);
+            }
+        }
+
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+                filter: blur(5px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.5;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+                filter: blur(5px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+                filter: blur(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeInUp 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .animate-count {
+            animation: countUp 2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        .animate-pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .animate-slide-in {
+            animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Stagger animations */
+        .stagger-1 { animation-delay: 0.15s; }
+        .stagger-2 { animation-delay: 0.3s; }
+        .stagger-3 { animation-delay: 0.45s; }
+        .stagger-4 { animation-delay: 0.6s; }
+
+        /* Card styles */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease-out;
+            border: 1px solid var(--border);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            background: oklch(0.9980 0.0040 280);
+        }
+
+        /* Button styles */
+        .btn-primary {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border-radius: var(--radius);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.6, 1);
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.96);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: var(--secondary-foreground);
+            border-radius: var(--radius);
+            transition: all 0.3s ease-out;
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--muted);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xs);
+        }
+
+        /* Progress bar */
+        .progress-bar {
+            background: var(--muted);
+            border-radius: 999px;
+            overflow: hidden;
+            height: 6px;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            height: 100%;
+            border-radius: 999px;
+            transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* List items */
+        .list-item {
+            background: var(--card);
+            border-radius: var(--radius);
+            transition: all 0.3s ease-out;
+            border: 1px solid transparent;
+        }
+
+        .list-item:hover {
+            background: var(--secondary);
+            border-color: var(--border);
+            transform: translateX(-4px);
+        }
+
+        /* Stats number */
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--muted);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+            opacity: 0.5;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 backdrop-blur-xl bg-opacity-90 border-b border-border animate-fade-in">
+        <div class="container mx-auto px-6 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold">لوحة التحكم</h1>
+                <p class="text-sm text-muted-foreground">Admin Dashboard</p>
+            </div>
+            <button class="p-2 rounded-lg hover:bg-secondary transition-colors duration-200">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8">
+        <!-- Statistics Section -->
+        <section class="mb-8 animate-fade-in stagger-1">
+            <div class="card p-8">
+                <h2 class="text-lg font-semibold mb-6 text-muted-foreground">إحصائيات عامة</h2>
+                
+                <!-- Main stat -->
+                <div class="text-center mb-8">
+                    <div class="stat-number animate-count" data-target="12456">0</div>
+                    <p class="text-lg text-muted-foreground mt-2">ملف شخصي</p>
+                </div>
+
+                <!-- Secondary stats -->
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="text-center p-4 rounded-lg bg-secondary">
+                        <div class="text-2xl font-bold text-primary animate-count" data-target="3421">0</div>
+                        <p class="text-sm text-muted-foreground mt-1">زواج</p>
+                    </div>
+                    <div class="text-center p-4 rounded-lg bg-secondary">
+                        <div class="text-2xl font-bold text-accent animate-count" data-target="45678">0</div>
+                        <p class="text-sm text-muted-foreground mt-1">صورة</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Health Section -->
+        <section class="mb-8 animate-fade-in stagger-2">
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">صحة البيانات</h2>
+                    <span class="text-2xl font-bold text-accent">98%</span>
+                </div>
+                
+                <div class="progress-bar mb-6">
+                    <div class="progress-fill" style="width: 0%" data-width="98%"></div>
+                </div>
+
+                <div class="flex flex-wrap gap-3 mb-6">
+                    <span class="px-3 py-1 rounded-full bg-accent text-accent-foreground text-sm">
+                        ✓ معرفات فريدة
+                    </span>
+                    <span class="px-3 py-1 rounded-full bg-accent text-accent-foreground text-sm">
+                        ✓ التواريخ
+                    </span>
+                    <span class="px-3 py-1 rounded-full bg-destructive bg-opacity-10 text-destructive text-sm">
+                        ⚠ 2 تكرار
+                    </span>
+                </div>
+
+                <button class="btn-primary w-full py-3 px-6 rounded-lg flex items-center justify-center gap-2">
+                    <span>فحص البيانات الآن</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- Recent Activity -->
+        <section class="mb-8 animate-fade-in stagger-3">
+            <h2 class="text-lg font-semibold mb-4">النشاط الأخير</h2>
+            <div class="card overflow-hidden">
+                <div class="divide-y divide-border">
+                    <div class="list-item p-4 animate-slide-in">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="font-medium">محمد الأحمد</p>
+                                <p class="text-sm text-muted-foreground">تعديل الملف الشخصي #1234</p>
+                            </div>
+                            <span class="text-sm text-muted-foreground">منذ 5د</span>
+                        </div>
+                    </div>
+                    <div class="list-item p-4 animate-slide-in" style="animation-delay: 0.1s">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="font-medium">فاطمة العلي</p>
+                                <p class="text-sm text-muted-foreground">إضافة صورة جديدة</p>
+                            </div>
+                            <span class="text-sm text-muted-foreground">منذ 12د</span>
+                        </div>
+                    </div>
+                    <button class="w-full p-4 text-primary font-medium hover:bg-secondary transition-colors duration-200 flex items-center justify-center gap-2">
+                        <span>عرض الكل</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="animate-fade-in stagger-4">
+            <h2 class="text-lg font-semibold mb-4">إجراءات سريعة</h2>
+            <div class="card overflow-hidden">
+                <div class="divide-y divide-border">
+                    <button class="list-item w-full p-4 text-right flex items-center justify-between group">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">➕</span>
+                            <span class="font-medium">إضافة ملف جديد</span>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                    <button class="list-item w-full p-4 text-right flex items-center justify-between group">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🔄</span>
+                            <span class="font-medium">إعادة حساب التخطيط</span>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                    <button class="list-item w-full p-4 text-right flex items-center justify-between group">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">💾</span>
+                            <span class="font-medium">تصدير قاعدة البيانات</span>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                    <button class="list-item w-full p-4 text-right flex items-center justify-between group">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">👥</span>
+                            <span class="font-medium">إدارة المشرفين</span>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Processing Status (Hidden by default) -->
+        <section class="mt-8 hidden" id="processingStatus">
+            <div class="card p-4">
+                <div class="flex items-center gap-4">
+                    <div class="animate-pulse">
+                        <div class="w-4 h-4 bg-primary rounded-full"></div>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">معالجة البيانات...</p>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-fill" style="width: 65%"></div>
+                        </div>
+                    </div>
+                    <span class="text-sm text-muted-foreground">65%</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // Animate numbers
+        document.addEventListener('DOMContentLoaded', function() {
+            const animateValue = (element, start, end, duration) => {
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+                    element.textContent = Math.floor(easeOutQuart * (end - start) + start).toLocaleString('ar-SA');
+                    if (progress < 1) {
+                        window.requestAnimationFrame(step);
+                    }
+                };
+                window.requestAnimationFrame(step);
+            };
+
+            // Animate all counters
+            const counters = document.querySelectorAll('.animate-count');
+            counters.forEach(counter => {
+                const target = parseInt(counter.getAttribute('data-target'));
+                animateValue(counter, 0, target, 2000);
+            });
+
+            // Animate progress bars
+            setTimeout(() => {
+                document.querySelectorAll('.progress-fill').forEach(bar => {
+                    const width = bar.getAttribute('data-width');
+                    if (width) {
+                        bar.style.width = width;
+                    }
+                });
+            }, 500);
+        });
+
+        // Add click handlers for demo
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                // Create ripple effect
+                const ripple = document.createElement('span');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.width = ripple.style.height = size + 'px';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.classList.add('ripple');
+                
+                this.appendChild(ripple);
+                
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+    </script>
+
+    <style>
+        /* Ripple effect */
+        button {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0);
+            animation: ripple-animation 0.6s ease-out;
+        }
+
+        @keyframes ripple-animation {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    </style>
+</body>
+</html>

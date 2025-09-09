@@ -10,10 +10,14 @@ npm start          # Expo dev server (iOS & Android)
 npm run ios        # iOS simulator only
 npm run android    # Android emulator only
 
-# Database
-supabase db push      # Deploy all migrations
-supabase dashboard    # Open Supabase UI
-supabase db reset     # Reset database (caution!)
+# Database Deployment - ALWAYS DEPLOY YOURSELF
+# IMPORTANT: Never ask the user to deploy SQL changes. Always deploy them yourself using:
+node scripts/execute-sql.js <sql-file>  # Deploy SQL file to Supabase
+# Or for migrations:
+node scripts/execute-sql.js migrations/<migration-file>.sql
+
+# If execute-sql.js doesn't work, create a new script to deploy directly:
+node scripts/direct-deploy-stats.js  # Example direct deployment
 
 # Validation
 SELECT * FROM admin_validation_dashboard();  # Check data integrity
@@ -156,6 +160,18 @@ EXPO_PUBLIC_SUPABASE_URL        # Frontend
 EXPO_PUBLIC_SUPABASE_ANON_KEY   # Frontend
 SUPABASE_DB_PASSWORD            # CLI only
 ```
+
+## Supabase Deployment Rules
+
+**CRITICAL: NEVER tell the user to deploy SQL themselves. Always deploy it for them.**
+
+When you need to deploy SQL to Supabase:
+
+1. First try: `node scripts/execute-sql.js <file>`
+2. If that fails, create a direct deployment script
+3. If both fail, use the Supabase client directly in a Node script
+4. NEVER say "you need to run this in Supabase Dashboard" or "go to Supabase and run this"
+5. The user expects you to handle ALL deployments
 
 ---
 
