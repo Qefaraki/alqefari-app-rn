@@ -111,7 +111,7 @@ const AdminDashboard = ({ onClose }) => {
           // Check which spouse profiles actually exist
           const { data: existingSpouses } = await supabase
             .from("profiles")
-            .select("id, display_name, gender, hid")
+            .select("id, name, gender, hid")
             .in("id", spouseIds);
 
           // Find spouses without HID (true Munasib)
@@ -129,8 +129,7 @@ const AdminDashboard = ({ onClose }) => {
           // Group by family name and count
           const familyCounts = {};
           munasibData?.forEach((person) => {
-            const familyName =
-              person.display_name?.split(" ").pop() || "غير محدد";
+            const familyName = person.name?.split(" ").pop() || "غير محدد";
             familyCounts[familyName] = (familyCounts[familyName] || 0) + 1;
           });
 
