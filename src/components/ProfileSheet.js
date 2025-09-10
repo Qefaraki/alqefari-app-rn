@@ -1245,11 +1245,13 @@ const ProfileSheet = ({ editMode = false }) => {
                   </View>
                 )}
 
-                {/* Marriages Section - Males Only, Admin Only */}
-                {person?.gender === "male" && isAdminMode && (
+                {/* Marriages Section - Admin Only */}
+                {isAdminMode && (
                   <View style={styles.relationshipSection}>
                     <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>الزوجات</Text>
+                      <Text style={styles.sectionTitle}>
+                        {person?.gender === "male" ? "الزوجات" : "الأزواج"}
+                      </Text>
                       <TouchableOpacity
                         style={styles.addButton}
                         onPress={() => setShowMarriageEditor(true)}
@@ -1260,16 +1262,115 @@ const ProfileSheet = ({ editMode = false }) => {
                     {marriages.length > 0 ? (
                       <View style={styles.marriagesList}>
                         {marriages.map((marriage) => (
-                          <View key={marriage.id} style={styles.marriageItem}>
+                          <TouchableOpacity
+                            key={marriage.id}
+                            style={styles.marriageItem}
+                            onPress={() => {
+                              Alert.alert(
+                                "تعديل الزواج",
+                                `${
+                                  person?.gender === "male"
+                                    ? marriage.wife_name || "غير محدد"
+                                    : marriage.husband_name || "غير محدد"
+                                }\n${marriage.status === "married" ? "متزوج" : marriage.status === "divorced" ? "مطلق" : "أرمل"}`,
+                                [
+                                  {
+                                    text: "تغيير الحالة",
+                                    onPress: async () => {
+                                      const newStatus =
+                                        marriage.status === "married"
+                                          ? "divorced"
+                                          : "married";
+                                      try {
+                                        await profilesService.updateMarriage(
+                                          marriage.id,
+                                          { status: newStatus },
+                                        );
+                                        loadMarriages();
+                                        Alert.alert(
+                                          "نجح",
+                                          "تم تحديث حالة الزواج",
+                                        );
+                                      } catch (error) {
+                                        Alert.alert(
+                                          "خطأ",
+                                          "فشل تحديث حالة الزواج",
+                                        );
+                                      }
+                                    },
+                                  },
+                                  {
+                                    text: "حذف",
+                                    style: "destructive",
+                                    onPress: () => {
+                                      Alert.alert(
+                                        "تأكيد الحذف",
+                                        "هل تريد حذف هذا الزواج؟",
+                                        [
+                                          { text: "إلغاء", style: "cancel" },
+                                          {
+                                            text: "حذف",
+                                            style: "destructive",
+                                            onPress: async () => {
+                                              try {
+                                                await profilesService.deleteMarriage(
+                                                  marriage.id,
+                                                );
+                                                loadMarriages();
+                                                Alert.alert(
+                                                  "نجح",
+                                                  "تم حذف الزواج",
+                                                );
+                                              } catch (error) {
+                                                Alert.alert(
+                                                  "خطأ",
+                                                  "فشل حذف الزواج",
+                                                );
+                                              }
+                                            },
+                                          },
+                                        ],
+                                      );
+                                    },
+                                  },
+                                  { text: "إلغاء", style: "cancel" },
+                                ],
+                              );
+                            }}
+                          >
                             <Text style={styles.marriageText}>
-                              {marriage.wife_name || "غير محدد"}
+                              {person?.gender === "male"
+                                ? marriage.wife_name || "غير محدد"
+                                : marriage.husband_name || "غير محدد"}
                             </Text>
-                            {marriage.is_current && (
-                              <View style={styles.currentBadge}>
-                                <Text style={styles.currentText}>حالي</Text>
-                              </View>
-                            )}
-                          </View>
+                            <View style={styles.marriageStatusContainer}>
+                              {marriage.status === "married" && (
+                                <View style={styles.currentBadge}>
+                                  <Text style={styles.currentText}>حالي</Text>
+                                </View>
+                              )}
+                              {marriage.status === "divorced" && (
+                                <View
+                                  style={[
+                                    styles.currentBadge,
+                                    { backgroundColor: "#FFB74D" },
+                                  ]}
+                                >
+                                  <Text style={styles.currentText}>مطلق</Text>
+                                </View>
+                              )}
+                              {marriage.status === "widowed" && (
+                                <View
+                                  style={[
+                                    styles.currentBadge,
+                                    { backgroundColor: "#9E9E9E" },
+                                  ]}
+                                >
+                                  <Text style={styles.currentText}>أرمل</Text>
+                                </View>
+                              )}
+                            </View>
+                          </TouchableOpacity>
                         ))}
                       </View>
                     ) : (
@@ -1337,13 +1438,11 @@ const ProfileSheet = ({ editMode = false }) => {
                   ...(person.education
                     ? [{ label: "التعليم", value: person.education }]
                     : []),
-                  ...(marriages.length > 0
+                  ...(marriages.some((m) => m.status === "married")
                     ? [
                         {
                           label: "الحالة الاجتماعية",
-                          value:
-                            marriages.map((m) => m.spouse_name).join("، ") ||
-                            `${marriages.length} أزواج`,
+                          value: "متزوج",
                         },
                       ]
                     : []),
@@ -1658,8 +1757,8 @@ const ProfileSheet = ({ editMode = false }) => {
             <MarriageEditor
               visible={showMarriageEditor}
               onClose={() => setShowMarriageEditor(false)}
-              husbandId={person?.id}
-              onSave={() => {
+              person={person}
+              onCreated={() => {
                 setShowMarriageEditor(false);
                 loadMarriages();
               }}
@@ -2223,6 +2322,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#000000",
+  },
+  marriageStatusContainer: {
+    flexDirection: "row",
+    gap: 4,
   },
   currentBadge: {
     paddingHorizontal: 8,

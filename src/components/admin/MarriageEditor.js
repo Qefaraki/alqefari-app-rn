@@ -22,9 +22,8 @@ import {
   Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
-import GlassSurface from "../glass/GlassSurface";
-import GlassButton from "../glass/GlassButton";
+import CardSurface from "../ios/CardSurface";
+import Button from "../ui/Button";
 import profilesService from "../../services/profiles";
 import { handleSupabaseError } from "../../services/supabase";
 import appConfig from "../../config/appConfig";
@@ -378,12 +377,14 @@ export default function MarriageEditor({
             },
           ]}
         >
-          <View style={styles.previewContent}>
-            <View style={styles.previewIcon}>
-              <Ionicons name="checkmark-circle" size={22} color="#93C5A9" />
+          <CardSurface radius={14} style={styles.previewCard}>
+            <View style={styles.previewContent}>
+              <View style={styles.previewIcon}>
+                <Ionicons name="checkmark-circle" size={22} color="#93C5A9" />
+              </View>
+              <Text style={styles.previewText}>{formatDisplayName()}</Text>
             </View>
-            <Text style={styles.previewText}>{formatDisplayName()}</Text>
-          </View>
+          </CardSurface>
         </Animated.View>
       )}
 
@@ -410,59 +411,63 @@ export default function MarriageEditor({
             },
           ]}
         >
-          <View style={styles.suggestionContent}>
-            <View style={styles.suggestionHeader}>
-              <Ionicons name="information-circle" size={24} color="#FFCC80" />
-              <Text style={styles.suggestionTitle}>
-                هذا الاسم من عائلة {appConfig.family.primaryFamilyName}
-              </Text>
-            </View>
-
-            <Text style={styles.suggestionText}>
-              تحقق أولاً من أنه غير موجود في الشجرة
-            </Text>
-
-            <View style={styles.suggestionActions}>
-              <TouchableOpacity
-                style={styles.suggestionPrimaryButton}
-                onPress={() => {
-                  // Transition to search mode with pre-filled query
-                  setMode("link");
-                  setQuery(suggestedSearchName);
-                  setShowFamilySuggestion(false);
-                  Animated.timing(suggestionAnim, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                  }).start();
-                  // Trigger search after transition
-                  setTimeout(() => {
-                    performSearch(suggestedSearchName);
-                  }, 300);
-                }}
-              >
-                <Ionicons name="search" size={18} color="#FFFFFF" />
-                <Text style={styles.suggestionPrimaryText}>بحث في الشجرة</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.suggestionSecondaryButton}
-                onPress={() => {
-                  setShowFamilySuggestion(false);
-                  setSuggestionDismissed(true);
-                  Animated.timing(suggestionAnim, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                  }).start();
-                }}
-              >
-                <Text style={styles.suggestionSecondaryText}>
-                  متابعة الإضافة
+          <CardSurface radius={14} style={styles.suggestionSurface}>
+            <View style={styles.suggestionContent}>
+              <View style={styles.suggestionHeader}>
+                <Ionicons name="information-circle" size={24} color="#FFCC80" />
+                <Text style={styles.suggestionTitle}>
+                  هذا الاسم من عائلة {appConfig.family.primaryFamilyName}
                 </Text>
-              </TouchableOpacity>
+              </View>
+
+              <Text style={styles.suggestionText}>
+                تحقق أولاً من أنه غير موجود في الشجرة
+              </Text>
+
+              <View style={styles.suggestionActions}>
+                <TouchableOpacity
+                  style={styles.suggestionPrimaryButton}
+                  onPress={() => {
+                    // Transition to search mode with pre-filled query
+                    setMode("link");
+                    setQuery(suggestedSearchName);
+                    setShowFamilySuggestion(false);
+                    Animated.timing(suggestionAnim, {
+                      toValue: 0,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }).start();
+                    // Trigger search after transition
+                    setTimeout(() => {
+                      performSearch(suggestedSearchName);
+                    }, 300);
+                  }}
+                >
+                  <Ionicons name="search" size={18} color="#FFFFFF" />
+                  <Text style={styles.suggestionPrimaryText}>
+                    بحث في الشجرة
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.suggestionSecondaryButton}
+                  onPress={() => {
+                    setShowFamilySuggestion(false);
+                    setSuggestionDismissed(true);
+                    Animated.timing(suggestionAnim, {
+                      toValue: 0,
+                      duration: 200,
+                      useNativeDriver: true,
+                    }).start();
+                  }}
+                >
+                  <Text style={styles.suggestionSecondaryText}>
+                    متابعة الإضافة
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </CardSurface>
         </Animated.View>
       )}
     </ScrollView>
@@ -471,18 +476,20 @@ export default function MarriageEditor({
   const renderLinkMode = () => (
     <View style={{ flex: 1, backgroundColor: "#F2F2F7" }}>
       <View style={{ padding: 16, paddingBottom: 0 }}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={22} color="#666666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="ابحث بالاسم..."
-            placeholderTextColor="#999999"
-            value={query}
-            onChangeText={setQuery}
-            textAlign="right"
-            returnKeyType="search"
-          />
-        </View>
+        <CardSurface radius={12} style={styles.searchBarCard}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={22} color="#666666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="ابحث بالاسم..."
+              placeholderTextColor="#999999"
+              value={query}
+              onChangeText={setQuery}
+              textAlign="right"
+              returnKeyType="search"
+            />
+          </View>
+        </CardSurface>
       </View>
 
       <ScrollView
@@ -512,27 +519,40 @@ export default function MarriageEditor({
                 style={[styles.resultRow, isActive && styles.resultRowActive]}
                 onPress={() => setSelectedSpouse(p)}
               >
-                <View style={{ flex: 1, alignItems: "flex-end" }}>
-                  <Text
+                <CardSurface radius={12} style={{ flex: 1 }}>
+                  <View
                     style={[
-                      styles.resultName,
-                      isActive && styles.resultNameActive,
+                      styles.resultContent,
+                      isActive && styles.resultContentActive,
                     ]}
                   >
-                    {p.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.resultMeta,
-                      isActive && styles.resultMetaActive,
-                    ]}
-                  >
-                    HID: {p.hid}
-                  </Text>
-                </View>
-                {isActive && (
-                  <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
-                )}
+                    <View style={{ flex: 1, alignItems: "flex-end" }}>
+                      <Text
+                        style={[
+                          styles.resultName,
+                          isActive && styles.resultNameActive,
+                        ]}
+                      >
+                        {p.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.resultMeta,
+                          isActive && styles.resultMetaActive,
+                        ]}
+                      >
+                        HID: {p.hid}
+                      </Text>
+                    </View>
+                    {isActive && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={22}
+                        color="#FFFFFF"
+                      />
+                    )}
+                  </View>
+                </CardSurface>
               </TouchableOpacity>
             );
           })
@@ -575,71 +595,64 @@ export default function MarriageEditor({
           onPress={() => {}}
         >
           <Animated.View style={styles.modalContainer}>
-            <View style={styles.modal}>
+            <CardSurface radius={16} style={styles.modal}>
               {/* Modern iOS-style header */}
-              <BlurView intensity={100} style={styles.headerBlur}>
-                <View style={styles.header}>
-                  <TouchableOpacity
-                    onPress={onClose}
-                    style={styles.closeButton}
-                  >
-                    <View style={styles.closeButtonCircle}>
-                      <Ionicons name="close" size={20} color="#666" />
-                    </View>
-                  </TouchableOpacity>
-                  <View style={styles.titleContainer}>
-                    <Text style={styles.title}>{modalTitle}</Text>
-                    {mode === "link" && (
-                      <Text style={styles.subtitle}>
-                        ابحث عن {spouseTitle} في الشجرة
-                      </Text>
-                    )}
+              <View style={styles.header}>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <View style={styles.closeButtonCircle}>
+                    <Ionicons name="close" size={20} color="#666" />
                   </View>
-                  <View style={{ width: 40 }} />
+                </TouchableOpacity>
+                <View style={styles.titleContainer}>
+                  <Text style={styles.title}>{modalTitle}</Text>
+                  {mode === "link" && (
+                    <Text style={styles.subtitle}>
+                      ابحث عن {spouseTitle} في الشجرة
+                    </Text>
+                  )}
                 </View>
-              </BlurView>
+                <View style={{ width: 44 }} />
+              </View>
 
               <View style={styles.content}>
                 {mode === "create" ? renderCreateMode() : renderLinkMode()}
               </View>
 
               {/* Modern iOS-style footer */}
-              <BlurView intensity={95} style={styles.footerBlur}>
-                <View style={styles.footer}>
-                  <GlassButton
-                    title={
-                      mode === "create"
-                        ? parsedName.firstName && parsedName.familyName
-                          ? "حفظ"
-                          : "اكتب الاسم أولاً"
-                        : selectedSpouse
-                          ? "ربط الزواج"
-                          : "اختر شخصاً أولاً"
-                    }
-                    onPress={
-                      mode === "create"
-                        ? handleCreateNewSpouse
-                        : handleLinkExisting
-                    }
-                    loading={submitting}
-                    disabled={
-                      mode === "create"
-                        ? !parsedName.firstName || !parsedName.familyName
-                        : !selectedSpouse
-                    }
-                    style={{ width: "100%" }}
-                    variant={
-                      (mode === "create" &&
-                        parsedName.firstName &&
-                        parsedName.familyName) ||
-                      (mode === "link" && selectedSpouse)
-                        ? "primary"
-                        : "secondary"
-                    }
-                  />
-                </View>
-              </BlurView>
-            </View>
+              <View style={styles.footer}>
+                <Button
+                  title={
+                    mode === "create"
+                      ? parsedName.firstName && parsedName.familyName
+                        ? "حفظ"
+                        : "اكتب الاسم أولاً"
+                      : selectedSpouse
+                        ? "ربط الزواج"
+                        : "اختر شخصاً أولاً"
+                  }
+                  onPress={
+                    mode === "create"
+                      ? handleCreateNewSpouse
+                      : handleLinkExisting
+                  }
+                  loading={submitting}
+                  disabled={
+                    mode === "create"
+                      ? !parsedName.firstName || !parsedName.familyName
+                      : !selectedSpouse
+                  }
+                  style={{ width: "100%" }}
+                  variant={
+                    (mode === "create" &&
+                      parsedName.firstName &&
+                      parsedName.familyName) ||
+                    (mode === "link" && selectedSpouse)
+                      ? "primary"
+                      : "secondary"
+                  }
+                />
+              </View>
+            </CardSurface>
           </Animated.View>
         </TouchableOpacity>
       </KeyboardAvoidingView>
@@ -663,31 +676,17 @@ const styles = StyleSheet.create({
   },
   modal: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 25,
     height: "100%",
     flex: 1,
-  },
-  headerBlur: {
-    paddingTop: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 8 : 16,
-    paddingBottom: 10,
+    paddingTop: Platform.OS === "ios" ? 16 : 20,
+    paddingBottom: 12,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(0, 0, 0, 0.08)",
@@ -772,15 +771,14 @@ const styles = StyleSheet.create({
   namePreview: {
     marginBottom: 20,
   },
+  previewCard: {
+    backgroundColor: "rgba(147, 197, 169, 0.05)",
+  },
   previewContent: {
-    backgroundColor: "rgba(147, 197, 169, 0.1)",
-    borderRadius: 14,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderWidth: 1,
-    borderColor: "rgba(147, 197, 169, 0.3)",
   },
   previewIcon: {
     width: 36,
@@ -797,23 +795,14 @@ const styles = StyleSheet.create({
     textAlign: "right",
     flex: 1,
   },
+  searchBarCard: {
+    backgroundColor: "#FFFFFF",
+  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.06)",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -834,28 +823,17 @@ const styles = StyleSheet.create({
     color: "#666666",
   },
   resultRow: {
+    marginBottom: 10,
+  },
+  resultContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.06)",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  resultRowActive: {
+  resultContentActive: {
     backgroundColor: "#9CC0D9",
-    borderColor: "#9CC0D9",
   },
   resultName: {
     fontSize: 18,
@@ -906,12 +884,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 12,
   },
+  suggestionSurface: {
+    backgroundColor: "rgba(255, 237, 204, 0.9)",
+  },
   suggestionContent: {
-    backgroundColor: "rgba(255, 237, 204, 0.4)",
-    borderRadius: 14,
     padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 204, 128, 0.5)",
     position: "relative",
   },
   suggestionHeader: {
@@ -967,27 +944,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
-  footerBlur: {
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-  },
   footer: {
     padding: 16,
-    paddingBottom: Platform.OS === "ios" ? 24 : 16, // Reduced padding for better fit
-    backgroundColor: "transparent",
-  },
-  searchLinkButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 16,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  searchLinkText: {
-    fontSize: 15,
-    color: "#007AFF",
-    fontWeight: "500",
+    paddingBottom: Platform.OS === "ios" ? 24 : 16,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(0, 0, 0, 0.08)",
   },
 });
