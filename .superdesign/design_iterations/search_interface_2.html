@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>البحث في الشجرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin_theme_2.css">
+    <style>
+        @font-face {
+            font-family: 'SF Arabic';
+            src: url('https://db.onlinewebfonts.com/t/02f502e5eefeb353e5f83fc5045348dc.woff2') format('woff2');
+            font-weight: 400;
+        }
+
+        * {
+            font-family: 'SF Arabic', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #f8f6f3;
+            color: #1a1a1a;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior: none;
+            position: relative;
+        }
+
+        /* Direct Sadu pattern background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.02;
+            pointer-events: none;
+            background-image: 
+                /* Traditional Sadu zigzag pattern */
+                repeating-linear-gradient(45deg, 
+                    transparent, transparent 10px, 
+                    #8b4513 10px, #8b4513 12px,
+                    transparent 12px, transparent 22px,
+                    #d2691e 22px, #d2691e 24px
+                ),
+                repeating-linear-gradient(-45deg, 
+                    transparent, transparent 10px, 
+                    #8b4513 10px, #8b4513 12px,
+                    transparent 12px, transparent 22px,
+                    #d2691e 22px, #d2691e 24px
+                );
+            background-size: 40px 40px;
+        }
+
+        /* iOS Style Search Bar with Najdi accent */
+        .search-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 12px 16px;
+            padding-top: max(12px, env(safe-area-inset-top));
+            border-bottom: 1px solid rgba(139, 69, 19, 0.1);
+            box-shadow: 0 1px 0 rgba(139, 69, 19, 0.05);
+        }
+
+        .search-bar {
+            background: rgba(250, 248, 245, 1);
+            border: 1px solid rgba(139, 69, 19, 0.08);
+            border-radius: 12px;
+            padding: 0 14px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle geometric pattern on focus */
+        .search-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(139, 69, 19, 0.05));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .search-bar.focused {
+            border-color: rgba(139, 69, 19, 0.2);
+            box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.05);
+        }
+
+        .search-bar.focused::after {
+            opacity: 1;
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 17px;
+            color: #1a1a1a;
+        }
+
+        .search-input::placeholder {
+            color: rgba(139, 69, 19, 0.5);
+        }
+
+        /* Search icon with traditional color */
+        .search-icon {
+            color: rgba(139, 69, 19, 0.6);
+        }
+
+        /* Cancel button */
+        .cancel-btn {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8b4513;
+            font-size: 17px;
+            font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+
+        .cancel-btn.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Results container */
+        .results-container {
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+
+        /* Section header with geometric accent */
+        .section-header {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            padding: 0 4px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .section-header::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            right: 0;
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(90deg, #8b4513, #d2691e);
+        }
+
+        /* Profile card with Najdi-inspired design */
+        .profile-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(139, 69, 19, 0.08);
+            border: 1px solid rgba(139, 69, 19, 0.06);
+            position: relative;
+            overflow: hidden;
+        }
+
+
+
+        .profile-card::after { content: none; }
+
+        .profile-card:active {
+            transform: scale(0.98);
+            background: #faf8f5;
+        }
+
+        /* Profile image with traditional colors */
+        .profile-image {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 26px;
+            font-weight: 600;
+            flex-shrink: 0;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Decorative ring around profile image */
+        .profile-image::after {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            border: 2px solid;
+            border-color: transparent;
+            background: linear-gradient(45deg, #8b4513, #d2691e, #8b4513) border-box;
+            -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: destination-out;
+            mask-composite: exclude;
+            opacity: 0.3;
+        }
+
+        /* Traditional color gradients */
+        .gradient-1 { background: linear-gradient(135deg, #8b4513, #a0522d); }
+        .gradient-2 { background: linear-gradient(135deg, #d2691e, #daa520); }
+        .gradient-3 { background: linear-gradient(135deg, #704214, #8b4513); }
+        .gradient-4 { background: linear-gradient(135deg, #cd853f, #deb887); }
+        .gradient-5 { background: linear-gradient(135deg, #a0522d, #bc8f8f); }
+
+        /* Profile info */
+        .profile-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+
+        .profile-details {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .generation-badge {
+            background: linear-gradient(135deg, rgba(139, 69, 19, 0.1), rgba(210, 105, 30, 0.1));
+            color: #8b4513;
+            padding: 3px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid rgba(139, 69, 19, 0.1);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Geometric pattern in badge */
+        .generation-badge::before {
+            content: '◆';
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        .year-text {
+            font-size: 15px;
+            color: rgba(139, 69, 19, 0.7);
+        }
+
+        /* Chevron with traditional styling */
+        .chevron {
+            color: rgba(139, 69, 19, 0.3);
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+        }
+
+        .profile-card:hover .chevron {
+            transform: translateX(-2px);
+        }
+
+        /* No results with cultural touch */
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .no-results-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.2;
+            position: relative;
+        }
+
+        /* Decorative elements around icon */
+        .no-results-icon::before,
+        .no-results-icon::after {
+            content: '◈';
+            position: absolute;
+            font-size: 20px;
+            color: #8b4513;
+            opacity: 0.3;
+        }
+
+        .no-results-icon::before {
+            top: -10px;
+            right: -30px;
+        }
+
+        .no-results-icon::after {
+            bottom: -10px;
+            left: -30px;
+        }
+
+        .no-results-text {
+            font-size: 17px;
+            color: rgba(139, 69, 19, 0.6);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* iOS bounce scrolling */
+        .scroll-container {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            height: 100vh;
+        }
+
+        /* Custom scrollbar with traditional colors */
+        .scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-container::-webkit-scrollbar-track {
+            background: rgba(139, 69, 19, 0.05);
+        }
+
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: rgba(139, 69, 19, 0.2);
+            border-radius: 3px;
+        }
+
+        /* Highlight style */
+        mark {
+            background: rgba(210, 105, 30, 0.2);
+            border-radius: 3px;
+            padding: 0 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-container">
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-bar" id="searchBar">
+                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" 
+                       class="search-input" 
+                       id="searchInput"
+                       placeholder="البحث في شجرة العائلة..."
+                       autocomplete="off"
+                       autocorrect="off"
+                       spellcheck="false">
+                <button class="cancel-btn" id="cancelBtn">إلغاء</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-container" id="results">
+            <!-- Initial state - show some recent profiles -->
+            <div id="recentProfiles">
+                <h2 class="section-header">الأسماء الأخيرة</h2>
+                
+                <div class="profile-card fade-in" style="animation-delay: 0.1s">
+                    <div class="profile-image gradient-1">ع</div>
+                    <div class="profile-info">
+                        <div class="profile-name">عبدالله خالد محمد سعد عبدالعزيز القفاري</div>
+                        <div class="profile-details">
+                            <span class="generation-badge">الجيل السابع</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.15s">
+                    <div class="profile-image gradient-2">م</div>
+                    <div class="profile-info">
+                        <div class="profile-name">محمد بن سلمان بن عبدالرحمن بن فهد بن ناصر القفاري</div>
+                        <div class="profile-details">
+                            <span class="generation-badge">الجيل السادس</span>
+                            <span class="year-text">١٣٩٨ هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.2s">
+                    <div class="profile-image gradient-3">خ</div>
+                    <div class="profile-info">
+                        <div class="profile-name">خالد بن عبدالله بن سعود بن محمد بن إبراهيم القفاري</div>
+                        <div class="profile-details">
+                            <span class="generation-badge">الجيل الثامن</span>
+                            <span class="year-text">١٤٤٥ هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.25s">
+                    <div class="profile-image gradient-4">س</div>
+                    <div class="profile-info">
+                        <div class="profile-name">سارة بنت أحمد بن عبدالعزيز بن سالم بن حمد القفاري</div>
+                        <div class="profile-details">
+                            <span class="generation-badge">الجيل السابع</span>
+                            <span class="year-text">١٤٢٠ هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.3s">
+                    <div class="profile-image gradient-5">ف</div>
+                    <div class="profile-info">
+                        <div class="profile-name">فاطمة بنت محمد بن خالد بن عبدالرحمن بن سعد القفاري</div>
+                        <div class="profile-details">
+                            <span class="generation-badge">الجيل الثامن</span>
+                            <span class="year-text">١٤٤٢ هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Search results will be inserted here -->
+            <div id="searchResults" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchBar = document.getElementById('searchBar');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const recentProfiles = document.getElementById('recentProfiles');
+        const searchResults = document.getElementById('searchResults');
+
+        // Sample data for search
+        const profiles = [
+            { name: 'عبدالله بن خالد بن محمد بن سعد بن عبدالعزيز القفاري', generation: 'السابع', year: '١٤٢٣', initial: 'ع' },
+            { name: 'محمد بن سلمان بن عبدالرحمن بن فهد بن ناصر القفاري', generation: 'السادس', year: '١٣٩٨', initial: 'م' },
+            { name: 'خالد بن عبدالله بن سعود بن محمد بن إبراهيم القفاري', generation: 'الثامن', year: '١٤٤٥', initial: 'خ' },
+            { name: 'سارة بنت أحمد بن عبدالعزيز بن سالم بن حمد القفاري', generation: 'السابع', year: '١٤٢٠', initial: 'س' },
+            { name: 'فاطمة بنت محمد بن خالد بن عبدالرحمن بن سعد القفاري', generation: 'الثامن', year: '١٤٤٢', initial: 'ف' },
+            { name: 'أحمد بن عبدالله بن محمد بن خالد بن سعود القفاري', generation: 'التاسع', year: '١٤٤٦', initial: 'أ' },
+            { name: 'نورة بنت سلمان بن عبدالعزيز بن محمد بن فهد القفاري', generation: 'السابع', year: '١٤٢٥', initial: 'ن' },
+            { name: 'عبدالعزيز بن محمد بن سعد بن خالد بن عبدالله القفاري', generation: 'السادس', year: '١٣٩٥', initial: 'ع' },
+        ];
+
+        const gradients = [
+            'gradient-1', 'gradient-2', 'gradient-3', 'gradient-4', 'gradient-5'
+        ];
+
+        // Focus handling
+        searchInput.addEventListener('focus', () => {
+            searchBar.classList.add('focused');
+            cancelBtn.classList.add('show');
+            searchBar.style.marginLeft = '60px';
+        });
+
+        // Cancel button
+        cancelBtn.addEventListener('click', () => {
+            searchInput.blur();
+            searchInput.value = '';
+            searchBar.classList.remove('focused');
+            cancelBtn.classList.remove('show');
+            searchBar.style.marginLeft = '0';
+            recentProfiles.style.display = 'block';
+            searchResults.style.display = 'none';
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            if (query.length === 0) {
+                recentProfiles.style.display = 'block';
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            recentProfiles.style.display = 'none';
+            searchResults.style.display = 'block';
+
+            // Filter profiles
+            const filtered = profiles.filter(profile => 
+                profile.name.includes(query)
+            );
+
+            // Display results
+            if (filtered.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="no-results fade-in">
+                        <div class="no-results-icon">🔍</div>
+                        <div class="no-results-text">لا توجد نتائج للبحث "${query}"</div>
+                    </div>
+                `;
+            } else {
+                searchResults.innerHTML = `
+                    <h2 class="section-header">نتائج البحث</h2>
+                    ${filtered.map((profile, index) => `
+                        <div class="profile-card fade-in" style="animation-delay: ${index * 0.05}s">
+                            <div class="profile-image ${gradients[index % gradients.length]}">${profile.initial}</div>
+                            <div class="profile-info">
+                                <div class="profile-name">${highlightMatch(profile.name, query)}</div>
+                                <div class="profile-details">
+                                    <span class="generation-badge">الجيل ${profile.generation}</span>
+                                    <span class="year-text">${profile.year} هـ</span>
+                                </div>
+                            </div>
+                            <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </div>
+                    `).join('')}
+                `;
+            }
+        });
+
+        // Highlight search matches
+        function highlightMatch(text, query) {
+            if (!query) return text;
+            const regex = new RegExp(`(${query})`, 'gi');
+            return text.replace(regex, '<mark>$1</mark>');
+        }
+
+        // Add click handlers to profile cards
+        document.addEventListener('click', (e) => {
+            const card = e.target.closest('.profile-card');
+            if (card) {
+                // Simulate navigation
+                card.style.background = '#faf8f5';
+                setTimeout(() => {
+                    card.style.background = '#fff';
+                }, 200);
+            }
+        });
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html>

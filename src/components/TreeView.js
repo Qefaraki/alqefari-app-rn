@@ -1101,16 +1101,31 @@ const TreeView = ({ setProfileEditMode }) => {
       if (!targetNode) {
         console.warn("Node not found in current nodes:", nodeId);
         console.log("Total nodes in tree:", nodes.length);
+        // Show alert if node is not loaded
+        Alert.alert(
+          "العقدة غير موجودة",
+          "هذا الشخص غير محمّل في الشجرة الحالية. قد تحتاج إلى التنقل إلى فرع آخر.",
+          [{ text: "حسناً" }],
+        );
         return;
       }
 
       console.log("Found node at coordinates:", targetNode.x, targetNode.y);
 
-      // Calculate center position
-      const targetX = dimensions.width / 2 - targetNode.x;
-      const targetY = dimensions.height / 2 - targetNode.y;
-      const targetScale = 1.5; // Zoom in slightly for focus
+      // Calculate the target scale (zoom level)
+      // Use current scale if reasonable, otherwise zoom to readable level
+      const currentScale = scale.value;
+      const targetScale =
+        currentScale < 0.8 || currentScale > 3 ? 1.5 : currentScale;
 
+      // CORRECT FORMULA: To center a node on screen
+      // We want: node canvas position * scale + translate = screen center
+      // So: targetNode.x * targetScale + translateX = width/2
+      // Therefore: translateX = width/2 - targetNode.x * targetScale
+      const targetX = dimensions.width / 2 - targetNode.x * targetScale;
+      const targetY = dimensions.height / 2 - targetNode.y * targetScale;
+
+      console.log("Current scale:", currentScale, "Target scale:", targetScale);
       console.log("Navigating to:", { targetX, targetY, targetScale });
 
       // Cancel any ongoing animations
@@ -1118,17 +1133,22 @@ const TreeView = ({ setProfileEditMode }) => {
       cancelAnimation(translateY);
       cancelAnimation(scale);
 
-      // Smooth animation to node
-      translateX.value = withTiming(targetX, {
-        duration: 800,
-        easing: Easing.inOut(Easing.cubic),
+      // Use spring animation for more natural movement
+      // Spring provides smoother deceleration than timing
+      translateX.value = withSpring(targetX, {
+        damping: 20,
+        stiffness: 90,
+        mass: 1,
       });
-      translateY.value = withTiming(targetY, {
-        duration: 800,
-        easing: Easing.inOut(Easing.cubic),
+      translateY.value = withSpring(targetY, {
+        damping: 20,
+        stiffness: 90,
+        mass: 1,
       });
+
+      // Scale uses timing for more predictable zoom
       scale.value = withTiming(targetScale, {
-        duration: 800,
+        duration: 600,
         easing: Easing.inOut(Easing.cubic),
       });
 

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>البحث في الشجرة - فهرس أبجدي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin_theme_2.css">
+    <style>
+        @font-face {
+            font-family: 'SF Arabic';
+            src: url('https://db.onlinewebfonts.com/t/02f502e5eefeb353e5f83fc5045348dc.woff2') format('woff2');
+            font-weight: 400;
+        }
+
+        * {
+            font-family: 'SF Arabic', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #faf8f5;
+            color: #1a1a1a;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Subtle texture background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.02;
+            pointer-events: none;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(139, 69, 19, 0.1) 2px,
+                    rgba(139, 69, 19, 0.1) 4px
+                );
+        }
+
+        /* Header with search */
+        .header {
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 0 rgba(139, 69, 19, 0.1);
+        }
+
+        .header-content {
+            padding: 16px;
+            padding-top: max(16px, env(safe-area-inset-top));
+        }
+
+        .search-minimal {
+            background: #faf8f5;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .search-minimal:focus-within {
+            border-color: #8b4513;
+            background: white;
+        }
+
+        .search-input-minimal {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            color: #1a1a1a;
+        }
+
+        .search-input-minimal::placeholder {
+            color: rgba(139, 69, 19, 0.5);
+        }
+
+        .search-icon-minimal {
+            color: #8b4513;
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Alphabet index */
+        .alphabet-index {
+            position: fixed;
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 90;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 8px 4px;
+            box-shadow: 0 2px 12px rgba(139, 69, 19, 0.1);
+        }
+
+        .alphabet-letter {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #8b4513;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+        }
+
+        .alphabet-letter:hover {
+            background: rgba(139, 69, 19, 0.1);
+        }
+
+        .alphabet-letter.active {
+            background: #8b4513;
+            color: white;
+        }
+
+        /* Main content */
+        .content {
+            padding-right: 40px;
+        }
+
+        /* Section headers */
+        .section-header {
+            background: white;
+            padding: 12px 20px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #8b4513;
+            border-bottom: 2px solid rgba(139, 69, 19, 0.1);
+            position: sticky;
+            top: 73px;
+            z-index: 80;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-header::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, #8b4513, #d2691e);
+            border-radius: 2px;
+        }
+
+        /* Minimal profile row */
+        .profile-row {
+            background: white;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(139, 69, 19, 0.05);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .profile-row:hover {
+            background: #faf8f5;
+            padding-right: 24px;
+        }
+
+        .profile-row:active {
+            background: #f5f3f0;
+        }
+
+        /* Small profile image */
+        .profile-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        /* Gradient backgrounds */
+        .gradient-1 { background: linear-gradient(135deg, #8b4513, #a0522d); }
+        .gradient-2 { background: linear-gradient(135deg, #d2691e, #daa520); }
+        .gradient-3 { background: linear-gradient(135deg, #704214, #8b4513); }
+        .gradient-4 { background: linear-gradient(135deg, #cd853f, #deb887); }
+        .gradient-5 { background: linear-gradient(135deg, #a0522d, #bc8f8f); }
+
+        .profile-info-minimal {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-name-minimal {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-details-minimal {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: rgba(139, 69, 19, 0.6);
+        }
+
+        .generation-dot {
+            width: 6px;
+            height: 6px;
+            background: #d2691e;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Chevron */
+        .chevron-minimal {
+            color: rgba(139, 69, 19, 0.3);
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Quick stats */
+        .quick-stats {
+            background: linear-gradient(135deg, #8b4513, #d2691e);
+            color: white;
+            padding: 20px;
+            margin: 16px;
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-stats::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255, 255, 255, 0.05) 10px,
+                rgba(255, 255, 255, 0.05) 20px
+            );
+            transform: rotate(45deg);
+        }
+
+        .stat {
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.1;
+        }
+
+        .empty-text {
+            font-size: 16px;
+            color: rgba(139, 69, 19, 0.6);
+        }
+
+        /* Loading state */
+        .loading-row {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .skeleton-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        .skeleton-text {
+            flex: 1;
+        }
+
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-line:last-child {
+            width: 60%;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="search-minimal">
+                <svg class="search-icon-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" 
+                       class="search-input-minimal" 
+                       placeholder="البحث بالاسم..."
+                       autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="stat">
+            <span class="stat-value">٢٤٣</span>
+            <span class="stat-label">فرد</span>
+        </div>
+        <div class="stat">
+            <span class="stat-value">٨</span>
+            <span class="stat-label">أجيال</span>
+        </div>
+        <div class="stat">
+            <span class="stat-value">٤٥</span>
+            <span class="stat-label">عائلة</span>
+        </div>
+    </div>
+
+    <!-- Alphabet Index -->
+    <div class="alphabet-index">
+        <div class="alphabet-letter active">أ</div>
+        <div class="alphabet-letter">ب</div>
+        <div class="alphabet-letter">ت</div>
+        <div class="alphabet-letter">ث</div>
+        <div class="alphabet-letter">ج</div>
+        <div class="alphabet-letter">ح</div>
+        <div class="alphabet-letter">خ</div>
+        <div class="alphabet-letter">د</div>
+        <div class="alphabet-letter">ذ</div>
+        <div class="alphabet-letter">ر</div>
+        <div class="alphabet-letter">ز</div>
+        <div class="alphabet-letter">س</div>
+        <div class="alphabet-letter">ش</div>
+        <div class="alphabet-letter">ص</div>
+        <div class="alphabet-letter">ض</div>
+        <div class="alphabet-letter">ط</div>
+        <div class="alphabet-letter">ظ</div>
+        <div class="alphabet-letter">ع</div>
+        <div class="alphabet-letter">غ</div>
+        <div class="alphabet-letter">ف</div>
+        <div class="alphabet-letter">ق</div>
+        <div class="alphabet-letter">ك</div>
+        <div class="alphabet-letter">ل</div>
+        <div class="alphabet-letter">م</div>
+        <div class="alphabet-letter">ن</div>
+        <div class="alphabet-letter">ه</div>
+        <div class="alphabet-letter">و</div>
+        <div class="alphabet-letter">ي</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <!-- Section أ -->
+        <div class="section-header" id="section-أ">حرف الألف</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.1s">
+            <div class="profile-avatar gradient-1">أ</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">أحمد بن عبدالله بن محمد القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل التاسع</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٤٦ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <div class="profile-row slide-in" style="animation-delay: 0.15s">
+            <div class="profile-avatar gradient-3">أ</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">أسماء بنت خالد بن سعود القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل الثامن</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٤٠ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <!-- Section خ -->
+        <div class="section-header" id="section-خ">حرف الخاء</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.2s">
+            <div class="profile-avatar gradient-3">خ</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">خالد بن عبدالله بن سعود القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل الثامن</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٤٥ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <!-- Section س -->
+        <div class="section-header" id="section-س">حرف السين</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.25s">
+            <div class="profile-avatar gradient-4">س</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">سارة بنت أحمد بن عبدالعزيز القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل السابع</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٢٠ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <div class="profile-row slide-in" style="animation-delay: 0.3s">
+            <div class="profile-avatar gradient-2">س</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">سلمان بن محمد بن عبدالرحمن القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل السادس</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٠٥ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <!-- Section ع -->
+        <div class="section-header" id="section-ع">حرف العين</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.35s">
+            <div class="profile-avatar gradient-1">ع</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">عبدالله بن خالد بن محمد القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل السابع</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٢٣ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <div class="profile-row slide-in" style="animation-delay: 0.4s">
+            <div class="profile-avatar gradient-3">ع</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">عبدالعزيز بن محمد بن سعد القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل السادس</span>
+                    <span class="generation-dot"></span>
+                    <span>١٣٩٥ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <!-- Section ف -->
+        <div class="section-header" id="section-ف">حرف الفاء</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.45s">
+            <div class="profile-avatar gradient-5">ف</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">فاطمة بنت محمد بن خالد القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل الثامن</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٤٢ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <!-- Section م -->
+        <div class="section-header" id="section-م">حرف الميم</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.5s">
+            <div class="profile-avatar gradient-2">م</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">محمد بن سلمان بن عبدالرحمن القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل السادس</span>
+                    <span class="generation-dot"></span>
+                    <span>١٣٩٨ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+
+        <!-- Section ن -->
+        <div class="section-header" id="section-ن">حرف النون</div>
+        
+        <div class="profile-row slide-in" style="animation-delay: 0.55s">
+            <div class="profile-avatar gradient-2">ن</div>
+            <div class="profile-info-minimal">
+                <div class="profile-name-minimal">نورة بنت سلمان بن عبدالعزيز القفاري</div>
+                <div class="profile-details-minimal">
+                    <span>الجيل السابع</span>
+                    <span class="generation-dot"></span>
+                    <span>١٤٢٥ هـ</span>
+                </div>
+            </div>
+            <svg class="chevron-minimal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        // Alphabet index navigation
+        const alphabetLetters = document.querySelectorAll('.alphabet-letter');
+        alphabetLetters.forEach(letter => {
+            letter.addEventListener('click', () => {
+                const targetSection = document.getElementById(`section-${letter.textContent}`);
+                if (targetSection) {
+                    alphabetLetters.forEach(l => l.classList.remove('active'));
+                    letter.classList.add('active');
+                    targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Search functionality
+        const searchInput = document.querySelector('.search-input-minimal');
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            // Add search logic here
+        });
+
+        // Row click animation
+        const rows = document.querySelectorAll('.profile-row');
+        rows.forEach(row => {
+            row.addEventListener('click', () => {
+                row.style.transform = 'translateX(-5px)';
+                setTimeout(() => {
+                    row.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // Intersection observer for section headers
+        const sectionHeaders = document.querySelectorAll('.section-header');
+        const observerOptions = {
+            rootMargin: '-100px 0px -70% 0px'
+        };
+
+        const headerObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const sectionId = entry.target.id;
+                    const letter = sectionId.replace('section-', '');
+                    alphabetLetters.forEach(l => {
+                        if (l.textContent === letter) {
+                            alphabetLetters.forEach(al => al.classList.remove('active'));
+                            l.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        sectionHeaders.forEach(header => {
+            headerObserver.observe(header);
+        });
+    </script>
+</body>
+</html>

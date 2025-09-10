@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>بحث نسبي - القفاري</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+    <link rel="stylesheet" href="./najdi_sadu_ios_theme.css" />
+    <style>
+      /* Ensure SF Arabic everywhere (override any injected fonts) */
+      body, input, button, textarea, select, h1, h2, h3, h4, h5, h6, p, span, a {
+        font-family: 'SF Arabic', -apple-system, 'SF Pro AR', 'SF Pro', 'Helvetica Neue', Helvetica, Arial, 'Noto Naskh Arabic', 'Geeza Pro', sans-serif !important;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased">
+    <main class="mx-auto max-w-md px-4 pb-8">
+      <!-- Top bar -->
+      <div class="flex items-center justify-between pt-4 pb-2 select-none">
+        <div class="text-sm text-[var(--muted-foreground)]">بحث نسبي</div>
+        <button class="h-9 w-9 rounded-full grid place-items-center border border-[var(--border)] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition" aria-label="الإعدادات">⚙︎</button>
+      </div>
+
+      <!-- Search -->
+      <div class="mt-1">
+        <label for="search" class="sr-only">سلسلة الأسماء</label>
+        <div class="relative">
+          <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[var(--muted-foreground)]">🔍</span>
+          <input id="search" type="text" class="search-input w-full pr-10 pl-24 py-3 text-[15px] placeholder:text-[var(--muted-foreground)]" placeholder="اكتب سلسلة الأسماء... مثال: محمد، خالد، عبدالله، القفاري" />
+          <button class="absolute inset-y-0 left-2 my-1 px-4 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-sm font-semibold shadow-sm hover:shadow-md transition">بحث</button>
+        </div>
+      </div>
+
+      <!-- Sadu/Najdi accent band -->
+      <div class="sadu-band my-4"></div>
+
+      <!-- Cards list -->
+      <div class="space-y-3">
+        <!-- Card 1 -->
+        <a href="#" class="ios-card block p-3">
+          <div class="flex flex-row-reverse items-center gap-3">
+            <img src="https://placehold.co/96x96?text=%F0%9F%91%A4" alt="صورة الملف" class="h-16 w-16 object-cover avatar-ring" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <h3 class="text-base font-semibold truncate">القفاري</h3>
+                <span class="gen-badge">الجيل ٧</span>
+              </div>
+              <p class="mt-1 text-[15px] text-[var(--muted-foreground)] truncate">محمد، خالد، عبدالله، القفاري</p>
+            </div>
+          </div>
+        </a>
+
+        <!-- Card 2 -->
+        <a href="#" class="ios-card block p-3">
+          <div class="flex flex-row-reverse items-center gap-3">
+            <img src="https://placehold.co/96x96?text=%F0%9F%91%A4" alt="صورة الملف" class="h-16 w-16 object-cover avatar-ring" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <h3 class="text-base font-semibold truncate">القفاري</h3>
+                <span class="gen-badge">الجيل ٥</span>
+              </div>
+              <p class="mt-1 text-[15px] text-[var(--muted-foreground)] truncate">فهد، نايف، عبدالعزيز، القفاري</p>
+            </div>
+          </div>
+        </a>
+
+        <!-- Card 3 -->
+        <a href="#" class="ios-card block p-3">
+          <div class="flex flex-row-reverse items-center gap-3">
+            <img src="https://placehold.co/96x96?text=%F0%9F%91%A4" alt="صورة الملف" class="h-16 w-16 object-cover avatar-ring" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <h3 class="text-base font-semibold truncate">القفاري</h3>
+                <span class="gen-badge">الجيل ٨</span>
+              </div>
+              <p class="mt-1 text-[15px] text-[var(--muted-foreground)] truncate">سارة، مريم، فاطمة، القفاري</p>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="mt-6 soft-divider"></div>
+    </main>
+  </body>
+  
+</html>
+
+
+
