@@ -5,8 +5,9 @@ import {
   Text,
   FlatList,
   Pressable,
-  ActivityIndicator,
   Keyboard,
+  Animated,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -17,71 +18,72 @@ import { toArabicNumerals } from "../utils/dateUtils";
 const SearchBar = ({ onSelectResult, style }) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
 
-  const performSearch = useCallback(async (searchText) => {
-    if (!searchText || searchText.length < 1) {
-      setResults([]);
-      setShowResults(false);
-      return;
-    }
+  // Animation values
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const resultsOpacity = useRef(new Animated.Value(0)).current;
+  const resultsTranslateY = useRef(new Animated.Value(-10)).current;
 
-    setLoading(true);
-
-    try {
-      // Split the query by spaces to create name chain
-      const names = searchText
-        .trim()
-        .split(/\s+/)
-        .filter((name) => name.length > 0);
-
-      console.log("Searching for:", names);
-
-      const { data, error } = await supabase.rpc("search_name_chain", {
-        p_names: names,
-        p_limit: 20,
-        p_offset: 0,
-      });
-
-      if (error) {
-        console.error("Search error:", error);
+  const performSearch = useCallback(
+    async (searchText) => {
+      if (!searchText || searchText.length < 1) {
         setResults([]);
         setShowResults(false);
-      } else {
-        console.log("Search results:", data?.length || 0, "items");
-        console.log("First result:", data?.[0]);
-        setResults(data || []);
-        setShowResults((data || []).length > 0);
-        console.log("showResults will be:", (data || []).length > 0);
-      }
-    } catch (err) {
-      console.error("Search exception:", err);
-
-      // Check if it's a network error
-      const netState = await NetInfo.fetch();
-      if (!netState.isConnected) {
-        setNetworkError("offline");
-        setShowNetworkError(true);
-      } else if (err.message?.includes("fetch")) {
-        setNetworkError("server");
-        setShowNetworkError(true);
-      } else if (err.message?.includes("timeout")) {
-        setNetworkError("timeout");
-        setShowNetworkError(true);
-      } else {
-        setNetworkError("error");
-        setShowNetworkError(true);
+        return;
       }
 
-      setResults([]);
-      setShowResults(false);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      try {
+        // Split the query by spaces to create name chain
+        const names = searchText
+          .trim()
+          .split(/\s+/)
+          .filter((name) => name.length > 0);
+
+        console.log("Searching for:", names);
+
+        const { data, error } = await supabase.rpc("search_name_chain", {
+          p_names: names,
+          p_limit: 20,
+          p_offset: 0,
+        });
+
+        if (error) {
+          console.error("Search error:", error);
+          setResults([]);
+          setShowResults(false);
+        } else {
+          console.log("Search results:", data?.length || 0, "items");
+          setResults(data || []);
+          if ((data || []).length > 0) {
+            setShowResults(true);
+            // Animate results in
+            Animated.parallel([
+              Animated.timing(resultsOpacity, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+              }),
+              Animated.spring(resultsTranslateY, {
+                toValue: 0,
+                friction: 8,
+                tension: 40,
+                useNativeDriver: true,
+              }),
+            ]).start();
+          }
+        }
+      } catch (err) {
+        console.error("Search exception:", err);
+        setResults([]);
+        setShowResults(false);
+      }
+    },
+    [resultsOpacity, resultsTranslateY],
+  );
 
   const handleChangeText = useCallback(
     (text) => {
@@ -89,6 +91,12 @@ const SearchBar = ({ onSelectResult, style }) => {
 
       // Clear previous timer
       if (searchTimer) clearTimeout(searchTimer);
+
+      // If text is cleared, hide results immediately
+      if (!text) {
+        hideResults();
+        return;
+      }
 
       // Debounce search
       const timer = setTimeout(() => {
@@ -99,11 +107,37 @@ const SearchBar = ({ onSelectResult, style }) => {
     [searchTimer, performSearch],
   );
 
+  const showBackdrop = () => {
+    Animated.timing(backdropOpacity, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideResults = () => {
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(resultsOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowResults(false);
+      resultsTranslateY.setValue(-10);
+    });
+  };
+
   const handleSelectResult = useCallback(
     (item) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setQuery("");
-      setShowResults(false);
+      hideResults();
       Keyboard.dismiss();
       onSelectResult(item);
     },
@@ -113,12 +147,22 @@ const SearchBar = ({ onSelectResult, style }) => {
   const handleClear = useCallback(() => {
     setQuery("");
     setResults([]);
-    setShowResults(false);
+    hideResults();
     inputRef.current?.focus();
   }, []);
 
+  const handleFocus = () => {
+    setIsFocused(true);
+    if (query.length > 0) {
+      showBackdrop();
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
   const renderResult = ({ item }) => {
-    console.log("Rendering item:", item.name);
     const initials = item.name ? item.name.charAt(0) : "؟";
 
     return (
@@ -153,11 +197,18 @@ const SearchBar = ({ onSelectResult, style }) => {
     );
   };
 
+  // Show backdrop when results appear
+  useEffect(() => {
+    if (showResults && results.length > 0) {
+      showBackdrop();
+    }
+  }, [showResults, results]);
+
   // Dismiss results when tapping outside
   useEffect(() => {
     const keyboardHideListener = Keyboard.addListener("keyboardDidHide", () => {
       if (query.length === 0) {
-        setShowResults(false);
+        hideResults();
       }
     });
 
@@ -168,58 +219,77 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   return (
     <>
-      {/* Backdrop when results are showing */}
+      {/* Animated Backdrop */}
       {showResults && (
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => {
-            setShowResults(false);
-            Keyboard.dismiss();
-          }}
-        />
+        <Animated.View
+          style={[
+            styles.backdrop,
+            {
+              opacity: backdropOpacity,
+            },
+          ]}
+          pointerEvents={showResults ? "auto" : "none"}
+        >
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => {
+              hideResults();
+              Keyboard.dismiss();
+            }}
+          />
+        </Animated.View>
       )}
 
       <View style={[styles.container, style]}>
-        <View style={styles.searchBarContainer}>
+        <View
+          style={[
+            styles.searchBarContainer,
+            isFocused && styles.searchBarFocused,
+          ]}
+        >
           <View style={styles.searchBar}>
-            <Ionicons
-              name="search"
-              size={20}
-              color="#8A8A8E"
-              style={styles.searchIcon}
-            />
-
             <TextInput
               ref={inputRef}
               style={styles.input}
-              placeholder="ابحث بالأسماء... محمد عبدالله سالم"
+              placeholder=""
               placeholderTextColor="#8A8A8E"
               value={query}
               onChangeText={handleChangeText}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
               autoCorrect={false}
               autoCapitalize="none"
               returnKeyType="search"
               textAlign="right"
             />
 
-            {query.length > 0 && (
+            {/* Clear button on the left */}
+            {query.length > 0 ? (
               <Pressable onPress={handleClear} style={styles.clearButton}>
-                <Ionicons name="close-circle" size={20} color="#8A8A8E" />
+                <Ionicons name="close-circle" size={18} color="#C7C7CC" />
               </Pressable>
-            )}
+            ) : null}
 
-            {loading && (
-              <ActivityIndicator
-                size="small"
-                color="#007AFF"
-                style={styles.loader}
-              />
-            )}
+            {/* Search icon on the right - always gray */}
+            <Ionicons
+              name="search"
+              size={20}
+              color="#8A8A8E"
+              style={styles.searchIcon}
+            />
           </View>
         </View>
 
         {showResults && results.length > 0 && (
-          <View style={styles.resultsContainer}>
+          <Animated.View
+            style={[
+              styles.resultsContainer,
+              {
+                opacity: resultsOpacity,
+                transform: [{ translateY: resultsTranslateY }],
+              },
+            ]}
+          >
             <FlatList
               data={results}
               keyExtractor={(item) => item.id}
@@ -230,7 +300,7 @@ const SearchBar = ({ onSelectResult, style }) => {
               contentContainerStyle={styles.resultsContent}
               nestedScrollEnabled={true}
             />
-          </View>
+          </Animated.View>
         )}
       </View>
     </>
@@ -250,45 +320,47 @@ const styles = {
   },
   container: {
     position: "absolute",
-    top: 50, // Move higher up
-    left: 12,
-    right: 12,
-    zIndex: 10000, // Much higher z-index
-    elevation: 1000, // For Android
+    top: 100, // Much higher, near the top
+    left: 16,
+    right: 16,
+    zIndex: 10000,
+    elevation: 1000,
   },
   searchBarContainer: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  searchBarFocused: {
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 22, // More rounded for modern look
-    paddingHorizontal: 16,
-    height: 48, // Slightly taller
-    borderWidth: 1,
+    borderRadius: 12, // Slightly rounded
+    paddingHorizontal: 12,
+    height: 42, // Compact height
+    borderWidth: 0.5,
     borderColor: "#E5E5EA",
   },
   searchIcon: {
-    marginRight: 8,
+    marginLeft: 8,
   },
   input: {
     flex: 1,
-    fontSize: 17,
-    fontFamily: "SF Arabic",
+    fontSize: 16,
+    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
     color: "#000000",
-    paddingVertical: 4,
+    paddingVertical: 0,
+    height: "100%",
   },
   clearButton: {
     padding: 4,
-    marginLeft: 4,
-  },
-  loader: {
-    marginLeft: 8,
+    marginRight: 8,
   },
   resultsContainer: {
     marginTop: 8,
@@ -296,26 +368,22 @@ const styles = {
     borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
     maxHeight: 400,
-    minHeight: 200, // Ensure minimum height
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
+    overflow: "hidden",
   },
   resultsList: {
-    maxHeight: 350,
-    minHeight: 100,
+    maxHeight: 400,
   },
   resultsContent: {
-    paddingVertical: 8,
-    flexGrow: 1,
+    paddingVertical: 4,
   },
   resultItem: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.5,
     borderBottomColor: "#E5E5EA",
   },
   resultItemPressed: {
@@ -324,57 +392,51 @@ const styles = {
   resultContent: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 50,
-  },
-  resultPhoto: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginRight: 12,
+    minHeight: 44,
   },
   resultPhotoPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#007AFF",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
   },
   resultInitials: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#FFFFFF",
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
   },
   resultInfo: {
     flex: 1,
-    marginHorizontal: 12,
+    marginHorizontal: 8,
     justifyContent: "center",
   },
   resultName: {
     fontSize: 16,
     fontWeight: "600",
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
     color: "#000000",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   resultChain: {
     fontSize: 13,
     color: "#666666",
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
     lineHeight: 18,
   },
   resultMeta: {
     backgroundColor: "#007AFF15",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   generationText: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#007AFF",
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
     fontWeight: "600",
   },
 };
