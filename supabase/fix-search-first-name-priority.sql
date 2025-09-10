@@ -79,7 +79,7 @@ BEGIN
       a.visited_ids || parent.id,
       a.name_array || normalize_arabic(parent.name),
       a.display_names || parent.name,
-      a.current_chain || ' بن ' || parent.name,
+      a.current_chain || ' ' || parent.name,
       a.depth + 1,
       a.generation,
       a.photo_url,
