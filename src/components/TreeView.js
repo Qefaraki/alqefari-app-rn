@@ -397,6 +397,7 @@ const TreeView = ({ setProfileEditMode }) => {
   // State for triggering re-renders
   const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
   const [glowOpacityState, setGlowOpacityState] = useState(0);
+  const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
 
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
@@ -1165,6 +1166,9 @@ const TreeView = ({ setProfileEditMode }) => {
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {
+    // Force re-trigger by incrementing trigger counter
+    setGlowTrigger((prev) => prev + 1);
+
     // Set the highlighted node
     highlightedNodeId.value = nodeId;
 
@@ -1190,11 +1194,6 @@ const TreeView = ({ setProfileEditMode }) => {
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
-
-  // Clear highlight after animation
-  setTimeout(() => {
-    highlightedNodeId.value = null;
-  }, 2000);
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
@@ -2282,6 +2281,21 @@ const TreeView = ({ setProfileEditMode }) => {
           );
           if (!highlightedNode) return null;
 
+          // Determine node tier and get appropriate border radius
+          const isT1 = indices?.heroNodes?.some(
+            (hero) => hero.id === highlightedNode.id,
+          );
+          const isT2 = indices?.searchTiers?.[highlightedNode.id] === 2;
+
+          let borderRadius;
+          if (isT1) {
+            borderRadius = 16; // T1 hero nodes
+          } else if (isT2) {
+            borderRadius = 13; // T2 text-only nodes
+          } else {
+            borderRadius = CORNER_RADIUS; // Regular nodes (8)
+          }
+
           // Get actual node dimensions based on whether it has a photo
           const nodeWidth = highlightedNode.profile_photo_url
             ? NODE_WIDTH_WITH_PHOTO
@@ -2298,11 +2312,13 @@ const TreeView = ({ setProfileEditMode }) => {
 
           return (
             <LottieGlow
+              key={`glow-${glowTrigger}`} // Force re-mount on same node
               visible={true}
               x={screenX}
               y={screenY}
               width={nodeWidth * currentTransform.scale}
               height={nodeHeight * currentTransform.scale}
+              borderRadius={borderRadius * currentTransform.scale}
               onAnimationFinish={() => {
                 // Clear highlight after animation
                 setHighlightedNodeIdState(null);

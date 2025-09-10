@@ -11,6 +11,7 @@ const LottieGlow = ({
   y,
   width = 120,
   height = 40,
+  borderRadius = 13, // Default to T2 node radius
   onAnimationFinish,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -93,7 +94,8 @@ const LottieGlow = ({
               width: width,
               height: height,
               borderColor: "#FFB800",
-              borderWidth: 2.5,
+              borderWidth: 1, // Match node border width
+              borderRadius: borderRadius,
               opacity: fadeAnim,
               transform: [{ scale: pulseAnim }],
             },
@@ -107,6 +109,7 @@ const LottieGlow = ({
             {
               width: width,
               height: height,
+              borderRadius: borderRadius,
               opacity: fadeAnim.interpolate({
                 inputRange: [0, 1],
                 outputRange: [0, 0.15],
@@ -148,33 +151,11 @@ const styles = StyleSheet.create({
   },
   glowBorder: {
     position: "absolute",
-    borderRadius: 8, // Match node's CORNER_RADIUS = 8
     borderStyle: "solid",
   },
   glowShadow: {
     position: "absolute",
-    borderRadius: 8, // Match node's CORNER_RADIUS = 8
     backgroundColor: "transparent",
-    shadowColor: "#FFB800",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  glowShadow: {
-    position: "absolute",
-    borderRadius: 16, // Match node's actual corner radius
-    backgroundColor: "transparent",
-    shadowColor: "#FFB800",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  glowShadow: {
-    position: "absolute",
-    borderRadius: 20,
-    backgroundColor: "#FFB800",
     shadowColor: "#FFB800",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
