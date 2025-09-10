@@ -583,10 +583,12 @@ const TreeView = ({ setProfileEditMode }) => {
         rootData.length === 0
       ) {
         console.error("Error loading root node:", rootError);
-        // Check if it's a network error
+        // Check if it's a network error (case insensitive)
+        const errorMsg = rootError?.message?.toLowerCase() || "";
         if (
-          rootError?.message?.includes("fetch") ||
-          rootError?.message?.includes("network")
+          errorMsg.includes("fetch") ||
+          errorMsg.includes("network") ||
+          rootError?.code === "PGRST301" // Supabase network error code
         ) {
           setNetworkError("network");
           setTreeData([]);
@@ -610,10 +612,12 @@ const TreeView = ({ setProfileEditMode }) => {
       );
       if (error) {
         console.error("Error loading tree data:", error);
-        // Check if it's a network error
+        // Check if it's a network error (case insensitive)
+        const errorMsg = error?.message?.toLowerCase() || "";
         if (
-          error?.message?.includes("fetch") ||
-          error?.message?.includes("network")
+          errorMsg.includes("fetch") ||
+          errorMsg.includes("network") ||
+          error?.code === "PGRST301"
         ) {
           setNetworkError("network");
           setTreeData([]);
@@ -629,11 +633,12 @@ const TreeView = ({ setProfileEditMode }) => {
       setIsLoading(false);
     } catch (err) {
       console.error("Failed to load tree:", err);
-      // Check if it's a network error
+      // Check if it's a network error (case insensitive)
+      const errorMsg = err?.message?.toLowerCase() || "";
       if (
-        err?.message?.includes("fetch") ||
-        err?.message?.includes("Network") ||
-        err?.message?.includes("Failed to fetch")
+        errorMsg.includes("fetch") ||
+        errorMsg.includes("network") ||
+        err?.code === "PGRST301"
       ) {
         setNetworkError("network");
         setTreeData([]);
