@@ -71,6 +71,7 @@ import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import LottieGlow from "./LottieGlow";
+import NetworkErrorView from "./NetworkErrorView";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -366,6 +367,8 @@ const TreeView = ({ setProfileEditMode }) => {
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentScale, setCurrentScale] = useState(1);
+  const [networkError, setNetworkError] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // Admin mode state
   const { isAdminMode } = useAdminMode();
@@ -566,6 +569,9 @@ const TreeView = ({ setProfileEditMode }) => {
   // Load tree data using branch loading
   const loadTreeData = async () => {
     setIsLoading(true);
+    setNetworkError(null);
+    setIsRetrying(false);
+
     try {
       // First get the root node
       const { data: rootData, error: rootError } =
@@ -577,15 +583,26 @@ const TreeView = ({ setProfileEditMode }) => {
         rootData.length === 0
       ) {
         console.error("Error loading root node:", rootError);
-        // Fall back to local data
-        setTreeData(familyData || []);
+        // Check if it's a network error
+        if (
+          rootError?.message?.includes("fetch") ||
+          rootError?.message?.includes("network")
+        ) {
+          setNetworkError("network");
+          setTreeData([]);
+        } else if (rootData?.length === 0) {
+          setNetworkError("empty");
+          setTreeData([]);
+        } else {
+          // Fall back to local data
+          setTreeData(familyData || []);
+        }
         setIsLoading(false);
         return;
       }
 
       // Then load the tree starting from the root HID
       const rootHid = rootData[0].hid;
-      // console.log(`🌳 Loading tree from backend (root: ${rootData[0].name})...`);
       const { data, error } = await profilesService.getBranchData(
         rootHid,
         8,
@@ -593,20 +610,44 @@ const TreeView = ({ setProfileEditMode }) => {
       );
       if (error) {
         console.error("Error loading tree data:", error);
-        // Fall back to local data if backend fails
-        setTreeData(familyData || []);
+        // Check if it's a network error
+        if (
+          error?.message?.includes("fetch") ||
+          error?.message?.includes("network")
+        ) {
+          setNetworkError("network");
+          setTreeData([]);
+        } else {
+          // Fall back to local data if backend fails
+          setTreeData(familyData || []);
+        }
       } else {
-        // console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
         setTreeData(data || []);
+        setNetworkError(null); // Clear any previous errors
       }
 
       setIsLoading(false);
     } catch (err) {
       console.error("Failed to load tree:", err);
-      // Fall back to local data
-      setTreeData(familyData || []);
+      // Check if it's a network error
+      if (
+        err?.message?.includes("fetch") ||
+        err?.message?.includes("Network") ||
+        err?.message?.includes("Failed to fetch")
+      ) {
+        setNetworkError("network");
+        setTreeData([]);
+      } else {
+        // Fall back to local data
+        setTreeData(familyData || []);
+      }
       setIsLoading(false);
     }
+  };
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    await loadTreeData();
   };
 
   // Load tree data on mount
@@ -2198,6 +2239,17 @@ const TreeView = ({ setProfileEditMode }) => {
   }, [currentTransform, tier, indices, culledNodes]);
 
   // Show loading state
+  // Show network error state if there's an error
+  if (networkError) {
+    return (
+      <NetworkErrorView
+        errorType={networkError}
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <View

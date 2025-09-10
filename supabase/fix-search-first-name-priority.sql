@@ -25,11 +25,11 @@ DECLARE
   v_search_terms TEXT[];
   v_search_term TEXT;
 BEGIN
-  -- Clean and normalize search terms (min 2 chars each)
+  -- Clean and normalize search terms (allow single character searches)
   v_search_terms := ARRAY[]::TEXT[];
   FOREACH v_search_term IN ARRAY p_names
   LOOP
-    IF LENGTH(TRIM(v_search_term)) >= 2 THEN
+    IF LENGTH(TRIM(v_search_term)) >= 1 THEN
       v_search_terms := array_append(v_search_terms, normalize_arabic(TRIM(v_search_term)));
     END IF;
   END LOOP;
