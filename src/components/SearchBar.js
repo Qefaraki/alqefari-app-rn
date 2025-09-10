@@ -7,16 +7,12 @@ import {
   Pressable,
   ActivityIndicator,
   Keyboard,
-  Image,
-  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import NetInfo from "@react-native-community/netinfo";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
-import NetworkError from "./NetworkError";
 
 const SearchBar = ({ onSelectResult, style }) => {
   const [query, setQuery] = useState("");
@@ -24,8 +20,6 @@ const SearchBar = ({ onSelectResult, style }) => {
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
-  const [networkError, setNetworkError] = useState(null);
-  const [showNetworkError, setShowNetworkError] = useState(false);
   const inputRef = useRef(null);
 
   const performSearch = useCallback(async (searchText) => {
