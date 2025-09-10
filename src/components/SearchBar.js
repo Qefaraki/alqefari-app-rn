@@ -44,6 +44,7 @@ const SearchBar = ({ onSelectResult, style }) => {
       const { data, error } = await supabase.rpc("search_name_chain", {
         p_names: names,
         p_limit: 20,
+        p_offset: 0,
       });
 
       if (error) {
@@ -101,6 +102,7 @@ const SearchBar = ({ onSelectResult, style }) => {
   }, []);
 
   const renderResult = ({ item }) => {
+    console.log("Rendering item:", item.name);
     const initials = item.name ? item.name.charAt(0) : "؟";
 
     return (
@@ -112,24 +114,16 @@ const SearchBar = ({ onSelectResult, style }) => {
         ]}
       >
         <View style={styles.resultContent}>
-          {item.photo_url ? (
-            <Image
-              source={{ uri: item.photo_url }}
-              style={styles.resultPhoto}
-              defaultSource={require("../../assets/icon.png")}
-            />
-          ) : (
-            <View style={styles.resultPhotoPlaceholder}>
-              <Text style={styles.resultInitials}>{initials}</Text>
-            </View>
-          )}
+          <View style={styles.resultPhotoPlaceholder}>
+            <Text style={styles.resultInitials}>{initials}</Text>
+          </View>
 
           <View style={styles.resultInfo}>
             <Text style={styles.resultName} numberOfLines={1}>
-              {item.name}
+              {item.name || "بدون اسم"}
             </Text>
-            <Text style={styles.resultChain} numberOfLines={1}>
-              {item.name_chain}
+            <Text style={styles.resultChain} numberOfLines={2}>
+              {item.name_chain || ""}
             </Text>
           </View>
 
@@ -210,17 +204,15 @@ const SearchBar = ({ onSelectResult, style }) => {
 
         {showResults && results.length > 0 && (
           <View style={styles.resultsContainer}>
-            <Text style={{ padding: 10, color: "#000" }}>
-              {results.length} نتيجة
-            </Text>
             <FlatList
               data={results}
               keyExtractor={(item) => item.id}
               renderItem={renderResult}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
               style={styles.resultsList}
               contentContainerStyle={styles.resultsContent}
+              nestedScrollEnabled={true}
             />
           </View>
         )}
@@ -291,20 +283,24 @@ const styles = {
     shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 10,
-    overflow: "hidden",
-    maxHeight: 400, // Fixed max height
-    borderWidth: 2,
-    borderColor: "#007AFF", // Blue border to make it visible
+    maxHeight: 400,
+    minHeight: 200, // Ensure minimum height
+    borderWidth: 1,
+    borderColor: "#E5E5EA",
   },
   resultsList: {
-    flex: 1,
+    maxHeight: 350,
+    minHeight: 100,
   },
   resultsContent: {
-    paddingVertical: 4,
+    paddingVertical: 8,
+    flexGrow: 1,
   },
   resultItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E5EA",
   },
   resultItemPressed: {
     backgroundColor: "#F2F2F7",
@@ -312,6 +308,7 @@ const styles = {
   resultContent: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 50,
   },
   resultPhoto: {
     width: 36,
@@ -336,19 +333,21 @@ const styles = {
   },
   resultInfo: {
     flex: 1,
-    marginRight: 8,
+    marginHorizontal: 12,
+    justifyContent: "center",
   },
   resultName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: "#000000",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   resultChain: {
-    fontSize: 12,
-    color: "#8A8A8E",
+    fontSize: 13,
+    color: "#666666",
     fontFamily: "SF Arabic",
+    lineHeight: 18,
   },
   resultMeta: {
     backgroundColor: "#007AFF15",

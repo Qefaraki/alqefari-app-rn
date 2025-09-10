@@ -81,6 +81,12 @@ function resolveCollisions(hierarchyData) {
 }
 
 export function calculateTreeLayout(familyData) {
+  // Safety check for undefined or null input
+  if (!familyData || !Array.isArray(familyData)) {
+    console.warn("calculateTreeLayout received invalid data:", familyData);
+    return { nodes: [], connections: [] };
+  }
+
   // Convert flat array to hierarchical structure
   const dataMap = new Map();
   familyData.forEach((person) =>

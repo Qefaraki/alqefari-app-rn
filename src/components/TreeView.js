@@ -569,10 +569,15 @@ const TreeView = ({ setProfileEditMode }) => {
       // First get the root node
       const { data: rootData, error: rootError } =
         await profilesService.getBranchData(null, 1, 1);
-      if (rootError || !rootData || rootData.length === 0) {
+      if (
+        rootError ||
+        !rootData ||
+        !Array.isArray(rootData) ||
+        rootData.length === 0
+      ) {
         console.error("Error loading root node:", rootError);
         // Fall back to local data
-        setTreeData(familyData);
+        setTreeData(familyData || []);
         setIsLoading(false);
         return;
       }
@@ -587,22 +592,18 @@ const TreeView = ({ setProfileEditMode }) => {
       );
       if (error) {
         console.error("Error loading tree data:", error);
-        // Fall back to local data
-        setTreeData(familyData);
-      } else if (data) {
+        // Fall back to local data if backend fails
+        setTreeData(familyData || []);
+      } else {
         // console.log(`✅ Loaded ${data.length} nodes from Supabase backend`);
-        // console.log('🐞 DEBUG MODE: Tracking zoom/pan issues. Look for:');
-        // console.log('  - Node positions changing (they shouldn\'t)');
-        // console.log('  - Large visibility changes during zoom');
-        // console.log('  - Focal point jumps between pinches');
-        setTreeData(data); // Store in zustand for ProfileSheet
+        setTreeData(data || []);
       }
+
+      setIsLoading(false);
     } catch (err) {
-      console.error("Failed to load tree data:", err);
+      console.error("Failed to load tree:", err);
       // Fall back to local data
-      setTreeData(familyData);
-      setTreeData(familyData);
-    } finally {
+      setTreeData(familyData || []);
       setIsLoading(false);
     }
   };
@@ -683,7 +684,7 @@ const TreeView = ({ setProfileEditMode }) => {
 
   // Calculate layout
   const { nodes, connections } = useMemo(() => {
-    if (isLoading || treeData.length === 0) {
+    if (isLoading || !treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
     }
     const layout = calculateTreeLayout(treeData);
@@ -1023,8 +1024,17 @@ const TreeView = ({ setProfileEditMode }) => {
   // Pass 3: Invisible bridge check - horizontal sibling lines intersecting viewport
   const bridgeSegments = useMemo(() => {
     const result = [];
+    if (!connections || !Array.isArray(connections)) {
+      return result;
+    }
     for (const conn of connections) {
-      if (!conn.children || conn.children.length === 0) continue;
+      if (
+        !conn ||
+        !conn.children ||
+        !Array.isArray(conn.children) ||
+        conn.children.length === 0
+      )
+        continue;
 
       const parentX = conn.parent.x;
       const parentY = conn.parent.y;
@@ -1082,16 +1092,26 @@ const TreeView = ({ setProfileEditMode }) => {
   // Navigate to a specific node with animation
   const navigateToNode = useCallback(
     (nodeId) => {
-      const targetNode = indices.idToNode.get(nodeId);
+      console.log("Attempting to navigate to node:", nodeId);
+
+      // Find the node in the current nodes array (not indices)
+      // This ensures we always use fresh coordinates
+      const targetNode = nodes.find((n) => n.id === nodeId);
+
       if (!targetNode) {
-        console.warn("Node not found for navigation:", nodeId);
+        console.warn("Node not found in current nodes:", nodeId);
+        console.log("Total nodes in tree:", nodes.length);
         return;
       }
+
+      console.log("Found node at coordinates:", targetNode.x, targetNode.y);
 
       // Calculate center position
       const targetX = dimensions.width / 2 - targetNode.x;
       const targetY = dimensions.height / 2 - targetNode.y;
       const targetScale = 1.5; // Zoom in slightly for focus
+
+      console.log("Navigating to:", { targetX, targetY, targetScale });
 
       // Cancel any ongoing animations
       cancelAnimation(translateX);
@@ -1122,7 +1142,7 @@ const TreeView = ({ setProfileEditMode }) => {
         highlightNode(nodeId);
       }, 850);
     },
-    [indices, dimensions, translateX, translateY, scale],
+    [nodes, dimensions, translateX, translateY, scale],
   );
 
   // Highlight node with golden effect
@@ -1152,15 +1172,24 @@ const TreeView = ({ setProfileEditMode }) => {
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
     (result) => {
-      // Close search modal
-      setShowSearchModal(false);
+      console.log("Search result selected:", result);
 
-      // Navigate to the selected node
-      if (result.id) {
+      // Check if the node is in the current nodes array
+      const nodeExists = nodes.some((n) => n.id === result.id);
+
+      if (nodeExists) {
+        console.log("Node found in tree, navigating");
         navigateToNode(result.id);
+      } else {
+        console.log("Node not in current tree view");
+        Alert.alert(
+          "العقدة غير محملة",
+          "هذه العقدة غير موجودة في العرض الحالي. قم بتحميل المزيد من الشجرة لرؤيتها.",
+          [{ text: "حسناً", style: "default" }],
+        );
       }
     },
-    [navigateToNode],
+    [navigateToNode, nodes],
   );
 
   // Pan gesture with momentum
