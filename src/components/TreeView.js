@@ -33,6 +33,10 @@ import {
   Text as SkiaText,
   useFont,
   Path,
+  Blur,
+  Shadow,
+  LinearGradient,
+  RadialGradient,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -1157,10 +1161,8 @@ const TreeView = ({ setProfileEditMode }) => {
       savedTranslateY.value = targetY;
       savedScale.value = targetScale;
 
-      // Trigger highlight after navigation
-      setTimeout(() => {
-        highlightNode(nodeId);
-      }, 850);
+      // Start highlight animation immediately (will reach full brightness as navigation completes)
+      highlightNode(nodeId);
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
@@ -1171,17 +1173,28 @@ const TreeView = ({ setProfileEditMode }) => {
       // Set the highlighted node
       highlightedNodeId.value = nodeId;
 
-      // Animate highlight
+      // Animate highlight with a mesmerizing glow effect
+      // Start animation immediately with a smooth fade-in that completes as navigation ends
       highlightOpacity.value = withSequence(
-        withTiming(1, { duration: 300 }), // Fade in
-        withTiming(0.8, { duration: 1400 }), // Hold with subtle pulse
-        withTiming(0, { duration: 300 }), // Fade out
+        withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }), // Quick fade in
+        withRepeat(
+          withSequence(
+            withTiming(0.7, {
+              duration: 800,
+              easing: Easing.inOut(Easing.sine),
+            }), // Pulse down
+            withTiming(1, { duration: 800, easing: Easing.inOut(Easing.sine) }), // Pulse up
+          ),
+          2, // Repeat pulse twice
+          false,
+        ),
+        withTiming(0, { duration: 400, easing: Easing.in(Easing.cubic) }), // Fade out
       );
 
-      // Clear highlight after animation
+      // Clear highlight after animation completes
       setTimeout(() => {
         highlightedNodeId.value = null;
-      }, 2000);
+      }, 4000); // Increased duration for the pulsing effect
 
       // Haptic feedback
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1924,30 +1937,75 @@ const TreeView = ({ setProfileEditMode }) => {
 
       return (
         <Group key={node.id}>
-          {/* Golden highlight ring (rendered behind node) */}
+          {/* Mesmerizing multi-layer glow effect */}
           {isHighlighted && (
             <>
+              {/* Outer glow layer - soft diffuse light */}
+              <Group opacity={highlightOpacityState * 0.3}>
+                <RoundedRect
+                  x={x - 20}
+                  y={y - 20}
+                  width={nodeWidth + 40}
+                  height={nodeHeight + 40}
+                  r={CORNER_RADIUS + 8}
+                  color="#FFD700"
+                >
+                  <Blur blur={15} />
+                </RoundedRect>
+              </Group>
+
+              {/* Middle glow layer - medium intensity */}
+              <Group opacity={highlightOpacityState * 0.5}>
+                <RoundedRect
+                  x={x - 12}
+                  y={y - 12}
+                  width={nodeWidth + 24}
+                  height={nodeHeight + 24}
+                  r={CORNER_RADIUS + 6}
+                  color="#FFC700"
+                >
+                  <Blur blur={8} />
+                </RoundedRect>
+              </Group>
+
+              {/* Inner glow layer - bright core */}
+              <Group opacity={highlightOpacityState * 0.7}>
+                <RoundedRect
+                  x={x - 6}
+                  y={y - 6}
+                  width={nodeWidth + 12}
+                  height={nodeHeight + 12}
+                  r={CORNER_RADIUS + 3}
+                  color="#FFE700"
+                >
+                  <Blur blur={4} />
+                </RoundedRect>
+              </Group>
+
+              {/* Sharp golden ring - defined edge */}
               <RoundedRect
-                x={x - 4}
-                y={y - 4}
-                width={nodeWidth + 8}
-                height={nodeHeight + 8}
+                x={x - 3}
+                y={y - 3}
+                width={nodeWidth + 6}
+                height={nodeHeight + 6}
                 r={CORNER_RADIUS + 2}
                 color="#FFD700"
                 style="stroke"
-                strokeWidth={3}
-                opacity={highlightOpacityState}
-              />
-              <RoundedRect
-                x={x - 8}
-                y={y - 8}
-                width={nodeWidth + 16}
-                height={nodeHeight + 16}
-                r={CORNER_RADIUS + 4}
-                color="#FFA500"
-                style="stroke"
                 strokeWidth={2}
-                opacity={highlightOpacityState * 0.5}
+                opacity={highlightOpacityState * 0.9}
+              />
+
+              {/* Subtle inner bright line */}
+              <RoundedRect
+                x={x - 1}
+                y={y - 1}
+                width={nodeWidth + 2}
+                height={nodeHeight + 2}
+                r={CORNER_RADIUS + 1}
+                color="#FFFACD"
+                style="stroke"
+                strokeWidth={1}
+                opacity={highlightOpacityState}
               />
             </>
           )}
