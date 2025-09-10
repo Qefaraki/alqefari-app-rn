@@ -42,7 +42,6 @@ import Animated, {
   withDecay,
   withTiming,
   withSequence,
-  withRepeat,
   Easing,
   runOnJS,
   clamp,
@@ -71,6 +70,7 @@ import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
+import LottieGlow from "./LottieGlow";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -390,23 +390,23 @@ const TreeView = ({ setProfileEditMode }) => {
 
   // Search modal state
 
-  // Highlight state for golden effect
+  // Highlight state with Reanimated shared values
   const highlightedNodeId = useSharedValue(null);
-  const highlightOpacity = useSharedValue(0);
+  const glowOpacity = useSharedValue(0);
 
-  // Derive highlight state for use in render
+  // State for triggering re-renders
   const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
-  const [highlightOpacityState, setHighlightOpacityState] = useState(0);
+  const [glowOpacityState, setGlowOpacityState] = useState(0);
 
-  // Sync highlight values to React state
+  // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
     () => ({
       nodeId: highlightedNodeId.value,
-      opacity: highlightOpacity.value,
+      opacity: glowOpacity.value,
     }),
     (current) => {
       runOnJS(setHighlightedNodeIdState)(current.nodeId);
-      runOnJS(setHighlightOpacityState)(current.opacity);
+      runOnJS(setGlowOpacityState)(current.opacity);
     },
   );
 
@@ -1163,40 +1163,38 @@ const TreeView = ({ setProfileEditMode }) => {
     [nodes, dimensions, translateX, translateY, scale],
   );
 
-  // Highlight node with golden effect
-  const highlightNode = useCallback(
-    (nodeId) => {
-      // Set the highlighted node
-      highlightedNodeId.value = nodeId;
+  // Highlight node with elegant golden effect using Reanimated
+  const highlightNode = useCallback((nodeId) => {
+    // Set the highlighted node
+    highlightedNodeId.value = nodeId;
 
-      // Animate highlight with a mesmerizing glow effect
-      // Start animation immediately with a smooth fade-in that completes as navigation ends
-      highlightOpacity.value = withSequence(
-        withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }), // Quick fade in
-        withRepeat(
-          withSequence(
-            withTiming(0.7, {
-              duration: 800,
-              easing: Easing.inOut(Easing.sine),
-            }), // Pulse down
-            withTiming(1, { duration: 800, easing: Easing.inOut(Easing.sine) }), // Pulse up
-          ),
-          2, // Repeat pulse twice
-          false,
-        ),
-        withTiming(0, { duration: 400, easing: Easing.in(Easing.cubic) }), // Fade out
-      );
+    // Elegant animation: quick burst, gentle hold, smooth fade
+    glowOpacity.value = withSequence(
+      // Quick initial flash
+      withTiming(1, { duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+      // Brief peak hold
+      withTiming(0.95, { duration: 200, easing: Easing.linear }),
+      // Gentle pulse at peak
+      withTiming(1, { duration: 400, easing: Easing.inOut(Easing.ease) }),
+      // Hold at high intensity
+      withTiming(0.9, { duration: 600, easing: Easing.linear }),
+      // Smooth fade out
+      withTiming(0, { duration: 800, easing: Easing.bezier(0.6, 0, 0.8, 1) }),
+    );
 
-      // Clear highlight after animation completes
-      setTimeout(() => {
-        highlightedNodeId.value = null;
-      }, 4000); // Increased duration for the pulsing effect
+    // Clear highlight after animation completes
+    setTimeout(() => {
+      highlightedNodeId.value = null;
+    }, 2500);
 
-      // Haptic feedback
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    },
-    [highlightedNodeId, highlightOpacity],
-  );
+    // Haptic feedback with impact
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  // Clear highlight after animation
+  setTimeout(() => {
+    highlightedNodeId.value = null;
+  }, 2000);
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
@@ -1933,94 +1931,7 @@ const TreeView = ({ setProfileEditMode }) => {
 
       return (
         <Group key={node.id}>
-          {/* Mesmerizing multi-ring glow effect without blur */}
-          {isHighlighted && (
-            <>
-              {/* Outermost glow ring - very faint */}
-              <RoundedRect
-                x={x - 16}
-                y={y - 16}
-                width={nodeWidth + 32}
-                height={nodeHeight + 32}
-                r={CORNER_RADIUS + 8}
-                color="#FFD70020"
-                opacity={highlightOpacityState * 0.2}
-              />
-
-              {/* Outer glow ring */}
-              <RoundedRect
-                x={x - 12}
-                y={y - 12}
-                width={nodeWidth + 24}
-                height={nodeHeight + 24}
-                r={CORNER_RADIUS + 6}
-                color="#FFD70030"
-                opacity={highlightOpacityState * 0.3}
-              />
-
-              {/* Middle glow ring */}
-              <RoundedRect
-                x={x - 8}
-                y={y - 8}
-                width={nodeWidth + 16}
-                height={nodeHeight + 16}
-                r={CORNER_RADIUS + 4}
-                color="#FFD70040"
-                opacity={highlightOpacityState * 0.4}
-              />
-
-              {/* Inner glow ring */}
-              <RoundedRect
-                x={x - 5}
-                y={y - 5}
-                width={nodeWidth + 10}
-                height={nodeHeight + 10}
-                r={CORNER_RADIUS + 3}
-                color="#FFD70050"
-                opacity={highlightOpacityState * 0.5}
-              />
-
-              {/* Primary golden stroke ring */}
-              <RoundedRect
-                x={x - 3}
-                y={y - 3}
-                width={nodeWidth + 6}
-                height={nodeHeight + 6}
-                r={CORNER_RADIUS + 2}
-                color="#FFD700"
-                style="stroke"
-                strokeWidth={3}
-                opacity={highlightOpacityState * 0.8}
-              />
-
-              {/* Secondary inner stroke ring */}
-              <RoundedRect
-                x={x - 1.5}
-                y={y - 1.5}
-                width={nodeWidth + 3}
-                height={nodeHeight + 3}
-                r={CORNER_RADIUS + 1}
-                color="#FFA500"
-                style="stroke"
-                strokeWidth={2}
-                opacity={highlightOpacityState * 0.6}
-              />
-
-              {/* Bright inner accent line */}
-              <RoundedRect
-                x={x - 0.5}
-                y={y - 0.5}
-                width={nodeWidth + 1}
-                height={nodeHeight + 1}
-                r={CORNER_RADIUS}
-                color="#FFFACD"
-                style="stroke"
-                strokeWidth={1}
-                opacity={highlightOpacityState}
-              />
-            </>
-          )}
-
+          {/* Removed broken Skia glow - will use Moti overlay instead */}
           {/* Shadow */}
           <RoundedRect
             x={x + 1}
@@ -2186,7 +2097,7 @@ const TreeView = ({ setProfileEditMode }) => {
         </Group>
       );
     },
-    [selectedPersonId, highlightedNodeIdState, highlightOpacityState],
+    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
@@ -2332,13 +2243,6 @@ const TreeView = ({ setProfileEditMode }) => {
             )}
           </Canvas>
         </GestureDetector>
-
-        {/* Navigation button still available */}
-        <NavigateToRootButton
-          nodes={nodes}
-          viewport={dimensions}
-          sharedValues={{ translateX, translateY, scale }}
-        />
       </View>
     );
   }
@@ -2369,12 +2273,44 @@ const TreeView = ({ setProfileEditMode }) => {
         </Canvas>
       </GestureDetector>
 
-      {/* Add navigation button */}
-      <NavigateToRootButton
-        nodes={nodes}
-        viewport={dimensions}
-        sharedValues={{ translateX, translateY, scale }}
-      />
+      {/* Lottie Glow Effect Overlay */}
+      {highlightedNodeIdState &&
+        glowOpacityState > 0 &&
+        (() => {
+          const highlightedNode = nodes.find(
+            (n) => n.id === highlightedNodeIdState,
+          );
+          if (!highlightedNode) return null;
+
+          // Get actual node dimensions based on whether it has a photo
+          const nodeWidth = highlightedNode.profile_photo_url
+            ? NODE_WIDTH_WITH_PHOTO
+            : NODE_WIDTH_TEXT_ONLY;
+          const nodeHeight = highlightedNode.profile_photo_url
+            ? NODE_HEIGHT_WITH_PHOTO
+            : NODE_HEIGHT_TEXT_ONLY;
+
+          // Use current transform state instead of accessing shared values directly
+          const screenX =
+            highlightedNode.x * currentTransform.scale + currentTransform.x;
+          const screenY =
+            highlightedNode.y * currentTransform.scale + currentTransform.y;
+
+          return (
+            <LottieGlow
+              visible={true}
+              x={screenX}
+              y={screenY}
+              width={nodeWidth * currentTransform.scale}
+              height={nodeHeight * currentTransform.scale}
+              onAnimationFinish={() => {
+                // Clear highlight after animation
+                setHighlightedNodeIdState(null);
+                setGlowOpacityState(0);
+              }}
+            />
+          );
+        })()}
 
       {/* Search bar */}
       <SearchBar onSelectResult={handleSearchResultSelect} />
