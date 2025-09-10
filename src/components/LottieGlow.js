@@ -86,15 +86,54 @@ const LottieGlow = ({
       pointerEvents="none"
     >
       <View style={styles.glowWrapper}>
-        {/* Outermost glow ring - very faint and large */}
+        {/* Multiple thin rings for smoother gradient effect */}
+        {/* Ring 1 - Outermost, very faint */}
         <Animated.View
           style={[
             styles.glowRing,
             {
-              width: width + 24,
-              height: height + 24,
-              borderRadius: borderRadius + 12,
-              borderWidth: 8,
+              width: width + 20,
+              height: height + 20,
+              borderRadius: borderRadius + 10,
+              borderWidth: 2,
+              borderColor: "#FFB800",
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.03],
+              }),
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+
+        {/* Ring 2 */}
+        <Animated.View
+          style={[
+            styles.glowRing,
+            {
+              width: width + 16,
+              height: height + 16,
+              borderRadius: borderRadius + 8,
+              borderWidth: 2,
+              borderColor: "#FFB800",
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.05],
+              }),
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+
+        {/* Ring 3 */}
+        <Animated.View
+          style={[
+            styles.glowRing,
+            {
+              width: width + 12,
+              height: height + 12,
+              borderRadius: borderRadius + 6,
+              borderWidth: 2,
               borderColor: "#FFB800",
               opacity: fadeAnim.interpolate({
                 inputRange: [0, 1],
@@ -105,15 +144,15 @@ const LottieGlow = ({
           ]}
         />
 
-        {/* Middle glow ring */}
+        {/* Ring 4 */}
         <Animated.View
           style={[
             styles.glowRing,
             {
-              width: width + 16,
-              height: height + 16,
-              borderRadius: borderRadius + 8,
-              borderWidth: 6,
+              width: width + 8,
+              height: height + 8,
+              borderRadius: borderRadius + 4,
+              borderWidth: 2,
               borderColor: "#FFB800",
               opacity: fadeAnim.interpolate({
                 inputRange: [0, 1],
@@ -124,19 +163,19 @@ const LottieGlow = ({
           ]}
         />
 
-        {/* Inner glow ring */}
+        {/* Ring 5 */}
         <Animated.View
           style={[
             styles.glowRing,
             {
-              width: width + 8,
-              height: height + 8,
-              borderRadius: borderRadius + 4,
-              borderWidth: 4,
+              width: width + 4,
+              height: height + 4,
+              borderRadius: borderRadius + 2,
+              borderWidth: 2,
               borderColor: "#FFB800",
               opacity: fadeAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, 0.2],
+                outputRange: [0, 0.18],
               }),
               transform: [{ scale: pulseAnim }],
             },
