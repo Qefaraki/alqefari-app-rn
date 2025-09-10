@@ -15,51 +15,22 @@ const LottieGlow = ({
   onAnimationFinish,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.95)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (visible) {
-      // Fade in, scale up, and pulse
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          friction: 4,
-          tension: 40,
-          useNativeDriver: true,
-        }),
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.02,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 400,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]).start();
+      // Simple fade in
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
     } else {
-      // Fade out
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 0.95,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Simple fade out
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
     }
   }, [visible]);
 
@@ -80,7 +51,6 @@ const LottieGlow = ({
           width: width,
           height: height,
           opacity: fadeAnim,
-          transform: [{ scale: scaleAnim }],
         },
       ]}
       pointerEvents="none"
@@ -101,7 +71,6 @@ const LottieGlow = ({
                 inputRange: [0, 1],
                 outputRange: [0, 0.03],
               }),
-              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
@@ -120,7 +89,6 @@ const LottieGlow = ({
                 inputRange: [0, 1],
                 outputRange: [0, 0.05],
               }),
-              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
@@ -139,7 +107,6 @@ const LottieGlow = ({
                 inputRange: [0, 1],
                 outputRange: [0, 0.08],
               }),
-              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
@@ -158,7 +125,6 @@ const LottieGlow = ({
                 inputRange: [0, 1],
                 outputRange: [0, 0.12],
               }),
-              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
@@ -177,7 +143,6 @@ const LottieGlow = ({
                 inputRange: [0, 1],
                 outputRange: [0, 0.18],
               }),
-              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
@@ -196,7 +161,6 @@ const LottieGlow = ({
                 inputRange: [0, 1],
                 outputRange: [0, 0.9],
               }),
-              transform: [{ scale: pulseAnim }],
             },
           ]}
         />
