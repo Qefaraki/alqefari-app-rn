@@ -13,6 +13,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.alqefari.familytree",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
@@ -20,6 +21,7 @@
       }
     },
     "android": {
+      "package": "com.alqefari.familytree",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
