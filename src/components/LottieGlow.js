@@ -1,9 +1,5 @@
 import React, { useRef, useEffect } from "react";
 import { View, StyleSheet, Animated } from "react-native";
-import LottieView from "lottie-react-native";
-
-// Proper radial glow animation
-const glowAnimation = require("../../assets/glow-animation.json");
 
 const LottieGlow = ({
   visible,
@@ -14,37 +10,41 @@ const LottieGlow = ({
   borderRadius = 13, // Default to T2 node radius
   onAnimationFinish,
 }) => {
-  const fadeAnim = useRef(new Animated.Value(1)).current; // Start at full opacity
-  const animationRef = useRef(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current; // Start invisible
+  const hasStarted = useRef(false);
 
   useEffect(() => {
-    // Start fade out after 2 seconds
-    const timer = setTimeout(() => {
+    if (!hasStarted.current) {
+      hasStarted.current = true;
+
+      // Fade in
       Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 600,
+        toValue: 1,
+        duration: 400,
         useNativeDriver: true,
       }).start(() => {
-        // Call finish callback after fade completes
-        if (onAnimationFinish) {
-          onAnimationFinish();
-        }
+        // After fade in completes, wait 1.5 seconds then fade out
+        setTimeout(() => {
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }).start(() => {
+            if (onAnimationFinish) {
+              onAnimationFinish();
+            }
+          });
+        }, 1500);
       });
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [fadeAnim, onAnimationFinish]);
-
-  // Add padding for the glow effect
-  const padding = 10;
-  const glowWidth = width + padding * 2;
-  const glowHeight = height + padding * 2;
+    }
+  }, []); // Empty deps - only run once
 
   return (
     <Animated.View
       style={[
         styles.container,
         {
+          position: "absolute",
           left: x - width / 2,
           top: y - height / 2,
           width: width,
@@ -166,7 +166,6 @@ const LottieGlow = ({
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 999,
@@ -184,19 +183,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderStyle: "solid",
     backgroundColor: "transparent",
-  },
-  glowShadow: {
-    position: "absolute",
-    backgroundColor: "transparent",
-    shadowColor: "#FFB800",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  lottie: {
-    width: "100%",
-    height: "100%",
   },
 });
 
