@@ -33,10 +33,6 @@ import {
   Text as SkiaText,
   useFont,
   Path,
-  Blur,
-  Shadow,
-  LinearGradient,
-  RadialGradient,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -1937,52 +1933,54 @@ const TreeView = ({ setProfileEditMode }) => {
 
       return (
         <Group key={node.id}>
-          {/* Mesmerizing multi-layer glow effect */}
+          {/* Mesmerizing multi-ring glow effect without blur */}
           {isHighlighted && (
             <>
-              {/* Outer glow layer - soft diffuse light */}
-              <Group opacity={highlightOpacityState * 0.3}>
-                <RoundedRect
-                  x={x - 20}
-                  y={y - 20}
-                  width={nodeWidth + 40}
-                  height={nodeHeight + 40}
-                  r={CORNER_RADIUS + 8}
-                  color="#FFD700"
-                >
-                  <Blur blur={15} />
-                </RoundedRect>
-              </Group>
+              {/* Outermost glow ring - very faint */}
+              <RoundedRect
+                x={x - 16}
+                y={y - 16}
+                width={nodeWidth + 32}
+                height={nodeHeight + 32}
+                r={CORNER_RADIUS + 8}
+                color="#FFD70020"
+                opacity={highlightOpacityState * 0.2}
+              />
 
-              {/* Middle glow layer - medium intensity */}
-              <Group opacity={highlightOpacityState * 0.5}>
-                <RoundedRect
-                  x={x - 12}
-                  y={y - 12}
-                  width={nodeWidth + 24}
-                  height={nodeHeight + 24}
-                  r={CORNER_RADIUS + 6}
-                  color="#FFC700"
-                >
-                  <Blur blur={8} />
-                </RoundedRect>
-              </Group>
+              {/* Outer glow ring */}
+              <RoundedRect
+                x={x - 12}
+                y={y - 12}
+                width={nodeWidth + 24}
+                height={nodeHeight + 24}
+                r={CORNER_RADIUS + 6}
+                color="#FFD70030"
+                opacity={highlightOpacityState * 0.3}
+              />
 
-              {/* Inner glow layer - bright core */}
-              <Group opacity={highlightOpacityState * 0.7}>
-                <RoundedRect
-                  x={x - 6}
-                  y={y - 6}
-                  width={nodeWidth + 12}
-                  height={nodeHeight + 12}
-                  r={CORNER_RADIUS + 3}
-                  color="#FFE700"
-                >
-                  <Blur blur={4} />
-                </RoundedRect>
-              </Group>
+              {/* Middle glow ring */}
+              <RoundedRect
+                x={x - 8}
+                y={y - 8}
+                width={nodeWidth + 16}
+                height={nodeHeight + 16}
+                r={CORNER_RADIUS + 4}
+                color="#FFD70040"
+                opacity={highlightOpacityState * 0.4}
+              />
 
-              {/* Sharp golden ring - defined edge */}
+              {/* Inner glow ring */}
+              <RoundedRect
+                x={x - 5}
+                y={y - 5}
+                width={nodeWidth + 10}
+                height={nodeHeight + 10}
+                r={CORNER_RADIUS + 3}
+                color="#FFD70050"
+                opacity={highlightOpacityState * 0.5}
+              />
+
+              {/* Primary golden stroke ring */}
               <RoundedRect
                 x={x - 3}
                 y={y - 3}
@@ -1991,17 +1989,30 @@ const TreeView = ({ setProfileEditMode }) => {
                 r={CORNER_RADIUS + 2}
                 color="#FFD700"
                 style="stroke"
-                strokeWidth={2}
-                opacity={highlightOpacityState * 0.9}
+                strokeWidth={3}
+                opacity={highlightOpacityState * 0.8}
               />
 
-              {/* Subtle inner bright line */}
+              {/* Secondary inner stroke ring */}
               <RoundedRect
-                x={x - 1}
-                y={y - 1}
-                width={nodeWidth + 2}
-                height={nodeHeight + 2}
+                x={x - 1.5}
+                y={y - 1.5}
+                width={nodeWidth + 3}
+                height={nodeHeight + 3}
                 r={CORNER_RADIUS + 1}
+                color="#FFA500"
+                style="stroke"
+                strokeWidth={2}
+                opacity={highlightOpacityState * 0.6}
+              />
+
+              {/* Bright inner accent line */}
+              <RoundedRect
+                x={x - 0.5}
+                y={y - 0.5}
+                width={nodeWidth + 1}
+                height={nodeHeight + 1}
+                r={CORNER_RADIUS}
                 color="#FFFACD"
                 style="stroke"
                 strokeWidth={1}
