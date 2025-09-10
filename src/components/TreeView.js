@@ -583,13 +583,31 @@ const TreeView = ({ setProfileEditMode }) => {
         rootData.length === 0
       ) {
         console.error("Error loading root node:", rootError);
-        // Check if it's a network error (case insensitive)
-        const errorMsg = rootError?.message?.toLowerCase() || "";
-        if (
+        console.log("rootError type:", typeof rootError);
+        console.log("rootError object:", JSON.stringify(rootError, null, 2));
+
+        // Check if it's a network error - handle both Error objects and plain objects
+        const errorString =
+          rootError?.toString?.() || JSON.stringify(rootError) || "";
+        const errorMsg = (
+          rootError?.message ||
+          errorString ||
+          ""
+        ).toLowerCase();
+
+        console.log("Error message check:", errorMsg);
+        console.log("Has 'network'?", errorMsg.includes("network"));
+        console.log("Has 'fetch'?", errorMsg.includes("fetch"));
+
+        // For TypeError objects, check the name as well
+        const isNetworkError =
           errorMsg.includes("fetch") ||
           errorMsg.includes("network") ||
-          rootError?.code === "PGRST301" // Supabase network error code
-        ) {
+          rootError?.name === "TypeError" ||
+          rootError?.code === "PGRST301";
+
+        if (isNetworkError) {
+          console.log("Setting network error state");
           setNetworkError("network");
           setTreeData([]);
         } else if (rootData?.length === 0) {
@@ -597,6 +615,7 @@ const TreeView = ({ setProfileEditMode }) => {
           setTreeData([]);
         } else {
           // Fall back to local data
+          console.log("Falling back to local data");
           setTreeData(familyData || []);
         }
         setIsLoading(false);
@@ -2387,6 +2406,17 @@ const TreeView = ({ setProfileEditMode }) => {
 
       {/* Search bar */}
       <SearchBar onSelectResult={handleSearchResultSelect} />
+
+      {/* Navigate to Root Button */}
+      <NavigateToRootButton
+        nodes={nodes}
+        viewport={dimensions}
+        sharedValues={{
+          translateX: translateX,
+          translateY: translateY,
+          scale: scale,
+        }}
+      />
 
       {/* Admin components */}
       {isAdminMode && (

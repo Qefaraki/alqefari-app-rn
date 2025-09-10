@@ -595,7 +595,7 @@ export default function MarriageEditor({
           onPress={() => {}}
         >
           <Animated.View style={styles.modalContainer}>
-            <CardSurface radius={16} style={styles.modal}>
+            <View style={styles.modal}>
               {/* Modern iOS-style header */}
               <View style={styles.header}>
                 <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -652,7 +652,7 @@ export default function MarriageEditor({
                   }
                 />
               </View>
-            </CardSurface>
+            </View>
           </Animated.View>
         </TouchableOpacity>
       </KeyboardAvoidingView>
@@ -676,9 +676,18 @@ const styles = StyleSheet.create({
   },
   modal: {
     backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     overflow: "hidden",
     height: "100%",
     flex: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 25,
   },
   header: {
     flexDirection: "row",

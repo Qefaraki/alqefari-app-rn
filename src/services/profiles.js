@@ -76,21 +76,60 @@ export const profilesService = {
       return [];
     }
     try {
-      // Call the new, high-performance RPC function on the backend.
+      // Try the RPC function first
       const { data, error } = await supabase.rpc("get_person_marriages", {
         p_id: personId,
       });
 
       if (error) {
-        // Pass the specific database error up for better debugging.
-        throw error;
+        // If RPC doesn't exist, fallback to direct query
+        const { data: person } = await supabase
+          .from("profiles")
+          .select("gender")
+          .eq("id", personId)
+          .single();
+
+        const isHusband = person?.gender === "male";
+
+        // Query marriages directly
+        const { data: marriages, error: marriageError } = await supabase
+          .from("marriages")
+          .select(
+            `
+            id,
+            husband_id,
+            wife_id,
+            status,
+            start_date,
+            end_date,
+            munasib,
+            husband:profiles!marriages_husband_id_fkey(id, name),
+            wife:profiles!marriages_wife_id_fkey(id, name)
+          `,
+          )
+          .or(`husband_id.eq.${personId},wife_id.eq.${personId}`)
+          .order("start_date", { ascending: false });
+
+        if (marriageError) throw marriageError;
+
+        // Format the data to match expected structure
+        return (marriages || []).map((m) => ({
+          id: m.id,
+          husband_id: m.husband_id,
+          wife_id: m.wife_id,
+          husband_name: m.husband?.name,
+          wife_name: m.wife?.name,
+          status: m.status,
+          start_date: m.start_date,
+          end_date: m.end_date,
+          is_current: m.status === "married",
+          spouse_name: isHusband ? m.wife?.name : m.husband?.name,
+        }));
       }
 
-      // The backend now does all the heavy lifting. Return the data directly.
-      // If there are no marriages, the backend will correctly return null, which we convert to an empty array.
       return data || [];
     } catch (error) {
-      // Return an empty array on failure to prevent the UI from crashing.
+      console.error("Error loading marriages:", error);
       return [];
     }
   },
@@ -377,6 +416,63 @@ export const profilesService = {
       return { data, error: null };
     } catch (error) {
       return { data: null, error: handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Update marriage details
+   */
+  async updateMarriage(marriageId, updates) {
+    try {
+      const { data, error } = await supabase.rpc("admin_update_marriage", {
+        p_marriage_id: marriageId,
+        p_updates: updates,
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      // Fallback to direct update if RPC doesn't exist
+      try {
+        const { data, error: directError } = await supabase
+          .from("marriages")
+          .update(updates)
+          .eq("id", marriageId)
+          .select()
+          .single();
+
+        if (directError) throw directError;
+        return { data, error: null };
+      } catch (fallbackError) {
+        return { data: null, error: handleSupabaseError(fallbackError) };
+      }
+    }
+  },
+
+  /**
+   * Delete a marriage
+   */
+  async deleteMarriage(marriageId) {
+    try {
+      const { data, error } = await supabase.rpc("admin_delete_marriage", {
+        p_marriage_id: marriageId,
+      });
+
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      // Fallback to direct delete if RPC doesn't exist
+      try {
+        const { error: directError } = await supabase
+          .from("marriages")
+          .delete()
+          .eq("id", marriageId);
+
+        if (directError) throw directError;
+        return { data: true, error: null };
+      } catch (fallbackError) {
+        return { data: null, error: handleSupabaseError(fallbackError) };
+      }
     }
   },
 

@@ -1451,6 +1451,128 @@ const ProfileSheet = ({ editMode = false }) => {
             )}
           </SectionCard>
 
+          {/* Marriages Section - Admin Only (Moved outside edit mode) */}
+          {isAdminMode && !isEditing && (
+            <SectionCard>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {person?.gender === "male" ? "الزوجات" : "الأزواج"}
+                </Text>
+                <TouchableOpacity
+                  style={styles.addButton}
+                  onPress={() => setShowMarriageEditor(true)}
+                >
+                  <Text style={styles.addButtonText}>+ إضافة</Text>
+                </TouchableOpacity>
+              </View>
+              {marriages.length > 0 ? (
+                <View style={styles.marriagesList}>
+                  {marriages.map((marriage) => (
+                    <TouchableOpacity
+                      key={marriage.id}
+                      style={styles.marriageItem}
+                      onPress={() => {
+                        Alert.alert(
+                          "تعديل الزواج",
+                          `${
+                            person?.gender === "male"
+                              ? marriage.wife_name || "غير محدد"
+                              : marriage.husband_name || "غير محدد"
+                          }\n${marriage.status === "married" ? "متزوج" : marriage.status === "divorced" ? "مطلق" : "أرمل"}`,
+                          [
+                            {
+                              text: "تغيير الحالة",
+                              onPress: async () => {
+                                const newStatus =
+                                  marriage.status === "married"
+                                    ? "divorced"
+                                    : "married";
+                                try {
+                                  await profilesService.updateMarriage(
+                                    marriage.id,
+                                    { status: newStatus },
+                                  );
+                                  loadMarriages();
+                                  Alert.alert("نجح", "تم تحديث حالة الزواج");
+                                } catch (error) {
+                                  Alert.alert("خطأ", "فشل تحديث حالة الزواج");
+                                }
+                              },
+                            },
+                            {
+                              text: "حذف",
+                              style: "destructive",
+                              onPress: () => {
+                                Alert.alert(
+                                  "تأكيد الحذف",
+                                  "هل تريد حذف هذا الزواج؟",
+                                  [
+                                    { text: "إلغاء", style: "cancel" },
+                                    {
+                                      text: "حذف",
+                                      style: "destructive",
+                                      onPress: async () => {
+                                        try {
+                                          await profilesService.deleteMarriage(
+                                            marriage.id,
+                                          );
+                                          loadMarriages();
+                                          Alert.alert("نجح", "تم حذف الزواج");
+                                        } catch (error) {
+                                          Alert.alert("خطأ", "فشل حذف الزواج");
+                                        }
+                                      },
+                                    },
+                                  ],
+                                );
+                              },
+                            },
+                            { text: "إلغاء", style: "cancel" },
+                          ],
+                        );
+                      }}
+                    >
+                      <Text style={styles.marriageText}>
+                        {person?.gender === "male"
+                          ? marriage.wife_name || "غير محدد"
+                          : marriage.husband_name || "غير محدد"}
+                      </Text>
+                      <View style={styles.marriageStatusContainer}>
+                        {marriage.status === "married" && (
+                          <View style={styles.currentBadge}>
+                            <Text style={styles.currentText}>حالي</Text>
+                          </View>
+                        )}
+                        {marriage.status === "divorced" && (
+                          <View
+                            style={[
+                              styles.currentBadge,
+                              { backgroundColor: "#FFB74D" },
+                            ]}
+                          >
+                            <Text style={styles.currentText}>مطلق</Text>
+                          </View>
+                        )}
+                        {marriage.status === "widowed" && (
+                          <View
+                            style={[
+                              styles.currentBadge,
+                              { backgroundColor: "#9E9E9E" },
+                            ]}
+                          >
+                            <Text style={styles.currentText}>أرمل</Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+              )}
+            </SectionCard>
+          )}
+
           {/* Social Media Links */}
           {isEditing && (
             <SectionCard>
@@ -1691,41 +1813,6 @@ const ProfileSheet = ({ editMode = false }) => {
                             <Text style={styles.familyRelation}>
                               {child.gender === "male" ? "ابن" : "ابنة"}
                             </Text>
-                          </View>
-                        </View>
-                        <Text style={styles.chevron}>›</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </CardSurface>
-              )}
-              {/* Spouses list */}
-              {!isEditing && marriages && marriages.length > 0 && (
-                <CardSurface
-                  radius={12}
-                  style={[styles.familyCard, { marginTop: 12 }]}
-                >
-                  <View>
-                    {marriages.map((m, idx) => (
-                      <Pressable
-                        key={m.marriage_id || m.spouse_id || idx}
-                        onPress={() => navigateToPerson(m.spouse_id)}
-                        style={[
-                          styles.familyRow,
-                          idx < marriages.length - 1 && styles.rowDivider,
-                        ]}
-                      >
-                        <View style={styles.familyInfo}>
-                          <ProgressiveThumbnail
-                            source={{ uri: m.spouse_photo }}
-                            size={48}
-                            style={styles.familyPhoto}
-                          />
-                          <View style={{ alignItems: "flex-end" }}>
-                            <Text style={styles.familyName}>
-                              {m.spouse_name}
-                            </Text>
-                            <Text style={styles.familyRelation}>زوج/زوجة</Text>
                           </View>
                         </View>
                         <Text style={styles.chevron}>›</Text>

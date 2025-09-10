@@ -130,6 +130,11 @@ const DraggableChildItem = ({
           >
             <View style={styles.nameRow}>
               <Text style={styles.childName}>{child.name}</Text>
+              {child.mother?.name && (
+                <Text style={styles.motherName}>
+                  والدته: {child.mother.name}
+                </Text>
+              )}
             </View>
             {child.status === "deceased" && (
               <Text style={styles.deceasedText}>الله يرحمه</Text>
@@ -587,6 +592,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000000",
     fontFamily: "SF Arabic Regular",
+  },
+  motherName: {
+    fontSize: 12,
+    color: "#8A8A8E",
+    fontFamily: "SF Arabic Regular",
+    marginTop: 2,
   },
   deceasedText: {
     fontSize: 11,
