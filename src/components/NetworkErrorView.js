@@ -54,7 +54,7 @@ const NetworkErrorView = ({
         {/* Logo or Icon */}
         <View style={styles.logoContainer}>
           <Image
-            source={require("../../assets/logo/logo.png")}
+            source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
             style={styles.logo}
             resizeMode="contain"
           />
