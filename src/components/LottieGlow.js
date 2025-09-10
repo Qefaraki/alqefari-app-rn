@@ -75,10 +75,10 @@ const LottieGlow = ({
       style={[
         styles.container,
         {
-          left: x - glowWidth / 2,
-          top: y - glowHeight / 2,
-          width: glowWidth,
-          height: glowHeight,
+          left: x - width / 2,
+          top: y - height / 2,
+          width: width,
+          height: height,
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         },
@@ -86,7 +86,64 @@ const LottieGlow = ({
       pointerEvents="none"
     >
       <View style={styles.glowWrapper}>
-        {/* Animated border that matches exact node size */}
+        {/* Outermost glow ring - very faint and large */}
+        <Animated.View
+          style={[
+            styles.glowRing,
+            {
+              width: width + 24,
+              height: height + 24,
+              borderRadius: borderRadius + 12,
+              borderWidth: 8,
+              borderColor: "#FFB800",
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.08],
+              }),
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+
+        {/* Middle glow ring */}
+        <Animated.View
+          style={[
+            styles.glowRing,
+            {
+              width: width + 16,
+              height: height + 16,
+              borderRadius: borderRadius + 8,
+              borderWidth: 6,
+              borderColor: "#FFB800",
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.12],
+              }),
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+
+        {/* Inner glow ring */}
+        <Animated.View
+          style={[
+            styles.glowRing,
+            {
+              width: width + 8,
+              height: height + 8,
+              borderRadius: borderRadius + 4,
+              borderWidth: 4,
+              borderColor: "#FFB800",
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.2],
+              }),
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+        />
+
+        {/* Main sharp border */}
         <Animated.View
           style={[
             styles.glowBorder,
@@ -94,27 +151,30 @@ const LottieGlow = ({
               width: width,
               height: height,
               borderColor: "#FFB800",
-              borderWidth: 1, // Match node border width
+              borderWidth: 1.5,
               borderRadius: borderRadius,
-              opacity: fadeAnim,
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.9],
+              }),
               transform: [{ scale: pulseAnim }],
             },
           ]}
         />
 
-        {/* Subtle shadow behind */}
+        {/* Soft inner fill for extra glow */}
         <Animated.View
           style={[
-            styles.glowShadow,
             {
-              width: width,
-              height: height,
-              borderRadius: borderRadius,
+              position: "absolute",
+              width: width - 4,
+              height: height - 4,
+              borderRadius: borderRadius - 2,
+              backgroundColor: "#FFB800",
               opacity: fadeAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, 0.15],
+                outputRange: [0, 0.05],
               }),
-              transform: [{ scale: 1.05 }],
             },
           ]}
         />
@@ -152,6 +212,11 @@ const styles = StyleSheet.create({
   glowBorder: {
     position: "absolute",
     borderStyle: "solid",
+  },
+  glowRing: {
+    position: "absolute",
+    borderStyle: "solid",
+    backgroundColor: "transparent",
   },
   glowShadow: {
     position: "absolute",
