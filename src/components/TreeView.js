@@ -2320,7 +2320,7 @@ const TreeView = ({ setProfileEditMode }) => {
               height={nodeHeight * currentTransform.scale}
               borderRadius={borderRadius * currentTransform.scale}
               onAnimationFinish={() => {
-                // Clear highlight after animation
+                // Clear highlight after fade-out completes
                 setHighlightedNodeIdState(null);
                 setGlowOpacityState(0);
               }}
