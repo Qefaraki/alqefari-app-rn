@@ -47,9 +47,11 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   // Animate search bar opacity based on profile sheet progress
   const animatedStyle = useAnimatedStyle(() => {
+    // Default to fully visible if no progress tracker exists yet
     if (!profileSheetProgress) {
       return { opacity: 1 };
     }
+
     // Start fading when sheet is 30% open, fully fade at 70% open
     const fadeStart = 0.3;
     const fadeEnd = 0.7;
@@ -67,7 +69,7 @@ const SearchBar = ({ onSelectResult, style }) => {
         easing: Easing.out(Easing.ease),
       }),
     };
-  });
+  }, [profileSheetProgress]);
 
   // Get user info on mount
   useEffect(() => {

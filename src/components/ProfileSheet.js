@@ -145,13 +145,14 @@ const ProfileSheet = ({ editMode = false }) => {
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
 
-  // Create animated position value for tracking sheet position
+  // Get the global profileSheetProgress from store
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
+
+  // Create local animated position for the sheet - will be provided by BottomSheet
   const animatedPosition = useSharedValue(0);
 
   // Get screen height once on the JS thread
   const screenHeight = Dimensions.get("window").height;
-
-  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
   // Track sheet position and update global store for SearchBar to react
   useAnimatedReaction(
@@ -652,9 +653,12 @@ const ProfileSheet = ({ editMode = false }) => {
       onChange={handleSheetChange}
       onClose={() => {
         setSelectedPersonId(null);
+        // Reset the shared value properly, don't overwrite it
+        if (profileSheetProgress) {
+          profileSheetProgress.value = 0;
+        }
         useTreeStore.setState({
           profileSheetIndex: -1,
-          profileSheetProgress: 0,
         });
       }}
       backdropComponent={renderBackdrop}

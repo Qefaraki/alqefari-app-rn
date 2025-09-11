@@ -403,6 +403,11 @@ const TreeView = ({ setProfileEditMode }) => {
     (s) => s.initializeProfileSheetProgress,
   );
 
+  // Initialize immediately on first render - don't wait for useEffect
+  useMemo(() => {
+    initializeProfileSheetProgress(profileSheetProgress);
+  }, []); // Empty deps = run once on mount
+
   // State for triggering re-renders
   const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
   const [glowOpacityState, setGlowOpacityState] = useState(0);
@@ -426,11 +431,6 @@ const TreeView = ({ setProfileEditMode }) => {
   // Image bucket tracking for hysteresis
   const nodeBucketsRef = useRef(new Map());
   const bucketTimersRef = useRef(new Map());
-
-  // Initialize profile sheet progress on mount
-  useEffect(() => {
-    initializeProfileSheetProgress(profileSheetProgress);
-  }, []);
 
   // Cleanup bucket timers on unmount
   useEffect(() => {
