@@ -62,10 +62,11 @@ const SearchBar = ({ onSelectResult, style }) => {
       }
     }
 
-    // Return single style object with opacity only
-    // CRITICAL: Don't use withTiming here - it breaks initial render!
-    // flex: 1 not needed - parent is absolutely positioned
+    // Return style object with proper dimensions AND opacity
+    // CRITICAL: Reanimated.View needs explicit dimensions or it renders 0x0!
     return {
+      width: "100%", // Take full width of parent container
+      minHeight: 48, // At least the height of the search bar
       opacity: opacity, // Direct value, no animation wrapper
     };
   });
