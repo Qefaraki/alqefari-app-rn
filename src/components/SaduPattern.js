@@ -4,12 +4,12 @@ import { View, StyleSheet, Dimensions, Image } from "react-native";
 const { width: screenWidth } = Dimensions.get("window");
 
 const SaduPattern = () => {
-  // Original SVG dimensions
+  // Original PNG dimensions (same as SVG)
   const originalWidth = 1548;
   const originalHeight = 286;
 
   // Scale to fit screen width while maintaining aspect ratio
-  const patternHeight = 50; // Desired height for the pattern
+  const patternHeight = 60; // Desired height for the pattern
   const patternWidth = (originalWidth * patternHeight) / originalHeight;
 
   // Calculate how many times to repeat the pattern
@@ -17,18 +17,17 @@ const SaduPattern = () => {
 
   return (
     <View style={styles.container} pointerEvents="none">
-      <View style={styles.fadeGradient} />
       <View style={styles.patternWrapper}>
         <View style={styles.patternRow}>
           {Array.from({ length: repetitions }).map((_, index) => (
             <Image
               key={index}
-              source={require("../../assets/sadu style.svg")}
+              source={require("../../assets/sadu style.png")}
               style={[
                 styles.pattern,
                 { width: patternWidth, height: patternHeight },
               ]}
-              resizeMode="stretch"
+              resizeMode="cover"
             />
           ))}
         </View>

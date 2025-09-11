@@ -63,11 +63,10 @@ const SearchBar = ({ onSelectResult, style }) => {
     }
 
     // Return single style object with both flex and opacity
-    // CRITICAL: Return raw opacity value, not wrapped in withTiming
-    // withTiming on initial render causes undefined/invalid opacity
+    // Direct value ensures SearchBar is visible on initial render
     return {
       flex: 1,
-      opacity: opacity, // Direct value - no animation wrapper!
+      opacity: opacity,
     };
   });
 
