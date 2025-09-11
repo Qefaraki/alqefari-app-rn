@@ -16,7 +16,7 @@ import GlassSurface from "../components/glass/GlassSurface";
 import GlassButton from "../components/glass/GlassButton";
 import { supabase, handleSupabaseError } from "../services/supabase";
 
-const AuditLogViewer = ({ navigation }) => {
+const AuditLogViewer = ({ navigation, onClose }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -369,7 +369,7 @@ const AuditLogViewer = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => (onClose ? onClose() : navigation?.goBack())}
           style={styles.backButton}
         >
           <Ionicons name="chevron-back" size={28} color="#007AFF" />

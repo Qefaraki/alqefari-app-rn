@@ -1286,16 +1286,19 @@ const TreeView = ({ setProfileEditMode }) => {
   // Pan gesture with momentum
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      "worklet";
       cancelAnimation(translateX);
       cancelAnimation(translateY);
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     })
     .onUpdate((e) => {
+      "worklet";
       translateX.value = savedTranslateX.value + e.translationX;
       translateY.value = savedTranslateY.value + e.translationY;
     })
     .onEnd((e) => {
+      "worklet";
       translateX.value = withDecay({
         velocity: e.velocityX,
         deceleration: 0.995,
@@ -1313,6 +1316,7 @@ const TreeView = ({ setProfileEditMode }) => {
   // Pinch gesture for zoom with pointer-anchored transform
   const pinchGesture = Gesture.Pinch()
     .onStart((e) => {
+      "worklet";
       // CRITICAL: Cancel any running animations to prevent value drift
       cancelAnimation(translateX);
       cancelAnimation(translateY);
@@ -1333,6 +1337,7 @@ const TreeView = ({ setProfileEditMode }) => {
       // }
     })
     .onUpdate((e) => {
+      "worklet";
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
       const k = s / savedScale.value;
 
@@ -1355,6 +1360,7 @@ const TreeView = ({ setProfileEditMode }) => {
       // }
     })
     .onEnd(() => {
+      "worklet";
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;

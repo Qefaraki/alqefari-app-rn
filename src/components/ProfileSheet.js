@@ -30,9 +30,9 @@ import BottomSheet, {
   BottomSheetBackdrop,
   useBottomSheetDynamicSnapPoints,
 } from "@gorhom/bottom-sheet";
-import Reanimated, {
-  useAnimatedReaction,
+import {
   useSharedValue,
+  useAnimatedReaction,
   runOnJS,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -137,9 +137,6 @@ const ProfileSheet = ({ editMode = false }) => {
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const headerHeight = 44;
-
-  // Track sheet position in real-time for smooth animations
-  const animatedPosition = useSharedValue(0);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [bioExpanded, setBioExpanded] = useState(false);
   const [familySectionY, setFamilySectionY] = useState(0);
@@ -147,6 +144,31 @@ const ProfileSheet = ({ editMode = false }) => {
   const [loadingMarriages, setLoadingMarriages] = useState(false);
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
+
+  // Create animated position value for tracking sheet position
+  const animatedPosition = useSharedValue(0);
+
+  // Get screen height once on the JS thread
+  const screenHeight = Dimensions.get("window").height;
+
+  // Define the function to be called on the JS thread
+  const updateSheetProgress = (progress) => {
+    useTreeStore.setState({ profileSheetProgress: progress });
+  };
+
+  // Track sheet position and update global store for SearchBar to react
+  useAnimatedReaction(
+    () => animatedPosition.value,
+    (currentPosition, previousPosition) => {
+      if (currentPosition !== previousPosition) {
+        // Calculate progress (0 = closed, 1 = fully open)
+        // The animatedPosition is the top of the sheet from the BOTTOM of the screen.
+        // So, a smaller value means more closed, a larger value means more open.
+        const progress = 1 - currentPosition / screenHeight;
+        runOnJS(updateSheetProgress)(progress);
+      }
+    },
+  );
 
   // Calculate status bar height based on platform
   // iOS: typically 44-47px depending on device
@@ -326,23 +348,6 @@ const ProfileSheet = ({ editMode = false }) => {
       }
     },
     [animatedMargin, statusBarHeight],
-  );
-
-  // Real-time position tracking for smooth animations
-  useAnimatedReaction(
-    () => animatedPosition.value,
-    (currentPosition) => {
-      // Calculate percentage open (0 = closed, 1 = fully open)
-      // Position goes from 1 (closed) to 0 (fully open)
-      const percentOpen = 1 - currentPosition;
-
-      // Update store with real-time position for SearchBar to react
-      // Fade starts at 70% open
-      runOnJS(() => {
-        useTreeStore.setState({ profileSheetProgress: percentOpen });
-      })();
-    },
-    [],
   );
 
   // Custom handle: subtle edit affordance without text

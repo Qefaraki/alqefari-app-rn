@@ -18,6 +18,10 @@ export const useTreeStore = create((set, get) => ({
   // Selection state
   selectedPersonId: null,
 
+  // Profile sheet state for coordinating animations
+  profileSheetIndex: -1,
+  profileSheetProgress: 0,
+
   // Tree data from backend
   treeData: [],
 

@@ -54,16 +54,19 @@ const DraggableNode = ({
 
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      "worklet";
       scale.value = withSpring(1.1);
       zIndex.value = 1000;
       opacity.value = withSpring(0.8);
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
     })
     .onUpdate((e) => {
+      "worklet";
       translateX.value = e.translationX;
       translateY.value = e.translationY;
     })
     .onEnd(() => {
+      "worklet";
       const currentX = translateX.value;
       const nodeWithSpacing = NODE_WIDTH + NODE_SPACING;
       const movement = Math.round(currentX / nodeWithSpacing);

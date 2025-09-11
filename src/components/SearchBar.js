@@ -43,6 +43,26 @@ const SearchBar = ({ onSelectResult, style }) => {
   const searchBarScale = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
 
+  // Animate search bar opacity based on profile sheet progress
+  useEffect(() => {
+    // Start fading when sheet is 30% open, fully fade at 70% open
+    const fadeStart = 0.3;
+    const fadeEnd = 0.7;
+
+    let targetOpacity = 1;
+    if (profileSheetProgress > fadeStart) {
+      const fadeProgress =
+        (profileSheetProgress - fadeStart) / (fadeEnd - fadeStart);
+      targetOpacity = Math.max(0, 1 - fadeProgress);
+    }
+
+    Animated.timing(searchBarOpacity, {
+      toValue: targetOpacity,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [profileSheetProgress]);
+
   // Get user info on mount
   useEffect(() => {
     const getUser = async () => {
@@ -271,23 +291,6 @@ const SearchBar = ({ onSelectResult, style }) => {
       keyboardHideListener.remove();
     };
   }, [query]);
-
-  // Fade search bar when profile sheet opens (like Google Maps)
-  useEffect(() => {
-    // profileSheetProgress: 0 = closed, 1 = fully open
-    // Start fading at 70% open (0.7 progress)
-    let targetOpacity = 1;
-
-    if (profileSheetProgress >= 0.7) {
-      // Smoothly interpolate opacity from 1 to 0 between 70% and 100% open
-      // At 70% open: opacity = 1
-      // At 100% open: opacity = 0
-      targetOpacity = Math.max(0, 1 - (profileSheetProgress - 0.7) / 0.3);
-    }
-
-    // Use direct value setting for real-time updates (no animation needed)
-    searchBarOpacity.setValue(targetOpacity);
-  }, [profileSheetProgress]);
 
   return (
     <>

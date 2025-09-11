@@ -561,7 +561,10 @@ const AdminDashboard = ({ onClose, user }) => {
             </View>
             <View style={styles.statBox}>
               <Animated.Text
-                style={[styles.statNumber, { opacity: countAnim, color: "#f59e0b" }]}
+                style={[
+                  styles.statNumber,
+                  { opacity: countAnim, color: "#f59e0b" },
+                ]}
               >
                 {stats?.family?.total_marriages || stats?.total_marriages || 0}
               </Animated.Text>
@@ -570,51 +573,32 @@ const AdminDashboard = ({ onClose, user }) => {
           </View>
         </Animated.View>
 
-        {/* Gender & Generation Stats */}
-        <Animated.View
-          style={[
-            styles.card,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View
-            style={{
-              width: "100%",
-              flexDirection: "row",
-              justifyContent: "flex-end",
-            }}
-          >
-            <Text style={styles.cardTitle}>التوزيع الديموغرافي</Text>
-          </View>
-
-          <View style={styles.demographicsContainer}>
-            <View style={styles.genderStats}>
-              <View style={styles.genderBox}>
-                <Text style={styles.genderIcon}>👨</Text>
-                <Text style={styles.genderNumber}>
-                  {stats?.basic?.male_count || stats?.male_count || 0}
-                </Text>
-                <Text style={styles.genderLabel}>ذكور</Text>
+        {/* Generation Stats */}
+        {stats?.generation_counts &&
+          Object.keys(stats.generation_counts).length > 0 && (
+            <Animated.View
+              style={[
+                styles.card,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              <View
+                style={{
+                  width: "100%",
+                  flexDirection: "row",
+                  justifyContent: "flex-end",
+                }}
+              >
+                <Text style={styles.cardTitle}>توزيع الأجيال</Text>
               </View>
-              <View style={styles.genderDivider} />
-              <View style={styles.genderBox}>
-                <Text style={styles.genderIcon}>👩</Text>
-                <Text style={styles.genderNumber}>
-                  {stats?.basic?.female_count || stats?.female_count || 0}
-                </Text>
-                <Text style={styles.genderLabel}>إناث</Text>
-              </View>
-            </View>
 
-            {stats?.generation_counts &&
-              Object.keys(stats.generation_counts).length > 0 && (
+              <View style={[styles.demographicsContainer, { paddingTop: 20 }]}>
                 <View style={styles.generationStats}>
-                  <Text style={styles.subTitle}>الأجيال</Text>
                   {Object.entries(stats.generation_counts)
-                    .slice(0, 4)
+                    .slice(0, 5)
                     .map(([gen, count]) => (
                       <View key={gen} style={styles.generationRow}>
                         <Text style={styles.generationLabel}>الجيل {gen}</Text>
@@ -638,22 +622,22 @@ const AdminDashboard = ({ onClose, user }) => {
                       </View>
                     ))}
                 </View>
-              )}
-          </View>
-          {stats?.newest_members && stats.newest_members.length > 0 && (
-            <View style={styles.newestMembers}>
-              <Text style={styles.subTitle}>أحدث الإضافات</Text>
-              {stats.newest_members.slice(0, 3).map((member, index) => (
-                <View key={index} style={styles.newestMemberItem}>
-                  <Text style={styles.newestMemberName}>{member.name}</Text>
-                  <Text style={styles.newestMemberDate}>
-                    {member.added_date}
-                  </Text>
+              </View>
+              {stats?.newest_members && stats.newest_members.length > 0 && (
+                <View style={styles.newestMembers}>
+                  <Text style={styles.subTitle}>أحدث الإضافات</Text>
+                  {stats.newest_members.slice(0, 3).map((member, index) => (
+                    <View key={index} style={styles.newestMemberItem}>
+                      <Text style={styles.newestMemberName}>{member.name}</Text>
+                      <Text style={styles.newestMemberDate}>
+                        {member.added_date}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
+              )}
+            </Animated.View>
           )}
-        </Animated.View>
 
         {/* Profile Completeness */}
         <Animated.View
