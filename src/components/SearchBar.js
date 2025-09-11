@@ -47,28 +47,11 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
 
-  // Single animated style that includes ALL styles (fixes Reanimated init bug)
+  // HARDCODED TEST: Always return opacity 1 to test if Reanimated.View applies it
   const animatedStyle = useAnimatedStyle(() => {
     "worklet";
-
-    // Calculate opacity based on profile sheet progress
-    let opacity = 1;
-
-    if (profileSheetProgress?.value !== undefined) {
-      const progress = profileSheetProgress.value;
-      const fadeStart = 0.3;
-      const fadeEnd = 0.7;
-
-      if (progress > fadeStart) {
-        const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
-        opacity = Math.max(0, 1 - fadeProgress);
-      }
-    }
-
-    // Return style object with opacity only
-    // Reanimated.View now wraps the Pressable directly
     return {
-      opacity: opacity, // Direct value, no animation wrapper
+      opacity: 1, // Hardcoded to 1 for testing
     };
   });
 
