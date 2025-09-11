@@ -12,12 +12,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, {
+import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing,
+  FadeInDown,
 } from "react-native-reanimated";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -241,34 +243,66 @@ const SearchBar = ({ onSelectResult, style }) => {
     }).start();
   };
 
-  const renderResult = ({ item }) => {
+  const renderResult = ({ item, index }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
+
+    // Generate beautiful gradient colors based on name - ultra-modern palette
+    const getGradientColors = (name) => {
+      const gradients = [
+        ["#667eea", "#764ba2"], // Purple passion
+        ["#f093fb", "#f5576c"], // Pink sunset
+        ["#4facfe", "#00f2fe"], // Blue ocean
+        ["#43e97b", "#38f9d7"], // Mint fresh
+        ["#fa709a", "#fee140"], // Warm sunset
+        ["#30cfd0", "#330867"], // Deep ocean
+        ["#a8edea", "#fed6e3"], // Cotton candy
+        ["#ffecd2", "#fcb69f"], // Peach
+      ];
+      const index = name ? name.charCodeAt(0) % gradients.length : 0;
+      return gradients[index];
+    };
+
+    const gradientColors = getGradientColors(item.name);
 
     return (
       <Pressable
         onPress={() => handleSelectResult(item)}
         style={({ pressed }) => [
-          styles.resultItem,
-          pressed && styles.resultItemPressed,
+          styles.spotifyCard,
+          {
+            transform: [{ scale: pressed ? 0.97 : 1 }],
+            opacity: pressed ? 0.9 : 1,
+          },
         ]}
       >
-        <View style={styles.resultContent}>
-          <View style={styles.resultPhotoPlaceholder}>
-            <Text style={styles.resultInitials}>{initials}</Text>
+        <View style={styles.spotifyContent}>
+          {/* Ultra-modern photo or gradient fallback */}
+          <View style={styles.photoSection}>
+            {item.photo_url ? (
+              <Image
+                source={{ uri: item.photo_url }}
+                style={styles.spotifyPhoto}
+                defaultSource={require("../../assets/icon.png")}
+              />
+            ) : (
+              <LinearGradient
+                colors={gradientColors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.spotifyPhotoGradient}
+              >
+                <Text style={styles.spotifyInitial}>{initials}</Text>
+              </LinearGradient>
+            )}
           </View>
 
-          <View style={styles.resultInfo}>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {item.name || "بدون اسم"}
+          {/* Clean text hierarchy - minimal and beautiful */}
+          <View style={styles.spotifyInfo}>
+            <Text style={styles.spotifyNameChain} numberOfLines={2}>
+              {item.name_chain || item.name || "بدون اسم"}
             </Text>
-            <Text style={styles.resultChain} numberOfLines={2}>
-              {item.name_chain || ""}
-            </Text>
-          </View>
-
-          <View style={styles.resultMeta}>
-            <Text style={styles.generationText}>
-              ج{toArabicNumerals(item.generation?.toString() || "0")}
+            <Text style={styles.spotifyGeneration}>
+              الجيل {toArabicNumerals(item.generation?.toString() || "0")}
             </Text>
           </View>
         </View>
@@ -319,7 +353,7 @@ const SearchBar = ({ onSelectResult, style }) => {
         </Animated.View>
       )}
 
-      <Animated.View style={[styles.container, style, animatedStyle]}>
+      <Reanimated.View style={[styles.container, style, animatedStyle]}>
         <Animated.View
           style={[
             styles.searchBarContainer,
@@ -378,14 +412,18 @@ const SearchBar = ({ onSelectResult, style }) => {
               keyExtractor={(item) => item.id}
               renderItem={renderResult}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={true}
+              showsVerticalScrollIndicator={false}
               style={styles.resultsList}
               contentContainerStyle={styles.resultsContent}
               nestedScrollEnabled={true}
+              // Performance optimizations
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              windowSize={10}
             />
           </Animated.View>
         )}
-      </Animated.View>
+      </Reanimated.View>
     </>
   );
 };
@@ -461,66 +499,72 @@ const styles = {
     maxHeight: 400,
   },
   resultsContent: {
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
   },
-  resultItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5EA",
+  // Ultra-minimal Spotify-style card
+  spotifyCard: {
+    marginHorizontal: 8,
+    marginBottom: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    // Subtle shadow for depth
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    // Animation-ready
+    overflow: "hidden",
   },
-  resultItemPressed: {
-    backgroundColor: "#F2F2F7",
-  },
-  resultContent: {
+  spotifyContent: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
+    padding: 10,
+    minHeight: 76,
   },
-  resultPhotoPlaceholder: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#007AFF",
+  photoSection: {
+    marginRight: 14,
+  },
+  spotifyPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: "#F8F9FA",
+  },
+  spotifyPhotoGradient: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
-  resultInitials: {
-    fontSize: 13,
-    fontWeight: "600",
+  spotifyInitial: {
+    fontSize: 24,
+    fontWeight: "700",
     color: "#FFFFFF",
-    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
+    textShadowColor: "rgba(0,0,0,0.1)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  resultInfo: {
+  spotifyInfo: {
     flex: 1,
-    marginHorizontal: 8,
     justifyContent: "center",
   },
-  resultName: {
+  spotifyNameChain: {
     fontSize: 16,
     fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-    color: "#000000",
-    marginBottom: 2,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
+    color: "#1A1A1A",
+    marginBottom: 4,
+    lineHeight: 22,
   },
-  resultChain: {
-    fontSize: 13,
+  spotifyGeneration: {
+    fontSize: 14,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
     color: "#666666",
-    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-    lineHeight: 18,
-  },
-  resultMeta: {
-    backgroundColor: "#007AFF15",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  generationText: {
-    fontSize: 11,
-    color: "#007AFF",
-    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-    fontWeight: "600",
+    fontWeight: "400",
   },
 };
 
