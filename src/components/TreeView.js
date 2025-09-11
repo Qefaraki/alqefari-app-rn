@@ -352,7 +352,7 @@ class SpatialGrid {
   }
 }
 
-const TreeView = ({ setProfileEditMode }) => {
+const TreeView = ({ setProfileEditMode, onNetworkStatusChange }) => {
   const stage = useTreeStore((s) => s.stage);
   const setStage = useTreeStore((s) => s.setStage);
   const minZoom = useTreeStore((s) => s.minZoom);
@@ -525,6 +525,13 @@ const TreeView = ({ setProfileEditMode }) => {
   useEffect(() => {
     I18nManager.forceRTL(true);
   }, []);
+
+  // Notify parent component when network error status changes
+  useEffect(() => {
+    if (onNetworkStatusChange) {
+      onNetworkStatusChange(!!networkError);
+    }
+  }, [networkError, onNetworkStatusChange]);
 
   // Create ref to hold current values for gestures
   const gestureStateRef = useRef({

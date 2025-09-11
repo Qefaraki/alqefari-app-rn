@@ -377,77 +377,79 @@ const SearchBar = ({ onSelectResult, style }) => {
         </Animated.View>
       )}
 
-      <Reanimated.View style={[styles.container, style, animatedStyle]}>
-        <Animated.View
-          style={[
-            styles.searchBarContainer,
-            { transform: [{ scale: searchBarScale }] },
-          ]}
-        >
-          <Pressable
-            style={styles.searchBar}
-            onPress={() => inputRef.current?.focus()}
-          >
-            {/* Family emblem on left (RTL) */}
-            <Image
-              source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
-              style={styles.familyEmblemLeft}
-              resizeMode="contain"
-            />
-
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="البحث في شجرة العائلة"
-              placeholderTextColor="#5F6368"
-              value={query}
-              onChangeText={handleChangeText}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-              textAlign="right"
-            />
-
-            {/* Clear button on the right with fade animation */}
-            {query.length > 0 && (
-              <Animated.View style={{ opacity: clearButtonOpacity }}>
-                <Pressable onPress={handleClear} style={styles.clearButton}>
-                  <Ionicons name="close-circle" size={20} color="#9AA0A6" />
-                </Pressable>
-              </Animated.View>
-            )}
-          </Pressable>
-        </Animated.View>
-
-        {showResults && results.length > 0 && (
+      <View style={[styles.container, style]}>
+        <Reanimated.View style={[{ flex: 1 }, animatedStyle]}>
           <Animated.View
             style={[
-              styles.resultsContainer,
-              {
-                opacity: resultsOpacity,
-                transform: [{ translateY: resultsTranslateY }],
-              },
+              styles.searchBarContainer,
+              { transform: [{ scale: searchBarScale }] },
             ]}
           >
-            <FlatList
-              data={results}
-              keyExtractor={(item) => item.id}
-              renderItem={renderResult}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              style={styles.resultsList}
-              contentContainerStyle={styles.resultsContent}
-              nestedScrollEnabled={true}
-              // Performance optimizations
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={10}
-              windowSize={10}
-            />
+            <Pressable
+              style={styles.searchBar}
+              onPress={() => inputRef.current?.focus()}
+            >
+              {/* Family emblem on left (RTL) */}
+              <Image
+                source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
+                style={styles.familyEmblemLeft}
+                resizeMode="contain"
+              />
+
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="البحث في شجرة العائلة"
+                placeholderTextColor="#5F6368"
+                value={query}
+                onChangeText={handleChangeText}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+                textAlign="right"
+              />
+
+              {/* Clear button on the right with fade animation */}
+              {query.length > 0 && (
+                <Animated.View style={{ opacity: clearButtonOpacity }}>
+                  <Pressable onPress={handleClear} style={styles.clearButton}>
+                    <Ionicons name="close-circle" size={20} color="#9AA0A6" />
+                  </Pressable>
+                </Animated.View>
+              )}
+            </Pressable>
           </Animated.View>
-        )}
-      </Reanimated.View>
+
+          {showResults && results.length > 0 && (
+            <Animated.View
+              style={[
+                styles.resultsContainer,
+                {
+                  opacity: resultsOpacity,
+                  transform: [{ translateY: resultsTranslateY }],
+                },
+              ]}
+            >
+              <FlatList
+                data={results}
+                keyExtractor={(item) => item.id}
+                renderItem={renderResult}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={styles.resultsList}
+                contentContainerStyle={styles.resultsContent}
+                nestedScrollEnabled={true}
+                // Performance optimizations
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={10}
+              />
+            </Animated.View>
+          )}
+        </Reanimated.View>
+      </View>
     </>
   );
 };
