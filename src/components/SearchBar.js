@@ -12,6 +12,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -28,40 +34,38 @@ const SearchBar = ({ onSelectResult, style }) => {
   const inputRef = useRef(null);
 
   // Get profile sheet state from store
-  const profileSheetIndex = useTreeStore(
-    (state) => state.profileSheetIndex || -1,
-  );
-  const profileSheetProgress = useTreeStore(
-    (state) => state.profileSheetProgress || 0,
-  );
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
   // Animation values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const searchBarOpacity = useRef(new Animated.Value(1)).current;
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const resultsTranslateY = useRef(new Animated.Value(-10)).current;
   const searchBarScale = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
 
   // Animate search bar opacity based on profile sheet progress
-  useEffect(() => {
+  const animatedStyle = useAnimatedStyle(() => {
+    if (!profileSheetProgress) {
+      return { opacity: 1 };
+    }
     // Start fading when sheet is 30% open, fully fade at 70% open
     const fadeStart = 0.3;
     const fadeEnd = 0.7;
 
     let targetOpacity = 1;
-    if (profileSheetProgress > fadeStart) {
+    if (profileSheetProgress.value > fadeStart) {
       const fadeProgress =
-        (profileSheetProgress - fadeStart) / (fadeEnd - fadeStart);
+        (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
       targetOpacity = Math.max(0, 1 - fadeProgress);
     }
 
-    Animated.timing(searchBarOpacity, {
-      toValue: targetOpacity,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-  }, [profileSheetProgress]);
+    return {
+      opacity: withTiming(targetOpacity, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      }),
+    };
+  });
 
   // Get user info on mount
   useEffect(() => {
@@ -315,9 +319,7 @@ const SearchBar = ({ onSelectResult, style }) => {
         </Animated.View>
       )}
 
-      <Animated.View
-        style={[styles.container, style, { opacity: searchBarOpacity }]}
-      >
+      <Animated.View style={[styles.container, style, animatedStyle]}>
         <Animated.View
           style={[
             styles.searchBarContainer,

@@ -20,7 +20,9 @@ export const useTreeStore = create((set, get) => ({
 
   // Profile sheet state for coordinating animations
   profileSheetIndex: -1,
-  profileSheetProgress: 0,
+  profileSheetProgress: null, // This will hold a Reanimated shared value
+  initializeProfileSheetProgress: (sharedValue) =>
+    set({ profileSheetProgress: sharedValue }),
 
   // Tree data from backend
   treeData: [],

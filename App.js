@@ -20,6 +20,7 @@ import AdminToggleButton from "./src/components/AdminToggleButton";
 import AdminDashboard from "./src/screens/AdminDashboard";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
+import { useSharedValue } from "react-native-reanimated";
 import { checkAndCreateAdminProfile } from "./src/utils/checkAdminProfile";
 import { useTreeStore } from "./src/stores/useTreeStore";
 import "./global.css";
@@ -40,6 +41,14 @@ export default function App() {
   const [profileEditMode, setProfileEditMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
+  const initializeProfileSheetProgress = useTreeStore(
+    (s) => s.initializeProfileSheetProgress,
+  );
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    initializeProfileSheetProgress(progress);
+  }, [initializeProfileSheetProgress, progress]);
 
   useEffect(() => {
     // Check if user is already logged in

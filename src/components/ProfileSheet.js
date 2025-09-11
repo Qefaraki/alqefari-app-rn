@@ -151,23 +151,19 @@ const ProfileSheet = ({ editMode = false }) => {
   // Get screen height once on the JS thread
   const screenHeight = Dimensions.get("window").height;
 
-  // Define the function to be called on the JS thread
-  const updateSheetProgress = (progress) => {
-    useTreeStore.setState({ profileSheetProgress: progress });
-  };
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
   // Track sheet position and update global store for SearchBar to react
   useAnimatedReaction(
     () => animatedPosition.value,
     (currentPosition, previousPosition) => {
-      if (currentPosition !== previousPosition) {
-        // Calculate progress (0 = closed, 1 = fully open)
+      if (currentPosition !== previousPosition && profileSheetProgress) {
         // The animatedPosition is the top of the sheet from the BOTTOM of the screen.
-        // So, a smaller value means more closed, a larger value means more open.
         const progress = 1 - currentPosition / screenHeight;
-        runOnJS(updateSheetProgress)(progress);
+        profileSheetProgress.value = progress;
       }
     },
+    [profileSheetProgress, screenHeight],
   );
 
   // Calculate status bar height based on platform
