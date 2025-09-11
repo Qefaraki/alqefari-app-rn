@@ -16,8 +16,6 @@ import TreeView from "./src/components/TreeView";
 import ProfileSheet from "./src/components/ProfileSheet";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
-import AdminToggleButton from "./src/components/AdminToggleButton";
-import SettingsButton from "./src/components/SettingsButton";
 import AdminDashboard from "./src/screens/AdminDashboard";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
@@ -156,21 +154,11 @@ export default function App() {
                 <TreeView
                   setProfileEditMode={setProfileEditMode}
                   onNetworkStatusChange={setHasNetworkError}
+                  user={user}
+                  onAdminDashboard={() => setShowAdminDashboard(true)}
+                  onSettingsOpen={() => setShowSettings(true)}
                 />
               </View>
-
-              {/* Admin Toggle Button - Only when logged in and network is available */}
-              {user && !hasNetworkError && (
-                <AdminToggleButton
-                  user={user}
-                  onLongPress={() => setShowAdminDashboard(true)}
-                />
-              )}
-
-              {/* Settings Button - Only when network is available and profile not open */}
-              {!selectedPersonId && !profileEditMode && !hasNetworkError && (
-                <SettingsButton onPress={() => setShowSettings(true)} />
-              )}
 
               {/* Profile Sheet */}
               <ProfileSheet editMode={profileEditMode} />

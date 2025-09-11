@@ -53,10 +53,8 @@ const SearchBar = ({ onSelectResult, style }) => {
   // Step 2: Bridge from JS thread to UI thread
   // This runs on JS thread and updates UI thread values
   useEffect(() => {
-    if (
-      profileSheetProgress &&
-      typeof profileSheetProgress.value === "number"
-    ) {
+    // Don't try to access .value on JS thread - just check if object exists
+    if (profileSheetProgress) {
       // Signal to UI thread that the tracker is ready
       runOnUI(() => {
         "worklet";
@@ -69,11 +67,15 @@ const SearchBar = ({ onSelectResult, style }) => {
   useAnimatedReaction(
     () => {
       "worklet";
-      // Only access profileSheetProgress.value if we know it's initialized
-      // This check is safe because isSheetTrackerReady is a SharedValue
-      if (isSheetTrackerReady.value === 1 && profileSheetProgress) {
-        // Now we can safely access .value because we know it exists
-        return profileSheetProgress.value || 0;
+      // Only check the SharedValue flag, not the JS variable
+      if (isSheetTrackerReady.value === 1) {
+        // Try to access the value - use try/catch for safety
+        try {
+          // profileSheetProgress should be available if flag is set
+          return profileSheetProgress?.value || 0;
+        } catch {
+          return 0;
+        }
       }
       return 0;
     },
@@ -85,36 +87,50 @@ const SearchBar = ({ onSelectResult, style }) => {
     [profileSheetProgress], // This dependency is OK for the reaction
   );
 
-  // Step 4: Animated style using ONLY SharedValues (no JS variables)
+  // Step 4: Animated style that always returns a valid opacity
+  // Use a constant initial value to ensure it renders
   const animatedStyle = useAnimatedStyle(() => {
     "worklet";
 
-    // Early return if not initialized - always visible
-    if (isSheetTrackerReady.value === 0) {
-      return { opacity: 1 };
-    }
-
-    // Calculate fade based on sheet progress (all SharedValues)
-    const fadeStart = 0.3;
-    const fadeEnd = 0.7;
-
-    let targetOpacity = 1;
-    if (sheetProgress.value > fadeStart) {
-      const fadeProgress =
-        (sheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
-      targetOpacity = Math.max(0, 1 - fadeProgress);
-    }
-
-    // Smooth transition
-    searchBarOpacity.value = withTiming(targetOpacity, {
-      duration: 150,
-      easing: Easing.out(Easing.ease),
-    });
-
-    return {
-      opacity: searchBarOpacity.value,
-    };
+    // Always return the searchBarOpacity value
+    // It starts at 1, so the component will be visible initially
+    return { opacity: searchBarOpacity.value };
   });
+
+  // Step 5: Update opacity based on sheet progress
+  // This runs separately from the style to avoid initialization issues
+  useAnimatedReaction(
+    () => {
+      "worklet";
+
+      // If not ready, return current opacity (1)
+      if (isSheetTrackerReady.value === 0) {
+        return 1;
+      }
+
+      // Calculate target opacity based on sheet progress
+      const fadeStart = 0.3;
+      const fadeEnd = 0.7;
+
+      let targetOpacity = 1;
+      if (sheetProgress.value > fadeStart) {
+        const fadeProgress =
+          (sheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
+        targetOpacity = Math.max(0, 1 - fadeProgress);
+      }
+
+      return targetOpacity;
+    },
+    (targetOpacity) => {
+      "worklet";
+      // Animate to the target opacity
+      searchBarOpacity.value = withTiming(targetOpacity, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      });
+    },
+    [], // No dependencies - always run
+  );
 
   // Get user info on mount
   useEffect(() => {
@@ -293,21 +309,21 @@ const SearchBar = ({ onSelectResult, style }) => {
   const renderResult = ({ item, index }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
 
-    // Premium Najdi/Saudi heritage colors - sophisticated palette
+    // Premium Saudi/Najdi desert palette - no green, pure heritage
     const getNajdiColor = (name) => {
       const najdiPalette = [
-        "#C19A6B", // Desert Sand
-        "#8B4513", // Saddle Brown (leather)
-        "#D2691E", // Saffron
-        "#CD853F", // Date Palm
-        "#8B0000", // Dark Burgundy (traditional textile)
-        "#4B0082", // Indigo (traditional dye)
-        "#BC8F8F", // Rosy Brown (sandstone)
-        "#D4A76A", // Golden Sand
-        "#A0522D", // Sienna (pottery)
-        "#8B7355", // Dark Tan
-        "#704214", // Coffee Bean
-        "#7B68EE", // Medium Slate Blue (evening desert)
+        "#D4A574", // Saffron Gold - Desert sunset
+        "#8B4513", // Date Brown - Traditional dates
+        "#C19A6B", // Sand Dune - Classic desert
+        "#CC6B49", // Terracotta - Clay pottery
+        "#4A6FA5", // Bedouin Blue - Desert night sky
+        "#B8A88A", // Frankincense - Ancient incense
+        "#A0522D", // Copper Rose - Desert minerals
+        "#8B7355", // Najdi Stone - Traditional architecture
+        "#CD853F", // Date Palm - Golden dates
+        "#704214", // Arabic Coffee - Dark roast
+        "#BC8F8F", // Rose Sandstone - Diriyah walls
+        "#8B0000", // Burgundy - Traditional carpets
       ];
       const index = name ? name.charCodeAt(0) % najdiPalette.length : 0;
       return najdiPalette[index];
@@ -537,30 +553,32 @@ const styles = {
     marginLeft: 4,
   },
   resultsContainer: {
-    marginTop: 4,
-    backgroundColor: "transparent", // Invisible container
+    marginTop: 8,
+    backgroundColor: "transparent", // Completely invisible
     maxHeight: 400,
-    overflow: "visible", // Let cards cast their own shadows
+    overflow: "visible", // Allow shadows to extend
   },
   resultsList: {
     maxHeight: 400,
+    backgroundColor: "transparent",
   },
   resultsContent: {
-    paddingVertical: 6,
-    paddingHorizontal: 6,
+    paddingTop: 4,
+    paddingBottom: 8,
+    backgroundColor: "transparent",
   },
-  // Ultra-elegant minimal card
+  // Floating card design - each card independent
   elegantCard: {
-    marginHorizontal: 8,
-    marginBottom: 6,
+    marginHorizontal: 0,
+    marginBottom: 8,
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    // Premium subtle shadow
+    borderRadius: 24, // Match search bar radius for consistency
+    // Stronger shadow for floating effect
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
     overflow: "hidden",
   },
   elegantContent: {

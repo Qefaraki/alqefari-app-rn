@@ -58,6 +58,8 @@ import { formatDateDisplay } from "../services/migrationHelpers";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
+import AdminToggleButton from "./AdminToggleButton";
+import SettingsButton from "./SettingsButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -352,7 +354,13 @@ class SpatialGrid {
   }
 }
 
-const TreeView = ({ setProfileEditMode, onNetworkStatusChange }) => {
+const TreeView = ({
+  setProfileEditMode,
+  onNetworkStatusChange,
+  user,
+  onAdminDashboard,
+  onSettingsOpen,
+}) => {
   const stage = useTreeStore((s) => s.stage);
   const setStage = useTreeStore((s) => s.setStage);
   const minZoom = useTreeStore((s) => s.minZoom);
@@ -2441,6 +2449,12 @@ const TreeView = ({ setProfileEditMode, onNetworkStatusChange }) => {
           scale: scale,
         }}
       />
+
+      {/* Admin Toggle Button - Only when logged in */}
+      {user && <AdminToggleButton user={user} onLongPress={onAdminDashboard} />}
+
+      {/* Settings Button - Only when profile not open */}
+      {!selectedPersonId && <SettingsButton onPress={onSettingsOpen} />}
 
       {/* Admin components */}
       {isAdminMode && (
