@@ -469,7 +469,6 @@ const styles = {
     left: 12,
     right: 12,
     height: 48, // Fixed height matching search bar
-    backgroundColor: "red", // DEBUG: Temporary to test visibility
     zIndex: 10000,
     elevation: 1000,
   },
