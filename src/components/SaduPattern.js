@@ -1,6 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
-import { SvgUri } from "react-native-svg";
+import { View, StyleSheet, Dimensions, Image } from "react-native";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -10,23 +9,26 @@ const SaduPattern = () => {
   const originalHeight = 286;
 
   // Scale to fit screen width while maintaining aspect ratio
-  const patternHeight = 60; // Desired height for the pattern
+  const patternHeight = 50; // Desired height for the pattern
   const patternWidth = (originalWidth * patternHeight) / originalHeight;
 
   // Calculate how many times to repeat the pattern
-  const repetitions = Math.ceil(screenWidth / patternWidth) + 1; // +1 for smooth scrolling
+  const repetitions = Math.ceil(screenWidth / patternWidth) + 1; // +1 for seamless tiling
 
   return (
     <View style={styles.container} pointerEvents="none">
+      <View style={styles.fadeGradient} />
       <View style={styles.patternWrapper}>
         <View style={styles.patternRow}>
           {Array.from({ length: repetitions }).map((_, index) => (
-            <SvgUri
+            <Image
               key={index}
-              width={patternWidth}
-              height={patternHeight}
-              uri={require("../../assets/sadu style.svg")}
-              style={styles.pattern}
+              source={require("../../assets/sadu style.svg")}
+              style={[
+                styles.pattern,
+                { width: patternWidth, height: patternHeight },
+              ]}
+              resizeMode="stretch"
             />
           ))}
         </View>

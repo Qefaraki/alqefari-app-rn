@@ -63,13 +63,11 @@ const SearchBar = ({ onSelectResult, style }) => {
     }
 
     // Return single style object with both flex and opacity
-    // This avoids the Reanimated style array initialization bug
+    // CRITICAL: Return raw opacity value, not wrapped in withTiming
+    // withTiming on initial render causes undefined/invalid opacity
     return {
       flex: 1,
-      opacity: withTiming(opacity, {
-        duration: 150,
-        easing: ReanimatedEasing.out(ReanimatedEasing.ease),
-      }),
+      opacity: opacity, // Direct value - no animation wrapper!
     };
   });
 
@@ -247,23 +245,23 @@ const SearchBar = ({ onSelectResult, style }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
     const isLast = index === results.length - 1;
 
-    // Premium Saudi/Najdi desert palette - refined for Apple aesthetic
-    const getNajdiColor = (name) => {
-      const najdiPalette = [
-        "#D4A574", // Saffron Gold
-        "#8B4513", // Date Brown
-        "#C19A6B", // Sand Dune
-        "#CC6B49", // Terracotta
-        "#4A6FA5", // Bedouin Blue
-        "#B8A88A", // Frankincense
-        "#A0522D", // Copper Rose
-        "#8B7355", // Najdi Stone
+    // Ultra-minimal, elegant color palette
+    const getSubtleColor = (name) => {
+      const elegantPalette = [
+        "#6B7280", // Cool Gray
+        "#7C3AED", // Modern Purple
+        "#2563EB", // Deep Blue
+        "#059669", // Emerald
+        "#DC2626", // Crimson
+        "#EA580C", // Orange
+        "#CA8A04", // Amber
+        "#0891B2", // Cyan
       ];
-      const index = name ? name.charCodeAt(0) % najdiPalette.length : 0;
-      return najdiPalette[index];
+      const index = name ? name.charCodeAt(0) % elegantPalette.length : 0;
+      return elegantPalette[index];
     };
 
-    const najdiColor = getNajdiColor(item.name);
+    const subtleColor = getSubtleColor(item.name);
 
     return (
       <View key={item.id}>
@@ -273,54 +271,46 @@ const SearchBar = ({ onSelectResult, style }) => {
             handleSelectResult(item);
           }}
           style={({ pressed }) => [
-            styles.appleRow,
-            pressed && styles.appleRowPressed,
+            styles.resultRow,
+            pressed && styles.resultRowPressed,
             isLast && styles.lastRow,
           ]}
         >
-          <View style={styles.appleRowContent}>
-            {/* Text content - RTL layout */}
-            <View style={styles.appleTextSection}>
-              <Text style={styles.appleName} numberOfLines={1}>
-                {item.name_chain || item.name || "بدون اسم"}
-              </Text>
-              <View style={styles.appleMetaRow}>
-                <Text style={styles.appleGeneration}>
-                  الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-                </Text>
-                {item.birth_year_hijri && (
-                  <>
-                    <Text style={styles.appleSeparator}>•</Text>
-                    <Text style={styles.appleYear}>
-                      {toArabicNumerals(item.birth_year_hijri.toString())} هـ
-                    </Text>
-                  </>
-                )}
-              </View>
-            </View>
-
-            {/* Apple-style avatar on the left (RTL) */}
-            <View style={styles.appleAvatarSection}>
+          <View style={styles.rowContent}>
+            {/* Ultra-thin avatar on the left (RTL) */}
+            <View style={styles.avatarSection}>
               {item.photo_url ? (
                 <Image
                   source={{ uri: item.photo_url }}
-                  style={styles.appleAvatar}
+                  style={styles.avatarImage}
                   defaultSource={require("../../assets/icon.png")}
                 />
               ) : (
                 <View
                   style={[
-                    styles.appleAvatarPlaceholder,
-                    { backgroundColor: najdiColor },
+                    styles.avatarPlaceholder,
+                    { borderColor: subtleColor },
                   ]}
                 >
-                  <Text style={styles.appleInitial}>{initials}</Text>
+                  <Text style={[styles.avatarInitial, { color: subtleColor }]}>
+                    {initials}
+                  </Text>
                 </View>
               )}
             </View>
+
+            {/* Text content - RTL layout with proper alignment */}
+            <View style={styles.textSection}>
+              <Text style={styles.resultName} numberOfLines={1}>
+                {item.name_chain || item.name || "بدون اسم"}
+              </Text>
+              <Text style={styles.resultMeta}>
+                الجيل {toArabicNumerals(item.generation?.toString() || "0")}
+              </Text>
+            </View>
           </View>
         </Pressable>
-        {!isLast && <View style={styles.appleDivider} />}
+        {!isLast && <View style={styles.ultraThinDivider} />}
       </View>
     );
   };
