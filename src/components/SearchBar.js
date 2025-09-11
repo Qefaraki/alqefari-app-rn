@@ -14,7 +14,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import Reanimated, {
-  useSharedValue,
   useAnimatedStyle,
   withTiming,
   Easing as ReanimatedEasing,
@@ -37,7 +36,7 @@ const SearchBar = ({ onSelectResult, style }) => {
   // Get profile sheet state from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
-  // Animation values for regular Animated API
+  // Animation values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const resultsTranslateY = useRef(new Animated.Value(-20)).current;
@@ -45,8 +44,7 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
 
-  // SINGLE ANIMATED STYLE OBJECT - Fixes Reanimated initialization bug
-  // Merge flex: 1 directly into the animated style to avoid style array issues
+  // Single animated style that includes ALL styles (fixes Reanimated init bug)
   const animatedStyle = useAnimatedStyle(() => {
     "worklet";
 
@@ -64,99 +62,16 @@ const SearchBar = ({ onSelectResult, style }) => {
       }
     }
 
-    // Return single object with ALL styles (fixes initialization bug)
+    // Return single style object with both flex and opacity
+    // This avoids the Reanimated style array initialization bug
     return {
-      flex: 1, // Include layout style here instead of in array
+      flex: 1,
       opacity: withTiming(opacity, {
         duration: 150,
         easing: ReanimatedEasing.out(ReanimatedEasing.ease),
       }),
     };
-  }, [profileSheetProgress]); // Depend on profileSheetProgress reference
-
-  // Get user info on mount
-  useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUser(user);
-        // Get user profile for photo
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        setUserProfile(profile);
-      }
-    };
-    getUser();
-  }, []);
-
-  const performSearch = useCallback(
-    async (searchText) => {
-      if (!searchText || searchText.length < 1) {
-        setResults([]);
-        setShowResults(false);
-        return;
-      }
-
-      try {
-        // Split the query by spaces to create name chain
-        const names = searchText
-          .trim()
-          .split(/\s+/)
-          .filter((name) => name.length > 0);
-
-        console.log("Searching for:", names);
-
-        const { data, error } = await supabase.rpc("search_name_chain", {
-          p_names: names,
-          p_limit: 20,
-          p_offset: 0,
-        });
-
-        if (error) {
-          console.error("Search error:", error);
-          setResults([]);
-          setShowResults(false);
-        } else {
-          console.log("Search results:", data?.length || 0, "items");
-          setResults(data || []);
-          if ((data || []).length > 0) {
-            setShowResults(true);
-            // Apple-style smooth entrance
-            Animated.parallel([
-              Animated.timing(resultsOpacity, {
-                toValue: 1,
-                duration: 250,
-                useNativeDriver: true,
-                easing: Easing.out(Easing.quad),
-              }),
-              Animated.timing(resultsTranslateY, {
-                toValue: 0,
-                duration: 250,
-                useNativeDriver: true,
-                easing: Easing.out(Easing.quad),
-              }),
-              Animated.timing(containerScale, {
-                toValue: 1,
-                duration: 250,
-                useNativeDriver: true,
-                easing: Easing.out(Easing.quad),
-              }),
-            ]).start();
-          }
-        }
-      } catch (err) {
-        console.error("Search exception:", err);
-        setResults([]);
-        setShowResults(false);
-      }
-    },
-    [resultsOpacity, resultsTranslateY],
-  );
+  });
 
   const handleChangeText = useCallback(
     (text) => {
@@ -389,82 +304,82 @@ const SearchBar = ({ onSelectResult, style }) => {
         </Animated.View>
       )}
 
-      <Animated.View
-        style={[styles.container, style, { opacity: searchBarOpacity }]}
-      >
-        <Animated.View
-          style={[
-            styles.searchBarContainer,
-            { transform: [{ scale: searchBarScale }] },
-          ]}
-        >
-          <Pressable
-            style={styles.searchBar}
-            onPress={() => inputRef.current?.focus()}
-          >
-            {/* Family emblem on left (RTL) */}
-            <Image
-              source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
-              style={styles.familyEmblemLeft}
-              resizeMode="contain"
-            />
-
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="البحث في شجرة العائلة"
-              placeholderTextColor="#5F6368"
-              value={query}
-              onChangeText={handleChangeText}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-              textAlign="right"
-            />
-
-            {/* Clear button on the right with fade animation */}
-            {query.length > 0 && (
-              <Animated.View style={{ opacity: clearButtonOpacity }}>
-                <Pressable onPress={handleClear} style={styles.clearButton}>
-                  <Ionicons name="close-circle" size={20} color="#9AA0A6" />
-                </Pressable>
-              </Animated.View>
-            )}
-          </Pressable>
-        </Animated.View>
-
-        {showResults && results.length > 0 && (
+      <View style={[styles.container, style]}>
+        <Reanimated.View style={animatedStyle}>
           <Animated.View
             style={[
-              styles.resultsContainer,
-              {
-                opacity: resultsOpacity,
-                transform: [
-                  { translateY: resultsTranslateY },
-                  { scale: containerScale },
-                ],
-              },
+              styles.searchBarContainer,
+              { transform: [{ scale: searchBarScale }] },
             ]}
           >
-            <FlatList
-              data={results}
-              keyExtractor={(item) => item.id}
-              renderItem={renderResult}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              style={styles.resultsList}
-              contentContainerStyle={styles.resultsContent}
-              nestedScrollEnabled={true}
-              // Performance optimizations
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={10}
-              windowSize={10}
-            />
+            <Pressable
+              style={styles.searchBar}
+              onPress={() => inputRef.current?.focus()}
+            >
+              {/* Family emblem on left (RTL) */}
+              <Image
+                source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
+                style={styles.familyEmblemLeft}
+                resizeMode="contain"
+              />
+
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="البحث في شجرة العائلة"
+                placeholderTextColor="#5F6368"
+                value={query}
+                onChangeText={handleChangeText}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+                textAlign="right"
+              />
+
+              {/* Clear button on the right with fade animation */}
+              {query.length > 0 && (
+                <Animated.View style={{ opacity: clearButtonOpacity }}>
+                  <Pressable onPress={handleClear} style={styles.clearButton}>
+                    <Ionicons name="close-circle" size={20} color="#9AA0A6" />
+                  </Pressable>
+                </Animated.View>
+              )}
+            </Pressable>
           </Animated.View>
-        )}
-      </Animated.View>
+
+          {showResults && results.length > 0 && (
+            <Animated.View
+              style={[
+                styles.resultsContainer,
+                {
+                  opacity: resultsOpacity,
+                  transform: [
+                    { translateY: resultsTranslateY },
+                    { scale: containerScale },
+                  ],
+                },
+              ]}
+            >
+              <FlatList
+                data={results}
+                keyExtractor={(item) => item.id}
+                renderItem={renderResult}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={styles.resultsList}
+                contentContainerStyle={styles.resultsContent}
+                nestedScrollEnabled={true}
+                // Performance optimizations
+                removeClippedSubviews={true}
+                maxToRenderPerBatch={10}
+                windowSize={10}
+              />
+            </Animated.View>
+          )}
+        </Reanimated.View>
+      </View>
     </>
   );
 };
