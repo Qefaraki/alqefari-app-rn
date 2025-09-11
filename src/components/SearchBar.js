@@ -15,7 +15,6 @@ import * as Haptics from "expo-haptics";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
-  useAnimatedReaction,
   withTiming,
   Easing,
 } from "react-native-reanimated";
@@ -48,39 +47,37 @@ const SearchBar = ({ onSelectResult, style }) => {
   // This ensures the SearchBar is visible even before profileSheetProgress is initialized
   const searchBarOpacity = useSharedValue(1);
 
-  // Update opacity based on profile sheet progress
-  useAnimatedReaction(
-    () => {
-      if (!profileSheetProgress) {
-        return 1; // Fully visible when no sheet tracker exists
-      }
-
-      // Start fading when sheet is 30% open, fully fade at 70% open
-      const fadeStart = 0.3;
-      const fadeEnd = 0.7;
-
-      if (profileSheetProgress.value > fadeStart) {
-        const fadeProgress =
-          (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
-        return Math.max(0, 1 - fadeProgress);
-      }
-      return 1;
-    },
-    (targetOpacity) => {
-      searchBarOpacity.value = withTiming(targetOpacity, {
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-      });
-    },
-    [profileSheetProgress],
-  );
-
   // Animated style that always uses our local shared value
   const animatedStyle = useAnimatedStyle(() => {
+    "worklet";
+
+    // If no profile sheet progress exists yet, just use our local value (1)
+    if (!profileSheetProgress) {
+      // CRITICAL: Must return the shared value, not a plain number!
+      return { opacity: searchBarOpacity.value };
+    }
+
+    // Start fading when sheet is 30% open, fully fade at 70% open
+    const fadeStart = 0.3;
+    const fadeEnd = 0.7;
+
+    let targetOpacity = 1;
+    if (profileSheetProgress.value > fadeStart) {
+      const fadeProgress =
+        (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
+      targetOpacity = Math.max(0, 1 - fadeProgress);
+    }
+
+    // Update searchBarOpacity with animation
+    searchBarOpacity.value = withTiming(targetOpacity, {
+      duration: 150,
+      easing: Easing.out(Easing.ease),
+    });
+
     return {
       opacity: searchBarOpacity.value,
     };
-  });
+  }, [profileSheetProgress]);
 
   // Get user info on mount
   useEffect(() => {
