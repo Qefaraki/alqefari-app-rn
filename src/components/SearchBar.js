@@ -13,6 +13,12 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing as ReanimatedEasing,
+} from "react-native-reanimated";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -28,14 +34,45 @@ const SearchBar = ({ onSelectResult, style }) => {
   const [userProfile, setUserProfile] = useState(null);
   const inputRef = useRef(null);
 
-  // Animation values
+  // Get profile sheet state from store
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
+
+  // Animation values for regular Animated API
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const resultsTranslateY = useRef(new Animated.Value(-20)).current;
   const searchBarScale = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
-  const searchBarOpacity = useRef(new Animated.Value(1)).current;
+
+  // SINGLE ANIMATED STYLE OBJECT - Fixes Reanimated initialization bug
+  // Merge flex: 1 directly into the animated style to avoid style array issues
+  const animatedStyle = useAnimatedStyle(() => {
+    "worklet";
+
+    // Calculate opacity based on profile sheet progress
+    let opacity = 1;
+
+    if (profileSheetProgress?.value !== undefined) {
+      const progress = profileSheetProgress.value;
+      const fadeStart = 0.3;
+      const fadeEnd = 0.7;
+
+      if (progress > fadeStart) {
+        const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
+        opacity = Math.max(0, 1 - fadeProgress);
+      }
+    }
+
+    // Return single object with ALL styles (fixes initialization bug)
+    return {
+      flex: 1, // Include layout style here instead of in array
+      opacity: withTiming(opacity, {
+        duration: 150,
+        easing: ReanimatedEasing.out(ReanimatedEasing.ease),
+      }),
+    };
+  }, [profileSheetProgress]); // Depend on profileSheetProgress reference
 
   // Get user info on mount
   useEffect(() => {
