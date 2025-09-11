@@ -26,7 +26,6 @@ import { toArabicNumerals } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
 
 const SearchBar = ({ onSelectResult, style }) => {
-  console.log("SearchBar rendering"); // DEBUG: Verify component mounts
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
