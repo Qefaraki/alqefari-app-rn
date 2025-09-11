@@ -65,8 +65,8 @@ const SearchBar = ({ onSelectResult, style }) => {
     // Return style object with proper dimensions AND opacity
     // CRITICAL: Reanimated.View needs explicit dimensions or it renders 0x0!
     return {
-      width: "100%", // Take full width of parent container
-      minHeight: 48, // At least the height of the search bar
+      flex: 1, // Take full width of parent container
+      height: 48, // Match parent container height
       opacity: opacity, // Direct value, no animation wrapper
     };
   });
