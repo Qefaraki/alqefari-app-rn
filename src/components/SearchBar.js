@@ -73,35 +73,6 @@ const SearchBar = ({ onSelectResult, style }) => {
     };
   });
 
-  const handleChangeText = useCallback(
-    (text) => {
-      setQuery(text);
-
-      // Animate clear button
-      Animated.timing(clearButtonOpacity, {
-        toValue: text.length > 0 ? 1 : 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
-
-      // Clear previous timer
-      if (searchTimer) clearTimeout(searchTimer);
-
-      // If text is cleared, hide results immediately
-      if (!text) {
-        hideResults();
-        return;
-      }
-
-      // Debounce search
-      const timer = setTimeout(() => {
-        performSearch(text);
-      }, 300);
-      setSearchTimer(timer);
-    },
-    [searchTimer, performSearch, clearButtonOpacity],
-  );
-
   const showBackdrop = () => {
     Animated.timing(backdropOpacity, {
       toValue: 1,
@@ -136,6 +107,99 @@ const SearchBar = ({ onSelectResult, style }) => {
       containerScale.setValue(0.95);
     });
   };
+
+  const performSearch = useCallback(
+    async (searchText) => {
+      if (!searchText || searchText.length < 1) {
+        setResults([]);
+        setShowResults(false);
+        return;
+      }
+
+      try {
+        // Split the query by spaces to create name chain
+        const names = searchText
+          .trim()
+          .split(/\s+/)
+          .filter((name) => name.length > 0);
+
+        console.log("Searching for:", names);
+
+        const { data, error } = await supabase.rpc("search_name_chain", {
+          p_names: names,
+          p_limit: 20,
+          p_offset: 0,
+        });
+
+        if (error) {
+          console.error("Search error:", error);
+          setResults([]);
+          setShowResults(false);
+        } else {
+          console.log("Search results:", data?.length || 0, "items");
+          setResults(data || []);
+          if ((data || []).length > 0) {
+            setShowResults(true);
+            // Apple-style smooth entrance
+            Animated.parallel([
+              Animated.timing(resultsOpacity, {
+                toValue: 1,
+                duration: 250,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.quad),
+              }),
+              Animated.timing(resultsTranslateY, {
+                toValue: 0,
+                duration: 250,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.quad),
+              }),
+              Animated.timing(containerScale, {
+                toValue: 1,
+                duration: 250,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.quad),
+              }),
+            ]).start();
+          }
+        }
+      } catch (err) {
+        console.error("Search exception:", err);
+        setResults([]);
+        setShowResults(false);
+      }
+    },
+    [resultsOpacity, resultsTranslateY, containerScale],
+  );
+
+  const handleChangeText = useCallback(
+    (text) => {
+      setQuery(text);
+
+      // Animate clear button
+      Animated.timing(clearButtonOpacity, {
+        toValue: text.length > 0 ? 1 : 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+
+      // Clear previous timer
+      if (searchTimer) clearTimeout(searchTimer);
+
+      // If text is cleared, hide results immediately
+      if (!text) {
+        hideResults();
+        return;
+      }
+
+      // Debounce search
+      const timer = setTimeout(() => {
+        performSearch(text);
+      }, 300);
+      setSearchTimer(timer);
+    },
+    [searchTimer, performSearch, clearButtonOpacity],
+  );
 
   const handleSelectResult = useCallback(
     (item) => {
