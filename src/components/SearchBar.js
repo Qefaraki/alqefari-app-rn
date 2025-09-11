@@ -9,17 +9,10 @@ import {
   Animated,
   Platform,
   Image,
+  Easing,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Reanimated, {
-  useSharedValue,
-  useAnimatedStyle,
-  useAnimatedReaction,
-  withTiming,
-  Easing,
-  runOnUI,
-} from "react-native-reanimated";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -35,102 +28,14 @@ const SearchBar = ({ onSelectResult, style }) => {
   const [userProfile, setUserProfile] = useState(null);
   const inputRef = useRef(null);
 
-  // Get profile sheet state from store
-  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
-
   // Animation values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const resultsOpacity = useRef(new Animated.Value(0)).current;
-  const resultsTranslateY = useRef(new Animated.Value(-10)).current;
+  const resultsTranslateY = useRef(new Animated.Value(-20)).current;
   const searchBarScale = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
-
-  // Step 1: Create local SharedValues that exist entirely on UI thread
-  const searchBarOpacity = useSharedValue(1); // Start visible
-  const isSheetTrackerReady = useSharedValue(0); // Flag for initialization
-  const sheetProgress = useSharedValue(0); // Local copy of sheet progress
-
-  // Step 2: Bridge from JS thread to UI thread
-  // This runs on JS thread and updates UI thread values
-  useEffect(() => {
-    // Don't try to access .value on JS thread - just check if object exists
-    if (profileSheetProgress) {
-      // Signal to UI thread that the tracker is ready
-      runOnUI(() => {
-        "worklet";
-        isSheetTrackerReady.value = 1;
-      })();
-    }
-  }, [profileSheetProgress]);
-
-  // Step 3: Safely track sheet progress using only UI thread values
-  useAnimatedReaction(
-    () => {
-      "worklet";
-      // Only check the SharedValue flag, not the JS variable
-      if (isSheetTrackerReady.value === 1) {
-        // Try to access the value - use try/catch for safety
-        try {
-          // profileSheetProgress should be available if flag is set
-          return profileSheetProgress?.value || 0;
-        } catch {
-          return 0;
-        }
-      }
-      return 0;
-    },
-    (progress) => {
-      "worklet";
-      // Update our local SharedValue with the progress
-      sheetProgress.value = progress;
-    },
-    [profileSheetProgress], // This dependency is OK for the reaction
-  );
-
-  // Step 4: Animated style that always returns a valid opacity
-  // Use a constant initial value to ensure it renders
-  const animatedStyle = useAnimatedStyle(() => {
-    "worklet";
-
-    // Always return the searchBarOpacity value
-    // It starts at 1, so the component will be visible initially
-    return { opacity: searchBarOpacity.value };
-  });
-
-  // Step 5: Update opacity based on sheet progress
-  // This runs separately from the style to avoid initialization issues
-  useAnimatedReaction(
-    () => {
-      "worklet";
-
-      // If not ready, return current opacity (1)
-      if (isSheetTrackerReady.value === 0) {
-        return 1;
-      }
-
-      // Calculate target opacity based on sheet progress
-      const fadeStart = 0.3;
-      const fadeEnd = 0.7;
-
-      let targetOpacity = 1;
-      if (sheetProgress.value > fadeStart) {
-        const fadeProgress =
-          (sheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
-        targetOpacity = Math.max(0, 1 - fadeProgress);
-      }
-
-      return targetOpacity;
-    },
-    (targetOpacity) => {
-      "worklet";
-      // Animate to the target opacity
-      searchBarOpacity.value = withTiming(targetOpacity, {
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-      });
-    },
-    [], // No dependencies - always run
-  );
+  const containerScale = useRef(new Animated.Value(0.95)).current;
+  const searchBarOpacity = useRef(new Animated.Value(1)).current;
 
   // Get user info on mount
   useEffect(() => {
@@ -184,18 +89,25 @@ const SearchBar = ({ onSelectResult, style }) => {
           setResults(data || []);
           if ((data || []).length > 0) {
             setShowResults(true);
-            // Animate results in
+            // Apple-style smooth entrance
             Animated.parallel([
               Animated.timing(resultsOpacity, {
                 toValue: 1,
-                duration: 200,
+                duration: 250,
                 useNativeDriver: true,
+                easing: Easing.out(Easing.quad),
               }),
-              Animated.spring(resultsTranslateY, {
+              Animated.timing(resultsTranslateY, {
                 toValue: 0,
-                friction: 8,
-                tension: 40,
+                duration: 250,
                 useNativeDriver: true,
+                easing: Easing.out(Easing.quad),
+              }),
+              Animated.timing(containerScale, {
+                toValue: 1,
+                duration: 250,
+                useNativeDriver: true,
+                easing: Easing.out(Easing.quad),
               }),
             ]).start();
           }
@@ -250,17 +162,26 @@ const SearchBar = ({ onSelectResult, style }) => {
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 0,
-        duration: 150,
+        duration: 200,
         useNativeDriver: true,
+        easing: Easing.in(Easing.quad),
       }),
       Animated.timing(resultsOpacity, {
         toValue: 0,
-        duration: 150,
+        duration: 200,
         useNativeDriver: true,
+        easing: Easing.in(Easing.quad),
+      }),
+      Animated.timing(containerScale, {
+        toValue: 0.95,
+        duration: 200,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.quad),
       }),
     ]).start(() => {
       setShowResults(false);
-      resultsTranslateY.setValue(-10);
+      resultsTranslateY.setValue(-20);
+      containerScale.setValue(0.95);
     });
   };
 
@@ -308,22 +229,19 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   const renderResult = ({ item, index }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
+    const isLast = index === results.length - 1;
 
-    // Premium Saudi/Najdi desert palette - no green, pure heritage
+    // Premium Saudi/Najdi desert palette - refined for Apple aesthetic
     const getNajdiColor = (name) => {
       const najdiPalette = [
-        "#D4A574", // Saffron Gold - Desert sunset
-        "#8B4513", // Date Brown - Traditional dates
-        "#C19A6B", // Sand Dune - Classic desert
-        "#CC6B49", // Terracotta - Clay pottery
-        "#4A6FA5", // Bedouin Blue - Desert night sky
-        "#B8A88A", // Frankincense - Ancient incense
-        "#A0522D", // Copper Rose - Desert minerals
-        "#8B7355", // Najdi Stone - Traditional architecture
-        "#CD853F", // Date Palm - Golden dates
-        "#704214", // Arabic Coffee - Dark roast
-        "#BC8F8F", // Rose Sandstone - Diriyah walls
-        "#8B0000", // Burgundy - Traditional carpets
+        "#D4A574", // Saffron Gold
+        "#8B4513", // Date Brown
+        "#C19A6B", // Sand Dune
+        "#CC6B49", // Terracotta
+        "#4A6FA5", // Bedouin Blue
+        "#B8A88A", // Frankincense
+        "#A0522D", // Copper Rose
+        "#8B7355", // Najdi Stone
       ];
       const index = name ? name.charCodeAt(0) % najdiPalette.length : 0;
       return najdiPalette[index];
@@ -332,48 +250,62 @@ const SearchBar = ({ onSelectResult, style }) => {
     const najdiColor = getNajdiColor(item.name);
 
     return (
-      <Pressable
-        onPress={() => handleSelectResult(item)}
-        style={({ pressed }) => [
-          styles.elegantCard,
-          {
-            transform: [{ scale: pressed ? 0.98 : 1 }],
-            opacity: pressed ? 0.85 : 1,
-          },
-        ]}
-      >
-        <View style={styles.elegantContent}>
-          {/* Clean text hierarchy - RTL layout */}
-          <View style={styles.textSection}>
-            <Text style={styles.nameChain} numberOfLines={2}>
-              {item.name_chain || item.name || "بدون اسم"}
-            </Text>
-            <Text style={styles.generation}>
-              الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-            </Text>
-          </View>
-
-          {/* Circular photo on the right for RTL */}
-          <View style={styles.avatarSection}>
-            {item.photo_url ? (
-              <Image
-                source={{ uri: item.photo_url }}
-                style={styles.circularPhoto}
-                defaultSource={require("../../assets/icon.png")}
-              />
-            ) : (
-              <View
-                style={[
-                  styles.avatarPlaceholder,
-                  { backgroundColor: najdiColor },
-                ]}
-              >
-                <Text style={styles.avatarInitial}>{initials}</Text>
+      <View key={item.id}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handleSelectResult(item);
+          }}
+          style={({ pressed }) => [
+            styles.appleRow,
+            pressed && styles.appleRowPressed,
+            isLast && styles.lastRow,
+          ]}
+        >
+          <View style={styles.appleRowContent}>
+            {/* Text content - RTL layout */}
+            <View style={styles.appleTextSection}>
+              <Text style={styles.appleName} numberOfLines={1}>
+                {item.name_chain || item.name || "بدون اسم"}
+              </Text>
+              <View style={styles.appleMetaRow}>
+                <Text style={styles.appleGeneration}>
+                  الجيل {toArabicNumerals(item.generation?.toString() || "0")}
+                </Text>
+                {item.birth_year_hijri && (
+                  <>
+                    <Text style={styles.appleSeparator}>•</Text>
+                    <Text style={styles.appleYear}>
+                      {toArabicNumerals(item.birth_year_hijri.toString())} هـ
+                    </Text>
+                  </>
+                )}
               </View>
-            )}
+            </View>
+
+            {/* Apple-style avatar on the left (RTL) */}
+            <View style={styles.appleAvatarSection}>
+              {item.photo_url ? (
+                <Image
+                  source={{ uri: item.photo_url }}
+                  style={styles.appleAvatar}
+                  defaultSource={require("../../assets/icon.png")}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.appleAvatarPlaceholder,
+                    { backgroundColor: najdiColor },
+                  ]}
+                >
+                  <Text style={styles.appleInitial}>{initials}</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
+        {!isLast && <View style={styles.appleDivider} />}
+      </View>
     );
   };
 
@@ -420,79 +352,82 @@ const SearchBar = ({ onSelectResult, style }) => {
         </Animated.View>
       )}
 
-      <View style={[styles.container, style]}>
-        <Reanimated.View style={[{ flex: 1 }, animatedStyle]}>
+      <Animated.View
+        style={[styles.container, style, { opacity: searchBarOpacity }]}
+      >
+        <Animated.View
+          style={[
+            styles.searchBarContainer,
+            { transform: [{ scale: searchBarScale }] },
+          ]}
+        >
+          <Pressable
+            style={styles.searchBar}
+            onPress={() => inputRef.current?.focus()}
+          >
+            {/* Family emblem on left (RTL) */}
+            <Image
+              source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
+              style={styles.familyEmblemLeft}
+              resizeMode="contain"
+            />
+
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="البحث في شجرة العائلة"
+              placeholderTextColor="#5F6368"
+              value={query}
+              onChangeText={handleChangeText}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              textAlign="right"
+            />
+
+            {/* Clear button on the right with fade animation */}
+            {query.length > 0 && (
+              <Animated.View style={{ opacity: clearButtonOpacity }}>
+                <Pressable onPress={handleClear} style={styles.clearButton}>
+                  <Ionicons name="close-circle" size={20} color="#9AA0A6" />
+                </Pressable>
+              </Animated.View>
+            )}
+          </Pressable>
+        </Animated.View>
+
+        {showResults && results.length > 0 && (
           <Animated.View
             style={[
-              styles.searchBarContainer,
-              { transform: [{ scale: searchBarScale }] },
+              styles.resultsContainer,
+              {
+                opacity: resultsOpacity,
+                transform: [
+                  { translateY: resultsTranslateY },
+                  { scale: containerScale },
+                ],
+              },
             ]}
           >
-            <Pressable
-              style={styles.searchBar}
-              onPress={() => inputRef.current?.focus()}
-            >
-              {/* Family emblem on left (RTL) */}
-              <Image
-                source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
-                style={styles.familyEmblemLeft}
-                resizeMode="contain"
-              />
-
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="البحث في شجرة العائلة"
-                placeholderTextColor="#5F6368"
-                value={query}
-                onChangeText={handleChangeText}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                autoCorrect={false}
-                autoCapitalize="none"
-                returnKeyType="search"
-                textAlign="right"
-              />
-
-              {/* Clear button on the right with fade animation */}
-              {query.length > 0 && (
-                <Animated.View style={{ opacity: clearButtonOpacity }}>
-                  <Pressable onPress={handleClear} style={styles.clearButton}>
-                    <Ionicons name="close-circle" size={20} color="#9AA0A6" />
-                  </Pressable>
-                </Animated.View>
-              )}
-            </Pressable>
+            <FlatList
+              data={results}
+              keyExtractor={(item) => item.id}
+              renderItem={renderResult}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              style={styles.resultsList}
+              contentContainerStyle={styles.resultsContent}
+              nestedScrollEnabled={true}
+              // Performance optimizations
+              removeClippedSubviews={true}
+              maxToRenderPerBatch={10}
+              windowSize={10}
+            />
           </Animated.View>
-
-          {showResults && results.length > 0 && (
-            <Animated.View
-              style={[
-                styles.resultsContainer,
-                {
-                  opacity: resultsOpacity,
-                  transform: [{ translateY: resultsTranslateY }],
-                },
-              ]}
-            >
-              <FlatList
-                data={results}
-                keyExtractor={(item) => item.id}
-                renderItem={renderResult}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-                style={styles.resultsList}
-                contentContainerStyle={styles.resultsContent}
-                nestedScrollEnabled={true}
-                // Performance optimizations
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={10}
-                windowSize={10}
-              />
-            </Animated.View>
-          )}
-        </Reanimated.View>
-      </View>
+        )}
+      </Animated.View>
     </>
   );
 };
@@ -552,86 +487,109 @@ const styles = {
     padding: 4,
     marginLeft: 4,
   },
+  // Apple-style unified container
   resultsContainer: {
-    marginTop: 8,
-    backgroundColor: "transparent", // Completely invisible
+    marginTop: 2, // Minimal gap from search bar
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20, // Slightly less than search bar
     maxHeight: 400,
-    overflow: "visible", // Allow shadows to extend
+    overflow: "hidden",
+    // Subtle Apple shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 20,
+    elevation: 3,
   },
   resultsList: {
     maxHeight: 400,
     backgroundColor: "transparent",
   },
   resultsContent: {
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingVertical: 8,
+  },
+  // Apple-style row layout
+  appleRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: "transparent",
+    minHeight: 64,
   },
-  // Floating card design - each card independent
-  elegantCard: {
-    marginHorizontal: 0,
-    marginBottom: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24, // Match search bar radius for consistency
-    // Stronger shadow for floating effect
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: "hidden",
+  appleRowPressed: {
+    backgroundColor: "#F5F5F7", // Apple's highlight gray
   },
-  elegantContent: {
+  lastRow: {
+    // No special styling for last row
+  },
+  appleRowContent: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 12,
-    minHeight: 72,
   },
-  textSection: {
+  appleTextSection: {
     flex: 1,
     justifyContent: "center",
-    paddingRight: 12, // Space from right edge
+    paddingRight: 12,
   },
-  nameChain: {
-    fontSize: 15,
-    fontWeight: "500",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
-    color: "#1A1A1A",
-    marginBottom: 3,
-    lineHeight: 21,
-    textAlign: "right", // RTL alignment
+  appleName: {
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
+    color: "#000000",
+    marginBottom: 2,
+    textAlign: "right",
   },
-  generation: {
-    fontSize: 13,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
-    color: "#7A7A7A",
+  appleMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  appleGeneration: {
+    fontSize: 14,
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+    color: "#8E8E93", // Apple secondary label color
     fontWeight: "400",
-    textAlign: "right", // RTL alignment
   },
-  avatarSection: {
-    marginLeft: 12, // Photo on the left in RTL
+  appleSeparator: {
+    fontSize: 14,
+    color: "#8E8E93",
+    marginHorizontal: 6,
   },
-  circularPhoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24, // Perfect circle
-    backgroundColor: "#F8F9FA",
+  appleYear: {
+    fontSize: 14,
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+    color: "#8E8E93",
+    fontWeight: "400",
+  },
+  appleAvatarSection: {
+    marginLeft: 12,
+  },
+  appleAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F2F2F7",
+    // Subtle inner border for definition
     borderWidth: 0.5,
-    borderColor: "rgba(0,0,0,0.08)",
+    borderColor: "rgba(255,255,255,0.8)",
   },
-  avatarPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24, // Perfect circle
+  appleAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    // Desert color set dynamically
+    // Color set dynamically
   },
-  avatarInitial: {
-    fontSize: 20,
+  appleInitial: {
+    fontSize: 18,
     fontWeight: "600",
     color: "#FFFFFF",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
+  },
+  appleDivider: {
+    height: 0.5,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    marginLeft: 72, // Align with text, not avatar
   },
 };
 
