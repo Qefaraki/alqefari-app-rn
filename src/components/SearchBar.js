@@ -43,9 +43,20 @@ const SearchBar = ({ onSelectResult, style }) => {
   // Use regular Animated.Value that starts at 1 (guaranteed visible)
   const searchBarOpacity = useRef(new Animated.Value(1)).current;
 
+  // Track if this is the first mount to avoid initial fade
+  const isFirstMount = useRef(true);
+
   // Bridge function to update regular Animated.Value from worklet
   const updateOpacity = useCallback(
     (value) => {
+      // Skip the first update to avoid initial fade
+      if (isFirstMount.current) {
+        isFirstMount.current = false;
+        console.log("Skipping first opacity update, value was:", value);
+        return;
+      }
+
+      console.log("Updating opacity to:", value);
       Animated.timing(searchBarOpacity, {
         toValue: value,
         duration: 150,
