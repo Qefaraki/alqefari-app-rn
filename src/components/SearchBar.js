@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import Reanimated, {
   useAnimatedStyle,
   useSharedValue,
+  useDerivedValue,
   withTiming,
   runOnJS,
   Easing as ReanimatedEasing,
@@ -46,14 +47,22 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
 
-  // Fixed animated style - only calculate opacity when sheet is actually moving
+  // Initialize opacity as a SharedValue starting at 1
+  const searchBarOpacity = useSharedValue(1);
+
+  // Use animated reaction to update opacity based on profile sheet
+  React.useEffect(() => {
+    // This ensures opacity starts at 1
+    searchBarOpacity.value = 1;
+  }, []);
+
+  // Animated style using the SharedValue directly
   const animatedStyle = useAnimatedStyle(() => {
     "worklet";
 
-    // Default to fully visible
-    let opacity = 1;
+    // Calculate target opacity based on profile sheet progress
+    let targetOpacity = 1;
 
-    // Only apply fade if profileSheetProgress exists AND is greater than 0
     if (profileSheetProgress && profileSheetProgress.value > 0) {
       const progress = profileSheetProgress.value;
       const fadeStart = 0.3;
@@ -61,12 +70,15 @@ const SearchBar = ({ onSelectResult, style }) => {
 
       if (progress > fadeStart) {
         const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
-        opacity = Math.max(0, 1 - fadeProgress);
+        targetOpacity = Math.max(0, 1 - fadeProgress);
       }
     }
 
+    // Update the shared value
+    searchBarOpacity.value = targetOpacity;
+
     return {
-      opacity: opacity,
+      opacity: searchBarOpacity.value,
     };
   });
 
@@ -377,7 +389,7 @@ const SearchBar = ({ onSelectResult, style }) => {
             { transform: [{ scale: searchBarScale }] },
           ]}
         >
-          <Reanimated.View style={animatedStyle}>
+          <Reanimated.View style={[{ opacity: 1 }, animatedStyle]}>
             <Pressable
               style={styles.searchBar}
               onPress={() => inputRef.current?.focus()}
