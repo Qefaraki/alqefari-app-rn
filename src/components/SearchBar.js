@@ -47,11 +47,27 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
 
-  // HARDCODED TEST: Always return opacity 1 to test if Reanimated.View applies it
+  // Fixed animated style - only calculate opacity when sheet is actually moving
   const animatedStyle = useAnimatedStyle(() => {
     "worklet";
+
+    // Default to fully visible
+    let opacity = 1;
+
+    // Only apply fade if profileSheetProgress exists AND is greater than 0
+    if (profileSheetProgress && profileSheetProgress.value > 0) {
+      const progress = profileSheetProgress.value;
+      const fadeStart = 0.3;
+      const fadeEnd = 0.7;
+
+      if (progress > fadeStart) {
+        const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
+        opacity = Math.max(0, 1 - fadeProgress);
+      }
+    }
+
     return {
-      opacity: 1, // Hardcoded to 1 for testing
+      opacity: opacity,
     };
   });
 
