@@ -474,6 +474,7 @@ const styles = {
     elevation: 1000,
   },
   searchBarContainer: {
+    height: 48, // Explicit height needed!
     // Google Maps strong shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
