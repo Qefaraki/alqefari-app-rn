@@ -62,11 +62,9 @@ const SearchBar = ({ onSelectResult, style }) => {
       }
     }
 
-    // Return style object with proper dimensions AND opacity
-    // CRITICAL: Reanimated.View needs explicit dimensions or it renders 0x0!
+    // Return style object with opacity only
+    // Reanimated.View now wraps the Pressable directly
     return {
-      flex: 1, // Take full width of parent container
-      height: 48, // Match parent container height
       opacity: opacity, // Direct value, no animation wrapper
     };
   });
@@ -378,41 +376,43 @@ const SearchBar = ({ onSelectResult, style }) => {
             { transform: [{ scale: searchBarScale }] },
           ]}
         >
-          <Pressable
-            style={styles.searchBar}
-            onPress={() => inputRef.current?.focus()}
-          >
-            {/* Family emblem on left (RTL) */}
-            <Image
-              source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
-              style={styles.familyEmblemLeft}
-              resizeMode="contain"
-            />
+          <Reanimated.View style={animatedStyle}>
+            <Pressable
+              style={styles.searchBar}
+              onPress={() => inputRef.current?.focus()}
+            >
+              {/* Family emblem on left (RTL) */}
+              <Image
+                source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
+                style={styles.familyEmblemLeft}
+                resizeMode="contain"
+              />
 
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="البحث في شجرة العائلة"
-              placeholderTextColor="#5F6368"
-              value={query}
-              onChangeText={handleChangeText}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              autoCorrect={false}
-              autoCapitalize="none"
-              returnKeyType="search"
-              textAlign="right"
-            />
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder="البحث في شجرة العائلة"
+                placeholderTextColor="#5F6368"
+                value={query}
+                onChangeText={handleChangeText}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+                textAlign="right"
+              />
 
-            {/* Clear button on the right with fade animation */}
-            {query.length > 0 && (
-              <Animated.View style={{ opacity: clearButtonOpacity }}>
-                <Pressable onPress={handleClear} style={styles.clearButton}>
-                  <Ionicons name="close-circle" size={20} color="#9AA0A6" />
-                </Pressable>
-              </Animated.View>
-            )}
-          </Pressable>
+              {/* Clear button on the right with fade animation */}
+              {query.length > 0 && (
+                <Animated.View style={{ opacity: clearButtonOpacity }}>
+                  <Pressable onPress={handleClear} style={styles.clearButton}>
+                    <Ionicons name="close-circle" size={20} color="#9AA0A6" />
+                  </Pressable>
+                </Animated.View>
+              )}
+            </Pressable>
+          </Reanimated.View>
         </Animated.View>
 
         {showResults && results.length > 0 && (
