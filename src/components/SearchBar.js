@@ -15,7 +15,7 @@ import * as Haptics from "expo-haptics";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
-  useDerivedValue,
+  useAnimatedReaction,
   withTiming,
   Easing,
   runOnUI,
@@ -45,47 +45,74 @@ const SearchBar = ({ onSelectResult, style }) => {
   const searchBarScale = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
 
-  // Create a local shared value for opacity that always exists
-  // Initialize to 1 immediately for visibility
-  const searchBarOpacity = useSharedValue(1);
+  // Step 1: Create local SharedValues that exist entirely on UI thread
+  const searchBarOpacity = useSharedValue(1); // Start visible
+  const isSheetTrackerReady = useSharedValue(0); // Flag for initialization
+  const sheetProgress = useSharedValue(0); // Local copy of sheet progress
 
-  // Initialize on UI thread immediately to ensure visibility
-  runOnUI(() => {
-    "worklet";
-    searchBarOpacity.value = 1;
-  })();
-
-  // Derive the actual opacity based on profile sheet progress
-  const derivedOpacity = useDerivedValue(() => {
-    "worklet";
-
-    // If no profile sheet tracker, show the search bar
-    if (!profileSheetProgress || profileSheetProgress.value === undefined) {
-      return 1;
+  // Step 2: Bridge from JS thread to UI thread
+  // This runs on JS thread and updates UI thread values
+  useEffect(() => {
+    if (
+      profileSheetProgress &&
+      typeof profileSheetProgress.value === "number"
+    ) {
+      // Signal to UI thread that the tracker is ready
+      runOnUI(() => {
+        "worklet";
+        isSheetTrackerReady.value = 1;
+      })();
     }
-
-    // Calculate fade based on sheet position
-    const fadeStart = 0.3;
-    const fadeEnd = 0.7;
-
-    if (profileSheetProgress.value > fadeStart) {
-      const fadeProgress =
-        (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
-      return Math.max(0, 1 - fadeProgress);
-    }
-
-    return 1;
   }, [profileSheetProgress]);
 
-  // Animated style that uses the derived value with smooth transitions
+  // Step 3: Safely track sheet progress using only UI thread values
+  useAnimatedReaction(
+    () => {
+      "worklet";
+      // Only access profileSheetProgress.value if we know it's initialized
+      // This check is safe because isSheetTrackerReady is a SharedValue
+      if (isSheetTrackerReady.value === 1 && profileSheetProgress) {
+        // Now we can safely access .value because we know it exists
+        return profileSheetProgress.value || 0;
+      }
+      return 0;
+    },
+    (progress) => {
+      "worklet";
+      // Update our local SharedValue with the progress
+      sheetProgress.value = progress;
+    },
+    [profileSheetProgress], // This dependency is OK for the reaction
+  );
+
+  // Step 4: Animated style using ONLY SharedValues (no JS variables)
   const animatedStyle = useAnimatedStyle(() => {
     "worklet";
 
+    // Early return if not initialized - always visible
+    if (isSheetTrackerReady.value === 0) {
+      return { opacity: 1 };
+    }
+
+    // Calculate fade based on sheet progress (all SharedValues)
+    const fadeStart = 0.3;
+    const fadeEnd = 0.7;
+
+    let targetOpacity = 1;
+    if (sheetProgress.value > fadeStart) {
+      const fadeProgress =
+        (sheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
+      targetOpacity = Math.max(0, 1 - fadeProgress);
+    }
+
+    // Smooth transition
+    searchBarOpacity.value = withTiming(targetOpacity, {
+      duration: 150,
+      easing: Easing.out(Easing.ease),
+    });
+
     return {
-      opacity: withTiming(derivedOpacity.value, {
-        duration: 150,
-        easing: Easing.out(Easing.ease),
-      }),
+      opacity: searchBarOpacity.value,
     };
   });
 

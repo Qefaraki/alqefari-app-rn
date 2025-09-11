@@ -17,6 +17,7 @@ import ProfileSheet from "./src/components/ProfileSheet";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
 import AdminToggleButton from "./src/components/AdminToggleButton";
+import SettingsButton from "./src/components/SettingsButton";
 import AdminDashboard from "./src/screens/AdminDashboard";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
@@ -104,59 +105,6 @@ export default function App() {
             <View className="flex-1">
               <StatusBar style="dark" />
 
-              {/* Settings Icon - Bottom Right (Hidden when profile is open or no network) */}
-              {!selectedPersonId && !profileEditMode && !hasNetworkError && (
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 100,
-                    right: 16,
-                    zIndex: 10,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 28,
-                      backgroundColor: "#FFFFFF",
-                      // Shadow properties for iOS
-                      shadowColor: "#000",
-                      shadowOffset: {
-                        width: 0,
-                        height: 4,
-                      },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 8,
-                      // Shadow for Android
-                      elevation: 12,
-                    }}
-                  >
-                    <TouchableOpacity
-                      onPress={() => setShowSettings(true)}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        width: 56,
-                        height: 56,
-                        backgroundColor: "transparent",
-                        borderRadius: 28,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Ionicons
-                        name="settings-outline"
-                        size={24}
-                        color="#5F6368"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
               {/* Login Button - Floating when not logged in and network is available */}
               {!user && !hasNetworkError && (
                 <View
@@ -217,6 +165,11 @@ export default function App() {
                   user={user}
                   onLongPress={() => setShowAdminDashboard(true)}
                 />
+              )}
+
+              {/* Settings Button - Only when network is available and profile not open */}
+              {!selectedPersonId && !profileEditMode && !hasNetworkError && (
+                <SettingsButton onPress={() => setShowSettings(true)} />
               )}
 
               {/* Profile Sheet */}
