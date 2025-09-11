@@ -50,12 +50,27 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   // Bridge function to update regular Animated.Value from worklet
   const updateOpacity = useCallback(
-    (value) => {
-      // Skip the first update (it incorrectly returns 0)
-      if (isFirstMount.current) {
+    (value, sheetProgress) => {
+      // CRITICAL FIX: Never trust opacity 0 unless sheet is actually open
+      // This prevents false triggers from re-initialization or bridge timeouts
+      if (value === 0 || value < 0.1) {
+        // Only apply opacity 0 if ProfileSheet is actually past fade threshold
+        if (!sheetProgress || sheetProgress < 0.3) {
+          // Sheet is closed, this is a false trigger - keep SearchBar visible
+          if (lastOpacity.current !== 1) {
+            value = 1; // Force to visible
+          } else {
+            return; // Already visible, skip update
+          }
+        }
+      }
+
+      // Skip the first update if it's trying to set opacity to 0
+      if (isFirstMount.current && value < 0.5) {
         isFirstMount.current = false;
         return;
       }
+      isFirstMount.current = false;
 
       // Only update if value changed significantly (reduce stuttering)
       const roundedValue = Math.round(value * 100) / 100;
@@ -89,24 +104,26 @@ const SearchBar = ({ onSelectResult, style }) => {
       "worklet";
       // Calculate opacity based on profile sheet progress
       let opacity = 1;
+      let currentProgress = 0;
 
       if (profileSheetProgress && profileSheetProgress.value > 0) {
-        const progress = profileSheetProgress.value;
+        currentProgress = profileSheetProgress.value;
         const fadeStart = 0.3;
         const fadeEnd = 0.7;
 
-        if (progress > fadeStart) {
-          const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
+        if (currentProgress > fadeStart) {
+          const fadeProgress =
+            (currentProgress - fadeStart) / (fadeEnd - fadeStart);
           opacity = Math.max(0, 1 - fadeProgress);
         }
       }
 
-      return opacity;
+      return { opacity, progress: currentProgress };
     },
-    (opacity) => {
+    (result) => {
       "worklet";
-      // Call the JS function to update the Animated.Value
-      runOnJS(updateOpacity)(opacity);
+      // Call the JS function with both opacity and sheet progress
+      runOnJS(updateOpacity)(result.opacity, result.progress);
     },
     [profileSheetProgress],
   );
@@ -285,23 +302,25 @@ const SearchBar = ({ onSelectResult, style }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
     const isLast = index === results.length - 1;
 
-    // Premium gradient colors
-    const getGradientColors = (name) => {
-      const gradients = [
-        ["#667EEA", "#764BA2"], // Purple gradient
-        ["#F093FB", "#F5576C"], // Pink gradient
-        ["#4FACFE", "#00F2FE"], // Blue gradient
-        ["#43E97B", "#38F9D7"], // Green gradient
-        ["#FA709A", "#FEE140"], // Sunset gradient
-        ["#30CED8", "#3E65F2"], // Ocean gradient
-        ["#FDC830", "#F37335"], // Orange gradient
-        ["#A8E6CF", "#7FD8BE"], // Mint gradient
+    // Premium desert palette - ultra-thin aesthetic
+    const getDesertColor = (index) => {
+      const desertPalette = [
+        "#C19A6B", // Desert Sand
+        "#8B7355", // Sienna Clay
+        "#A0826D", // Sandstone
+        "#BC9A6A", // Camel
+        "#D2B48C", // Tan Dunes
+        "#DEB887", // Burlywood
+        "#F4A460", // Sandy Brown
+        "#CD853F", // Peru Sand
+        "#D2691E", // Chocolate Oasis
+        "#B8860B", // Dark Goldenrod
       ];
-      const index = name ? name.charCodeAt(0) % gradients.length : 0;
-      return gradients[index];
+      // Use index to ensure each result has a different color
+      return desertPalette[index % desertPalette.length];
     };
 
-    const [color1, color2] = getGradientColors(item.name);
+    const desertColor = getDesertColor(index);
 
     return (
       <Pressable
@@ -317,7 +336,7 @@ const SearchBar = ({ onSelectResult, style }) => {
         ]}
       >
         <View style={styles.cardContent}>
-          {/* Beautiful gradient avatar */}
+          {/* Saudi-style avatar - positioned on left for RTL */}
           <View style={styles.avatarContainer}>
             {item.photo_url ? (
               <Image
@@ -328,40 +347,32 @@ const SearchBar = ({ onSelectResult, style }) => {
             ) : (
               <View
                 style={[
-                  styles.avatarGradient,
+                  styles.avatarCircle,
                   {
-                    backgroundColor: color1,
+                    backgroundColor: desertColor,
                   },
                 ]}
               >
                 <Text style={styles.avatarLetter}>{initials}</Text>
               </View>
             )}
-            <View style={[styles.avatarRing, { borderColor: color1 }]} />
           </View>
 
-          {/* Elegant text content */}
+          {/* Text content - RTL aligned */}
           <View style={styles.textContainer}>
             <Text style={styles.nameText} numberOfLines={1}>
               {item.name_chain || item.name || "بدون اسم"}
             </Text>
             <View style={styles.metaContainer}>
-              <View
-                style={[
-                  styles.generationBadge,
-                  { backgroundColor: color1 + "15" },
-                ]}
-              >
-                <Text style={[styles.generationText, { color: color1 }]}>
-                  الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-                </Text>
-              </View>
+              <Text style={[styles.generationText, { color: desertColor }]}>
+                الجيل {toArabicNumerals(item.generation?.toString() || "0")}
+              </Text>
             </View>
           </View>
 
           {/* Chevron indicator */}
           <View style={styles.chevronContainer}>
-            <Text style={styles.chevron}>›</Text>
+            <Text style={styles.chevron}>‹</Text>
           </View>
         </View>
       </Pressable>
@@ -512,13 +523,21 @@ const styles = {
     elevation: 1000,
   },
   searchBarContainer: {
-    height: 48, // Explicit height needed!
-    // Google Maps strong shadow
+    // Ultra-thin unified shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24, // Full pill shape
+    paddingHorizontal: 14,
+    height: 48,
+    borderWidth: 0,
   },
   searchBar: {
     flexDirection: "row",
@@ -548,38 +567,44 @@ const styles = {
     padding: 4,
     marginLeft: 4,
   },
-  // Beautiful results container
+  // Unified results container - flows from search bar
   resultsContainer: {
-    marginTop: 8,
-    backgroundColor: "transparent",
+    marginTop: 4, // Tight connection to search bar
+    marginHorizontal: 4, // Slight inset for dropdown effect
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24, // Match search bar radius
+    borderTopLeftRadius: 20, // Slightly softer top
+    borderTopRightRadius: 20,
     maxHeight: 440,
     overflow: "hidden",
+    paddingVertical: 12,
+    // Matching shadow system (slightly lighter)
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   resultsList: {
-    maxHeight: 440,
+    maxHeight: 416,
     backgroundColor: "transparent",
   },
   resultsContent: {
     paddingVertical: 0,
     paddingHorizontal: 12,
   },
-  // Modern card design
+  // Clean card design - no borders
   resultCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    marginHorizontal: 0,
-    marginBottom: 8,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
+    marginHorizontal: 4,
+    marginBottom: 4,
     overflow: "hidden",
-    // Beautiful shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 0, // No borders, ultra-clean
   },
   resultCardPressed: {
-    transform: [{ scale: 0.98 }],
-    shadowOpacity: 0.12,
+    backgroundColor: "#F0F0F0",
+    transform: [{ scale: 0.99 }],
   },
   lastCard: {
     marginBottom: 0,
@@ -587,46 +612,36 @@ const styles = {
   cardContent: {
     flexDirection: "row-reverse", // RTL layout
     alignItems: "center",
-    padding: 12,
-    minHeight: 72,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    minHeight: 60,
   },
-  // Avatar styling
+  // Refined avatar styling
   avatarContainer: {
-    position: "relative",
-    marginLeft: 12,
+    marginLeft: 0,
   },
   avatarPhoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#F5F5F7",
   },
-  avatarGradient: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     // backgroundColor set dynamically
   },
   avatarLetter: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "400",
     color: "#FFFFFF",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
   },
-  avatarRing: {
-    position: "absolute",
-    top: -2,
-    left: -2,
-    right: -2,
-    bottom: -2,
-    borderRadius: 26,
-    borderWidth: 2,
-    opacity: 0.2,
-    // borderColor set dynamically
-  },
-  // Text styling
+
+  // Clean text styling
   textContainer: {
     flex: 1,
     justifyContent: "center",
@@ -634,13 +649,13 @@ const styles = {
     alignItems: "flex-end", // RTL alignment
   },
   nameText: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
-    color: "#1C1C1E",
-    marginBottom: 6,
+    fontSize: 15,
+    fontWeight: "400",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+    color: "#000000",
+    marginBottom: 3,
     textAlign: "right",
-    letterSpacing: -0.3,
+    letterSpacing: -0.1,
   },
   metaContainer: {
     flexDirection: "row",
@@ -648,25 +663,27 @@ const styles = {
     justifyContent: "flex-end",
   },
   generationBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    // backgroundColor set dynamically with opacity
+    paddingHorizontal: 0, // No badge background
+    paddingVertical: 0,
+    borderRadius: 0,
   },
   generationText: {
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "400",
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+    letterSpacing: 0,
+    opacity: 0.6,
     // color set dynamically
   },
-  // Chevron
+  // Minimal chevron
   chevronContainer: {
-    paddingLeft: 8,
+    paddingLeft: 2,
   },
   chevron: {
-    fontSize: 24,
+    fontSize: 18,
     color: "#C7C7CC",
     fontWeight: "300",
+    opacity: 0.5,
   },
 };
 
