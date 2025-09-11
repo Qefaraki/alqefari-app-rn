@@ -43,26 +43,42 @@ const SearchBar = ({ onSelectResult, style }) => {
   // Use regular Animated.Value that starts at 1 (guaranteed visible)
   const searchBarOpacity = useRef(new Animated.Value(1)).current;
 
-  // Track if this is the first mount to avoid initial fade
+  // Track if this is the first mount to avoid initial fade (fixes opacity: 0 bug)
   const isFirstMount = useRef(true);
+  const lastOpacity = useRef(1);
+  const animationRef = useRef(null);
 
   // Bridge function to update regular Animated.Value from worklet
   const updateOpacity = useCallback(
     (value) => {
-      // Skip the first update to avoid initial fade
+      // Skip the first update (it incorrectly returns 0)
       if (isFirstMount.current) {
         isFirstMount.current = false;
-        console.log("Skipping first opacity update, value was:", value);
         return;
       }
 
-      console.log("Updating opacity to:", value);
-      Animated.timing(searchBarOpacity, {
-        toValue: value,
+      // Only update if value changed significantly (reduce stuttering)
+      const roundedValue = Math.round(value * 100) / 100;
+      if (Math.abs(roundedValue - lastOpacity.current) < 0.01) {
+        return;
+      }
+
+      lastOpacity.current = roundedValue;
+
+      // Cancel any ongoing animation
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+
+      // Start new animation
+      animationRef.current = Animated.timing(searchBarOpacity, {
+        toValue: roundedValue,
         duration: 150,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
-      }).start();
+      });
+
+      animationRef.current.start();
     },
     [searchBarOpacity],
   );
