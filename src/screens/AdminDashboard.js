@@ -530,16 +530,38 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
+                  { opacity: countAnim, color: "#3b82f6" },
+                ]}
+              >
+                {stats?.basic?.male_count || stats?.male_count || 0}
+              </Animated.Text>
+              <Text style={styles.statLabel}>ذكور</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Animated.Text
+                style={[
+                  styles.statNumber,
                   { opacity: countAnim, color: "#ec4899" },
+                ]}
+              >
+                {stats?.basic?.female_count || stats?.female_count || 0}
+              </Animated.Text>
+              <Text style={styles.statLabel}>إناث</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Animated.Text
+                style={[
+                  styles.statNumber,
+                  { opacity: countAnim, color: "#8b5cf6" },
                 ]}
               >
                 {stats?.munasib?.total_munasib || stats?.married_in_count || 0}
               </Animated.Text>
-              <Text style={styles.statLabel}>منتسبين للعائلة</Text>
+              <Text style={styles.statLabel}>منتسبين</Text>
             </View>
             <View style={styles.statBox}>
               <Animated.Text
-                style={[styles.statNumber, { opacity: countAnim }]}
+                style={[styles.statNumber, { opacity: countAnim, color: "#f59e0b" }]}
               >
                 {stats?.family?.total_marriages || stats?.total_marriages || 0}
               </Animated.Text>

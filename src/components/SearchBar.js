@@ -31,6 +31,9 @@ const SearchBar = ({ onSelectResult, style }) => {
   const profileSheetIndex = useTreeStore(
     (state) => state.profileSheetIndex || -1,
   );
+  const profileSheetProgress = useTreeStore(
+    (state) => state.profileSheetProgress || 0,
+  );
 
   // Animation values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -271,16 +274,20 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   // Fade search bar when profile sheet opens (like Google Maps)
   useEffect(() => {
-    // profileSheetIndex: -1 = closed, 0 = 40%, 1 = 90%, 2 = 100%
-    // Fade out at 90% (index 1) and 100% (index 2)
-    const targetOpacity = profileSheetIndex >= 1 ? 0 : 1;
+    // profileSheetProgress: 0 = closed, 1 = fully open
+    // Start fading at 70% open (0.7 progress)
+    let targetOpacity = 1;
 
-    Animated.timing(searchBarOpacity, {
-      toValue: targetOpacity,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [profileSheetIndex]);
+    if (profileSheetProgress >= 0.7) {
+      // Smoothly interpolate opacity from 1 to 0 between 70% and 100% open
+      // At 70% open: opacity = 1
+      // At 100% open: opacity = 0
+      targetOpacity = Math.max(0, 1 - (profileSheetProgress - 0.7) / 0.3);
+    }
+
+    // Use direct value setting for real-time updates (no animation needed)
+    searchBarOpacity.setValue(targetOpacity);
+  }, [profileSheetProgress]);
 
   return (
     <>

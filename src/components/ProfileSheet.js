@@ -28,7 +28,13 @@ import {
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
+  useBottomSheetDynamicSnapPoints,
 } from "@gorhom/bottom-sheet";
+import Reanimated, {
+  useAnimatedReaction,
+  useSharedValue,
+  runOnJS,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTreeStore } from "../stores/useTreeStore";
 import {
@@ -131,6 +137,9 @@ const ProfileSheet = ({ editMode = false }) => {
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
   const headerHeight = 44;
+
+  // Track sheet position in real-time for smooth animations
+  const animatedPosition = useSharedValue(0);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [bioExpanded, setBioExpanded] = useState(false);
   const [familySectionY, setFamilySectionY] = useState(0);
@@ -317,6 +326,23 @@ const ProfileSheet = ({ editMode = false }) => {
       }
     },
     [animatedMargin, statusBarHeight],
+  );
+
+  // Real-time position tracking for smooth animations
+  useAnimatedReaction(
+    () => animatedPosition.value,
+    (currentPosition) => {
+      // Calculate percentage open (0 = closed, 1 = fully open)
+      // Position goes from 1 (closed) to 0 (fully open)
+      const percentOpen = 1 - currentPosition;
+
+      // Update store with real-time position for SearchBar to react
+      // Fade starts at 70% open
+      runOnJS(() => {
+        useTreeStore.setState({ profileSheetProgress: percentOpen });
+      })();
+    },
+    [],
   );
 
   // Custom handle: subtle edit affordance without text
@@ -621,10 +647,14 @@ const ProfileSheet = ({ editMode = false }) => {
     <BottomSheet
       ref={bottomSheetRef}
       snapPoints={snapPoints}
+      animatedPosition={animatedPosition}
       onChange={handleSheetChange}
       onClose={() => {
         setSelectedPersonId(null);
-        useTreeStore.setState({ profileSheetIndex: -1 });
+        useTreeStore.setState({
+          profileSheetIndex: -1,
+          profileSheetProgress: 0,
+        });
       }}
       backdropComponent={renderBackdrop}
       handleComponent={renderHandle}
