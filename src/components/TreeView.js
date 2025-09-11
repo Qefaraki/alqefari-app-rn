@@ -397,6 +397,12 @@ const TreeView = ({ setProfileEditMode }) => {
   const highlightedNodeId = useSharedValue(null);
   const glowOpacity = useSharedValue(0);
 
+  // Initialize profile sheet progress shared value for SearchBar coordination
+  const profileSheetProgress = useSharedValue(0);
+  const initializeProfileSheetProgress = useTreeStore(
+    (s) => s.initializeProfileSheetProgress,
+  );
+
   // State for triggering re-renders
   const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
   const [glowOpacityState, setGlowOpacityState] = useState(0);
@@ -420,6 +426,11 @@ const TreeView = ({ setProfileEditMode }) => {
   // Image bucket tracking for hysteresis
   const nodeBucketsRef = useRef(new Map());
   const bucketTimersRef = useRef(new Map());
+
+  // Initialize profile sheet progress on mount
+  useEffect(() => {
+    initializeProfileSheetProgress(profileSheetProgress);
+  }, []);
 
   // Cleanup bucket timers on unmount
   useEffect(() => {
