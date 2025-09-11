@@ -47,40 +47,8 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
 
-  // Initialize opacity as a SharedValue starting at 1
-  const searchBarOpacity = useSharedValue(1);
-
-  // Use animated reaction to update opacity based on profile sheet
-  React.useEffect(() => {
-    // This ensures opacity starts at 1
-    searchBarOpacity.value = 1;
-  }, []);
-
-  // Animated style using the SharedValue directly
-  const animatedStyle = useAnimatedStyle(() => {
-    "worklet";
-
-    // Calculate target opacity based on profile sheet progress
-    let targetOpacity = 1;
-
-    if (profileSheetProgress && profileSheetProgress.value > 0) {
-      const progress = profileSheetProgress.value;
-      const fadeStart = 0.3;
-      const fadeEnd = 0.7;
-
-      if (progress > fadeStart) {
-        const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
-        targetOpacity = Math.max(0, 1 - fadeProgress);
-      }
-    }
-
-    // Update the shared value
-    searchBarOpacity.value = targetOpacity;
-
-    return {
-      opacity: searchBarOpacity.value,
-    };
-  });
+  // Use regular Animated.Value instead of Reanimated
+  const searchBarOpacity = useRef(new Animated.Value(1)).current;
 
   const showBackdrop = () => {
     Animated.timing(backdropOpacity, {
@@ -389,7 +357,7 @@ const SearchBar = ({ onSelectResult, style }) => {
             { transform: [{ scale: searchBarScale }] },
           ]}
         >
-          <Reanimated.View style={[{ opacity: 1 }, animatedStyle]}>
+          <Animated.View style={{ opacity: searchBarOpacity }}>
             <Pressable
               style={styles.searchBar}
               onPress={() => inputRef.current?.focus()}
@@ -425,7 +393,7 @@ const SearchBar = ({ onSelectResult, style }) => {
                 </Animated.View>
               )}
             </Pressable>
-          </Reanimated.View>
+          </Animated.View>
         </Animated.View>
 
         {showResults && results.length > 0 && (
