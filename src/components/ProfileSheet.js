@@ -284,6 +284,9 @@ const ProfileSheet = ({ editMode = false }) => {
     (index) => {
       setCurrentSnapIndex(index);
 
+      // Store sheet state globally so SearchBar can react (fade at 80% open)
+      useTreeStore.setState({ profileSheetIndex: index });
+
       // Calculate target margin based on snap point
       let targetMargin;
       if (index === 2) {
@@ -619,7 +622,10 @@ const ProfileSheet = ({ editMode = false }) => {
       ref={bottomSheetRef}
       snapPoints={snapPoints}
       onChange={handleSheetChange}
-      onClose={() => setSelectedPersonId(null)}
+      onClose={() => {
+        setSelectedPersonId(null);
+        useTreeStore.setState({ profileSheetIndex: -1 });
+      }}
       backdropComponent={renderBackdrop}
       handleComponent={renderHandle}
       backgroundStyle={[

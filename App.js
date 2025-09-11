@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-import { View, Text, TouchableOpacity, Alert, Modal } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  I18nManager,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+
 import TreeView from "./src/components/TreeView";
 import ProfileSheet from "./src/components/ProfileSheet";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
-import CompactAdminBar from "./src/components/admin/CompactAdminBar";
+import AdminToggleButton from "./src/components/AdminToggleButton";
 import AdminDashboard from "./src/screens/AdminDashboard";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
 import { checkAndCreateAdminProfile } from "./src/utils/checkAdminProfile";
 import { useTreeStore } from "./src/stores/useTreeStore";
 import "./global.css";
+
+// Force RTL for the entire app
+I18nManager.allowRTL(true);
+I18nManager.forceRTL(true);
+
+// Check if RTL is actually enabled
+if (!I18nManager.isRTL) {
+  console.warn("RTL is not enabled. Using hardcoded RTL styles instead.");
+}
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -62,18 +79,6 @@ export default function App() {
     }
   };
 
-  const handleCheckAdminProfile = async () => {
-    const result = await checkAndCreateAdminProfile();
-    if (result.success) {
-      Alert.alert("Success", "Admin profile is ready!");
-    } else {
-      Alert.alert(
-        "Error",
-        result.error?.message || "Failed to check/create admin profile",
-      );
-    }
-  };
-
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -89,13 +94,13 @@ export default function App() {
             <View className="flex-1">
               <StatusBar style="dark" />
 
-              {/* Settings Icon - Top Left (Hidden when profile is open) */}
+              {/* Settings Icon - Bottom Right (Hidden when profile is open) */}
               {!selectedPersonId && !profileEditMode && (
                 <View
                   style={{
                     position: "absolute",
-                    top: 60,
-                    left: 16,
+                    bottom: 100,
+                    right: 16,
                     zIndex: 10,
                   }}
                 >
@@ -103,50 +108,26 @@ export default function App() {
                     onPress={() => setShowSettings(true)}
                     style={{
                       backgroundColor: "white",
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
                       justifyContent: "center",
                       alignItems: "center",
                       shadowColor: "#000",
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.1,
-                      shadowRadius: 4,
-                      elevation: 3,
+                      shadowOpacity: 0.15,
+                      shadowRadius: 6,
+                      elevation: 5,
                     }}
                   >
                     <Ionicons
                       name="settings-outline"
-                      size={24}
+                      size={26}
                       color="#374151"
                     />
                   </TouchableOpacity>
                 </View>
               )}
-
-              {/* Compact Admin Bar - Only when logged in */}
-              <View className="pt-12">
-                {user && (
-                  <CompactAdminBar
-                    user={user}
-                    onControlPanelPress={() => setShowAdminDashboard(true)}
-                    onUserPress={() => {
-                      Alert.alert("Account", user.email, [
-                        {
-                          text: "Check Admin Profile",
-                          onPress: handleCheckAdminProfile,
-                        },
-                        {
-                          text: "Sign Out",
-                          onPress: handleSignOut,
-                          style: "destructive",
-                        },
-                        { text: "Cancel", style: "cancel" },
-                      ]);
-                    }}
-                  />
-                )}
-              </View>
 
               {/* Login Button - Floating when not logged in */}
               {!user && (
@@ -199,6 +180,14 @@ export default function App() {
                 <TreeView setProfileEditMode={setProfileEditMode} />
               </View>
 
+              {/* Admin Toggle Button - Only when logged in */}
+              {user && (
+                <AdminToggleButton
+                  user={user}
+                  onLongPress={() => setShowAdminDashboard(true)}
+                />
+              )}
+
               {/* Profile Sheet */}
               <ProfileSheet editMode={profileEditMode} />
 
@@ -210,13 +199,8 @@ export default function App() {
                 onRequestClose={() => setShowAdminDashboard(false)}
               >
                 <AdminDashboard
-                  navigation={{
-                    goBack: () => setShowAdminDashboard(false),
-                    navigate: (screen, params) => {
-                      console.log("Navigate to:", screen, params);
-                      // Handle navigation here
-                    },
-                  }}
+                  user={user}
+                  onClose={() => setShowAdminDashboard(false)}
                 />
               </Modal>
 

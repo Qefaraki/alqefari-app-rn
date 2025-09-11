@@ -24,12 +24,15 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
 
-// Force RTL for Arabic
-I18nManager.forceRTL(true);
+// RTL is forced at app level in index.js
+
+// Since I18nManager.isRTL might be false until app restart,
+// we'll use a constant for RTL layout
+const IS_RTL = true; // Always true for Arabic app
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const AdminDashboard = ({ onClose }) => {
+const AdminDashboard = ({ onClose, user }) => {
   const { isAdmin } = useAdminMode();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -451,13 +454,22 @@ const AdminDashboard = ({ onClose }) => {
           },
         ]}
       >
-        <View>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons name="close" size={28} color="#374151" />
+        </TouchableOpacity>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "flex-start",
+            marginRight: 12,
+            marginLeft: 0,
+            writingDirection: "rtl",
+          }}
+        >
           <Text style={styles.title}>لوحة التحكم</Text>
           <Text style={styles.subtitle}>Admin Dashboard</Text>
+          {user?.email && <Text style={styles.userEmail}>{user.email}</Text>}
         </View>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color="#374151" />
-        </TouchableOpacity>
       </Animated.View>
 
       <ScrollView
@@ -481,7 +493,15 @@ const AdminDashboard = ({ onClose }) => {
             },
           ]}
         >
-          <Text style={styles.cardTitle}>إحصائيات العائلة</Text>
+          <Text
+            style={[
+              styles.cardTitle,
+              { position: "absolute", top: 20, right: 20 },
+            ]}
+          >
+            إحصائيات العائلة
+          </Text>
+          <View style={{ height: 50 }} />
 
           <View style={styles.statsGrid}>
             <View style={styles.statBox}>
@@ -538,7 +558,15 @@ const AdminDashboard = ({ onClose }) => {
             },
           ]}
         >
-          <Text style={styles.cardTitle}>التوزيع الديموغرافي</Text>
+          <View
+            style={{
+              width: "100%",
+              flexDirection: "row",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Text style={styles.cardTitle}>التوزيع الديموغرافي</Text>
+          </View>
 
           <View style={styles.demographicsContainer}>
             <View style={styles.genderStats}>
@@ -615,7 +643,15 @@ const AdminDashboard = ({ onClose }) => {
             },
           ]}
         >
-          <Text style={styles.cardTitle}>اكتمال البيانات</Text>
+          <View
+            style={{
+              width: "100%",
+              flexDirection: "row",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Text style={styles.cardTitle}>اكتمال البيانات</Text>
+          </View>
 
           <View style={styles.completenessGrid}>
             <View style={styles.completenessItem}>
@@ -1095,6 +1131,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f9fafb",
+    direction: "rtl",
   },
   loadingContainer: {
     flex: 1,
@@ -1103,7 +1140,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9fafb",
   },
   header: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // Always use RTL layout
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 24,
@@ -1116,11 +1153,23 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "700",
     color: "#111827",
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   subtitle: {
     fontSize: 14,
     color: "#6b7280",
     marginTop: 2,
+    textAlign: "right",
+    writingDirection: "rtl",
+  },
+  userEmail: {
+    fontSize: 12,
+    color: "#007AFF",
+    marginTop: 4,
+    fontStyle: "italic",
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   closeButton: {
     padding: 8,
@@ -1148,12 +1197,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6b7280",
     marginBottom: 16,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   munasibList: {
     marginTop: 12,
   },
   munasibItem: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -1166,7 +1217,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#6366f1",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginLeft: 12,
+    marginRight: 0,
   },
   munasibRankText: {
     color: "#fff",
@@ -1193,7 +1245,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statsGrid: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     flexWrap: "wrap",
     justifyContent: "space-between",
     marginTop: 20,
@@ -1216,12 +1268,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#6b7280",
     marginTop: 4,
+    textAlign: "center",
   },
   demographicsContainer: {
     gap: 20,
   },
   genderStats: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-around",
     alignItems: "center",
     paddingVertical: 16,
@@ -1245,6 +1298,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     marginTop: 4,
+    textAlign: "center",
   },
   genderDivider: {
     width: 1,
@@ -1259,9 +1313,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6b7280",
     marginBottom: 12,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   generationRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     marginBottom: 10,
   },
@@ -1291,7 +1347,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   trendsGrid: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
@@ -1303,7 +1359,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   trendHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 8,
@@ -1327,7 +1383,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#e5e7eb",
   },
   newestMemberItem: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     paddingVertical: 8,
   },
@@ -1340,7 +1396,7 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
   },
   completenessGrid: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     marginBottom: 20,
   },
@@ -1348,7 +1404,7 @@ const styles = StyleSheet.create({
     width: "48%",
   },
   completenessHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
@@ -1377,7 +1433,7 @@ const styles = StyleSheet.create({
     color: "#6b7280",
   },
   issuesGrid: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     paddingTop: 16,
     borderTopWidth: 1,
@@ -1397,7 +1453,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   dataHealthHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
@@ -1420,7 +1476,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   issuesTags: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 20,
@@ -1453,7 +1509,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#6366f1",
     paddingVertical: 12,
     borderRadius: 12,
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
@@ -1469,9 +1525,11 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginHorizontal: 16,
     marginBottom: 12,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   activityItem: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 16,
@@ -1498,7 +1556,7 @@ const styles = StyleSheet.create({
     color: "#9ca3af",
   },
   viewAllButton: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "center",
     alignItems: "center",
     paddingVertical: 16,
@@ -1510,7 +1568,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   actionItem: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 16,
@@ -1518,7 +1576,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e5e7eb",
   },
   actionItem: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 16,
@@ -1526,7 +1584,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e5e7eb",
   },
   actionContent: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "center",
     gap: 12,
   },
@@ -1545,7 +1603,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   adminItem: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     paddingVertical: 12,
@@ -1566,7 +1624,7 @@ const styles = StyleSheet.create({
 
   // Munasib (Top Families) Styles
   munasibHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
@@ -1636,9 +1694,11 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 8,
     marginRight: 40,
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   topFamilyStats: {
-    flexDirection: "row",
+    flexDirection: "row-reverse",
     alignItems: "baseline",
     gap: 8,
     marginBottom: 12,

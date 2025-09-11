@@ -8,12 +8,14 @@ import {
   Keyboard,
   Animated,
   Platform,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
+import { useTreeStore } from "../stores/useTreeStore";
 
 const SearchBar = ({ onSelectResult, style }) => {
   const [query, setQuery] = useState("");
@@ -21,12 +23,42 @@ const SearchBar = ({ onSelectResult, style }) => {
   const [showResults, setShowResults] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [user, setUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const inputRef = useRef(null);
+
+  // Get profile sheet state from store
+  const profileSheetIndex = useTreeStore(
+    (state) => state.profileSheetIndex || -1,
+  );
 
   // Animation values
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const searchBarOpacity = useRef(new Animated.Value(1)).current;
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const resultsTranslateY = useRef(new Animated.Value(-10)).current;
+  const searchBarScale = useRef(new Animated.Value(1)).current;
+  const clearButtonOpacity = useRef(new Animated.Value(0)).current;
+
+  // Get user info on mount
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        // Get user profile for photo
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        setUserProfile(profile);
+      }
+    };
+    getUser();
+  }, []);
 
   const performSearch = useCallback(
     async (searchText) => {
@@ -89,6 +121,13 @@ const SearchBar = ({ onSelectResult, style }) => {
     (text) => {
       setQuery(text);
 
+      // Animate clear button
+      Animated.timing(clearButtonOpacity, {
+        toValue: text.length > 0 ? 1 : 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+
       // Clear previous timer
       if (searchTimer) clearTimeout(searchTimer);
 
@@ -104,7 +143,7 @@ const SearchBar = ({ onSelectResult, style }) => {
       }, 300);
       setSearchTimer(timer);
     },
-    [searchTimer, performSearch],
+    [searchTimer, performSearch, clearButtonOpacity],
   );
 
   const showBackdrop = () => {
@@ -145,14 +184,21 @@ const SearchBar = ({ onSelectResult, style }) => {
   );
 
   const handleClear = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setQuery("");
     setResults([]);
-    hideResults();
+    setShowResults(false);
     inputRef.current?.focus();
   }, []);
 
   const handleFocus = () => {
     setIsFocused(true);
+    // Subtle press animation like Google Maps
+    Animated.timing(searchBarScale, {
+      toValue: 0.97,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
     if (query.length > 0) {
       showBackdrop();
     }
@@ -160,6 +206,12 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   const handleBlur = () => {
     setIsFocused(false);
+    // Animate scale back to normal
+    Animated.timing(searchBarScale, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
   };
 
   const renderResult = ({ item }) => {
@@ -217,6 +269,19 @@ const SearchBar = ({ onSelectResult, style }) => {
     };
   }, [query]);
 
+  // Fade search bar when profile sheet opens (like Google Maps)
+  useEffect(() => {
+    // profileSheetIndex: -1 = closed, 0 = 40%, 1 = 90%, 2 = 100%
+    // Fade out at 90% (index 1) and 100% (index 2)
+    const targetOpacity = profileSheetIndex >= 1 ? 0 : 1;
+
+    Animated.timing(searchBarOpacity, {
+      toValue: targetOpacity,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [profileSheetIndex]);
+
   return (
     <>
       {/* Animated Backdrop */}
@@ -240,19 +305,31 @@ const SearchBar = ({ onSelectResult, style }) => {
         </Animated.View>
       )}
 
-      <View style={[styles.container, style]}>
-        <View
+      <Animated.View
+        style={[styles.container, style, { opacity: searchBarOpacity }]}
+      >
+        <Animated.View
           style={[
             styles.searchBarContainer,
-            isFocused && styles.searchBarFocused,
+            { transform: [{ scale: searchBarScale }] },
           ]}
         >
-          <View style={styles.searchBar}>
+          <Pressable
+            style={styles.searchBar}
+            onPress={() => inputRef.current?.focus()}
+          >
+            {/* Family emblem on left (RTL) */}
+            <Image
+              source={require("../../assets/logo/Alqefari Emblem (Transparent).png")}
+              style={styles.familyEmblemLeft}
+              resizeMode="contain"
+            />
+
             <TextInput
               ref={inputRef}
               style={styles.input}
-              placeholder=""
-              placeholderTextColor="#8A8A8E"
+              placeholder="البحث في شجرة العائلة"
+              placeholderTextColor="#5F6368"
               value={query}
               onChangeText={handleChangeText}
               onFocus={handleFocus}
@@ -263,22 +340,16 @@ const SearchBar = ({ onSelectResult, style }) => {
               textAlign="right"
             />
 
-            {/* Clear button on the left */}
-            {query.length > 0 ? (
-              <Pressable onPress={handleClear} style={styles.clearButton}>
-                <Ionicons name="close-circle" size={18} color="#C7C7CC" />
-              </Pressable>
-            ) : null}
-
-            {/* Search icon on the right - always gray */}
-            <Ionicons
-              name="search"
-              size={20}
-              color="#8A8A8E"
-              style={styles.searchIcon}
-            />
-          </View>
-        </View>
+            {/* Clear button on the right with fade animation */}
+            {query.length > 0 && (
+              <Animated.View style={{ opacity: clearButtonOpacity }}>
+                <Pressable onPress={handleClear} style={styles.clearButton}>
+                  <Ionicons name="close-circle" size={20} color="#9AA0A6" />
+                </Pressable>
+              </Animated.View>
+            )}
+          </Pressable>
+        </Animated.View>
 
         {showResults && results.length > 0 && (
           <Animated.View
@@ -302,7 +373,7 @@ const SearchBar = ({ onSelectResult, style }) => {
             />
           </Animated.View>
         )}
-      </View>
+      </Animated.View>
     </>
   );
 };
@@ -320,57 +391,57 @@ const styles = {
   },
   container: {
     position: "absolute",
-    top: 100, // Much higher, near the top
-    left: 16,
-    right: 16,
+    top: 90, // Moved down to avoid Dynamic Island
+    left: 12,
+    right: 12,
     zIndex: 10000,
     elevation: 1000,
   },
   searchBarContainer: {
+    // Google Maps strong shadow
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  searchBarFocused: {
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 8,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12, // Slightly rounded
-    paddingHorizontal: 12,
-    height: 42, // Compact height
-    borderWidth: 0.5,
-    borderColor: "#E5E5EA",
+    backgroundColor: "#FFFFFF", // Pure white like Google Maps
+    borderRadius: 24, // Full pill shape
+    paddingHorizontal: 14,
+    height: 48, // Google Maps height
+    borderWidth: 0,
   },
-  searchIcon: {
-    marginLeft: 8,
+  familyEmblemLeft: {
+    width: 36,
+    height: 36,
+    marginRight: 10,
+    opacity: 0.8,
   },
   input: {
     flex: 1,
     fontSize: 16,
     fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-    color: "#000000",
+    color: "#202124", // Google dark gray
     paddingVertical: 0,
+    paddingHorizontal: 4,
     height: "100%",
   },
   clearButton: {
     padding: 4,
-    marginRight: 8,
+    marginLeft: 4,
   },
   resultsContainer: {
     marginTop: 8,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 16, // More rounded like Google Maps
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 6,
     maxHeight: 400,
     overflow: "hidden",
   },
