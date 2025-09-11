@@ -358,7 +358,7 @@ const SearchBar = ({ onSelectResult, style }) => {
       )}
 
       <View style={[styles.container, style]}>
-        <View style={{ opacity: 1 }}>
+        <Reanimated.View style={animatedStyle}>
           <Animated.View
             style={[
               styles.searchBarContainer,
@@ -431,7 +431,7 @@ const SearchBar = ({ onSelectResult, style }) => {
               />
             </Animated.View>
           )}
-        </View>
+        </Reanimated.View>
       </View>
     </>
   );
