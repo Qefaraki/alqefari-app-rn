@@ -15,8 +15,10 @@ import * as Haptics from "expo-haptics";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   withTiming,
   Easing,
+  runOnUI,
 } from "react-native-reanimated";
 
 import { supabase } from "../services/supabase";
@@ -44,40 +46,48 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
 
   // Create a local shared value for opacity that always exists
-  // This ensures the SearchBar is visible even before profileSheetProgress is initialized
+  // Initialize to 1 immediately for visibility
   const searchBarOpacity = useSharedValue(1);
 
-  // Animated style that always uses our local shared value
-  const animatedStyle = useAnimatedStyle(() => {
+  // Initialize on UI thread immediately to ensure visibility
+  runOnUI(() => {
+    "worklet";
+    searchBarOpacity.value = 1;
+  })();
+
+  // Derive the actual opacity based on profile sheet progress
+  const derivedOpacity = useDerivedValue(() => {
     "worklet";
 
-    // If no profile sheet progress exists yet, just use our local value (1)
-    if (!profileSheetProgress) {
-      // CRITICAL: Must return the shared value, not a plain number!
-      return { opacity: searchBarOpacity.value };
+    // If no profile sheet tracker, show the search bar
+    if (!profileSheetProgress || profileSheetProgress.value === undefined) {
+      return 1;
     }
 
-    // Start fading when sheet is 30% open, fully fade at 70% open
+    // Calculate fade based on sheet position
     const fadeStart = 0.3;
     const fadeEnd = 0.7;
 
-    let targetOpacity = 1;
     if (profileSheetProgress.value > fadeStart) {
       const fadeProgress =
         (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
-      targetOpacity = Math.max(0, 1 - fadeProgress);
+      return Math.max(0, 1 - fadeProgress);
     }
 
-    // Update searchBarOpacity with animation
-    searchBarOpacity.value = withTiming(targetOpacity, {
-      duration: 150,
-      easing: Easing.out(Easing.ease),
-    });
+    return 1;
+  }, [profileSheetProgress]);
+
+  // Animated style that uses the derived value with smooth transitions
+  const animatedStyle = useAnimatedStyle(() => {
+    "worklet";
 
     return {
-      opacity: searchBarOpacity.value,
+      opacity: withTiming(derivedOpacity.value, {
+        duration: 150,
+        easing: Easing.out(Easing.ease),
+      }),
     };
-  }, [profileSheetProgress]);
+  });
 
   // Get user info on mount
   useEffect(() => {
@@ -256,23 +266,27 @@ const SearchBar = ({ onSelectResult, style }) => {
   const renderResult = ({ item, index }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
 
-    // Premium desert/sepia colors for Arabian aesthetic
-    const getDesertColor = (name) => {
-      const desertPalette = [
+    // Premium Najdi/Saudi heritage colors - sophisticated palette
+    const getNajdiColor = (name) => {
+      const najdiPalette = [
         "#C19A6B", // Desert Sand
-        "#A0826D", // Tan
-        "#966F33", // Wood Brown
+        "#8B4513", // Saddle Brown (leather)
+        "#D2691E", // Saffron
+        "#CD853F", // Date Palm
+        "#8B0000", // Dark Burgundy (traditional textile)
+        "#4B0082", // Indigo (traditional dye)
+        "#BC8F8F", // Rosy Brown (sandstone)
+        "#D4A76A", // Golden Sand
+        "#A0522D", // Sienna (pottery)
         "#8B7355", // Dark Tan
-        "#704214", // Sepia Brown
-        "#826644", // Raw Umber
-        "#8B7D6B", // Bisque
-        "#79443B", // Rustic Brown
+        "#704214", // Coffee Bean
+        "#7B68EE", // Medium Slate Blue (evening desert)
       ];
-      const index = name ? name.charCodeAt(0) % desertPalette.length : 0;
-      return desertPalette[index];
+      const index = name ? name.charCodeAt(0) % najdiPalette.length : 0;
+      return najdiPalette[index];
     };
 
-    const desertColor = getDesertColor(item.name);
+    const najdiColor = getNajdiColor(item.name);
 
     return (
       <Pressable
@@ -308,7 +322,7 @@ const SearchBar = ({ onSelectResult, style }) => {
               <View
                 style={[
                   styles.avatarPlaceholder,
-                  { backgroundColor: desertColor },
+                  { backgroundColor: najdiColor },
                 ]}
               >
                 <Text style={styles.avatarInitial}>{initials}</Text>
@@ -342,7 +356,7 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   return (
     <>
-      {/* Animated Backdrop */}
+      {/* Backdrop when search is active */}
       {showResults && (
         <Animated.View
           style={[
@@ -494,16 +508,10 @@ const styles = {
     marginLeft: 4,
   },
   resultsContainer: {
-    marginTop: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16, // More rounded like Google Maps
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 6,
+    marginTop: 4,
+    backgroundColor: "transparent", // Invisible container
     maxHeight: 400,
-    overflow: "hidden",
+    overflow: "visible", // Let cards cast their own shadows
   },
   resultsList: {
     maxHeight: 400,
