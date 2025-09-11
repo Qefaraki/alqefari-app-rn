@@ -15,11 +15,10 @@ import * as Haptics from "expo-haptics";
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedReaction,
   withTiming,
   Easing,
-  FadeInDown,
 } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -45,31 +44,43 @@ const SearchBar = ({ onSelectResult, style }) => {
   const searchBarScale = useRef(new Animated.Value(1)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
 
-  // Animate search bar opacity based on profile sheet progress
-  const animatedStyle = useAnimatedStyle(() => {
-    // Default to fully visible if no progress tracker exists yet
-    if (!profileSheetProgress) {
-      return { opacity: 1 };
-    }
+  // Create a local shared value for opacity that always exists
+  // This ensures the SearchBar is visible even before profileSheetProgress is initialized
+  const searchBarOpacity = useSharedValue(1);
 
-    // Start fading when sheet is 30% open, fully fade at 70% open
-    const fadeStart = 0.3;
-    const fadeEnd = 0.7;
+  // Update opacity based on profile sheet progress
+  useAnimatedReaction(
+    () => {
+      if (!profileSheetProgress) {
+        return 1; // Fully visible when no sheet tracker exists
+      }
 
-    let targetOpacity = 1;
-    if (profileSheetProgress.value > fadeStart) {
-      const fadeProgress =
-        (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
-      targetOpacity = Math.max(0, 1 - fadeProgress);
-    }
+      // Start fading when sheet is 30% open, fully fade at 70% open
+      const fadeStart = 0.3;
+      const fadeEnd = 0.7;
 
-    return {
-      opacity: withTiming(targetOpacity, {
+      if (profileSheetProgress.value > fadeStart) {
+        const fadeProgress =
+          (profileSheetProgress.value - fadeStart) / (fadeEnd - fadeStart);
+        return Math.max(0, 1 - fadeProgress);
+      }
+      return 1;
+    },
+    (targetOpacity) => {
+      searchBarOpacity.value = withTiming(targetOpacity, {
         duration: 150,
         easing: Easing.out(Easing.ease),
-      }),
+      });
+    },
+    [profileSheetProgress],
+  );
+
+  // Animated style that always uses our local shared value
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: searchBarOpacity.value,
     };
-  }, [profileSheetProgress]);
+  });
 
   // Get user info on mount
   useEffect(() => {
@@ -248,64 +259,64 @@ const SearchBar = ({ onSelectResult, style }) => {
   const renderResult = ({ item, index }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
 
-    // Generate beautiful gradient colors based on name - ultra-modern palette
-    const getGradientColors = (name) => {
-      const gradients = [
-        ["#667eea", "#764ba2"], // Purple passion
-        ["#f093fb", "#f5576c"], // Pink sunset
-        ["#4facfe", "#00f2fe"], // Blue ocean
-        ["#43e97b", "#38f9d7"], // Mint fresh
-        ["#fa709a", "#fee140"], // Warm sunset
-        ["#30cfd0", "#330867"], // Deep ocean
-        ["#a8edea", "#fed6e3"], // Cotton candy
-        ["#ffecd2", "#fcb69f"], // Peach
+    // Premium desert/sepia colors for Arabian aesthetic
+    const getDesertColor = (name) => {
+      const desertPalette = [
+        "#C19A6B", // Desert Sand
+        "#A0826D", // Tan
+        "#966F33", // Wood Brown
+        "#8B7355", // Dark Tan
+        "#704214", // Sepia Brown
+        "#826644", // Raw Umber
+        "#8B7D6B", // Bisque
+        "#79443B", // Rustic Brown
       ];
-      const index = name ? name.charCodeAt(0) % gradients.length : 0;
-      return gradients[index];
+      const index = name ? name.charCodeAt(0) % desertPalette.length : 0;
+      return desertPalette[index];
     };
 
-    const gradientColors = getGradientColors(item.name);
+    const desertColor = getDesertColor(item.name);
 
     return (
       <Pressable
         onPress={() => handleSelectResult(item)}
         style={({ pressed }) => [
-          styles.spotifyCard,
+          styles.elegantCard,
           {
-            transform: [{ scale: pressed ? 0.97 : 1 }],
-            opacity: pressed ? 0.9 : 1,
+            transform: [{ scale: pressed ? 0.98 : 1 }],
+            opacity: pressed ? 0.85 : 1,
           },
         ]}
       >
-        <View style={styles.spotifyContent}>
-          {/* Ultra-modern photo or gradient fallback */}
-          <View style={styles.photoSection}>
+        <View style={styles.elegantContent}>
+          {/* Clean text hierarchy - RTL layout */}
+          <View style={styles.textSection}>
+            <Text style={styles.nameChain} numberOfLines={2}>
+              {item.name_chain || item.name || "بدون اسم"}
+            </Text>
+            <Text style={styles.generation}>
+              الجيل {toArabicNumerals(item.generation?.toString() || "0")}
+            </Text>
+          </View>
+
+          {/* Circular photo on the right for RTL */}
+          <View style={styles.avatarSection}>
             {item.photo_url ? (
               <Image
                 source={{ uri: item.photo_url }}
-                style={styles.spotifyPhoto}
+                style={styles.circularPhoto}
                 defaultSource={require("../../assets/icon.png")}
               />
             ) : (
-              <LinearGradient
-                colors={gradientColors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.spotifyPhotoGradient}
+              <View
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: desertColor },
+                ]}
               >
-                <Text style={styles.spotifyInitial}>{initials}</Text>
-              </LinearGradient>
+                <Text style={styles.avatarInitial}>{initials}</Text>
+              </View>
             )}
-          </View>
-
-          {/* Clean text hierarchy - minimal and beautiful */}
-          <View style={styles.spotifyInfo}>
-            <Text style={styles.spotifyNameChain} numberOfLines={2}>
-              {item.name_chain || item.name || "بدون اسم"}
-            </Text>
-            <Text style={styles.spotifyGeneration}>
-              الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-            </Text>
           </View>
         </View>
       </Pressable>
@@ -501,72 +512,74 @@ const styles = {
     maxHeight: 400,
   },
   resultsContent: {
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
   },
-  // Ultra-minimal Spotify-style card
-  spotifyCard: {
+  // Ultra-elegant minimal card
+  elegantCard: {
     marginHorizontal: 8,
-    marginBottom: 8,
+    marginBottom: 6,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    // Subtle shadow for depth
+    borderRadius: 14,
+    // Premium subtle shadow
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
-    // Animation-ready
     overflow: "hidden",
   },
-  spotifyContent: {
+  elegantContent: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    minHeight: 76,
+    padding: 12,
+    minHeight: 72,
   },
-  photoSection: {
-    marginRight: 14,
-  },
-  spotifyPhoto: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: "#F8F9FA",
-  },
-  spotifyPhotoGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  spotifyInitial: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
-    textShadowColor: "rgba(0,0,0,0.1)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  spotifyInfo: {
+  textSection: {
     flex: 1,
     justifyContent: "center",
+    paddingRight: 12, // Space from right edge
   },
-  spotifyNameChain: {
-    fontSize: 16,
-    fontWeight: "600",
+  nameChain: {
+    fontSize: 15,
+    fontWeight: "500",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
     color: "#1A1A1A",
-    marginBottom: 4,
-    lineHeight: 22,
+    marginBottom: 3,
+    lineHeight: 21,
+    textAlign: "right", // RTL alignment
   },
-  spotifyGeneration: {
-    fontSize: 14,
+  generation: {
+    fontSize: 13,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
-    color: "#666666",
+    color: "#7A7A7A",
     fontWeight: "400",
+    textAlign: "right", // RTL alignment
+  },
+  avatarSection: {
+    marginLeft: 12, // Photo on the left in RTL
+  },
+  circularPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24, // Perfect circle
+    backgroundColor: "#F8F9FA",
+    borderWidth: 0.5,
+    borderColor: "rgba(0,0,0,0.08)",
+  },
+  avatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24, // Perfect circle
+    alignItems: "center",
+    justifyContent: "center",
+    // Desert color set dynamically
+  },
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#FFFFFF",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "Roboto",
   },
 };
 
