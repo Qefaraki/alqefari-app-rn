@@ -13,14 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Reanimated, {
-  useAnimatedStyle,
-  useSharedValue,
-  useDerivedValue,
-  withTiming,
-  runOnJS,
-  Easing as ReanimatedEasing,
-} from "react-native-reanimated";
+import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -47,8 +40,49 @@ const SearchBar = ({ onSelectResult, style }) => {
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const containerScale = useRef(new Animated.Value(0.95)).current;
 
-  // Use regular Animated.Value instead of Reanimated
+  // Use regular Animated.Value that starts at 1 (guaranteed visible)
   const searchBarOpacity = useRef(new Animated.Value(1)).current;
+
+  // Bridge function to update regular Animated.Value from worklet
+  const updateOpacity = useCallback(
+    (value) => {
+      Animated.timing(searchBarOpacity, {
+        toValue: value,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }).start();
+    },
+    [searchBarOpacity],
+  );
+
+  // Use animated reaction to watch profileSheetProgress and update opacity
+  useAnimatedReaction(
+    () => {
+      "worklet";
+      // Calculate opacity based on profile sheet progress
+      let opacity = 1;
+
+      if (profileSheetProgress && profileSheetProgress.value > 0) {
+        const progress = profileSheetProgress.value;
+        const fadeStart = 0.3;
+        const fadeEnd = 0.7;
+
+        if (progress > fadeStart) {
+          const fadeProgress = (progress - fadeStart) / (fadeEnd - fadeStart);
+          opacity = Math.max(0, 1 - fadeProgress);
+        }
+      }
+
+      return opacity;
+    },
+    (opacity) => {
+      "worklet";
+      // Call the JS function to update the Animated.Value
+      runOnJS(updateOpacity)(opacity);
+    },
+    [profileSheetProgress],
+  );
 
   const showBackdrop = () => {
     Animated.timing(backdropOpacity, {
