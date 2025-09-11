@@ -8,11 +8,11 @@ const SaduPattern = () => {
   const originalWidth = 1548;
   const originalHeight = 286;
 
-  // Scale to fit screen width while maintaining aspect ratio
+  // Scale to fit screen width while maintaining aspect ratio - MUCH smaller
   const patternHeight = 20; // Much smaller height for the pattern
   const patternWidth = (originalWidth * patternHeight) / originalHeight;
 
-  // Calculate how many times to repeat the pattern
+  // Calculate how many times to repeat the pattern - will be many more now
   const repetitions = Math.ceil(screenWidth / patternWidth) + 1; // +1 for seamless tiling
 
   return (
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 30,
     overflow: "hidden",
     zIndex: 1, // Below buttons but above background
   },
@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 60,
-    opacity: 0.2, // Subtle decoration
+    height: 20,
+    opacity: 1.0, // Full opacity
   },
   patternRow: {
     flexDirection: "row",
