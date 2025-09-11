@@ -244,73 +244,86 @@ const SearchBar = ({ onSelectResult, style }) => {
     const initials = item.name ? item.name.charAt(0) : "؟";
     const isLast = index === results.length - 1;
 
-    // Ultra-minimal, elegant color palette
-    const getSubtleColor = (name) => {
-      const elegantPalette = [
-        "#6B7280", // Cool Gray
-        "#7C3AED", // Modern Purple
-        "#2563EB", // Deep Blue
-        "#059669", // Emerald
-        "#DC2626", // Crimson
-        "#EA580C", // Orange
-        "#CA8A04", // Amber
-        "#0891B2", // Cyan
+    // Premium gradient colors
+    const getGradientColors = (name) => {
+      const gradients = [
+        ["#667EEA", "#764BA2"], // Purple gradient
+        ["#F093FB", "#F5576C"], // Pink gradient
+        ["#4FACFE", "#00F2FE"], // Blue gradient
+        ["#43E97B", "#38F9D7"], // Green gradient
+        ["#FA709A", "#FEE140"], // Sunset gradient
+        ["#30CED8", "#3E65F2"], // Ocean gradient
+        ["#FDC830", "#F37335"], // Orange gradient
+        ["#A8E6CF", "#7FD8BE"], // Mint gradient
       ];
-      const index = name ? name.charCodeAt(0) % elegantPalette.length : 0;
-      return elegantPalette[index];
+      const index = name ? name.charCodeAt(0) % gradients.length : 0;
+      return gradients[index];
     };
 
-    const subtleColor = getSubtleColor(item.name);
+    const [color1, color2] = getGradientColors(item.name);
 
     return (
-      <View key={item.id}>
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            handleSelectResult(item);
-          }}
-          style={({ pressed }) => [
-            styles.resultRow,
-            pressed && styles.resultRowPressed,
-            isLast && styles.lastRow,
-          ]}
-        >
-          <View style={styles.rowContent}>
-            {/* Ultra-thin avatar on the left (RTL) */}
-            <View style={styles.avatarSection}>
-              {item.photo_url ? (
-                <Image
-                  source={{ uri: item.photo_url }}
-                  style={styles.avatarImage}
-                  defaultSource={require("../../assets/icon.png")}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.avatarPlaceholder,
-                    { borderColor: subtleColor },
-                  ]}
-                >
-                  <Text style={[styles.avatarInitial, { color: subtleColor }]}>
-                    {initials}
-                  </Text>
-                </View>
-              )}
-            </View>
+      <Pressable
+        key={item.id}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          handleSelectResult(item);
+        }}
+        style={({ pressed }) => [
+          styles.resultCard,
+          pressed && styles.resultCardPressed,
+          isLast && styles.lastCard,
+        ]}
+      >
+        <View style={styles.cardContent}>
+          {/* Beautiful gradient avatar */}
+          <View style={styles.avatarContainer}>
+            {item.photo_url ? (
+              <Image
+                source={{ uri: item.photo_url }}
+                style={styles.avatarPhoto}
+                defaultSource={require("../../assets/icon.png")}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.avatarGradient,
+                  {
+                    backgroundColor: color1,
+                  },
+                ]}
+              >
+                <Text style={styles.avatarLetter}>{initials}</Text>
+              </View>
+            )}
+            <View style={[styles.avatarRing, { borderColor: color1 }]} />
+          </View>
 
-            {/* Text content - RTL layout with proper alignment */}
-            <View style={styles.textSection}>
-              <Text style={styles.resultName} numberOfLines={1}>
-                {item.name_chain || item.name || "بدون اسم"}
-              </Text>
-              <Text style={styles.resultMeta}>
-                الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-              </Text>
+          {/* Elegant text content */}
+          <View style={styles.textContainer}>
+            <Text style={styles.nameText} numberOfLines={1}>
+              {item.name_chain || item.name || "بدون اسم"}
+            </Text>
+            <View style={styles.metaContainer}>
+              <View
+                style={[
+                  styles.generationBadge,
+                  { backgroundColor: color1 + "15" },
+                ]}
+              >
+                <Text style={[styles.generationText, { color: color1 }]}>
+                  الجيل {toArabicNumerals(item.generation?.toString() || "0")}
+                </Text>
+              </View>
             </View>
           </View>
-        </Pressable>
-        {!isLast && <View style={styles.ultraThinDivider} />}
-      </View>
+
+          {/* Chevron indicator */}
+          <View style={styles.chevronContainer}>
+            <Text style={styles.chevron}>›</Text>
+          </View>
+        </View>
+      </Pressable>
     );
   };
 
@@ -492,109 +505,125 @@ const styles = {
     padding: 4,
     marginLeft: 4,
   },
-  // Apple-style unified container
+  // Beautiful results container
   resultsContainer: {
-    marginTop: 2, // Minimal gap from search bar
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20, // Slightly less than search bar
-    maxHeight: 400,
+    marginTop: 8,
+    backgroundColor: "transparent",
+    maxHeight: 440,
     overflow: "hidden",
-    // Subtle Apple shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 20,
-    elevation: 3,
   },
   resultsList: {
-    maxHeight: 400,
+    maxHeight: 440,
     backgroundColor: "transparent",
   },
   resultsContent: {
-    paddingVertical: 8,
+    paddingVertical: 0,
+    paddingHorizontal: 12,
   },
-  // Apple-style row layout
-  appleRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "transparent",
-    minHeight: 64,
+  // Modern card design
+  resultCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    marginHorizontal: 0,
+    marginBottom: 8,
+    overflow: "hidden",
+    // Beautiful shadow
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  appleRowPressed: {
-    backgroundColor: "#F5F5F7", // Apple's highlight gray
+  resultCardPressed: {
+    transform: [{ scale: 0.98 }],
+    shadowOpacity: 0.12,
   },
-  lastRow: {
-    // No special styling for last row
+  lastCard: {
+    marginBottom: 0,
   },
-  appleRowContent: {
-    flexDirection: "row",
+  cardContent: {
+    flexDirection: "row-reverse", // RTL layout
     alignItems: "center",
+    padding: 12,
+    minHeight: 72,
   },
-  appleTextSection: {
-    flex: 1,
-    justifyContent: "center",
-    paddingRight: 12,
-  },
-  appleName: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
-    color: "#000000",
-    marginBottom: 2,
-    textAlign: "right",
-  },
-  appleMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-  },
-  appleGeneration: {
-    fontSize: 14,
-    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
-    color: "#8E8E93", // Apple secondary label color
-    fontWeight: "400",
-  },
-  appleSeparator: {
-    fontSize: 14,
-    color: "#8E8E93",
-    marginHorizontal: 6,
-  },
-  appleYear: {
-    fontSize: 14,
-    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
-    color: "#8E8E93",
-    fontWeight: "400",
-  },
-  appleAvatarSection: {
+  // Avatar styling
+  avatarContainer: {
+    position: "relative",
     marginLeft: 12,
   },
-  appleAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F2F2F7",
-    // Subtle inner border for definition
-    borderWidth: 0.5,
-    borderColor: "rgba(255,255,255,0.8)",
+  avatarPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F5F5F7",
   },
-  appleAvatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatarGradient: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    // Color set dynamically
+    // backgroundColor set dynamically
   },
-  appleInitial: {
-    fontSize: 18,
+  avatarLetter: {
+    fontSize: 20,
     fontWeight: "600",
     color: "#FFFFFF",
     fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
   },
-  appleDivider: {
-    height: 0.5,
-    backgroundColor: "rgba(0,0,0,0.08)",
-    marginLeft: 72, // Align with text, not avatar
+  avatarRing: {
+    position: "absolute",
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 26,
+    borderWidth: 2,
+    opacity: 0.2,
+    // borderColor set dynamically
+  },
+  // Text styling
+  textContainer: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    alignItems: "flex-end", // RTL alignment
+  },
+  nameText: {
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Display" : "Roboto",
+    color: "#1C1C1E",
+    marginBottom: 6,
+    textAlign: "right",
+    letterSpacing: -0.3,
+  },
+  metaContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  generationBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    // backgroundColor set dynamically with opacity
+  },
+  generationText: {
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+    // color set dynamically
+  },
+  // Chevron
+  chevronContainer: {
+    paddingLeft: 8,
+  },
+  chevron: {
+    fontSize: 24,
+    color: "#C7C7CC",
+    fontWeight: "300",
   },
 };
 

@@ -1,36 +1,35 @@
 import React from "react";
-import { View, StyleSheet, Dimensions, Image } from "react-native";
+import { View, StyleSheet, Dimensions, Image, Text } from "react-native";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 const SaduPattern = () => {
-  // Original PNG dimensions (same as SVG)
-  const originalWidth = 1548;
-  const originalHeight = 286;
+  // pixel_sadu.png dimensions: 2092 x 388
+  const originalWidth = 2092;
+  const originalHeight = 388;
 
-  // Scale to fit screen width while maintaining aspect ratio - MUCH smaller
-  const patternHeight = 20; // Much smaller height for the pattern
-  const patternWidth = (originalWidth * patternHeight) / originalHeight;
+  // Appropriately sized for pixel art - 30px height
+  const patternHeight = 30;
+  // Calculate width maintaining aspect ratio
+  const patternWidth = (originalWidth * patternHeight) / originalHeight; // ~162px
 
-  // Calculate how many times to repeat the pattern - will be many more now
-  const repetitions = Math.ceil(screenWidth / patternWidth) + 1; // +1 for seamless tiling
+  // Calculate how many times to repeat the pattern
+  const repetitions = Math.ceil(screenWidth / patternWidth) + 1;
 
   return (
     <View style={styles.container} pointerEvents="none">
       <View style={styles.patternWrapper}>
-        <View style={styles.patternRow}>
-          {Array.from({ length: repetitions }).map((_, index) => (
-            <Image
-              key={index}
-              source={require("../../assets/sadu style.png")}
-              style={[
-                styles.pattern,
-                { width: patternWidth, height: patternHeight },
-              ]}
-              resizeMode="cover"
-            />
-          ))}
-        </View>
+        {Array.from({ length: repetitions }).map((_, index) => (
+          <Image
+            key={index}
+            source={require("../../assets/pixel_sadu.png")}
+            style={{
+              width: patternWidth,
+              height: patternHeight,
+            }}
+            resizeMode="stretch"
+          />
+        ))}
       </View>
     </View>
   );
@@ -43,23 +42,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 30,
-    overflow: "hidden",
-    zIndex: 1, // Below buttons but above background
+    zIndex: 9999, // Maximum z-index
+    elevation: 9999, // For Android
   },
   patternWrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 20,
-    opacity: 1.0, // Full opacity
-  },
-  patternRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
-  },
-  pattern: {
-    // Each pattern piece
+    height: 30,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "flex-start",
   },
 });
 
