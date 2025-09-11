@@ -467,6 +467,7 @@ const styles = {
     top: 90, // Moved down to avoid Dynamic Island
     left: 12,
     right: 12,
+    height: 48, // Fixed height matching search bar
     zIndex: 10000,
     elevation: 1000,
   },
