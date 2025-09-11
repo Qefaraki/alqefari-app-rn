@@ -60,6 +60,7 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import AdminToggleButton from "./AdminToggleButton";
 import SettingsButton from "./SettingsButton";
+import SaduPattern from "./SaduPattern";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
