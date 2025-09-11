@@ -9,7 +9,7 @@ const SaduPattern = () => {
   const originalHeight = 286;
 
   // Scale to fit screen width while maintaining aspect ratio
-  const patternHeight = 60; // Desired height for the pattern
+  const patternHeight = 20; // Much smaller height for the pattern
   const patternWidth = (originalWidth * patternHeight) / originalHeight;
 
   // Calculate how many times to repeat the pattern
