@@ -26,6 +26,7 @@ import * as Haptics from "expo-haptics";
 import PhotoEditor from "../components/admin/fields/PhotoEditor";
 import DateEditor from "../components/admin/fields/DateEditor";
 import SocialMediaEditor from "../components/admin/SocialMediaEditor";
+import MarriageEditor from "../components/admin/MarriageEditor";
 import profilesService from "../services/profiles";
 import { supabase } from "../services/supabase";
 import { validateDates } from "../utils/dateUtils";
@@ -42,6 +43,11 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("basics");
   const [errors, setErrors] = useState({});
+  
+  // Marriage related state
+  const [marriages, setMarriages] = useState([]);
+  const [loadingMarriages, setLoadingMarriages] = useState(false);
+  const [showMarriageEditor, setShowMarriageEditor] = useState(false);
   
   // Get the global profileSheetProgress from store - CRITICAL for search bar opacity
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -65,6 +71,21 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   // Form data state - EXACTLY matching ProfileSheet structure
   const [editedData, setEditedData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
+
+  // Load marriages data
+  const loadMarriages = async () => {
+    if (!profile?.id) return;
+    setLoadingMarriages(true);
+    try {
+      const data = await profilesService.getPersonMarriages(profile.id);
+      setMarriages(data || []);
+    } catch (error) {
+      console.error("Error loading marriages:", error);
+      setMarriages([]);
+    } finally {
+      setLoadingMarriages(false);
+    }
+  };
 
   // Initialize form data from profile - matching ProfileSheet exactly
   useEffect(() => {
@@ -97,6 +118,13 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
       };
       setEditedData(initialData);
       setOriginalData(initialData);
+    }
+  }, [profile, visible]);
+
+  // Load marriages when profile changes
+  useEffect(() => {
+    if (profile && visible) {
+      loadMarriages();
     }
   }, [profile, visible]);
 
@@ -527,6 +555,114 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
           </View>
         ))}
 
+        {/* Marriages Section */}
+        {renderSection("الزيجات", "marriages", (
+          <View>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setShowMarriageEditor(true)}
+            >
+              <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
+              <Text style={styles.addButtonText}>إضافة زواج</Text>
+            </TouchableOpacity>
+            
+            {loadingMarriages ? (
+              <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 10 }} />
+            ) : marriages.length > 0 ? (
+              <View style={styles.marriagesList}>
+                {marriages.map((marriage) => (
+                  <TouchableOpacity
+                    key={marriage.id}
+                    style={styles.marriageItem}
+                    onPress={() => {
+                      Alert.alert(
+                        "تعديل الزواج",
+                        `${
+                          profile?.gender === "male"
+                            ? marriage.wife_name || "غير محدد"
+                            : marriage.husband_name || "غير محدد"
+                        }\n${marriage.status === "married" ? "متزوج" : marriage.status === "divorced" ? "مطلق" : "أرمل"}`,
+                        [
+                          {
+                            text: "تغيير الحالة",
+                            onPress: async () => {
+                              const newStatus =
+                                marriage.status === "married"
+                                  ? "divorced"
+                                  : "married";
+                              try {
+                                await profilesService.updateMarriage(
+                                  marriage.id,
+                                  { status: newStatus }
+                                );
+                                loadMarriages();
+                              } catch (error) {
+                                Alert.alert("خطأ", "فشل تحديث حالة الزواج");
+                              }
+                            },
+                          },
+                          {
+                            text: "حذف",
+                            style: "destructive",
+                            onPress: () => {
+                              Alert.alert(
+                                "تأكيد الحذف",
+                                "هل أنت متأكد من حذف هذا الزواج؟",
+                                [
+                                  { text: "إلغاء", style: "cancel" },
+                                  {
+                                    text: "حذف",
+                                    style: "destructive",
+                                    onPress: async () => {
+                                      try {
+                                        await profilesService.deleteMarriage(
+                                          marriage.id
+                                        );
+                                        loadMarriages();
+                                      } catch (error) {
+                                        Alert.alert("خطأ", "فشل حذف الزواج");
+                                      }
+                                    },
+                                  },
+                                ]
+                              );
+                            },
+                          },
+                          { text: "إلغاء", style: "cancel" },
+                        ]
+                      );
+                    }}
+                  >
+                    <View style={styles.marriageItemContent}>
+                      <View>
+                        <Text style={styles.marriageName}>
+                          {profile?.gender === "male"
+                            ? marriage.wife_name || "غير محدد"
+                            : marriage.husband_name || "غير محدد"}
+                        </Text>
+                        <Text style={styles.marriageStatus}>
+                          {marriage.status === "married"
+                            ? "متزوج"
+                            : marriage.status === "divorced"
+                            ? "مطلق"
+                            : "أرمل"}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color="#999"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+            )}
+          </View>
+        ))}
+
         {/* Contact Information */}
         {renderSection("معلومات التواصل", "contact", (
           <>
@@ -572,6 +708,19 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         {/* Bottom padding */}
         <View style={{ height: 100 }} />
       </BottomSheetScrollView>
+      
+      {/* Marriage Editor Modal */}
+      {profile && (
+        <MarriageEditor
+          visible={showMarriageEditor}
+          onClose={() => setShowMarriageEditor(false)}
+          person={profile}
+          onCreated={() => {
+            setShowMarriageEditor(false);
+            loadMarriages();
+          }}
+        />
+      )}
     </BottomSheet>
   );
 };
@@ -755,6 +904,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#1A1A1A",
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F0F8FF",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+  marriagesList: {
+    gap: 8,
+  },
+  marriageItem: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    marginBottom: 8,
+  },
+  marriageItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+  },
+  marriageName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1A1A1A",
+    marginBottom: 4,
+  },
+  marriageStatus: {
+    fontSize: 14,
+    color: "#666",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
+    marginTop: 10,
   },
 });
 

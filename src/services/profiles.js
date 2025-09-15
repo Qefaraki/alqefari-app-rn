@@ -321,6 +321,59 @@ export const profilesService = {
   },
 
   /**
+   * Reorder children efficiently - fallback to individual updates if RPC fails
+   * @param {string} parentId - Parent ID
+   * @param {Array} childOrders - Array of {id, new_order} objects
+   */
+  async reorderChildren(parentId, childOrders) {
+    try {
+      // Try RPC function first (if it exists)
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "reorder_children",
+        {
+          p_parent_id: parentId,
+          p_child_orders: childOrders,
+        },
+      );
+
+      if (!rpcError) {
+        return { data: rpcData, error: null };
+      }
+
+      // Fallback to individual updates if RPC doesn't exist
+      console.log("RPC not available, using fallback method");
+
+      const results = [];
+      let hasErrors = false;
+
+      for (const order of childOrders) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .update({ sibling_order: order.new_order })
+          .eq("id", order.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error(`Failed to update order for ${order.id}:`, error);
+          hasErrors = true;
+        } else {
+          results.push(data);
+        }
+      }
+
+      if (hasErrors) {
+        return { data: results, error: "Some updates failed" };
+      }
+
+      return { data: results, error: null };
+    } catch (error) {
+      console.error("Error reordering children:", error);
+      return { data: null, error: error.message || handleSupabaseError(error) };
+    }
+  },
+
+  /**
    * Admin: Preview delete impact - shows what would be deleted
    * @param {string} profileId - Profile to check delete impact for
    */

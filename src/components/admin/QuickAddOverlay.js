@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -218,13 +217,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [loading, setLoading] = useState(false);
   const [selectedMotherId, setSelectedMotherId] = useState(null);
   const [editingChildId, setEditingChildId] = useState(null);
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [hasReordered, setHasReordered] = useState(false);
   const [originalOrder, setOriginalOrder] = useState([]);
   const inputRef = useRef(null);
   const scrollViewRef = useRef(null);
   const { refreshProfile } = useStore();
-  const successOpacity = useRef(new Animated.Value(0)).current;
 
   // Initialize with existing siblings
   useEffect(() => {
@@ -336,27 +333,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     });
   };
 
-  // Show success animation
-  const showSuccess = () => {
-    setShowSuccessAnimation(true);
-    Animated.sequence([
-      Animated.timing(successOpacity, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(1500),
-      Animated.timing(successOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setShowSuccessAnimation(false);
-      onClose();
-    });
-  };
-
   // Save all children
   const handleSaveAll = async () => {
     const newChildren = allChildren.filter((child) => child.isNew);
@@ -420,22 +396,33 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       // Update existing children's order if reordered
       if (hasReordered) {
-        const existingChildren = allChildren.filter((c) => c.isExisting);
-        for (let i = 0; i < existingChildren.length; i++) {
-          const child = existingChildren[i];
-          const newOrder = allChildren.indexOf(child);
+        // Build array of children that need reordering
+        const reorderUpdates = [];
 
-          // Only update if order actually changed
-          if (child.sibling_order !== newOrder) {
-            const { error } = await profilesService.updateProfile(
-              child.id,
-              child.version || 1,
-              { sibling_order: newOrder },
-            );
-
-            if (error) {
-              console.error(`Failed to update order for ${child.name}:`, error);
+        for (let i = 0; i < allChildren.length; i++) {
+          const child = allChildren[i];
+          if (child.isExisting) {
+            const newOrder = i; // Position in array = new sibling_order
+            // Only include if order actually changed
+            if (child.sibling_order !== newOrder) {
+              reorderUpdates.push({
+                id: child.id,
+                new_order: newOrder,
+              });
             }
+          }
+        }
+
+        // Use efficient batch update if there are changes
+        if (reorderUpdates.length > 0) {
+          const { error } = await profilesService.reorderChildren(
+            parentNode.id,
+            reorderUpdates,
+          );
+
+          if (error) {
+            console.error("Failed to reorder children:", error);
+            throw new Error("فشل في تحديث ترتيب الأطفال");
           }
         }
       }
@@ -444,11 +431,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         await refreshProfile(parentNode.id);
       }
 
-      showSuccess();
+      // Success - close with haptic feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
     } catch (error) {
-      Alert.alert("خطأ", "حدث خطأ أثناء الحفظ");
-    } finally {
-      setLoading(false);
+      console.error("Save error:", error);
+      Alert.alert("خطأ", error.message || "حدث خطأ أثناء الحفظ");
+      setLoading(false); // Keep modal open on error
     }
   };
 
@@ -662,19 +651,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                 )}
               </TouchableOpacity>
             </View>
-
-            {/* Success Animation Overlay */}
-            {showSuccessAnimation && (
-              <Animated.View
-                style={[styles.successOverlay, { opacity: successOpacity }]}
-                pointerEvents="none"
-              >
-                <View style={styles.successContent}>
-                  <Ionicons name="checkmark-circle" size={64} color="#34C759" />
-                  <Text style={styles.successText}>تم الحفظ بنجاح!</Text>
-                </View>
-              </Animated.View>
-            )}
           </KeyboardAvoidingView>
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -964,21 +940,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FFF",
     fontWeight: "600",
-  },
-  successOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  successContent: {
-    alignItems: "center",
-  },
-  successText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#34C759",
-    marginTop: 16,
   },
 });
 
