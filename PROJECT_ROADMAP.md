@@ -14,6 +14,7 @@
 - ✅ **Arabic Name Chain Search** - search_name_chain function with SearchModal UI
 - ✅ **Photo System with Caching** - expo-image integration with CachedImage component
 - ✅ **Activity & Revert View** - ActivityScreen with audit log display
+- ✅ **Munasib/Spouse System** - 150 spouse profiles using NULL HID system (not 2000.X pattern)
 
 #### Admin Edit Mode - Completed Phases
 
@@ -33,259 +34,276 @@
 
 ---
 
-## 🔴 HIGH PRIORITY - Features to Implement
+## 🔴 HIGH PRIORITY - Critical Issues to Fix
 
-### 1. Missing Backend Functions
+### 1. Backend Function Cleanup
 
-**Priority: CRITICAL**
+**Priority: CRITICAL - Breaking Issue**
 
-- [ ] **Remove or implement get_person_with_relations RPC**
-  - Currently called in profiles.js but doesn't exist
-  - Either implement for aggregated data or remove the call
-  - Decision needed: Performance benefit vs. complexity
+- [ ] **Remove get_person_with_relations RPC call**
+  - profiles.js line 143 calls non-existent RPC
+  - Remove the call and refactor dependent code
+  - This is causing errors in production
 
-### 2. Export Functionality
+### 2. Complete Export System
 
-**Priority: HIGH**
+**Priority: HIGH - Core Feature Missing**
+**Current State:** Only JSON export exists (profiles.js line 582)
+**Needed:**
 
-- [ ] **PDF Export** - Family tree and profile reports
-- [ ] **CSV Export** - Bulk data export for analysis
-- [ ] **Image Export** - Tree visualization as PNG/JPG
-- [ ] **Backup System** - Scheduled automated backups
-- Currently only JSON export exists
+- [ ] **PDF Export Implementation**
+  - Family tree visualization as PDF
+  - Individual profile reports
+  - Bulk profile book generation
+  - Use react-native-pdf or similar
+- [ ] **CSV Export Implementation**
+  - Tabular data for Excel/Google Sheets
+  - Include all profile fields
+  - Marriage relationships in separate sheet
+- [ ] **Tree Image Export**
+  - PNG/JPG of current tree view
+  - High-resolution option for printing
+  - Use Skia canvas snapshot
+
+---
+
+## 🟡 MEDIUM PRIORITY - Important Enhancements
 
 ### 3. Admin Edit Mode - Remaining Phases
 
-**Priority: HIGH**
+**Priority: MEDIUM**
 
-#### Phase 4: Relationship Selector
+#### Phase 4: Relationship Editor
 
-- [ ] Parent selection UI with smart filtering
-- [ ] Validation to prevent circular relationships
-- [ ] Bulk relationship updates
-- [ ] Relationship verification tools
+**Current State:** Can only edit basic fields, not relationships
+**Needed:**
 
-#### Phase 5: Advanced Admin Controls
+- [ ] Parent selector modal with search
+- [ ] Validation against circular relationships
+- [ ] Bulk parent reassignment for siblings
+- [ ] Visual relationship verification
 
-- [ ] Admin-only fields management
-- [ ] Bulk field updates across profiles
-- [ ] Field templates for common patterns
-- [ ] Data validation rules configuration
+#### Phase 5: Advanced Admin Tools
 
----
+**Current State:** Basic field editing only
+**Needed:**
 
-## 🟡 MEDIUM PRIORITY - Enhancements
+- [ ] Protected admin-only fields (verified_by, locked_fields)
+- [ ] Bulk operations UI (update 50+ profiles at once)
+- [ ] Field templates (apply common patterns)
+- [ ] Custom validation rules editor
 
-### 4. Photo System Improvements
+### 4. Photo System Fixes
 
 **Priority: MEDIUM**
+
+#### Critical Fixes
+
+- [ ] **Fix Supabase Image Transformation**
+  - Currently returns 400 error
+  - Fallback to client-side resizing
+  - Check Supabase dashboard settings
 
 #### Missing Features
 
-- [ ] **Image Editing** - Crop, rotate, brightness/contrast
-- [ ] **Multiple Photos** - Gallery per profile
-- [ ] **Smart Avatars** - Initials with generation colors
-- [ ] **Batch Operations** - Bulk upload/compression
+- [ ] **Image Editor Integration**
+  - Crop with aspect ratio lock (1:1 for profiles)
+  - Rotate in 90° increments
+  - Basic filters (brightness, contrast)
+- [ ] **Multiple Photos Per Profile**
+  - Photo gallery with primary selection
+  - Slideshow view in ProfileSheet
+  - Maximum 10 photos per person
 
-#### Technical Debt
-
-- [ ] Fix Supabase image transformation (returns 400)
-- [ ] Remove URL-based photo code
-- [ ] Implement blur hash placeholders
-- [ ] Add memory management for large trees
-
-### 5. Search System Enhancements
+### 5. Search Improvements
 
 **Priority: MEDIUM**
+**Current State:** Basic exact match search
+**Needed:**
 
-- [ ] **Voice Search** - "ابحث عن محمد بن عبدالله"
-- [ ] **Recent Searches** - History with quick access
-- [ ] **Fuzzy Matching** - Handle spelling variations
-- [ ] **Smart Suggestions** - "People also searched for"
-- [ ] **Relationship Calculator** - Show exact relationships
-- [ ] **Golden Highlight Navigation** - Animate to found node
+- [ ] **Recent Searches Storage**
+  - Store last 20 searches locally
+  - Quick access from search modal
+- [ ] **Fuzzy Name Matching**
+  - Handle عبدالله vs عبد الله
+  - Common misspellings (احمد vs أحمد)
+- [ ] **Navigation Animation**
+  - Golden highlight effect on found node
+  - Smooth pan/zoom to result
+  - 2-second highlight pulse
 
-### 6. Performance Optimizations
+### 6. Munasib System Refinements
 
 **Priority: MEDIUM**
+**Current State:** 150 profiles with NULL HID are spouses
+**Needed:**
 
-- [ ] **WebGL Rendering** - For trees with 1000+ nodes
-- [ ] **Viewport-based Loading** - Load only visible branches
-- [ ] **Background Prefetching** - Preload adjacent branches
-- [ ] **Adaptive Quality** - Adjust based on device/network
-- [ ] **Progressive Enhancement** - Start simple, add features
+- [ ] **Visual Indicators**
+  - Badge showing "منتسب" on spouse profiles
+  - Different color in search results
+  - Filter option in admin dashboard
+- [ ] **family_origin Field**
+  - Track which family spouses come from
+  - Currently TODO in MarriageEditor.js line 282
+  - Add to profile edit form
 
 ---
 
-## 🟢 LOW PRIORITY - Future Enhancements
+## 🟢 LOW PRIORITY - Nice to Have
 
-### 7. AI-Powered Features
+### 7. Performance Optimizations
 
-**Priority: LOW**
+- [ ] **WebGL Renderer** - For 1000+ nodes
+- [ ] **Virtual Scrolling** - In long lists
+- [ ] **Service Worker** - For offline caching
+- [ ] **Image CDN** - Cloudflare or similar
 
-- [ ] **Relationship Suggestions** - Pattern-based recommendations
-- [ ] **Data Validation** - Anomaly detection
-- [ ] **Smart Templates** - AI-generated family patterns
-- [ ] **Natural Language Queries** - "Show me all doctors in generation 5"
+### 8. Platform Features
 
-### 8. Platform-Specific Features
+#### iOS Specific
 
-**Priority: LOW**
+- [ ] Live Photos support
+- [ ] Handoff between devices
+- [ ] iCloud backup integration
 
-#### iOS Enhancements
-
-- [ ] Live Photos support (extract still frame)
-- [ ] iPhone Dynamic Island optimization
-- [ ] Apple Pencil annotations on iPad
-- [ ] Drag & drop on iPad
-
-#### Android Enhancements
+#### Android Specific
 
 - [ ] Material You theming
-- [ ] Widget support
-- [ ] Split-screen mode
+- [ ] Home screen widgets
 
-### 9. Munasib System Implementation
+### 9. Data Management
 
-**Priority: LOW**
+- [ ] **Import from CSV/Excel**
+- [ ] **Automated nightly backups**
+- [ ] **Version history UI**
+- [ ] **Offline mode with sync**
 
-- [ ] Profile type tracking (family vs. munasib)
-- [ ] Family origin tracking for spouses
-- [ ] Filter munasib from tree view
-- [ ] Migration script for existing spouses
+---
 
-### 10. Data Management Features
+## ❌ REMOVED FEATURES (Not Implementing)
 
-**Priority: LOW**
-
-- [ ] **Offline Support** - Work without connection
-- [ ] **Sync System** - Conflict resolution
-- [ ] **Version Control UI** - View/restore versions
-- [ ] **Change History Viewer** - Detailed audit trail
-- [ ] **Import from Excel/CSV** - Bulk data import
+- ~~Voice Search~~ - Removed from scope
+- ~~AI-Powered Features~~ - Not needed
+- ~~Natural Language Queries~~ - Over-engineering
+- ~~Global FAB Button~~ - Already removed from UI
 
 ---
 
 ## 📊 Implementation Timeline
 
-### Q1 2025 (Current)
+### Sprint 1 (Week 1-2) - Critical Fixes
 
-**Week 1-2: Critical Fixes**
+1. Fix get_person_with_relations issue ⚠️
+2. Implement PDF export
+3. Implement CSV export
 
-- [ ] Resolve get_person_with_relations issue
-- [ ] Implement basic export (PDF/CSV)
+### Sprint 2 (Week 3-4) - Admin Tools
 
-**Week 3-4: Admin Features**
+1. Complete Relationship Editor (Phase 4)
+2. Add Advanced Admin Tools (Phase 5)
+3. Fix image transformation issue
 
-- [ ] Complete Phase 4: Relationship Selector
-- [ ] Complete Phase 5: Advanced Controls
+### Sprint 3 (Week 5-6) - Polish
 
-### Q2 2025
-
-**Month 1: Photo System**
-
-- [ ] Fix image transformation
-- [ ] Add editing capabilities
-- [ ] Implement multiple photos
-
-**Month 2: Search & Performance**
-
-- [ ] Search enhancements
-- [ ] WebGL rendering
-- [ ] Viewport-based loading
-
-### Q3 2025
-
-**AI Features & Platform Optimization**
-
-- [ ] AI-powered suggestions
-- [ ] iOS/Android specific features
-- [ ] Advanced analytics
-
-### Q4 2025
-
-**Polish & Scale**
-
-- [ ] Munasib system
-- [ ] Offline support
-- [ ] Enterprise features
+1. Search improvements
+2. Munasib visual indicators
+3. Photo gallery support
 
 ---
 
 ## 🎯 Success Metrics
 
-### Performance Targets
+### Must Have (P0)
 
-- Tree rendering: < 100ms for 500 nodes
-- Search response: < 200ms for 10k profiles
-- Image load: < 2s on 4G connection
-- Memory usage: < 200MB with 100 photos
+- ✅ No console errors from missing RPCs
+- ✅ PDF/CSV export working
+- ✅ All admin edit phases complete
 
-### User Experience
+### Should Have (P1)
 
-- Admin can add 10 children in < 30 seconds
-- Export 1000 profiles in < 5 seconds
-- Zero data loss during offline periods
-- 99.9% uptime for core features
+- ✅ Image transformation fixed or fallback working
+- ✅ Search with fuzzy matching
+- ✅ Munasib profiles clearly marked
 
-### Quality Standards
+### Nice to Have (P2)
 
-- TypeScript coverage: 80%+
-- Test coverage: 70%+
-- Accessibility: WCAG AA compliant
-- Arabic RTL: 100% support
+- ✅ Performance optimizations
+- ✅ Platform-specific features
+- ✅ Advanced data management
 
 ---
 
-## 🔧 Technical Debt to Address
+## 🔧 Technical Debt
 
-1. **Code Organization**
-   - [ ] Extract types to dedicated files
-   - [ ] Consolidate duplicate components
-   - [ ] Remove commented code
-   - [ ] Update deprecated APIs
+### Code Quality
 
-2. **Documentation**
-   - [ ] API documentation
-   - [ ] Component storybook
-   - [ ] Deployment guide
-   - [ ] User manual
+- [ ] Remove URL-based photo code (PhotoEditor.js)
+- [ ] Remove commented out code
+- [ ] Add TypeScript definitions
+- [ ] Consolidate duplicate components
 
-3. **Testing**
-   - [ ] Unit tests for services
-   - [ ] Integration tests for RPCs
-   - [ ] E2E tests for critical flows
-   - [ ] Performance benchmarks
+### Documentation
 
-4. **Security**
-   - [ ] Security audit
-   - [ ] Penetration testing
-   - [ ] GDPR compliance
-   - [ ] Data encryption
+- [ ] API documentation for all RPCs
+- [ ] Component usage examples
+- [ ] Deployment guide update
+- [ ] Admin user manual
+
+### Testing
+
+- [ ] Unit tests for export functions
+- [ ] Integration tests for search
+- [ ] E2E tests for admin workflows
+- [ ] Performance benchmarks
 
 ---
 
-## 📝 Notes
+## 📝 Implementation Notes
 
-### Removed/Deprecated Features
+### Export System Details
 
-- ❌ Global FAB (Floating Action Button) - Removed in favor of contextual actions
-- ❌ Glass/blur effects - Using neo-native design system
-- ❌ URL-based photo system - Replaced with direct upload
+```javascript
+// Current: profiles.js line 582
+async exportData(format = "json") {
+  // Only JSON implemented
+}
 
-### Design Decisions
+// Needed:
+async exportToPDF(options) {
+  // Generate PDF with react-native-pdf
+  // Include tree visualization
+  // Profile cards with photos
+}
 
-- RTL-first for all UI components
-- Neo-native aesthetic (no blur/glass)
-- Offline-first architecture
-- Privacy by default
+async exportToCSV() {
+  // Convert profiles to CSV
+  // Separate sheets for marriages
+  // Include all fields
+}
+```
 
-### Known Issues
+### get_person_with_relations Fix
 
-- Supabase image transformation returns 400 error
-- get_person_with_relations RPC not implemented
-- Memory usage high with many photos
-- Some migrations not applied to production
+```javascript
+// Current: profiles.js line 143
+const { data, error } = await supabase.rpc("get_person_with_relations", {
+  // This RPC doesn't exist!
+});
+
+// Fix: Remove this call or implement the RPC
+```
+
+### Munasib Visual Indicators
+
+```javascript
+// MarriageEditor.js line 282
+// TODO: Add is_munasib: true when database supports it
+
+// Profile display should show:
+{
+  profile.hid === null && <Badge text="منتسب" color="purple" />;
+}
+```
 
 ---
 
@@ -297,6 +315,7 @@
 - ✅ Search system implementation
 - ✅ Image caching with expo-image
 - ✅ Activity log with revert
+- ✅ Munasib system (150 spouse profiles)
 
 ### v1.3.0 - Photo System & Caching
 

@@ -443,7 +443,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       onClose();
     } catch (error) {
-      console.error("Save error:", error);
       Alert.alert("خطأ", error.message || "حدث خطأ أثناء الحفظ");
       setLoading(false); // Keep modal open on error
     }

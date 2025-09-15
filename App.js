@@ -16,7 +16,7 @@ import TreeView from "./src/components/TreeView";
 import ProfileSheetWrapper from "./src/components/ProfileSheetWrapper";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
-import AdminDashboard from "./src/screens/AdminDashboardOptimized";
+import AdminDashboard from "./src/screens/AdminDashboardUltraOptimized";
 import SettingsModal from "./src/components/SettingsModal";
 import { supabase } from "./src/services/supabase";
 import { useSharedValue } from "react-native-reanimated";

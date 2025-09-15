@@ -134,22 +134,8 @@ export const profilesService = {
     }
   },
 
-  /**
-   * Get person with full details and relationships
-   * @param {string} personId - Profile ID
-   */
-  async getPersonWithRelations(personId) {
-    try {
-      const { data, error } = await supabase.rpc("get_person_with_relations", {
-        p_id: personId,
-      });
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error: handleSupabaseError(error) };
-    }
-  },
+  // Removed getPersonWithRelations - RPC doesn't exist
+  // Use getBranchData for tree loading instead
 
   /**
    * Admin: Create new profile
@@ -321,51 +307,41 @@ export const profilesService = {
   },
 
   /**
-   * Reorder children efficiently - fallback to individual updates if RPC fails
+   * Reorder children efficiently using parallel updates
    * @param {string} parentId - Parent ID
    * @param {Array} childOrders - Array of {id, new_order} objects
    */
   async reorderChildren(parentId, childOrders) {
     try {
-      // Try RPC function first (if it exists)
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        "reorder_children",
-        {
-          p_parent_id: parentId,
-          p_child_orders: childOrders,
-        },
+      // Execute all updates in parallel for maximum speed
+      const updates = childOrders.map((order) =>
+        supabase
+          .from("profiles")
+          .update({
+            sibling_order: order.new_order,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", order.id)
+          .select(),
       );
 
-      if (!rpcError) {
-        return { data: rpcData, error: null };
+      const results = await Promise.all(updates);
+
+      // Check for any errors
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        console.error("Some reorder updates failed:", errors);
+        return {
+          data: results.filter((r) => r.data).map((r) => r.data),
+          error: `Failed to update ${errors.length} items`,
+        };
       }
 
-      // Fallback to individual updates if RPC doesn't exist (silent fallback)
-
-      const results = [];
-      let hasErrors = false;
-
-      for (const order of childOrders) {
-        const { data, error } = await supabase
-          .from("profiles")
-          .update({ sibling_order: order.new_order })
-          .eq("id", order.id)
-          .select()
-          .single();
-
-        if (error) {
-          console.error(`Failed to update order for ${order.id}:`, error);
-          hasErrors = true;
-        } else {
-          results.push(data);
-        }
-      }
-
-      if (hasErrors) {
-        return { data: results, error: "Some updates failed" };
-      }
-
-      return { data: results, error: null };
+      // All successful
+      return {
+        data: results.map((r) => r.data).flat(),
+        error: null,
+      };
     } catch (error) {
       console.error("Error reordering children:", error);
       return { data: null, error: error.message || handleSupabaseError(error) };

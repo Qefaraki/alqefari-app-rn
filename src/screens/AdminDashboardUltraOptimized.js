@@ -19,9 +19,7 @@ import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
-import SkeletonLoader, {
-  SkeletonStatBox,
-} from "../components/ui/SkeletonLoader";
+import SkeletonLoader from "../components/ui/SkeletonLoader";
 
 const AdminDashboardUltraOptimized = ({ onClose, user }) => {
   // Loading states for each section
