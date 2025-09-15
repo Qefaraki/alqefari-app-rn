@@ -504,7 +504,11 @@ const SearchBar = ({ onSelectResult, style }) => {
             { transform: [{ scale: searchBarScale }] },
           ]}
         >
-          <Animated.View style={{ opacity: searchBarOpacity }}>
+          <Animated.View
+            style={{
+              opacity: isAdminMode && !selectedPersonId ? 1 : searchBarOpacity,
+            }}
+          >
             <Pressable
               style={styles.searchBar}
               onPress={() => inputRef.current?.focus()}
