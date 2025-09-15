@@ -336,7 +336,7 @@ const SearchBar = ({ onSelectResult, style }) => {
         ]}
       >
         <View style={styles.cardContent}>
-          {/* Saudi-style avatar - positioned on left for RTL */}
+          {/* Saudi-style avatar - positioned on RIGHT for RTL */}
           <View style={styles.avatarContainer}>
             {item.photo_url ? (
               <Image
@@ -358,7 +358,7 @@ const SearchBar = ({ onSelectResult, style }) => {
             )}
           </View>
 
-          {/* Text content - RTL aligned */}
+          {/* Text content - RTL aligned to right edge */}
           <View style={styles.textContainer}>
             <Text style={styles.nameText} numberOfLines={1}>
               {item.name_chain || item.name || "بدون اسم"}
@@ -370,7 +370,7 @@ const SearchBar = ({ onSelectResult, style }) => {
             </View>
           </View>
 
-          {/* Chevron indicator */}
+          {/* Chevron indicator on left edge */}
           <View style={styles.chevronContainer}>
             <Text style={styles.chevron}>‹</Text>
           </View>
@@ -610,15 +610,16 @@ const styles = {
     marginBottom: 0,
   },
   cardContent: {
-    flexDirection: "row-reverse", // RTL layout
+    flexDirection: "row-reverse", // RTL: avatar right, chevron left
     alignItems: "center",
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingLeft: 12,
+    paddingRight: 16,
     minHeight: 60,
   },
-  // Refined avatar styling
+  // Refined avatar styling - on right for RTL
   avatarContainer: {
-    marginLeft: 0,
+    marginRight: 0,
   },
   avatarPhoto: {
     width: 40,
@@ -641,12 +642,13 @@ const styles = {
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
   },
 
-  // Clean text styling
+  // Text styling - uses full width with forced RTL
   textContainer: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 12,
-    alignItems: "flex-end", // RTL alignment
+    paddingLeft: 8,
+    paddingRight: 12,
+    alignItems: "flex-end", // Force content to right
   },
   nameText: {
     fontSize: 15,
@@ -655,12 +657,13 @@ const styles = {
     color: "#000000",
     marginBottom: 3,
     textAlign: "right",
+    alignSelf: "stretch", // Take full width
     letterSpacing: -0.1,
   },
   metaContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
+    alignSelf: "flex-end", // Force align to right
   },
   generationBadge: {
     paddingHorizontal: 0, // No badge background
@@ -673,11 +676,12 @@ const styles = {
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
     letterSpacing: 0,
     opacity: 0.6,
+    textAlign: "right",
     // color set dynamically
   },
-  // Minimal chevron
+  // Minimal chevron - on left edge
   chevronContainer: {
-    paddingLeft: 2,
+    paddingLeft: 0,
   },
   chevron: {
     fontSize: 18,
