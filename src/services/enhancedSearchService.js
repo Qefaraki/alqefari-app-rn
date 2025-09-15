@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase } from "../config/supabase";
+import { supabase } from "./supabase";
 
 /**
  * Enhanced Search Service with recent searches, fuzzy matching, and navigation

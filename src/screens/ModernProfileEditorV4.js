@@ -321,37 +321,6 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const renderSegmentedControl = () => {
     const segmentWidth = (screenWidth - 32) / SEGMENTS.length;
     
-    // Calculate position based on RTL
-    const getIndicatorStyle = () => {
-      if (I18nManager.isRTL) {
-        // In RTL, use right positioning
-        return {
-          right: slideAnimation.interpolate({
-            inputRange: [0, 1, 2, 3],
-            outputRange: [
-              2,                          // index 0 - rightmost
-              segmentWidth + 2,           // index 1 - move left
-              segmentWidth * 2 + 2,       // index 2 - move more left
-              segmentWidth * 3 + 2        // index 3 - leftmost
-            ],
-          })
-        };
-      } else {
-        // In LTR, use left positioning
-        return {
-          left: slideAnimation.interpolate({
-            inputRange: [0, 1, 2, 3],
-            outputRange: [
-              2,
-              segmentWidth + 2,
-              segmentWidth * 2 + 2,
-              segmentWidth * 3 + 2
-            ],
-          })
-        };
-      }
-    };
-    
     return (
       <View style={styles.segmentWrapper}>
         <View style={styles.segmentedControl}>
@@ -360,7 +329,25 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
               styles.segmentIndicator,
               {
                 width: segmentWidth - 4,
-                ...getIndicatorStyle(),
+                transform: [{
+                  translateX: slideAnimation.interpolate({
+                    inputRange: [0, 1, 2, 3],
+                    outputRange: I18nManager.isRTL 
+                      ? [
+                          // RTL: As index increases, we move LEFT (negative direction)
+                          (SEGMENTS.length - 1) * segmentWidth + 2,  // index 0 - rightmost
+                          (SEGMENTS.length - 2) * segmentWidth + 2,  // index 1 
+                          (SEGMENTS.length - 3) * segmentWidth + 2,  // index 2
+                          2                                           // index 3 - leftmost
+                        ]
+                      : [
+                          2,                          // index 0 - leftmost
+                          segmentWidth + 2,           // index 1
+                          segmentWidth * 2 + 2,       // index 2
+                          segmentWidth * 3 + 2        // index 3 - rightmost
+                        ],
+                  })
+                }],
               },
             ]}
           />

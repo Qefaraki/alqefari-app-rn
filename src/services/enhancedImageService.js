@@ -1,6 +1,6 @@
 import * as ImageManipulator from "expo-image-manipulator";
 import { Image } from "expo-image";
-import { supabase } from "../config/supabase";
+import { supabase } from "./supabase";
 
 /**
  * Enhanced Image Service with transformation fallback and editing

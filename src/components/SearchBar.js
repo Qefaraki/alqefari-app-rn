@@ -702,6 +702,19 @@ const styles = {
     writingDirection: "rtl", // Force RTL writing direction
     // color set dynamically
   },
+  fuzzyBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: "#FFF3E0",
+    borderRadius: 4,
+  },
+  fuzzyBadgeText: {
+    fontSize: 11,
+    color: "#E65100",
+    fontFamily: "SF Arabic",
+    fontWeight: "500",
+  },
   // Minimal chevron - on left edge
   chevronContainer: {
     paddingLeft: 0,

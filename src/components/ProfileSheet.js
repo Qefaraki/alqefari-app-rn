@@ -68,6 +68,7 @@ import NameEditor from "./admin/fields/NameEditor";
 import BioEditor from "./admin/fields/BioEditor";
 import SiblingOrderStepper from "./admin/fields/SiblingOrderStepper";
 import PhotoEditor from "./admin/fields/PhotoEditor";
+import PhotoGallery from "./PhotoGallery";
 import DateEditor from "./admin/fields/DateEditor";
 import { validateDates } from "../utils/dateUtils";
 import ProgressiveImage, {
@@ -922,6 +923,21 @@ const ProfileSheet = ({ editMode = false }) => {
               </View>
             </View>
           </View>
+
+          {/* Photo Gallery Section */}
+          {person.id && (
+            <PhotoGallery
+              profileId={person.id}
+              profileName={person.name}
+              isEditMode={isEditing}
+              onPrimaryPhotoChange={(newPhotoUrl) => {
+                // Update the main photo when primary changes
+                if (isEditing) {
+                  setEditedData({ ...editedData, photo_url: newPhotoUrl });
+                }
+              }}
+            />
+          )}
 
           {/* Information section */}
           <SectionCard title="المعلومات">
