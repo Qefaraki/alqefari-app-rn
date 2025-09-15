@@ -37,7 +37,10 @@ class StorageService {
         // Use custom path if provided, otherwise generate one
         let filePath;
         if (customPath) {
-          filePath = `profiles/${customPath}`;
+          // Don't add profiles/ prefix if custom path already has it
+          filePath = customPath.startsWith("profiles/")
+            ? customPath
+            : `profiles/${customPath}`;
         } else {
           // Generate unique filename with timestamp and random string
           const timestamp = new Date().getTime();

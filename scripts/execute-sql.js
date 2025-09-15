@@ -14,7 +14,10 @@ if (!supabaseUrl || !supabaseKey) {
 
 // Read SQL file
 const sqlFile = process.argv[2] || "deploy-date-fix.sql";
-const sqlPath = path.join(__dirname, "..", "supabase", sqlFile);
+// If file path already contains 'supabase/', use it directly, otherwise add it
+const sqlPath = sqlFile.includes("supabase/")
+  ? path.join(__dirname, "..", sqlFile)
+  : path.join(__dirname, "..", "supabase", sqlFile);
 const sqlContent = fs.readFileSync(sqlPath, "utf8");
 
 // Prepare the request

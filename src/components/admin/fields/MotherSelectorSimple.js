@@ -31,11 +31,15 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
     }
   }, [fatherId]);
 
-  // Set selected mother from value prop
+  // Set selected mother from value prop (only on initial load or value change from parent)
   useEffect(() => {
-    if (value && wives.length > 0) {
-      const mother = wives.find((w) => w.wife_id === value);
-      setSelectedMother(mother);
+    if (wives.length > 0) {
+      if (value) {
+        const mother = wives.find((w) => w.wife_id === value);
+        setSelectedMother(mother);
+      } else {
+        setSelectedMother(null);
+      }
     }
   }, [value, wives]);
 
@@ -97,7 +101,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
     } else {
       // Opening
       setShowDropdown(true);
-      const height = Math.min((wives.length + 1) * 48, 200); // +1 for "none" option
+      const height = Math.min(wives.length * 48, 200);
       Animated.parallel([
         Animated.timing(dropdownHeight, {
           toValue: height,
@@ -121,6 +125,13 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const handleClear = (e) => {
+    e.stopPropagation();
+    setSelectedMother(null);
+    onChange(null);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
   // If no father is selected, don't show anything
   if (!fatherId) {
     return null;
@@ -130,7 +141,9 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم"}</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>{label || "الأم"}</Text>
+        </View>
         <View style={styles.selector}>
           <ActivityIndicator size="small" color="#000" />
         </View>
@@ -142,7 +155,9 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   if (wives.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم"}</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>{label || "الأم"}</Text>
+        </View>
         <View style={[styles.selector, styles.disabledSelector]}>
           <Text style={styles.disabledText}>غير متاح</Text>
         </View>
@@ -152,33 +167,48 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label || "الأم"}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label || "الأم"}</Text>
+      </View>
 
-      {/* Main Selector - PROPER RTL */}
+      {/* Main Selector with RTL */}
       <View style={styles.selectorWrapper}>
         <TouchableOpacity
           style={[styles.selector, showDropdown && styles.selectorActive]}
           onPress={toggleDropdown}
           activeOpacity={0.7}
         >
-          {/* Text on the RIGHT for RTL */}
+          {/* Clear button on RIGHT side (appears on left in RTL) */}
+          {selectedMother && (
+            <TouchableOpacity
+              onPress={handleClear}
+              style={styles.clearButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color="rgba(0,0,0,0.25)"
+              />
+            </TouchableOpacity>
+          )}
+
+          {/* Text in center */}
           <Text
             style={
               selectedMother ? styles.selectedText : styles.placeholderText
             }
             numberOfLines={1}
           >
-            {selectedMother ? selectedMother.wife_name : "بدون تحديد"}
+            {selectedMother ? selectedMother.wife_name : "اختر الأم"}
           </Text>
 
-          {/* Chevron on the LEFT for RTL */}
-          <View style={styles.chevronContainer}>
-            <Ionicons
-              name={showDropdown ? "chevron-up" : "chevron-down"}
-              size={16}
-              color="rgba(0,0,0,0.4)"
-            />
-          </View>
+          {/* Chevron on LEFT side (appears on right in RTL) */}
+          <Ionicons
+            name={showDropdown ? "chevron-up" : "chevron-down"}
+            size={16}
+            color="rgba(0,0,0,0.3)"
+          />
         </TouchableOpacity>
 
         {/* Beautiful Dropdown */}
@@ -197,25 +227,6 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
               nestedScrollEnabled={true}
               bounces={false}
             >
-              {/* None option */}
-              <TouchableOpacity
-                style={[
-                  styles.option,
-                  !selectedMother && styles.optionSelected,
-                ]}
-                onPress={() => handleSelect(null)}
-                activeOpacity={0.6}
-              >
-                <Text
-                  style={[
-                    styles.optionText,
-                    !selectedMother && styles.optionTextSelected,
-                  ]}
-                >
-                  بدون تحديد
-                </Text>
-              </TouchableOpacity>
-
               {/* Wife Options */}
               {wives.map((wife) => (
                 <TouchableOpacity
@@ -228,25 +239,23 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
                   onPress={() => handleSelect(wife)}
                   activeOpacity={0.6}
                 >
-                  <View style={styles.optionContent}>
-                    {/* Text on RIGHT */}
-                    <Text
-                      style={[
-                        styles.optionText,
-                        selectedMother?.wife_id === wife.wife_id &&
-                          styles.optionTextSelected,
-                      ]}
-                    >
-                      {wife.wife_name}
-                    </Text>
+                  {/* Current badge on RIGHT (appears left in RTL) */}
+                  {wife.is_current && (
+                    <View style={styles.currentBadge}>
+                      <Text style={styles.currentBadgeText}>الحالية</Text>
+                    </View>
+                  )}
 
-                    {/* Badge on LEFT if current */}
-                    {wife.is_current && (
-                      <View style={styles.currentBadge}>
-                        <Text style={styles.currentBadgeText}>الحالية</Text>
-                      </View>
-                    )}
-                  </View>
+                  {/* Text */}
+                  <Text
+                    style={[
+                      styles.optionText,
+                      selectedMother?.wife_id === wife.wife_id &&
+                        styles.optionTextSelected,
+                    ]}
+                  >
+                    {wife.wife_name}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -260,27 +269,33 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 const styles = StyleSheet.create({
   container: {
     marginTop: 16,
-    zIndex: 1000,
+    width: "100%",
+    alignSelf: "flex-end", // Align to right
+  },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end", // Align label to right
+    marginBottom: 8,
   },
   label: {
     fontSize: 13,
     color: "rgba(0,0,0,0.5)",
-    marginBottom: 8,
-    textAlign: "right",
     fontWeight: "500",
+    textAlign: "right",
   },
 
   selectorWrapper: {
     position: "relative",
+    width: "100%",
   },
 
-  // Main selector
+  // Main selector with RTL flex
   selector: {
     backgroundColor: "#F8F8F8",
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    flexDirection: "row-reverse", // FORCE RTL
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
@@ -291,6 +306,7 @@ const styles = StyleSheet.create({
   },
   disabledSelector: {
     opacity: 0.5,
+    justifyContent: "flex-end",
   },
   selectedText: {
     fontSize: 16,
@@ -298,22 +314,22 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "right",
     fontWeight: "500",
-    marginLeft: 12,
+    marginHorizontal: 8,
   },
   placeholderText: {
     fontSize: 16,
     color: "rgba(0,0,0,0.3)",
     flex: 1,
     textAlign: "right",
-    marginLeft: 12,
+    marginHorizontal: 8,
   },
   disabledText: {
     fontSize: 16,
     color: "rgba(0,0,0,0.3)",
     textAlign: "right",
   },
-  chevronContainer: {
-    width: 20,
+  clearButton: {
+    padding: 2,
   },
 
   // Dropdown styles
@@ -337,6 +353,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   option: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end", // RTL alignment
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -345,16 +364,11 @@ const styles = StyleSheet.create({
   optionSelected: {
     backgroundColor: "#F8F8F8",
   },
-  optionContent: {
-    flexDirection: "row-reverse", // FORCE RTL
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   optionText: {
     fontSize: 15,
     color: "#000",
-    flex: 1,
     textAlign: "right",
+    flex: 1,
   },
   optionTextSelected: {
     fontWeight: "600",
@@ -364,7 +378,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    marginRight: 8,
+    marginLeft: 8,
   },
   currentBadgeText: {
     fontSize: 11,

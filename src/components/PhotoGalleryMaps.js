@@ -50,6 +50,7 @@ const PhotoGalleryMaps = ({
         .order("display_order", { ascending: true });
 
       if (!photosError && photosData) {
+        console.log("Loaded photos:", photosData);
         setPhotos(photosData);
         // Find primary photo index
         const primaryIndex = photosData.findIndex((p) => p.is_primary);

@@ -621,15 +621,22 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                 </Text>
               </TouchableOpacity>
 
-              {/* Mother Selector */}
+              {/* Mother Selector - FORCE RTL */}
               {parentNode?.gender === "male" && !editingChildId && (
-                <View style={styles.motherSelectorContainer}>
-                  <MotherSelectorSimple
-                    fatherId={parentNode.id}
-                    value={selectedMotherId}
-                    onChange={setSelectedMotherId}
-                    label="الأم (اختياري)"
-                  />
+                <View
+                  style={[
+                    styles.motherSelectorContainer,
+                    { alignItems: "flex-end" },
+                  ]}
+                >
+                  <View style={{ width: "100%", alignItems: "flex-end" }}>
+                    <MotherSelectorSimple
+                      fatherId={parentNode.id}
+                      value={selectedMotherId}
+                      onChange={setSelectedMotherId}
+                      label="الأم (اختياري)"
+                    />
+                  </View>
                 </View>
               )}
             </View>

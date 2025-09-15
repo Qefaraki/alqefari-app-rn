@@ -306,6 +306,63 @@ if (error) {
 5. **Test on real devices** - Especially for RTL and gestures
 6. **Commit atomically** - One feature per commit
 
+## 📝 Git Workflow & Version Control
+
+### CRITICAL: Always Save Your Work
+```bash
+# After EVERY feature/fix - commit immediately
+git add -A
+git commit -m "type: Clear description of changes"
+
+# Commit types:
+# feat: New feature
+# fix: Bug fix
+# docs: Documentation updates
+# style: UI/styling changes
+# refactor: Code restructuring
+# test: Test additions/changes
+```
+
+### Git Best Practices
+1. **Commit frequently** - After each working feature
+2. **Never lose work** - Commit before switching tasks
+3. **Clear messages** - Describe WHAT and WHY
+4. **Update docs** - If you change functionality, update docs
+5. **Check status** - `git status` before and after changes
+
+### Documentation Updates
+When you change code, ALWAYS check if you need to update:
+- `CLAUDE.md` - For design system changes
+- `agents.md` - For implementation guidelines
+- `README.md` - For major features
+- Component comments - For complex logic
+
+## ⚠️ Supabase Deployment Rules
+
+### CRITICAL: NEVER Ask User to Deploy
+**I MUST deploy all database changes myself. NEVER tell the user to:**
+- ❌ "Run this in Supabase Dashboard"
+- ❌ "Go to Supabase and execute this"
+- ❌ "You need to deploy this SQL"
+
+### Always Deploy Automatically
+```bash
+# I will ALWAYS run these myself:
+node scripts/execute-sql.js migrations/new-migration.sql
+
+# If that fails, I'll create a direct deploy script
+node scripts/direct-deploy.js
+
+# The user should NEVER see SQL deployment instructions
+```
+
+### Database Change Workflow
+1. Write SQL migration file
+2. Deploy it myself using execute-sql.js
+3. Verify deployment succeeded
+4. Commit the migration file
+5. Never ask user to run SQL manually
+
 ## 🔒 Security
 
 - Never expose service role keys
