@@ -18,7 +18,7 @@
     },
     "runtimeVersion": "1.0.0",
     "ios": {
-      "bundleIdentifier": "com.alqefari.familytree",
+      "bundleIdentifier": "com.Alqefari.alqefari",
       "supportsTablet": true,
       "buildNumber": "1",
       "infoPlist": {
@@ -30,7 +30,7 @@
       }
     },
     "android": {
-      "package": "com.alqefari.familytree",
+      "package": "com.Alqefari.alqefari",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

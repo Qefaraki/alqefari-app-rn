@@ -1,4 +1,4 @@
-package com.alqefari.familytree
+package com.Alqefari.alqefari
 
 import android.app.Application
 import android.content.res.Configuration

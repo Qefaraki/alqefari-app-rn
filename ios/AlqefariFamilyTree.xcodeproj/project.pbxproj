@@ -9,27 +9,27 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		70E8686969C810BDB007211E /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23DD6B1AF400F0C5B87B9 /* ExpoModulesProvider.swift */; };
-		8C22A3E59995DCF50D71C090 /* libPods-AlqefariTreeRNExpo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 55DD5F968895B89DF502CECA /* libPods-AlqefariTreeRNExpo.a */; };
-		950074774C42A598AC2750A0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 24FB6C7A0659FA5338EFBC51 /* PrivacyInfo.xcprivacy */; };
+		61DBDC955661D47A06205FB5 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE9565BC5C4D61A199E1C26B /* ExpoModulesProvider.swift */; };
+		63561EB43D829C2B9B3A4E3B /* libPods-AlqefariFamilyTree.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 3EAC874C65C60CF9579D5F1C /* libPods-AlqefariFamilyTree.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		DCBA5550C1B035FC35B1AB11 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = DCA5544FBA5AB54ED006BF08 /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		13B07F961A680F5B00A75B9A /* AlqefariTreeRNExpo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AlqefariTreeRNExpo.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = AlqefariTreeRNExpo/Images.xcassets; sourceTree = "<group>"; };
-		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = AlqefariTreeRNExpo/Info.plist; sourceTree = "<group>"; };
-		24FB6C7A0659FA5338EFBC51 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = AlqefariTreeRNExpo/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		55DD5F968895B89DF502CECA /* libPods-AlqefariTreeRNExpo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AlqefariTreeRNExpo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		793829F417B682D43F2B854F /* Pods-AlqefariTreeRNExpo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AlqefariTreeRNExpo.release.xcconfig"; path = "Target Support Files/Pods-AlqefariTreeRNExpo/Pods-AlqefariTreeRNExpo.release.xcconfig"; sourceTree = "<group>"; };
-		8EC8E7AB33651082B8644BC9 /* Pods-AlqefariTreeRNExpo.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AlqefariTreeRNExpo.debug.xcconfig"; path = "Target Support Files/Pods-AlqefariTreeRNExpo/Pods-AlqefariTreeRNExpo.debug.xcconfig"; sourceTree = "<group>"; };
-		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = AlqefariTreeRNExpo/SplashScreen.storyboard; sourceTree = "<group>"; };
-		ACD23DD6B1AF400F0C5B87B9 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-AlqefariTreeRNExpo/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		13B07F961A680F5B00A75B9A /* AlqefariFamilyTree.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AlqefariFamilyTree.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = AlqefariFamilyTree/Images.xcassets; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = AlqefariFamilyTree/Info.plist; sourceTree = "<group>"; };
+		3EAC874C65C60CF9579D5F1C /* libPods-AlqefariFamilyTree.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AlqefariFamilyTree.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = AlqefariFamilyTree/SplashScreen.storyboard; sourceTree = "<group>"; };
+		AA48255664D6B10053AE6124 /* Pods-AlqefariFamilyTree.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AlqefariFamilyTree.debug.xcconfig"; path = "Target Support Files/Pods-AlqefariFamilyTree/Pods-AlqefariFamilyTree.debug.xcconfig"; sourceTree = "<group>"; };
+		AE9565BC5C4D61A199E1C26B /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-AlqefariFamilyTree/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		DCA5544FBA5AB54ED006BF08 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = AlqefariFamilyTree/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		DD126E5CE7E2FB25E9FA91D9 /* Pods-AlqefariFamilyTree.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AlqefariFamilyTree.release.xcconfig"; path = "Target Support Files/Pods-AlqefariFamilyTree/Pods-AlqefariFamilyTree.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
-		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = AlqefariTreeRNExpo/AppDelegate.swift; sourceTree = "<group>"; };
-		F11748442D0722820044C1D9 /* AlqefariTreeRNExpo-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "AlqefariTreeRNExpo-Bridging-Header.h"; path = "AlqefariTreeRNExpo/AlqefariTreeRNExpo-Bridging-Header.h"; sourceTree = "<group>"; };
+		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = AlqefariFamilyTree/AppDelegate.swift; sourceTree = "<group>"; };
+		F11748442D0722820044C1D9 /* AlqefariFamilyTree-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "AlqefariFamilyTree-Bridging-Header.h"; path = "AlqefariFamilyTree/AlqefariFamilyTree-Bridging-Header.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,50 +37,40 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8C22A3E59995DCF50D71C090 /* libPods-AlqefariTreeRNExpo.a in Frameworks */,
+				63561EB43D829C2B9B3A4E3B /* libPods-AlqefariFamilyTree.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		13B07FAE1A68108700A75B9A /* AlqefariTreeRNExpo */ = {
+		13B07FAE1A68108700A75B9A /* AlqefariFamilyTree */ = {
 			isa = PBXGroup;
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
-				F11748442D0722820044C1D9 /* AlqefariTreeRNExpo-Bridging-Header.h */,
+				F11748442D0722820044C1D9 /* AlqefariFamilyTree-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				24FB6C7A0659FA5338EFBC51 /* PrivacyInfo.xcprivacy */,
+				DCA5544FBA5AB54ED006BF08 /* PrivacyInfo.xcprivacy */,
 			);
-			name = AlqefariTreeRNExpo;
+			name = AlqefariFamilyTree;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				55DD5F968895B89DF502CECA /* libPods-AlqefariTreeRNExpo.a */,
+				3EAC874C65C60CF9579D5F1C /* libPods-AlqefariFamilyTree.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		5AB451DB33DADEEFEFEFAD62 /* Pods */ = {
+		508EC85C4E819D3DB5E90163 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				8EC8E7AB33651082B8644BC9 /* Pods-AlqefariTreeRNExpo.debug.xcconfig */,
-				793829F417B682D43F2B854F /* Pods-AlqefariTreeRNExpo.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		713A367A02ED0E9FA5FB9777 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				A2A5404FD8D9308D51AAFF9F /* AlqefariTreeRNExpo */,
+				F5CE6057F41F736885E23944 /* AlqefariFamilyTree */,
 			);
 			name = ExpoModulesProviders;
 			sourceTree = "<group>";
@@ -95,12 +85,12 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				13B07FAE1A68108700A75B9A /* AlqefariTreeRNExpo */,
+				13B07FAE1A68108700A75B9A /* AlqefariFamilyTree */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				5AB451DB33DADEEFEFEFAD62 /* Pods */,
-				713A367A02ED0E9FA5FB9777 /* ExpoModulesProviders */,
+				9174B96CE10A3B730F9FC912 /* Pods */,
+				508EC85C4E819D3DB5E90163 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -110,17 +100,19 @@
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				13B07F961A680F5B00A75B9A /* AlqefariTreeRNExpo.app */,
+				13B07F961A680F5B00A75B9A /* AlqefariFamilyTree.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A2A5404FD8D9308D51AAFF9F /* AlqefariTreeRNExpo */ = {
+		9174B96CE10A3B730F9FC912 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				ACD23DD6B1AF400F0C5B87B9 /* ExpoModulesProvider.swift */,
+				AA48255664D6B10053AE6124 /* Pods-AlqefariFamilyTree.debug.xcconfig */,
+				DD126E5CE7E2FB25E9FA91D9 /* Pods-AlqefariFamilyTree.release.xcconfig */,
 			);
-			name = AlqefariTreeRNExpo;
+			name = Pods;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -129,32 +121,40 @@
 				BB2F792C24A3F905000567C9 /* Expo.plist */,
 			);
 			name = Supporting;
-			path = AlqefariTreeRNExpo/Supporting;
+			path = AlqefariFamilyTree/Supporting;
+			sourceTree = "<group>";
+		};
+		F5CE6057F41F736885E23944 /* AlqefariFamilyTree */ = {
+			isa = PBXGroup;
+			children = (
+				AE9565BC5C4D61A199E1C26B /* ExpoModulesProvider.swift */,
+			);
+			name = AlqefariFamilyTree;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		13B07F861A680F5B00A75B9A /* AlqefariTreeRNExpo */ = {
+		13B07F861A680F5B00A75B9A /* AlqefariFamilyTree */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AlqefariTreeRNExpo" */;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AlqefariFamilyTree" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				0C294BC5D81A449ECEADCF35 /* [Expo] Configure project */,
+				AC0DD76BF05CAEAD3B99CB38 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				06255F2FB57675F1547815F4 /* [CP] Embed Pods Frameworks */,
+				5F6BB5662CF8F0108EEE7F3C /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = AlqefariTreeRNExpo;
-			productName = AlqefariTreeRNExpo;
-			productReference = 13B07F961A680F5B00A75B9A /* AlqefariTreeRNExpo.app */;
+			name = AlqefariFamilyTree;
+			productName = AlqefariFamilyTree;
+			productReference = 13B07F961A680F5B00A75B9A /* AlqefariFamilyTree.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -170,7 +170,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "AlqefariTreeRNExpo" */;
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "AlqefariFamilyTree" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -183,7 +183,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				13B07F861A680F5B00A75B9A /* AlqefariTreeRNExpo */,
+				13B07F861A680F5B00A75B9A /* AlqefariFamilyTree */,
 			);
 		};
 /* End PBXProject section */
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				950074774C42A598AC2750A0 /* PrivacyInfo.xcprivacy in Resources */,
+				DCBA5550C1B035FC35B1AB11 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,24 +218,6 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		06255F2FB57675F1547815F4 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-AlqefariTreeRNExpo/Pods-AlqefariTreeRNExpo-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AlqefariTreeRNExpo/Pods-AlqefariTreeRNExpo-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -251,31 +233,30 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-AlqefariTreeRNExpo-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-AlqefariFamilyTree-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		0C294BC5D81A449ECEADCF35 /* [Expo] Configure project */ = {
+		5F6BB5662CF8F0108EEE7F3C /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputFileListPaths = (
-			);
 			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-AlqefariFamilyTree/Pods-AlqefariFamilyTree-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
 			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
+			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-AlqefariTreeRNExpo/expo-configure-project.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AlqefariFamilyTree/Pods-AlqefariFamilyTree-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
 		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -283,7 +264,7 @@
 			files = (
 			);
 			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-AlqefariTreeRNExpo/Pods-AlqefariTreeRNExpo-resources.sh",
+				"${PODS_ROOT}/Target Support Files/Pods-AlqefariFamilyTree/Pods-AlqefariFamilyTree-resources.sh",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
@@ -320,8 +301,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AlqefariTreeRNExpo/Pods-AlqefariTreeRNExpo-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-AlqefariFamilyTree/Pods-AlqefariFamilyTree-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		AC0DD76BF05CAEAD3B99CB38 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-AlqefariFamilyTree/expo-configure-project.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -331,7 +331,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				70E8686969C810BDB007211E /* ExpoModulesProvider.swift in Sources */,
+				61DBDC955661D47A06205FB5 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -340,18 +340,18 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 8EC8E7AB33651082B8644BC9 /* Pods-AlqefariTreeRNExpo.debug.xcconfig */;
+			baseConfigurationReference = AA48255664D6B10053AE6124 /* Pods-AlqefariFamilyTree.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = AlqefariTreeRNExpo/AlqefariTreeRNExpo.entitlements;
+				CODE_SIGN_ENTITLEMENTS = AlqefariFamilyTree/AlqefariFamilyTree.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
 					"FB_SONARKIT_ENABLED=1",
 				);
-				INFOPLIST_FILE = AlqefariTreeRNExpo/Info.plist;
+				INFOPLIST_FILE = AlqefariFamilyTree/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -364,9 +364,9 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.alqefari.familytree;
-				PRODUCT_NAME = AlqefariTreeRNExpo;
-				SWIFT_OBJC_BRIDGING_HEADER = "AlqefariTreeRNExpo/AlqefariTreeRNExpo-Bridging-Header.h";
+				PRODUCT_BUNDLE_IDENTIFIER = com.Alqefari.alqefari;
+				PRODUCT_NAME = AlqefariFamilyTree;
+				SWIFT_OBJC_BRIDGING_HEADER = "AlqefariFamilyTree/AlqefariFamilyTree-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -376,13 +376,13 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 793829F417B682D43F2B854F /* Pods-AlqefariTreeRNExpo.release.xcconfig */;
+			baseConfigurationReference = DD126E5CE7E2FB25E9FA91D9 /* Pods-AlqefariFamilyTree.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = AlqefariTreeRNExpo/AlqefariTreeRNExpo.entitlements;
+				CODE_SIGN_ENTITLEMENTS = AlqefariFamilyTree/AlqefariFamilyTree.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				INFOPLIST_FILE = AlqefariTreeRNExpo/Info.plist;
+				INFOPLIST_FILE = AlqefariFamilyTree/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -395,9 +395,9 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.alqefari.familytree;
-				PRODUCT_NAME = AlqefariTreeRNExpo;
-				SWIFT_OBJC_BRIDGING_HEADER = "AlqefariTreeRNExpo/AlqefariTreeRNExpo-Bridging-Header.h";
+				PRODUCT_BUNDLE_IDENTIFIER = com.Alqefari.alqefari;
+				PRODUCT_NAME = AlqefariFamilyTree;
+				SWIFT_OBJC_BRIDGING_HEADER = "AlqefariFamilyTree/AlqefariFamilyTree-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
@@ -531,7 +531,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AlqefariTreeRNExpo" */ = {
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "AlqefariFamilyTree" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
@@ -540,7 +540,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "AlqefariTreeRNExpo" */ = {
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "AlqefariFamilyTree" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,

@@ -9,7 +9,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>ar</string>
     <key>CFBundleDisplayName</key>
-    <string>AlqefariTreeRN-Expo</string>
+    <string>Alqefari Family Tree</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -29,12 +29,12 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.alqefari.familytree</string>
+          <string>com.Alqefari.alqefari</string>
         </array>
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>202509150918</string>
+    <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
@@ -48,6 +48,8 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي</string>
     <key>UILaunchStoryboardName</key>

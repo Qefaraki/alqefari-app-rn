@@ -1,4 +1,4 @@
-package com.alqefari.familytree
+package com.Alqefari.alqefari
 
 import android.os.Build
 import android.os.Bundle

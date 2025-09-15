@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.alqefari.familytree'
+    namespace 'com.Alqefari.alqefari'
     defaultConfig {
-        applicationId 'com.alqefari.familytree'
+        applicationId 'com.Alqefari.alqefari'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
