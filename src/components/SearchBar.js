@@ -130,19 +130,40 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   // CRITICAL FIX: Reset opacity when no person is selected (sheet closed)
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
+  const { isAdminMode } = useAdminMode();
+
   useEffect(() => {
     if (!selectedPersonId) {
-      // No person selected = sheet is closed, ensure SearchBar is visible
-      if (lastOpacity.current !== 1) {
-        lastOpacity.current = 1;
-        Animated.timing(searchBarOpacity, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }).start();
+      // No person selected = sheet is closed, FORCE SearchBar visible
+      console.log("[SearchBar] No person selected, forcing visible");
+      lastOpacity.current = 1;
+      isFirstMount.current = true; // Reset first mount flag
+
+      // Cancel any ongoing animation
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+
+      // Force immediate visibility
+      searchBarOpacity.setValue(1);
+
+      // Also reset the profileSheetProgress if it's stuck
+      if (profileSheetProgress && profileSheetProgress.value !== 0) {
+        console.log("[SearchBar] Resetting stuck profileSheetProgress");
+        profileSheetProgress.value = 0;
       }
     }
-  }, [selectedPersonId, searchBarOpacity]);
+  }, [selectedPersonId, searchBarOpacity, profileSheetProgress]);
+
+  // Additional safety: Reset when admin mode changes
+  useEffect(() => {
+    // When admin mode toggles, ensure SearchBar is visible
+    if (!selectedPersonId) {
+      console.log("[SearchBar] Admin mode changed, ensuring visible");
+      searchBarOpacity.setValue(1);
+      lastOpacity.current = 1;
+    }
+  }, [isAdminMode, selectedPersonId, searchBarOpacity]);
 
   const showBackdrop = () => {
     Animated.timing(backdropOpacity, {

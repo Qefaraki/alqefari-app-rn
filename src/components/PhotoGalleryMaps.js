@@ -220,11 +220,8 @@ const PhotoGalleryMaps = ({
       // Reload to get proper data
       await loadPhotos();
 
+      // Just haptic feedback, no alert - modern UX
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        "نجح",
-        `تم رفع ${uploadedPhotos.length} من ${assets.length} صور`,
-      );
     } catch (error) {
       console.error("Upload error:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
