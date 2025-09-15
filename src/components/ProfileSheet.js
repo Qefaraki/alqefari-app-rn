@@ -68,6 +68,7 @@ import TimelineEditor from "./admin/TimelineEditor";
 import NameEditor from "./admin/fields/NameEditor";
 import BioEditor from "./admin/fields/BioEditor";
 import SiblingOrderStepper from "./admin/fields/SiblingOrderStepper";
+import PhotoEditor from "./admin/fields/PhotoEditor";
 import DateEditor from "./admin/fields/DateEditor";
 import { validateDates } from "../utils/dateUtils";
 import ProgressiveImage, {
@@ -777,23 +778,20 @@ const ProfileSheet = ({ editMode = false }) => {
             </View>
           )}
 
-          {/* Photo Gallery Section - Google Maps Style (replaces hero in edit mode) */}
-          {isEditing && person.id ? (
-            <PhotoGalleryMaps
-              profileId={person.id}
-              isEditMode={isEditing}
-              forceAdminMode={isEditing}
-              onPrimaryPhotoChange={(newPhotoUrl) => {
-                // Update the main photo when primary changes
-                setEditedData({ ...editedData, photo_url: newPhotoUrl });
-              }}
-            />
-          ) : null}
-
           {/* Unified hero card: image + description + metrics */}
           <View style={styles.cardWrapper}>
-            {/* Show hero image in view mode only - gallery handles edit mode */}
-            {!isEditing && person.photo_url ? (
+            {/* Photo editor in edit mode, hero image in view mode */}
+            {isEditing ? (
+              <PhotoEditor
+                value={editedData?.photo_url || ""}
+                onChange={(url) =>
+                  setEditedData({ ...editedData, photo_url: url })
+                }
+                currentPhotoUrl={person.photo_url}
+                personName={person.name}
+                profileId={person.id}
+              />
+            ) : person.photo_url ? (
               <View style={styles.photoSection}>
                 <ProgressiveHeroImage
                   source={{ uri: person.photo_url }}
@@ -1698,6 +1696,23 @@ const ProfileSheet = ({ editMode = false }) => {
                 </SectionCard>
               );
             })()}
+
+          {/* Photo Gallery Section - Additional Photos */}
+          {person.id && (
+            <SectionCard title="معرض الصور">
+              <PhotoGalleryMaps
+                profileId={person.id}
+                isEditMode={isEditing}
+                forceAdminMode={isEditing}
+                onPrimaryPhotoChange={(newPhotoUrl) => {
+                  // Update the main photo when primary changes
+                  if (isEditing) {
+                    setEditedData({ ...editedData, photo_url: newPhotoUrl });
+                  }
+                }}
+              />
+            </SectionCard>
+          )}
 
           {/* Achievements */}
           {isEditing ? (

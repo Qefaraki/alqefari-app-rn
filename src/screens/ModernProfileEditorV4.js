@@ -57,6 +57,7 @@ const SEGMENTS = [
 const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const bottomSheetRef = useRef(null);
   const fadeAnimation = useRef(new Animated.Value(0)).current;
+  const shimmerAnimation = useRef(new Animated.Value(0)).current;
   
   // Create individual opacity animations for each segment
   const segmentOpacities = useRef(
@@ -95,6 +96,26 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   // Form data state
   const [editedData, setEditedData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
+
+  // Start shimmer animation
+  useEffect(() => {
+    if (!isInitialized && visible) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnimation, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerAnimation, {
+            toValue: 0,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [isInitialized, visible]);
 
   // Initialize form data
   useEffect(() => {
@@ -426,22 +447,58 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     <View style={styles.skeletonContainer}>
       {/* Photo skeleton */}
       <View style={styles.skeletonPhotoCard}>
-        <Animated.View style={[styles.skeletonPhoto, styles.shimmer]} />
+        <Animated.View 
+          style={[
+            styles.skeletonPhoto, 
+            { opacity: shimmerAnimation.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.3, 0.7]
+            })}
+          ]} 
+        />
       </View>
       
       {/* Fields skeleton */}
       <View style={styles.card}>
         <View style={styles.skeletonField}>
-          <View style={styles.skeletonLabel} />
-          <Animated.View style={[styles.skeletonInput, styles.shimmer]} />
+          <Animated.View 
+            style={[
+              styles.skeletonLabel,
+              { opacity: shimmerAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 0.7]
+              })}
+            ]} 
+          />
+          <Animated.View 
+            style={[
+              styles.skeletonInput,
+              { opacity: shimmerAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 0.7]
+              })}
+            ]} 
+          />
         </View>
         <View style={styles.skeletonField}>
-          <View style={styles.skeletonLabel} />
-          <Animated.View style={[styles.skeletonInput, styles.shimmer]} />
-        </View>
-        <View style={styles.skeletonField}>
-          <View style={styles.skeletonLabel} />
-          <Animated.View style={[styles.skeletonInput, styles.shimmer]} />
+          <Animated.View 
+            style={[
+              styles.skeletonLabel,
+              { opacity: shimmerAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 0.7]
+              })}
+            ]} 
+          />
+          <Animated.View 
+            style={[
+              styles.skeletonInput,
+              { opacity: shimmerAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 0.7]
+              })}
+            ]} 
+          />
         </View>
       </View>
     </View>
@@ -1034,7 +1091,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
   },
   segmentWrapper: {
-    backgroundColor: "rgba(255, 255, 255, 0.98)",
+    backgroundColor: "white",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 0.5,
@@ -1082,6 +1139,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 20,
+    backgroundColor: "#F2F2F7", // Gray background for content area
   },
   contentSection: {
     paddingHorizontal: 16,
@@ -1291,6 +1349,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     minHeight: 200,
+  },
+  skeletonContainer: {
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  skeletonPhotoCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    height: 240,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  skeletonPhoto: {
+    flex: 1,
+    backgroundColor: "#E8E8E8",
+  },
+  skeletonField: {
+    marginBottom: 20,
+  },
+  skeletonLabel: {
+    width: 80,
+    height: 12,
+    backgroundColor: "#E8E8E8",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonInput: {
+    height: 48,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 10,
+  },
+  shimmer: {
+    opacity: 0.7,
   },
 });
 

@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   cardsScrollContent: {
     paddingHorizontal: 16,
     alignItems: "center",
-    flexDirection: "row", // Normal direction for proper RTL ordering
+    flexDirection: "row-reverse", // RTL support
   },
   emptyCard: {
     width: CARD_WIDTH,
@@ -768,11 +768,11 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     backgroundColor: "#FFF",
     borderRadius: 10,
-    padding: 8,
+    padding: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
     borderColor: "#E5E5EA",
@@ -784,30 +784,33 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: "absolute",
-    top: 4,
-    left: 4, // RTL: delete button on left
+    top: 8,
+    left: 8,
     zIndex: 10,
   },
   orderBadge: {
     position: "absolute",
     top: 8,
-    left: 0,
-    right: 0,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#F2F2F7",
+    justifyContent: "center",
     alignItems: "center",
   },
   orderBadgeText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#333",
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#666",
   },
   childName: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
     color: "#000",
-    marginTop: 28,
-    marginBottom: 4,
+    marginTop: 24,
+    marginBottom: 6,
     textAlign: "center",
-    paddingHorizontal: 4,
   },
   genderLabel: {
     position: "absolute",
@@ -859,7 +862,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000",
     textAlign: "right",
-    flex: 1,
   },
   cancelEditButton: {
     paddingHorizontal: 12,
