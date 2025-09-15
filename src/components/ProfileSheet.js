@@ -920,6 +920,7 @@ const ProfileSheet = ({ editMode = false }) => {
               profileId={person.id}
               profileName={person.name}
               isEditMode={isEditing}
+              forceAdminMode={isEditing} // When editing, treat as admin for photo management
               onPrimaryPhotoChange={(newPhotoUrl) => {
                 // Update the main photo when primary changes
                 if (isEditing) {

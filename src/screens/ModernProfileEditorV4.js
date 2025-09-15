@@ -56,8 +56,13 @@ const SEGMENTS = [
 
 const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const bottomSheetRef = useRef(null);
-  const slideAnimation = useRef(new Animated.Value(0)).current;
   const fadeAnimation = useRef(new Animated.Value(0)).current;
+  
+  // Create individual opacity animations for each segment
+  const segmentOpacities = useRef(
+    SEGMENTS.map((_, index) => new Animated.Value(index === 0 ? 1 : 0))
+  ).current;
+  
   const { isAdmin } = useAdminMode();
   const { settings } = useSettings();
   const [saving, setSaving] = useState(false);
@@ -165,9 +170,13 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       bottomSheetRef.current.expand();
       // Reset states when opening
       setActiveSegment(0);
-      slideAnimation.setValue(0);
       fadeAnimation.setValue(0);
-
+      
+      // Reset all segment indicators
+      segmentOpacities.forEach((opacity, index) => {
+        opacity.setValue(index === 0 ? 1 : 0);
+      });
+      
       // Animate in after a short delay
       setTimeout(() => {
         Animated.timing(fadeAnimation, {
@@ -299,32 +308,42 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
   const handleSegmentChange = (index) => {
     if (index === activeSegment) return; // Don't re-animate if already selected
-
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Fade out current content
-    Animated.timing(fadeAnimation, {
-      toValue: 0,
-      duration: 100,
-      useNativeDriver: true,
-    }).start(() => {
-      // Update segment
-      setActiveSegment(index);
-
-      // Animate slide to new position
-      Animated.spring(slideAnimation, {
-        toValue: index,
-        tension: 100,
-        friction: 20,
+    
+    // Fade out current segment indicator and content
+    Animated.parallel([
+      // Fade out old indicator
+      Animated.timing(segmentOpacities[activeSegment], {
+        toValue: 0,
+        duration: 150,
         useNativeDriver: true,
-      }).start();
-
-      // Fade in new content
+      }),
+      // Fade out content
       Animated.timing(fadeAnimation, {
-        toValue: 1,
-        duration: 200,
+        toValue: 0,
+        duration: 100,
         useNativeDriver: true,
-      }).start();
+      }),
+    ]).start(() => {
+      // Update active segment
+      setActiveSegment(index);
+      
+      // Fade in new indicator and content
+      Animated.parallel([
+        // Fade in new indicator
+        Animated.timing(segmentOpacities[index], {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        // Fade in content
+        Animated.timing(fadeAnimation, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     });
   };
 
@@ -334,52 +353,43 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     return (
       <View style={styles.segmentWrapper}>
         <View style={styles.segmentedControl}>
-          <Animated.View
-            style={[
-              styles.segmentIndicator,
-              {
-                width: segmentWidth - 4,
-                transform: [
-                  {
-                    translateX: slideAnimation.interpolate({
-                      inputRange: [0, 1, 2, 3],
-                      // WAIT - the issue is the segments are visually reversed in RTL
-                      // But we're mapping index to position directly
-                      // We need to reverse the mapping!
-                      outputRange: [
-                        2 + (I18nManager.isRTL ? (3 - 0) * segmentWidth : 0 * segmentWidth),
-                        2 + (I18nManager.isRTL ? (3 - 1) * segmentWidth : 1 * segmentWidth),
-                        2 + (I18nManager.isRTL ? (3 - 2) * segmentWidth : 2 * segmentWidth),
-                        2 + (I18nManager.isRTL ? (3 - 3) * segmentWidth : 3 * segmentWidth),
-                      ],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          />
           {SEGMENTS.map((segment, index) => (
-            <TouchableOpacity
-              key={segment.id}
-              style={[styles.segment, { width: segmentWidth }]}
-              onPress={() => handleSegmentChange(index)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={segment.icon}
-                size={18}
-                color={activeSegment === index ? "#000" : "#8E8E93"}
-                style={styles.segmentIcon}
-              />
-              <Text
+            <View key={segment.id} style={[styles.segmentContainer, { width: segmentWidth }]}>
+              {/* Individual indicator for each segment */}
+              <Animated.View
                 style={[
-                  styles.segmentText,
-                  activeSegment === index && styles.segmentTextActive,
+                  styles.segmentIndicator,
+                  {
+                    opacity: segmentOpacities[index],
+                    position: 'absolute',
+                    top: 2,
+                    left: 2,
+                    right: 2,
+                    bottom: 2,
+                  },
                 ]}
+              />
+              <TouchableOpacity
+                style={styles.segment}
+                onPress={() => handleSegmentChange(index)}
+                activeOpacity={0.7}
               >
-                {segment.label}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons
+                  name={segment.icon}
+                  size={18}
+                  color={activeSegment === index ? "#000" : "#8E8E93"}
+                  style={styles.segmentIcon}
+                />
+                <Text
+                  style={[
+                    styles.segmentText,
+                    activeSegment === index && styles.segmentTextActive,
+                  ]}
+                >
+                  {segment.label}
+                </Text>
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
       </View>
@@ -1015,12 +1025,12 @@ const styles = StyleSheet.create({
     padding: 2,
     position: "relative",
   },
+  segmentContainer: {
+    position: 'relative',
+  },
   segmentIndicator: {
-    position: "absolute",
-    height: 32,
     backgroundColor: "white",
     borderRadius: 7,
-    top: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.1,
@@ -1034,6 +1044,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     zIndex: 1,
     gap: 6,
+    position: 'relative',
   },
   segmentIcon: {
     marginTop: 1,

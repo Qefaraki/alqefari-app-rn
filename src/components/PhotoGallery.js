@@ -251,9 +251,11 @@ const PhotoGallery = ({
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isEditMode && styles.editModeContainer]}>
       <View style={styles.header}>
-        <Text style={styles.title}>معرض الصور</Text>
+        <Text style={[styles.title, isEditMode && styles.editModeTitle]}>
+          {isEditMode ? "إدارة الصور" : "معرض الصور"}
+        </Text>
         {photos.length > 0 && (
           <Text style={styles.count}>{photos.length} صور</Text>
         )}
@@ -341,8 +343,8 @@ const PhotoGallery = ({
         ))}
       </ScrollView>
 
-      {/* Empty state */}
-      {photos.length === 0 && !isEditMode && !isAdminMode && (
+      {/* Empty state - only show when not in edit mode */}
+      {photos.length === 0 && !isEditMode && (
         <View style={styles.emptyState}>
           <Ionicons name="images-outline" size={48} color="#9ca3af" />
           <Text style={styles.emptyText}>لا توجد صور</Text>
@@ -355,6 +357,17 @@ const PhotoGallery = ({
 const styles = StyleSheet.create({
   container: {
     marginVertical: 16,
+  },
+  editModeContainer: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  editModeTitle: {
+    color: "#6366f1",
   },
   header: {
     flexDirection: "row",
