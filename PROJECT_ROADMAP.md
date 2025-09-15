@@ -1,231 +1,330 @@
 # AHDAF Application Project Roadmap
 
-## Latest Updates
+## Current Status: v1.4.0 (January 2025)
 
-### Bug Fixes (2025-01-05)
+### Recently Completed Features ✅
 
-- ✅ Fixed React hooks order violation in TreeView component
-  - Moved all hooks (useCallback, useMemo, useEffect) before conditional returns
-  - Fixed "Rendered more hooks than during the previous render" error
-  - Ensured hooks are called in the same order on every render
+#### Core Infrastructure
+
+- ✅ **Multi-Add Children Modal (QuickAddOverlay)** - Long-press to add multiple children with drag-to-reorder
+- ✅ **admin_bulk_create_children RPC** - Bulk creation with atomic transactions
+- ✅ **admin_revert_action RPC** - Undo functionality with audit log integration
+- ✅ **background_jobs table** - Async task tracking for layout recalculation
+- ✅ **Marriage Management System** - Full CRUD operations with MarriageEditor component
+- ✅ **Arabic Name Chain Search** - search_name_chain function with SearchModal UI
+- ✅ **Photo System with Caching** - expo-image integration with CachedImage component
+- ✅ **Activity & Revert View** - ActivityScreen with audit log display
+
+#### Admin Edit Mode - Completed Phases
+
+- ✅ **Phase 1: Core Identity Fields** - Name, Bio, Sibling Order editors
+- ✅ **Phase 2: Visual Identity** - PhotoEditor with upload/URL support
+- ✅ **Phase 3: Smart Date Editing** - DateEditor with Hijri/Gregorian support
+
+#### Performance & UX
+
+- ✅ Fixed zoom jumping on physical iOS devices
+- ✅ Fixed React hooks order violations
 - ✅ Fixed Reanimated value access during render
-  - Created currentTransform state to avoid accessing .value during render
-  - Used useAnimatedReaction to sync transform values
-  - Updated gesture handlers to use synced state values
+- ✅ Compact admin interface (removed large title, no FAB)
+- ✅ Single-node updates with Zustand store optimization
+- ✅ Branch-based loading (max depth 3-5)
+- ✅ Viewport culling for visible nodes
 
-### Documentation Cleanup (2025-09-04)
+---
 
-- ✅ Reviewed all documentation files against current codebase
-- ✅ Updated backend-implementation.md to reflect actual implementation
-- ✅ Created optimized CLAUDE.md for AI assistant context
-- ✅ Removed outdated migration guide and security vulnerabilities
-- ✅ Verified validation functions and admin operations
-- ✅ Fixed trigger_layout_recalc_async naming mismatch
-- ✅ Documented missing features (marriage UI, get_person_with_relations)
+## 🔴 HIGH PRIORITY - Features to Implement
 
-## Phase 5: High-Velocity Admin Toolkit & Backend Engine
+### 1. Missing Backend Functions
 
-### ✅ Completed
+**Priority: CRITICAL**
 
-#### Admin Edit Mode - Phase 1: Core Identity Fields (2025-09-01)
+- [ ] **Remove or implement get_person_with_relations RPC**
+  - Currently called in profiles.js but doesn't exist
+  - Either implement for aggregated data or remove the call
+  - Decision needed: Performance benefit vs. complexity
 
-- ✅ Created NameEditor component with premium iOS-style text input
-  - Large 36px font matching current design
-  - Animated focus states with spring physics
-  - Clear button with smooth animations
-  - Real-time validation (min 2 characters)
-  - RTL support with SF Arabic font
+### 2. Export Functionality
 
-- ✅ Created BioEditor component with expanding textarea
-  - Auto-expanding from 3 to 10 lines
-  - Glass card design with CardSurface
-  - Arabic numeral character counter (٢٥٠/٥٠٠)
-  - Smooth animations and haptic feedback
-  - Internal scroll when max height reached
+**Priority: HIGH**
 
-- ✅ Created SiblingOrderStepper component (HIGH PRIORITY)
-  - Premium native stepper control (no blur)
-  - Animated button presses with spring physics
-  - Haptic feedback (light, success, error)
-  - Arabic number display
-  - Live preview text showing position
-  - Disabled state for minus at 0
+- [ ] **PDF Export** - Family tree and profile reports
+- [ ] **CSV Export** - Bulk data export for analysis
+- [ ] **Image Export** - Tree visualization as PNG/JPG
+- [ ] **Backup System** - Scheduled automated backups
+- Currently only JSON export exists
 
-- ✅ Integrated all components into ProfileSheet
-  - Name editing in hero section
-  - Bio editing with character limit
-  - Sibling order in Information section
-  - Proper data flow through editedData state
+### 3. Admin Edit Mode - Remaining Phases
 
-- ✅ Fixed native animation conflicts in NameEditor
-  - Separated animated values for different purposes
-  - Used state-based styling for border color
-  - All animations now properly use native driver
+**Priority: HIGH**
 
-- ✅ Fixed database constraint violations on save
-  - Convert empty strings to null for nullable fields
-  - Added client-side email validation
-  - Properly handle all optional fields in database
+#### Phase 4: Relationship Selector
 
-- ✅ Implemented efficient single-node updates
-  - Added updateNode, addNode, removeNode to Zustand store
-  - Tree nodes update instantly after editing
-  - Real-time sync updates individual nodes, not entire tree
-  - Scales to trees of any depth without performance impact
+- [ ] Parent selection UI with smart filtering
+- [ ] Validation to prevent circular relationships
+- [ ] Bulk relationship updates
+- [ ] Relationship verification tools
 
-- ✅ Fixed TreeView state management
-  - Removed duplicate local state in TreeView
-  - Single source of truth using Zustand store
-  - Tree automatically re-renders when any component updates data
-  - Fixes issue where edits weren't visible until restart
+#### Phase 5: Advanced Admin Controls
 
-- ✅ Created compact admin interface
-  - Removed large "شجرة عائلة القفاري" title taking up space
-  - Created CompactAdminBar with native styling (no blur)
-  - Single row design: user | toggle | control panel
-  - Reduced header from ~200px to ~50px
-  - Added collapse option for cleaner view
-  - Floating admin login when not authenticated
+- [ ] Admin-only fields management
+- [ ] Bulk field updates across profiles
+- [ ] Field templates for common patterns
+- [ ] Data validation rules configuration
 
-- ✅ Implemented comprehensive debug logging system (2025-09-02)
-  - Canvas coordinate tracking (verifies nodes never move)
-  - Viewport bounds calculations with transform details
-  - Node visibility transitions (entry/exit tracking)
-  - Connection visibility changes
-  - Pinch gesture transform calculations
-  - Tap coordinate transformations
-  - Node rendering position verification
-- ✅ Fixed Reanimated crash in debug logging (2025-09-03)
-  - Removed inline runOnJS from useAnimatedReaction
-  - Fixed segmentation fault in simulator
-  - Preserved other debug logs for troubleshooting
-- ✅ Optimized debug logging to reduce spam (2025-09-03)
-  - Removed per-frame rendering logs
-  - Condensed all logs to single-line summaries
-  - Added helpful debug guide on startup
-  - Made logs easily shareable for troubleshooting
+---
 
-- ✅ Identified and fixed zoom jumping on physical devices (2025-09-03)
-  - Root cause: Viewport culling causing massive visibility changes
-  - Increased VIEWPORT_MARGIN from 200 to 800 pixels
-  - Added dynamic margin that scales with zoom level
-  - Rounded focal points to prevent float precision issues
-  - Added warnings for large visibility changes
+## 🟡 MEDIUM PRIORITY - Enhancements
 
-- ✅ Fixed physical device gesture handling differences (2025-09-03)
-  - Issue: Physical devices send duplicate gesture events with stuck scale values
-  - Added gesture debouncing to skip duplicate scale updates within 16ms
-  - Implemented focal point stabilization using stored values from gesture start
-  - Added 1% scale change threshold to prevent tiny updates
-  - Normalized touch coordinates to even numbers to reduce drift
-  - Throttled viewport bounds updates to 60fps maximum
+### 4. Photo System Improvements
 
-- ✅ Completely fixed zoom jumping on physical iOS devices (2025-09-04)
-  - Root cause: Storing focal point at gesture start instead of using live values
-  - Removed focalX/focalY shared values completely
-  - Now uses e.focalX/e.focalY directly in each onUpdate call
-  - Converts focal to world coordinates using transform at gesture start
-  - Keeps the world point consistently under the fingers as scale changes
-  - Fixed Skia transform order to scale first, then translate
-  - Changed gesture composition from Simultaneous to Race with pan yielding to pinch
-  - Added DPR constant (set to 1 for DIP-aligned Skia)
-  - Result: Smooth, stable zoom on both simulator and physical devices
+**Priority: MEDIUM**
 
-#### Admin Edit Mode - Phase 2: Visual Identity (2025-09-04)
+#### Missing Features
 
-- ✅ Created PhotoEditor component with premium iOS-style interface
-  - Circular photo preview (160x160) with native card
-  - URL input field with live preview (800ms debounce)
-  - Loading spinner overlay during image fetch
-  - Error state with icon and message for invalid URLs
-  - "Remove Photo" button with gradient style and confirmation dialog
-  - Smooth animations and haptic feedback
-  - URL validation (requires https:// or http://)
-- ✅ Integrated PhotoEditor into ProfileSheet
-  - Replaces static hero image in edit mode
-  - Maintains existing photo display in view mode
-  - Proper data flow through editedData state
-  - Seamless save functionality with backend
+- [ ] **Image Editing** - Crop, rotate, brightness/contrast
+- [ ] **Multiple Photos** - Gallery per profile
+- [ ] **Smart Avatars** - Initials with generation colors
+- [ ] **Batch Operations** - Bulk upload/compression
 
-### 🚧 In Progress
+#### Technical Debt
 
-#### Admin Edit Mode - Phase 3: Smart Date Editing (2025-01-08)
+- [ ] Fix Supabase image transformation (returns 400)
+- [ ] Remove URL-based photo code
+- [ ] Implement blur hash placeholders
+- [ ] Add memory management for large trees
 
-- ✅ Created DateEditor component with dual calendar support
-  - Interactive Hijri/Gregorian calendar picker with seamless switching
-  - Real-time date conversion between calendar systems
-  - Month navigation with Arabic month names
-  - Approximate date toggle for historical records
-  - Preset buttons for "Today" and "Unknown"
-  - Full RTL layout with Arabic numerals
-  - Integrated validation (no future dates, death after birth)
-  - Smooth animations and haptic feedback
+### 5. Search System Enhancements
 
-#### Admin Edit Mode - Remaining Phases
+**Priority: MEDIUM**
 
-- Phase 4: Relationship Selector - Parent selection UI
-- Phase 5: Advanced Controls - Admin-only fields
-- Phase 6: Marriage Management - Add/edit/delete marriages UI
+- [ ] **Voice Search** - "ابحث عن محمد بن عبدالله"
+- [ ] **Recent Searches** - History with quick access
+- [ ] **Fuzzy Matching** - Handle spelling variations
+- [ ] **Smart Suggestions** - "People also searched for"
+- [ ] **Relationship Calculator** - Show exact relationships
+- [ ] **Golden Highlight Navigation** - Animate to found node
 
-### 📋 TODO
+### 6. Performance Optimizations
 
-#### High Priority Features to Implement
+**Priority: MEDIUM**
 
-1. **Marriage Management UI**
-   - Deploy admin_create_marriage function to production
-   - Create MarriageEditor component
-   - Add spouse selector with smart filtering
-   - Implement marriage CRUD operations in admin mode
+- [ ] **WebGL Rendering** - For trees with 1000+ nodes
+- [ ] **Viewport-based Loading** - Load only visible branches
+- [ ] **Background Prefetching** - Preload adjacent branches
+- [ ] **Adaptive Quality** - Adjust based on device/network
+- [ ] **Progressive Enhancement** - Start simple, add features
 
-2. **Fix Missing Backend Functions**
-   - Either implement get_person_with_relations RPC or remove from service layer
-   - Consider if aggregating relations would improve performance
+---
 
-3. Admin Features
-   - Batch operations UI
-   - Change history viewer
-   - Field templates
-   - Offline support with sync
+## 🟢 LOW PRIORITY - Future Enhancements
 
-4. Performance Optimizations
-   - Viewport-based node loading
-   - WebGL rendering for large trees
-   - Background data prefetching
+### 7. AI-Powered Features
 
-5. Enhanced Features
-   - AI-powered relationship suggestions
-   - Smart data validation
-   - Automated backups
-   - Export functionality
+**Priority: LOW**
+
+- [ ] **Relationship Suggestions** - Pattern-based recommendations
+- [ ] **Data Validation** - Anomaly detection
+- [ ] **Smart Templates** - AI-generated family patterns
+- [ ] **Natural Language Queries** - "Show me all doctors in generation 5"
+
+### 8. Platform-Specific Features
+
+**Priority: LOW**
+
+#### iOS Enhancements
+
+- [ ] Live Photos support (extract still frame)
+- [ ] iPhone Dynamic Island optimization
+- [ ] Apple Pencil annotations on iPad
+- [ ] Drag & drop on iPad
+
+#### Android Enhancements
+
+- [ ] Material You theming
+- [ ] Widget support
+- [ ] Split-screen mode
+
+### 9. Munasib System Implementation
+
+**Priority: LOW**
+
+- [ ] Profile type tracking (family vs. munasib)
+- [ ] Family origin tracking for spouses
+- [ ] Filter munasib from tree view
+- [ ] Migration script for existing spouses
+
+### 10. Data Management Features
+
+**Priority: LOW**
+
+- [ ] **Offline Support** - Work without connection
+- [ ] **Sync System** - Conflict resolution
+- [ ] **Version Control UI** - View/restore versions
+- [ ] **Change History Viewer** - Detailed audit trail
+- [ ] **Import from Excel/CSV** - Bulk data import
+
+---
+
+## 📊 Implementation Timeline
+
+### Q1 2025 (Current)
+
+**Week 1-2: Critical Fixes**
+
+- [ ] Resolve get_person_with_relations issue
+- [ ] Implement basic export (PDF/CSV)
+
+**Week 3-4: Admin Features**
+
+- [ ] Complete Phase 4: Relationship Selector
+- [ ] Complete Phase 5: Advanced Controls
+
+### Q2 2025
+
+**Month 1: Photo System**
+
+- [ ] Fix image transformation
+- [ ] Add editing capabilities
+- [ ] Implement multiple photos
+
+**Month 2: Search & Performance**
+
+- [ ] Search enhancements
+- [ ] WebGL rendering
+- [ ] Viewport-based loading
+
+### Q3 2025
+
+**AI Features & Platform Optimization**
+
+- [ ] AI-powered suggestions
+- [ ] iOS/Android specific features
+- [ ] Advanced analytics
+
+### Q4 2025
+
+**Polish & Scale**
+
+- [ ] Munasib system
+- [ ] Offline support
+- [ ] Enterprise features
+
+---
+
+## 🎯 Success Metrics
+
+### Performance Targets
+
+- Tree rendering: < 100ms for 500 nodes
+- Search response: < 200ms for 10k profiles
+- Image load: < 2s on 4G connection
+- Memory usage: < 200MB with 100 photos
+
+### User Experience
+
+- Admin can add 10 children in < 30 seconds
+- Export 1000 profiles in < 5 seconds
+- Zero data loss during offline periods
+- 99.9% uptime for core features
+
+### Quality Standards
+
+- TypeScript coverage: 80%+
+- Test coverage: 70%+
+- Accessibility: WCAG AA compliant
+- Arabic RTL: 100% support
+
+---
+
+## 🔧 Technical Debt to Address
+
+1. **Code Organization**
+   - [ ] Extract types to dedicated files
+   - [ ] Consolidate duplicate components
+   - [ ] Remove commented code
+   - [ ] Update deprecated APIs
+
+2. **Documentation**
+   - [ ] API documentation
+   - [ ] Component storybook
+   - [ ] Deployment guide
+   - [ ] User manual
+
+3. **Testing**
+   - [ ] Unit tests for services
+   - [ ] Integration tests for RPCs
+   - [ ] E2E tests for critical flows
+   - [ ] Performance benchmarks
+
+4. **Security**
+   - [ ] Security audit
+   - [ ] Penetration testing
+   - [ ] GDPR compliance
+   - [ ] Data encryption
+
+---
+
+## 📝 Notes
+
+### Removed/Deprecated Features
+
+- ❌ Global FAB (Floating Action Button) - Removed in favor of contextual actions
+- ❌ Glass/blur effects - Using neo-native design system
+- ❌ URL-based photo system - Replaced with direct upload
+
+### Design Decisions
+
+- RTL-first for all UI components
+- Neo-native aesthetic (no blur/glass)
+- Offline-first architecture
+- Privacy by default
+
+### Known Issues
+
+- Supabase image transformation returns 400 error
+- get_person_with_relations RPC not implemented
+- Memory usage high with many photos
+- Some migrations not applied to production
+
+---
 
 ## Version History
 
-### v1.0.0 - Initial Release
+### v1.4.0 (Current) - January 2025
 
-- Core tree visualization
-- Basic profile viewing
-- Admin authentication
+- ✅ QuickAddOverlay for bulk children
+- ✅ Search system implementation
+- ✅ Image caching with expo-image
+- ✅ Activity log with revert
+
+### v1.3.0 - Photo System & Caching
+
+- ✅ expo-image integration
+- ✅ CachedImage component
+- ✅ Image preloading
+- ✅ Fallback system
+
+### v1.2.0 - Photo Upload System
+
+- ✅ Native photo upload
+- ✅ Supabase storage
+- ✅ Client-side optimization
+- ✅ EXIF stripping
 
 ### v1.1.0 - Edit Mode Phase 1
 
-- ✅ Editable name, bio, and sibling order fields
-- ✅ World-class iOS-native UI/UX
-- ✅ Premium neo‑native design system (no blur)
+- ✅ Editable fields
+- ✅ iOS-native UI/UX
+- ✅ Neo-native design
 
-### v1.2.0 - Photo Upload System (COMPLETED)
+### v1.0.0 - Initial Release
 
-- ✅ Native photo upload with camera/gallery picker
-- ✅ Supabase storage integration
-- ✅ Client-side image optimization
-- ✅ EXIF metadata stripping for privacy
-- ✅ Progressive loading with retry mechanism
-- ✅ Fixed image display issues in ProfileSheet
+- ✅ Core tree visualization
+- ✅ Profile viewing
+- ✅ Admin authentication
 
-### v1.3.0 - Photo System Improvements Phase 1 (COMPLETED)
+---
 
-- ✅ Implemented expo-image for native caching
-- ✅ Created unified CachedImage component
-- ✅ Added image cache service with size management
-- ✅ Unified loading states with shimmer effect
-- ✅ Image preloading for visible nodes
-- ✅ Fallback system for Supabase transformations
+_Last Updated: January 2025_
+_Next Review: February 2025_

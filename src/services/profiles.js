@@ -340,8 +340,7 @@ export const profilesService = {
         return { data: rpcData, error: null };
       }
 
-      // Fallback to individual updates if RPC doesn't exist
-      console.log("RPC not available, using fallback method");
+      // Fallback to individual updates if RPC doesn't exist (silent fallback)
 
       const results = [];
       let hasErrors = false;
