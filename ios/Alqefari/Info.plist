@@ -34,7 +34,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>3</string>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
@@ -48,8 +48,6 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي</string>
     <key>UILaunchStoryboardName</key>
