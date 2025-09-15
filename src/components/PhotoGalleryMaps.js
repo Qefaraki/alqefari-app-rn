@@ -288,15 +288,7 @@ const PhotoGalleryMaps = ({
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: isAdmin ? "#f0f0f0" : "transparent",
-          minHeight: isAdmin ? 200 : 0,
-        },
-      ]}
-    >
+    <View style={styles.container}>
       {/* Main/Primary Photo - Full width */}
       {primaryPhoto ? (
         <View style={styles.mainPhotoContainer}>
@@ -317,22 +309,27 @@ const PhotoGalleryMaps = ({
           )}
         </View>
       ) : isAdmin ? (
-        // Show add photo placeholder when no main photo in edit mode
+        // Show compact add photo placeholder when no photos
         <TouchableOpacity
           style={styles.mainPhotoPlaceholder}
           onPress={handleSelectPhoto}
           disabled={uploading}
         >
           {uploading ? (
-            <ActivityIndicator size="large" color="#6366f1" />
+            <ActivityIndicator size="small" color="#6366f1" />
           ) : (
-            <Ionicons name="camera-outline" size={64} color="#9ca3af" />
+            <>
+              <Ionicons name="camera-outline" size={40} color="#9ca3af" />
+              <Text style={{ color: "#9ca3af", marginTop: 8, fontSize: 14 }}>
+                إضافة صور
+              </Text>
+            </>
           )}
         </TouchableOpacity>
       ) : null}
 
-      {/* Grid of other photos + add button */}
-      {(otherPhotos.length > 0 || isAdmin) && (
+      {/* Grid of photos + add button - always show in edit mode */}
+      {isAdmin && (
         <View style={styles.gridContainer}>
           {otherPhotos.map((photo) => (
             <Pressable
@@ -372,26 +369,11 @@ const PhotoGalleryMaps = ({
               {uploading ? (
                 <ActivityIndicator size="small" color="#6366f1" />
               ) : (
-                <Ionicons name="add" size={36} color="#9ca3af" />
+                <Ionicons name="add" size={28} color="#6366f1" />
               )}
             </TouchableOpacity>
           )}
         </View>
-      )}
-
-      {/* If no photos at all, show add button prominently */}
-      {photos.length === 0 && isAdmin && (
-        <TouchableOpacity
-          style={styles.emptyAddButton}
-          onPress={handleSelectPhoto}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <ActivityIndicator size="large" color="#6366f1" />
-          ) : (
-            <Ionicons name="camera-outline" size={64} color="#9ca3af" />
-          )}
-        </TouchableOpacity>
       )}
     </View>
   );
@@ -399,17 +381,20 @@ const PhotoGalleryMaps = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 0,
+    marginVertical: 8,
   },
   loadingContainer: {
     padding: 32,
     alignItems: "center",
   },
   mainPhotoContainer: {
-    width: screenWidth,
-    height: screenWidth,
-    marginBottom: 2,
+    width: screenWidth - 32,
+    height: (screenWidth - 32) * 0.75,
+    marginHorizontal: 16,
+    marginBottom: 12,
     position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
   },
   mainPhoto: {
     width: "100%",
@@ -417,13 +402,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
   },
   mainPhotoPlaceholder: {
-    width: screenWidth,
-    height: screenWidth,
-    marginBottom: 2,
+    width: screenWidth - 32,
+    height: 180,
+    marginHorizontal: 16,
+    marginBottom: 12,
     backgroundColor: "#f9fafb",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: "#e5e7eb",
     borderStyle: "dashed",
   },
@@ -448,13 +435,15 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: 1,
+    paddingHorizontal: 16,
+    gap: 8,
   },
   gridPhoto: {
-    width: GRID_PHOTO_SIZE,
-    height: GRID_PHOTO_SIZE,
-    padding: 1,
+    width: (screenWidth - 32 - 16) / 3,
+    height: (screenWidth - 32 - 16) / 3,
     position: "relative",
+    borderRadius: 8,
+    overflow: "hidden",
   },
   selectedPhoto: {
     opacity: 0.6,
@@ -466,12 +455,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#f3f4f6",
   },
   addButton: {
-    width: GRID_PHOTO_SIZE,
-    height: GRID_PHOTO_SIZE,
-    padding: 1,
+    width: (screenWidth - 32 - 16) / 3,
+    height: (screenWidth - 32 - 16) / 3,
     backgroundColor: "#f9fafb",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: "#e5e7eb",
+    borderStyle: "dashed",
   },
   emptyAddButton: {
     width: screenWidth - 32,

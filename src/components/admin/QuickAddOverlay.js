@@ -30,7 +30,7 @@ import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
-import MotherSelector from "./fields/MotherSelector";
+import MotherSelectorSimple from "./fields/MotherSelectorSimple";
 
 // Enable RTL
 I18nManager.forceRTL(true);
@@ -624,7 +624,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               {/* Mother Selector */}
               {parentNode?.gender === "male" && !editingChildId && (
                 <View style={styles.motherSelectorContainer}>
-                  <MotherSelector
+                  <MotherSelectorSimple
                     fatherId={parentNode.id}
                     value={selectedMotherId}
                     onChange={setSelectedMotherId}

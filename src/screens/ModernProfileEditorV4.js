@@ -666,7 +666,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>معرض الصور</Text>
                 <PhotoGalleryMaps
-                  profileId={profileId}
+                  profileId={profile?.id}
                   isEditMode={true}
                   forceAdminMode={true}
                   onPrimaryPhotoChange={(newPhotoUrl) => {

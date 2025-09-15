@@ -20,29 +20,9 @@ const ProfileSheetWrapper = ({ editMode }) => {
     return familyData.find((p) => p.id === selectedPersonId);
   }, [selectedPersonId, treeData]);
 
-  // When in admin mode, show the modern editor
-  // When not in admin mode, show the regular ProfileSheet
-  if (selectedPersonId && isAdminMode && person) {
-    return (
-      <ModernProfileEditorV4
-        visible={true}
-        profile={person}
-        onClose={() => setSelectedPersonId(null)}
-        onSave={(updatedData) => {
-          // Update the node in the tree
-          if (updatedData) {
-            useTreeStore.getState().updateNode(person.id, updatedData);
-          }
-          setSelectedPersonId(null);
-          // Optionally reopen to see changes
-          setTimeout(() => setSelectedPersonId(person.id), 100);
-        }}
-      />
-    );
-  }
-
-  // Show regular ProfileSheet when not in admin mode
-  return <ProfileSheet editMode={editMode} />;
+  // ALWAYS use ProfileSheet for consistent behavior
+  // Just pass editMode to control if it's editable or not
+  return <ProfileSheet editMode={editMode || isAdminMode} />;
 };
 
 export default ProfileSheetWrapper;
