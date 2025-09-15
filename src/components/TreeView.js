@@ -581,8 +581,7 @@ const TreeView = ({
   const savedScale = useSharedValue(stage.scale);
   const savedTranslateX = useSharedValue(stage.x);
   const savedTranslateY = useSharedValue(stage.y);
-  const focalX = useSharedValue(0);
-  const focalY = useSharedValue(0);
+  // Removed focalX and focalY - using live focal points instead to fix zoom jumping
 
   // Sync scale value to React state for use in render
   useAnimatedReaction(
