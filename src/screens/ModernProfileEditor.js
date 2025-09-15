@@ -24,6 +24,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import PhotoEditor from "../components/admin/fields/PhotoEditor";
+import DateEditor from "../components/admin/fields/DateEditor";
 import profilesService from "../services/profiles";
 import { supabase } from "../services/supabase";
 import { validateDates } from "../utils/dateUtils";
@@ -67,10 +68,14 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     nickname: "",
     gender: "male",
     status: "alive",
-    birth_date: "",
-    death_date: "",
+    sibling_order: 0,
+    birth_date: null,
+    death_date: null,
+    birth_place: "",
+    current_residence: "",
     biography: "",
     occupation: "",
+    education: "",
     location: "",
     phone: "",
     email: "",
@@ -86,16 +91,49 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   // Initialize form data from profile
   useEffect(() => {
     if (profile) {
+      // Prepare date data for DateEditor format
+      const birthDateData = profile.birth_date || profile.date_of_birth ? {
+        gregorian: { 
+          day: profile.birth_day, 
+          month: profile.birth_month, 
+          year: profile.birth_year 
+        },
+        hijri: { 
+          day: profile.birth_hijri_day, 
+          month: profile.birth_hijri_month, 
+          year: profile.birth_hijri_year 
+        },
+        approximate: profile.birth_approximate || false
+      } : null;
+      
+      const deathDateData = profile.death_date || profile.date_of_death ? {
+        gregorian: { 
+          day: profile.death_day, 
+          month: profile.death_month, 
+          year: profile.death_year 
+        },
+        hijri: { 
+          day: profile.death_hijri_day, 
+          month: profile.death_hijri_month, 
+          year: profile.death_hijri_year 
+        },
+        approximate: profile.death_approximate || false
+      } : null;
+      
       setFormData({
         name: profile.name || "",
         kunya: profile.kunya || "",
         nickname: profile.nickname || "",
         gender: profile.gender || "male",
         status: profile.status || "alive",
-        birth_date: profile.birth_date || profile.date_of_birth || "",
-        death_date: profile.death_date || profile.date_of_death || "",
+        sibling_order: profile.sibling_order || 0,
+        birth_date: birthDateData,
+        death_date: deathDateData,
+        birth_place: profile.birth_place || "",
+        current_residence: profile.current_residence || "",
         biography: profile.biography || profile.bio || "",
         occupation: profile.occupation || "",
+        education: profile.education || "",
         location: profile.location || "",
         phone: profile.phone || "",
         email: profile.email || "",
@@ -145,20 +183,49 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Validate dates
-      if (formData.birth_date || formData.death_date) {
-        const dateValidation = validateDates(formData.birth_date, formData.death_date);
-        if (!dateValidation.valid) {
-          Alert.alert("خطأ في التواريخ", dateValidation.error);
-          setSaving(false);
-          return;
+      // Prepare data for saving - flatten DateEditor format
+      const saveData = { ...formData };
+      
+      // Convert birth_date from DateEditor format
+      if (formData.birth_date) {
+        const bd = formData.birth_date;
+        if (bd.gregorian) {
+          saveData.birth_day = bd.gregorian.day;
+          saveData.birth_month = bd.gregorian.month;
+          saveData.birth_year = bd.gregorian.year;
         }
+        if (bd.hijri) {
+          saveData.birth_hijri_day = bd.hijri.day;
+          saveData.birth_hijri_month = bd.hijri.month;
+          saveData.birth_hijri_year = bd.hijri.year;
+        }
+        saveData.birth_approximate = bd.approximate || false;
       }
+      
+      // Convert death_date from DateEditor format
+      if (formData.death_date) {
+        const dd = formData.death_date;
+        if (dd.gregorian) {
+          saveData.death_day = dd.gregorian.day;
+          saveData.death_month = dd.gregorian.month;
+          saveData.death_year = dd.gregorian.year;
+        }
+        if (dd.hijri) {
+          saveData.death_hijri_day = dd.hijri.day;
+          saveData.death_hijri_month = dd.hijri.month;
+          saveData.death_hijri_year = dd.hijri.year;
+        }
+        saveData.death_approximate = dd.approximate || false;
+      }
+      
+      // Remove the nested date objects
+      delete saveData.birth_date;
+      delete saveData.death_date;
 
       // Update profile
       const { error } = await supabase
         .from('profiles')
-        .update(formData)
+        .update(saveData)
         .eq('id', profile.id);
 
       if (error) throw error;
@@ -167,7 +234,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         { 
           text: "موافق",
           onPress: () => {
-            onSave?.(formData);
+            onSave?.(saveData);
             onClose();
           }
         }
@@ -355,6 +422,12 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
               setFormData({ ...formData, nickname: text })
             )}
             
+            {/* Sibling Order */}
+            {renderField("ترتيب الميلاد", String(formData.sibling_order || ""), (text) =>
+              setFormData({ ...formData, sibling_order: parseInt(text) || 0 }),
+              { keyboardType: "numeric", placeholder: "الترتيب بين الإخوة" }
+            )}
+            
             {/* Gender Toggle */}
             <View style={styles.toggleContainer}>
               <Text style={styles.fieldLabel}>الجنس</Text>
@@ -437,24 +510,38 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
             {renderField("المهنة", formData.occupation, (text) =>
               setFormData({ ...formData, occupation: text })
             )}
+            {renderField("التعليم", formData.education, (text) =>
+              setFormData({ ...formData, education: text }),
+              { placeholder: "المؤهل العلمي" }
+            )}
+            {renderField("مكان الميلاد", formData.birth_place, (text) =>
+              setFormData({ ...formData, birth_place: text })
+            )}
+            {renderField("مكان الإقامة الحالي", formData.current_residence, (text) =>
+              setFormData({ ...formData, current_residence: text })
+            )}
             {renderField("المدينة", formData.location, (text) =>
               setFormData({ ...formData, location: text })
             )}
           </>
         ))}
 
-        {/* Dates */}
+        {/* Dates with Hijri/Gregorian support */}
         {renderSection("التواريخ", "dates", (
           <>
-            {renderField("تاريخ الميلاد", formData.birth_date, (text) =>
-              setFormData({ ...formData, birth_date: text }),
-              { placeholder: "YYYY-MM-DD" }
-            )}
+            <DateEditor
+              label="تاريخ الميلاد"
+              value={formData.birth_date}
+              onChange={(value) => setFormData({ ...formData, birth_date: value })}
+              error={errors.birth_date}
+            />
             {formData.status === "deceased" && (
-              renderField("تاريخ الوفاة", formData.death_date, (text) =>
-                setFormData({ ...formData, death_date: text }),
-                { placeholder: "YYYY-MM-DD" }
-              )
+              <DateEditor
+                label="تاريخ الوفاة"
+                value={formData.death_date}
+                onChange={(value) => setFormData({ ...formData, death_date: value })}
+                error={errors.death_date}
+              />
             )}
           </>
         ))}
