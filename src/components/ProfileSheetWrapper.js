@@ -1,6 +1,6 @@
 import React from "react";
 import ProfileSheet from "./ProfileSheet";
-import ModernProfileEditorV4 from "../screens/ModernProfileEditorV4";
+import ModernProfileEditorV5 from "../screens/ModernProfileEditorV5";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
 import { familyData } from "../data/family-data";
@@ -10,7 +10,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((state) => state.treeData);
-  
+
   // Get person data
   const person = React.useMemo(() => {
     if (!selectedPersonId) return null;
@@ -24,7 +24,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
   // When not in admin mode, show the regular ProfileSheet
   if (selectedPersonId && isAdminMode && person) {
     return (
-      <ModernProfileEditorV4
+      <ModernProfileEditorV5
         visible={true}
         profile={person}
         onClose={() => setSelectedPersonId(null)}

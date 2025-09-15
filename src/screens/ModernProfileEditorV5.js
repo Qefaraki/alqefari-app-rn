@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -18,21 +12,15 @@ import {
   I18nManager,
   Animated,
   Dimensions,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import BottomSheet from "@gorhom/bottom-sheet";
 import profilesService from "../services/profiles";
-import { useTreeStore } from "../stores/useTreeStore";
 import SocialMediaEditor from "../components/SocialMediaEditor";
 import SpouseEditor from "../components/SpouseEditor";
 import SpouseProfileEditor from "../components/SpouseProfileEditor";
-import { formatHijriDate, convertToHijri } from "../utils/arabicUtils";
+import { formatHijriDate } from "../utils/arabicUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -41,7 +29,6 @@ export default function ModernProfileEditorV5({
   profile,
   onClose,
   animatedPosition,
-  profileSheetProgress,
 }) {
   // Core states
   const [editedData, setEditedData] = useState({

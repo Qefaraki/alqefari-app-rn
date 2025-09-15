@@ -329,9 +329,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const renderSegmentedControl = () => {
     const segmentWidth = (screenWidth - 32) / SEGMENTS.length;
 
+    // Let's manually reverse segments for RTL to have full control
+    const segmentsToRender = I18nManager.isRTL ? [...SEGMENTS].reverse() : SEGMENTS;
+    
     return (
       <View style={styles.segmentWrapper}>
-        <View style={styles.segmentedControl}>
+        <View style={[styles.segmentedControl, { flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' }]}>
           <Animated.View
             style={[
               styles.segmentIndicator,
@@ -341,44 +344,56 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                   {
                     translateX: slideAnimation.interpolate({
                       inputRange: [0, 1, 2, 3],
-                      // In RTL, the segments appear in reverse visual order
-                      // But we need to match the actual position of each segment
-                      // Let's use negative indices from the right
-                      outputRange: [
-                        (SEGMENTS.length - 1 - 0) * segmentWidth + 2, // index 0 -> position 3 from left
-                        (SEGMENTS.length - 1 - 1) * segmentWidth + 2, // index 1 -> position 2 from left
-                        (SEGMENTS.length - 1 - 2) * segmentWidth + 2, // index 2 -> position 1 from left
-                        (SEGMENTS.length - 1 - 3) * segmentWidth + 2, // index 3 -> position 0 from left
-                      ],
+                      // Now we control the order explicitly
+                      outputRange: I18nManager.isRTL 
+                        ? [
+                            segmentWidth * 3 + 2, // index 0 (عام) at rightmost
+                            segmentWidth * 2 + 2, // index 1 (تفاصيل) 
+                            segmentWidth + 2,     // index 2 (عائلة)
+                            2,                    // index 3 (تواصل) at leftmost
+                          ]
+                        : [
+                            2,
+                            segmentWidth + 2,
+                            segmentWidth * 2 + 2,
+                            segmentWidth * 3 + 2,
+                          ],
                     }),
                   },
                 ],
               },
             ]}
           />
-          {SEGMENTS.map((segment, index) => (
-            <TouchableOpacity
-              key={segment.id}
-              style={[styles.segment, { width: segmentWidth }]}
-              onPress={() => handleSegmentChange(index)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={segment.icon}
-                size={18}
-                color={activeSegment === index ? "#000" : "#8E8E93"}
-                style={styles.segmentIcon}
-              />
-              <Text
-                style={[
-                  styles.segmentText,
-                  activeSegment === index && styles.segmentTextActive,
-                ]}
+          {segmentsToRender.map((segment, visualIndex) => {
+            // Map visual index back to logical index
+            const logicalIndex = I18nManager.isRTL 
+              ? SEGMENTS.findIndex(s => s.id === segment.id)
+              : visualIndex;
+            
+            return (
+              <TouchableOpacity
+                key={segment.id}
+                style={[styles.segment, { width: segmentWidth }]}
+                onPress={() => handleSegmentChange(logicalIndex)}
+                activeOpacity={0.7}
               >
-                {segment.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Ionicons
+                  name={segment.icon}
+                  size={18}
+                  color={activeSegment === logicalIndex ? "#000" : "#8E8E93"}
+                  style={styles.segmentIcon}
+                />
+                <Text
+                  style={[
+                    styles.segmentText,
+                    activeSegment === logicalIndex && styles.segmentTextActive,
+                  ]}
+                >
+                  {segment.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -973,7 +988,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(60, 60, 67, 0.18)",
   },
   segmentedControl: {
-    flexDirection: "row",
+    // flexDirection will be set inline based on RTL
     backgroundColor: "rgba(118, 118, 128, 0.12)",
     borderRadius: 9,
     padding: 2,
