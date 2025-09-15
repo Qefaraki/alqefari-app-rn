@@ -478,7 +478,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
                     styles.toggleButtonText,
                     formData.status === "alive" && styles.toggleButtonTextActive,
                   ]}>
-                    على قيد الحياة
+                    حي
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
