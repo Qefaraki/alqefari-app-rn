@@ -582,7 +582,9 @@ const TreeView = ({
   const savedTranslateX = useSharedValue(stage.x);
   const savedTranslateY = useSharedValue(stage.y);
   const isPinching = useSharedValue(false);
-  // Removed focalX and focalY - using live focal points instead to fix zoom jumping
+  // Initial focal point tracking for proper zoom+pan on physical devices
+  const initialFocalX = useSharedValue(0);
+  const initialFocalY = useSharedValue(0);
 
   // Sync scale value to React state for use in render
   useAnimatedReaction(
@@ -1342,10 +1344,7 @@ const TreeView = ({
       }
     });
 
-  // DPR constant for DIP-aligned Skia (set to 1 to prevent coordinate mismatches)
-  const DPR = 1;
-
-  // Pinch gesture for zoom with pointer-anchored transform
+  // Pinch gesture for zoom with combined pan handling for physical iOS devices
   const pinchGesture = Gesture.Pinch()
     .onStart((e) => {
       "worklet";
@@ -1357,57 +1356,49 @@ const TreeView = ({
         cancelAnimation(translateY);
         cancelAnimation(scale);
 
-        // Now save the current stable values
+        // Save the current stable values
         savedScale.value = scale.value;
         savedTranslateX.value = translateX.value;
         savedTranslateY.value = translateY.value;
-      }
 
-      // Debug logging
-      // if (__DEV__) {
-      //   console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${e.focalX.toFixed(0)},${e.focalY.toFixed(0)}) Fingers:${e.numberOfPointers}`);
-      // }
+        // Store INITIAL focal point for anchoring zoom
+        initialFocalX.value = e.focalX;
+        initialFocalY.value = e.focalY;
+      }
     })
     .onUpdate((e) => {
       "worklet";
 
-      // Only process updates with two fingers to prevent focal point jumps
+      // Only process updates with two fingers
       if (e.numberOfPointers !== 2) {
         return;
       }
 
-      // Target scale
-      const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
+      // Calculate new scale
+      const newScale = clamp(savedScale.value * e.scale, minZoom, maxZoom);
 
-      // Live focal in canvas units (DPR = 1 for DIP)
-      const fx = e.focalX * DPR;
-      const fy = e.focalY * DPR;
+      // CRITICAL FIX: Track how much the focal point has moved (pan component)
+      const focalDeltaX = e.focalX - initialFocalX.value;
+      const focalDeltaY = e.focalY - initialFocalY.value;
 
-      // Convert focal to world coords using transform at gesture start
-      const wx = (fx - savedTranslateX.value) / savedScale.value;
-      const wy = (fy - savedTranslateY.value) / savedScale.value;
+      // Convert INITIAL focal point to world coordinates (not the moving one!)
+      const worldX =
+        (initialFocalX.value - savedTranslateX.value) / savedScale.value;
+      const worldY =
+        (initialFocalY.value - savedTranslateY.value) / savedScale.value;
 
-      // Keep world point under fingers
-      translateX.value = fx - s * wx;
-      translateY.value = fy - s * wy;
-      scale.value = s;
-
-      // DEBUG: Log significant scale changes only
-      // if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
-      //   console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${fx.toFixed(0)},${fy.toFixed(0)}) | World:(${wx.toFixed(0)},${wy.toFixed(0)})`);
-      // }
+      // Apply zoom around initial focal point, then add the pan from finger movement
+      translateX.value = initialFocalX.value - worldX * newScale + focalDeltaX;
+      translateY.value = initialFocalY.value - worldY * newScale + focalDeltaY;
+      scale.value = newScale;
     })
     .onEnd(() => {
       "worklet";
+      // Save final values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
       isPinching.value = false;
-
-      // Debug logging
-      // if (__DEV__) {
-      //   console.log(`✅ PINCH END: Scale:${scale.value.toFixed(2)} Pos:(${translateX.value.toFixed(0)},${translateY.value.toFixed(0)})`);
-      // }
     });
 
   // Tap gesture for selection with movement/time thresholds

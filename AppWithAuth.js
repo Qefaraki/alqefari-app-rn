@@ -269,9 +269,9 @@ export default function App() {
       } = await supabase.auth.getUser();
       setUser(user);
 
-      // If no user is logged in, they need to see onboarding
-      // If user IS logged in, they've already seen onboarding
-      setHasSeenOnboarding(false); // Always start with onboarding/auth flow
+      // If user IS logged in, they've seen onboarding
+      // If NO user, they need to see onboarding/auth
+      setHasSeenOnboarding(!!user); // true if user exists, false if not
     } catch (error) {
       console.error("Auth check error:", error);
     } finally {

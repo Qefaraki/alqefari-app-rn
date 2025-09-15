@@ -143,9 +143,8 @@ const PhotoGalleryMaps = ({
       for (let i = 0; i < assets.length; i++) {
         // Check if cancelled
         if (uploadCancelledRef.current) {
-          // Remove temporary photos
+          // Remove temporary photos silently
           setPhotos((prev) => prev.filter((p) => !p.isTemporary));
-          Alert.alert("ملغى", "تم إلغاء الرفع");
           return;
         }
 
@@ -225,8 +224,7 @@ const PhotoGalleryMaps = ({
     } catch (error) {
       console.error("Upload error:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("خطأ", "فشل رفع الصور");
-      // Remove temporary photos on error
+      // Remove temporary photos on error silently
       setPhotos((prev) => prev.filter((p) => !p.isTemporary));
     } finally {
       setUploading(false);
@@ -359,7 +357,19 @@ const PhotoGalleryMaps = ({
           {currentPhoto.isTemporary && (
             <View style={styles.uploadingOverlay}>
               <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.uploadingText}>جارِ الرفع...</Text>
+            </View>
+          )}
+
+          {/* Upload Progress - Subtle inline indicator */}
+          {uploading && uploadProgress.total > 0 && (
+            <View style={styles.uploadIndicator}>
+              <ActivityIndicator size="small" color="#6366f1" />
+              <Text style={styles.uploadText}>
+                {uploadProgress.current}/{uploadProgress.total}
+              </Text>
+              <TouchableOpacity onPress={handleCancelUpload}>
+                <Ionicons name="close-circle" size={20} color="#6b7280" />
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -380,31 +390,6 @@ const PhotoGalleryMaps = ({
             )}
           </TouchableOpacity>
         )
-      )}
-
-      {/* Upload Progress */}
-      {uploading && uploadProgress.total > 0 && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressText}>
-            رفع {uploadProgress.current} من {uploadProgress.total}
-          </Text>
-          <TouchableOpacity
-            onPress={handleCancelUpload}
-            style={styles.cancelButton}
-          >
-            <Text style={styles.cancelText}>إلغاء</Text>
-          </TouchableOpacity>
-        </View>
       )}
 
       {/* Horizontal Thumbnail Strip */}
@@ -536,37 +521,28 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
   },
-  progressContainer: {
-    marginHorizontal: 16,
-    marginBottom: 12,
+  uploadIndicator: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 100,
   },
-  progressBar: {
-    flex: 1,
-    height: 4,
-    backgroundColor: "#e5e7eb",
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#6366f1",
-  },
-  progressText: {
-    marginLeft: 12,
+  uploadText: {
     fontSize: 12,
     color: "#6b7280",
-  },
-  cancelButton: {
-    marginLeft: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  cancelText: {
-    color: "#ef4444",
-    fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   thumbnailScroll: {
     marginBottom: 12,
@@ -575,13 +551,13 @@ const styles = StyleSheet.create({
   thumbnailStrip: {
     paddingHorizontal: 16,
     paddingVertical: 8, // Add vertical padding to prevent cropping
-    gap: 8,
     flexDirection: "row",
     alignItems: "center",
   },
   thumbnailWrapper: {
     position: "relative",
     marginRight: 8,
+    marginTop: 6, // Space for delete button
   },
   thumbnail: {
     width: THUMBNAIL_SIZE,

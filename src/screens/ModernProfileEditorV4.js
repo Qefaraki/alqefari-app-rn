@@ -283,7 +283,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
       if (profileSheetProgress) {
-        profileSheetProgress.value = withTiming(0, { duration: 0 });
+        profileSheetProgress.value = 0; // Direct assignment
       }
       onClose();
       setTimeout(() => {
@@ -303,7 +303,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       setOriginalData(null);
       // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
       if (profileSheetProgress) {
-        profileSheetProgress.value = withTiming(0, { duration: 0 });
+        profileSheetProgress.value = 0; // Direct assignment
       }
       onClose();
     };
@@ -1013,9 +1013,13 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       animatedPosition={animatedPosition}
       onChange={handleSheetChange}
       onClose={() => {
+        console.log("[ModernProfileEditorV4] onClose called");
         // CRITICAL: Force reset profileSheetProgress to fix SearchBar visibility
         if (profileSheetProgress) {
-          profileSheetProgress.value = withTiming(0, { duration: 0 });
+          console.log(
+            "[ModernProfileEditorV4] Resetting profileSheetProgress to 0",
+          );
+          profileSheetProgress.value = 0; // Direct assignment
         }
         useTreeStore.setState({ profileSheetIndex: -1 });
         if (onClose) onClose();

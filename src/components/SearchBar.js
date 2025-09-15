@@ -18,6 +18,7 @@ import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
+import { useAdminMode } from "../contexts/AdminModeContext";
 
 const SearchBar = ({ onSelectResult, style }) => {
   const [query, setQuery] = useState("");
@@ -47,10 +48,20 @@ const SearchBar = ({ onSelectResult, style }) => {
   const isFirstMount = useRef(true);
   const lastOpacity = useRef(1);
   const animationRef = useRef(null);
+  const forceVisibleRef = useRef(false);
 
   // Bridge function to update regular Animated.Value from worklet
   const updateOpacity = useCallback(
     (value, sheetProgress) => {
+      // If force visible is set, ignore all updates and stay visible
+      if (forceVisibleRef.current) {
+        if (lastOpacity.current !== 1) {
+          lastOpacity.current = 1;
+          searchBarOpacity.setValue(1);
+        }
+        return;
+      }
+
       // CRITICAL FIX: Never trust opacity 0 unless sheet is actually open
       // This prevents false triggers from re-initialization or bridge timeouts
       if (value === 0 || value < 0.1) {

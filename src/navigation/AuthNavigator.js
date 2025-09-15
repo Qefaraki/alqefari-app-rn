@@ -1,6 +1,6 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
-import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
+import SimpleOnboardingScreen from "../screens/onboarding/SimpleOnboardingScreen";
 import PhoneAuthScreen from "../screens/auth/PhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
@@ -35,7 +35,7 @@ export default function AuthNavigator() {
     >
       <Stack.Screen
         name="Onboarding"
-        component={OnboardingScreen}
+        component={SimpleOnboardingScreen}
         options={{ gestureEnabled: false }}
       />
       <Stack.Screen
