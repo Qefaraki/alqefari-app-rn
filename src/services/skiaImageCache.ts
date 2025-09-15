@@ -172,7 +172,11 @@ class SkiaImageCache {
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status} for ${finalUrl}`);
+      // For 400/404 errors, these are likely deleted images - fail silently
+      if (response.status === 400 || response.status === 404) {
+        throw new Error(`Missing image`);
+      }
+      throw new Error(`HTTP ${response.status}`);
     }
 
     const arrayBuffer = await response.arrayBuffer();

@@ -777,6 +777,19 @@ const ProfileSheet = ({ editMode = false }) => {
             </View>
           )}
 
+          {/* Photo Gallery Section - Google Maps Style (replaces hero in edit mode) */}
+          {isEditing && person.id ? (
+            <PhotoGalleryMaps
+              profileId={person.id}
+              isEditMode={isEditing}
+              forceAdminMode={isEditing}
+              onPrimaryPhotoChange={(newPhotoUrl) => {
+                // Update the main photo when primary changes
+                setEditedData({ ...editedData, photo_url: newPhotoUrl });
+              }}
+            />
+          ) : null}
+
           {/* Unified hero card: image + description + metrics */}
           <View style={styles.cardWrapper}>
             {/* Show hero image in view mode only - gallery handles edit mode */}
@@ -913,21 +926,6 @@ const ProfileSheet = ({ editMode = false }) => {
               </View>
             </View>
           </View>
-
-          {/* Photo Gallery Section - Google Maps Style */}
-          {person.id && (
-            <PhotoGalleryMaps
-              profileId={person.id}
-              isEditMode={isEditing}
-              forceAdminMode={isEditing}
-              onPrimaryPhotoChange={(newPhotoUrl) => {
-                // Update the main photo when primary changes
-                if (isEditing) {
-                  setEditedData({ ...editedData, photo_url: newPhotoUrl });
-                }
-              }}
-            />
-          )}
 
           {/* Information section */}
           <SectionCard title="المعلومات">

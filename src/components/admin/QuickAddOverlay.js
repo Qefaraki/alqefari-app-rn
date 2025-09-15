@@ -35,10 +35,10 @@ import MotherSelector from "./fields/MotherSelector";
 // Enable RTL
 I18nManager.forceRTL(true);
 
-// Card dimensions - even more compact
-const CARD_WIDTH = 85;
-const CARD_HEIGHT = 85;
-const CARD_SPACING = 8;
+// Card dimensions - more compact
+const CARD_WIDTH = 110;
+const CARD_HEIGHT = 90;
+const CARD_SPACING = 10;
 
 // Draggable Child Card Component
 const DraggableChildCard = ({
@@ -170,11 +170,11 @@ const DraggableChildCard = ({
               onPress={handleDelete}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close-circle" size={16} color="rgba(0,0,0,0.5)" />
+              <Ionicons name="close-circle" size={18} color="#FF3B30" />
             </TouchableOpacity>
 
             <View style={styles.orderBadge}>
-              <Text style={styles.orderBadgeText}>{index + 1}</Text>
+              <Text style={styles.orderBadgeText}>{totalChildren - index}</Text>
             </View>
 
             <Text style={styles.childName} numberOfLines={2}>

@@ -276,7 +276,7 @@ const PhotoGalleryMaps = ({
   return (
     <View style={styles.container}>
       {/* Main/Primary Photo - Full width */}
-      {primaryPhoto && (
+      {primaryPhoto ? (
         <View style={styles.mainPhotoContainer}>
           <Image
             source={{ uri: primaryPhoto.photo_url }}
@@ -294,7 +294,20 @@ const PhotoGalleryMaps = ({
             </TouchableOpacity>
           )}
         </View>
-      )}
+      ) : isAdmin ? (
+        // Show add photo placeholder when no main photo in edit mode
+        <TouchableOpacity
+          style={styles.mainPhotoPlaceholder}
+          onPress={handleSelectPhoto}
+          disabled={uploading}
+        >
+          {uploading ? (
+            <ActivityIndicator size="large" color="#6366f1" />
+          ) : (
+            <Ionicons name="camera-outline" size={64} color="#9ca3af" />
+          )}
+        </TouchableOpacity>
+      ) : null}
 
       {/* Grid of other photos + add button */}
       {(otherPhotos.length > 0 || isAdmin) && (
@@ -380,6 +393,17 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     backgroundColor: "#f3f4f6",
+  },
+  mainPhotoPlaceholder: {
+    width: screenWidth,
+    height: screenWidth,
+    marginBottom: 2,
+    backgroundColor: "#f9fafb",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+    borderStyle: "dashed",
   },
   mainDeleteButton: {
     position: "absolute",

@@ -985,7 +985,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
 const styles = StyleSheet.create({
   sheetBackground: {
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "white", // Changed to white for top area
     borderTopLeftRadius: 13,
     borderTopRightRadius: 13,
   },
@@ -1006,7 +1006,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "rgba(255, 255, 255, 0.98)",
+    backgroundColor: "white",
     borderBottomWidth: 0.5,
     borderBottomColor: "rgba(60, 60, 67, 0.18)",
   },
