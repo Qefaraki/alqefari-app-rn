@@ -10,11 +10,17 @@ import {
   ActivityIndicator,
   Switch,
   Animated,
+  Dimensions,
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
+import {
+  useSharedValue,
+  useAnimatedReaction,
+  runOnJS,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import PhotoEditor from "../components/admin/fields/PhotoEditor";
@@ -25,6 +31,8 @@ import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useSettings } from "../contexts/SettingsContext";
 
+const { height: screenHeight } = Dimensions.get("window");
+
 const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const bottomSheetRef = useRef(null);
   const { isAdmin } = useAdminMode();
@@ -32,6 +40,25 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("basics");
   const [errors, setErrors] = useState({});
+  
+  // Get the global profileSheetProgress from store - CRITICAL for search bar opacity
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
+  
+  // Track sheet position for opacity animations
+  const animatedPosition = useSharedValue(0);
+  
+  // Update global progress when sheet moves - matching ProfileSheet behavior
+  useAnimatedReaction(
+    () => animatedPosition.value,
+    (currentPosition, previousPosition) => {
+      if (currentPosition !== previousPosition && profileSheetProgress) {
+        // Convert position to progress (0 = closed, 1 = fully open)
+        const progress = Math.min(1, Math.max(0, 1 - currentPosition / screenHeight));
+        profileSheetProgress.value = progress;
+      }
+    },
+    [profileSheetProgress, screenHeight],
+  );
   
   // Form data state - matching ProfileSheet structure
   const [formData, setFormData] = useState({
@@ -83,8 +110,16 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     }
   }, [profile]);
 
-  // Bottom sheet snap points
-  const snapPoints = useMemo(() => ["25%", "50%", "90%"], []);
+  // Bottom sheet snap points - matching ProfileSheet
+  const snapPoints = useMemo(() => ["40%", "90%", "100%"], []);
+  
+  // Track sheet state changes
+  const handleSheetChange = useCallback((index) => {
+    // Store the current sheet index if needed
+    useTreeStore.setState({
+      profileSheetIndex: index,
+    });
+  }, []);
 
   // Open/close sheet based on visible prop
   useEffect(() => {
@@ -234,7 +269,18 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     <BottomSheet
       ref={bottomSheetRef}
       snapPoints={snapPoints}
-      onClose={onClose}
+      animatedPosition={animatedPosition}
+      onChange={handleSheetChange}
+      onClose={() => {
+        // Reset the shared value properly when closing
+        if (profileSheetProgress) {
+          profileSheetProgress.value = 0;
+        }
+        useTreeStore.setState({
+          profileSheetIndex: -1,
+        });
+        onClose();
+      }}
       backdropComponent={renderBackdrop}
       handleComponent={renderHandle}
       backgroundStyle={styles.sheetBackground}
