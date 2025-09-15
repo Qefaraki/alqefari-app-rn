@@ -167,6 +167,7 @@ const PhotoGalleryMaps = ({
               storagePath,
             );
 
+          console.log(`Photo ${i + 1} uploaded to: ${url}`);
           if (uploadError) throw uploadError;
 
           const isPrimary = photos.length === 0 && i === 0;

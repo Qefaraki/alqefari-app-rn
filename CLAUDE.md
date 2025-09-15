@@ -331,9 +331,8 @@ git commit -m "type: Clear description of changes"
 5. **Check status** - `git status` before and after changes
 
 ### Documentation Updates
-When you change code, ALWAYS check if you need to update:
-- `CLAUDE.md` - For design system changes
-- `agents.md` - For implementation guidelines
+When you change code, update:
+- `CLAUDE.md` - For design/system changes
 - `README.md` - For major features
 - Component comments - For complex logic
 
@@ -353,7 +352,8 @@ node scripts/execute-sql.js migrations/new-migration.sql
 # If that fails, I'll create a direct deploy script
 node scripts/direct-deploy.js
 
-# The user should NEVER see SQL deployment instructions
+# ONLY after 5 failed attempts: Copy SQL to clipboard
+# NEVER ask user to find it themselves
 ```
 
 ### Database Change Workflow

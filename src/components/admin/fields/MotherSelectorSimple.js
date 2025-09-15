@@ -43,14 +43,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
     }
   }, [value, wives]);
 
-  // Auto-select if only one wife
-  useEffect(() => {
-    if (wives.length === 1 && !value) {
-      const singleWife = wives[0];
-      setSelectedMother(singleWife);
-      onChange(singleWife.wife_id);
-    }
-  }, [wives, value, onChange]);
+  // Removed auto-select - let user choose
 
   const loadWives = async () => {
     if (!fatherId) return;
@@ -126,7 +119,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   };
 
   const handleClear = (e) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     setSelectedMother(null);
     onChange(null);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
