@@ -172,6 +172,10 @@ const SearchBar = ({ onSelectResult, style }) => {
       }
 
       try {
+        // Import enhanced search service
+        const enhancedSearchService =
+          require("../services/enhancedSearchService").default;
+
         // Split the query by spaces to create name chain
         const names = searchText
           .trim()
@@ -180,11 +184,13 @@ const SearchBar = ({ onSelectResult, style }) => {
 
         console.log("Searching for:", names);
 
-        const { data, error } = await supabase.rpc("search_name_chain", {
-          p_names: names,
-          p_limit: 20,
-          p_offset: 0,
-        });
+        // Use enhanced search with fuzzy matching
+        const { data, error } =
+          await enhancedSearchService.searchWithFuzzyMatching(names, {
+            limit: 20,
+            fuzzyThreshold: 0.7,
+            includePartialMatches: true,
+          });
 
         if (error) {
           console.error("Search error:", error);
@@ -192,8 +198,14 @@ const SearchBar = ({ onSelectResult, style }) => {
           setShowResults(false);
         } else {
           console.log("Search results:", data?.length || 0, "items");
-          setResults(data || []);
-          if ((data || []).length > 0) {
+          // Add match type indicator to results
+          const enhancedResults = (data || []).map((result) => ({
+            ...result,
+            isFuzzyMatch: result.matchType === "fuzzy",
+          }));
+
+          setResults(enhancedResults);
+          if (enhancedResults.length > 0) {
             setShowResults(true);
             // Apple-style smooth entrance
             Animated.parallel([
@@ -367,6 +379,11 @@ const SearchBar = ({ onSelectResult, style }) => {
               <Text style={[styles.generationText, { color: desertColor }]}>
                 الجيل {toArabicNumerals(item.generation?.toString() || "0")}
               </Text>
+              {item.isFuzzyMatch && (
+                <View style={styles.fuzzyBadge}>
+                  <Text style={styles.fuzzyBadgeText}>تقريبي</Text>
+                </View>
+              )}
             </View>
           </View>
 

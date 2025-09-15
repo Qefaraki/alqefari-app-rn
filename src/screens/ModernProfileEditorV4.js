@@ -321,6 +321,37 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const renderSegmentedControl = () => {
     const segmentWidth = (screenWidth - 32) / SEGMENTS.length;
     
+    // Calculate position based on RTL
+    const getIndicatorStyle = () => {
+      if (I18nManager.isRTL) {
+        // In RTL, use right positioning
+        return {
+          right: slideAnimation.interpolate({
+            inputRange: [0, 1, 2, 3],
+            outputRange: [
+              2,                          // index 0 - rightmost
+              segmentWidth + 2,           // index 1 - move left
+              segmentWidth * 2 + 2,       // index 2 - move more left
+              segmentWidth * 3 + 2        // index 3 - leftmost
+            ],
+          })
+        };
+      } else {
+        // In LTR, use left positioning
+        return {
+          left: slideAnimation.interpolate({
+            inputRange: [0, 1, 2, 3],
+            outputRange: [
+              2,
+              segmentWidth + 2,
+              segmentWidth * 2 + 2,
+              segmentWidth * 3 + 2
+            ],
+          })
+        };
+      }
+    };
+    
     return (
       <View style={styles.segmentWrapper}>
         <View style={styles.segmentedControl}>
@@ -329,46 +360,31 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
               styles.segmentIndicator,
               {
                 width: segmentWidth - 4,
-                transform: [{
-                  translateX: slideAnimation.interpolate({
-                    inputRange: [0, 1, 2, 3],
-                    // RTL: segments go from right to left, so reverse the output
-                    outputRange: I18nManager.isRTL 
-                      ? [segmentWidth * 3 + 2, segmentWidth * 2 + 2, segmentWidth + 2, 2]
-                      : [2, segmentWidth + 2, segmentWidth * 2 + 2, segmentWidth * 3 + 2],
-                  })
-                }],
+                ...getIndicatorStyle(),
               },
             ]}
           />
-          {(I18nManager.isRTL ? [...SEGMENTS].reverse() : SEGMENTS).map((segment, visualIndex) => {
-            // In RTL, visual index is reversed but logical index stays the same
-            const logicalIndex = I18nManager.isRTL 
-              ? SEGMENTS.length - 1 - visualIndex 
-              : visualIndex;
-            
-            return (
-              <TouchableOpacity
-                key={segment.id}
-                style={[styles.segment, { width: segmentWidth }]}
-                onPress={() => handleSegmentChange(logicalIndex)}
-                activeOpacity={0.7}
-              >
-                <Ionicons 
-                  name={segment.icon} 
-                  size={18} 
-                  color={activeSegment === logicalIndex ? "#000" : "#8E8E93"} 
-                  style={styles.segmentIcon}
-                />
-                <Text style={[
-                  styles.segmentText,
-                  activeSegment === logicalIndex && styles.segmentTextActive,
-                ]}>
-                  {segment.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {SEGMENTS.map((segment, index) => (
+            <TouchableOpacity
+              key={segment.id}
+              style={[styles.segment, { width: segmentWidth }]}
+              onPress={() => handleSegmentChange(index)}
+              activeOpacity={0.7}
+            >
+              <Ionicons 
+                name={segment.icon} 
+                size={18} 
+                color={activeSegment === index ? "#000" : "#8E8E93"} 
+                style={styles.segmentIcon}
+              />
+              <Text style={[
+                styles.segmentText,
+                activeSegment === index && styles.segmentTextActive,
+              ]}>
+                {segment.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     );

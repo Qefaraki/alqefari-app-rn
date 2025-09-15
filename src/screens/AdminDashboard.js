@@ -351,18 +351,48 @@ const AdminDashboard = ({ onClose, user }) => {
     try {
       setExporting(true);
 
+      // Fetch all profiles with relationships
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select(
+          `
+          *,
+          marriages:marriages!husband_id(
+            *,
+            wife:wife_id(name),
+            husband:husband_id(name)
+          )
+        `,
+        )
+        .order("generation", { ascending: true })
+        .order("sibling_order", { ascending: true });
 
-      const jsonData = JSON.stringify(profiles, null, 2);
-      const fileUri = FileSystem.documentDirectory + "alqefari_backup.json";
+      if (!profiles || profiles.length === 0) {
+        Alert.alert("تنبيه", "لا توجد بيانات للتصدير");
+        return;
+      }
 
-      await FileSystem.writeAsStringAsync(fileUri, jsonData);
-      await Sharing.shareAsync(fileUri);
+      // Import the export service
+      const exportService = require("../services/exportService").default;
+
+      // Export as PDF with all features
+      const result = await exportService.exportToPDF(profiles, {
+        title: "شجرة عائلة القفاري - تقرير كامل",
+        includePhotos: true,
+        includeMarriages: true,
+        includeDates: true,
+        rtl: true,
+      });
+
+      if (result.success) {
+        // File has been shared automatically by the service
+        Alert.alert("نجح", "تم تصدير البيانات بصيغة PDF بنجاح");
+      } else {
+        throw new Error(result.error || "فشل التصدير");
+      }
     } catch (error) {
-      Alert.alert("خطأ", "فشل تصدير قاعدة البيانات");
+      console.error("Export error:", error);
+      Alert.alert("خطأ", "فشل تصدير قاعدة البيانات: " + error.message);
     } finally {
       setExporting(false);
     }
@@ -937,9 +967,9 @@ const AdminDashboard = ({ onClose, user }) => {
               disabled={exporting}
             >
               <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>💾</Text>
+                <Text style={styles.actionIcon}>📄</Text>
                 <Text style={styles.actionText}>
-                  {exporting ? "جاري التصدير..." : "تصدير قاعدة البيانات"}
+                  {exporting ? "جاري التصدير..." : "تصدير كـ PDF"}
                 </Text>
               </View>
               {exporting ? (
