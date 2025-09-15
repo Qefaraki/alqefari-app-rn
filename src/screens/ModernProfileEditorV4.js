@@ -332,20 +332,15 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 transform: [{
                   translateX: slideAnimation.interpolate({
                     inputRange: [0, 1, 2, 3],
-                    outputRange: I18nManager.isRTL 
-                      ? [
-                          // RTL: As index increases, we move LEFT (negative direction)
-                          (SEGMENTS.length - 1) * segmentWidth + 2,  // index 0 - rightmost
-                          (SEGMENTS.length - 2) * segmentWidth + 2,  // index 1 
-                          (SEGMENTS.length - 3) * segmentWidth + 2,  // index 2
-                          2                                           // index 3 - leftmost
-                        ]
-                      : [
-                          2,                          // index 0 - leftmost
-                          segmentWidth + 2,           // index 1
-                          segmentWidth * 2 + 2,       // index 2
-                          segmentWidth * 3 + 2        // index 3 - rightmost
-                        ],
+                    // In RTL, segments appear right-to-left but coordinates are still left-to-right
+                    // Index 0 (عام) is rightmost visually, but needs lowest X value
+                    // Index 3 (تواصل) is leftmost visually, but needs highest X value
+                    outputRange: [
+                      2,                          // index 0 - rightmost segment (عام)
+                      segmentWidth + 2,           // index 1 - second from right (تفاصيل)
+                      segmentWidth * 2 + 2,       // index 2 - third from right (عائلة)
+                      segmentWidth * 3 + 2        // index 3 - leftmost segment (تواصل)
+                    ],
                   })
                 }],
               },

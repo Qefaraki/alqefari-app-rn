@@ -372,21 +372,20 @@ const AdminDashboard = ({ onClose, user }) => {
         return;
       }
 
-      // Import the export service
-      const exportService = require("../services/exportService").default;
+      // Import the simple export service
+      const simpleExportService =
+        require("../services/simpleExportService").default;
 
-      // Export as PDF with all features
-      const result = await exportService.exportToPDF(profiles, {
-        title: "شجرة عائلة القفاري - تقرير كامل",
-        includePhotos: true,
+      // Export as formatted text file
+      const result = await simpleExportService.exportAsFormattedText(profiles, {
+        title: "شجرة عائلة القفاري",
         includeMarriages: true,
         includeDates: true,
-        rtl: true,
+        includeContact: true,
       });
 
       if (result.success) {
-        // File has been shared automatically by the service
-        Alert.alert("نجح", "تم تصدير البيانات بصيغة PDF بنجاح");
+        Alert.alert("نجح", "تم تصدير البيانات بنجاح");
       } else {
         throw new Error(result.error || "فشل التصدير");
       }
@@ -969,7 +968,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <View style={styles.actionContent}>
                 <Text style={styles.actionIcon}>📄</Text>
                 <Text style={styles.actionText}>
-                  {exporting ? "جاري التصدير..." : "تصدير كـ PDF"}
+                  {exporting ? "جاري التصدير..." : "تصدير التقرير"}
                 </Text>
               </View>
               {exporting ? (
