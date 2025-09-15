@@ -560,7 +560,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       case "family":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: fadeAnimation }]}>
+          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>الزيجات</Text>
@@ -665,7 +665,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       case "contact":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: fadeAnimation }]}>
+          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
             <View style={styles.card}>
               <Text style={styles.cardTitle}>معلومات الاتصال</Text>
               {renderField("رقم الهاتف", editedData.phone, (text) =>
