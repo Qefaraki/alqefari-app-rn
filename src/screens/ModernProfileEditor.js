@@ -25,6 +25,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import PhotoEditor from "../components/admin/fields/PhotoEditor";
 import DateEditor from "../components/admin/fields/DateEditor";
+import SocialMediaEditor from "../components/admin/SocialMediaEditor";
 import profilesService from "../services/profiles";
 import { supabase } from "../services/supabase";
 import { validateDates } from "../utils/dateUtils";
@@ -61,92 +62,38 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     [profileSheetProgress, screenHeight],
   );
   
-  // Form data state - matching ProfileSheet structure
-  const [formData, setFormData] = useState({
-    name: "",
-    kunya: "",
-    nickname: "",
-    gender: "male",
-    status: "alive",
-    sibling_order: 0,
-    birth_date: null,
-    death_date: null,
-    birth_place: "",
-    current_residence: "",
-    bio: "",
-    occupation: "",
-    education: "",
-    location: "",
-    phone: "",
-    email: "",
-    photo_url: "",
-    twitter: "",
-    instagram: "",
-    snapchat: "",
-    facebook: "",
-    linkedin: "",
-    dob_is_public: true,
-  });
+  // Form data state - EXACTLY matching ProfileSheet structure
+  const [editedData, setEditedData] = useState(null);
+  const [originalData, setOriginalData] = useState(null);
 
-  // Initialize form data from profile
+  // Initialize form data from profile - matching ProfileSheet exactly
   useEffect(() => {
-    if (profile) {
-      // Prepare date data for DateEditor format
-      const birthDateData = profile.birth_date || profile.date_of_birth ? {
-        gregorian: { 
-          day: profile.birth_day, 
-          month: profile.birth_month, 
-          year: profile.birth_year 
-        },
-        hijri: { 
-          day: profile.birth_hijri_day, 
-          month: profile.birth_hijri_month, 
-          year: profile.birth_hijri_year 
-        },
-        approximate: profile.birth_approximate || false
-      } : null;
-      
-      const deathDateData = profile.death_date || profile.date_of_death ? {
-        gregorian: { 
-          day: profile.death_day, 
-          month: profile.death_month, 
-          year: profile.death_year 
-        },
-        hijri: { 
-          day: profile.death_hijri_day, 
-          month: profile.death_hijri_month, 
-          year: profile.death_hijri_year 
-        },
-        approximate: profile.death_approximate || false
-      } : null;
-      
-      setFormData({
+    if (profile && visible && !editedData) {
+      const initialData = {
         name: profile.name || "",
         kunya: profile.kunya || "",
         nickname: profile.nickname || "",
         gender: profile.gender || "male",
         status: profile.status || "alive",
         sibling_order: profile.sibling_order || 0,
-        birth_date: birthDateData,
-        death_date: deathDateData,
+        bio: profile.bio || "",
         birth_place: profile.birth_place || "",
         current_residence: profile.current_residence || "",
-        bio: profile.biography || profile.bio || "",
         occupation: profile.occupation || "",
         education: profile.education || "",
-        location: profile.location || "",
         phone: profile.phone || "",
         email: profile.email || "",
         photo_url: profile.photo_url || "",
-        twitter: profile.twitter || "",
-        instagram: profile.instagram || "",
-        snapchat: profile.snapchat || "",
-        facebook: profile.facebook || "",
-        linkedin: profile.linkedin || "",
+        social_media_links: profile.social_media_links || {},
+        dob_data: profile.dob_data || null,
+        dod_data: profile.dod_data || null,
         dob_is_public: profile.dob_is_public ?? true,
-      });
+        profile_visibility: profile.profile_visibility || "family",
+      };
+      setEditedData(initialData);
+      setOriginalData(initialData);
     }
-  }, [profile]);
+  }, [profile, visible]);
 
   // Bottom sheet snap points - matching ProfileSheet
   const snapPoints = useMemo(() => ["40%", "90%", "100%"], []);
@@ -172,79 +119,75 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   }, [visible]);
 
   const hasChanges = useMemo(() => {
-    if (!profile) return false;
-    return Object.keys(formData).some(key => {
-      const originalValue = profile[key] || "";
-      const currentValue = formData[key] || "";
-      return originalValue !== currentValue;
-    });
-  }, [formData, profile]);
+    if (!editedData || !originalData) return false;
+    return JSON.stringify(editedData) !== JSON.stringify(originalData);
+  }, [editedData, originalData]);
 
+  // EXACT copy of ProfileSheet's handleSave
   const handleSave = async () => {
+    if (!editedData || !profile) return;
+
     setSaving(true);
     try {
-      // Prepare data for saving - flatten DateEditor format
-      const saveData = { ...formData };
-      
-      // Convert birth_date from DateEditor format
-      if (formData.birth_date) {
-        const bd = formData.birth_date;
-        if (bd.gregorian) {
-          saveData.birth_day = bd.gregorian.day;
-          saveData.birth_month = bd.gregorian.month;
-          saveData.birth_year = bd.gregorian.year;
+      // Validate email if provided
+      if (editedData.email && editedData.email.trim()) {
+        const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+        if (!emailRegex.test(editedData.email.trim())) {
+          Alert.alert("خطأ", "البريد الإلكتروني غير صالح");
+          setSaving(false);
+          return;
         }
-        if (bd.hijri) {
-          saveData.birth_hijri_day = bd.hijri.day;
-          saveData.birth_hijri_month = bd.hijri.month;
-          saveData.birth_hijri_year = bd.hijri.year;
-        }
-        saveData.birth_approximate = bd.approximate || false;
       }
-      
-      // Convert death_date from DateEditor format
-      if (formData.death_date) {
-        const dd = formData.death_date;
-        if (dd.gregorian) {
-          saveData.death_day = dd.gregorian.day;
-          saveData.death_month = dd.gregorian.month;
-          saveData.death_year = dd.gregorian.year;
-        }
-        if (dd.hijri) {
-          saveData.death_hijri_day = dd.hijri.day;
-          saveData.death_hijri_month = dd.hijri.month;
-          saveData.death_hijri_year = dd.hijri.year;
-        }
-        saveData.death_approximate = dd.approximate || false;
-      }
-      
-      // Remove the nested date objects
-      delete saveData.birth_date;
-      delete saveData.death_date;
 
-      // Update profile
-      const { error } = await supabase
-        .from('profiles')
-        .update(saveData)
-        .eq('id', profile.id);
+      // Clean data before saving - convert empty strings to null for nullable fields
+      const cleanedData = {
+        ...editedData,
+        // Convert empty strings to null for nullable fields
+        email: editedData.email?.trim() || null,
+        phone: editedData.phone?.trim() || null,
+        kunya: editedData.kunya?.trim() || null,
+        nickname: editedData.nickname?.trim() || null,
+        bio: editedData.bio?.trim() || null,
+        birth_place: editedData.birth_place?.trim() || null,
+        current_residence: editedData.current_residence?.trim() || null,
+        occupation: editedData.occupation?.trim() || null,
+        education: editedData.education?.trim() || null,
+        photo_url: editedData.photo_url?.trim() || null,
+        // Keep non-nullable fields as is
+        name: editedData.name?.trim() || profile.name, // Name is required
+        gender: editedData.gender,
+        status: editedData.status,
+        sibling_order: editedData.sibling_order,
+        // Keep complex fields as is
+        social_media_links: editedData.social_media_links,
+        dob_data: editedData.dob_data,
+        dod_data: editedData.dod_data,
+        dob_is_public: editedData.dob_is_public,
+        profile_visibility: editedData.profile_visibility,
+      };
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .update(cleanedData)
+        .eq("id", profile.id)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      Alert.alert("تم الحفظ", "تم حفظ التغييرات بنجاح", [
-        { 
-          text: "موافق",
-          onPress: () => {
-            onSave?.(saveData);
-            onClose();
-          }
-        }
-      ]);
-      
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Update the node in the tree immediately
+      if (data) {
+        useTreeStore.getState().updateNode(profile.id, data);
+      }
+
+      // Close and show success
+      onClose();
+      setTimeout(() => {
+        Alert.alert("نجح", "تم حفظ التغييرات");
+      }, 100);
     } catch (error) {
       console.error("Error saving profile:", error);
-      Alert.alert("خطأ", "حدث خطأ أثناء حفظ التغييرات");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("خطأ", "فشل حفظ التغييرات");
     } finally {
       setSaving(false);
     }
@@ -257,7 +200,15 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         "سيتم فقدان جميع التغييرات غير المحفوظة",
         [
           { text: "متابعة التحرير", style: "cancel" },
-          { text: "إلغاء التغييرات", style: "destructive", onPress: onClose },
+          { 
+            text: "إلغاء التغييرات", 
+            style: "destructive", 
+            onPress: () => {
+              setEditedData(null);
+              setOriginalData(null);
+              onClose();
+            }
+          },
         ]
       );
     } else {
@@ -334,7 +285,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     );
   };
 
-  if (!visible) return null;
+  if (!visible || !editedData) return null;
 
   return (
     <BottomSheet
@@ -399,8 +350,8 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         {/* Photo Editor - from ProfileSheet */}
         <View style={styles.photoSection}>
           <PhotoEditor
-            value={formData.photo_url || ""}
-            onChange={(url) => setFormData({ ...formData, photo_url: url })}
+            value={editedData.photo_url || ""}
+            onChange={(url) => setEditedData({ ...editedData, photo_url: url })}
             currentPhotoUrl={profile?.photo_url}
             personName={profile?.name}
             profileId={profile?.id}
@@ -410,21 +361,21 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         {/* Basic Information */}
         {renderSection("المعلومات الأساسية", "basics", (
           <>
-            {renderField("الاسم الكامل", formData.name, (text) =>
-              setFormData({ ...formData, name: text }),
+            {renderField("الاسم الكامل", editedData.name, (text) =>
+              setEditedData({ ...editedData, name: text }),
               { field: "name" }
             )}
-            {renderField("الكنية", formData.kunya, (text) =>
-              setFormData({ ...formData, kunya: text }),
+            {renderField("الكنية", editedData.kunya, (text) =>
+              setEditedData({ ...editedData, kunya: text }),
               { placeholder: "أبو فلان / أم فلان" }
             )}
-            {renderField("اللقب", formData.nickname, (text) =>
-              setFormData({ ...formData, nickname: text })
+            {renderField("اللقب", editedData.nickname, (text) =>
+              setEditedData({ ...editedData, nickname: text })
             )}
             
             {/* Sibling Order */}
-            {renderField("ترتيب الميلاد", String(formData.sibling_order || ""), (text) =>
-              setFormData({ ...formData, sibling_order: parseInt(text) || 0 }),
+            {renderField("ترتيب الميلاد", String(editedData.sibling_order || ""), (text) =>
+              setEditedData({ ...editedData, sibling_order: parseInt(text) || 0 }),
               { keyboardType: "numeric", placeholder: "الترتيب بين الإخوة" }
             )}
             
@@ -435,13 +386,13 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
                 <TouchableOpacity
                   style={[
                     styles.toggleButton,
-                    formData.gender === "male" && styles.toggleButtonActive,
+                    editedData.gender === "male" && styles.toggleButtonActive,
                   ]}
-                  onPress={() => setFormData({ ...formData, gender: "male" })}
+                  onPress={() => setEditedData({ ...editedData, gender: "male" })}
                 >
                   <Text style={[
                     styles.toggleButtonText,
-                    formData.gender === "male" && styles.toggleButtonTextActive,
+                    editedData.gender === "male" && styles.toggleButtonTextActive,
                   ]}>
                     ذكر
                   </Text>
@@ -449,13 +400,13 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
                 <TouchableOpacity
                   style={[
                     styles.toggleButton,
-                    formData.gender === "female" && styles.toggleButtonActive,
+                    editedData.gender === "female" && styles.toggleButtonActive,
                   ]}
-                  onPress={() => setFormData({ ...formData, gender: "female" })}
+                  onPress={() => setEditedData({ ...editedData, gender: "female" })}
                 >
                   <Text style={[
                     styles.toggleButtonText,
-                    formData.gender === "female" && styles.toggleButtonTextActive,
+                    editedData.gender === "female" && styles.toggleButtonTextActive,
                   ]}>
                     أنثى
                   </Text>
@@ -470,13 +421,13 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
                 <TouchableOpacity
                   style={[
                     styles.toggleButton,
-                    formData.status === "alive" && styles.toggleButtonActive,
+                    editedData.status === "alive" && styles.toggleButtonActive,
                   ]}
-                  onPress={() => setFormData({ ...formData, status: "alive" })}
+                  onPress={() => setEditedData({ ...editedData, status: "alive" })}
                 >
                   <Text style={[
                     styles.toggleButtonText,
-                    formData.status === "alive" && styles.toggleButtonTextActive,
+                    editedData.status === "alive" && styles.toggleButtonTextActive,
                   ]}>
                     حي
                   </Text>
@@ -484,13 +435,13 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
                 <TouchableOpacity
                   style={[
                     styles.toggleButton,
-                    formData.status === "deceased" && styles.toggleButtonActive,
+                    editedData.status === "deceased" && styles.toggleButtonActive,
                   ]}
-                  onPress={() => setFormData({ ...formData, status: "deceased" })}
+                  onPress={() => setEditedData({ ...editedData, status: "deceased" })}
                 >
                   <Text style={[
                     styles.toggleButtonText,
-                    formData.status === "deceased" && styles.toggleButtonTextActive,
+                    editedData.status === "deceased" && styles.toggleButtonTextActive,
                   ]}>
                     متوفى
                   </Text>
@@ -503,25 +454,22 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         {/* Personal Information */}
         {renderSection("المعلومات الشخصية", "personal", (
           <>
-            {renderField("السيرة الذاتية", formData.bio, (text) =>
-              setFormData({ ...formData, bio: text }),
+            {renderField("السيرة الذاتية", editedData.bio, (text) =>
+              setEditedData({ ...editedData, bio: text }),
               { multiline: true, maxLength: 500, placeholder: "اكتب نبذة عن نفسك..." }
             )}
-            {renderField("المهنة", formData.occupation, (text) =>
-              setFormData({ ...formData, occupation: text })
+            {renderField("المهنة", editedData.occupation, (text) =>
+              setEditedData({ ...editedData, occupation: text })
             )}
-            {renderField("التعليم", formData.education, (text) =>
-              setFormData({ ...formData, education: text }),
+            {renderField("التعليم", editedData.education, (text) =>
+              setEditedData({ ...editedData, education: text }),
               { placeholder: "المؤهل العلمي" }
             )}
-            {renderField("مكان الميلاد", formData.birth_place, (text) =>
-              setFormData({ ...formData, birth_place: text })
+            {renderField("مكان الميلاد", editedData.birth_place, (text) =>
+              setEditedData({ ...editedData, birth_place: text })
             )}
-            {renderField("مكان الإقامة الحالي", formData.current_residence, (text) =>
-              setFormData({ ...formData, current_residence: text })
-            )}
-            {renderField("المدينة", formData.location, (text) =>
-              setFormData({ ...formData, location: text })
+            {renderField("مكان الإقامة الحالي", editedData.current_residence, (text) =>
+              setEditedData({ ...editedData, current_residence: text })
             )}
           </>
         ))}
@@ -537,14 +485,14 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
               </View>
               <DateEditor
                 label=""
-                value={formData.birth_date}
-                onChange={(value) => setFormData({ ...formData, birth_date: value })}
+                value={editedData.dob_data}
+                onChange={(value) => setEditedData({ ...editedData, dob_data: value })}
                 error={errors.birth_date}
               />
             </View>
             
             {/* Death Date Section - only show if deceased */}
-            {formData.status === "deceased" && (
+            {editedData.status === "deceased" && (
               <View style={[styles.dateSection, { marginTop: 16 }]}>
                 <View style={styles.dateSectionHeader}>
                   <Ionicons name="rose-outline" size={20} color="#666" />
@@ -552,8 +500,8 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
                 </View>
                 <DateEditor
                   label=""
-                  value={formData.death_date}
-                  onChange={(value) => setFormData({ ...formData, death_date: value })}
+                  value={editedData.dod_data}
+                  onChange={(value) => setEditedData({ ...editedData, dod_data: value })}
                   error={errors.death_date}
                 />
               </View>
@@ -564,41 +512,23 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         {/* Contact Information */}
         {renderSection("معلومات التواصل", "contact", (
           <>
-            {renderField("رقم الهاتف", formData.phone, (text) =>
-              setFormData({ ...formData, phone: text }),
+            {renderField("رقم الهاتف", editedData.phone, (text) =>
+              setEditedData({ ...editedData, phone: text }),
               { keyboardType: "phone-pad", placeholder: "05xxxxxxxx" }
             )}
-            {renderField("البريد الإلكتروني", formData.email, (text) =>
-              setFormData({ ...formData, email: text }),
+            {renderField("البريد الإلكتروني", editedData.email, (text) =>
+              setEditedData({ ...editedData, email: text }),
               { keyboardType: "email-address", placeholder: "example@email.com" }
             )}
           </>
         ))}
 
-        {/* Social Media */}
+        {/* Social Media - using the proper SocialMediaEditor component */}
         {renderSection("وسائل التواصل الاجتماعي", "social", (
-          <>
-            {renderField("تويتر", formData.twitter, (text) =>
-              setFormData({ ...formData, twitter: text }),
-              { placeholder: "@username" }
-            )}
-            {renderField("انستجرام", formData.instagram, (text) =>
-              setFormData({ ...formData, instagram: text }),
-              { placeholder: "@username" }
-            )}
-            {renderField("سناب شات", formData.snapchat, (text) =>
-              setFormData({ ...formData, snapchat: text }),
-              { placeholder: "username" }
-            )}
-            {renderField("فيسبوك", formData.facebook, (text) =>
-              setFormData({ ...formData, facebook: text }),
-              { placeholder: "facebook.com/username" }
-            )}
-            {renderField("لينكد إن", formData.linkedin, (text) =>
-              setFormData({ ...formData, linkedin: text }),
-              { placeholder: "linkedin.com/in/username" }
-            )}
-          </>
+          <SocialMediaEditor
+            links={editedData.social_media_links || {}}
+            onChange={(links) => setEditedData({ ...editedData, social_media_links: links })}
+          />
         ))}
 
         {/* Privacy Settings */}
@@ -611,9 +541,9 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
               </Text>
             </View>
             <Switch
-              value={formData.dob_is_public}
+              value={editedData.dob_is_public}
               onValueChange={(value) =>
-                setFormData({ ...formData, dob_is_public: value })
+                setEditedData({ ...editedData, dob_is_public: value })
               }
               trackColor={{ false: "#E0E0E0", true: "#007AFF" }}
               thumbColor="white"
