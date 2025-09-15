@@ -780,17 +780,8 @@ const ProfileSheet = ({ editMode = false }) => {
 
           {/* Unified hero card: image + description + metrics */}
           <View style={styles.cardWrapper}>
-            {isEditing ? (
-              <PhotoEditor
-                value={editedData?.photo_url || ""}
-                onChange={(url) =>
-                  setEditedData({ ...editedData, photo_url: url })
-                }
-                currentPhotoUrl={person.photo_url}
-                personName={person.name}
-                profileId={person.id}
-              />
-            ) : person.photo_url ? (
+            {/* Show hero image in view mode only - gallery handles edit mode */}
+            {!isEditing && person.photo_url ? (
               <View style={styles.photoSection}>
                 <ProgressiveHeroImage
                   source={{ uri: person.photo_url }}

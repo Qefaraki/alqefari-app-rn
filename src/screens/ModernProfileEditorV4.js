@@ -35,6 +35,7 @@ import PhotoEditor from "../components/admin/fields/PhotoEditor";
 import DateEditor from "../components/admin/fields/DateEditor";
 import SocialMediaEditor from "../components/admin/SocialMediaEditor";
 import MarriageEditor from "../components/admin/MarriageEditor";
+import InlineSpouseAdder from "../components/InlineSpouseAdder";
 import profilesService from "../services/profiles";
 import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
@@ -68,6 +69,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const [marriages, setMarriages] = useState([]);
   const [loadingMarriages, setLoadingMarriages] = useState(false);
   const [showMarriageEditor, setShowMarriageEditor] = useState(false);
+  const [showInlineAdder, setShowInlineAdder] = useState(false);
 
   // Get the global profileSheetProgress from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -348,8 +350,8 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                         ? [
                             segmentWidth * 3 + 2, // index 0 -> rightmost visual position
                             segmentWidth * 2 + 2, // index 1 -> second from right
-                            segmentWidth + 2,     // index 2 -> second from left
-                            2,                    // index 3 -> leftmost visual position
+                            segmentWidth + 2, // index 2 -> second from left
+                            2, // index 3 -> leftmost visual position
                           ]
                         : [
                             2,
@@ -677,11 +679,22 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 </Text>
                 <TouchableOpacity
                   style={styles.addButton}
-                  onPress={() => setShowMarriageEditor(true)}
+                  onPress={() => setShowInlineAdder(true)}
                 >
                   <Ionicons name="add-circle" size={24} color="#007AFF" />
                 </TouchableOpacity>
               </View>
+
+              {/* Inline Spouse Adder */}
+              <InlineSpouseAdder
+                person={profile}
+                visible={showInlineAdder}
+                onAdded={() => {
+                  setShowInlineAdder(false);
+                  loadMarriages();
+                }}
+                onCancel={() => setShowInlineAdder(false)}
+              />
 
               {loadingMarriages ? (
                 <ActivityIndicator
@@ -807,7 +820,21 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+                <TouchableOpacity
+                  style={styles.emptyStateButton}
+                  onPress={() => setShowInlineAdder(true)}
+                >
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={32}
+                    color="#C7C7CC"
+                  />
+                  <Text style={styles.emptyText}>
+                    {editedData.gender === "male"
+                      ? "اضغط لإضافة زوجة"
+                      : "اضغط لإضافة زوج"}
+                  </Text>
+                </TouchableOpacity>
               )}
             </View>
           </Animated.View>
@@ -1222,9 +1249,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: "#8E8E93",
-    textAlign: I18nManager.isRTL ? "right" : "center",
-    marginVertical: 30,
+    textAlign: "center",
+    marginTop: 8,
     letterSpacing: -0.24,
+  },
+  emptyStateButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 30,
   },
   loadingContainer: {
     flex: 1,
