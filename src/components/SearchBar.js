@@ -575,10 +575,10 @@ const styles = {
     borderRadius: 24, // Match search bar radius
     borderTopLeftRadius: 20, // Slightly softer top
     borderTopRightRadius: 20,
-    maxHeight: 440,
+    maxHeight: 460, // Increased max height to prevent cropping
     overflow: "hidden",
     paddingTop: 12,
-    paddingBottom: 8, // Reduced bottom padding to prevent cropping
+    paddingBottom: 0, // Remove container padding, use content padding instead
     // Matching shadow system (slightly lighter)
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -587,12 +587,12 @@ const styles = {
     elevation: 3,
   },
   resultsList: {
-    maxHeight: 416,
+    maxHeight: 420, // Increased to allow full content visibility
     backgroundColor: "transparent",
   },
   resultsContent: {
     paddingTop: 0,
-    paddingBottom: 4, // Add small bottom padding to prevent last item cropping
+    paddingBottom: 12, // Increased bottom padding to ensure last item is fully visible
     paddingHorizontal: 12,
   },
   // Clean card design - no borders
@@ -609,7 +609,7 @@ const styles = {
     transform: [{ scale: 0.99 }],
   },
   lastCard: {
-    marginBottom: 0,
+    marginBottom: 12, // Add extra margin to last card to prevent cropping
   },
   cardContent: {
     flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
