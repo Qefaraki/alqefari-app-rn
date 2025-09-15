@@ -1,15 +1,13 @@
 {
   "expo": {
-    "name": "AlqefariTreeRN-Expo",
-    "slug": "AlqefariTreeRN-Expo",
+    "name": "Alqefari Family Tree",
+    "slug": "alqefari-family-tree",
     "version": "1.0.1",
+    "owner": "alqefari",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "platforms": [
-      "ios",
-      "android"
-    ],
+    "platforms": ["ios", "android"],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -22,14 +20,14 @@
     "ios": {
       "bundleIdentifier": "com.alqefari.familytree",
       "supportsTablet": true,
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
         "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي",
         "UISupportsDocumentBrowser": true,
         "CFBundleAllowMixedLocalizations": true,
         "CFBundleDevelopmentRegion": "ar"
-      },
-      "buildNumber": "202509150918"
+      }
     },
     "android": {
       "package": "com.alqefari.familytree",
@@ -47,8 +45,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-font"
-    ]
+    "plugins": ["expo-font"]
   }
 }

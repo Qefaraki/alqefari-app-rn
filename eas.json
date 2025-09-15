@@ -13,20 +13,18 @@
       }
     },
     "preview": {
-      "ios": {
-        "buildNumber": "auto",
-        "resourceClass": "m-medium"
-      },
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     },
     "production": {
-      "ios": {
-        "buildNumber": "auto",
-        "resourceClass": "m-medium"
-      },
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     }
   },
   "submit": {
