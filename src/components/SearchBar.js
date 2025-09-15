@@ -308,9 +308,11 @@ const SearchBar = ({ onSelectResult, style }) => {
       useNativeDriver: true,
     }).start();
     // Hide backdrop when blur happens
-    if (!showResults) {
-      hideResults();
-    }
+    Animated.timing(backdropOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
   };
 
   const renderResult = ({ item, index }) => {
@@ -430,9 +432,18 @@ const SearchBar = ({ onSelectResult, style }) => {
           <Pressable
             style={{ flex: 1 }}
             onPress={() => {
-              hideResults();
+              setQuery("");
+              setResults([]);
+              setShowResults(false);
+              setIsFocused(false);
               Keyboard.dismiss();
               inputRef.current?.blur();
+              // Animate backdrop out
+              Animated.timing(backdropOpacity, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+              }).start();
             }}
           />
         </Animated.View>
@@ -535,8 +546,8 @@ const styles = {
     left: 12,
     right: 12,
     height: 48, // Fixed height matching search bar
-    zIndex: 10000,
-    elevation: 1000,
+    zIndex: 10001, // Higher than backdrop
+    elevation: 1001,
   },
   searchBarContainer: {
     // Ultra-thin unified shadow
@@ -545,15 +556,6 @@ const styles = {
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 4,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24, // Full pill shape
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 0,
   },
   searchBar: {
     flexDirection: "row",

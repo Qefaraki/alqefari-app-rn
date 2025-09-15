@@ -32,6 +32,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import PhotoEditor from "../components/admin/fields/PhotoEditor";
+import PhotoGalleryMaps from "../components/PhotoGalleryMaps";
 import DateEditor from "../components/admin/fields/DateEditor";
 import SocialMediaEditor from "../components/admin/SocialMediaEditor";
 import MarriageEditor from "../components/admin/MarriageEditor";
@@ -58,12 +59,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const bottomSheetRef = useRef(null);
   const fadeAnimation = useRef(new Animated.Value(0)).current;
   const shimmerAnimation = useRef(new Animated.Value(0)).current;
-  
+
   // Create individual opacity animations for each segment
   const segmentOpacities = useRef(
-    SEGMENTS.map((_, index) => new Animated.Value(index === 0 ? 1 : 0))
+    SEGMENTS.map((_, index) => new Animated.Value(index === 0 ? 1 : 0)),
   ).current;
-  
+
   const { isAdmin } = useAdminMode();
   const { settings } = useSettings();
   const [saving, setSaving] = useState(false);
@@ -112,7 +113,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     }
   }, [isInitialized, visible]);
@@ -192,12 +193,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       // Reset states when opening
       setActiveSegment(0);
       fadeAnimation.setValue(0);
-      
+
       // Reset all segment indicators
       segmentOpacities.forEach((opacity, index) => {
         opacity.setValue(index === 0 ? 1 : 0);
       });
-      
+
       // Animate in after a short delay
       setTimeout(() => {
         Animated.timing(fadeAnimation, {
@@ -329,9 +330,9 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
   const handleSegmentChange = (index) => {
     if (index === activeSegment) return; // Don't re-animate if already selected
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     // Fade out current segment indicator and content
     Animated.parallel([
       // Fade out old indicator
@@ -349,7 +350,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     ]).start(() => {
       // Update active segment
       setActiveSegment(index);
-      
+
       // Fade in new indicator and content
       Animated.parallel([
         // Fade in new indicator
@@ -375,14 +376,17 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       <View style={styles.segmentWrapper}>
         <View style={styles.segmentedControl}>
           {SEGMENTS.map((segment, index) => (
-            <View key={segment.id} style={[styles.segmentContainer, { width: segmentWidth }]}>
+            <View
+              key={segment.id}
+              style={[styles.segmentContainer, { width: segmentWidth }]}
+            >
               {/* Individual indicator for each segment */}
               <Animated.View
                 style={[
                   styles.segmentIndicator,
                   {
                     opacity: segmentOpacities[index],
-                    position: 'absolute',
+                    position: "absolute",
                     top: 2,
                     left: 2,
                     right: 2,
@@ -447,57 +451,67 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     <View style={styles.skeletonContainer}>
       {/* Photo skeleton */}
       <View style={styles.skeletonPhotoCard}>
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.skeletonPhoto, 
-            { opacity: shimmerAnimation.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.3, 0.7]
-            })}
-          ]} 
+            styles.skeletonPhoto,
+            {
+              opacity: shimmerAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 0.7],
+              }),
+            },
+          ]}
         />
       </View>
-      
+
       {/* Fields skeleton */}
       <View style={styles.card}>
         <View style={styles.skeletonField}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.skeletonLabel,
-              { opacity: shimmerAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.3, 0.7]
-              })}
-            ]} 
+              {
+                opacity: shimmerAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
           />
-          <Animated.View 
+          <Animated.View
             style={[
               styles.skeletonInput,
-              { opacity: shimmerAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.3, 0.7]
-              })}
-            ]} 
+              {
+                opacity: shimmerAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
           />
         </View>
         <View style={styles.skeletonField}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.skeletonLabel,
-              { opacity: shimmerAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.3, 0.7]
-              })}
-            ]} 
+              {
+                opacity: shimmerAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
           />
-          <Animated.View 
+          <Animated.View
             style={[
               styles.skeletonInput,
-              { opacity: shimmerAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.3, 0.7]
-              })}
-            ]} 
+              {
+                opacity: shimmerAnimation.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
           />
         </View>
       </View>
@@ -647,6 +661,19 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 (val) => setEditedData({ ...editedData, sibling_order: val }),
                 { numeric: true, keyboardType: "number-pad" },
               )}
+
+              {/* Photo Gallery Section */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>معرض الصور</Text>
+                <PhotoGalleryMaps
+                  profileId={profileId}
+                  isEditMode={true}
+                  forceAdminMode={true}
+                  onPrimaryPhotoChange={(newPhotoUrl) => {
+                    setEditedData({ ...editedData, photo_url: newPhotoUrl });
+                  }}
+                />
+              </View>
             </View>
           </Animated.View>
         );
@@ -1105,7 +1132,7 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   segmentContainer: {
-    position: 'relative',
+    position: "relative",
   },
   segmentIndicator: {
     backgroundColor: "white",
@@ -1123,7 +1150,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     zIndex: 1,
     gap: 6,
-    position: 'relative',
+    position: "relative",
   },
   segmentIcon: {
     marginTop: 1,

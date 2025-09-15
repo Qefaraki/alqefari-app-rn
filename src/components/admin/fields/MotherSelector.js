@@ -8,11 +8,15 @@ import {
   ScrollView,
   Modal,
   SafeAreaView,
+  I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import CardSurface from "../../ios/CardSurface";
 import { supabase } from "../../../services/supabase";
+
+// Enable RTL
+I18nManager.forceRTL(true);
 
 const MotherSelector = ({ fatherId, value, onChange, label }) => {
   const [loading, setLoading] = useState(false);
@@ -115,7 +119,9 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
   if (!fatherId) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم"}</Text>
+        <View style={{ width: "100%", alignItems: "flex-end" }}>
+          <Text style={styles.label}>{label || "الأم"}</Text>
+        </View>
         <CardSurface>
           <View style={styles.disabledContent}>
             <Text style={styles.disabledText}>يجب اختيار الأب أولاً</Text>
@@ -129,7 +135,9 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
   if (!loading && wives.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم"}</Text>
+        <View style={{ width: "100%", alignItems: "flex-end" }}>
+          <Text style={styles.label}>{label || "الأم"}</Text>
+        </View>
         <CardSurface>
           <View style={styles.noWivesContent}>
             <Ionicons
@@ -148,7 +156,9 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label || "الأم"}</Text>
+      <View style={{ width: "100%", alignItems: "flex-end" }}>
+        <Text style={styles.label}>{label || "الأم"}</Text>
+      </View>
 
       <TouchableOpacity onPress={openSelector} activeOpacity={0.7}>
         <CardSurface>
@@ -271,7 +281,7 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
-    alignItems: "flex-end", // RTL: align content to right
+    width: "100%",
   },
   label: {
     fontSize: 14,
@@ -279,6 +289,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: "SF Arabic Regular",
     textAlign: "right",
+    alignSelf: "flex-end", // This will put the label on the right
   },
   selectorContent: {
     padding: 16,
