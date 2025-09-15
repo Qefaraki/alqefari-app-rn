@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -57,16 +63,16 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const [activeSegment, setActiveSegment] = useState(0);
   const [errors, setErrors] = useState({});
   const [isInitialized, setIsInitialized] = useState(false);
-  
+
   // Marriage related state
   const [marriages, setMarriages] = useState([]);
   const [loadingMarriages, setLoadingMarriages] = useState(false);
   const [showMarriageEditor, setShowMarriageEditor] = useState(false);
-  
+
   // Get the global profileSheetProgress from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
   const animatedPosition = useSharedValue(0);
-  
+
   // Track sheet position
   useAnimatedReaction(
     () => animatedPosition.value,
@@ -78,7 +84,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     },
     [profileSheetProgress, screenHeight],
   );
-  
+
   // Form data state
   const [editedData, setEditedData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
@@ -114,7 +120,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       };
       setEditedData(initialData);
       setOriginalData(initialData);
-      
+
       // Initialize animations properly
       setTimeout(() => {
         setIsInitialized(true);
@@ -146,7 +152,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
   const snapPoints = useMemo(() => ["50%", "90%", "100%"], []);
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
-  
+
   const handleSheetChange = useCallback((index) => {
     setCurrentSnapIndex(index);
     useTreeStore.setState({ profileSheetIndex: index });
@@ -159,7 +165,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       setActiveSegment(0);
       slideAnimation.setValue(0);
       fadeAnimation.setValue(0);
-      
+
       // Animate in after a short delay
       setTimeout(() => {
         Animated.timing(fadeAnimation, {
@@ -212,9 +218,11 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         gender: editedData.gender,
         status: editedData.status,
         sibling_order: editedData.sibling_order,
-        social_media_links: (editedData.social_media_links && Object.keys(editedData.social_media_links).length > 0) 
-          ? editedData.social_media_links 
-          : null,
+        social_media_links:
+          editedData.social_media_links &&
+          Object.keys(editedData.social_media_links).length > 0
+            ? editedData.social_media_links
+            : null,
         achievements: editedData.achievements || null,
         timeline: editedData.timeline || null,
         dob_data: editedData.dob_data,
@@ -258,16 +266,16 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         "سيتم فقدان جميع التغييرات غير المحفوظة",
         [
           { text: "متابعة", style: "cancel" },
-          { 
-            text: "تجاهل", 
-            style: "destructive", 
+          {
+            text: "تجاهل",
+            style: "destructive",
             onPress: () => {
               setEditedData(null);
               setOriginalData(null);
               onClose();
-            }
+            },
           },
-        ]
+        ],
       );
     } else {
       onClose();
@@ -284,14 +292,14 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         pressBehavior="close"
       />
     ),
-    []
+    [],
   );
 
   const handleSegmentChange = (index) => {
     if (index === activeSegment) return; // Don't re-animate if already selected
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     // Fade out current content
     Animated.timing(fadeAnimation, {
       toValue: 0,
@@ -300,7 +308,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     }).start(() => {
       // Update segment
       setActiveSegment(index);
-      
+
       // Animate slide to new position
       Animated.spring(slideAnimation, {
         toValue: index,
@@ -308,7 +316,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         friction: 20,
         useNativeDriver: true,
       }).start();
-      
+
       // Fade in new content
       Animated.timing(fadeAnimation, {
         toValue: 1,
@@ -320,30 +328,31 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
   const renderSegmentedControl = () => {
     const segmentWidth = (screenWidth - 32) / SEGMENTS.length;
-    
+
     return (
       <View style={styles.segmentWrapper}>
         <View style={styles.segmentedControl}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.segmentIndicator,
               {
                 width: segmentWidth - 4,
-                transform: [{
-                  translateX: slideAnimation.interpolate({
-                    inputRange: [0, 1, 2, 3],
-                    // RTL: flexDirection row reverses segment positions
-                    // Segment 0 appears rightmost, segment 3 appears leftmost
-                    // But translateX: 0 is still LEFT edge, high values go RIGHT
-                    // So segment 0 (rightmost) needs the HIGHEST translateX value!
-                    outputRange: [
-                      segmentWidth * 3 + 2,       // index 0 - rightmost position (عام)
-                      segmentWidth * 2 + 2,       // index 1 - second from right (تفاصيل)  
-                      segmentWidth + 2,           // index 2 - third from right (عائلة)
-                      2                           // index 3 - leftmost position (تواصل)
-                    ],
-                  })
-                }],
+                transform: [
+                  {
+                    translateX: slideAnimation.interpolate({
+                      inputRange: [0, 1, 2, 3],
+                      // In RTL, the segments appear in reverse visual order
+                      // But we need to match the actual position of each segment
+                      // Let's use negative indices from the right
+                      outputRange: [
+                        (SEGMENTS.length - 1 - 0) * segmentWidth + 2, // index 0 -> position 3 from left
+                        (SEGMENTS.length - 1 - 1) * segmentWidth + 2, // index 1 -> position 2 from left
+                        (SEGMENTS.length - 1 - 2) * segmentWidth + 2, // index 2 -> position 1 from left
+                        (SEGMENTS.length - 1 - 3) * segmentWidth + 2, // index 3 -> position 0 from left
+                      ],
+                    }),
+                  },
+                ],
               },
             ]}
           />
@@ -354,16 +363,18 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
               onPress={() => handleSegmentChange(index)}
               activeOpacity={0.7}
             >
-              <Ionicons 
-                name={segment.icon} 
-                size={18} 
-                color={activeSegment === index ? "#000" : "#8E8E93"} 
+              <Ionicons
+                name={segment.icon}
+                size={18}
+                color={activeSegment === index ? "#000" : "#8E8E93"}
                 style={styles.segmentIcon}
               />
-              <Text style={[
-                styles.segmentText,
-                activeSegment === index && styles.segmentTextActive,
-              ]}>
+              <Text
+                style={[
+                  styles.segmentText,
+                  activeSegment === index && styles.segmentTextActive,
+                ]}
+              >
                 {segment.label}
               </Text>
             </TouchableOpacity>
@@ -374,18 +385,18 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   };
 
   const renderField = (label, value, onChange, options = {}) => {
-    const { multiline, keyboardType, placeholder, maxLength, numeric } = options;
+    const { multiline, keyboardType, placeholder, maxLength, numeric } =
+      options;
     return (
       <View style={styles.fieldContainer}>
         <Text style={styles.fieldLabel}>{label}</Text>
         <View style={styles.fieldInputWrapper}>
           <TextInput
-            style={[
-              styles.fieldInput,
-              multiline && styles.multilineInput,
-            ]}
+            style={[styles.fieldInput, multiline && styles.multilineInput]}
             value={numeric ? String(value || "") : value}
-            onChangeText={(text) => onChange(numeric ? (parseInt(text) || 0) : text)}
+            onChangeText={(text) =>
+              onChange(numeric ? parseInt(text) || 0 : text)
+            }
             multiline={multiline}
             keyboardType={keyboardType}
             placeholder={placeholder}
@@ -410,82 +421,140 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     switch (SEGMENTS[activeSegment].id) {
       case "basic":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
+          <Animated.View
+            style={[
+              styles.contentSection,
+              { opacity: isInitialized ? fadeAnimation : 1 },
+            ]}
+          >
             <View style={styles.photoCard}>
               <PhotoEditor
                 value={editedData.photo_url || ""}
-                onChange={(url) => setEditedData({ ...editedData, photo_url: url })}
+                onChange={(url) =>
+                  setEditedData({ ...editedData, photo_url: url })
+                }
                 currentPhotoUrl={profile?.photo_url}
                 personName={profile?.name}
                 profileId={profile?.id}
               />
             </View>
-            
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>المعلومات الأساسية</Text>
               {renderField("الاسم الكامل", editedData.name, (text) =>
-                setEditedData({ ...editedData, name: text })
+                setEditedData({ ...editedData, name: text }),
               )}
               {renderField(
-                "الكنية", 
-                editedData.kunya, 
+                "الكنية",
+                editedData.kunya,
                 (text) => setEditedData({ ...editedData, kunya: text }),
-                { placeholder: editedData.gender === "female" ? "أم فلان" : "أبو فلان" }
+                {
+                  placeholder:
+                    editedData.gender === "female" ? "أم فلان" : "أبو فلان",
+                },
               )}
               {renderField("اللقب", editedData.nickname, (text) =>
-                setEditedData({ ...editedData, nickname: text })
+                setEditedData({ ...editedData, nickname: text }),
               )}
             </View>
-            
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>التصنيف</Text>
               <View style={styles.toggleSection}>
                 <Text style={styles.toggleLabel}>الجنس</Text>
                 <View style={styles.toggleContainer}>
                   <TouchableOpacity
-                    style={[styles.toggleOption, editedData.gender === "male" && styles.toggleOptionActive]}
-                    onPress={() => setEditedData({ ...editedData, gender: "male" })}
+                    style={[
+                      styles.toggleOption,
+                      editedData.gender === "male" && styles.toggleOptionActive,
+                    ]}
+                    onPress={() =>
+                      setEditedData({ ...editedData, gender: "male" })
+                    }
                   >
-                    <Text style={[styles.toggleText, editedData.gender === "male" && styles.toggleTextActive]}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        editedData.gender === "male" && styles.toggleTextActive,
+                      ]}
+                    >
                       ذكر
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.toggleOption, editedData.gender === "female" && styles.toggleOptionActive]}
-                    onPress={() => setEditedData({ ...editedData, gender: "female" })}
+                    style={[
+                      styles.toggleOption,
+                      editedData.gender === "female" &&
+                        styles.toggleOptionActive,
+                    ]}
+                    onPress={() =>
+                      setEditedData({ ...editedData, gender: "female" })
+                    }
                   >
-                    <Text style={[styles.toggleText, editedData.gender === "female" && styles.toggleTextActive]}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        editedData.gender === "female" &&
+                          styles.toggleTextActive,
+                      ]}
+                    >
                       أنثى
                     </Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              
+
               <View style={styles.toggleSection}>
                 <Text style={styles.toggleLabel}>الحالة</Text>
                 <View style={styles.toggleContainer}>
                   <TouchableOpacity
-                    style={[styles.toggleOption, editedData.status === "alive" && styles.toggleOptionActive]}
-                    onPress={() => setEditedData({ ...editedData, status: "alive" })}
+                    style={[
+                      styles.toggleOption,
+                      editedData.status === "alive" &&
+                        styles.toggleOptionActive,
+                    ]}
+                    onPress={() =>
+                      setEditedData({ ...editedData, status: "alive" })
+                    }
                   >
-                    <Text style={[styles.toggleText, editedData.status === "alive" && styles.toggleTextActive]}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        editedData.status === "alive" &&
+                          styles.toggleTextActive,
+                      ]}
+                    >
                       {editedData.gender === "female" ? "حية" : "حي"}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.toggleOption, editedData.status === "deceased" && styles.toggleOptionActive]}
-                    onPress={() => setEditedData({ ...editedData, status: "deceased" })}
+                    style={[
+                      styles.toggleOption,
+                      editedData.status === "deceased" &&
+                        styles.toggleOptionActive,
+                    ]}
+                    onPress={() =>
+                      setEditedData({ ...editedData, status: "deceased" })
+                    }
                   >
-                    <Text style={[styles.toggleText, editedData.status === "deceased" && styles.toggleTextActive]}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        editedData.status === "deceased" &&
+                          styles.toggleTextActive,
+                      ]}
+                    >
                       {editedData.gender === "female" ? "متوفاة" : "متوفى"}
                     </Text>
                   </TouchableOpacity>
                 </View>
               </View>
-              
-              {renderField("الترتيب بين الإخوة", editedData.sibling_order, (val) =>
-                setEditedData({ ...editedData, sibling_order: val }),
-                { numeric: true, keyboardType: "number-pad" }
+
+              {renderField(
+                "الترتيب بين الإخوة",
+                editedData.sibling_order,
+                (val) => setEditedData({ ...editedData, sibling_order: val }),
+                { numeric: true, keyboardType: "number-pad" },
               )}
             </View>
           </Animated.View>
@@ -493,35 +562,49 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       case "details":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
+          <Animated.View
+            style={[
+              styles.contentSection,
+              { opacity: isInitialized ? fadeAnimation : 1 },
+            ]}
+          >
             <View style={styles.card}>
               <Text style={styles.cardTitle}>السيرة الشخصية</Text>
-              {renderField("نبذة", editedData.bio, (text) =>
-                setEditedData({ ...editedData, bio: text }),
-                { multiline: true, maxLength: 500, placeholder: "اكتب نبذة شخصية..." }
+              {renderField(
+                "نبذة",
+                editedData.bio,
+                (text) => setEditedData({ ...editedData, bio: text }),
+                {
+                  multiline: true,
+                  maxLength: 500,
+                  placeholder: "اكتب نبذة شخصية...",
+                },
               )}
             </View>
-            
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>المعلومات المهنية</Text>
               {renderField("المهنة", editedData.occupation, (text) =>
-                setEditedData({ ...editedData, occupation: text })
+                setEditedData({ ...editedData, occupation: text }),
               )}
               {renderField("التعليم", editedData.education, (text) =>
-                setEditedData({ ...editedData, education: text })
+                setEditedData({ ...editedData, education: text }),
               )}
             </View>
-            
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>الأماكن</Text>
               {renderField("مكان الميلاد", editedData.birth_place, (text) =>
-                setEditedData({ ...editedData, birth_place: text })
+                setEditedData({ ...editedData, birth_place: text }),
               )}
-              {renderField("مكان الإقامة", editedData.current_residence, (text) =>
-                setEditedData({ ...editedData, current_residence: text })
+              {renderField(
+                "مكان الإقامة",
+                editedData.current_residence,
+                (text) =>
+                  setEditedData({ ...editedData, current_residence: text }),
               )}
             </View>
-            
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>التواريخ المهمة</Text>
               <View style={styles.dateSection}>
@@ -532,10 +615,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 <DateEditor
                   label=""
                   value={editedData.dob_data}
-                  onChange={(value) => setEditedData({ ...editedData, dob_data: value })}
+                  onChange={(value) =>
+                    setEditedData({ ...editedData, dob_data: value })
+                  }
                 />
               </View>
-              
+
               {editedData.status === "deceased" && (
                 <View style={styles.dateSection}>
                   <View style={styles.dateHeader}>
@@ -545,11 +630,13 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                   <DateEditor
                     label=""
                     value={editedData.dod_data}
-                    onChange={(value) => setEditedData({ ...editedData, dod_data: value })}
+                    onChange={(value) =>
+                      setEditedData({ ...editedData, dod_data: value })
+                    }
                   />
                 </View>
               )}
-              
+
               <View style={styles.privacyRow}>
                 <View style={styles.privacyInfo}>
                   <Text style={styles.privacyLabel}>إظهار تاريخ الميلاد</Text>
@@ -557,7 +644,9 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 </View>
                 <Switch
                   value={editedData.dob_is_public}
-                  onValueChange={(value) => setEditedData({ ...editedData, dob_is_public: value })}
+                  onValueChange={(value) =>
+                    setEditedData({ ...editedData, dob_is_public: value })
+                  }
                   trackColor={{ false: "#E5E5EA", true: "#34C759" }}
                   thumbColor="white"
                 />
@@ -568,10 +657,17 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       case "family":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
+          <Animated.View
+            style={[
+              styles.contentSection,
+              { opacity: isInitialized ? fadeAnimation : 1 },
+            ]}
+          >
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>الزيجات</Text>
+                <Text style={styles.cardTitle}>
+                  {editedData.gender === "male" ? "الزوجات" : "الأزواج"}
+                </Text>
                 <TouchableOpacity
                   style={styles.addButton}
                   onPress={() => setShowMarriageEditor(true)}
@@ -579,9 +675,13 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                   <Ionicons name="add-circle" size={24} color="#007AFF" />
                 </TouchableOpacity>
               </View>
-              
+
               {loadingMarriages ? (
-                <ActivityIndicator size="small" color="#007AFF" style={styles.loader} />
+                <ActivityIndicator
+                  size="small"
+                  color="#007AFF"
+                  style={styles.loader}
+                />
               ) : marriages.length > 0 ? (
                 <View style={styles.marriagesList}>
                   {marriages.map((marriage) => (
@@ -589,15 +689,23 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                       key={marriage.id}
                       style={styles.marriageRow}
                       onPress={() => {
-                        const spouseName = profile?.gender === "male" 
-                          ? marriage.wife_name 
-                          : marriage.husband_name;
-                        const statusText = marriage.status === "married" 
-                          ? (editedData.gender === "female" ? "متزوجة" : "متزوج")
-                          : marriage.status === "divorced" 
-                          ? (editedData.gender === "female" ? "مطلقة" : "مطلق")
-                          : (editedData.gender === "female" ? "أرملة" : "أرمل");
-                        
+                        const spouseName =
+                          profile?.gender === "male"
+                            ? marriage.wife_name
+                            : marriage.husband_name;
+                        const statusText =
+                          marriage.status === "married"
+                            ? editedData.gender === "female"
+                              ? "متزوجة"
+                              : "متزوج"
+                            : marriage.status === "divorced"
+                              ? editedData.gender === "female"
+                                ? "مطلقة"
+                                : "مطلق"
+                              : editedData.gender === "female"
+                                ? "أرملة"
+                                : "أرمل";
+
                         Alert.alert(
                           "إدارة الزواج",
                           `${spouseName || "غير محدد"}\nالحالة: ${statusText}`,
@@ -605,9 +713,15 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                             {
                               text: "تغيير الحالة",
                               onPress: async () => {
-                                const newStatus = marriage.status === "married" ? "divorced" : "married";
+                                const newStatus =
+                                  marriage.status === "married"
+                                    ? "divorced"
+                                    : "married";
                                 try {
-                                  await profilesService.updateMarriage(marriage.id, { status: newStatus });
+                                  await profilesService.updateMarriage(
+                                    marriage.id,
+                                    { status: newStatus },
+                                  );
                                   loadMarriages();
                                 } catch (error) {
                                   Alert.alert("خطأ", "فشل تحديث الحالة");
@@ -628,44 +742,56 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                                       style: "destructive",
                                       onPress: async () => {
                                         try {
-                                          await profilesService.deleteMarriage(marriage.id);
+                                          await profilesService.deleteMarriage(
+                                            marriage.id,
+                                          );
                                           loadMarriages();
                                         } catch (error) {
                                           Alert.alert("خطأ", "فشل الحذف");
                                         }
                                       },
                                     },
-                                  ]
+                                  ],
                                 );
                               },
                             },
                             { text: "إلغاء", style: "cancel" },
-                          ]
+                          ],
                         );
                       }}
                     >
                       <View style={styles.marriageInfo}>
                         <Text style={styles.marriageName}>
-                          {profile?.gender === "male" 
+                          {profile?.gender === "male"
                             ? marriage.wife_name || "غير محدد"
                             : marriage.husband_name || "غير محدد"}
                         </Text>
                         <Text style={styles.marriageStatus}>
-                          {marriage.status === "married" 
-                            ? (editedData.gender === "female" ? "متزوجة" : "متزوج")
-                            : marriage.status === "divorced" 
-                            ? (editedData.gender === "female" ? "مطلقة" : "مطلق")
-                            : (editedData.gender === "female" ? "أرملة" : "أرمل")}
+                          {marriage.status === "married"
+                            ? editedData.gender === "female"
+                              ? "متزوجة"
+                              : "متزوج"
+                            : marriage.status === "divorced"
+                              ? editedData.gender === "female"
+                                ? "مطلقة"
+                                : "مطلق"
+                              : editedData.gender === "female"
+                                ? "أرملة"
+                                : "أرمل"}
                         </Text>
                       </View>
-                      <Ionicons name={I18nManager.isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#C7C7CC" />
+                      <Ionicons
+                        name={
+                          I18nManager.isRTL ? "chevron-back" : "chevron-forward"
+                        }
+                        size={20}
+                        color="#C7C7CC"
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
               ) : (
-                <Text style={styles.emptyText}>
-                  لا توجد زيجات مسجلة
-                </Text>
+                <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
               )}
             </View>
           </Animated.View>
@@ -673,24 +799,38 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       case "contact":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
+          <Animated.View
+            style={[
+              styles.contentSection,
+              { opacity: isInitialized ? fadeAnimation : 1 },
+            ]}
+          >
             <View style={styles.card}>
               <Text style={styles.cardTitle}>معلومات الاتصال</Text>
-              {renderField("رقم الهاتف", editedData.phone, (text) =>
-                setEditedData({ ...editedData, phone: text }),
-                { keyboardType: "phone-pad", placeholder: "05xxxxxxxx" }
+              {renderField(
+                "رقم الهاتف",
+                editedData.phone,
+                (text) => setEditedData({ ...editedData, phone: text }),
+                { keyboardType: "phone-pad", placeholder: "05xxxxxxxx" },
               )}
-              {renderField("البريد الإلكتروني", editedData.email, (text) =>
-                setEditedData({ ...editedData, email: text }),
-                { keyboardType: "email-address", placeholder: "example@email.com" }
+              {renderField(
+                "البريد الإلكتروني",
+                editedData.email,
+                (text) => setEditedData({ ...editedData, email: text }),
+                {
+                  keyboardType: "email-address",
+                  placeholder: "example@email.com",
+                },
               )}
             </View>
-            
+
             <View style={styles.card}>
               <Text style={styles.cardTitle}>وسائل التواصل الاجتماعي</Text>
               <SocialMediaEditor
                 links={editedData.social_media_links || {}}
-                onChange={(links) => setEditedData({ ...editedData, social_media_links: links })}
+                onChange={(links) =>
+                  setEditedData({ ...editedData, social_media_links: links })
+                }
               />
             </View>
           </Animated.View>
@@ -729,21 +869,18 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         <TouchableOpacity onPress={handleCancel} style={styles.headerButton}>
           <Text style={styles.cancelText}>إلغاء</Text>
         </TouchableOpacity>
-        
+
         <Text style={styles.headerTitle}>تعديل الملف</Text>
-        
-        <TouchableOpacity 
-          onPress={handleSave} 
+
+        <TouchableOpacity
+          onPress={handleSave}
           disabled={!hasChanges || saving}
           style={styles.headerButton}
         >
           {saving ? (
             <ActivityIndicator size="small" color="#007AFF" />
           ) : (
-            <Text style={[
-              styles.saveText,
-              (!hasChanges) && styles.disabledText,
-            ]}>
+            <Text style={[styles.saveText, !hasChanges && styles.disabledText]}>
               حفظ
             </Text>
           )}
@@ -761,7 +898,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         {renderContent()}
         <View style={{ height: 100 }} />
       </BottomSheetScrollView>
-      
+
       {/* Marriage Editor Modal */}
       {profile && (
         <MarriageEditor

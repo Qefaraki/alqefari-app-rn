@@ -379,11 +379,6 @@ const SearchBar = ({ onSelectResult, style }) => {
               <Text style={[styles.generationText, { color: desertColor }]}>
                 الجيل {toArabicNumerals(item.generation?.toString() || "0")}
               </Text>
-              {item.isFuzzyMatch && (
-                <View style={styles.fuzzyBadge}>
-                  <Text style={styles.fuzzyBadgeText}>تقريبي</Text>
-                </View>
-              )}
             </View>
           </View>
 

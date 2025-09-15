@@ -44,18 +44,29 @@ export default function PhoneAuthScreen({ navigation }) {
   }, [countdown]);
 
   const handleSendOTP = async () => {
-    if (phoneNumber.length < 9) {
+    // Validate phone number - accept various lengths
+    if (phoneNumber.length < 7) {
       Alert.alert("خطأ", "يرجى إدخال رقم هاتف صحيح");
       return;
     }
 
     setLoading(true);
+
+    // The service will handle all formatting
     const result = await phoneAuthService.sendOTP(phoneNumber);
 
     if (result.success) {
       setStep("otp");
       setCountdown(60); // 60 seconds countdown
-      Alert.alert("نجح", result.message);
+
+      // Show formatted number in success message
+      const formattedForDisplay =
+        result.formattedPhone ||
+        phoneAuthService.formatPhoneNumber(phoneNumber);
+      Alert.alert(
+        "نجح",
+        `تم إرسال رمز التحقق إلى ${toArabicNumerals(formattedForDisplay)}`,
+      );
     } else {
       Alert.alert("خطأ", result.error);
     }
@@ -105,17 +116,21 @@ export default function PhoneAuthScreen({ navigation }) {
   };
 
   const handleOtpChange = (value, index) => {
+    // Convert Arabic numbers to Western
+    const normalizedValue = fromArabicNumerals(value);
+    const digitOnly = normalizedValue.replace(/\D/g, "").slice(-1); // Only keep last digit
+
     const newOtp = [...otp];
-    newOtp[index] = value;
+    newOtp[index] = digitOnly;
     setOtp(newOtp);
 
     // Auto-focus next input
-    if (value && index < 5) {
+    if (digitOnly && index < 5) {
       otpInputs.current[index + 1]?.focus();
     }
 
     // Auto-submit when all 6 digits are entered
-    if (index === 5 && value) {
+    if (index === 5 && digitOnly) {
       const fullOtp = newOtp.join("");
       if (fullOtp.length === 6) {
         Keyboard.dismiss();

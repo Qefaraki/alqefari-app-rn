@@ -45,6 +45,7 @@ import {
 } from "../data/family-data";
 import CardSurface from "./ios/CardSurface";
 import profilesService from "../services/profiles";
+import PhotoGallery from "./PhotoGallery";
 import {
   formatDateDisplay,
   getAllSocialMedia,
@@ -68,7 +69,6 @@ import NameEditor from "./admin/fields/NameEditor";
 import BioEditor from "./admin/fields/BioEditor";
 import SiblingOrderStepper from "./admin/fields/SiblingOrderStepper";
 import PhotoEditor from "./admin/fields/PhotoEditor";
-import PhotoGallery from "./PhotoGallery";
 import DateEditor from "./admin/fields/DateEditor";
 import { validateDates } from "../utils/dateUtils";
 import ProgressiveImage, {

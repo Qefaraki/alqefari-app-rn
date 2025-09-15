@@ -34,16 +34,28 @@ const PhotoGallery = ({
   // Load photos from database
   const loadPhotos = useCallback(async () => {
     try {
-      const { data, error } = await supabase.rpc("get_profile_photos", {
-        p_profile_id: profileId,
-      });
+      // Try to load from profile_photos table directly if RPC doesn't exist
+      const { data: photosData, error: photosError } = await supabase
+        .from("profile_photos")
+        .select("*")
+        .eq("profile_id", profileId)
+        .order("display_order", { ascending: true });
 
-      if (error) {
-        console.error("Error loading photos:", error);
-        // If function doesn't exist, just use empty array
-        setPhotos([]);
+      if (!photosError && photosData) {
+        setPhotos(photosData);
       } else {
-        setPhotos(data || []);
+        // Try RPC as fallback
+        const { data, error } = await supabase.rpc("get_profile_photos", {
+          p_profile_id: profileId,
+        });
+
+        if (error) {
+          console.error("Error loading photos:", error);
+          // If function doesn't exist, just use empty array
+          setPhotos([]);
+        } else {
+          setPhotos(data || []);
+        }
       }
     } catch (error) {
       console.error("Error loading photos:", error);
@@ -326,7 +338,7 @@ const PhotoGallery = ({
       </ScrollView>
 
       {/* Empty state */}
-      {photos.length === 0 && !isEditMode && (
+      {photos.length === 0 && !isEditMode && !isAdminMode && (
         <View style={styles.emptyState}>
           <Ionicons name="images-outline" size={48} color="#9ca3af" />
           <Text style={styles.emptyText}>لا توجد صور</Text>
