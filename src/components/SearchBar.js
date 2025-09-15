@@ -577,7 +577,8 @@ const styles = {
     borderTopRightRadius: 20,
     maxHeight: 440,
     overflow: "hidden",
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8, // Reduced bottom padding to prevent cropping
     // Matching shadow system (slightly lighter)
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -590,7 +591,8 @@ const styles = {
     backgroundColor: "transparent",
   },
   resultsContent: {
-    paddingVertical: 0,
+    paddingTop: 0,
+    paddingBottom: 4, // Add small bottom padding to prevent last item cropping
     paddingHorizontal: 12,
   },
   // Clean card design - no borders
@@ -610,16 +612,17 @@ const styles = {
     marginBottom: 0,
   },
   cardContent: {
-    flexDirection: "row-reverse", // RTL: avatar right, chevron left
+    flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
     alignItems: "center",
     paddingVertical: 12,
     paddingLeft: 12,
     paddingRight: 16,
     minHeight: 60,
   },
-  // Refined avatar styling - on right for RTL
+  // Refined avatar styling - on right side for RTL
   avatarContainer: {
-    marginRight: 0,
+    marginLeft: 0, // Remove left margin
+    marginRight: 0, // Avatar should be flush right
   },
   avatarPhoto: {
     width: 40,
@@ -648,7 +651,7 @@ const styles = {
     justifyContent: "center",
     paddingLeft: 8,
     paddingRight: 12,
-    alignItems: "flex-end", // Force content to right
+    alignItems: "flex-start", // Changed to flex-start for proper RTL text alignment
   },
   nameText: {
     fontSize: 15,
@@ -656,14 +659,16 @@ const styles = {
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
     color: "#000000",
     marginBottom: 3,
-    textAlign: "right",
+    textAlign: "left", // Changed to left for proper display with row-reverse
     alignSelf: "stretch", // Take full width
     letterSpacing: -0.1,
+    writingDirection: "rtl", // Force RTL writing direction
   },
   metaContainer: {
-    flexDirection: "row",
+    flexDirection: "row", // Normal row for generation text
     alignItems: "center",
-    alignSelf: "flex-end", // Force align to right
+    alignSelf: "flex-start", // Align to start of container
+    justifyContent: "flex-start", // Ensure content aligns to start
   },
   generationBadge: {
     paddingHorizontal: 0, // No badge background
@@ -676,7 +681,8 @@ const styles = {
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
     letterSpacing: 0,
     opacity: 0.6,
-    textAlign: "right",
+    textAlign: "left", // Changed to left for proper display with row-reverse
+    writingDirection: "rtl", // Force RTL writing direction
     // color set dynamically
   },
   // Minimal chevron - on left edge

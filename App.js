@@ -13,7 +13,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 import TreeView from "./src/components/TreeView";
-import ProfileSheet from "./src/components/ProfileSheet";
+import ProfileSheetWrapper from "./src/components/ProfileSheetWrapper";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
 import AdminDashboard from "./src/screens/AdminDashboard";
@@ -160,8 +160,8 @@ export default function App() {
                 />
               </View>
 
-              {/* Profile Sheet */}
-              <ProfileSheet editMode={profileEditMode} />
+              {/* Profile Sheet - uses wrapper to conditionally show modern editor */}
+              <ProfileSheetWrapper editMode={profileEditMode} />
 
               {/* Admin Dashboard Modal */}
               <Modal

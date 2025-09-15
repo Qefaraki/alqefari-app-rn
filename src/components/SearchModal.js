@@ -295,7 +295,7 @@ const SearchModal = ({ visible, onClose, onSelectResult }) => {
           {/* Right Side - Action Area */}
           <View style={styles.actionSection}>
             <View style={styles.goButton}>
-              <Ionicons name="arrow-forward" size={18} color="#007AFF" />
+              <Ionicons name="arrow-back" size={18} color="#007AFF" />
             </View>
           </View>
         </Animated.View>
@@ -608,7 +608,7 @@ const styles = {
   },
   // Ultra-modern card design inspired by Google Maps, Spotify, and Airbnb
   modernCard: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: photo on left, text starts from right
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
@@ -626,7 +626,7 @@ const styles = {
     borderColor: "rgba(0,0,0,0.04)",
   },
   visualSection: {
-    marginRight: 14,
+    marginLeft: 14, // Changed from marginRight for RTL
   },
   avatarContainer: {
     position: "relative",
@@ -677,9 +677,10 @@ const styles = {
   contentSection: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "flex-end", // RTL: align text to the right
   },
   primaryInfo: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: name first from right
     alignItems: "center",
     marginBottom: 4,
   },
@@ -689,9 +690,10 @@ const styles = {
     fontFamily: "SF Arabic",
     color: "#1A1A1A",
     flex: 1,
+    textAlign: "right", // RTL: align text to right
   },
   liveBadge: {
-    marginLeft: 8,
+    marginRight: 8, // Changed from marginLeft for RTL
   },
   liveDot: {
     width: 8,
@@ -701,7 +703,7 @@ const styles = {
     // Pulsing animation would go here
   },
   breadcrumbContainer: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: start from right
     alignItems: "center",
     marginBottom: 6,
     flexWrap: "nowrap",
@@ -711,6 +713,7 @@ const styles = {
     color: "#666",
     fontFamily: "SF Arabic",
     maxWidth: 80,
+    textAlign: "right", // RTL: align text right
   },
   breadcrumbSeparator: {
     fontSize: 12,
@@ -718,12 +721,13 @@ const styles = {
     marginHorizontal: 4,
   },
   metadataRow: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: tags from right to left
     alignItems: "center",
     gap: 10,
+    alignSelf: "flex-end", // RTL: align row to right
   },
   metaTag: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: icon and text reversed
     alignItems: "center",
     gap: 4,
     backgroundColor: "#F8F9FA",
@@ -753,7 +757,7 @@ const styles = {
   },
   actionSection: {
     justifyContent: "center",
-    marginLeft: 12,
+    marginRight: 12, // Changed from marginLeft for RTL
   },
   goButton: {
     width: 36,
