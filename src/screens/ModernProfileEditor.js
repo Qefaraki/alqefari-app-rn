@@ -44,16 +44,16 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   // Get the global profileSheetProgress from store - CRITICAL for search bar opacity
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
   
-  // Track sheet position for opacity animations
+  // Create local animated position for the sheet - will be provided by BottomSheet
   const animatedPosition = useSharedValue(0);
   
-  // Update global progress when sheet moves - matching ProfileSheet behavior
+  // Track sheet position and update global store for SearchBar to react
   useAnimatedReaction(
     () => animatedPosition.value,
     (currentPosition, previousPosition) => {
       if (currentPosition !== previousPosition && profileSheetProgress) {
-        // Convert position to progress (0 = closed, 1 = fully open)
-        const progress = Math.min(1, Math.max(0, 1 - currentPosition / screenHeight));
+        // The animatedPosition is the top of the sheet from the BOTTOM of the screen.
+        const progress = 1 - currentPosition / screenHeight;
         profileSheetProgress.value = progress;
       }
     },
@@ -113,12 +113,15 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   // Bottom sheet snap points - matching ProfileSheet
   const snapPoints = useMemo(() => ["40%", "90%", "100%"], []);
   
-  // Track sheet state changes
+  // Track current snap index
+  const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
+  
+  // Handle sheet changes - EXACT copy from ProfileSheet
   const handleSheetChange = useCallback((index) => {
-    // Store the current sheet index if needed
-    useTreeStore.setState({
-      profileSheetIndex: index,
-    });
+    setCurrentSnapIndex(index);
+    
+    // Store sheet state globally so SearchBar can react (fade at 80% open)
+    useTreeStore.setState({ profileSheetIndex: index });
   }, []);
 
   // Open/close sheet based on visible prop
@@ -199,9 +202,10 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     (props) => (
       <BottomSheetBackdrop
         {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
         opacity={0.5}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        pressBehavior="close"
       />
     ),
     []
@@ -272,14 +276,17 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
       animatedPosition={animatedPosition}
       onChange={handleSheetChange}
       onClose={() => {
-        // Reset the shared value properly when closing
+        // Call the prop onClose (which sets selectedPersonId to null)
+        if (onClose) {
+          onClose();
+        }
+        // Reset the shared value properly, don't overwrite it
         if (profileSheetProgress) {
           profileSheetProgress.value = 0;
         }
         useTreeStore.setState({
           profileSheetIndex: -1,
         });
-        onClose();
       }}
       backdropComponent={renderBackdrop}
       handleComponent={renderHandle}

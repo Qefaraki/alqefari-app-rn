@@ -1339,50 +1339,58 @@ const TreeView = ({
       savedTranslateY.value = translateY.value;
     });
 
+  // DPR constant for DIP-aligned Skia (set to 1 to prevent coordinate mismatches)
+  const DPR = 1;
+
   // Pinch gesture for zoom with pointer-anchored transform
   const pinchGesture = Gesture.Pinch()
     .onStart((e) => {
       "worklet";
-      // CRITICAL: Cancel any running animations to prevent value drift
-      cancelAnimation(translateX);
-      cancelAnimation(translateY);
-      cancelAnimation(scale);
+      // Only process with two fingers
+      if (e.numberOfPointers === 2) {
+        // CRITICAL: Cancel any running animations to prevent value drift
+        cancelAnimation(translateX);
+        cancelAnimation(translateY);
+        cancelAnimation(scale);
 
-      // Now save the current stable values
-      savedScale.value = scale.value;
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
-
-      // Store initial focal point for stability (rounded to prevent float issues)
-      focalX.value = Math.round(e.focalX);
-      focalY.value = Math.round(e.focalY);
+        // Now save the current stable values
+        savedScale.value = scale.value;
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+      }
 
       // Debug logging
       // if (__DEV__) {
-      //   console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${Math.round(e.focalX)},${Math.round(e.focalY)}) Fingers:${e.numberOfPointers}`);
+      //   console.log(`🤏 PINCH START: Scale:${scale.value.toFixed(2)} Focal:(${e.focalX.toFixed(0)},${e.focalY.toFixed(0)}) Fingers:${e.numberOfPointers}`);
       // }
     })
     .onUpdate((e) => {
       "worklet";
+
+      // Only process updates with two fingers to prevent focal point jumps
+      if (e.numberOfPointers !== 2) {
+        return;
+      }
+
+      // Target scale
       const s = clamp(savedScale.value * e.scale, minZoom, maxZoom);
-      const k = s / savedScale.value;
 
-      // Use initial focal point for stability (prevents drift with repeated pinches)
-      const stableFocalX = focalX.value;
-      const stableFocalY = focalY.value;
+      // Live focal in canvas units (DPR = 1 for DIP)
+      const fx = e.focalX * DPR;
+      const fy = e.focalY * DPR;
 
-      // Calculate new transform
-      const newX = stableFocalX - (stableFocalX - savedTranslateX.value) * k;
-      const newY = stableFocalY - (stableFocalY - savedTranslateY.value) * k;
+      // Convert focal to world coords using transform at gesture start
+      const wx = (fx - savedTranslateX.value) / savedScale.value;
+      const wy = (fy - savedTranslateY.value) / savedScale.value;
 
-      // Apply transform
-      translateX.value = newX;
-      translateY.value = newY;
+      // Keep world point under fingers
+      translateX.value = fx - s * wx;
+      translateY.value = fy - s * wy;
       scale.value = s;
 
       // DEBUG: Log significant scale changes only
       // if (__DEV__ && Math.abs(e.scale - 1) > 0.1) { // Only log 10%+ changes
-      //   console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${stableFocalX.toFixed(0)},${stableFocalY.toFixed(0)}) | Δ:(${(newX - savedTranslateX.value).toFixed(0)},${(newY - savedTranslateY.value).toFixed(0)})`);
+      //   console.log(`🔍 ZOOM: ${savedScale.value.toFixed(2)}→${s.toFixed(2)} | Focal:(${fx.toFixed(0)},${fy.toFixed(0)}) | World:(${wx.toFixed(0)},${wy.toFixed(0)})`);
       // }
     })
     .onEnd(() => {
