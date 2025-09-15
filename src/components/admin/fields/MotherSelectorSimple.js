@@ -5,8 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Modal,
-  SafeAreaView,
+  ScrollView,
   I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,7 +18,7 @@ I18nManager.forceRTL(true);
 const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   const [loading, setLoading] = useState(false);
   const [wives, setWives] = useState([]);
-  const [showPicker, setShowPicker] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [selectedMother, setSelectedMother] = useState(null);
 
   // Load father's wives when component mounts or fatherId changes
@@ -80,13 +79,14 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   const handleSelect = (wife) => {
     setSelectedMother(wife);
     onChange(wife?.wife_id || null);
-    setShowPicker(false);
+    setShowDropdown(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleClear = () => {
     setSelectedMother(null);
     onChange(null);
+    setShowDropdown(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -120,136 +120,97 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   }
 
   return (
-    <>
-      <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم (اختياري)"}</Text>
+    <View style={styles.container}>
+      <Text style={styles.label}>{label || "الأم (اختياري)"}</Text>
 
-        {/* Main Selector Button */}
-        <TouchableOpacity
-          style={styles.selector}
-          onPress={() => setShowPicker(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.selectorContent}>
-            <Text
-              style={
-                selectedMother ? styles.selectedText : styles.placeholderText
-              }
-            >
-              {selectedMother ? selectedMother.wife_name : "اختر الأم"}
-            </Text>
-            {selectedMother ? (
-              <TouchableOpacity
-                onPress={handleClear}
-                style={styles.clearButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close-circle" size={20} color="#C7C7CC" />
-              </TouchableOpacity>
-            ) : (
-              <Ionicons name="chevron-back" size={20} color="#C7C7CC" />
-            )}
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* iOS-style Modal Picker */}
-      <Modal
-        visible={showPicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowPicker(false)}
+      {/* Main Selector Button */}
+      <TouchableOpacity
+        style={[styles.selector, showDropdown && styles.selectorActive]}
+        onPress={() => setShowDropdown(!showDropdown)}
+        activeOpacity={0.7}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowPicker(false)}
+        <Ionicons
+          name={showDropdown ? "chevron-up" : "chevron-down"}
+          size={20}
+          color="#8E8E93"
+        />
+        <Text
+          style={selectedMother ? styles.selectedText : styles.placeholderText}
         >
+          {selectedMother ? selectedMother.wife_name : "اختر الأم"}
+        </Text>
+        {selectedMother && (
           <TouchableOpacity
-            activeOpacity={1}
-            style={styles.modalContent}
-            onPress={(e) => e.stopPropagation()}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleClear();
+            }}
+            style={styles.clearButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <SafeAreaView>
-              {/* Modal Header */}
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  onPress={() => setShowPicker(false)}
-                  style={styles.modalCloseButton}
-                >
-                  <Text style={styles.modalCloseText}>إلغاء</Text>
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>اختر الأم</Text>
-                <View style={styles.modalCloseButton}>
-                  <Text style={[styles.modalCloseText, { opacity: 0 }]}>
-                    إلغاء
-                  </Text>
-                </View>
-              </View>
+            <Ionicons name="close-circle" size={18} color="#C7C7CC" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
 
-              {/* Options List */}
-              <View style={styles.optionsList}>
-                {/* Option to clear selection */}
-                <TouchableOpacity
-                  style={[
-                    styles.option,
-                    !selectedMother && styles.optionSelected,
-                  ]}
-                  onPress={() => {
-                    handleClear();
-                    setShowPicker(false);
-                  }}
-                >
+      {/* Dropdown */}
+      {showDropdown && (
+        <View style={styles.dropdown}>
+          <ScrollView
+            style={styles.dropdownScroll}
+            nestedScrollEnabled={true}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Option to clear selection */}
+            {selectedMother && (
+              <TouchableOpacity style={styles.option} onPress={handleClear}>
+                <Text style={[styles.optionText, styles.clearOptionText]}>
+                  إلغاء التحديد
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Wife Options */}
+            {wives.map((wife, index) => (
+              <TouchableOpacity
+                key={wife.wife_id}
+                style={[
+                  styles.option,
+                  selectedMother?.wife_id === wife.wife_id &&
+                    styles.optionSelected,
+                  index === wives.length - 1 && styles.lastOption,
+                ]}
+                onPress={() => handleSelect(wife)}
+              >
+                <View style={styles.optionContent}>
+                  {wife.is_current && (
+                    <View style={styles.currentBadge}>
+                      <Text style={styles.currentBadgeText}>الحالية</Text>
+                    </View>
+                  )}
                   <Text
                     style={[
                       styles.optionText,
-                      { fontStyle: "italic", color: "#8E8E93" },
-                    ]}
-                  >
-                    بدون تحديد
-                  </Text>
-                  {!selectedMother && (
-                    <Ionicons name="checkmark" size={22} color="#007AFF" />
-                  )}
-                </TouchableOpacity>
-
-                {/* Wife Options */}
-                {wives.map((wife, index) => (
-                  <TouchableOpacity
-                    key={wife.wife_id}
-                    style={[
-                      styles.option,
                       selectedMother?.wife_id === wife.wife_id &&
-                        styles.optionSelected,
-                      index === wives.length - 1 && styles.lastOption,
+                        styles.optionTextSelected,
                     ]}
-                    onPress={() => handleSelect(wife)}
                   >
-                    <View style={styles.optionContent}>
-                      <Text style={styles.optionText}>{wife.wife_name}</Text>
-                      {wife.is_current && (
-                        <View style={styles.currentBadge}>
-                          <Text style={styles.currentBadgeText}>الحالية</Text>
-                        </View>
-                      )}
-                    </View>
-                    {selectedMother?.wife_id === wife.wife_id && (
-                      <Ionicons name="checkmark" size={22} color="#007AFF" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </SafeAreaView>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      </Modal>
-    </>
+                    {wife.wife_name}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     marginTop: 16,
+    zIndex: 1000,
   },
   label: {
     fontSize: 13,
@@ -264,77 +225,65 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: "#E5E5EA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  selectorActive: {
+    borderColor: "#007AFF",
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   disabledSelector: {
     opacity: 0.5,
-  },
-  selectorContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
   },
   selectedText: {
     fontSize: 17,
     color: "#000",
     flex: 1,
     textAlign: "right",
+    marginHorizontal: 8,
   },
   placeholderText: {
     fontSize: 17,
     color: "#C7C7CC",
     flex: 1,
     textAlign: "right",
+    marginHorizontal: 8,
   },
   clearButton: {
-    marginLeft: 8,
+    marginRight: 8,
   },
 
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "transparent",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#F2F2F7",
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    maxHeight: "50%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+  // Dropdown styles
+  dropdown: {
+    position: "absolute",
+    top: "100%",
+    left: 0,
+    right: 0,
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E5EA",
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: "#007AFF",
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    maxHeight: 200,
+    zIndex: 1001,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
   },
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#000",
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalCloseText: {
-    fontSize: 17,
-    color: "#007AFF",
-  },
-  optionsList: {
-    backgroundColor: "#FFFFFF",
-    marginTop: 1,
+  dropdownScroll: {
+    maxHeight: 200,
   },
   option: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E5E5EA",
   },
@@ -342,18 +291,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   optionSelected: {
-    backgroundColor: "#F9F9F9",
+    backgroundColor: "#F0F9FF",
   },
   optionContent: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
   },
   optionText: {
-    fontSize: 17,
+    fontSize: 16,
     color: "#000",
     textAlign: "right",
+  },
+  optionTextSelected: {
+    color: "#007AFF",
+    fontWeight: "500",
+  },
+  clearOptionText: {
+    color: "#8E8E93",
+    fontStyle: "italic",
   },
   currentBadge: {
     backgroundColor: "#E8F5E9",

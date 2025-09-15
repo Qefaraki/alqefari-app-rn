@@ -344,6 +344,18 @@ export default function SettingsModal({ visible, onClose }) {
             </Text>
           </TouchableOpacity>
 
+          {/* Sign Out Button */}
+          {currentUser && (
+            <TouchableOpacity
+              style={styles.signOutButton}
+              onPress={handleSignOut}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+              <Text style={styles.signOutButtonText}>تسجيل الخروج</Text>
+            </TouchableOpacity>
+          )}
+
           <View style={{ height: 50 }} />
         </ScrollView>
       </SafeAreaView>
@@ -526,5 +538,82 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: "#DC2626",
     fontWeight: "500",
+  },
+  profileCard: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  profileContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+  },
+  profileImageContainer: {
+    marginRight: 12,
+  },
+  profileImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#F3F4F6",
+  },
+  profileImagePlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  profileDetail: {
+    fontSize: 14,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  profileViewLink: {
+    fontSize: 14,
+    fontFamily: "SF Arabic",
+    color: "#3B82F6",
+    marginTop: 2,
+  },
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#FEF2F2",
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+  },
+  signOutButtonText: {
+    color: "#DC2626",
+    fontSize: 16,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
   },
 });
