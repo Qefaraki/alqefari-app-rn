@@ -1,115 +1,331 @@
-# Alqefari Family Tree - AI Assistant Context
+# Alqefari Family Tree - AI Agent Guidelines
 
-Premium iOS-first family tree app with React Native Expo, Supabase backend, and neo‑native UI (no glass/blur).
+## 🎨 Design System: "Modern Arabic Elegance"
 
-## Commands
+When implementing any UI components, follow this comprehensive design language that combines iOS Human Interface Guidelines with Arabic-first considerations.
 
-```bash
-# Development
-npm start          # Expo dev server (iOS & Android)
-npm run ios        # iOS simulator only
-npm run android    # Android emulator only
+### Color Palette (60-30-10 Rule)
 
-# Database Deployment - ALWAYS DEPLOY YOURSELF
-# IMPORTANT: Never ask the user to deploy SQL changes. Always deploy them yourself using:
-node scripts/execute-sql.js <sql-file>  # Deploy SQL file to Supabase
-# Or for migrations:
-node scripts/execute-sql.js migrations/<migration-file>.sql
-
-# If execute-sql.js doesn't work, create a new script to deploy directly:
-node scripts/direct-deploy-stats.js  # Example direct deployment
-
-# Validation
-SELECT * FROM admin_validation_dashboard();  # Check data integrity
-SELECT * FROM admin_auto_fix_issues();      # Fix common issues
+```javascript
+const colors = {
+  // Dominant (60%) - Backgrounds
+  background: "#F5F3F7",     // Lavender Gray - Main screens
+  
+  // Secondary (30%) - Primary/Secondary Elements  
+  primary: "#957EB5",        // African Violet - CTAs, headers
+  secondary: "#736372",      // Chinese Violet - Secondary buttons
+  
+  // Text
+  text: "#120309",           // Licorice - All text content
+  textSecondary: "#736372",  // Chinese Violet - Muted text
+  
+  // Accent (10%) - Special Highlights
+  accent: "#E0C4A1",         // Muted Gold - Badges, special states
+  
+  // System
+  white: "#FFFFFF",
+  error: "#DC2626",
+  success: "#10B981",
+  warning: "#F59E0B",
+}
 ```
 
-## Code Style
+### Typography Hierarchy
 
-- ES modules only (`import/export`, no `require`)
-- Async/await over `.then()` chains
-- Arabic-first RTL design - all UI must support RTL
-- Neo‑native UI components in `src/components/ui/`
-- NO console.log in final code (remove after debugging)
-- Use handleSupabaseError for consistent error handling
-
-## Children Ordering Rules (CRITICAL)
-
-### Single Source of Truth: `sibling_order`
-
-- **`sibling_order` field is the ONLY authority for birth order**
-- HID is for hierarchical identification only, NOT for ordering
-- Never use `created_at` or HID to determine age order
-- Always ORDER BY sibling_order ASC in queries
-
-### Ordering Convention:
-
-- **`sibling_order = 0`** = Oldest child (firstborn)
-- **`sibling_order = 1`** = Second oldest
-- **`sibling_order = 2`** = Third oldest
-- And so on... (youngest has highest number)
-
-### Display Rules:
-
-- **Lists (Top to Bottom)**: Oldest child at top, youngest at bottom
-  - Display order number badges: 1 (oldest), 2, 3...
-- **Tree View (RTL Layout)**: Oldest child on right, youngest on left
-  - This follows Arabic reading order (right-to-left)
-- **Drag to Reorder**: Updates sibling_order in database immediately
-
-### Example:
-
-If Ahmed has 3 children (Fatima oldest, Omar middle, Sara youngest):
-
-- Database: Fatima (sibling_order=0), Omar (1), Sara (2)
-- List UI: [1] Fatima (top), [2] Omar, [3] Sara (bottom)
-- Tree UI: Fatima (rightmost), Omar (middle), Sara (leftmost)
-
-### Implementation Notes:
-
-- RelationshipManagerV2 uses: `ORDER BY sibling_order ASC`
-- Tree layout sorts children by sibling_order before rendering
-- When adding new children, assign next available sibling_order
-- When reordering, update all affected siblings' sibling_order values
-
-## Project Structure
-
-```
-src/
-├── services/        # Supabase integration (profiles.js, storage.js)
-├── components/      # UI components
-│   ├── admin/      # Admin-only components
-│   └── ui/         # Neo‑native design system (no blur)
-├── stores/         # Zustand state (useTreeStore.js)
-└── screens/        # Main app screens
-
-supabase/
-├── migrations/     # Database changes (001-020+)
-└── functions/      # Edge functions (recalculate-layout)
+```javascript
+const typography = {
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    fontSize: 15,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  body: {
+    fontSize: 16,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+  },
+  caption: {
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: colors.textSecondary,
+  },
+}
 ```
 
-## Development Workflow
+### Component Templates
 
-1. Check PROJECT_ROADMAP.md for current tasks
-2. Use TodoWrite tool for multi-step work
-3. Test on physical iOS device for gestures
-4. Commit atomically with descriptive messages
-5. Update roadmap when completing major features
+#### Base Card Component
+```javascript
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.white,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.secondary + "20", // 20% opacity
+  }
+});
+```
 
-## Key Patterns
+#### Primary Button (Main Actions)
+```javascript
+primaryButton: {
+  backgroundColor: colors.primary,
+  borderRadius: 12,
+  paddingVertical: 14,
+  paddingHorizontal: 32,
+  minHeight: 48,
+  alignItems: "center",
+  justifyContent: "center",
+  flexDirection: "row",
+  gap: 8,
+}
+```
+
+#### Secondary Button
+```javascript
+secondaryButton: {
+  backgroundColor: colors.background,
+  borderWidth: 1.5,
+  borderColor: colors.secondary,
+  borderRadius: 12,
+  paddingVertical: 14,
+  paddingHorizontal: 32,
+  minHeight: 48,
+}
+```
+
+#### Navigation Bar
+```javascript
+navigationBar: {
+  backgroundColor: colors.primary,
+  paddingTop: safeAreaTop,
+  paddingHorizontal: 16,
+  paddingBottom: 12,
+}
+```
+
+### Spacing System (8px Grid)
+
+Always use multiples of 8 for spacing:
+- `4px` - Extra small (tight spacing)
+- `8px` - Small (compact elements)
+- `16px` - Medium (default spacing)
+- `24px` - Large (section spacing)
+- `32px` - Extra large (major sections)
+
+### Family-Specific Elements
+
+When working with family elements:
+
+```javascript
+// Family member card with gold accent
+memberCard: {
+  ...baseCard,
+  borderLeftWidth: 4,
+  borderLeftColor: colors.accent,
+}
+
+// Direct ancestor highlight
+directAncestor: {
+  borderColor: colors.accent,
+  backgroundColor: colors.accent + "10", // 10% opacity
+}
+
+// Use family crest (moon icon)
+<Ionicons name="moon" size={24} color={colors.primary} />
+
+// Reference family name
+import appConfig from "../config/appConfig";
+const familyName = appConfig.family.primaryFamilyName; // القفاري
+```
+
+### Interactive States
+
+```javascript
+// Touch feedback
+activeOpacity: {
+  cards: 0.95,
+  buttons: 0.8,
+  listItems: 0.7,
+}
+
+// Focus states
+focus: {
+  borderWidth: 2,
+  borderColor: colors.primary,
+  shadowOpacity: 0.1,
+}
+
+// Disabled states
+disabled: {
+  opacity: 0.4,
+}
+```
+
+### Animation Guidelines
+
+```javascript
+// Standard durations
+const animations = {
+  quick: 200,    // Micro-interactions
+  normal: 300,   // Standard transitions
+  slow: 500,     // Page transitions
+}
+
+// Always use ease-out
+Animated.timing(value, {
+  duration: animations.normal,
+  easing: Easing.out(Easing.ease),
+  useNativeDriver: true,
+})
+```
+
+## 📋 Implementation Checklist
+
+When creating any UI component:
+
+- [ ] Uses color variables from palette (no hardcoded colors)
+- [ ] Follows 8px spacing grid
+- [ ] Implements 60-30-10 color distribution
+- [ ] Supports RTL layout
+- [ ] Has 44px minimum touch targets
+- [ ] Includes proper shadows (0.05-0.08 opacity)
+- [ ] Uses SF Arabic font for Arabic text
+- [ ] Has loading state
+- [ ] Has error state
+- [ ] Border radius is 12-16px
+- [ ] Tested on physical device
+
+## 🚫 Common Mistakes to Avoid
+
+1. ❌ Using iOS blue (`#007AFF`) - Use our primary violet
+2. ❌ Random spacing (13px, 17px) - Use 8px grid
+3. ❌ Heavy shadows - Keep under 0.08 opacity
+4. ❌ Small touch targets - Minimum 44px
+5. ❌ Missing RTL support
+6. ❌ Inconsistent border radius
+7. ❌ Not using family colors
+8. ❌ Console.log in production
+9. ❌ Hardcoded text - Use i18n
+10. ❌ Missing loading/error states
+
+## 🎯 Quick Component Template
+
+```javascript
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import appConfig from '../config/appConfig';
+
+const MyComponent = () => {
+  const familyName = appConfig.family.primaryFamilyName;
+  
+  return (
+    <View style={styles.card}>
+      <View style={styles.header}>
+        <Text style={styles.title}>عائلة {familyName}</Text>
+        <Ionicons name="moon" size={24} color="#957EB5" />
+      </View>
+      <Text style={styles.body}>محتوى البطاقة</Text>
+      <TouchableOpacity 
+        style={styles.primaryButton}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.primaryButtonText}>إجراء</Text>
+        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#73637220',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    fontFamily: 'SF Arabic',
+    color: '#120309',
+    letterSpacing: -0.5,
+  },
+  body: {
+    fontSize: 16,
+    fontWeight: '500',
+    fontFamily: 'SF Arabic',
+    color: '#120309',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  primaryButton: {
+    backgroundColor: '#957EB5',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'SF Arabic',
+  },
+});
+
+export default MyComponent;
+```
+
+## 🔧 Technical Requirements
 
 ### Database Operations
-
 ```javascript
 // Always use RPC for admin operations
 await supabase.rpc("admin_create_profile", params);
 
-// Use branch-based loading
+// Branch-based loading
 await supabase.rpc("get_branch_data", { p_hid, p_max_depth: 3 });
 ```
 
 ### State Management
-
 ```javascript
 // Single source of truth in Zustand
 const { nodes, updateNode } = useTreeStore();
@@ -117,7 +333,6 @@ const { nodes, updateNode } = useTreeStore();
 ```
 
 ### Error Handling
-
 ```javascript
 const { data, error } = await profilesService.createProfile(profileData);
 if (error) {
@@ -125,54 +340,41 @@ if (error) {
 }
 ```
 
-## Security Rules
-
-- NEVER expose service role key in frontend
-- All admin operations through RPC functions
-- Check user roles before sensitive operations
-- Use RLS policies for row-level security
-
-## Performance Guidelines
-
+### Performance
 - Branch-based loading (max depth 3-5)
-- Viewport culling for visible nodes only
+- Viewport culling for visible nodes
 - Debounce real-time subscriptions
-- Queue layout calculations asynchronously
+- Use FlatList for long lists
+- Memoize expensive components
 
-## Testing
-
-- Test zoom/pan on physical iOS device
-- Verify RTL layout in Arabic
-- Check admin features with TEST_ADMIN_SETUP.md
-- Run validation dashboard after bulk operations
-
-## Common Issues
-
-- **Zoom jumping**: Fixed with proper focal point handling
-- **Marriage loading**: Run fix-marriage-dates.sql if needed
-- **Missing layouts**: Queue recalculation via admin dashboard
-- **Auth errors**: Check Supabase Auth settings
-
-## Environment Variables
+## 📱 Development Commands
 
 ```bash
-EXPO_PUBLIC_SUPABASE_URL        # Frontend
-EXPO_PUBLIC_SUPABASE_ANON_KEY   # Frontend
-SUPABASE_DB_PASSWORD            # CLI only
+# Development
+npm start          # Expo dev server
+npm run ios        # iOS simulator
+npm run android    # Android emulator
+
+# Database Deployment - ALWAYS DEPLOY YOURSELF
+node scripts/execute-sql.js <sql-file>
+
+# Validation
+SELECT * FROM admin_validation_dashboard();
+SELECT * FROM admin_auto_fix_issues();
 ```
 
-## Supabase Deployment Rules
+## 🚀 Git Commit Format
 
-**CRITICAL: NEVER tell the user to deploy SQL themselves. Always deploy it for them.**
+```bash
+git commit -m "feat: Add [component] with Modern Arabic Elegance design
 
-When you need to deploy SQL to Supabase:
-
-1. First try: `node scripts/execute-sql.js <file>`
-2. If that fails, create a direct deployment script
-3. If both fail, use the Supabase client directly in a Node script
-4. NEVER say "you need to run this in Supabase Dashboard" or "go to Supabase and run this"
-5. The user expects you to handle ALL deployments
+- Implements 60-30-10 color rule
+- Uses Lavender Gray/African Violet/Muted Gold palette
+- Follows 8px spacing grid
+- Supports RTL layout
+- Tested on physical device"
+```
 
 ---
 
-_Always check docs/ for detailed implementation guides_
+_Always refer to CLAUDE.md for complete design system documentation._

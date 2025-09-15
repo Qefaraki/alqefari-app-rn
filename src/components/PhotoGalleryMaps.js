@@ -170,19 +170,18 @@ const PhotoGalleryMaps = ({
 
           const isPrimary = photos.length === 0 && i === 0;
 
-          // Try RPC first, then direct insert
-          const { data: photoData, error } = await supabase.rpc(
-            "admin_add_profile_photo",
-            {
+          // Check if RPC exists, otherwise use direct insert
+          const { data: funcData } = await supabase
+            .rpc("admin_add_profile_photo", {
               p_profile_id: profileId,
               p_photo_url: url,
               p_storage_path: storagePath,
               p_is_primary: isPrimary,
-            },
-          );
+            })
+            .maybeSingle();
 
-          if (error) {
-            // Fallback to direct insert
+          if (!funcData) {
+            // Direct insert if RPC doesn't exist or failed
             const { data: insertData } = await supabase
               .from("profile_photos")
               .insert({
@@ -196,8 +195,10 @@ const PhotoGalleryMaps = ({
               .single();
 
             uploadedPhotos.push(insertData || { photo_url: url });
+            console.log("Inserted photo:", insertData);
           } else {
-            uploadedPhotos.push(photoData || { photo_url: url });
+            uploadedPhotos.push(funcData);
+            console.log("RPC photo:", funcData);
           }
 
           if (isPrimary && onPrimaryPhotoChange) {
@@ -394,64 +395,68 @@ const PhotoGalleryMaps = ({
 
       {/* Horizontal Thumbnail Strip */}
       {(photos.length > 0 || isAdmin) && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.thumbnailStrip}
-          style={styles.thumbnailScroll}
-        >
-          {photos.map((photo, index) => (
-            <TouchableOpacity
-              key={photo.id}
-              onPress={() => setSelectedPhotoIndex(index)}
-              activeOpacity={0.7}
-              style={styles.thumbnailWrapper}
-            >
-              <Image
-                source={{ uri: photo.photo_url }}
-                style={[
-                  styles.thumbnail,
-                  selectedPhotoIndex === index && styles.thumbnailSelected,
-                  photo.isTemporary && styles.thumbnailLoading,
-                ]}
-              />
+        <View style={styles.thumbnailContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.thumbnailStrip}
+            style={styles.thumbnailScroll}
+          >
+            {photos.map((photo, index) => (
+              <TouchableOpacity
+                key={photo.id}
+                onPress={() => setSelectedPhotoIndex(index)}
+                activeOpacity={0.7}
+                style={styles.thumbnailWrapper}
+              >
+                <Image
+                  source={{ uri: photo.photo_url }}
+                  style={[
+                    styles.thumbnail,
+                    selectedPhotoIndex === index && styles.thumbnailSelected,
+                    photo.isTemporary && styles.thumbnailLoading,
+                  ]}
+                />
 
-              {/* Primary star badge */}
-              {photo.is_primary && (
-                <View style={styles.primaryBadge}>
-                  <Ionicons name="star" size={10} color="#fff" />
-                </View>
-              )}
+                {/* Primary star badge */}
+                {photo.is_primary && (
+                  <View style={styles.primaryBadge}>
+                    <Ionicons name="star" size={10} color="#fff" />
+                  </View>
+                )}
 
-              {/* Delete button - black, top-right */}
-              {isAdmin && !photo.isTemporary && (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeletePhoto(photo.id, photo.is_primary)}
-                >
-                  <Ionicons name="close" size={14} color="#fff" />
-                </TouchableOpacity>
-              )}
+                {/* Delete button - black, top-right */}
+                {isAdmin && !photo.isTemporary && (
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() =>
+                      handleDeletePhoto(photo.id, photo.is_primary)
+                    }
+                  >
+                    <Ionicons name="close" size={14} color="#fff" />
+                  </TouchableOpacity>
+                )}
 
-              {/* Loading indicator for temporary photos */}
-              {photo.isTemporary && (
-                <View style={styles.thumbnailLoadingOverlay}>
-                  <ActivityIndicator size="small" color="#fff" />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                {/* Loading indicator for temporary photos */}
+                {photo.isTemporary && (
+                  <View style={styles.thumbnailLoadingOverlay}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
 
-          {/* Add button */}
-          {isAdmin && !uploading && (
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleSelectPhotos}
-            >
-              <Ionicons name="add" size={30} color="#6366f1" />
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+            {/* Add button */}
+            {isAdmin && !uploading && (
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={handleSelectPhotos}
+              >
+                <Ionicons name="add" size={30} color="#6366f1" />
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+        </View>
       )}
 
       {/* Actions for selected photo */}
@@ -544,13 +549,17 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     fontWeight: "500",
   },
-  thumbnailScroll: {
+  thumbnailContainer: {
+    height: THUMBNAIL_SIZE + 20, // Fixed height to prevent overflow
+    marginTop: 8,
     marginBottom: 12,
+  },
+  thumbnailScroll: {
     overflow: "visible", // Allow overflow for delete buttons
   },
   thumbnailStrip: {
     paddingHorizontal: 16,
-    paddingVertical: 8, // Add vertical padding to prevent cropping
+    paddingVertical: 10, // Add vertical padding to prevent cropping
     flexDirection: "row",
     alignItems: "center",
   },

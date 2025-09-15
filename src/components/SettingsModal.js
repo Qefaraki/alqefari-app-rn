@@ -19,6 +19,7 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
+import appConfig from "../config/appConfig";
 
 export default function SettingsModal({ visible, onClose }) {
   const { settings, updateSetting, clearSettings } = useSettings();
