@@ -72,6 +72,7 @@ const SettingsButton = ({ onPress, isVisible = true }) => {
         duration: 300,
         easing: Easing.out(Easing.cubic),
       }),
+      withTiming(0, { duration: 0 }), // Reset rotation instantly for next press
     );
 
     onPress();
