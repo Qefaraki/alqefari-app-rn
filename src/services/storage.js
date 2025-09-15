@@ -9,10 +9,16 @@ class StorageService {
    * Uploads a profile photo to Supabase storage with retry logic
    * @param {string} uri - The local URI of the image from ImagePicker
    * @param {string} profileId - The profile ID to associate the photo with
+   * @param {string} customPath - Optional custom storage path
    * @param {function} onProgress - Optional callback for upload progress
    * @returns {Promise<{url: string, error: Error|null}>}
    */
-  async uploadProfilePhoto(uri, profileId, onProgress = null) {
+  async uploadProfilePhoto(
+    uri,
+    profileId,
+    customPath = null,
+    onProgress = null,
+  ) {
     const maxRetries = 3;
     let lastError = null;
 
@@ -28,11 +34,18 @@ class StorageService {
         const response = await fetch(uri);
         const blob = await response.blob();
 
-        // Generate unique filename with timestamp
-        const timestamp = new Date().getTime();
-        const fileExt = uri.split(".").pop()?.toLowerCase() || "jpg";
-        const fileName = `photo_${timestamp}.${fileExt}`;
-        const filePath = `profiles/${profileId}/${fileName}`;
+        // Use custom path if provided, otherwise generate one
+        let filePath;
+        if (customPath) {
+          filePath = `profiles/${customPath}`;
+        } else {
+          // Generate unique filename with timestamp and random string
+          const timestamp = new Date().getTime();
+          const random = Math.random().toString(36).substring(7);
+          const fileExt = uri.split(".").pop()?.toLowerCase() || "jpg";
+          const fileName = `photo_${timestamp}_${random}.${fileExt}`;
+          filePath = `profiles/${profileId}/${fileName}`;
+        }
 
         // Convert blob to array buffer
         const arrayBuffer = await new Response(blob).arrayBuffer();

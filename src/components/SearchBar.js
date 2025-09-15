@@ -128,6 +128,22 @@ const SearchBar = ({ onSelectResult, style }) => {
     [profileSheetProgress],
   );
 
+  // CRITICAL FIX: Reset opacity when no person is selected (sheet closed)
+  const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
+  useEffect(() => {
+    if (!selectedPersonId) {
+      // No person selected = sheet is closed, ensure SearchBar is visible
+      if (lastOpacity.current !== 1) {
+        lastOpacity.current = 1;
+        Animated.timing(searchBarOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }).start();
+      }
+    }
+  }, [selectedPersonId, searchBarOpacity]);
+
   const showBackdrop = () => {
     Animated.timing(backdropOpacity, {
       toValue: 1,

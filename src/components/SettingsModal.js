@@ -152,13 +152,21 @@ export default function SettingsModal({ visible, onClose }) {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Profile Section */}
-          {currentUser && (
+          {/* Profile Section - Beautiful World-Class Design */}
+          {loadingProfile ? (
+            <View style={styles.profileCardLoading}>
+              <ActivityIndicator size="small" color="#007AFF" />
+            </View>
+          ) : currentUser ? (
             <TouchableOpacity 
               style={styles.profileCard}
-              activeOpacity={0.7}
+              activeOpacity={0.95}
               onPress={() => {
-                // Navigate to profile if needed
+                if (userProfile) {
+                  // Open profile editor
+                  useTreeStore.getState().setSelectedPersonId(userProfile.id);
+                  onClose();
+                }
               }}
             >
               <View style={styles.profileContent}>
@@ -170,26 +178,38 @@ export default function SettingsModal({ visible, onClose }) {
                     />
                   ) : (
                     <View style={styles.profileImagePlaceholder}>
-                      <Ionicons name="person" size={32} color="#9CA3AF" />
+                      <Text style={styles.profileInitial}>
+                        {(userProfile?.name || currentUser.email || 'U')[0].toUpperCase()}
+                      </Text>
                     </View>
                   )}
+                  <View style={styles.onlineBadge} />
                 </View>
                 
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
-                    {userProfile?.name || currentUser.email?.split('@')[0] || 'المستخدم'}
+                    {userProfile?.name || 'مستخدم جديد'}
                   </Text>
                   <Text style={styles.profileDetail}>
-                    {currentUser.phone || currentUser.email || ''}
+                    {currentUser.phone ? 
+                      `${currentUser.phone.substring(0, 4)} ••• ${currentUser.phone.slice(-4)}` :
+                      currentUser.email || ''
+                    }
                   </Text>
                   {userProfile && (
-                    <Text style={styles.profileViewLink}>عرض الملف الشخصي</Text>
+                    <View style={styles.profileLinkContainer}>
+                      <Text style={styles.profileViewLink}>عرض الملف الشخصي</Text>
+                      <Ionicons name="arrow-forward" size={14} color="#007AFF" />
+                    </View>
                   )}
                 </View>
-                
-                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
               </View>
             </TouchableOpacity>
+          ) : (
+            <View style={styles.signInPrompt}>
+              <Ionicons name="person-circle-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.signInPromptText}>قم بتسجيل الدخول لحفظ إعداداتك</Text>
+            </View>
           )}
 
           {/* Date Format Settings */}
@@ -344,16 +364,26 @@ export default function SettingsModal({ visible, onClose }) {
             </Text>
           </TouchableOpacity>
 
-          {/* Sign Out Button */}
+          {/* Sign Out Button - Beautiful Design */}
           {currentUser && (
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={handleSignOut}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="log-out-outline" size={20} color="#DC2626" />
-              <Text style={styles.signOutButtonText}>تسجيل الخروج</Text>
-            </TouchableOpacity>
+            <View style={styles.signOutSection}>
+              <TouchableOpacity 
+                style={styles.signOutButton}
+                onPress={handleSignOut}
+                activeOpacity={0.9}
+              >
+                <View style={styles.signOutContent}>
+                  <View style={styles.signOutIconContainer}>
+                    <Ionicons name="log-out-outline" size={22} color="#DC2626" />
+                  </View>
+                  <Text style={styles.signOutButtonText}>تسجيل الخروج</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <Text style={styles.signOutHint}>
+                سيتم حفظ جميع إعداداتك محلياً
+              </Text>
+            </View>
           )}
 
           <View style={{ height: 50 }} />

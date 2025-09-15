@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../services/supabase";
 import storageService from "../services/storage";
@@ -19,6 +20,7 @@ import storageService from "../services/storage";
 const { width: screenWidth } = Dimensions.get("window");
 const THUMBNAIL_SIZE = 80; // Small square thumbnails
 const PREVIEW_HEIGHT = 280; // Fixed height for main preview
+const MAX_IMAGE_SIZE = 1920; // Max dimension for compressed images
 
 const PhotoGalleryMaps = ({
   profileId,
@@ -30,6 +32,11 @@ const PhotoGalleryMaps = ({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState({
+    current: 0,
+    total: 0,
+  });
+  const uploadCancelledRef = useRef(false);
   const isAdmin = forceAdminMode || isEditMode;
 
   // Load photos from database
@@ -64,9 +71,33 @@ const PhotoGalleryMaps = ({
     }
   }, [profileId, loadPhotos]);
 
+  // Compress image before upload
+  const compressImage = async (uri) => {
+    try {
+      const result = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: MAX_IMAGE_SIZE } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+      );
+      return result.uri;
+    } catch (error) {
+      console.error("Error compressing image:", error);
+      return uri; // Return original if compression fails
+    }
+  };
+
+  // Generate unique filename
+  const generateUniqueFilename = (profileId, index) => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    return `${profileId}/${timestamp}_${random}_${index}.jpg`;
+  };
+
   // Handle photo selection - MULTIPLE photos
   const handleSelectPhotos = async () => {
     if (!isAdmin) return;
+
+    uploadCancelledRef.current = false; // Reset cancel flag
 
     const permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -88,112 +119,189 @@ const PhotoGalleryMaps = ({
     }
   };
 
-  // Upload multiple photos
+  // Upload multiple photos with progress
   const uploadMultiplePhotos = async (assets) => {
     try {
       setUploading(true);
+      setUploadProgress({ current: 0, total: assets.length });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const uploadPromises = assets.map(async (asset, index) => {
-        const { url, error: uploadError } =
-          await storageService.uploadProfilePhoto(asset.uri, profileId);
+      // Temporary photos to show immediately
+      const tempPhotos = assets.map((asset, index) => ({
+        id: `temp-${Date.now()}-${index}`,
+        photo_url: asset.uri,
+        is_primary: photos.length === 0 && index === 0,
+        display_order: photos.length + index,
+        isTemporary: true,
+      }));
 
-        if (uploadError) throw uploadError;
+      // Show photos immediately for better UX
+      setPhotos((prev) => [...prev, ...tempPhotos]);
 
-        const isPrimary = photos.length === 0 && index === 0; // First photo becomes primary
+      const uploadedPhotos = [];
 
-        // Try RPC first, then direct insert
-        const { error } = await supabase.rpc("admin_add_profile_photo", {
-          p_profile_id: profileId,
-          p_photo_url: url,
-          p_storage_path: `${profileId}/${Date.now()}_${index}.jpg`,
-          p_is_primary: isPrimary,
-        });
+      for (let i = 0; i < assets.length; i++) {
+        // Check if cancelled
+        if (uploadCancelledRef.current) {
+          // Remove temporary photos
+          setPhotos((prev) => prev.filter((p) => !p.isTemporary));
+          Alert.alert("ملغى", "تم إلغاء الرفع");
+          return;
+        }
 
-        if (error) {
-          // Fallback to direct insert
-          await supabase.from("profile_photos").insert({
-            profile_id: profileId,
-            photo_url: url,
-            storage_path: `${profileId}/${Date.now()}_${index}.jpg`,
-            is_primary: isPrimary,
-            display_order: photos.length + index,
+        const asset = assets[i];
+        setUploadProgress({ current: i + 1, total: assets.length });
+
+        try {
+          // Compress image
+          const compressedUri = await compressImage(asset.uri);
+
+          // Generate unique filename
+          const storagePath = generateUniqueFilename(profileId, i);
+
+          // Upload with unique path
+          const { url, error: uploadError } =
+            await storageService.uploadProfilePhoto(
+              compressedUri,
+              profileId,
+              storagePath,
+            );
+
+          if (uploadError) throw uploadError;
+
+          const isPrimary = photos.length === 0 && i === 0;
+
+          // Try RPC first, then direct insert
+          const { data: photoData, error } = await supabase.rpc(
+            "admin_add_profile_photo",
+            {
+              p_profile_id: profileId,
+              p_photo_url: url,
+              p_storage_path: storagePath,
+              p_is_primary: isPrimary,
+            },
+          );
+
+          if (error) {
+            // Fallback to direct insert
+            const { data: insertData } = await supabase
+              .from("profile_photos")
+              .insert({
+                profile_id: profileId,
+                photo_url: url,
+                storage_path: storagePath,
+                is_primary: isPrimary,
+                display_order: photos.length + i,
+              })
+              .select()
+              .single();
+
+            uploadedPhotos.push(insertData || { photo_url: url });
+          } else {
+            uploadedPhotos.push(photoData || { photo_url: url });
+          }
+
+          if (isPrimary && onPrimaryPhotoChange) {
+            onPrimaryPhotoChange(url);
+          }
+
+          // Replace temporary photo with real one
+          setPhotos((prev) => {
+            const filtered = prev.filter(
+              (p) => p.id !== `temp-${Date.now()}-${i}`,
+            );
+            return filtered;
           });
+        } catch (error) {
+          console.error(`Error uploading photo ${i + 1}:`, error);
         }
+      }
 
-        if (isPrimary && onPrimaryPhotoChange) {
-          onPrimaryPhotoChange(url);
-        }
-
-        return url;
-      });
-
-      await Promise.all(uploadPromises);
+      // Reload to get proper data
       await loadPhotos();
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("نجح", `تم إضافة ${assets.length} صور بنجاح`);
+      Alert.alert(
+        "نجح",
+        `تم رفع ${uploadedPhotos.length} من ${assets.length} صور`,
+      );
     } catch (error) {
       console.error("Upload error:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("خطأ", "فشل رفع بعض الصور");
+      Alert.alert("خطأ", "فشل رفع الصور");
+      // Remove temporary photos on error
+      setPhotos((prev) => prev.filter((p) => !p.isTemporary));
     } finally {
       setUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
+      uploadCancelledRef.current = false;
     }
+  };
+
+  // Cancel upload
+  const handleCancelUpload = () => {
+    uploadCancelledRef.current = true;
   };
 
   // Delete photo
   const handleDeletePhoto = async (photoId, isPrimary) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    try {
-      const { error: rpcError } = await supabase.rpc(
-        "admin_delete_profile_photo",
-        {
-          p_photo_id: photoId,
+    Alert.alert("تأكيد الحذف", "هل تريد حذف هذه الصورة؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const { error: rpcError } = await supabase.rpc(
+              "admin_delete_profile_photo",
+              { p_photo_id: photoId },
+            );
+
+            if (rpcError) {
+              await supabase.from("profile_photos").delete().eq("id", photoId);
+            }
+
+            // If it was primary, make the next photo primary
+            if (isPrimary) {
+              const remainingPhotos = photos.filter((p) => p.id !== photoId);
+              if (remainingPhotos.length > 0) {
+                const newPrimary = remainingPhotos[0];
+                await supabase
+                  .from("profile_photos")
+                  .update({ is_primary: true })
+                  .eq("id", newPrimary.id);
+
+                await supabase
+                  .from("profiles")
+                  .update({ photo_url: newPrimary.photo_url })
+                  .eq("id", profileId);
+
+                if (onPrimaryPhotoChange) {
+                  onPrimaryPhotoChange(newPrimary.photo_url);
+                }
+              } else {
+                await supabase
+                  .from("profiles")
+                  .update({ photo_url: null })
+                  .eq("id", profileId);
+
+                if (onPrimaryPhotoChange) {
+                  onPrimaryPhotoChange(null);
+                }
+              }
+            }
+
+            await loadPhotos();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (error) {
+            console.error("Error deleting photo:", error);
+            Alert.alert("خطأ", "فشل حذف الصورة");
+          }
         },
-      );
-
-      if (rpcError) {
-        await supabase.from("profile_photos").delete().eq("id", photoId);
-      }
-
-      // If it was primary, make the next photo primary
-      if (isPrimary) {
-        const remainingPhotos = photos.filter((p) => p.id !== photoId);
-        if (remainingPhotos.length > 0) {
-          const newPrimary = remainingPhotos[0];
-          await supabase
-            .from("profile_photos")
-            .update({ is_primary: true })
-            .eq("id", newPrimary.id);
-
-          await supabase
-            .from("profiles")
-            .update({ photo_url: newPrimary.photo_url })
-            .eq("id", profileId);
-
-          if (onPrimaryPhotoChange) {
-            onPrimaryPhotoChange(newPrimary.photo_url);
-          }
-        } else {
-          await supabase
-            .from("profiles")
-            .update({ photo_url: null })
-            .eq("id", profileId);
-
-          if (onPrimaryPhotoChange) {
-            onPrimaryPhotoChange(null);
-          }
-        }
-      }
-
-      await loadPhotos();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error("Error deleting photo:", error);
-      Alert.alert("خطأ", "فشل حذف الصورة");
-    }
+      },
+    ]);
   };
 
   // Set as primary photo
@@ -245,9 +353,18 @@ const PhotoGalleryMaps = ({
         <View style={styles.previewContainer}>
           <Image
             source={{ uri: currentPhoto.photo_url }}
-            style={styles.previewImage}
+            style={[
+              styles.previewImage,
+              currentPhoto.isTemporary && styles.previewImageLoading,
+            ]}
             resizeMode="cover"
           />
+          {currentPhoto.isTemporary && (
+            <View style={styles.uploadingOverlay}>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.uploadingText}>جارِ الرفع...</Text>
+            </View>
+          )}
         </View>
       ) : (
         isAdmin && (
@@ -266,6 +383,31 @@ const PhotoGalleryMaps = ({
             )}
           </TouchableOpacity>
         )
+      )}
+
+      {/* Upload Progress */}
+      {uploading && uploadProgress.total > 0 && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>
+            رفع {uploadProgress.current} من {uploadProgress.total}
+          </Text>
+          <TouchableOpacity
+            onPress={handleCancelUpload}
+            style={styles.cancelButton}
+          >
+            <Text style={styles.cancelText}>إلغاء</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Horizontal Thumbnail Strip */}
@@ -288,6 +430,7 @@ const PhotoGalleryMaps = ({
                 style={[
                   styles.thumbnail,
                   selectedPhotoIndex === index && styles.thumbnailSelected,
+                  photo.isTemporary && styles.thumbnailLoading,
                 ]}
               />
 
@@ -299,7 +442,7 @@ const PhotoGalleryMaps = ({
               )}
 
               {/* Delete button - black, top-right */}
-              {isAdmin && (
+              {isAdmin && !photo.isTemporary && (
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDeletePhoto(photo.id, photo.is_primary)}
@@ -307,35 +450,40 @@ const PhotoGalleryMaps = ({
                   <Ionicons name="close" size={14} color="#fff" />
                 </TouchableOpacity>
               )}
+
+              {/* Loading indicator for temporary photos */}
+              {photo.isTemporary && (
+                <View style={styles.thumbnailLoadingOverlay}>
+                  <ActivityIndicator size="small" color="#fff" />
+                </View>
+              )}
             </TouchableOpacity>
           ))}
 
           {/* Add button */}
-          {isAdmin && (
+          {isAdmin && !uploading && (
             <TouchableOpacity
               style={styles.addButton}
               onPress={handleSelectPhotos}
-              disabled={uploading}
             >
-              {uploading ? (
-                <ActivityIndicator size="small" color="#6366f1" />
-              ) : (
-                <Ionicons name="add" size={30} color="#6366f1" />
-              )}
+              <Ionicons name="add" size={30} color="#6366f1" />
             </TouchableOpacity>
           )}
         </ScrollView>
       )}
 
       {/* Actions for selected photo */}
-      {isAdmin && currentPhoto && !currentPhoto.is_primary && (
-        <TouchableOpacity
-          style={styles.setPrimaryButton}
-          onPress={() => handleSetPrimary(currentPhoto)}
-        >
-          <Text style={styles.setPrimaryText}>تعيين كصورة أساسية</Text>
-        </TouchableOpacity>
-      )}
+      {isAdmin &&
+        currentPhoto &&
+        !currentPhoto.is_primary &&
+        !currentPhoto.isTemporary && (
+          <TouchableOpacity
+            style={styles.setPrimaryButton}
+            onPress={() => handleSetPrimary(currentPhoto)}
+          >
+            <Text style={styles.setPrimaryText}>تعيين كصورة أساسية</Text>
+          </TouchableOpacity>
+        )}
     </View>
   );
 };
@@ -360,6 +508,20 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  previewImageLoading: {
+    opacity: 0.6,
+  },
+  uploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  uploadingText: {
+    color: "#fff",
+    fontSize: 12,
+    marginTop: 8,
+  },
   emptyPreview: {
     marginHorizontal: 16,
     height: PREVIEW_HEIGHT,
@@ -377,6 +539,38 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
   },
+  progressContainer: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  progressBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#6366f1",
+  },
+  progressText: {
+    marginLeft: 12,
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  cancelButton: {
+    marginLeft: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  cancelText: {
+    color: "#ef4444",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   thumbnailScroll: {
     marginBottom: 12,
     overflow: "visible", // Allow overflow for delete buttons
@@ -391,7 +585,6 @@ const styles = StyleSheet.create({
   thumbnailWrapper: {
     position: "relative",
     marginRight: 8,
-    marginTop: 6, // Add top margin to prevent delete button from being cropped
   },
   thumbnail: {
     width: THUMBNAIL_SIZE,
@@ -403,6 +596,16 @@ const styles = StyleSheet.create({
   },
   thumbnailSelected: {
     borderColor: "#6366f1",
+  },
+  thumbnailLoading: {
+    opacity: 0.6,
+  },
+  thumbnailLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
   },
   primaryBadge: {
     position: "absolute",

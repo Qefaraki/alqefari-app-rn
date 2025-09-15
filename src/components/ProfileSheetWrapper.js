@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ProfileSheet from "./ProfileSheet";
 import ModernProfileEditorV4 from "../screens/ModernProfileEditorV4";
 import { useAdminMode } from "../contexts/AdminModeContext";
@@ -10,6 +10,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((state) => state.treeData);
+  const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
   // Get person data
   const person = React.useMemo(() => {
@@ -20,6 +21,14 @@ const ProfileSheetWrapper = ({ editMode }) => {
     return familyData.find((p) => p.id === selectedPersonId);
   }, [selectedPersonId, treeData]);
 
+  // Critical: Reset profileSheetProgress when switching between modals
+  useEffect(() => {
+    // When admin mode changes or person selection changes, ensure clean state
+    if (!selectedPersonId && profileSheetProgress) {
+      profileSheetProgress.value = 0;
+    }
+  }, [selectedPersonId, profileSheetProgress]);
+
   // When in admin mode, show the modern editor
   // When not in admin mode, show the regular ProfileSheet
   if (selectedPersonId && isAdminMode && person) {
@@ -27,11 +36,24 @@ const ProfileSheetWrapper = ({ editMode }) => {
       <ModernProfileEditorV4
         visible={true}
         profile={person}
-        onClose={() => setSelectedPersonId(null)}
+        onClose={() => {
+          // CRITICAL: Force reset before closing to ensure SearchBar reappears
+          if (profileSheetProgress) {
+            profileSheetProgress.value = 0;
+          }
+          // Small delay to ensure the reset is processed
+          setTimeout(() => {
+            setSelectedPersonId(null);
+          }, 50);
+        }}
         onSave={(updatedData) => {
           // Update the node in the tree
           if (updatedData) {
             useTreeStore.getState().updateNode(person.id, updatedData);
+          }
+          // CRITICAL: Force reset before closing
+          if (profileSheetProgress) {
+            profileSheetProgress.value = 0;
           }
           setSelectedPersonId(null);
           // Optionally reopen to see changes

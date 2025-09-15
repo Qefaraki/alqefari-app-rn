@@ -269,9 +269,9 @@ export default function App() {
       } = await supabase.auth.getUser();
       setUser(user);
 
-      // Check if user has seen onboarding (you could store this in AsyncStorage)
-      // For now, we'll show onboarding if user is not logged in
-      setHasSeenOnboarding(!!user);
+      // If no user is logged in, they need to see onboarding
+      // If user IS logged in, they've already seen onboarding
+      setHasSeenOnboarding(false); // Always start with onboarding/auth flow
     } catch (error) {
       console.error("Auth check error:", error);
     } finally {
