@@ -1,6 +1,6 @@
 import React from "react";
 import ProfileSheet from "./ProfileSheet";
-import ModernProfileEditor from "../screens/ModernProfileEditor";
+import ModernProfileEditorV2 from "../screens/ModernProfileEditorV2";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
 import { familyData } from "../data/family-data";
@@ -24,7 +24,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
   // When not in admin mode, show the regular ProfileSheet
   if (selectedPersonId && isAdminMode && person) {
     return (
-      <ModernProfileEditor
+      <ModernProfileEditorV2
         visible={true}
         profile={person}
         onClose={() => setSelectedPersonId(null)}

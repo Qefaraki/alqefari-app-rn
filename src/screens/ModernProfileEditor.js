@@ -556,14 +556,16 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         ))}
 
         {/* Marriages Section */}
-        {renderSection("الزيجات", "marriages", (
+        {renderSection(profile?.gender === "female" ? "الأزواج" : "الزوجات", "marriages", (
           <View>
             <TouchableOpacity
               style={styles.addButton}
               onPress={() => setShowMarriageEditor(true)}
             >
               <Ionicons name="add-circle-outline" size={24} color="#007AFF" />
-              <Text style={styles.addButtonText}>إضافة زواج</Text>
+              <Text style={styles.addButtonText}>
+                {profile?.gender === "female" ? "إضافة زوج" : "إضافة زوجة"}
+              </Text>
             </TouchableOpacity>
             
             {loadingMarriages ? (

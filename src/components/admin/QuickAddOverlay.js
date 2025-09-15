@@ -35,10 +35,10 @@ import MotherSelector from "./fields/MotherSelector";
 // Enable RTL
 I18nManager.forceRTL(true);
 
-// Card dimensions
-const CARD_WIDTH = 140;
-const CARD_HEIGHT = 120;
-const CARD_SPACING = 12;
+// Card dimensions - more compact
+const CARD_WIDTH = 110;
+const CARD_HEIGHT = 90;
+const CARD_SPACING = 10;
 
 // Draggable Child Card Component
 const DraggableChildCard = ({
@@ -433,6 +433,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       // Success - close with haptic feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setLoading(false); // Clear loading state BEFORE closing
+
+      // Refresh and close
+      if (refreshProfile) {
+        await refreshProfile(parentNode.id);
+      }
+
       onClose();
     } catch (error) {
       console.error("Save error:", error);
@@ -477,11 +484,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
             {/* Horizontal Children Cards */}
             <View style={styles.cardsSection}>
-              <Text style={styles.sectionTitle}>
-                {allChildren.length === 0
-                  ? "ابدأ بإضافة الأطفال"
-                  : "اسحب البطاقات لإعادة الترتيب"}
-              </Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {allChildren.length === 0
+                    ? "ابدأ بإضافة الأطفال"
+                    : "اسحب البطاقات لإعادة الترتيب"}
+                </Text>
+              </View>
               <ScrollView
                 ref={scrollViewRef}
                 horizontal
@@ -519,9 +528,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
             {/* Input Form */}
             <View style={styles.inputForm}>
               <View style={styles.formHeader}>
-                <Text style={styles.formTitle}>
-                  {editingChildId ? "تعديل الطفل" : "طفل جديد"}
-                </Text>
                 {editingChildId && (
                   <TouchableOpacity
                     onPress={() => {
@@ -533,6 +539,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     <Text style={styles.cancelEditText}>إلغاء</Text>
                   </TouchableOpacity>
                 )}
+                <Text style={styles.formTitle}>
+                  {editingChildId ? "تعديل الطفل" : "طفل جديد"}
+                </Text>
               </View>
 
               <View style={styles.inputContainer}>
@@ -716,12 +725,15 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 16,
   },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    alignItems: "flex-end", // RTL alignment
+  },
   sectionTitle: {
     fontSize: 14,
     fontWeight: "500",
     color: "#8E8E93",
     marginBottom: 12,
-    paddingHorizontal: 16,
     textAlign: "right",
   },
   cardsScroll: {
@@ -755,13 +767,13 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    padding: 10,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
     borderWidth: 1,
     borderColor: "#E5E5EA",
   },
@@ -793,11 +805,11 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   childName: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: "#000",
-    marginTop: 28,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 6,
     textAlign: "center",
   },
   genderLabel: {
@@ -849,6 +861,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#000",
+    textAlign: "right",
+    flex: 1,
   },
   cancelEditButton: {
     paddingHorizontal: 12,

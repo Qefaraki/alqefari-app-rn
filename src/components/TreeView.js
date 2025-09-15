@@ -1532,18 +1532,22 @@ const TreeView = ({
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // The node already has its children attached!
-        const children = pressedNode.children || [];
+        const children = Array.isArray(pressedNode.children)
+          ? pressedNode.children
+          : [];
 
         console.log("Found children from node.children:", children.length);
-        console.log(
-          "Children details:",
-          children.map((c) => ({
-            name: c.name,
-            sibling_order: c.sibling_order,
-            father_id: c.father_id,
-            mother_id: c.mother_id,
-          })),
-        );
+        if (children.length > 0) {
+          console.log(
+            "Children details:",
+            children.map((c) => ({
+              name: c.name,
+              sibling_order: c.sibling_order,
+              father_id: c.father_id,
+              mother_id: c.mother_id,
+            })),
+          );
+        }
 
         // Sort children by sibling_order (they should already be sorted)
         children.sort(
@@ -2531,10 +2535,14 @@ const TreeView = ({
           if (!quickAddParent) return [];
 
           // Use the children already attached to the parent node
-          const children = quickAddParent.children || [];
+          const children = Array.isArray(quickAddParent.children)
+            ? quickAddParent.children
+            : [];
 
           console.log("Passing siblings to QuickAddOverlay:", children.length);
-          console.log("Siblings:", children);
+          if (children.length > 0) {
+            console.log("Siblings:", children);
+          }
 
           return children.sort(
             (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),
