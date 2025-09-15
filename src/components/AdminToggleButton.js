@@ -13,7 +13,7 @@ import { useAdminMode } from "../contexts/AdminModeContext";
 
 const AdminToggleButton = ({ onLongPress, user }) => {
   const { isAdminMode, toggleAdminMode } = useAdminMode();
-  const [showTooltip, setShowTooltip] = useState(false);
+  // Removed tooltip state - no longer needed
 
   const iconScale = useSharedValue(1);
   const iconRotate = useSharedValue(0);
@@ -43,9 +43,7 @@ const AdminToggleButton = ({ onLongPress, user }) => {
 
     toggleAdminMode();
 
-    // Show tooltip briefly
-    setShowTooltip(true);
-    setTimeout(() => setShowTooltip(false), 2000);
+    // Tooltip disabled - no longer showing text on press
   };
 
   const handleLongPress = () => {
@@ -62,15 +60,6 @@ const AdminToggleButton = ({ onLongPress, user }) => {
 
   return (
     <View style={styles.container}>
-      {/* Tooltip */}
-      {showTooltip && (
-        <View style={styles.tooltip}>
-          <Text style={styles.tooltipText}>
-            {isAdminMode ? "وضع الإدارة مفعّل" : "وضع الإدارة معطّل"}
-          </Text>
-        </View>
-      )}
-
       {/* Button with shadow wrapper like NavigateToRootButton */}
       <View
         style={[
@@ -176,22 +165,6 @@ const styles = StyleSheet.create({
   buttonPressed: {
     backgroundColor: "rgba(0,0,0,0.05)",
     transform: [{ scale: 0.96 }],
-  },
-  tooltip: {
-    position: "absolute",
-    bottom: 70,
-    left: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    minWidth: 120,
-  },
-  tooltipText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
   },
 });
 
