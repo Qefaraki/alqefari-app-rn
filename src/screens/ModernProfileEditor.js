@@ -85,10 +85,15 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         email: profile.email || "",
         photo_url: profile.photo_url || "",
         social_media_links: profile.social_media_links || {},
+        achievements: profile.achievements || null,
+        timeline: profile.timeline || null,
         dob_data: profile.dob_data || null,
         dod_data: profile.dod_data || null,
         dob_is_public: profile.dob_is_public ?? true,
         profile_visibility: profile.profile_visibility || "family",
+        father_id: profile.father_id || null,
+        mother_id: profile.mother_id || null,
+        role: profile.role || null,
       };
       setEditedData(initialData);
       setOriginalData(initialData);
@@ -158,14 +163,24 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         gender: editedData.gender,
         status: editedData.status,
         sibling_order: editedData.sibling_order,
-        // Keep complex fields as is
-        social_media_links: editedData.social_media_links,
+        // Handle social_media_links - convert empty object to null
+        social_media_links: (editedData.social_media_links && Object.keys(editedData.social_media_links).length > 0) 
+          ? editedData.social_media_links 
+          : null,
+        achievements: editedData.achievements || null,
+        timeline: editedData.timeline || null,
         dob_data: editedData.dob_data,
         dod_data: editedData.dod_data,
         dob_is_public: editedData.dob_is_public,
         profile_visibility: editedData.profile_visibility,
+        father_id: editedData.father_id || null,
+        mother_id: editedData.mother_id || null,
+        role: editedData.role || null,
       };
 
+      // Debug log to see what we're sending
+      console.log("Saving profile with data:", JSON.stringify(cleanedData, null, 2));
+      
       const { data, error } = await supabase
         .from("profiles")
         .update(cleanedData)
@@ -173,7 +188,10 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error details:", error);
+        throw error;
+      }
 
       // Update the node in the tree immediately
       if (data) {

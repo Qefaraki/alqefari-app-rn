@@ -175,7 +175,7 @@ const DraggableChildCard = ({
             </TouchableOpacity>
 
             <View style={styles.orderBadge}>
-              <Text style={styles.orderBadgeText}>{index + 1}</Text>
+              <Text style={styles.orderBadgeText}>{totalChildren - index}</Text>
             </View>
 
             <Text style={styles.childName} numberOfLines={2}>
@@ -219,6 +219,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [selectedMotherId, setSelectedMotherId] = useState(null);
   const [editingChildId, setEditingChildId] = useState(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [hasReordered, setHasReordered] = useState(false);
+  const [originalOrder, setOriginalOrder] = useState([]);
   const inputRef = useRef(null);
   const scrollViewRef = useRef(null);
   const { refreshProfile } = useStore();
@@ -228,6 +230,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   useEffect(() => {
     if (visible && parentNode) {
       // Sort siblings by sibling_order (ascending = oldest to youngest)
+      // sibling_order: 0 = oldest, 1 = second oldest, etc.
       const sortedSiblings = [...siblings]
         .sort((a, b) => (a.sibling_order ?? 0) - (b.sibling_order ?? 0))
         .map((s) => ({
@@ -237,9 +240,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         }));
 
       setAllChildren(sortedSiblings);
+      setOriginalOrder(sortedSiblings.map((s) => s.id));
       setCurrentChild({ name: "", gender: "male", id: null });
       setEditingChildId(null);
       setSelectedMotherId(null);
+      setHasReordered(false);
 
       // Auto-focus after modal animation
       setTimeout(() => {
@@ -317,6 +322,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       const updated = [...prev];
       const [moved] = updated.splice(fromIndex, 1);
       updated.splice(toIndex, 0, moved);
+
+      // Check if existing children were reordered
+      const existingChildrenOrdered = updated
+        .filter((c) => c.isExisting)
+        .map((c) => c.id);
+      const orderChanged = !originalOrder.every(
+        (id, idx) => existingChildrenOrdered[idx] === id,
+      );
+      setHasReordered(orderChanged);
+
       return updated;
     });
   };
@@ -346,47 +361,81 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const handleSaveAll = async () => {
     const newChildren = allChildren.filter((child) => child.isNew);
 
-    if (newChildren.length === 0) {
-      Alert.alert("تنبيه", "لا يوجد أطفال جدد للحفظ");
+    if (newChildren.length === 0 && !hasReordered) {
+      Alert.alert("تنبيه", "لا يوجد تغييرات للحفظ");
       return;
     }
 
     setLoading(true);
     try {
-      const childrenToSave = newChildren.map((child, index) => ({
-        name: child.name.trim(),
-        gender: child.gender,
-        sibling_order: siblings.length + index,
-      }));
+      // Save new children if any
+      if (newChildren.length > 0) {
+        // Calculate correct sibling_order for new children
+        // They should be added at their position in the array
+        const childrenToSave = newChildren.map((child) => {
+          const childIndex = allChildren.indexOf(child);
+          return {
+            name: child.name.trim(),
+            gender: child.gender,
+            sibling_order: childIndex, // Position in array = sibling_order
+          };
+        });
 
-      // Determine parent type and save
-      const { error } =
-        parentNode.gender === "male" && selectedMotherId
-          ? await profilesService.bulkCreateChildrenWithMother(
-              parentNode.id,
-              selectedMotherId,
-              childrenToSave,
-            )
-          : await profilesService.bulkCreateChildren(
-              parentNode.id,
-              childrenToSave,
+        // Determine parent type and save
+        const { error } =
+          parentNode.gender === "male" && selectedMotherId
+            ? await profilesService.bulkCreateChildrenWithMother(
+                parentNode.id,
+                selectedMotherId,
+                childrenToSave,
+              )
+            : await profilesService.bulkCreateChildren(
+                parentNode.id,
+                childrenToSave,
+              );
+
+        if (error) {
+          // Fallback to individual creates
+          for (const child of childrenToSave) {
+            const result = await profilesService.createProfile({
+              name: child.name,
+              gender: child.gender,
+              generation: parentNode.generation + 1,
+              father_id: parentNode.gender === "male" ? parentNode.id : null,
+              mother_id:
+                parentNode.gender === "female"
+                  ? parentNode.id
+                  : selectedMotherId,
+              sibling_order: child.sibling_order,
+            });
+
+            if (result.error) {
+              throw new Error(
+                `Failed to create ${child.name}: ${result.error}`,
+              );
+            }
+          }
+        }
+      }
+
+      // Update existing children's order if reordered
+      if (hasReordered) {
+        const existingChildren = allChildren.filter((c) => c.isExisting);
+        for (let i = 0; i < existingChildren.length; i++) {
+          const child = existingChildren[i];
+          const newOrder = allChildren.indexOf(child);
+
+          // Only update if order actually changed
+          if (child.sibling_order !== newOrder) {
+            const { error } = await profilesService.updateProfile(
+              child.id,
+              child.version || 1,
+              { sibling_order: newOrder },
             );
 
-      if (error) {
-        // Fallback to individual creates
-        for (const child of childrenToSave) {
-          const result = await profilesService.createProfile({
-            name: child.name,
-            gender: child.gender,
-            generation: parentNode.generation + 1,
-            father_id: parentNode.gender === "male" ? parentNode.id : null,
-            mother_id:
-              parentNode.gender === "female" ? parentNode.id : selectedMotherId,
-            sibling_order: child.sibling_order,
-          });
-
-          if (result.error) {
-            throw new Error(`Failed to create ${child.name}: ${result.error}`);
+            if (error) {
+              console.error(`Failed to update order for ${child.name}:`, error);
+            }
           }
         }
       }
@@ -592,21 +641,23 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               <TouchableOpacity
                 style={[
                   styles.saveButton,
-                  (loading || newChildrenCount === 0) &&
+                  (loading || (newChildrenCount === 0 && !hasReordered)) &&
                     styles.saveButtonDisabled,
                 ]}
                 onPress={handleSaveAll}
-                disabled={loading || newChildrenCount === 0}
+                disabled={loading || (newChildrenCount === 0 && !hasReordered)}
               >
                 {loading ? (
                   <Text style={styles.saveButtonText}>جارِ الحفظ...</Text>
                 ) : (
                   <Text style={styles.saveButtonText}>
-                    {newChildrenCount === 0
-                      ? "لا يوجد أطفال جدد"
-                      : newChildrenCount === 1
-                        ? "حفظ الطفل"
-                        : `حفظ الكل (${newChildrenCount} أطفال)`}
+                    {hasReordered && newChildrenCount === 0
+                      ? "حفظ الترتيب الجديد"
+                      : newChildrenCount === 0
+                        ? "لا يوجد تغييرات"
+                        : newChildrenCount === 1 && !hasReordered
+                          ? "حفظ الطفل"
+                          : `حفظ الكل (${newChildrenCount} ${newChildrenCount === 1 ? "طفل" : "أطفال"}${hasReordered ? " + ترتيب" : ""})`}
                   </Text>
                 )}
               </TouchableOpacity>
