@@ -271,12 +271,14 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
+    alignItems: "flex-end", // RTL: align content to right
   },
   label: {
     fontSize: 14,
     color: "#8A8A8E",
     marginBottom: 8,
     fontFamily: "SF Arabic Regular",
+    textAlign: "right",
   },
   selectorContent: {
     padding: 16,

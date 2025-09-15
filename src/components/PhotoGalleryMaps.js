@@ -273,8 +273,30 @@ const PhotoGalleryMaps = ({
   const primaryPhoto = photos.find((p) => p.is_primary) || photos[0];
   const otherPhotos = photos.filter((p) => !p.is_primary);
 
+  console.log("PhotoGalleryMaps rendering:", {
+    profileId,
+    isEditMode,
+    forceAdminMode,
+    isAdmin,
+    photosCount: photos.length,
+    loading,
+  });
+
+  // Always show something in edit mode
+  if (!isAdmin && photos.length === 0) {
+    return null; // Don't show empty gallery in view mode
+  }
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isAdmin ? "#f0f0f0" : "transparent",
+          minHeight: isAdmin ? 200 : 0,
+        },
+      ]}
+    >
       {/* Main/Primary Photo - Full width */}
       {primaryPhoto ? (
         <View style={styles.mainPhotoContainer}>

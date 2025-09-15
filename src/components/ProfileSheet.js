@@ -929,21 +929,6 @@ const ProfileSheet = ({ editMode = false }) => {
             </View>
           </View>
 
-          {/* Photo Gallery Section - Shows immediately after hero */}
-          {person.id && isEditing && (
-            <View style={styles.gallerySection}>
-              <Text style={styles.gallerySectionTitle}>صور إضافية</Text>
-              <PhotoGalleryMaps
-                profileId={person.id}
-                isEditMode={isEditing}
-                forceAdminMode={isEditing}
-                onPrimaryPhotoChange={(newPhotoUrl) => {
-                  setEditedData({ ...editedData, photo_url: newPhotoUrl });
-                }}
-              />
-            </View>
-          )}
-
           {/* Information section */}
           <SectionCard title="المعلومات">
             {isEditing ? (
@@ -1886,6 +1871,21 @@ const ProfileSheet = ({ editMode = false }) => {
             </SectionCard>
           </View>
 
+          {/* Photo Gallery at Bottom of Edit Page */}
+          {isEditing && person.id && (
+            <View style={styles.bottomGallerySection}>
+              <Text style={styles.bottomGalleryTitle}>معرض الصور</Text>
+              <PhotoGalleryMaps
+                profileId={person.id}
+                isEditMode={true}
+                forceAdminMode={true}
+                onPrimaryPhotoChange={(newPhotoUrl) => {
+                  setEditedData({ ...editedData, photo_url: newPhotoUrl });
+                }}
+              />
+            </View>
+          )}
+
           {/* Bottom padding for safe area */}
           <View style={{ height: 100 }} />
         </View>
@@ -1955,16 +1955,18 @@ const styles = StyleSheet.create({
     height: screenWidth,
     backgroundColor: "#F7F7F8",
   },
-  gallerySection: {
-    marginTop: 16,
+  bottomGallerySection: {
+    marginTop: 24,
+    marginBottom: 24,
     paddingHorizontal: 16,
   },
-  gallerySectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
+  bottomGalleryTitle: {
+    fontSize: 20,
+    fontWeight: "700",
     color: "#111827",
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "right",
+    writingDirection: "rtl",
   },
   heroImage: {
     width: "100%",

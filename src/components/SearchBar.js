@@ -295,9 +295,8 @@ const SearchBar = ({ onSelectResult, style }) => {
       duration: 150,
       useNativeDriver: true,
     }).start();
-    if (query.length > 0) {
-      showBackdrop();
-    }
+    // Always show backdrop when focused, not just when there's a query
+    showBackdrop();
   };
 
   const handleBlur = () => {
@@ -308,6 +307,10 @@ const SearchBar = ({ onSelectResult, style }) => {
       duration: 150,
       useNativeDriver: true,
     }).start();
+    // Hide backdrop when blur happens
+    if (!showResults) {
+      hideResults();
+    }
   };
 
   const renderResult = ({ item, index }) => {
@@ -413,8 +416,8 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   return (
     <>
-      {/* Backdrop when search is active */}
-      {showResults && (
+      {/* Backdrop when search is active or focused */}
+      {(showResults || isFocused) && (
         <Animated.View
           style={[
             styles.backdrop,
@@ -422,13 +425,14 @@ const SearchBar = ({ onSelectResult, style }) => {
               opacity: backdropOpacity,
             },
           ]}
-          pointerEvents={showResults ? "auto" : "none"}
+          pointerEvents={showResults || isFocused ? "auto" : "none"}
         >
           <Pressable
             style={{ flex: 1 }}
             onPress={() => {
               hideResults();
               Keyboard.dismiss();
+              inputRef.current?.blur();
             }}
           />
         </Animated.View>
@@ -521,7 +525,7 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)", // Lighter backdrop
     zIndex: 9999,
     elevation: 999,
   },

@@ -36,9 +36,9 @@ import MotherSelector from "./fields/MotherSelector";
 I18nManager.forceRTL(true);
 
 // Card dimensions - more compact
-const CARD_WIDTH = 110;
-const CARD_HEIGHT = 90;
-const CARD_SPACING = 10;
+const CARD_WIDTH = 85;
+const CARD_HEIGHT = 85;
+const CARD_SPACING = 8;
 
 // Draggable Child Card Component
 const DraggableChildCard = ({
@@ -170,7 +170,7 @@ const DraggableChildCard = ({
               onPress={handleDelete}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close-circle" size={18} color="#FF3B30" />
+              <Ionicons name="close-circle" size={16} color="rgba(0,0,0,0.5)" />
             </TouchableOpacity>
 
             <View style={styles.orderBadge}>
@@ -791,12 +791,8 @@ const styles = StyleSheet.create({
   orderBadge: {
     position: "absolute",
     top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#F2F2F7",
-    justifyContent: "center",
+    left: 0,
+    right: 0,
     alignItems: "center",
   },
   orderBadgeText: {
