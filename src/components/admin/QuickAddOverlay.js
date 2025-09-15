@@ -269,15 +269,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       );
       setEditingChildId(null);
     } else {
-      // Add new child to list
+      // Add new child to list as youngest (at the end)
       const newChild = {
         id: `new-${Date.now()}`,
         name: trimmedName,
         gender: currentChild.gender,
         isNew: true,
         isExisting: false,
-        sibling_order: allChildren.filter((c) => c.isNew).length,
+        sibling_order: allChildren.length, // Will be youngest (highest sibling_order)
       };
+      // Add to end of array (youngest position in RTL: leftmost)
       setAllChildren((prev) => [...prev, newChild]);
     }
 
@@ -821,10 +822,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   genderText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   genderMale: {
