@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Animated,
   Keyboard,
   ActivityIndicator,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../services/profiles";
 
@@ -22,55 +26,40 @@ export default function InlineSpouseAdder({
   const [isExpanded, setIsExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const animatedHeight = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Reanimated shared values (avoid RN Animated native driver limitations)
+  const heightSV = useSharedValue(0);
+  const opacitySV = useSharedValue(0);
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (visible) {
-      expand();
-    } else {
-      collapse();
-    }
+    if (visible) expand();
+    else collapse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // Focus input shortly after expansion finishes (JS thread only)
+  useEffect(() => {
+    if (isExpanded && visible) {
+      const id = setTimeout(() => inputRef.current?.focus(), 60);
+      return () => clearTimeout(id);
+    }
+  }, [isExpanded, visible]);
 
   const expand = () => {
     setIsExpanded(true);
-    Animated.parallel([
-      Animated.spring(animatedHeight, {
-        toValue: 60,
-        tension: 65,
-        friction: 10,
-        useNativeDriver: false,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Focus input after animation
-      setTimeout(() => inputRef.current?.focus(), 100);
-    });
+    heightSV.value = withSpring(60, { damping: 18, stiffness: 220 });
+    opacitySV.value = withTiming(1, { duration: 180 });
   };
 
   const collapse = () => {
     Keyboard.dismiss();
-    Animated.parallel([
-      Animated.timing(animatedHeight, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
+    heightSV.value = withTiming(0, { duration: 160 });
+    opacitySV.value = withTiming(0, { duration: 140 });
+    // Hide after the closing animation
+    setTimeout(() => {
       setIsExpanded(false);
       setSpouseName("");
-    });
+    }, 180);
   };
 
   const handleSave = async () => {
@@ -102,23 +91,18 @@ export default function InlineSpouseAdder({
   };
 
   const handleSubmit = () => {
-    if (spouseName.trim()) {
-      handleSave();
-    }
+    if (spouseName.trim()) handleSave();
   };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: heightSV.value,
+    opacity: opacitySV.value,
+  }));
 
   if (!isExpanded && !visible) return null;
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          height: animatedHeight,
-          opacity: fadeAnim,
-        },
-      ]}
-    >
+    <Animated.View style={[styles.container, animatedStyle]}>
       <View style={styles.inputRow}>
         <TouchableOpacity
           style={styles.cancelButton}
@@ -133,9 +117,8 @@ export default function InlineSpouseAdder({
           style={styles.input}
           value={spouseName}
           onChangeText={setSpouseName}
-          placeholder={
-            person?.gender === "male" ? "اسم الزوجة..." : "اسم الزوج..."
-          }
+          placeholder={"مريم محمد السعوي"}
+          accessibilityLabel="الاسم الثلاثي"
           placeholderTextColor="#8E8E93"
           returnKeyType="done"
           onSubmitEditing={handleSubmit}

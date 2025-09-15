@@ -45,7 +45,7 @@ import {
 } from "../data/family-data";
 import CardSurface from "./ios/CardSurface";
 import profilesService from "../services/profiles";
-import PhotoGallery from "./PhotoGallery";
+import PhotoGalleryMaps from "./PhotoGalleryMaps";
 import {
   formatDateDisplay,
   getAllSocialMedia,
@@ -914,13 +914,12 @@ const ProfileSheet = ({ editMode = false }) => {
             </View>
           </View>
 
-          {/* Photo Gallery Section */}
+          {/* Photo Gallery Section - Google Maps Style */}
           {person.id && (
-            <PhotoGallery
+            <PhotoGalleryMaps
               profileId={person.id}
-              profileName={person.name}
               isEditMode={isEditing}
-              forceAdminMode={isEditing} // When editing, treat as admin for photo management
+              forceAdminMode={isEditing}
               onPrimaryPhotoChange={(newPhotoUrl) => {
                 // Update the main photo when primary changes
                 if (isEditing) {

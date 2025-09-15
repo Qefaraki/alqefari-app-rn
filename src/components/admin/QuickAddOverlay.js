@@ -35,10 +35,10 @@ import MotherSelector from "./fields/MotherSelector";
 // Enable RTL
 I18nManager.forceRTL(true);
 
-// Card dimensions - more compact
-const CARD_WIDTH = 110;
-const CARD_HEIGHT = 90;
-const CARD_SPACING = 10;
+// Card dimensions - even more compact
+const CARD_WIDTH = 85;
+const CARD_HEIGHT = 85;
+const CARD_SPACING = 8;
 
 // Draggable Child Card Component
 const DraggableChildCard = ({
@@ -170,11 +170,11 @@ const DraggableChildCard = ({
               onPress={handleDelete}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close-circle" size={18} color="#FF3B30" />
+              <Ionicons name="close-circle" size={16} color="rgba(0,0,0,0.5)" />
             </TouchableOpacity>
 
             <View style={styles.orderBadge}>
-              <Text style={styles.orderBadgeText}>{totalChildren - index}</Text>
+              <Text style={styles.orderBadgeText}>{index + 1}</Text>
             </View>
 
             <Text style={styles.childName} numberOfLines={2}>
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   cardsScrollContent: {
     paddingHorizontal: 16,
     alignItems: "center",
-    flexDirection: "row-reverse", // RTL support
+    flexDirection: "row", // Normal direction for proper RTL ordering
   },
   emptyCard: {
     width: CARD_WIDTH,
@@ -768,11 +768,11 @@ const styles = StyleSheet.create({
     height: CARD_HEIGHT,
     backgroundColor: "#FFF",
     borderRadius: 10,
-    padding: 10,
+    padding: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 2,
     borderWidth: 1,
     borderColor: "#E5E5EA",
@@ -784,33 +784,30 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     position: "absolute",
-    top: 8,
-    left: 8,
+    top: 4,
+    left: 4, // RTL: delete button on left
     zIndex: 10,
   },
   orderBadge: {
     position: "absolute",
     top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#F2F2F7",
-    justifyContent: "center",
+    left: 0,
+    right: 0,
     alignItems: "center",
   },
   orderBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#666",
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#333",
   },
   childName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#000",
-    marginTop: 24,
-    marginBottom: 6,
+    marginTop: 28,
+    marginBottom: 4,
     textAlign: "center",
+    paddingHorizontal: 4,
   },
   genderLabel: {
     position: "absolute",
@@ -821,11 +818,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   genderText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   genderMale: {
     backgroundColor: "#E3F2FD",

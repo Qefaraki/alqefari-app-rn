@@ -84,10 +84,7 @@ export default function MarriageEditor({
       : `إضافة زوج لـ ${person.name}`;
   }, [person]);
 
-  const inputLabel = useMemo(
-    () => (person?.gender === "male" ? "اسم الزوجة" : "اسم الزوج"),
-    [person?.gender],
-  );
+  const inputLabel = "الاسم الثلاثي";
 
   const spouseTitle = useMemo(
     () => (person?.gender === "male" ? "الزوجة" : "الزوج"),
@@ -347,7 +344,7 @@ export default function MarriageEditor({
         <Text style={styles.label}>{inputLabel}</Text>
         <TextInput
           style={styles.input}
-          placeholder="مثال: نورة خالد القحطاني"
+          placeholder="مثال: مريم محمد السعوي"
           placeholderTextColor="#999999"
           value={spouseName}
           onChangeText={handleNameChange}
@@ -356,7 +353,7 @@ export default function MarriageEditor({
           autoCapitalize="words"
         />
         <Text style={styles.helpText}>
-          الاسم الأول واسم العائلة مطلوبان • يمكنك إضافة اسم الأب
+          اكتب الاسم الثلاثي: الاسم الأول + اسم الأب + اسم العائلة
         </Text>
       </View>
 

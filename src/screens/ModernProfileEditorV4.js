@@ -421,13 +421,35 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     );
   };
 
+  // Skeleton loader component
+  const renderSkeletonLoader = () => (
+    <View style={styles.skeletonContainer}>
+      {/* Photo skeleton */}
+      <View style={styles.skeletonPhotoCard}>
+        <Animated.View style={[styles.skeletonPhoto, styles.shimmer]} />
+      </View>
+      
+      {/* Fields skeleton */}
+      <View style={styles.card}>
+        <View style={styles.skeletonField}>
+          <View style={styles.skeletonLabel} />
+          <Animated.View style={[styles.skeletonInput, styles.shimmer]} />
+        </View>
+        <View style={styles.skeletonField}>
+          <View style={styles.skeletonLabel} />
+          <Animated.View style={[styles.skeletonInput, styles.shimmer]} />
+        </View>
+        <View style={styles.skeletonField}>
+          <View style={styles.skeletonLabel} />
+          <Animated.View style={[styles.skeletonInput, styles.shimmer]} />
+        </View>
+      </View>
+    </View>
+  );
+
   const renderContent = () => {
     if (!editedData || !isInitialized) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-        </View>
-      );
+      return renderSkeletonLoader();
     }
 
     switch (SEGMENTS[activeSegment].id) {
@@ -1067,13 +1089,15 @@ const styles = StyleSheet.create({
   },
   photoCard: {
     backgroundColor: "white",
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 15,
     elevation: 2,
+    aspectRatio: 1.5, // Make container match typical photo aspect ratio
+    marginHorizontal: 0,
   },
   card: {
     backgroundColor: "white",
