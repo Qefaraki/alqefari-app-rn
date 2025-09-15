@@ -206,9 +206,47 @@ export default function SettingsModal({ visible, onClose }) {
               </View>
             </TouchableOpacity>
           ) : (
-            <View style={styles.signInPrompt}>
-              <Ionicons name="person-circle-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.signInPromptText}>قم بتسجيل الدخول لحفظ إعداداتك</Text>
+            <View style={styles.signInPromptCard}>
+              <View style={styles.signInIconContainer}>
+                <View style={styles.signInIconBackground}>
+                  <Ionicons name="sparkles" size={28} color="#007AFF" />
+                </View>
+              </View>
+              
+              <Text style={styles.signInTitle}>انضم إلى شجرة العائلة</Text>
+              <Text style={styles.signInSubtitle}>
+                احفظ إعداداتك وتواصل مع عائلتك
+              </Text>
+              
+              <TouchableOpacity 
+                style={styles.signInButton}
+                onPress={() => {
+                  // Navigate to sign in
+                  onClose();
+                  // TODO: Open auth modal
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.signInButtonText}>تسجيل الدخول</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+              
+              <View style={styles.signInFeatures}>
+                <View style={styles.signInFeature}>
+                  <Ionicons name="cloud-outline" size={18} color="#6B7280" />
+                  <Text style={styles.signInFeatureText}>مزامنة</Text>
+                </View>
+                <View style={styles.signInFeatureDivider} />
+                <View style={styles.signInFeature}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#6B7280" />
+                  <Text style={styles.signInFeatureText}>آمن</Text>
+                </View>
+                <View style={styles.signInFeatureDivider} />
+                <View style={styles.signInFeature}>
+                  <Ionicons name="people-outline" size={18} color="#6B7280" />
+                  <Text style={styles.signInFeatureText}>عائلي</Text>
+                </View>
+              </View>
             </View>
           )}
 
@@ -572,78 +610,161 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 12,
+    marginTop: 12,
+    marginBottom: 20,
+    borderRadius: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  profileCardLoading: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileContent: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
+    padding: 20,
   },
   profileImageContainer: {
-    marginRight: 12,
+    marginRight: 16,
+    position: 'relative',
   },
   profileImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: "#F3F4F6",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   profileImagePlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#F3F4F6",
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    backgroundColor: "#007AFF",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  profileInitial: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  onlineBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#10B981",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
   profileInfo: {
     flex: 1,
     marginRight: 8,
   },
   profileName: {
-    fontSize: 18,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: "#111827",
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   profileDetail: {
-    fontSize: 14,
-    fontFamily: "SF Arabic",
+    fontSize: 15,
     color: "#6B7280",
-    marginBottom: 4,
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  profileLinkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   profileViewLink: {
     fontSize: 14,
-    fontFamily: "SF Arabic",
-    color: "#3B82F6",
-    marginTop: 2,
+    fontWeight: "600",
+    color: "#007AFF",
+  },
+  signInPrompt: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signInPromptText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 12,
+    fontWeight: "500",
+  },
+  signOutSection: {
+    marginTop: 24,
+    marginBottom: 16,
   },
   signOutButton: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    borderRadius: 14,
+    shadowColor: "#DC2626",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: "#FEE2E2",
+    overflow: 'hidden',
+  },
+  signOutContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  signOutIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#FEF2F2",
-    marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#FEE2E2",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   signOutButtonText: {
-    color: "#DC2626",
-    fontSize: 16,
-    fontFamily: "SF Arabic",
+    fontSize: 17,
     fontWeight: "600",
+    color: "#DC2626",
+    letterSpacing: -0.3,
+  },
+  signOutHint: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    textAlign: 'center',
+    marginTop: 8,
+    fontWeight: "500",
   },
 });

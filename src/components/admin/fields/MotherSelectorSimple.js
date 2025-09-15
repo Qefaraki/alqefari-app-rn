@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Animated,
+  ActionSheetIOS,
+  Platform,
   I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,10 +19,7 @@ I18nManager.forceRTL(true);
 const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   const [loading, setLoading] = useState(false);
   const [wives, setWives] = useState([]);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [selectedMother, setSelectedMother] = useState(null);
-  const animatedHeight = useRef(new Animated.Value(0)).current;
-  const animatedOpacity = useRef(new Animated.Value(0)).current;
 
   // Load father's wives when component mounts or fatherId changes
   useEffect(() => {
@@ -78,51 +76,38 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
     }
   };
 
-  const toggleDropdown = () => {
-    if (showDropdown) {
-      // Closing animation
-      Animated.parallel([
-        Animated.timing(animatedHeight, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-        Animated.timing(animatedOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-      ]).start(() => setShowDropdown(false));
-    } else {
-      // Opening animation
-      setShowDropdown(true);
-      Animated.parallel([
-        Animated.timing(animatedHeight, {
-          toValue: Math.min(wives.length * 56 + (selectedMother ? 56 : 0), 280),
-          duration: 250,
-          useNativeDriver: false,
-        }),
-        Animated.timing(animatedOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  const showPicker = () => {
+    if (Platform.OS === "ios") {
+      // iOS native action sheet
+      const options = ["إلغاء"];
+      const cancelButtonIndex = 0;
 
-  const handleSelect = (wife) => {
-    setSelectedMother(wife);
-    onChange(wife?.wife_id || null);
-    toggleDropdown();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      // Add wife options
+      wives.forEach((wife) => {
+        options.push(wife.wife_name + (wife.is_current ? " (الحالية)" : ""));
+      });
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+          title: "اختر الأم",
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== cancelButtonIndex) {
+            const wife = wives[buttonIndex - 1];
+            setSelectedMother(wife);
+            onChange(wife?.wife_id || null);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        },
+      );
+    }
   };
 
   const handleClear = () => {
     setSelectedMother(null);
     onChange(null);
-    toggleDropdown();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -135,21 +120,21 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم (اختياري)"}</Text>
+        <Text style={styles.label}>{label || "الأم"}</Text>
         <View style={styles.selector}>
-          <ActivityIndicator size="small" color="#007AFF" />
+          <ActivityIndicator size="small" color="#000" />
         </View>
       </View>
     );
   }
 
-  // If no wives available, show disabled state
+  // If no wives available, show minimal state
   if (wives.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.label}>{label || "الأم (اختياري)"}</Text>
+        <Text style={styles.label}>{label || "الأم"}</Text>
         <View style={[styles.selector, styles.disabledSelector]}>
-          <Text style={styles.placeholderText}>لا توجد زوجات مسجلة</Text>
+          <Text style={styles.disabledText}>غير متاح</Text>
         </View>
       </View>
     );
@@ -157,122 +142,34 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label || "الأم (اختياري)"}</Text>
+      <Text style={styles.label}>{label || "الأم"}</Text>
 
-      {/* Main Selector Button - Beautiful iOS style */}
+      {/* Clean minimal selector */}
       <TouchableOpacity
-        style={[styles.selector, showDropdown && styles.selectorActive]}
-        onPress={toggleDropdown}
-        activeOpacity={0.95}
+        style={styles.selector}
+        onPress={showPicker}
+        activeOpacity={0.6}
       >
-        <View style={styles.selectorContent}>
-          {/* Text on the RIGHT side for RTL */}
-          <Text
-            style={
-              selectedMother ? styles.selectedText : styles.placeholderText
-            }
-          >
-            {selectedMother ? selectedMother.wife_name : "اختر الأم"}
-          </Text>
-
-          {/* Icons on the LEFT side for RTL */}
-          <View style={styles.iconsContainer}>
-            {selectedMother && (
-              <TouchableOpacity
-                onPress={(e) => {
-                  e.stopPropagation();
-                  handleClear();
-                }}
-                style={styles.clearButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={20}
-                  color="#8E8E93"
-                />
-              </TouchableOpacity>
-            )}
-            <Ionicons
-              name={showDropdown ? "chevron-up" : "chevron-down"}
-              size={18}
-              color="#8E8E93"
-              style={styles.chevron}
-            />
-          </View>
-        </View>
-      </TouchableOpacity>
-
-      {/* Beautiful Animated Dropdown */}
-      {showDropdown && (
-        <Animated.View
-          style={[
-            styles.dropdown,
-            {
-              height: animatedHeight,
-              opacity: animatedOpacity,
-            },
-          ]}
+        <Text
+          style={selectedMother ? styles.selectedText : styles.placeholderText}
+          numberOfLines={1}
         >
-          {/* Option to clear selection */}
-          {selectedMother && (
-            <TouchableOpacity
-              style={styles.clearOption}
-              onPress={handleClear}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.clearOptionText}>إلغاء التحديد</Text>
-              <View style={styles.clearIcon}>
-                <Ionicons name="close" size={18} color="#FF3B30" />
-              </View>
-            </TouchableOpacity>
-          )}
+          {selectedMother ? selectedMother.wife_name : "غير محدد"}
+        </Text>
 
-          {/* Wife Options */}
-          {wives.map((wife) => (
-            <TouchableOpacity
-              key={wife.wife_id}
-              style={[
-                styles.option,
-                selectedMother?.wife_id === wife.wife_id &&
-                  styles.optionSelected,
-              ]}
-              onPress={() => handleSelect(wife)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.optionContent}>
-                {/* Text on RIGHT */}
-                <Text
-                  style={[
-                    styles.optionText,
-                    selectedMother?.wife_id === wife.wife_id &&
-                      styles.optionTextSelected,
-                  ]}
-                >
-                  {wife.wife_name}
-                </Text>
-
-                {/* Badge and checkmark on LEFT */}
-                <View style={styles.optionLeftContent}>
-                  {wife.is_current && (
-                    <View style={styles.currentBadge}>
-                      <Text style={styles.currentBadgeText}>الحالية</Text>
-                    </View>
-                  )}
-                  {selectedMother?.wife_id === wife.wife_id && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={20}
-                      color="#007AFF"
-                      style={styles.checkmark}
-                    />
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </Animated.View>
-      )}
+        {selectedMother && (
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              handleClear();
+            }}
+            style={styles.clearButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="close-circle" size={18} color="rgba(0,0,0,0.3)" />
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
     </View>
   );
 };
@@ -280,47 +177,28 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 const styles = StyleSheet.create({
   container: {
     marginTop: 16,
-    zIndex: 1000,
   },
   label: {
     fontSize: 13,
-    color: "#8E8E93",
+    color: "rgba(0,0,0,0.5)",
     marginBottom: 8,
     textAlign: "right",
     fontWeight: "500",
   },
 
-  // Main selector styles
+  // Clean minimal selector
   selector: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8F8F8",
     borderRadius: 12,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 16,
     paddingVertical: 14,
-    borderWidth: 1.5,
-    borderColor: "#E5E5EA",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  selectorActive: {
-    borderColor: "#007AFF",
-    backgroundColor: "#FAFAFA",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  disabledSelector: {
-    opacity: 0.5,
-    backgroundColor: "#F2F2F7",
-  },
-  selectorContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  disabledSelector: {
+    opacity: 0.5,
   },
   selectedText: {
     fontSize: 16,
@@ -331,103 +209,17 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 16,
-    color: "#8E8E93",
+    color: "rgba(0,0,0,0.3)",
     flex: 1,
     textAlign: "right",
   },
-  iconsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 8,
+  disabledText: {
+    fontSize: 16,
+    color: "rgba(0,0,0,0.3)",
+    textAlign: "right",
   },
   clearButton: {
-    marginLeft: 8,
-  },
-  chevron: {
-    marginLeft: 4,
-  },
-
-  // Dropdown styles
-  dropdown: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    marginTop: 8,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 5,
-    overflow: "hidden",
-  },
-
-  // Clear option
-  clearOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: "#FFF5F5",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#FFE5E5",
-  },
-  clearOptionText: {
-    fontSize: 15,
-    color: "#FF3B30",
-    textAlign: "right",
-    flex: 1,
-  },
-  clearIcon: {
     marginRight: 8,
-  },
-
-  // Regular options
-  option: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#F2F2F7",
-  },
-  optionSelected: {
-    backgroundColor: "#F0F9FF",
-  },
-  optionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  optionText: {
-    fontSize: 16,
-    color: "#000",
-    textAlign: "right",
-    flex: 1,
-  },
-  optionTextSelected: {
-    color: "#007AFF",
-    fontWeight: "600",
-  },
-  optionLeftContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  currentBadge: {
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  currentBadgeText: {
-    fontSize: 11,
-    color: "#2E7D32",
-    fontWeight: "600",
-  },
-  checkmark: {
-    marginLeft: 4,
   },
 });
 
