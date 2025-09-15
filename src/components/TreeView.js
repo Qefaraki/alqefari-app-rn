@@ -2460,8 +2460,8 @@ const TreeView = ({
       {/* Admin Toggle Button - Only when logged in */}
       {user && <AdminToggleButton user={user} onLongPress={onAdminDashboard} />}
 
-      {/* Settings Button - Only when profile not open */}
-      {!selectedPersonId && <SettingsButton onPress={onSettingsOpen} />}
+      {/* Settings Button - Always rendered, animates based on profile state */}
+      <SettingsButton onPress={onSettingsOpen} isVisible={!selectedPersonId} />
 
       {/* Admin components */}
       {isAdminMode && (

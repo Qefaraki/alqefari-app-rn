@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import * as Device from "expo-device";
 import CardSurface from "../../ios/CardSurface";
 import { LinearGradient } from "expo-linear-gradient";
 import storageService from "../../../services/storage";
@@ -86,12 +87,22 @@ const PhotoEditor = ({
 
   // Take photo with camera
   const takePhoto = async () => {
+    // Check if running on simulator
+    if (Platform.OS === 'ios' && !Device.isDevice) {
+      Alert.alert(
+        "الكاميرا غير متاحة",
+        "الكاميرا غير متاحة في المحاكي. يرجى اختيار صورة من المعرض.",
+        [{ text: "حسناً", onPress: pickImage }]
+      );
+      return;
+    }
+
     const hasPermission = await requestPermissions();
     if (!hasPermission) return;
 
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -113,7 +124,7 @@ const PhotoEditor = ({
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.Images],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,

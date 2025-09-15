@@ -73,7 +73,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     death_date: null,
     birth_place: "",
     current_residence: "",
-    biography: "",
+    bio: "",
     occupation: "",
     education: "",
     location: "",
@@ -131,7 +131,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         death_date: deathDateData,
         birth_place: profile.birth_place || "",
         current_residence: profile.current_residence || "",
-        biography: profile.biography || profile.bio || "",
+        bio: profile.biography || profile.bio || "",
         occupation: profile.occupation || "",
         education: profile.education || "",
         location: profile.location || "",
@@ -503,8 +503,8 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         {/* Personal Information */}
         {renderSection("المعلومات الشخصية", "personal", (
           <>
-            {renderField("السيرة الذاتية", formData.biography, (text) =>
-              setFormData({ ...formData, biography: text }),
+            {renderField("السيرة الذاتية", formData.bio, (text) =>
+              setFormData({ ...formData, bio: text }),
               { multiline: true, maxLength: 500, placeholder: "اكتب نبذة عن نفسك..." }
             )}
             {renderField("المهنة", formData.occupation, (text) =>
