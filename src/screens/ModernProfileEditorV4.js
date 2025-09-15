@@ -57,6 +57,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [activeSegment, setActiveSegment] = useState(0);
   const [errors, setErrors] = useState({});
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Marriage related state
   const [marriages, setMarriages] = useState([]);
@@ -114,6 +115,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       };
       setEditedData(initialData);
       setOriginalData(initialData);
+      
+      // Initialize animations properly
+      setTimeout(() => {
+        setIsInitialized(true);
+        fadeAnimation.setValue(1);
+      }, 100);
     }
   }, [profile, visible]);
 
@@ -149,14 +156,25 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   useEffect(() => {
     if (visible && bottomSheetRef.current) {
       bottomSheetRef.current.expand();
-      // Animate in
-      Animated.timing(fadeAnimation, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      // Reset states when opening
+      setActiveSegment(0);
+      slideAnimation.setValue(0);
+      fadeAnimation.setValue(0);
+      
+      // Animate in after a short delay
+      setTimeout(() => {
+        Animated.timing(fadeAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      }, 200);
     } else if (!visible && bottomSheetRef.current) {
       bottomSheetRef.current.close();
+      // Reset states when closing
+      setIsInitialized(false);
+      setEditedData(null);
+      setOriginalData(null);
     }
   }, [visible]);
 
@@ -271,23 +289,28 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   );
 
   const handleSegmentChange = (index) => {
+    if (index === activeSegment) return; // Don't re-animate if already selected
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Animate the slide and fade
-    Animated.parallel([
+    // Fade out current content
+    Animated.timing(fadeAnimation, {
+      toValue: 0,
+      duration: 100,
+      useNativeDriver: true,
+    }).start(() => {
+      // Update segment
+      setActiveSegment(index);
+      
+      // Animate slide to new position
       Animated.spring(slideAnimation, {
         toValue: index,
         tension: 100,
         friction: 20,
         useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnimation, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setActiveSegment(index);
+      }).start();
+      
+      // Fade in new content
       Animated.timing(fadeAnimation, {
         toValue: 1,
         duration: 200,
@@ -368,12 +391,18 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   };
 
   const renderContent = () => {
-    if (!editedData) return null;
+    if (!editedData || !isInitialized) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      );
+    }
 
     switch (SEGMENTS[activeSegment].id) {
       case "basic":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: fadeAnimation }]}>
+          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
             <View style={styles.photoCard}>
               <PhotoEditor
                 value={editedData.photo_url || ""}
@@ -456,7 +485,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
       case "details":
         return (
-          <Animated.View style={[styles.contentSection, { opacity: fadeAnimation }]}>
+          <Animated.View style={[styles.contentSection, { opacity: isInitialized ? fadeAnimation : 1 }]}>
             <View style={styles.card}>
               <Text style={styles.cardTitle}>السيرة الشخصية</Text>
               {renderField("نبذة", editedData.bio, (text) =>
@@ -664,7 +693,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     }
   };
 
-  if (!visible || !editedData) return null;
+  if (!visible) return null;
 
   return (
     <BottomSheet
@@ -1027,6 +1056,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginVertical: 30,
     letterSpacing: -0.24,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 200,
   },
 });
 

@@ -581,6 +581,7 @@ const TreeView = ({
   const savedScale = useSharedValue(stage.scale);
   const savedTranslateX = useSharedValue(stage.x);
   const savedTranslateY = useSharedValue(stage.y);
+  const isPinching = useSharedValue(false);
   // Removed focalX and focalY - using live focal points instead to fix zoom jumping
 
   // Sync scale value to React state for use in render
@@ -1324,18 +1325,21 @@ const TreeView = ({
     })
     .onEnd((e) => {
       "worklet";
-      translateX.value = withDecay({
-        velocity: e.velocityX,
-        deceleration: 0.995,
-      });
-      translateY.value = withDecay({
-        velocity: e.velocityY,
-        deceleration: 0.995,
-      });
+      // Don't save values if we're pinching - let pinch handle it
+      if (!isPinching.value) {
+        translateX.value = withDecay({
+          velocity: e.velocityX,
+          deceleration: 0.995,
+        });
+        translateY.value = withDecay({
+          velocity: e.velocityY,
+          deceleration: 0.995,
+        });
 
-      // Save current values (before decay animation modifies them)
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
+        // Save current values (before decay animation modifies them)
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+      }
     });
 
   // DPR constant for DIP-aligned Skia (set to 1 to prevent coordinate mismatches)
@@ -1347,6 +1351,7 @@ const TreeView = ({
       "worklet";
       // Only process with two fingers
       if (e.numberOfPointers === 2) {
+        isPinching.value = true;
         // CRITICAL: Cancel any running animations to prevent value drift
         cancelAnimation(translateX);
         cancelAnimation(translateY);
@@ -1397,6 +1402,7 @@ const TreeView = ({
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
+      isPinching.value = false;
 
       // Debug logging
       // if (__DEV__) {
