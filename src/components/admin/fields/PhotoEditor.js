@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   photoCard: {
     width: "100%",
     height: "100%",
-    borderRadius: 0,
+    borderRadius: 24,
     overflow: "hidden",
     position: "relative",
     backgroundColor: "#EEE",
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   photoCard: {
     width: "100%",
     height: "100%",
-    borderRadius: 0,
+    borderRadius: 24,
     overflow: "hidden",
     position: "relative",
     backgroundColor: "#EEE",

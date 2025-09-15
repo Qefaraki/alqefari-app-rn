@@ -678,6 +678,8 @@ const styles = StyleSheet.create({
   },
   photoSection: {
     marginBottom: 24,
+    borderRadius: 24,
+    overflow: "hidden",
   },
   section: {
     marginBottom: 20,
