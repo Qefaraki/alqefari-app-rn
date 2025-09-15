@@ -1154,8 +1154,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 15,
     elevation: 2,
-    aspectRatio: 1.5, // Make container match typical photo aspect ratio
-    marginHorizontal: 0,
   },
   card: {
     backgroundColor: "white",

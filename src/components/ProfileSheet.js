@@ -87,8 +87,10 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 // Note: RTL requires app restart to take effect
 // For now, we'll use explicit right-aligned positioning
 
-// Maintain hero image height parity between view and edit
-const HERO_HEIGHT = 280;
+// Get screen dimensions
+const { width: screenWidth } = Dimensions.get("window");
+// Make hero image square
+const HERO_HEIGHT = screenWidth;
 
 // High-performance helper to construct full ancestry chain
 const constructCommonName = (person, nodesMap) => {
@@ -782,15 +784,17 @@ const ProfileSheet = ({ editMode = false }) => {
           <View style={styles.cardWrapper}>
             {/* Photo editor in edit mode, hero image in view mode */}
             {isEditing ? (
-              <PhotoEditor
-                value={editedData?.photo_url || ""}
-                onChange={(url) =>
-                  setEditedData({ ...editedData, photo_url: url })
-                }
-                currentPhotoUrl={person.photo_url}
-                personName={person.name}
-                profileId={person.id}
-              />
+              <View style={styles.photoEditSection}>
+                <PhotoEditor
+                  value={editedData?.photo_url || ""}
+                  onChange={(url) =>
+                    setEditedData({ ...editedData, photo_url: url })
+                  }
+                  currentPhotoUrl={person.photo_url}
+                  personName={person.name}
+                  profileId={person.id}
+                />
+              </View>
             ) : person.photo_url ? (
               <View style={styles.photoSection}>
                 <ProgressiveHeroImage
@@ -924,6 +928,21 @@ const ProfileSheet = ({ editMode = false }) => {
               </View>
             </View>
           </View>
+
+          {/* Photo Gallery Section - Shows immediately after hero */}
+          {person.id && isEditing && (
+            <View style={styles.gallerySection}>
+              <Text style={styles.gallerySectionTitle}>صور إضافية</Text>
+              <PhotoGalleryMaps
+                profileId={person.id}
+                isEditMode={isEditing}
+                forceAdminMode={isEditing}
+                onPrimaryPhotoChange={(newPhotoUrl) => {
+                  setEditedData({ ...editedData, photo_url: newPhotoUrl });
+                }}
+              />
+            </View>
+          )}
 
           {/* Information section */}
           <SectionCard title="المعلومات">
@@ -1697,23 +1716,6 @@ const ProfileSheet = ({ editMode = false }) => {
               );
             })()}
 
-          {/* Photo Gallery Section - Additional Photos */}
-          {person.id && (
-            <SectionCard title="معرض الصور">
-              <PhotoGalleryMaps
-                profileId={person.id}
-                isEditMode={isEditing}
-                forceAdminMode={isEditing}
-                onPrimaryPhotoChange={(newPhotoUrl) => {
-                  // Update the main photo when primary changes
-                  if (isEditing) {
-                    setEditedData({ ...editedData, photo_url: newPhotoUrl });
-                  }
-                }}
-              />
-            </SectionCard>
-          )}
-
           {/* Achievements */}
           {isEditing ? (
             <SectionCard>
@@ -1949,9 +1951,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEE",
   },
   photoEditSection: {
-    paddingVertical: 20,
+    width: screenWidth,
+    height: screenWidth,
     backgroundColor: "#F7F7F8",
-    alignItems: "center",
+  },
+  gallerySection: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+  },
+  gallerySectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 12,
+    textAlign: "right",
   },
   heroImage: {
     width: "100%",
