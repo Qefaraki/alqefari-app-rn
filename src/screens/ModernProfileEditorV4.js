@@ -28,6 +28,7 @@ import {
   useSharedValue,
   useAnimatedReaction,
   runOnJS,
+  withTiming,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -280,6 +281,10 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         useTreeStore.getState().updateNode(profile.id, data);
       }
 
+      // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
+      if (profileSheetProgress) {
+        profileSheetProgress.value = withTiming(0, { duration: 0 });
+      }
       onClose();
       setTimeout(() => {
         Alert.alert("تم الحفظ", "تم حفظ التغييرات بنجاح");
@@ -293,6 +298,16 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   };
 
   const handleCancel = () => {
+    const closeModal = () => {
+      setEditedData(null);
+      setOriginalData(null);
+      // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
+      if (profileSheetProgress) {
+        profileSheetProgress.value = withTiming(0, { duration: 0 });
+      }
+      onClose();
+    };
+
     if (hasChanges) {
       Alert.alert(
         "تجاهل التغييرات؟",
@@ -302,16 +317,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
           {
             text: "تجاهل",
             style: "destructive",
-            onPress: () => {
-              setEditedData(null);
-              setOriginalData(null);
-              onClose();
-            },
+            onPress: closeModal,
           },
         ],
       );
     } else {
-      onClose();
+      closeModal();
     }
   };
 
@@ -1002,9 +1013,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
       animatedPosition={animatedPosition}
       onChange={handleSheetChange}
       onClose={() => {
-        if (onClose) onClose();
-        if (profileSheetProgress) profileSheetProgress.value = 0;
+        // CRITICAL: Force reset profileSheetProgress to fix SearchBar visibility
+        if (profileSheetProgress) {
+          profileSheetProgress.value = withTiming(0, { duration: 0 });
+        }
         useTreeStore.setState({ profileSheetIndex: -1 });
+        if (onClose) onClose();
       }}
       backdropComponent={renderBackdrop}
       handleComponent={() => (

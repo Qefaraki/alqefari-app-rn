@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
+  Text,
   TouchableOpacity,
   Image,
   Alert,
   ActivityIndicator,
   StyleSheet,
   Dimensions,
-  Pressable,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -16,7 +17,8 @@ import { supabase } from "../services/supabase";
 import storageService from "../services/storage";
 
 const { width: screenWidth } = Dimensions.get("window");
-const GRID_PHOTO_SIZE = (screenWidth - 6) / 3; // 3 photos per row with spacing
+const THUMBNAIL_SIZE = 80; // Small square thumbnails
+const PREVIEW_HEIGHT = 280; // Fixed height for main preview
 
 const PhotoGalleryMaps = ({
   profileId,
@@ -27,13 +29,12 @@ const PhotoGalleryMaps = ({
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [selectedForReorder, setSelectedForReorder] = useState(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const isAdmin = forceAdminMode || isEditMode;
 
   // Load photos from database
   const loadPhotos = useCallback(async () => {
     try {
-      // Try to load from profile_photos table directly
       const { data: photosData, error: photosError } = await supabase
         .from("profile_photos")
         .select("*")
@@ -43,6 +44,9 @@ const PhotoGalleryMaps = ({
 
       if (!photosError && photosData) {
         setPhotos(photosData);
+        // Find primary photo index
+        const primaryIndex = photosData.findIndex((p) => p.is_primary);
+        setSelectedPhotoIndex(primaryIndex >= 0 ? primaryIndex : 0);
       } else {
         setPhotos([]);
       }
@@ -60,71 +64,79 @@ const PhotoGalleryMaps = ({
     }
   }, [profileId, loadPhotos]);
 
-  // Handle photo selection
-  const handleSelectPhoto = async () => {
+  // Handle photo selection - MULTIPLE photos
+  const handleSelectPhotos = async () => {
     if (!isAdmin) return;
 
     const permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.status !== "granted") {
-      Alert.alert("الإذن مطلوب", "نحتاج إذن الوصول للصور لإضافة صورة جديدة");
+      Alert.alert("الإذن مطلوب", "نحتاج إذن الوصول للصور لإضافة صور جديدة");
       return;
     }
 
+    // Allow multiple selection
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
+      allowsMultipleSelection: true,
       quality: 0.8,
+      selectionLimit: 10, // Max 10 photos at once
     });
 
-    if (!result.canceled && result.assets[0]) {
-      await uploadPhoto(result.assets[0].uri);
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      await uploadMultiplePhotos(result.assets);
     }
   };
 
-  // Upload photo
-  const uploadPhoto = async (uri) => {
+  // Upload multiple photos
+  const uploadMultiplePhotos = async (assets) => {
     try {
       setUploading(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      const { url, error: uploadError } =
-        await storageService.uploadProfilePhoto(uri, profileId);
+      const uploadPromises = assets.map(async (asset, index) => {
+        const { url, error: uploadError } =
+          await storageService.uploadProfilePhoto(asset.uri, profileId);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const isPrimary = photos.length === 0;
+        const isPrimary = photos.length === 0 && index === 0; // First photo becomes primary
 
-      // Try RPC first, then direct insert
-      const { error } = await supabase.rpc("admin_add_profile_photo", {
-        p_profile_id: profileId,
-        p_photo_url: url,
-        p_storage_path: `${profileId}/${Date.now()}.jpg`,
-        p_is_primary: isPrimary,
+        // Try RPC first, then direct insert
+        const { error } = await supabase.rpc("admin_add_profile_photo", {
+          p_profile_id: profileId,
+          p_photo_url: url,
+          p_storage_path: `${profileId}/${Date.now()}_${index}.jpg`,
+          p_is_primary: isPrimary,
+        });
+
+        if (error) {
+          // Fallback to direct insert
+          await supabase.from("profile_photos").insert({
+            profile_id: profileId,
+            photo_url: url,
+            storage_path: `${profileId}/${Date.now()}_${index}.jpg`,
+            is_primary: isPrimary,
+            display_order: photos.length + index,
+          });
+        }
+
+        if (isPrimary && onPrimaryPhotoChange) {
+          onPrimaryPhotoChange(url);
+        }
+
+        return url;
       });
 
-      if (error) {
-        // Fallback to direct insert
-        await supabase.from("profile_photos").insert({
-          profile_id: profileId,
-          photo_url: url,
-          storage_path: `${profileId}/${Date.now()}.jpg`,
-          is_primary: isPrimary,
-          display_order: photos.length,
-        });
-      }
-
-      if (isPrimary && onPrimaryPhotoChange) {
-        onPrimaryPhotoChange(url);
-      }
-
+      await Promise.all(uploadPromises);
       await loadPhotos();
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("نجح", `تم إضافة ${assets.length} صور بنجاح`);
     } catch (error) {
       console.error("Upload error:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert("خطأ", "فشل رفع الصورة");
+      Alert.alert("خطأ", "فشل رفع بعض الصور");
     } finally {
       setUploading(false);
     }
@@ -135,7 +147,6 @@ const PhotoGalleryMaps = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // Try RPC first
       const { error: rpcError } = await supabase.rpc(
         "admin_delete_profile_photo",
         {
@@ -144,7 +155,6 @@ const PhotoGalleryMaps = ({
       );
 
       if (rpcError) {
-        // Fallback to direct delete
         await supabase.from("profile_photos").delete().eq("id", photoId);
       }
 
@@ -167,7 +177,6 @@ const PhotoGalleryMaps = ({
             onPrimaryPhotoChange(newPrimary.photo_url);
           }
         } else {
-          // No photos left
           await supabase
             .from("profiles")
             .update({ photo_url: null })
@@ -187,26 +196,23 @@ const PhotoGalleryMaps = ({
     }
   };
 
-  // Handle photo tap - set as primary
-  const handlePhotoTap = async (photo) => {
+  // Set as primary photo
+  const handleSetPrimary = async (photo) => {
     if (!isAdmin || photo.is_primary) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      // Unset all primary
       await supabase
         .from("profile_photos")
         .update({ is_primary: false })
         .eq("profile_id", profileId);
 
-      // Set new primary
       await supabase
         .from("profile_photos")
         .update({ is_primary: true })
         .eq("id", photo.id);
 
-      // Update profile
       await supabase
         .from("profiles")
         .update({ photo_url: photo.photo_url })
@@ -222,46 +228,6 @@ const PhotoGalleryMaps = ({
     }
   };
 
-  // Handle long press for reorder
-  const handleLongPress = (photo) => {
-    if (!isAdmin || photo.is_primary) return;
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    if (selectedForReorder?.id === photo.id) {
-      setSelectedForReorder(null);
-    } else if (selectedForReorder) {
-      // Swap positions
-      swapPhotos(selectedForReorder, photo);
-      setSelectedForReorder(null);
-    } else {
-      setSelectedForReorder(photo);
-    }
-  };
-
-  // Swap two photos
-  const swapPhotos = async (photo1, photo2) => {
-    try {
-      const order1 = photo1.display_order;
-      const order2 = photo2.display_order;
-
-      await supabase
-        .from("profile_photos")
-        .update({ display_order: order2 })
-        .eq("id", photo1.id);
-
-      await supabase
-        .from("profile_photos")
-        .update({ display_order: order1 })
-        .eq("id", photo2.id);
-
-      await loadPhotos();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (error) {
-      console.error("Error swapping photos:", error);
-    }
-  };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -270,110 +236,105 @@ const PhotoGalleryMaps = ({
     );
   }
 
-  const primaryPhoto = photos.find((p) => p.is_primary) || photos[0];
-  const otherPhotos = photos.filter((p) => !p.is_primary);
-
-  console.log("PhotoGalleryMaps rendering:", {
-    profileId,
-    isEditMode,
-    forceAdminMode,
-    isAdmin,
-    photosCount: photos.length,
-    loading,
-  });
-
-  // Always show something in edit mode
-  if (!isAdmin && photos.length === 0) {
-    return null; // Don't show empty gallery in view mode
-  }
+  const currentPhoto = photos[selectedPhotoIndex];
 
   return (
     <View style={styles.container}>
-      {/* Main/Primary Photo - Full width */}
-      {primaryPhoto ? (
-        <View style={styles.mainPhotoContainer}>
+      {/* Main Preview Photo - Contained within margins */}
+      {currentPhoto ? (
+        <View style={styles.previewContainer}>
           <Image
-            source={{ uri: primaryPhoto.photo_url }}
-            style={styles.mainPhoto}
+            source={{ uri: currentPhoto.photo_url }}
+            style={styles.previewImage}
+            resizeMode="cover"
           />
-          {isAdmin && (
-            <TouchableOpacity
-              style={styles.mainDeleteButton}
-              onPress={() => handleDeletePhoto(primaryPhoto.id, true)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <View style={styles.deleteButtonBg}>
-                <Ionicons name="close" size={20} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          )}
         </View>
-      ) : isAdmin ? (
-        // Show compact add photo placeholder when no photos
-        <TouchableOpacity
-          style={styles.mainPhotoPlaceholder}
-          onPress={handleSelectPhoto}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <ActivityIndicator size="small" color="#6366f1" />
-          ) : (
-            <>
-              <Ionicons name="camera-outline" size={40} color="#9ca3af" />
-              <Text style={{ color: "#9ca3af", marginTop: 8, fontSize: 14 }}>
-                إضافة صور
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      ) : null}
+      ) : (
+        isAdmin && (
+          <TouchableOpacity
+            style={styles.emptyPreview}
+            onPress={handleSelectPhotos}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#6366f1" />
+            ) : (
+              <>
+                <Ionicons name="images-outline" size={40} color="#9ca3af" />
+                <Text style={styles.emptyText}>إضافة صور</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )
+      )}
 
-      {/* Grid of photos + add button - always show in edit mode */}
-      {isAdmin && (
-        <View style={styles.gridContainer}>
-          {otherPhotos.map((photo) => (
-            <Pressable
+      {/* Horizontal Thumbnail Strip */}
+      {(photos.length > 0 || isAdmin) && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.thumbnailStrip}
+          style={styles.thumbnailScroll}
+        >
+          {photos.map((photo, index) => (
+            <TouchableOpacity
               key={photo.id}
-              onPress={() => handlePhotoTap(photo)}
-              onLongPress={() => handleLongPress(photo)}
-              style={[
-                styles.gridPhoto,
-                selectedForReorder?.id === photo.id && styles.selectedPhoto,
-              ]}
+              onPress={() => setSelectedPhotoIndex(index)}
+              activeOpacity={0.7}
+              style={styles.thumbnailWrapper}
             >
               <Image
                 source={{ uri: photo.photo_url }}
-                style={styles.gridImage}
+                style={[
+                  styles.thumbnail,
+                  selectedPhotoIndex === index && styles.thumbnailSelected,
+                ]}
               />
+
+              {/* Primary star badge */}
+              {photo.is_primary && (
+                <View style={styles.primaryBadge}>
+                  <Ionicons name="star" size={10} color="#fff" />
+                </View>
+              )}
+
+              {/* Delete button - black, top-right */}
               {isAdmin && (
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleDeletePhoto(photo.id, false)}
-                  hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
+                  onPress={() => handleDeletePhoto(photo.id, photo.is_primary)}
                 >
-                  <View style={styles.deleteButtonBg}>
-                    <Ionicons name="close" size={14} color="#fff" />
-                  </View>
+                  <Ionicons name="close" size={14} color="#fff" />
                 </TouchableOpacity>
               )}
-            </Pressable>
+            </TouchableOpacity>
           ))}
 
-          {/* Add button inline with grid */}
+          {/* Add button */}
           {isAdmin && (
             <TouchableOpacity
               style={styles.addButton}
-              onPress={handleSelectPhoto}
+              onPress={handleSelectPhotos}
               disabled={uploading}
             >
               {uploading ? (
                 <ActivityIndicator size="small" color="#6366f1" />
               ) : (
-                <Ionicons name="add" size={28} color="#6366f1" />
+                <Ionicons name="add" size={30} color="#6366f1" />
               )}
             </TouchableOpacity>
           )}
-        </View>
+        </ScrollView>
+      )}
+
+      {/* Actions for selected photo */}
+      {isAdmin && currentPhoto && !currentPhoto.is_primary && (
+        <TouchableOpacity
+          style={styles.setPrimaryButton}
+          onPress={() => handleSetPrimary(currentPhoto)}
+        >
+          <Text style={styles.setPrimaryText}>تعيين كصورة أساسية</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -381,31 +342,27 @@ const PhotoGalleryMaps = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 8,
+    marginVertical: 16,
   },
   loadingContainer: {
     padding: 32,
     alignItems: "center",
   },
-  mainPhotoContainer: {
-    width: screenWidth - 32,
-    height: (screenWidth - 32) * 0.75,
+  previewContainer: {
     marginHorizontal: 16,
-    marginBottom: 12,
-    position: "relative",
+    height: PREVIEW_HEIGHT,
     borderRadius: 12,
     overflow: "hidden",
+    backgroundColor: "#f3f4f6",
+    marginBottom: 12,
   },
-  mainPhoto: {
+  previewImage: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#f3f4f6",
   },
-  mainPhotoPlaceholder: {
-    width: screenWidth - 32,
-    height: 180,
+  emptyPreview: {
     marginHorizontal: 16,
-    marginBottom: 12,
+    height: PREVIEW_HEIGHT,
     backgroundColor: "#f9fafb",
     alignItems: "center",
     justifyContent: "center",
@@ -413,50 +370,65 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#e5e7eb",
     borderStyle: "dashed",
+    marginBottom: 12,
   },
-  mainDeleteButton: {
+  emptyText: {
+    color: "#9ca3af",
+    marginTop: 8,
+    fontSize: 14,
+  },
+  thumbnailScroll: {
+    marginBottom: 12,
+    overflow: "visible", // Allow overflow for delete buttons
+  },
+  thumbnailStrip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8, // Add vertical padding to prevent cropping
+    gap: 8,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  thumbnailWrapper: {
+    position: "relative",
+    marginRight: 8,
+    marginTop: 6, // Add top margin to prevent delete button from being cropped
+  },
+  thumbnail: {
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
+    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  thumbnailSelected: {
+    borderColor: "#6366f1",
+  },
+  primaryBadge: {
     position: "absolute",
-    top: 16,
-    right: 16,
+    bottom: 4,
+    left: 4,
+    backgroundColor: "#10b981",
+    borderRadius: 6,
+    width: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
   deleteButton: {
     position: "absolute",
-    top: 6,
-    right: 6,
-  },
-  deleteButtonBg: {
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    top: -6,
+    right: -6,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
   },
-  gridContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  gridPhoto: {
-    width: (screenWidth - 32 - 16) / 3,
-    height: (screenWidth - 32 - 16) / 3,
-    position: "relative",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  selectedPhoto: {
-    opacity: 0.6,
-    transform: [{ scale: 0.95 }],
-  },
-  gridImage: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#f3f4f6",
-  },
   addButton: {
-    width: (screenWidth - 32 - 16) / 3,
-    height: (screenWidth - 32 - 16) / 3,
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
     backgroundColor: "#f9fafb",
     alignItems: "center",
     justifyContent: "center",
@@ -465,15 +437,17 @@ const styles = StyleSheet.create({
     borderColor: "#e5e7eb",
     borderStyle: "dashed",
   },
-  emptyAddButton: {
-    width: screenWidth - 32,
-    height: 240,
+  setPrimaryButton: {
     marginHorizontal: 16,
-    marginVertical: 16,
-    backgroundColor: "#f9fafb",
-    borderRadius: 16,
+    paddingVertical: 12,
+    backgroundColor: "#6366f1",
+    borderRadius: 8,
     alignItems: "center",
-    justifyContent: "center",
+  },
+  setPrimaryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });
 

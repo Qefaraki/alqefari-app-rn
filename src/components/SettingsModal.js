@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,15 +10,22 @@ import {
   ScrollView,
   Alert,
   I18nManager,
+  Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
+import { supabase } from "../services/supabase";
+import { useTreeStore } from "../stores/useTreeStore";
 
 export default function SettingsModal({ visible, onClose }) {
   const { settings, updateSetting, clearSettings } = useSettings();
   const [expandedSection, setExpandedSection] = useState("date");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Sample date for preview - using a valid date
   const sampleGregorian = { day: 15, month: 3, year: 2024 };
@@ -31,6 +38,64 @@ export default function SettingsModal({ visible, onClose }) {
 
   const toggleSection = (section) => {
     setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  // Load user profile
+  useEffect(() => {
+    if (visible) {
+      loadUserProfile();
+    }
+  }, [visible]);
+
+  const loadUserProfile = async () => {
+    setLoadingProfile(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+      
+      if (user) {
+        // Try to find matching profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .or(`email.eq.${user.email},phone.eq.${user.phone}`)
+          .single();
+        
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      "تسجيل الخروج",
+      "هل أنت متأكد من تسجيل الخروج؟",
+      [
+        {
+          text: "إلغاء",
+          style: "cancel"
+        },
+        {
+          text: "تسجيل الخروج",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await supabase.auth.signOut();
+              // Clear any local state
+              useTreeStore.getState().setSelectedPersonId(null);
+              onClose();
+            } catch (error) {
+              Alert.alert("خطأ", "فشل تسجيل الخروج");
+            }
+          }
+        }
+      ],
+      { cancelable: true }
+    );
   };
 
   const renderDatePreview = () => {
@@ -87,6 +152,46 @@ export default function SettingsModal({ visible, onClose }) {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Profile Section */}
+          {currentUser && (
+            <TouchableOpacity 
+              style={styles.profileCard}
+              activeOpacity={0.7}
+              onPress={() => {
+                // Navigate to profile if needed
+              }}
+            >
+              <View style={styles.profileContent}>
+                <View style={styles.profileImageContainer}>
+                  {userProfile?.photo_url ? (
+                    <Image 
+                      source={{ uri: userProfile.photo_url }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.profileImagePlaceholder}>
+                      <Ionicons name="person" size={32} color="#9CA3AF" />
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>
+                    {userProfile?.name || currentUser.email?.split('@')[0] || 'المستخدم'}
+                  </Text>
+                  <Text style={styles.profileDetail}>
+                    {currentUser.phone || currentUser.email || ''}
+                  </Text>
+                  {userProfile && (
+                    <Text style={styles.profileViewLink}>عرض الملف الشخصي</Text>
+                  )}
+                </View>
+                
+                <Ionicons name="chevron-forward" size={20} color="#D1D5DB" />
+              </View>
+            </TouchableOpacity>
+          )}
+
           {/* Date Format Settings */}
           <TouchableOpacity
             style={styles.sectionHeader}
