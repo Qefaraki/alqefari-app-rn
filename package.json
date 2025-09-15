@@ -1,6 +1,6 @@
 {
   "name": "alqefaritreern-expo",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "main": "index.js",
   "scripts": {
     "start": "expo start --ios --android",
