@@ -48,14 +48,88 @@ const socialPlatforms = [
 ];
 
 const SocialMediaEditor = ({ links, onChange }) => {
+  // Helper to convert username to full URL if needed
+  const formatSocialLink = (platform, value) => {
+    if (!value || !value.trim()) return '';
+    
+    const trimmed = value.trim();
+    
+    // If already a full URL, return as-is
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    
+    // Convert username/handle to full URL based on platform
+    switch (platform) {
+      case 'twitter':
+        // Remove @ if present and create full URL
+        const twitterHandle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+        return `https://twitter.com/${twitterHandle}`;
+      
+      case 'instagram':
+        // Remove @ if present and create full URL
+        const instaHandle = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+        return `https://instagram.com/${instaHandle}`;
+      
+      case 'linkedin':
+        // If just username, create full URL
+        return trimmed.includes('linkedin.com') ? trimmed : `https://linkedin.com/in/${trimmed}`;
+      
+      case 'facebook':
+        // If just username, create full URL
+        return trimmed.includes('facebook.com') ? trimmed : `https://facebook.com/${trimmed}`;
+      
+      case 'youtube':
+        // Handle @ usernames
+        const ytHandle = trimmed.startsWith('@') ? trimmed : `@${trimmed}`;
+        return trimmed.includes('youtube.com') ? trimmed : `https://youtube.com/${ytHandle}`;
+      
+      case 'website':
+        // Add https:// if no protocol
+        return trimmed.includes('://') ? trimmed : `https://${trimmed}`;
+      
+      default:
+        return trimmed;
+    }
+  };
+
   const handleLinkChange = (platform, value) => {
     const newLinks = { ...links };
     if (value.trim()) {
-      newLinks[platform] = value.trim();
+      // Format the link properly before saving
+      const formattedLink = formatSocialLink(platform, value);
+      if (formattedLink) {
+        newLinks[platform] = formattedLink;
+      }
     } else {
       delete newLinks[platform];
     }
     onChange(newLinks);
+  };
+
+  // Helper to extract username from URL for display
+  const extractUsername = (platform, url) => {
+    if (!url) return '';
+    
+    // For display, show simplified version
+    switch (platform) {
+      case 'twitter':
+        if (url.includes('twitter.com/')) {
+          const username = url.split('twitter.com/')[1]?.split('?')[0]?.split('/')[0];
+          return username ? `@${username}` : url;
+        }
+        return url;
+      
+      case 'instagram':
+        if (url.includes('instagram.com/')) {
+          const username = url.split('instagram.com/')[1]?.split('?')[0]?.split('/')[0];
+          return username ? `@${username}` : url;
+        }
+        return url;
+      
+      default:
+        return url;
+    }
   };
 
   return (
@@ -69,7 +143,7 @@ const SocialMediaEditor = ({ links, onChange }) => {
           </View>
           <TextInput
             style={styles.platformInput}
-            value={links[platform.key] || ""}
+            value={extractUsername(platform.key, links[platform.key]) || ""}
             onChangeText={(value) => handleLinkChange(platform.key, value)}
             placeholder={platform.placeholder}
             textAlign="right"
