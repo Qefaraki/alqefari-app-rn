@@ -37,8 +37,7 @@ import { useSettings } from "../contexts/SettingsContext";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get("window");
 
-// Enable RTL
-I18nManager.forceRTL(true);
+// RTL is already enabled app-wide, no need to force it here
 
 // Single row of segments - iOS style
 const SEGMENTS = [
@@ -333,33 +332,43 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 transform: [{
                   translateX: slideAnimation.interpolate({
                     inputRange: [0, 1, 2, 3],
-                    outputRange: [2, segmentWidth + 2, segmentWidth * 2 + 2, segmentWidth * 3 + 2],
+                    // RTL: segments go from right to left, so reverse the output
+                    outputRange: I18nManager.isRTL 
+                      ? [segmentWidth * 3 + 2, segmentWidth * 2 + 2, segmentWidth + 2, 2]
+                      : [2, segmentWidth + 2, segmentWidth * 2 + 2, segmentWidth * 3 + 2],
                   })
                 }],
               },
             ]}
           />
-          {SEGMENTS.map((segment, index) => (
-            <TouchableOpacity
-              key={segment.id}
-              style={[styles.segment, { width: segmentWidth }]}
-              onPress={() => handleSegmentChange(index)}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={segment.icon} 
-                size={18} 
-                color={activeSegment === index ? "#000" : "#8E8E93"} 
-                style={styles.segmentIcon}
-              />
-              <Text style={[
-                styles.segmentText,
-                activeSegment === index && styles.segmentTextActive,
-              ]}>
-                {segment.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {(I18nManager.isRTL ? [...SEGMENTS].reverse() : SEGMENTS).map((segment, visualIndex) => {
+            // In RTL, visual index is reversed but logical index stays the same
+            const logicalIndex = I18nManager.isRTL 
+              ? SEGMENTS.length - 1 - visualIndex 
+              : visualIndex;
+            
+            return (
+              <TouchableOpacity
+                key={segment.id}
+                style={[styles.segment, { width: segmentWidth }]}
+                onPress={() => handleSegmentChange(logicalIndex)}
+                activeOpacity={0.7}
+              >
+                <Ionicons 
+                  name={segment.icon} 
+                  size={18} 
+                  color={activeSegment === logicalIndex ? "#000" : "#8E8E93"} 
+                  style={styles.segmentIcon}
+                />
+                <Text style={[
+                  styles.segmentText,
+                  activeSegment === logicalIndex && styles.segmentTextActive,
+                ]}>
+                  {segment.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
     );
@@ -650,7 +659,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                             : (editedData.gender === "female" ? "أرملة" : "أرمل")}
                         </Text>
                       </View>
-                      <Ionicons name="chevron-back" size={20} color="#C7C7CC" />
+                      <Ionicons name={I18nManager.isRTL ? "chevron-back" : "chevron-forward"} size={20} color="#C7C7CC" />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -905,6 +914,7 @@ const styles = StyleSheet.create({
     color: "#000",
     marginBottom: 20,
     letterSpacing: -0.45,
+    textAlign: I18nManager.isRTL ? "right" : "left",
   },
   fieldContainer: {
     marginBottom: 20,
@@ -914,9 +924,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#8E8E93",
     marginBottom: 8,
-    marginLeft: 4,
+    marginLeft: I18nManager.isRTL ? 0 : 4,
+    marginRight: I18nManager.isRTL ? 4 : 0,
     letterSpacing: -0.08,
     textTransform: "uppercase",
+    textAlign: I18nManager.isRTL ? "right" : "left",
   },
   fieldInputWrapper: {
     backgroundColor: "rgba(118, 118, 128, 0.06)",
@@ -943,9 +955,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#8E8E93",
     marginBottom: 8,
-    marginLeft: 4,
+    marginLeft: I18nManager.isRTL ? 0 : 4,
+    marginRight: I18nManager.isRTL ? 4 : 0,
     letterSpacing: -0.08,
     textTransform: "uppercase",
+    textAlign: I18nManager.isRTL ? "right" : "left",
   },
   toggleContainer: {
     flexDirection: "row",
@@ -992,6 +1006,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#000",
     letterSpacing: -0.24,
+    textAlign: I18nManager.isRTL ? "right" : "left",
   },
   privacyRow: {
     flexDirection: "row",
@@ -1009,12 +1024,14 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: "#000",
     letterSpacing: -0.4,
+    textAlign: I18nManager.isRTL ? "right" : "left",
   },
   privacyHint: {
     fontSize: 13,
     color: "#8E8E93",
     marginTop: 2,
     letterSpacing: -0.08,
+    textAlign: I18nManager.isRTL ? "right" : "left",
   },
   addButton: {
     padding: 4,
@@ -1053,7 +1070,7 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     color: "#8E8E93",
-    textAlign: "center",
+    textAlign: I18nManager.isRTL ? "right" : "center",
     marginVertical: 30,
     letterSpacing: -0.24,
   },
