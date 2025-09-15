@@ -329,19 +329,9 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
   const renderSegmentedControl = () => {
     const segmentWidth = (screenWidth - 32) / SEGMENTS.length;
 
-    // Let's manually reverse segments for RTL to have full control
-    const segmentsToRender = I18nManager.isRTL
-      ? [...SEGMENTS].reverse()
-      : SEGMENTS;
-
     return (
       <View style={styles.segmentWrapper}>
-        <View
-          style={[
-            styles.segmentedControl,
-            { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" },
-          ]}
-        >
+        <View style={styles.segmentedControl}>
           <Animated.View
             style={[
               styles.segmentIndicator,
@@ -351,13 +341,15 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                   {
                     translateX: slideAnimation.interpolate({
                       inputRange: [0, 1, 2, 3],
-                      // Now we control the order explicitly
+                      // In RTL, flexDirection: "row" automatically reverses the visual order
+                      // So segment 0 appears at position 3 (rightmost)
+                      // The indicator needs to match these visual positions
                       outputRange: I18nManager.isRTL
                         ? [
-                            segmentWidth * 3 + 2, // index 0 (عام) at rightmost
-                            segmentWidth * 2 + 2, // index 1 (تفاصيل)
-                            segmentWidth + 2, // index 2 (عائلة)
-                            2, // index 3 (تواصل) at leftmost
+                            segmentWidth * 3 + 2, // index 0 -> rightmost visual position
+                            segmentWidth * 2 + 2, // index 1 -> second from right
+                            segmentWidth + 2,     // index 2 -> second from left
+                            2,                    // index 3 -> leftmost visual position
                           ]
                         : [
                             2,
@@ -371,36 +363,29 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
               },
             ]}
           />
-          {segmentsToRender.map((segment, visualIndex) => {
-            // Map visual index back to logical index
-            const logicalIndex = I18nManager.isRTL
-              ? SEGMENTS.findIndex((s) => s.id === segment.id)
-              : visualIndex;
-
-            return (
-              <TouchableOpacity
-                key={segment.id}
-                style={[styles.segment, { width: segmentWidth }]}
-                onPress={() => handleSegmentChange(logicalIndex)}
-                activeOpacity={0.7}
+          {SEGMENTS.map((segment, index) => (
+            <TouchableOpacity
+              key={segment.id}
+              style={[styles.segment, { width: segmentWidth }]}
+              onPress={() => handleSegmentChange(index)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={segment.icon}
+                size={18}
+                color={activeSegment === index ? "#000" : "#8E8E93"}
+                style={styles.segmentIcon}
+              />
+              <Text
+                style={[
+                  styles.segmentText,
+                  activeSegment === index && styles.segmentTextActive,
+                ]}
               >
-                <Ionicons
-                  name={segment.icon}
-                  size={18}
-                  color={activeSegment === logicalIndex ? "#000" : "#8E8E93"}
-                  style={styles.segmentIcon}
-                />
-                <Text
-                  style={[
-                    styles.segmentText,
-                    activeSegment === logicalIndex && styles.segmentTextActive,
-                  ]}
-                >
-                  {segment.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                {segment.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
     );
@@ -1004,7 +989,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(60, 60, 67, 0.18)",
   },
   segmentedControl: {
-    // flexDirection will be set inline based on RTL
+    flexDirection: "row", // RTL will automatically reverse this
     backgroundColor: "rgba(118, 118, 128, 0.12)",
     borderRadius: 9,
     padding: 2,
