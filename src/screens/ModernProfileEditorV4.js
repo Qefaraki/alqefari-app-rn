@@ -332,14 +332,15 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                 transform: [{
                   translateX: slideAnimation.interpolate({
                     inputRange: [0, 1, 2, 3],
-                    // In RTL, segments appear right-to-left but coordinates are still left-to-right
-                    // Index 0 (عام) is rightmost visually, but needs lowest X value
-                    // Index 3 (تواصل) is leftmost visually, but needs highest X value
+                    // RTL: flexDirection row reverses segment positions
+                    // Segment 0 appears rightmost, segment 3 appears leftmost
+                    // But translateX: 0 is still LEFT edge, high values go RIGHT
+                    // So segment 0 (rightmost) needs the HIGHEST translateX value!
                     outputRange: [
-                      2,                          // index 0 - rightmost segment (عام)
-                      segmentWidth + 2,           // index 1 - second from right (تفاصيل)
-                      segmentWidth * 2 + 2,       // index 2 - third from right (عائلة)
-                      segmentWidth * 3 + 2        // index 3 - leftmost segment (تواصل)
+                      segmentWidth * 3 + 2,       // index 0 - rightmost position (عام)
+                      segmentWidth * 2 + 2,       // index 1 - second from right (تفاصيل)  
+                      segmentWidth + 2,           // index 2 - third from right (عائلة)
+                      2                           // index 3 - leftmost position (تواصل)
                     ],
                   })
                 }],

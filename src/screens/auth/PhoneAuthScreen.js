@@ -130,14 +130,48 @@ export default function PhoneAuthScreen({ navigation }) {
     }
   };
 
+  /**
+   * Convert Western numerals to Arabic numerals for display
+   */
+  const toArabicNumerals = (str) => {
+    const arabicNumerals = "٠١٢٣٤٥٦٧٨٩";
+    const westernNumerals = "0123456789";
+
+    let result = str || "";
+    for (let i = 0; i < 10; i++) {
+      const regex = new RegExp(westernNumerals[i], "g");
+      result = result.replace(regex, arabicNumerals[i]);
+    }
+    return result;
+  };
+
+  /**
+   * Convert Arabic numerals to Western for processing
+   */
+  const fromArabicNumerals = (str) => {
+    return phoneAuthService.convertArabicNumbers(str || "");
+  };
+
   const formatPhoneDisplay = (phone) => {
-    const cleaned = phone.replace(/\D/g, "");
-    if (cleaned.length <= 2) return cleaned;
-    if (cleaned.length <= 5)
-      return `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
-    if (cleaned.length <= 9)
-      return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5)}`;
-    return `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
+    // Convert Arabic numbers to Western for processing
+    const normalized = fromArabicNumerals(phone);
+    const cleaned = normalized.replace(/\D/g, "");
+
+    let formatted = "";
+    if (cleaned.length <= 2) {
+      formatted = cleaned;
+    } else if (cleaned.length <= 5) {
+      formatted = `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
+    } else if (cleaned.length <= 9) {
+      formatted = `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5)}`;
+    } else {
+      formatted = `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
+    }
+
+    // Convert back to Arabic numerals for display if needed
+    // You can toggle this based on user preference
+    // return toArabicNumerals(formatted);
+    return formatted;
   };
 
   return (
@@ -166,19 +200,28 @@ export default function PhoneAuthScreen({ navigation }) {
                 source={{ uri: "https://flagcdn.com/w40/sa.png" }}
                 style={styles.flag}
               />
-              <Text style={styles.countryCodeText}>+966</Text>
+              <Text style={styles.countryCodeText}>+٩٦٦</Text>
             </View>
             <TextInput
               style={styles.phoneInput}
-              placeholder="5X XXX XXXX"
+              placeholder="٥٠ ١٢٣ ٤٥٦٧"
               placeholderTextColor="#999"
               value={formatPhoneDisplay(phoneNumber)}
-              onChangeText={(text) => setPhoneNumber(text.replace(/\D/g, ""))}
+              onChangeText={(text) => {
+                // Convert Arabic numbers to Western and keep only digits
+                const normalized = fromArabicNumerals(text);
+                const digitsOnly = normalized.replace(/\D/g, "");
+                setPhoneNumber(digitsOnly);
+              }}
               keyboardType="phone-pad"
-              maxLength={11}
+              maxLength={15} // Increased to allow spaces and various formats
               textAlign="right"
             />
           </View>
+
+          <Text style={styles.helperText}>
+            يمكنك إدخال الرقم بأي صيغة: ٠٥، ٥، +٩٦٦، ٠٠٩٦٦
+          </Text>
 
           <TouchableOpacity
             style={[styles.button, !phoneNumber && styles.buttonDisabled]}
@@ -340,6 +383,13 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     fontSize: 16,
     color: "#1a1a1a",
+  },
+  helperText: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    marginTop: -10,
+    marginBottom: 20,
   },
   button: {
     backgroundColor: "#007AFF",
