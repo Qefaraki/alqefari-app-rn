@@ -527,23 +527,38 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         ))}
 
         {/* Dates with Hijri/Gregorian support */}
-        {renderSection("التواريخ", "dates", (
-          <>
-            <DateEditor
-              label="تاريخ الميلاد"
-              value={formData.birth_date}
-              onChange={(value) => setFormData({ ...formData, birth_date: value })}
-              error={errors.birth_date}
-            />
-            {formData.status === "deceased" && (
+        {renderSection("التواريخ المهمة", "dates", (
+          <View>
+            {/* Birth Date Section */}
+            <View style={styles.dateSection}>
+              <View style={styles.dateSectionHeader}>
+                <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+                <Text style={styles.dateSectionTitle}>الميلاد</Text>
+              </View>
               <DateEditor
-                label="تاريخ الوفاة"
-                value={formData.death_date}
-                onChange={(value) => setFormData({ ...formData, death_date: value })}
-                error={errors.death_date}
+                label=""
+                value={formData.birth_date}
+                onChange={(value) => setFormData({ ...formData, birth_date: value })}
+                error={errors.birth_date}
               />
+            </View>
+            
+            {/* Death Date Section - only show if deceased */}
+            {formData.status === "deceased" && (
+              <View style={[styles.dateSection, { marginTop: 16 }]}>
+                <View style={styles.dateSectionHeader}>
+                  <Ionicons name="rose-outline" size={20} color="#666" />
+                  <Text style={styles.dateSectionTitle}>الوفاة</Text>
+                </View>
+                <DateEditor
+                  label=""
+                  value={formData.death_date}
+                  onChange={(value) => setFormData({ ...formData, death_date: value })}
+                  error={errors.death_date}
+                />
+              </View>
             )}
-          </>
+          </View>
         ))}
 
         {/* Contact Information */}
@@ -769,6 +784,27 @@ const styles = StyleSheet.create({
   switchDescription: {
     fontSize: 14,
     color: "#666",
+  },
+  dateSection: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  dateSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  dateSectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1A1A1A",
   },
 });
 
