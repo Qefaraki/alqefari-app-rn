@@ -330,11 +330,18 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
     const segmentWidth = (screenWidth - 32) / SEGMENTS.length;
 
     // Let's manually reverse segments for RTL to have full control
-    const segmentsToRender = I18nManager.isRTL ? [...SEGMENTS].reverse() : SEGMENTS;
-    
+    const segmentsToRender = I18nManager.isRTL
+      ? [...SEGMENTS].reverse()
+      : SEGMENTS;
+
     return (
       <View style={styles.segmentWrapper}>
-        <View style={[styles.segmentedControl, { flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' }]}>
+        <View
+          style={[
+            styles.segmentedControl,
+            { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" },
+          ]}
+        >
           <Animated.View
             style={[
               styles.segmentIndicator,
@@ -345,12 +352,12 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                     translateX: slideAnimation.interpolate({
                       inputRange: [0, 1, 2, 3],
                       // Now we control the order explicitly
-                      outputRange: I18nManager.isRTL 
+                      outputRange: I18nManager.isRTL
                         ? [
                             segmentWidth * 3 + 2, // index 0 (عام) at rightmost
-                            segmentWidth * 2 + 2, // index 1 (تفاصيل) 
-                            segmentWidth + 2,     // index 2 (عائلة)
-                            2,                    // index 3 (تواصل) at leftmost
+                            segmentWidth * 2 + 2, // index 1 (تفاصيل)
+                            segmentWidth + 2, // index 2 (عائلة)
+                            2, // index 3 (تواصل) at leftmost
                           ]
                         : [
                             2,
@@ -366,10 +373,10 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
           />
           {segmentsToRender.map((segment, visualIndex) => {
             // Map visual index back to logical index
-            const logicalIndex = I18nManager.isRTL 
-              ? SEGMENTS.findIndex(s => s.id === segment.id)
+            const logicalIndex = I18nManager.isRTL
+              ? SEGMENTS.findIndex((s) => s.id === segment.id)
               : visualIndex;
-            
+
             return (
               <TouchableOpacity
                 key={segment.id}
@@ -781,19 +788,28 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                             ? marriage.wife_name || "غير محدد"
                             : marriage.husband_name || "غير محدد"}
                         </Text>
-                        <Text style={styles.marriageStatus}>
-                          {marriage.status === "married"
-                            ? editedData.gender === "female"
-                              ? "متزوجة"
-                              : "متزوج"
-                            : marriage.status === "divorced"
-                              ? editedData.gender === "female"
-                                ? "مطلقة"
-                                : "مطلق"
-                              : editedData.gender === "female"
-                                ? "أرملة"
-                                : "أرمل"}
-                        </Text>
+                        {marriage.status === "divorced" && (
+                          <Text
+                            style={[
+                              styles.marriageStatus,
+                              { color: "#8E8E93" },
+                            ]}
+                          >
+                            {editedData.gender === "male" ? "سابقة" : "سابق"}
+                          </Text>
+                        )}
+                        {marriage.status === "widowed" && (
+                          <Text
+                            style={[
+                              styles.marriageStatus,
+                              { color: "#8E8E93" },
+                            ]}
+                          >
+                            {editedData.gender === "male"
+                              ? "رحمها الله"
+                              : "رحمه الله"}
+                          </Text>
+                        )}
                       </View>
                       <Ionicons
                         name={

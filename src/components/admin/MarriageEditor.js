@@ -663,7 +663,7 @@ export default function MarriageEditor({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
     justifyContent: "flex-end", // Align to bottom for slide animation
     alignItems: "center",
   },
