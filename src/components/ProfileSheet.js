@@ -68,7 +68,6 @@ import TimelineEditor from "./admin/TimelineEditor";
 import NameEditor from "./admin/fields/NameEditor";
 import BioEditor from "./admin/fields/BioEditor";
 import SiblingOrderStepper from "./admin/fields/SiblingOrderStepper";
-import PhotoEditor from "./admin/fields/PhotoEditor";
 import DateEditor from "./admin/fields/DateEditor";
 import { validateDates } from "../utils/dateUtils";
 import ProgressiveImage, {

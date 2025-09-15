@@ -343,22 +343,15 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
                   {
                     translateX: slideAnimation.interpolate({
                       inputRange: [0, 1, 2, 3],
-                      // In RTL, flexDirection: "row" automatically reverses the visual order
-                      // So segment 0 appears at position 3 (rightmost)
-                      // The indicator needs to match these visual positions
-                      outputRange: I18nManager.isRTL
-                        ? [
-                            segmentWidth * 3 + 2, // index 0 -> rightmost visual position
-                            segmentWidth * 2 + 2, // index 1 -> second from right
-                            segmentWidth + 2, // index 2 -> second from left
-                            2, // index 3 -> leftmost visual position
-                          ]
-                        : [
-                            2,
-                            segmentWidth + 2,
-                            segmentWidth * 2 + 2,
-                            segmentWidth * 3 + 2,
-                          ],
+                      // WAIT - the issue is the segments are visually reversed in RTL
+                      // But we're mapping index to position directly
+                      // We need to reverse the mapping!
+                      outputRange: [
+                        2 + (I18nManager.isRTL ? (3 - 0) * segmentWidth : 0 * segmentWidth),
+                        2 + (I18nManager.isRTL ? (3 - 1) * segmentWidth : 1 * segmentWidth),
+                        2 + (I18nManager.isRTL ? (3 - 2) * segmentWidth : 2 * segmentWidth),
+                        2 + (I18nManager.isRTL ? (3 - 3) * segmentWidth : 3 * segmentWidth),
+                      ],
                     }),
                   },
                 ],

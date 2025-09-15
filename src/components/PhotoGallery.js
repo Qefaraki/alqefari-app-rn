@@ -25,11 +25,15 @@ const PhotoGallery = ({
   profileName,
   isEditMode = false,
   onPrimaryPhotoChange,
+  forceAdminMode = false, // Allow override for when used in admin contexts
 }) => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const { isAdminMode } = useAdminMode();
+  const { isAdminMode: contextAdminMode } = useAdminMode();
+
+  // Use forceAdminMode if provided, otherwise use context
+  const isAdminMode = forceAdminMode || contextAdminMode;
 
   // Load photos from database
   const loadPhotos = useCallback(async () => {
