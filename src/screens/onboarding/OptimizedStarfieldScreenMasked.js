@@ -73,19 +73,52 @@ const createMaskedStarfield = () => {
   return points;
 };
 
-// Generate background stars
-const generateBackgroundStars = (count) => {
+// Generate background stars with layers for parallax
+const generateBackgroundStars = () => {
   const stars = [];
-  for (let i = 0; i < count; i++) {
+
+  // Layer 1: Far stars (smallest, slowest)
+  for (let i = 0; i < 40; i++) {
     stars.push({
-      x: Math.random() * SCREEN_WIDTH,
-      y: Math.random() * SCREEN_HEIGHT,
-      size: Math.random() * 1.5 + 0.5,
-      brightness: Math.random() * 0.3 + 0.1,
+      x: Math.random() * SCREEN_WIDTH * 1.2 - SCREEN_WIDTH * 0.1, // Allow off-screen for wrapping
+      y: Math.random() * SCREEN_HEIGHT * 1.2 - SCREEN_HEIGHT * 0.1,
+      size: Math.random() * 0.4 + 0.3,
+      brightness: Math.random() * 0.15 + 0.05,
       delay: Math.random() * 2000,
       group: "background",
+      layer: 1,
+      speed: 0.005, // Slowest movement
     });
   }
+
+  // Layer 2: Middle stars (medium)
+  for (let i = 0; i < 30; i++) {
+    stars.push({
+      x: Math.random() * SCREEN_WIDTH * 1.2 - SCREEN_WIDTH * 0.1,
+      y: Math.random() * SCREEN_HEIGHT * 1.2 - SCREEN_HEIGHT * 0.1,
+      size: Math.random() * 0.8 + 0.5,
+      brightness: Math.random() * 0.25 + 0.1,
+      delay: Math.random() * 2000,
+      group: "background",
+      layer: 2,
+      speed: 0.01, // Medium speed
+    });
+  }
+
+  // Layer 3: Near stars (largest, fastest)
+  for (let i = 0; i < 20; i++) {
+    stars.push({
+      x: Math.random() * SCREEN_WIDTH * 1.2 - SCREEN_WIDTH * 0.1,
+      y: Math.random() * SCREEN_HEIGHT * 1.2 - SCREEN_HEIGHT * 0.1,
+      size: Math.random() * 1.2 + 0.8,
+      brightness: Math.random() * 0.35 + 0.15,
+      delay: Math.random() * 2000,
+      group: "background",
+      layer: 3,
+      speed: 0.02, // Fastest movement
+    });
+  }
+
   return stars;
 };
 
@@ -103,8 +136,11 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
   const logoScale = useRef(new Animated.Value(0.95)).current;
 
   // Memoize all stars
-  const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
+  const backgroundStars = useMemo(() => generateBackgroundStars(), []);
   const logoStars = useMemo(() => createMaskedStarfield(), []);
+
+  // Parallax animation state
+  const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     // Staged animation sequence
@@ -168,11 +204,21 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       ).start();
     }, 2000);
 
-    // Animation frame
+    // Animation frame with parallax
     let frameCount = 0;
     const animate = () => {
       frameCount++;
-      setAnimationTime(frameCount * 0.016);
+      const time = frameCount * 0.016;
+      setAnimationTime(time);
+
+      // Update parallax offset (drift from top-right to bottom-left)
+      const cycleTime = 75; // 75 second loop
+      const progress = (time % cycleTime) / cycleTime;
+      setParallaxOffset({
+        x: progress * SCREEN_WIDTH * 0.15, // Drift 15% of screen width
+        y: progress * SCREEN_HEIGHT * 0.15, // Drift 15% of screen height
+      });
+
       animationRef.current = requestAnimationFrame(animate);
     };
     animationRef.current = requestAnimationFrame(animate);
@@ -191,13 +237,33 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
     logoRotate,
   ]);
 
-  const renderStars = useCallback((stars, time) => {
+  const renderStars = useCallback((stars, time, offset = { x: 0, y: 0 }) => {
     return stars.map((star, index) => {
       const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
       if (fadeInProgress <= 0) return null;
 
       const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
       const opacity = star.brightness * fadeInProgress * (1 + twinkle);
+
+      // Apply parallax offset for background stars
+      let x = star.x;
+      let y = star.y;
+
+      if (star.group === "background" && star.layer) {
+        // Apply parallax based on layer speed
+        x = star.x - offset.x * star.speed * 100;
+        y = star.y - offset.y * star.speed * 100;
+
+        // Wrap around screen edges
+        x =
+          (((x % (SCREEN_WIDTH * 1.2)) + SCREEN_WIDTH * 1.2) %
+            (SCREEN_WIDTH * 1.2)) -
+          SCREEN_WIDTH * 0.1;
+        y =
+          (((y % (SCREEN_HEIGHT * 1.2)) + SCREEN_HEIGHT * 1.2) %
+            (SCREEN_HEIGHT * 1.2)) -
+          SCREEN_HEIGHT * 0.1;
+      }
 
       if (star.group === "logo") {
         // Slower, more gentle twinkle effect
@@ -227,8 +293,8 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       return (
         <Circle
           key={index}
-          cx={star.x}
-          cy={star.y}
+          cx={x}
+          cy={y}
           r={star.size}
           color={`rgba(255, 255, 255, ${opacity})`}
         />
@@ -266,7 +332,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         ]}
       >
         <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-          {renderStars(backgroundStars, animationTime)}
+          {renderStars(backgroundStars, animationTime, parallaxOffset)}
         </Canvas>
       </Animated.View>
 
