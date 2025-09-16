@@ -67,161 +67,19 @@ const createMaskedStarfield = () => {
   return points;
 };
 
-// Create Sadu geometric patterns as constellations
-const createSaduConstellations = () => {
-  const constellations = [];
-
-  // Sadu Pattern 1: Diamond shape (top-left quadrant) - made larger and more dense
-  const diamond = {
-    centerX: SCREEN_WIDTH * 0.25,
-    centerY: SCREEN_HEIGHT * 0.25,
-    size: 80,
-  };
-  // Diamond vertices and edges - create a more complete pattern
-  for (let i = 0; i <= 8; i++) {
-    const angle = (i / 8) * Math.PI * 2;
-    const radius = diamond.size * (i % 2 === 0 ? 1 : 0.7);
-    constellations.push({
-      x: diamond.centerX + Math.cos(angle) * radius,
-      y: diamond.centerY + Math.sin(angle) * radius,
-      isSadu: true,
-    });
-  }
-  // Add center star
-  constellations.push({
-    x: diamond.centerX,
-    y: diamond.centerY,
-    isSadu: true,
-  });
-
-  // Sadu Pattern 2: Triangle (bottom-right quadrant)
-  const triangle = {
-    centerX: SCREEN_WIDTH * 0.75,
-    centerY: SCREEN_HEIGHT * 0.8,
-    size: 50,
-  };
-  // Triangle vertices and edges
-  constellations.push(
-    { x: triangle.centerX, y: triangle.centerY - triangle.size, isSadu: true }, // top
-    {
-      x: triangle.centerX - triangle.size,
-      y: triangle.centerY + triangle.size,
-      isSadu: true,
-    }, // bottom-left
-    {
-      x: triangle.centerX + triangle.size,
-      y: triangle.centerY + triangle.size,
-      isSadu: true,
-    }, // bottom-right
-    // Edge stars
-    {
-      x: triangle.centerX - triangle.size / 2,
-      y: triangle.centerY,
-      isSadu: true,
-    },
-    {
-      x: triangle.centerX + triangle.size / 2,
-      y: triangle.centerY,
-      isSadu: true,
-    },
-    {
-      x: triangle.centerX,
-      y: triangle.centerY + triangle.size / 2,
-      isSadu: true,
-    },
-  );
-
-  // Sadu Pattern 3: Zigzag pattern (middle-left)
-  const zigzag = {
-    startX: SCREEN_WIDTH * 0.15,
-    startY: SCREEN_HEIGHT * 0.5,
-    width: 80,
-    height: 30,
-  };
-  constellations.push(
-    { x: zigzag.startX, y: zigzag.startY, isSadu: true },
-    {
-      x: zigzag.startX + zigzag.width / 3,
-      y: zigzag.startY - zigzag.height,
-      isSadu: true,
-    },
-    {
-      x: zigzag.startX + (zigzag.width * 2) / 3,
-      y: zigzag.startY,
-      isSadu: true,
-    },
-    {
-      x: zigzag.startX + zigzag.width,
-      y: zigzag.startY - zigzag.height,
-      isSadu: true,
-    },
-  );
-
-  return constellations;
-};
-
-// Generate background stars with layers for parallax
-const generateBackgroundStars = () => {
+// Generate background stars
+const generateBackgroundStars = (count) => {
   const stars = [];
-  const saduStars = createSaduConstellations();
-
-  // Add Sadu constellation stars first (more visible than regular stars)
-  saduStars.forEach((saduStar) => {
+  for (let i = 0; i < count; i++) {
     stars.push({
-      x: saduStar.x,
-      y: saduStar.y,
-      size: 1.2, // Noticeably larger than regular background stars
-      brightness: 0.7, // Very bright to make patterns stand out clearly
-      delay: Math.random() * 500, // Faster fade-in
-      group: "background",
-      layer: 1,
-      speed: 0.005,
-      isSadu: true,
-    });
-  });
-
-  // Layer 1: Far stars (smallest, slowest)
-  for (let i = 0; i < 40; i++) {
-    stars.push({
-      x: Math.random() * SCREEN_WIDTH * 1.2 - SCREEN_WIDTH * 0.1, // Allow off-screen for wrapping
-      y: Math.random() * SCREEN_HEIGHT * 1.2 - SCREEN_HEIGHT * 0.1,
-      size: Math.random() * 0.4 + 0.3,
-      brightness: Math.random() * 0.15 + 0.05,
+      x: Math.random() * SCREEN_WIDTH,
+      y: Math.random() * SCREEN_HEIGHT,
+      size: Math.random() * 1.5 + 0.5,
+      brightness: Math.random() * 0.3 + 0.1,
       delay: Math.random() * 2000,
       group: "background",
-      layer: 1,
-      speed: 0.005, // Slowest movement
     });
   }
-
-  // Layer 2: Middle stars (medium)
-  for (let i = 0; i < 30; i++) {
-    stars.push({
-      x: Math.random() * SCREEN_WIDTH * 1.2 - SCREEN_WIDTH * 0.1,
-      y: Math.random() * SCREEN_HEIGHT * 1.2 - SCREEN_HEIGHT * 0.1,
-      size: Math.random() * 0.8 + 0.5,
-      brightness: Math.random() * 0.25 + 0.1,
-      delay: Math.random() * 2000,
-      group: "background",
-      layer: 2,
-      speed: 0.01, // Medium speed
-    });
-  }
-
-  // Layer 3: Near stars (largest, fastest)
-  for (let i = 0; i < 20; i++) {
-    stars.push({
-      x: Math.random() * SCREEN_WIDTH * 1.2 - SCREEN_WIDTH * 0.1,
-      y: Math.random() * SCREEN_HEIGHT * 1.2 - SCREEN_HEIGHT * 0.1,
-      size: Math.random() * 1.2 + 0.8,
-      brightness: Math.random() * 0.35 + 0.15,
-      delay: Math.random() * 2000,
-      group: "background",
-      layer: 3,
-      speed: 0.02, // Fastest movement
-    });
-  }
-
   return stars;
 };
 
@@ -239,11 +97,8 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
   const logoScale = useRef(new Animated.Value(0.95)).current;
 
   // Memoize all stars
-  const backgroundStars = useMemo(() => generateBackgroundStars(), []);
+  const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
   const logoStars = useMemo(() => createMaskedStarfield(), []);
-
-  // Parallax animation state
-  const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     // Staged animation sequence
@@ -307,21 +162,11 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       ).start();
     }, 2000);
 
-    // Animation frame with parallax
+    // Animation frame
     let frameCount = 0;
     const animate = () => {
       frameCount++;
-      const time = frameCount * 0.016;
-      setAnimationTime(time);
-
-      // Update parallax offset (drift from top-right to bottom-left)
-      const cycleTime = 75; // 75 second loop
-      const progress = (time % cycleTime) / cycleTime;
-      setParallaxOffset({
-        x: progress * SCREEN_WIDTH * 0.15, // Drift 15% of screen width
-        y: progress * SCREEN_HEIGHT * 0.15, // Drift 15% of screen height
-      });
-
+      setAnimationTime(frameCount * 0.016);
       animationRef.current = requestAnimationFrame(animate);
     };
     animationRef.current = requestAnimationFrame(animate);
@@ -340,33 +185,13 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
     logoRotate,
   ]);
 
-  const renderStars = useCallback((stars, time, offset = { x: 0, y: 0 }) => {
-    return stars.flatMap((star, index) => {
+  const renderStars = useCallback((stars, time) => {
+    return stars.map((star, index) => {
       const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
       if (fadeInProgress <= 0) return null;
 
       const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
       const opacity = star.brightness * fadeInProgress * (1 + twinkle);
-
-      // Apply parallax offset for background stars
-      let x = star.x;
-      let y = star.y;
-
-      if (star.group === "background" && star.layer) {
-        // Apply parallax based on layer speed
-        x = star.x - offset.x * star.speed * 100;
-        y = star.y - offset.y * star.speed * 100;
-
-        // Wrap around screen edges
-        x =
-          (((x % (SCREEN_WIDTH * 1.2)) + SCREEN_WIDTH * 1.2) %
-            (SCREEN_WIDTH * 1.2)) -
-          SCREEN_WIDTH * 0.1;
-        y =
-          (((y % (SCREEN_HEIGHT * 1.2)) + SCREEN_HEIGHT * 1.2) %
-            (SCREEN_HEIGHT * 1.2)) -
-          SCREEN_HEIGHT * 0.1;
-      }
 
       if (star.group === "logo") {
         // Slower, more gentle twinkle effect
@@ -382,42 +207,22 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         const shouldFlash = flashChance > 0.995;
         const finalOpacity = shouldFlash ? 1 : logoOpacity;
 
-        // Create multi-layer glow effect
-        const glowElements = [];
-
-        // Only add glow to some stars for performance
-        if (index % 3 === 0) {
-          // Outer glow - very subtle
-          glowElements.push(
-            <Circle
-              key={`${index}-glow`}
-              cx={star.x}
-              cy={star.y}
-              r={star.size * 2.5}
-              color={`rgba(209, 187, 163, ${Math.min(0.05, Math.max(0, finalOpacity * 0.05))})`}
-            />,
-          );
-        }
-
-        // Main star
-        glowElements.push(
+        return (
           <Circle
             key={index}
             cx={star.x}
             cy={star.y}
             r={star.size}
             color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
-          />,
+          />
         );
-
-        return glowElements;
       }
 
       return (
         <Circle
           key={index}
-          cx={x}
-          cy={y}
+          cx={star.x}
+          cy={star.y}
           r={star.size}
           color={`rgba(255, 255, 255, ${opacity})`}
         />
@@ -455,11 +260,11 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         ]}
       >
         <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-          {renderStars(backgroundStars, animationTime, parallaxOffset)}
+          {renderStars(backgroundStars, animationTime)}
         </Canvas>
       </Animated.View>
 
-      {/* Logo stars with masking - Layer 1 with particle blur */}
+      {/* Logo stars with masking */}
       {MaskedView ? (
         <Animated.View
           style={[
@@ -562,7 +367,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
-
   maskedContainer: {
     position: "absolute",
     top: 0,
@@ -596,7 +400,7 @@ const styles = StyleSheet.create({
   },
   content: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.69, // Slightly raised from 0.72
+    top: SCREEN_HEIGHT * 0.65,
     width: SCREEN_WIDTH,
     alignItems: "center",
     paddingHorizontal: 40,
@@ -621,7 +425,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: "absolute",
-    bottom: 50,
+    bottom: 80, // Raised from 50 to 80
     width: SCREEN_WIDTH,
     paddingHorizontal: 32,
   },
@@ -650,7 +454,7 @@ const styles = StyleSheet.create({
   skipButtonText: {
     color: "#D1BBA3",
     fontSize: 16,
-    fontWeight: "400", // Regular font weight for secondary action
+    fontWeight: "400", // Regular weight for secondary action
     fontFamily: "SF Arabic",
   },
 });
