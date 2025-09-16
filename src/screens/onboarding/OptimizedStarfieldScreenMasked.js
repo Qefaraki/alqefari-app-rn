@@ -471,28 +471,6 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         </Canvas>
       </Animated.View>
 
-      {/* Outer Aura Glow - Layer 2 */}
-      <Animated.View
-        style={[
-          styles.glowContainer,
-          {
-            opacity: logoFade.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 0.25], // Increased to 25% opacity for more visible glow
-            }),
-          },
-        ]}
-        pointerEvents="none"
-      >
-        <LinearGradient
-          colors={["#D1BBA3", "#D1BBA300"]} // Using hex transparency for smoother gradient
-          locations={[0, 0.7]} // Concentrate glow in center
-          start={{ x: 0.5, y: 0.5 }}
-          end={{ x: 0, y: 0 }}
-          style={styles.glowGradient}
-        />
-      </Animated.View>
-
       {/* Logo stars with masking - Layer 1 with particle blur */}
       {MaskedView ? (
         <Animated.View
@@ -596,17 +574,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
-  glowContainer: {
-    position: "absolute",
-    top: SCREEN_HEIGHT * 0.35 - 250,
-    left: SCREEN_WIDTH / 2 - 250,
-    width: 500,
-    height: 500,
-  },
-  glowGradient: {
-    flex: 1,
-    borderRadius: 250,
-  },
+
   maskedContainer: {
     position: "absolute",
     top: 0,
@@ -640,7 +608,7 @@ const styles = StyleSheet.create({
   },
   content: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.72, // Increased from 0.65 to create more space below logo
+    top: SCREEN_HEIGHT * 0.69, // Slightly raised from 0.72
     width: SCREEN_WIDTH,
     alignItems: "center",
     paddingHorizontal: 40,
