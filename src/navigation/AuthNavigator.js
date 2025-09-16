@@ -1,7 +1,7 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
-import LocketPhoneAuthScreen from "../screens/auth/LocketPhoneAuthScreen";
+import NajdiPhoneAuthScreen from "../screens/auth/NajdiPhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
 
@@ -44,10 +44,42 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
       </Stack.Screen>
       <Stack.Screen
         name="PhoneAuth"
-        component={LocketPhoneAuthScreen}
+        component={NajdiPhoneAuthScreen}
         options={{
           gestureEnabled: true,
           gestureDirection: "horizontal",
+          cardStyleInterpolator: ({ current, next, layouts }) => {
+            return {
+              cardStyle: {
+                transform: [
+                  {
+                    translateX: current.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [layouts.screen.width, 0],
+                    }),
+                  },
+                  {
+                    scale: next
+                      ? next.progress.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [1, 0.95],
+                        })
+                      : 1,
+                  },
+                ],
+                opacity: current.progress.interpolate({
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0, 0.5, 1],
+                }),
+              },
+              overlayStyle: {
+                opacity: current.progress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.5],
+                }),
+              },
+            };
+          },
         }}
       />
       <Stack.Screen
