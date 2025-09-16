@@ -71,40 +71,28 @@ const createMaskedStarfield = () => {
 const createSaduConstellations = () => {
   const constellations = [];
 
-  // Sadu Pattern 1: Diamond shape (top-left quadrant)
+  // Sadu Pattern 1: Diamond shape (top-left quadrant) - made larger and more dense
   const diamond = {
     centerX: SCREEN_WIDTH * 0.25,
-    centerY: SCREEN_HEIGHT * 0.2,
-    size: 60,
+    centerY: SCREEN_HEIGHT * 0.25,
+    size: 80,
   };
-  // Diamond vertices
-  constellations.push(
-    { x: diamond.centerX, y: diamond.centerY - diamond.size, isSadu: true }, // top
-    { x: diamond.centerX + diamond.size, y: diamond.centerY, isSadu: true }, // right
-    { x: diamond.centerX, y: diamond.centerY + diamond.size, isSadu: true }, // bottom
-    { x: diamond.centerX - diamond.size, y: diamond.centerY, isSadu: true }, // left
-    // Add connecting stars for subtle lines
-    {
-      x: diamond.centerX + diamond.size / 2,
-      y: diamond.centerY - diamond.size / 2,
+  // Diamond vertices and edges - create a more complete pattern
+  for (let i = 0; i <= 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const radius = diamond.size * (i % 2 === 0 ? 1 : 0.7);
+    constellations.push({
+      x: diamond.centerX + Math.cos(angle) * radius,
+      y: diamond.centerY + Math.sin(angle) * radius,
       isSadu: true,
-    },
-    {
-      x: diamond.centerX + diamond.size / 2,
-      y: diamond.centerY + diamond.size / 2,
-      isSadu: true,
-    },
-    {
-      x: diamond.centerX - diamond.size / 2,
-      y: diamond.centerY + diamond.size / 2,
-      isSadu: true,
-    },
-    {
-      x: diamond.centerX - diamond.size / 2,
-      y: diamond.centerY - diamond.size / 2,
-      isSadu: true,
-    },
-  );
+    });
+  }
+  // Add center star
+  constellations.push({
+    x: diamond.centerX,
+    y: diamond.centerY,
+    isSadu: true,
+  });
 
   // Sadu Pattern 2: Triangle (bottom-right quadrant)
   const triangle = {
@@ -177,14 +165,14 @@ const generateBackgroundStars = () => {
   const stars = [];
   const saduStars = createSaduConstellations();
 
-  // Add Sadu constellation stars first (they should look like regular stars)
+  // Add Sadu constellation stars first (more visible than regular stars)
   saduStars.forEach((saduStar) => {
     stars.push({
       x: saduStar.x,
       y: saduStar.y,
-      size: 0.6, // Same size as small background stars
-      brightness: 0.25, // Slightly brighter to be noticeable
-      delay: Math.random() * 1000,
+      size: 1.0, // Larger than regular background stars for visibility
+      brightness: 0.5, // Much brighter to make patterns clearly visible
+      delay: Math.random() * 500, // Faster fade-in
       group: "background",
       layer: 1,
       speed: 0.005,
