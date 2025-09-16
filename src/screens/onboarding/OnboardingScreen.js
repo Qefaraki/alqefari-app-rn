@@ -119,47 +119,47 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Logo fades in first
+    // Stage 1: Logo fades in quickly
     Animated.parallel([
       Animated.timing(logoFade, {
         toValue: 1,
-        duration: 2000,
+        duration: 800, // Much faster - was 2000
         useNativeDriver: true,
       }),
       Animated.spring(logoScale, {
         toValue: 1,
-        tension: 20,
+        tension: 30, // Snappier spring - was 20
         friction: 7,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Stage 2: Background stars fade in (after 1.5s for logo prominence)
+    // Stage 2: Background stars fade in (delayed by 2s to let logo shine)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
         toValue: 0.8, // Not full opacity to keep logo prominent
         duration: 2500, // Slower fade for smoother transition
         useNativeDriver: true,
       }).start();
-    }, 1500);
+    }, 2000); // Increased from 1500ms to 2000ms
 
-    // Stage 3: Text fades in (after 2.5s total)
+    // Stage 3: Text fades in (after 2s total - right after logo settles)
     setTimeout(() => {
       Animated.timing(contentFade, {
         toValue: 1,
         duration: 1500,
         useNativeDriver: true,
       }).start();
-    }, 2500);
+    }, 2000);
 
-    // Stage 4: Buttons fade in (after 3.5s total)
+    // Stage 4: Buttons fade in (after 3s total)
     setTimeout(() => {
       Animated.timing(buttonFade, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
       }).start();
-    }, 3500);
+    }, 3000);
 
     // Start subtle logo rotation after initial animation (unless reduce motion is on)
     if (!reduceMotion) {
