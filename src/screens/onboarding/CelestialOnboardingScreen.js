@@ -11,65 +11,57 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import Svg, {
-  Circle,
-  Line,
-  RadialGradient,
-  Defs,
-  Stop,
-  G,
-  Path,
-} from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Animated SVG components
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-const AnimatedLine = Animated.createAnimatedComponent(Line);
-
 // Custom Alqefari Logo Component
-const AlqefariLogo = ({
-  size = 60,
-  color = "#D1BBA3",
-  opacity = 1,
-  glow = false,
-}) => {
+const AlqefariLogo = ({ size = 60, color = "#D1BBA3", opacity = 1 }) => {
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Defs>
-        {glow && (
-          <RadialGradient id="logoGlow">
-            <Stop offset="0%" stopColor={color} stopOpacity="0.8" />
-            <Stop offset="50%" stopColor={color} stopOpacity="0.3" />
-            <Stop offset="100%" stopColor={color} stopOpacity="0" />
-          </RadialGradient>
-        )}
-      </Defs>
-
-      {/* Glow effect */}
-      {glow && <Circle cx="50" cy="50" r="45" fill="url(#logoGlow)" />}
-
-      {/* Main circle */}
-      <Circle cx="50" cy="50" r="20" fill={color} opacity={opacity} />
-
-      {/* Line above (not connected) */}
-      <Path
-        d="M 50 15 L 50 25"
-        stroke={color}
-        strokeWidth="3"
-        opacity={opacity}
-        strokeLinecap="round"
+    <View
+      style={{
+        width: size,
+        height: size,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* Glow effect using View */}
+      <View
+        style={{
+          position: "absolute",
+          width: size * 1.5,
+          height: size * 1.5,
+          borderRadius: size * 0.75,
+          backgroundColor: color,
+          opacity: 0.15,
+        }}
       />
 
-      {/* Line to the right (not connected) */}
-      <Path
-        d="M 75 50 L 85 50"
-        stroke={color}
-        strokeWidth="3"
-        opacity={opacity}
-        strokeLinecap="round"
-      />
-    </Svg>
+      {/* SVG Logo */}
+      <Svg width={size} height={size} viewBox="0 0 100 100">
+        {/* Main circle */}
+        <Circle cx="50" cy="50" r="20" fill={color} opacity={opacity} />
+
+        {/* Line above (not connected) */}
+        <Path
+          d="M 50 15 L 50 25"
+          stroke={color}
+          strokeWidth="3"
+          opacity={opacity}
+          strokeLinecap="round"
+        />
+
+        {/* Line to the right (not connected) */}
+        <Path
+          d="M 75 50 L 85 50"
+          stroke={color}
+          strokeWidth="3"
+          opacity={opacity}
+          strokeLinecap="round"
+        />
+      </Svg>
+    </View>
   );
 };
 
@@ -81,8 +73,8 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
   const founderOpacity = useRef(new Animated.Value(0)).current;
   const founderScale = useRef(new Animated.Value(0.8)).current;
 
-  const leftLineProgress = useRef(new Animated.Value(0)).current;
-  const rightLineProgress = useRef(new Animated.Value(0)).current;
+  const leftLineOpacity = useRef(new Animated.Value(0)).current;
+  const rightLineOpacity = useRef(new Animated.Value(0)).current;
 
   const leftSonOpacity = useRef(new Animated.Value(0)).current;
   const leftSonScale = useRef(new Animated.Value(0)).current;
@@ -172,16 +164,16 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
         ]).start(() => {
           // Step 3: Lines draw to sons
           Animated.parallel([
-            Animated.timing(leftLineProgress, {
+            Animated.timing(leftLineOpacity, {
               toValue: 1,
               duration: 1200,
-              useNativeDriver: false,
+              useNativeDriver: true,
               easing: Easing.out(Easing.cubic),
             }),
-            Animated.timing(rightLineProgress, {
+            Animated.timing(rightLineOpacity, {
               toValue: 1,
               duration: 1200,
-              useNativeDriver: false,
+              useNativeDriver: true,
               easing: Easing.out(Easing.cubic),
             }),
           ]).start(() => {
@@ -380,7 +372,7 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
               },
             ]}
           >
-            <AlqefariLogo size={100} color="#D1BBA3" glow={true} />
+            <AlqefariLogo size={100} color="#D1BBA3" />
           </Animated.View>
 
           {/* Founder Name - Integrated with logo glow */}
@@ -397,120 +389,78 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
           </Animated.View>
         </View>
 
-        {/* Constellation SVG for lines and sons */}
-        <Svg
-          width={SCREEN_WIDTH}
-          height={300}
-          style={styles.constellationSvg}
-          viewBox={`0 0 ${SCREEN_WIDTH} 300`}
-        >
-          <Defs>
-            <RadialGradient id="starGlow">
-              <Stop offset="0%" stopColor="#D1BBA3" stopOpacity="0.6" />
-              <Stop offset="40%" stopColor="#D1BBA3" stopOpacity="0.3" />
-              <Stop offset="100%" stopColor="#D1BBA3" stopOpacity="0" />
-            </RadialGradient>
-            <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <Stop offset="0%" stopColor="#D1BBA3" stopOpacity="0.6" />
-              <Stop offset="100%" stopColor="#D1BBA3" stopOpacity="0.2" />
-            </LinearGradient>
-          </Defs>
+        {/* Constellation Lines and Sons using Views */}
+        <View style={styles.constellationLines}>
+          {/* Left Line */}
+          <Animated.View
+            style={[
+              styles.constellationLine,
+              styles.leftLine,
+              { opacity: leftLineOpacity },
+            ]}
+          >
+            <LinearGradient
+              colors={["#D1BBA360", "#D1BBA320"]}
+              style={{ flex: 1 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+          </Animated.View>
 
-          {/* Left constellation line */}
-          <AnimatedLine
-            x1={SCREEN_WIDTH / 2}
-            y1="50"
-            x2={SCREEN_WIDTH / 2 - 100}
-            y2="180"
-            stroke="url(#lineGradient)"
-            strokeWidth="1.5"
-            strokeDasharray="150"
-            strokeDashoffset={leftLineProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [150, 0],
-            })}
-          />
+          {/* Right Line */}
+          <Animated.View
+            style={[
+              styles.constellationLine,
+              styles.rightLine,
+              { opacity: rightLineOpacity },
+            ]}
+          >
+            <LinearGradient
+              colors={["#D1BBA360", "#D1BBA320"]}
+              style={{ flex: 1 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+            />
+          </Animated.View>
 
-          {/* Right constellation line */}
-          <AnimatedLine
-            x1={SCREEN_WIDTH / 2}
-            y1="50"
-            x2={SCREEN_WIDTH / 2 + 100}
-            y2="180"
-            stroke="url(#lineGradient)"
-            strokeWidth="1.5"
-            strokeDasharray="150"
-            strokeDashoffset={rightLineProgress.interpolate({
-              inputRange: [0, 1],
-              outputRange: [150, 0],
-            })}
-          />
+          {/* Left Son */}
+          <Animated.View
+            style={[
+              styles.sonContainer,
+              styles.leftSon,
+              {
+                opacity: leftSonOpacity,
+                transform: [{ scale: leftSonScale }],
+              },
+            ]}
+          >
+            {/* Star glow */}
+            <View style={styles.starGlow} />
+            {/* Star core */}
+            <View style={styles.starCore} />
+            {/* Son name */}
+            <Text style={styles.sonNameText}>عبدالعزيز</Text>
+          </Animated.View>
 
-          {/* Left son star glow */}
-          <AnimatedCircle
-            cx={SCREEN_WIDTH / 2 - 100}
-            cy="180"
-            r="30"
-            fill="url(#starGlow)"
-            opacity={leftSonOpacity}
-            scale={leftSonScale}
-          />
-
-          {/* Left son star core */}
-          <AnimatedCircle
-            cx={SCREEN_WIDTH / 2 - 100}
-            cy="180"
-            r="6"
-            fill="#D1BBA3"
-            opacity={leftSonOpacity}
-            scale={leftSonScale}
-          />
-
-          {/* Right son star glow */}
-          <AnimatedCircle
-            cx={SCREEN_WIDTH / 2 + 100}
-            cy="180"
-            r="30"
-            fill="url(#starGlow)"
-            opacity={rightSonOpacity}
-            scale={rightSonScale}
-          />
-
-          {/* Right son star core */}
-          <AnimatedCircle
-            cx={SCREEN_WIDTH / 2 + 100}
-            cy="180"
-            r="6"
-            fill="#D1BBA3"
-            opacity={rightSonOpacity}
-            scale={rightSonScale}
-          />
-        </Svg>
-
-        {/* Son Names - Positioned next to their stars */}
-        <Animated.View
-          style={[
-            styles.leftSonName,
-            {
-              opacity: leftSonOpacity,
-              transform: [{ scale: leftSonScale }],
-            },
-          ]}
-        >
-          <Text style={styles.sonNameText}>عبدالعزيز</Text>
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.rightSonName,
-            {
-              opacity: rightSonOpacity,
-              transform: [{ scale: rightSonScale }],
-            },
-          ]}
-        >
-          <Text style={styles.sonNameText}>جربوع</Text>
-        </Animated.View>
+          {/* Right Son */}
+          <Animated.View
+            style={[
+              styles.sonContainer,
+              styles.rightSon,
+              {
+                opacity: rightSonOpacity,
+                transform: [{ scale: rightSonScale }],
+              },
+            ]}
+          >
+            {/* Star glow */}
+            <View style={styles.starGlow} />
+            {/* Star core */}
+            <View style={styles.starCore} />
+            {/* Son name */}
+            <Text style={styles.sonNameText}>جربوع</Text>
+          </Animated.View>
+        </View>
       </View>
 
       {/* Text Content */}
@@ -627,21 +577,55 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
-  constellationSvg: {
+  constellationLines: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.28,
+    width: SCREEN_WIDTH,
+    height: 300,
+    top: SCREEN_HEIGHT * 0.32,
   },
-  leftSonName: {
+  constellationLine: {
     position: "absolute",
-    left: SCREEN_WIDTH / 2 - 100,
-    top: SCREEN_HEIGHT * 0.28 + 200,
-    alignItems: "center",
+    width: 2,
+    height: 140,
+    top: -50,
+    left: SCREEN_WIDTH / 2 - 1,
+    transformOrigin: "top",
   },
-  rightSonName: {
+  leftLine: {
+    transform: [{ rotate: "-20deg" }],
+  },
+  rightLine: {
+    transform: [{ rotate: "20deg" }],
+  },
+  sonContainer: {
     position: "absolute",
-    right: SCREEN_WIDTH / 2 - 100,
-    top: SCREEN_HEIGHT * 0.28 + 200,
     alignItems: "center",
+    top: 80,
+  },
+  leftSon: {
+    left: SCREEN_WIDTH / 2 - 110,
+  },
+  rightSon: {
+    right: SCREEN_WIDTH / 2 - 110,
+  },
+  starGlow: {
+    position: "absolute",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#D1BBA3",
+    opacity: 0.15,
+  },
+  starCore: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#D1BBA3",
+    marginBottom: 12,
+    shadowColor: "#D1BBA3",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
   },
   sonNameText: {
     fontSize: 18,
