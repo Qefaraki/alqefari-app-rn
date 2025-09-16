@@ -178,7 +178,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       Animated.parallel([
         Animated.timing(logoFade, {
           toValue: 1,
-          duration: 2000,
+          duration: 500, // Fast 0.5 second fade-in
           useNativeDriver: true,
         }),
         Animated.spring(logoScale, {
