@@ -137,7 +137,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     // Stage 2: Background stars fade in after logo has been seen (1s after logo starts)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
-        toValue: 0.8, // Not full opacity to keep logo prominent
+        toValue: 0.56, // Reduced by 30% from 0.8 (0.8 * 0.7 = 0.56)
         duration: 2000, // Smooth fade
         useNativeDriver: true,
       }).start();
