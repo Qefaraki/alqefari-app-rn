@@ -1,6 +1,6 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
-import SimpleSkiaStarfieldScreen from "../screens/onboarding/SimpleSkiaStarfieldScreen";
+import BasicStarfieldScreen from "../screens/onboarding/BasicStarfieldScreen";
 import LocketPhoneAuthScreen from "../screens/auth/LocketPhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
@@ -35,7 +35,7 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
     >
       <Stack.Screen name="Onboarding" options={{ gestureEnabled: false }}>
         {(props) => (
-          <SimpleSkiaStarfieldScreen
+          <BasicStarfieldScreen
             {...props}
             setIsGuest={setIsGuest}
             setUser={setUser}
