@@ -14,16 +14,18 @@ import {
   StatusBar,
   Modal,
   FlatList,
+  I18nManager,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import SaduNightBackdrop from "../../components/ui/SaduNightBackdrop";
 import { phoneAuthService } from "../../services/phoneAuth";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -35,7 +37,7 @@ const colors = {
   focus: "#957EB5",
 };
 
-// Country codes list
+// Country codes list - English numbers only
 const countryCodes = [
   { code: "+966", country: "السعودية", flag: "🇸🇦", key: "SA" },
   { code: "+971", country: "الإمارات", flag: "🇦🇪", key: "AE" },
@@ -64,29 +66,18 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const cardScale = useRef(new Animated.Value(0.95)).current;
-  const stepSlide = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
   const errorShake = useRef(new Animated.Value(0)).current;
-  const vignetteOpacity = useRef(new Animated.Value(0)).current;
+  const stepProgress = useRef(new Animated.Value(0)).current;
 
   // Screen entry animation
   useEffect(() => {
-    // Entry animation sequence
     Animated.sequence([
-      // Wait a moment
-      Animated.delay(100),
-      // Fade in vignette
-      Animated.timing(vignetteOpacity, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      // Card entrance
+      Animated.delay(200),
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 400,
+          duration: 600,
           useNativeDriver: true,
         }),
         Animated.spring(slideAnim, {
@@ -95,22 +86,15 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
           tension: 40,
           useNativeDriver: true,
         }),
-        Animated.spring(cardScale, {
-          toValue: 1,
-          friction: 8,
-          tension: 40,
-          useNativeDriver: true,
-        }),
       ]),
     ]).start();
   }, []);
 
-  // Step transition animation
+  // Step transition
   useEffect(() => {
-    Animated.spring(stepSlide, {
-      toValue: step === "otp" ? -SCREEN_WIDTH : 0,
-      friction: 8,
-      tension: 40,
+    Animated.timing(stepProgress, {
+      toValue: step === "otp" ? 1 : 0,
+      duration: 300,
       useNativeDriver: true,
     }).start();
   }, [step]);
@@ -291,22 +275,10 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
     setLoading(false);
   };
 
-  const toArabicNumerals = (str) => {
-    const arabicNumerals = "٠١٢٣٤٥٦٧٨٩";
-    const westernNumerals = "0123456789";
-
-    let result = str || "";
-    for (let i = 0; i < 10; i++) {
-      const regex = new RegExp(westernNumerals[i], "g");
-      result = result.replace(regex, arabicNumerals[i]);
-    }
-    return result;
-  };
-
   const CountryPicker = () => (
     <Modal
       visible={showCountryPicker}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={() => setShowCountryPicker(false)}
     >
@@ -315,43 +287,72 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
         activeOpacity={1}
         onPress={() => setShowCountryPicker(false)}
       >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>اختر رمز الدولة</Text>
-            <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
-              <Ionicons name="close" size={24} color={colors.saduNight} />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={countryCodes}
-            keyExtractor={(item) => item.key}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[
-                  styles.countryItem,
-                  selectedCountry.key === item.key &&
-                    styles.countryItemSelected,
-                ]}
-                onPress={() => {
-                  setSelectedCountry(item);
-                  setShowCountryPicker(false);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <View style={styles.countryInfo}>
-                  <Text style={styles.countryFlag}>{item.flag}</Text>
-                  <Text style={styles.countryName}>{item.country}</Text>
-                </View>
-                <Text style={styles.countryCode}>
-                  {toArabicNumerals(item.code)}
-                </Text>
+        <BlurView intensity={80} style={styles.modalBlur}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>اختر رمز الدولة</Text>
+              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                <Ionicons name="close" size={24} color={colors.alJassWhite} />
               </TouchableOpacity>
-            )}
-          />
-        </View>
+            </View>
+            <FlatList
+              data={countryCodes}
+              keyExtractor={(item) => item.key}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.countryItem,
+                    selectedCountry.key === item.key &&
+                      styles.countryItemSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedCountry(item);
+                    setShowCountryPicker(false);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                >
+                  <View style={styles.countryInfo}>
+                    <Text style={styles.countryFlag}>{item.flag}</Text>
+                    <Text style={styles.countryName}>{item.country}</Text>
+                  </View>
+                  <Text style={styles.countryCode}>{item.code}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </BlurView>
       </TouchableOpacity>
     </Modal>
   );
+
+  // Phone step opacity/transform
+  const phoneStepStyle = {
+    opacity: stepProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [1, 0],
+    }),
+    transform: [
+      {
+        translateX: stepProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, -30],
+        }),
+      },
+    ],
+  };
+
+  // OTP step opacity/transform
+  const otpStepStyle = {
+    opacity: stepProgress,
+    transform: [
+      {
+        translateX: stepProgress.interpolate({
+          inputRange: [0, 1],
+          outputRange: [30, 0],
+        }),
+      },
+    ],
+  };
 
   return (
     <View style={styles.container}>
@@ -364,16 +365,12 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
         parallaxOffset={20}
       />
 
-      {/* Dark Vignette at bottom */}
-      <Animated.View
-        style={[styles.vignette, { opacity: vignetteOpacity }]}
+      {/* Dark gradient overlay */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.8)"]}
+        style={StyleSheet.absoluteFillObject}
         pointerEvents="none"
-      >
-        <LinearGradient
-          colors={["transparent", "transparent", "rgba(0,0,0,0.85)"]}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </Animated.View>
+      />
 
       <KeyboardAvoidingView
         style={styles.avoidingView}
@@ -389,229 +386,220 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
             <Ionicons
               name="chevron-back"
               size={28}
-              color={colors.alJassWhite}
+              color={colors.alJassWhite + "CC"}
             />
           </TouchableOpacity>
 
           <View style={styles.contentContainer}>
             <Animated.View
               style={[
-                styles.card,
+                styles.cardWrapper,
                 {
                   opacity: fadeAnim,
                   transform: [
                     { translateY: slideAnim },
-                    { scale: cardScale },
                     { translateX: errorShake },
                   ],
                 },
               ]}
             >
-              {/* Progress indicator */}
-              <View style={styles.progressContainer}>
-                <View
-                  style={[
-                    styles.progressDot,
-                    step === "phone" && styles.progressDotActive,
-                  ]}
-                />
-                <View style={styles.progressLine} />
-                <View
-                  style={[
-                    styles.progressDot,
-                    step === "otp" && styles.progressDotActive,
-                  ]}
-                />
-              </View>
-
-              {/* Sliding container for steps */}
-              <View style={styles.stepWrapper}>
-                <Animated.View
-                  style={[
-                    styles.stepContainer,
-                    {
-                      transform: [{ translateX: stepSlide }],
-                    },
-                  ]}
-                >
-                  {/* Phone Number Step */}
-                  <View style={styles.step}>
-                    <View style={styles.iconContainer}>
-                      <Ionicons
-                        name="call"
-                        size={28}
-                        color={colors.najdiCrimson}
-                      />
-                    </View>
-
-                    <Text style={styles.title}>أدخل رقم هاتفك</Text>
-                    <Text style={styles.subtitle}>
-                      سنرسل لك رمز التحقق للدخول
-                    </Text>
-
-                    <View style={styles.phoneInputWrapper}>
-                      {/* Country Code Selector */}
-                      <TouchableOpacity
-                        style={styles.countrySelector}
-                        onPress={() => setShowCountryPicker(true)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.countryFlag}>
-                          {selectedCountry.flag}
-                        </Text>
-                        <Text style={styles.countryCodeText}>
-                          {toArabicNumerals(selectedCountry.code)}
-                        </Text>
-                        <Ionicons
-                          name="chevron-down"
-                          size={16}
-                          color={colors.saduNight}
-                        />
-                      </TouchableOpacity>
-
-                      {/* Phone Number Input */}
-                      <TextInput
-                        style={[styles.phoneInput, { textAlign: "left" }]} // Force LTR for numbers
-                        placeholder="50 123 4567"
-                        placeholderTextColor={colors.saduNight + "40"}
-                        value={formatPhoneDisplay(phoneNumber)}
-                        onChangeText={handlePhoneChange}
-                        keyboardType="number-pad"
-                        maxLength={11} // 9 digits + 2 spaces
-                        returnKeyType="done"
-                        onSubmitEditing={handleSendOTP}
-                      />
-                    </View>
-
-                    {error && step === "phone" && (
-                      <Text style={styles.errorText}>{error}</Text>
-                    )}
-
-                    <TouchableOpacity
+              {/* Glass card with blur */}
+              <BlurView intensity={20} tint="dark" style={styles.card}>
+                <View style={styles.cardInner}>
+                  {/* Progress dots */}
+                  <View style={styles.progressContainer}>
+                    <View
                       style={[
-                        styles.primaryButton,
-                        (!phoneNumber || loading) && styles.buttonDisabled,
+                        styles.progressDot,
+                        step === "phone" && styles.progressDotActive,
                       ]}
-                      onPress={handleSendOTP}
-                      disabled={!phoneNumber || loading}
-                      activeOpacity={0.8}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color={colors.alJassWhite} />
-                      ) : (
-                        <Text style={styles.buttonText}>إرسال رمز التحقق</Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.skipButton}
-                      onPress={() => navigation.replace("Main")}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.skipText}>تخطي - المشاهدة فقط</Text>
-                    </TouchableOpacity>
+                    />
+                    <View style={styles.progressLine} />
+                    <View
+                      style={[
+                        styles.progressDot,
+                        step === "otp" && styles.progressDotActive,
+                      ]}
+                    />
                   </View>
 
-                  {/* OTP Step */}
-                  <View style={styles.step}>
-                    <View style={styles.iconContainer}>
-                      <Ionicons
-                        name="shield-checkmark"
-                        size={28}
-                        color={colors.desertOchre}
-                      />
-                    </View>
+                  {/* Step container */}
+                  <View style={styles.stepContainer}>
+                    {/* Phone Number Step */}
+                    {step === "phone" && (
+                      <Animated.View style={[styles.step, phoneStepStyle]}>
+                        <View style={styles.iconContainer}>
+                          <Ionicons
+                            name="call"
+                            size={24}
+                            color={colors.alJassWhite}
+                          />
+                        </View>
 
-                    <Text style={styles.title}>أدخل رمز التحقق</Text>
-                    <Text style={styles.subtitle}>
-                      تم إرسال الرمز إلى{"\n"}
-                      <Text style={styles.phoneDisplay}>
-                        {toArabicNumerals(
-                          selectedCountry.code +
-                            " " +
-                            formatPhoneDisplay(phoneNumber),
-                        )}
-                      </Text>
-                    </Text>
+                        <Text style={styles.title}>أدخل رقم هاتفك</Text>
+                        <Text style={styles.subtitle}>
+                          سنرسل لك رمز التحقق للدخول
+                        </Text>
 
-                    <View style={styles.otpContainer}>
-                      {otp.map((digit, index) => (
-                        <TextInput
-                          key={index}
-                          ref={(ref) => (otpInputs.current[index] = ref)}
+                        <View style={styles.phoneInputWrapper}>
+                          {/* Country Code Selector */}
+                          <TouchableOpacity
+                            style={styles.countrySelector}
+                            onPress={() => setShowCountryPicker(true)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.countryFlag}>
+                              {selectedCountry.flag}
+                            </Text>
+                            <Text style={styles.countryCodeText}>
+                              {selectedCountry.code}
+                            </Text>
+                            <Ionicons
+                              name="chevron-down"
+                              size={16}
+                              color={colors.alJassWhite + "99"}
+                            />
+                          </TouchableOpacity>
+
+                          {/* Phone Number Input */}
+                          <TextInput
+                            style={[
+                              styles.phoneInput,
+                              {
+                                textAlign: I18nManager.isRTL ? "left" : "left",
+                                writingDirection: "ltr",
+                              },
+                            ]}
+                            placeholder="50 123 4567"
+                            placeholderTextColor={colors.alJassWhite + "40"}
+                            value={formatPhoneDisplay(phoneNumber)}
+                            onChangeText={handlePhoneChange}
+                            keyboardType="number-pad"
+                            maxLength={11} // 9 digits + 2 spaces
+                            returnKeyType="done"
+                            onSubmitEditing={handleSendOTP}
+                          />
+                        </View>
+
+                        {error && <Text style={styles.errorText}>{error}</Text>}
+
+                        <TouchableOpacity
                           style={[
-                            styles.otpInput,
-                            digit && styles.otpInputFilled,
+                            styles.primaryButton,
+                            (!phoneNumber || loading) && styles.buttonDisabled,
                           ]}
-                          value={digit}
-                          onChangeText={(value) =>
-                            handleOtpChange(value, index)
-                          }
-                          onKeyPress={(e) => handleOtpKeyPress(e, index)}
-                          keyboardType="number-pad"
-                          maxLength={1}
-                          textAlign="center"
-                        />
-                      ))}
-                    </View>
-
-                    {error && step === "otp" && (
-                      <Text style={styles.errorText}>{error}</Text>
+                          onPress={handleSendOTP}
+                          disabled={!phoneNumber || loading}
+                          activeOpacity={0.8}
+                        >
+                          {loading ? (
+                            <ActivityIndicator color={colors.alJassWhite} />
+                          ) : (
+                            <Text style={styles.buttonText}>
+                              إرسال رمز التحقق
+                            </Text>
+                          )}
+                        </TouchableOpacity>
+                      </Animated.View>
                     )}
 
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryButton,
-                        (otp.join("").length !== 6 || loading) &&
-                          styles.buttonDisabled,
-                      ]}
-                      onPress={() => handleVerifyOTP()}
-                      disabled={otp.join("").length !== 6 || loading}
-                      activeOpacity={0.8}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color={colors.alJassWhite} />
-                      ) : (
-                        <Text style={styles.buttonText}>تحقق</Text>
-                      )}
-                    </TouchableOpacity>
+                    {/* OTP Step */}
+                    {step === "otp" && (
+                      <Animated.View style={[styles.step, otpStepStyle]}>
+                        <View style={styles.iconContainer}>
+                          <Ionicons
+                            name="shield-checkmark"
+                            size={24}
+                            color={colors.alJassWhite}
+                          />
+                        </View>
 
-                    <View style={styles.resendContainer}>
-                      {countdown > 0 ? (
-                        <Text style={styles.countdownText}>
-                          إعادة الإرسال بعد{" "}
-                          {toArabicNumerals(countdown.toString())} ثانية
+                        <Text style={styles.title}>أدخل رمز التحقق</Text>
+                        <Text style={styles.subtitle}>
+                          تم إرسال الرمز إلى{"\n"}
+                          <Text style={styles.phoneDisplay}>
+                            {selectedCountry.code}{" "}
+                            {formatPhoneDisplay(phoneNumber)}
+                          </Text>
                         </Text>
-                      ) : (
+
+                        <View style={styles.otpContainer}>
+                          {otp.map((digit, index) => (
+                            <TextInput
+                              key={index}
+                              ref={(ref) => (otpInputs.current[index] = ref)}
+                              style={[
+                                styles.otpInput,
+                                digit && styles.otpInputFilled,
+                              ]}
+                              value={digit}
+                              onChangeText={(value) =>
+                                handleOtpChange(value, index)
+                              }
+                              onKeyPress={(e) => handleOtpKeyPress(e, index)}
+                              keyboardType="number-pad"
+                              maxLength={1}
+                              textAlign="center"
+                            />
+                          ))}
+                        </View>
+
+                        {error && <Text style={styles.errorText}>{error}</Text>}
+
                         <TouchableOpacity
-                          onPress={handleResendOTP}
-                          disabled={loading}
+                          style={[
+                            styles.primaryButton,
+                            (otp.join("").length !== 6 || loading) &&
+                              styles.buttonDisabled,
+                          ]}
+                          onPress={() => handleVerifyOTP()}
+                          disabled={otp.join("").length !== 6 || loading}
+                          activeOpacity={0.8}
+                        >
+                          {loading ? (
+                            <ActivityIndicator color={colors.alJassWhite} />
+                          ) : (
+                            <Text style={styles.buttonText}>تحقق</Text>
+                          )}
+                        </TouchableOpacity>
+
+                        <View style={styles.resendContainer}>
+                          {countdown > 0 ? (
+                            <Text style={styles.countdownText}>
+                              إعادة الإرسال بعد {countdown} ثانية
+                            </Text>
+                          ) : (
+                            <TouchableOpacity
+                              onPress={handleResendOTP}
+                              disabled={loading}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={styles.resendText}>
+                                إعادة إرسال الرمز
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.changeNumberButton}
+                          onPress={() => {
+                            setStep("phone");
+                            setOtp(["", "", "", "", "", ""]);
+                            setCountdown(0);
+                            setError("");
+                          }}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.resendText}>
-                            إعادة إرسال الرمز
+                          <Text style={styles.changeNumberText}>
+                            تغيير رقم الهاتف
                           </Text>
                         </TouchableOpacity>
-                      )}
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.changeNumberButton}
-                      onPress={() => {
-                        setStep("phone");
-                        setOtp(["", "", "", "", "", ""]);
-                        setCountdown(0);
-                        setError("");
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.changeNumberText}>
-                        تغيير رقم الهاتف
-                      </Text>
-                    </TouchableOpacity>
+                      </Animated.View>
+                    )}
                   </View>
-                </Animated.View>
-              </View>
+                </View>
+              </BlurView>
             </Animated.View>
           </View>
         </SafeAreaView>
@@ -633,14 +621,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  vignette: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: SCREEN_HEIGHT * 0.25,
-    zIndex: 1,
-  },
   backButton: {
     position: "absolute",
     top: Platform.OS === "ios" ? 60 : 40,
@@ -649,26 +629,29 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(249, 247, 243, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
     justifyContent: "center",
   },
   contentContainer: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 24,
   },
+  cardWrapper: {
+    width: "100%",
+    maxWidth: 400,
+  },
   card: {
-    backgroundColor: colors.alJassWhite,
-    borderRadius: 16,
-    padding: 32,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
+    borderRadius: 20,
+    overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.camelHairBeige + "40",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  cardInner: {
+    backgroundColor: "rgba(36, 33, 33, 0.4)",
+    padding: 32,
   },
   progressContainer: {
     flexDirection: "row",
@@ -680,7 +663,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.camelHairBeige + "40",
+    backgroundColor: "rgba(249, 247, 243, 0.3)",
   },
   progressDotActive: {
     width: 12,
@@ -691,38 +674,31 @@ const styles = StyleSheet.create({
   progressLine: {
     width: 40,
     height: 1,
-    backgroundColor: colors.camelHairBeige + "40",
+    backgroundColor: "rgba(249, 247, 243, 0.2)",
     marginHorizontal: 8,
   },
-  stepWrapper: {
-    overflow: "hidden",
-    height: 400,
-  },
   stepContainer: {
-    flexDirection: "row",
-    width: SCREEN_WIDTH * 2 - 48,
+    minHeight: 380,
   },
   step: {
-    width: SCREEN_WIDTH - 80,
-    paddingHorizontal: 8,
+    alignItems: "center",
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.camelHairBeige + "20",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.najdiCrimson + "20",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: colors.camelHairBeige + "40",
+    borderColor: colors.najdiCrimson + "40",
   },
   title: {
     fontSize: 22,
     fontWeight: "700",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite,
     textAlign: "center",
     marginBottom: 8,
     letterSpacing: -0.5,
@@ -731,7 +707,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "400",
     fontFamily: "SF Arabic",
-    color: colors.saduNight + "99",
+    color: colors.alJassWhite + "99",
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 22,
@@ -745,16 +721,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginBottom: 24,
     gap: 12,
+    width: "100%",
   },
   countrySelector: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.camelHairBeige + "20",
-    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: colors.camelHairBeige + "40",
+    borderColor: "rgba(255, 255, 255, 0.1)",
     gap: 6,
   },
   countryFlag: {
@@ -764,84 +741,70 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite,
   },
   phoneInput: {
     flex: 1,
-    backgroundColor: colors.camelHairBeige + "20",
-    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite,
     borderWidth: 1,
-    borderColor: colors.camelHairBeige + "40",
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   otpContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
+    gap: 8,
     marginBottom: 24,
-    paddingHorizontal: 8,
+    width: "100%",
   },
   otpInput: {
-    width: 42,
+    width: 45,
     height: 52,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.camelHairBeige + "40",
-    backgroundColor: colors.camelHairBeige + "20",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     fontSize: 20,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite,
   },
   otpInputFilled: {
-    borderColor: colors.najdiCrimson,
-    backgroundColor: colors.najdiCrimson + "08",
+    borderColor: colors.najdiCrimson + "80",
+    backgroundColor: colors.najdiCrimson + "15",
   },
   errorText: {
     fontSize: 13,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: "#DC2626",
+    color: "#FF6B6B",
     textAlign: "center",
     marginBottom: 16,
   },
   primaryButton: {
     backgroundColor: colors.najdiCrimson,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    minHeight: 48,
-    shadowColor: colors.najdiCrimson,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 20,
+    minHeight: 52,
+    width: "100%",
   },
   buttonDisabled: {
     opacity: 0.4,
-    shadowOpacity: 0,
-    elevation: 0,
   },
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.alJassWhite,
-  },
-  skipButton: {
-    alignItems: "center",
-  },
-  skipText: {
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.saduNight + "99",
   },
   resendContainer: {
     alignItems: "center",
@@ -851,7 +814,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: colors.saduNight + "60",
+    color: colors.alJassWhite + "60",
   },
   resendText: {
     fontSize: 15,
@@ -866,20 +829,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite + "99",
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalBlur: {
+    flex: 1,
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: colors.alJassWhite,
+    backgroundColor: "rgba(36, 33, 33, 0.95)",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 24,
     maxHeight: SCREEN_HEIGHT * 0.6,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
   modalHeader: {
     flexDirection: "row",
@@ -892,7 +859,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite,
   },
   countryItem: {
     flexDirection: "row",
@@ -901,10 +868,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderBottomWidth: 1,
-    borderBottomColor: colors.camelHairBeige + "20",
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
   },
   countryItemSelected: {
-    backgroundColor: colors.najdiCrimson + "08",
+    backgroundColor: colors.najdiCrimson + "15",
   },
   countryInfo: {
     flexDirection: "row",
@@ -915,12 +882,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: colors.saduNight,
+    color: colors.alJassWhite,
   },
   countryCode: {
     fontSize: 15,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: colors.saduNight + "99",
+    color: colors.alJassWhite + "99",
   },
 });
