@@ -15,13 +15,7 @@ import {
   Animated,
   Image,
 } from "react-native";
-import {
-  Canvas,
-  Circle,
-  Group,
-  RadialGradient,
-  Blur,
-} from "@shopify/react-native-skia";
+import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import MaskedView from "@react-native-masked-view/masked-view";
@@ -510,10 +504,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
             }
           >
             <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-              {/* Apply subtle blur to star particles */}
-              <Group layer={<Blur blur={0.5} />}>
-                {renderStars(logoStars, animationTime)}
-              </Group>
+              {renderStars(logoStars, animationTime)}
             </Canvas>
           </MaskedView>
         </Animated.View>
