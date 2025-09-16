@@ -15,6 +15,7 @@ import {
   Modal,
   FlatList,
   I18nManager,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -429,10 +430,10 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                     {step === "phone" && (
                       <Animated.View style={[styles.step, phoneStepStyle]}>
                         <View style={styles.iconContainer}>
-                          <Ionicons
-                            name="call"
-                            size={24}
-                            color={colors.alJassWhite}
+                          <Image
+                            source={require("../../../assets/logo/STAR_LOGO.png")}
+                            style={styles.logoIcon}
+                            resizeMode="contain"
                           />
                         </View>
 
@@ -507,10 +508,10 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                     {step === "otp" && (
                       <Animated.View style={[styles.step, otpStepStyle]}>
                         <View style={styles.iconContainer}>
-                          <Ionicons
-                            name="shield-checkmark"
-                            size={24}
-                            color={colors.alJassWhite}
+                          <Image
+                            source={require("../../../assets/logo/STAR_LOGO.png")}
+                            style={styles.logoIcon}
+                            resizeMode="contain"
                           />
                         </View>
 
@@ -635,10 +636,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 140 : 120,
+    marginTop: -80, // Move card up from center
   },
   cardWrapper: {
     width: "100%",
@@ -685,15 +686,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.najdiCrimson + "20",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
     borderWidth: 1,
     borderColor: colors.najdiCrimson + "40",
+  },
+  logoIcon: {
+    width: 36,
+    height: 36,
+    tintColor: colors.alJassWhite,
   },
   title: {
     fontSize: 22,
