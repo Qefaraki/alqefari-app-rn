@@ -378,19 +378,6 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <SafeAreaView style={styles.safeArea}>
-          {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={28}
-              color={colors.alJassWhite + "CC"}
-            />
-          </TouchableOpacity>
-
           <View style={styles.contentContainer}>
             <Animated.View
               style={[
@@ -407,6 +394,19 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
               {/* Glass card with blur */}
               <BlurView intensity={20} tint="dark" style={styles.card}>
                 <View style={styles.cardInner}>
+                  {/* Back Button */}
+                  <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={28}
+                      color={colors.alJassWhite + "CC"}
+                    />
+                  </TouchableOpacity>
+
                   {/* Progress dots */}
                   <View style={styles.progressContainer}>
                     <View
@@ -624,8 +624,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 50 : 30,
-    right: 16,
+    top: 10,
+    right: 10,
     zIndex: 10,
     width: 44,
     height: 44,
