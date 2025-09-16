@@ -262,7 +262,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
 
   const renderStars = useCallback((stars, time) => {
     return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 250); // Halved from 500 to 250 for 2x speed
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
       if (fadeInProgress <= 0) return null;
 
       const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
