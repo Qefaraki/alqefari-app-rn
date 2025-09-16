@@ -261,13 +261,13 @@ const ImageNode = ({
     return (
       <Group>
         {/* Base circle background */}
-        <Circle cx={x + radius} cy={y + radius} r={radius} color="#F5F5F5" />
+        <Circle cx={x + radius} cy={y + radius} r={radius} color="#D1BBA320" />
         {/* Lighter inner circle for depth */}
         <Circle
           cx={x + radius}
           cy={y + radius}
           r={radius - 1}
-          color="#FAFAFA"
+          color="#D1BBA310"
           style="stroke"
           strokeWidth={0.5}
         />
@@ -2063,7 +2063,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color="#FFFFFF"
+            color="#F9F7F3"
           />
 
           {/* Border */}
@@ -2075,7 +2075,7 @@ const TreeView = ({
             r={CORNER_RADIUS}
             color={isSelected ? "#A13333" : "#D1BBA340"}
             style="stroke"
-            strokeWidth={isSelected ? 2 : 1}
+            strokeWidth={isSelected ? 2.5 : 1}
           />
 
           {hasPhoto ? (
@@ -2117,7 +2117,7 @@ const TreeView = ({
                   String(node.generation),
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
-                  "#61616150", // Added 50% opacity (50 in hex = ~30% opacity)
+                  "#24212140", // Sadu Night with 25% opacity
                   15,
                 );
 
@@ -2166,7 +2166,7 @@ const TreeView = ({
                   String(node.generation),
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
-                  "#61616150", // Added 50% opacity (50 in hex = ~30% opacity)
+                  "#24212140", // Sadu Night with 25% opacity
                   nodeWidth,
                 );
 
@@ -2356,7 +2356,7 @@ const TreeView = ({
   // TIER 3: Only render hero chips
   if (tier === 3 && AGGREGATION_ENABLED) {
     return (
-      <View className="flex-1 bg-gray-100">
+      <View className="flex-1" style={{ backgroundColor: "#F9F7F3" }}>
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
             {renderTier3(
@@ -2373,7 +2373,7 @@ const TreeView = ({
   }
 
   return (
-    <View className="flex-1 bg-gray-100">
+    <View className="flex-1" style={{ backgroundColor: "#F9F7F3" }}>
       <GestureDetector gesture={composed}>
         <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
