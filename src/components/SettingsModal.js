@@ -241,18 +241,18 @@ export default function SettingsModal({ visible, onClose }) {
               
               <View style={styles.signInFeatures}>
                 <View style={styles.signInFeature}>
-                  <Ionicons name="cloud-outline" size={18} color="#6B7280" />
-                  <Text style={styles.signInFeatureText}>مزامنة</Text>
+                  <Ionicons name="git-network-outline" size={18} color="#6B7280" />
+                  <Text style={styles.signInFeatureText}>وصل الأرحام</Text>
                 </View>
                 <View style={styles.signInFeatureDivider} />
                 <View style={styles.signInFeature}>
-                  <Ionicons name="shield-checkmark-outline" size={18} color="#6B7280" />
-                  <Text style={styles.signInFeatureText}>آمن</Text>
+                  <Ionicons name="document-text-outline" size={18} color="#6B7280" />
+                  <Text style={styles.signInFeatureText}>توثيق النسب</Text>
                 </View>
                 <View style={styles.signInFeatureDivider} />
                 <View style={styles.signInFeature}>
-                  <Ionicons name="people-outline" size={18} color="#6B7280" />
-                  <Text style={styles.signInFeatureText}>عائلي</Text>
+                  <Ionicons name="heart-outline" size={18} color="#6B7280" />
+                  <Text style={styles.signInFeatureText}>ذكرى الأجداد</Text>
                 </View>
               </View>
             </View>
