@@ -73,9 +73,130 @@ const createMaskedStarfield = () => {
   return points;
 };
 
+// Create Sadu geometric patterns as constellations
+const createSaduConstellations = () => {
+  const constellations = [];
+
+  // Sadu Pattern 1: Diamond shape (top-left quadrant)
+  const diamond = {
+    centerX: SCREEN_WIDTH * 0.25,
+    centerY: SCREEN_HEIGHT * 0.2,
+    size: 60,
+  };
+  // Diamond vertices
+  constellations.push(
+    { x: diamond.centerX, y: diamond.centerY - diamond.size, isSadu: true }, // top
+    { x: diamond.centerX + diamond.size, y: diamond.centerY, isSadu: true }, // right
+    { x: diamond.centerX, y: diamond.centerY + diamond.size, isSadu: true }, // bottom
+    { x: diamond.centerX - diamond.size, y: diamond.centerY, isSadu: true }, // left
+    // Add connecting stars for subtle lines
+    {
+      x: diamond.centerX + diamond.size / 2,
+      y: diamond.centerY - diamond.size / 2,
+      isSadu: true,
+    },
+    {
+      x: diamond.centerX + diamond.size / 2,
+      y: diamond.centerY + diamond.size / 2,
+      isSadu: true,
+    },
+    {
+      x: diamond.centerX - diamond.size / 2,
+      y: diamond.centerY + diamond.size / 2,
+      isSadu: true,
+    },
+    {
+      x: diamond.centerX - diamond.size / 2,
+      y: diamond.centerY - diamond.size / 2,
+      isSadu: true,
+    },
+  );
+
+  // Sadu Pattern 2: Triangle (bottom-right quadrant)
+  const triangle = {
+    centerX: SCREEN_WIDTH * 0.75,
+    centerY: SCREEN_HEIGHT * 0.8,
+    size: 50,
+  };
+  // Triangle vertices and edges
+  constellations.push(
+    { x: triangle.centerX, y: triangle.centerY - triangle.size, isSadu: true }, // top
+    {
+      x: triangle.centerX - triangle.size,
+      y: triangle.centerY + triangle.size,
+      isSadu: true,
+    }, // bottom-left
+    {
+      x: triangle.centerX + triangle.size,
+      y: triangle.centerY + triangle.size,
+      isSadu: true,
+    }, // bottom-right
+    // Edge stars
+    {
+      x: triangle.centerX - triangle.size / 2,
+      y: triangle.centerY,
+      isSadu: true,
+    },
+    {
+      x: triangle.centerX + triangle.size / 2,
+      y: triangle.centerY,
+      isSadu: true,
+    },
+    {
+      x: triangle.centerX,
+      y: triangle.centerY + triangle.size / 2,
+      isSadu: true,
+    },
+  );
+
+  // Sadu Pattern 3: Zigzag pattern (middle-left)
+  const zigzag = {
+    startX: SCREEN_WIDTH * 0.15,
+    startY: SCREEN_HEIGHT * 0.5,
+    width: 80,
+    height: 30,
+  };
+  constellations.push(
+    { x: zigzag.startX, y: zigzag.startY, isSadu: true },
+    {
+      x: zigzag.startX + zigzag.width / 3,
+      y: zigzag.startY - zigzag.height,
+      isSadu: true,
+    },
+    {
+      x: zigzag.startX + (zigzag.width * 2) / 3,
+      y: zigzag.startY,
+      isSadu: true,
+    },
+    {
+      x: zigzag.startX + zigzag.width,
+      y: zigzag.startY - zigzag.height,
+      isSadu: true,
+    },
+  );
+
+  return constellations;
+};
+
 // Generate background stars with layers for parallax
 const generateBackgroundStars = () => {
   const stars = [];
+  const saduStars = createSaduConstellations();
+
+  // Add Sadu constellation stars first (they should look like regular stars)
+  saduStars.forEach((saduStar) => {
+    stars.push({
+      x: saduStar.x,
+      y: saduStar.y,
+      size: 0.6, // Same size as small background stars
+      brightness: 0.25, // Slightly brighter to be noticeable
+      delay: Math.random() * 1000,
+      group: "background",
+      layer: 1,
+      speed: 0.005,
+      isSadu: true,
+    });
+  });
 
   // Layer 1: Far stars (smallest, slowest)
   for (let i = 0; i < 40; i++) {
