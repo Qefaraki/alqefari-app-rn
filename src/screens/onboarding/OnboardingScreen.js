@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import SaduNightBackdrop from "../../components/ui/SaduNightBackdrop";
 // Try to import MaskedView, but handle the case where it's not available
@@ -423,6 +424,25 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
+
+      {/* Bottom vignette gradient for grounding UI elements */}
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(0,0,0,0.3)",
+          "rgba(0,0,0,0.7)",
+          "rgba(0,0,0,0.9)",
+        ]}
+        locations={[0, 0.3, 0.7, 1]}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: SCREEN_HEIGHT * 0.25, // Bottom quarter of screen
+          pointerEvents: "none", // Allow touches to pass through
+        }}
+      />
     </View>
   );
 }
