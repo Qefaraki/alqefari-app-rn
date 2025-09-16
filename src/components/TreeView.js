@@ -81,7 +81,7 @@ const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;
 const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 60;
-const LINE_COLOR = "#BDBDBD";
+const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
 
@@ -1921,7 +1921,7 @@ const TreeView = ({
               width={chipWidth}
               height={chipHeight}
               r={16}
-              color="#FFFFFF"
+              color="#F9F7F3"
             />
             <RoundedRect
               x={screenX - chipWidth / 2}
@@ -1929,7 +1929,7 @@ const TreeView = ({
               width={chipWidth}
               height={chipHeight}
               r={16}
-              color="#E0E0E0"
+              color="#D1BBA340"
               style="stroke"
               strokeWidth={0.5}
             />
@@ -1942,7 +1942,7 @@ const TreeView = ({
                 font={arabicFont}
                 textAlign="center"
                 fontSize={12 * chipScale}
-                color="#212121"
+                color="#242121"
               />
             )}
           </Group>,
@@ -1992,7 +1992,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={13}
-            color={isSelected ? "#212121" : "#E0E0E0"}
+            color={isSelected ? "#A13333" : "#D1BBA340"}
             style="stroke"
             strokeWidth={isSelected ? 1.5 : 1}
           />
@@ -2004,7 +2004,7 @@ const TreeView = ({
               firstName,
               "regular",
               10,
-              "#212121",
+              "#242121",
               nodeWidth,
             );
 
@@ -2053,7 +2053,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color="#00000015"
+            color="#00000008"
           />
 
           {/* Main card background */}
@@ -2073,7 +2073,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color={isSelected ? "#212121" : "#E0E0E0"}
+            color={isSelected ? "#A13333" : "#D1BBA340"}
             style="stroke"
             strokeWidth={isSelected ? 2 : 1}
           />
@@ -2085,13 +2085,13 @@ const TreeView = ({
                 cx={node.x}
                 cy={node.y - 10}
                 r={PHOTO_SIZE / 2}
-                color="#F5F5F5"
+                color="#D1BBA320"
               />
               <Circle
                 cx={node.x}
                 cy={node.y - 10}
                 r={PHOTO_SIZE / 2}
-                color="#E0E0E0"
+                color="#D1BBA340"
                 style="stroke"
                 strokeWidth={1}
               />
@@ -2139,7 +2139,7 @@ const TreeView = ({
                   node.name,
                   "bold",
                   11,
-                  "#212121",
+                  "#242121",
                   nodeWidth,
                 );
 
@@ -2188,7 +2188,7 @@ const TreeView = ({
                   node.name,
                   "bold",
                   11,
-                  "#212121",
+                  "#242121",
                   nodeWidth,
                 );
 
@@ -2331,11 +2331,11 @@ const TreeView = ({
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: "#f3f4f6",
+          backgroundColor: "#F9F7F3",
         }}
       >
-        <ActivityIndicator size="large" color="#1f2937" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: "#6b7280" }}>
+        <ActivityIndicator size="large" color="#A13333" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: "#24212199" }}>
           جاري تحميل الشجرة...
         </Text>
       </View>
