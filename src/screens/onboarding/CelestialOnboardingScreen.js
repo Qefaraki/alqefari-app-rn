@@ -9,52 +9,13 @@ import {
   Animated,
   Easing,
   ImageBackground,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Shadow } from "react-native-shadow-2";
 import * as Haptics from "expo-haptics";
-import Svg, { Circle, Line } from "react-native-svg";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
-// Custom Alqefari Logo Component with correct geometry
-const AlqefariLogo = ({ size = 100, color = "#D1BBA3", strokeWidth = 2.5 }) => {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      {/* Hollow circle (stroke only, no fill) */}
-      <Circle
-        cx="50"
-        cy="50"
-        r="25"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        fill="none"
-      />
-
-      {/* Horizontal line above */}
-      <Line
-        x1="50"
-        y1="10"
-        x2="50"
-        y2="20"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-
-      {/* Horizontal line to the right */}
-      <Line
-        x1="80"
-        y1="50"
-        x2="90"
-        y2="50"
-        stroke={color}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-};
 
 // Glowing Star Component
 const GlowingStar = ({ size = 12, color = "#D1BBA3" }) => {
@@ -391,10 +352,16 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
             endColor="transparent"
             offset={[0, 0]}
             paintInside={false}
+            sides={["top", "bottom", "start", "end"]}
+            corners={["topStart", "topEnd", "bottomStart", "bottomEnd"]}
             style={styles.logoShadow}
           >
             <Animated.View style={{ opacity: logoGlow }}>
-              <AlqefariLogo size={100} color="#D1BBA3" strokeWidth={2.5} />
+              <Image
+                source={require("../../../assets/logo/Alqefari Emblem (White Transparent).png")}
+                style={styles.logoImage}
+                tintColor="#D1BBA3"
+              />
             </Animated.View>
           </Shadow>
 
@@ -408,7 +375,20 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
               },
             ]}
           >
-            <Text style={styles.founderText}>سليمان</Text>
+            <Shadow
+              distance={0}
+              startColor="#D1BBA360"
+              endColor="transparent"
+              offset={[0, 0]}
+              paintInside={false}
+              sides={["top", "bottom", "start", "end"]}
+              corners={["topStart", "topEnd", "bottomStart", "bottomEnd"]}
+              style={{ borderRadius: 20 }}
+            >
+              <View style={styles.founderTextWrapper}>
+                <Text style={styles.founderText}>سليمان</Text>
+              </View>
+            </Shadow>
           </Animated.View>
         </Animated.View>
 
@@ -594,9 +574,18 @@ const styles = StyleSheet.create({
   logoShadow: {
     borderRadius: 50,
   },
+  logoImage: {
+    width: 100,
+    height: 100,
+    resizeMode: "contain",
+  },
   founderNameContainer: {
     marginTop: 20,
     alignItems: "center",
+  },
+  founderTextWrapper: {
+    paddingHorizontal: 20,
+    paddingVertical: 5,
   },
   founderText: {
     fontSize: 24,
@@ -604,9 +593,6 @@ const styles = StyleSheet.create({
     fontFamily: "System",
     color: "#D1BBA3",
     letterSpacing: 1.5,
-    textShadowColor: "#D1BBA3",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
   },
   constellationLines: {
     position: "absolute",
