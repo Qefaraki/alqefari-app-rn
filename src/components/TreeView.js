@@ -2468,11 +2468,11 @@ const TreeView = ({
         }}
       />
 
-      {/* Admin Toggle Button - Only when logged in */}
-      {user && <AdminToggleButton user={user} onLongPress={onAdminDashboard} />}
-
       {/* Settings Button - Always rendered like other buttons */}
       <SettingsButton onPress={onSettingsOpen} />
+
+      {/* Admin Toggle Button - Only when logged in */}
+      {user && <AdminToggleButton user={user} onLongPress={onAdminDashboard} />}
 
       {/* Admin components */}
       {isAdminMode && (

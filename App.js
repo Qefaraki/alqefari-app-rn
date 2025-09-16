@@ -176,45 +176,34 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
               </View>
             )}
 
-            {/* Admin Quick Login (for testing) */}
+            {/* Admin Quick Login (for testing) - Bottom left circular button */}
             {!user && (
-              <View
+              <TouchableOpacity
+                onPress={handleAdminLogin}
                 style={{
                   position: "absolute",
-                  top: 60,
-                  right: 16,
+                  bottom: 100, // Below navigation button
+                  left: 16,
                   zIndex: 10,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: "#A13333", // Najdi Crimson
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 5,
                 }}
               >
-                <TouchableOpacity
-                  onPress={handleAdminLogin}
-                  style={{
-                    backgroundColor: "#007AFF",
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                >
-                  <Ionicons
-                    name="key"
-                    size={16}
-                    color="white"
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text
-                    style={{ color: "white", fontSize: 14, fontWeight: "600" }}
-                  >
-                    Admin
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                <Ionicons
+                  name="key"
+                  size={20}
+                  color="#F9F7F3" // Al-Jass White
+                />
+              </TouchableOpacity>
             )}
 
             {/* Guest Mode Banner */}
