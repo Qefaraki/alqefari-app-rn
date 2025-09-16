@@ -221,9 +221,9 @@ export default function SettingsModal({ visible, onClose }) {
                 </View>
               </View>
               
-              <Text style={styles.signInTitle}>انضم إلى شجرة القفاري</Text>
+              <Text style={styles.signInTitle}>حياك الله بشجرة القفاري</Text>
               <Text style={styles.signInSubtitle}>
-                احفظ إعداداتك وتواصل مع عائلتك
+                لصلة الرحم وحفظ الأنساب
               </Text>
               
               <TouchableOpacity 
@@ -793,20 +793,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   signInIconBackground: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: "#F5F3F7", // Use our background color
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
+    padding: 10,
     borderWidth: 1,
     borderColor: "#957EB520", // Subtle border with primary color
   },
   signInLogo: {
-    width: 68,
-    height: 68,
-    tintColor: "#957EB5", // Tint the logo to match our primary color
+    width: 60,
+    height: 60,
+    // No tintColor - keep logo in its original black
   },
   signInTitle: {
     fontSize: 22,
