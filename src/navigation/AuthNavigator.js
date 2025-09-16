@@ -48,20 +48,6 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
         options={{
           gestureEnabled: true,
           gestureDirection: "horizontal",
-          cardStyleInterpolator: ({ current }) => ({
-            cardStyle: {
-              opacity: current.progress.interpolate({
-                inputRange: [0, 0.5, 1],
-                outputRange: [0, 0.25, 1],
-              }),
-            },
-            overlayStyle: {
-              opacity: current.progress.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.5],
-              }),
-            },
-          }),
         }}
       />
       <Stack.Screen

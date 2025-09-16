@@ -385,7 +385,7 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <Ionicons
-              name="chevron-forward"
+              name="chevron-back"
               size={28}
               color={colors.alJassWhite + "CC"}
             />
@@ -636,10 +636,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    justifyContent: "flex-start",
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === "ios" ? 160 : 140, // Position from top, not center
+    marginTop: -150, // Move card up significantly from center
   },
   cardWrapper: {
     width: "100%",
@@ -686,9 +686,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.najdiCrimson + "20",
     alignItems: "center",
     justifyContent: "center",
@@ -697,9 +697,9 @@ const styles = StyleSheet.create({
     borderColor: colors.najdiCrimson + "40",
   },
   logoIcon: {
-    width: 44,
-    height: 44,
-    tintColor: "#F9F7F3", // Al-Jass White explicitly
+    width: 40,
+    height: 40,
+    tintColor: colors.alJassWhite,
   },
   title: {
     fontSize: 22,
