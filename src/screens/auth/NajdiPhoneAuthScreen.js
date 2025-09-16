@@ -202,6 +202,9 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
   };
 
   const handleOtpChange = (value, index) => {
+    // Clear error when user starts typing
+    if (error) setError("");
+
     // Only allow digits
     const digit = value.replace(/\D/g, "");
 
@@ -260,7 +263,7 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
   const handleVerifyOTP = async (otpArray = otp) => {
     const otpCode = otpArray.join("");
     if (otpCode.length !== 6) {
-      setError("يرجى إدخال رمز التحقق كاملاً");
+      setError("يرجى إدخال رمز التحقق كاملاً (٦ أرقام)");
       shakeError();
       return;
     }
@@ -279,10 +282,25 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
         navigation.replace("NameChainEntry", { user: result.user });
       }
     } else {
-      setError(result.error || "رمز التحقق غير صحيح");
+      // Better error messages
+      let errorMessage = "رمز التحقق غير صحيح";
+      if (result.error?.includes("expired")) {
+        errorMessage = "انتهت صلاحية رمز التحقق، يرجى طلب رمز جديد";
+      } else if (result.error?.includes("attempts")) {
+        errorMessage = "تم تجاوز عدد المحاولات المسموح، يرجى الانتظار قليلاً";
+      } else if (result.error?.includes("invalid")) {
+        errorMessage = "رمز التحقق غير صحيح، يرجى المحاولة مرة أخرى";
+      }
+
+      setError(errorMessage);
       shakeError();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      // Clear OTP and refocus
       setOtp(["", "", "", "", "", ""]);
-      otpInputs.current[0]?.focus();
+      setTimeout(() => {
+        otpInputs.current[0]?.focus();
+      }, 100);
     }
 
     setLoading(false);
@@ -555,7 +573,12 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                           </Text>
                         </Text>
 
-                        <View style={styles.otpContainer}>
+                        <View
+                          style={[
+                            styles.otpContainer,
+                            { flexDirection: "row-reverse" },
+                          ]}
+                        >
                           {otp.map((digit, index) => (
                             <TextInput
                               key={index}
@@ -563,6 +586,7 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                               style={[
                                 styles.otpInput,
                                 digit && styles.otpInputFilled,
+                                error && styles.otpInputError,
                               ]}
                               value={digit}
                               onChangeText={(value) =>
@@ -818,13 +842,23 @@ const styles = StyleSheet.create({
     borderColor: colors.najdiCrimson + "80",
     backgroundColor: colors.najdiCrimson + "15",
   },
+  otpInputError: {
+    borderColor: "#FF6B6B",
+    backgroundColor: "rgba(255, 107, 107, 0.1)",
+  },
   errorText: {
-    fontSize: 13,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "600",
     fontFamily: "SF Arabic",
     color: "#FF6B6B",
     textAlign: "center",
     marginBottom: 16,
+    marginTop: 8,
+    backgroundColor: "rgba(255, 107, 107, 0.1)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    overflow: "hidden",
   },
   primaryButton: {
     backgroundColor: colors.najdiCrimson,
