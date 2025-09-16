@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   content: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.65,
+    top: SCREEN_HEIGHT * 0.72, // Increased from 0.65 to create more space below logo
     width: SCREEN_WIDTH,
     alignItems: "center",
     paddingHorizontal: 40,
