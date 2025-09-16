@@ -370,16 +370,16 @@ const SearchBar = ({ onSelectResult, style }) => {
     // Premium desert palette - ultra-thin aesthetic
     const getDesertColor = (index) => {
       const desertPalette = [
-        "#C19A6B", // Desert Sand
-        "#8B7355", // Sienna Clay
-        "#A0826D", // Sandstone
-        "#BC9A6A", // Camel
-        "#D2B48C", // Tan Dunes
-        "#DEB887", // Burlywood
-        "#F4A460", // Sandy Brown
-        "#CD853F", // Peru Sand
-        "#D2691E", // Chocolate Oasis
-        "#B8860B", // Dark Goldenrod
+        "#A13333", // Najdi Crimson
+        "#D58C4A", // Desert Ochre
+        "#D1BBA3", // Camel Hair Beige
+        "#A13333CC", // Najdi Crimson 80%
+        "#D58C4ACC", // Desert Ochre 80%
+        "#D1BBA3CC", // Camel Hair Beige 80%
+        "#A1333399", // Najdi Crimson 60%
+        "#D58C4A99", // Desert Ochre 60%
+        "#D1BBA399", // Camel Hair Beige 60%
+        "#A13333", // Najdi Crimson (repeat)
       ];
       // Use index to ensure each result has a different color
       return desertPalette[index % desertPalette.length];
@@ -524,7 +524,7 @@ const SearchBar = ({ onSelectResult, style }) => {
                 ref={inputRef}
                 style={styles.input}
                 placeholder="البحث في شجرة العائلة"
-                placeholderTextColor="#5F6368"
+                placeholderTextColor="#24212199"
                 value={query}
                 onChangeText={handleChangeText}
                 onFocus={handleFocus}
@@ -539,7 +539,7 @@ const SearchBar = ({ onSelectResult, style }) => {
               {query.length > 0 && (
                 <Animated.View style={{ opacity: clearButtonOpacity }}>
                   <Pressable onPress={handleClear} style={styles.clearButton}>
-                    <Ionicons name="close-circle" size={20} color="#9AA0A6" />
+                    <Ionicons name="close-circle" size={20} color="#24212199" />
                   </Pressable>
                 </Animated.View>
               )}
@@ -602,17 +602,17 @@ const styles = {
     elevation: 1001,
   },
   searchBarContainer: {
-    // Ultra-thin unified shadow
+    // Subtle unified shadow
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF", // Pure white like Google Maps
+    backgroundColor: "#FFFFFF", // Pure white for contrast with Al-Jass White background
     borderRadius: 24, // Full pill shape
     paddingHorizontal: 14,
     height: 48, // Google Maps height
@@ -628,7 +628,7 @@ const styles = {
     flex: 1,
     fontSize: 16,
     fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
-    color: "#202124", // Google dark gray
+    color: "#242121", // Sadu Night
     paddingVertical: 0,
     paddingHorizontal: 4,
     height: "100%",
@@ -652,9 +652,9 @@ const styles = {
     // Matching shadow system (slightly lighter)
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   resultsList: {
     maxHeight: 420, // Increased to allow full content visibility
@@ -667,7 +667,7 @@ const styles = {
   },
   // Clean card design - no borders
   resultCard: {
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#D1BBA310", // Camel Hair Beige 10%
     borderRadius: 12,
     marginHorizontal: 4,
     marginBottom: 4,
@@ -675,7 +675,7 @@ const styles = {
     borderWidth: 0, // No borders, ultra-clean
   },
   resultCardPressed: {
-    backgroundColor: "#F0F0F0",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20% when pressed
     transform: [{ scale: 0.99 }],
   },
   lastCard: {
@@ -698,7 +698,7 @@ const styles = {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F5F5F7",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
   },
   avatarCircle: {
     width: 40,
@@ -711,7 +711,7 @@ const styles = {
   avatarLetter: {
     fontSize: 17,
     fontWeight: "400",
-    color: "#FFFFFF",
+    color: "#F9F7F3", // Al-Jass White
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
   },
 
@@ -727,7 +727,7 @@ const styles = {
     fontSize: 15,
     fontWeight: "400",
     fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
-    color: "#000000",
+    color: "#242121", // Sadu Night
     marginBottom: 3,
     textAlign: "left", // Changed to left for proper display with row-reverse
     alignSelf: "stretch", // Take full width
@@ -759,12 +759,12 @@ const styles = {
     marginLeft: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    backgroundColor: "#FFF3E0",
+    backgroundColor: "#D58C4A20", // Desert Ochre 20%
     borderRadius: 4,
   },
   fuzzyBadgeText: {
     fontSize: 11,
-    color: "#E65100",
+    color: "#D58C4A", // Desert Ochre
     fontFamily: "SF Arabic",
     fontWeight: "500",
   },
@@ -774,7 +774,7 @@ const styles = {
   },
   chevron: {
     fontSize: 18,
-    color: "#C7C7CC",
+    color: "#24212140", // Sadu Night 25%
     fontWeight: "300",
     opacity: 0.5,
   },

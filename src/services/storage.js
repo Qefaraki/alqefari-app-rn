@@ -36,7 +36,7 @@ class StorageService {
 
         // Use custom path if provided, otherwise generate one
         let filePath;
-        if (customPath) {
+        if (customPath && typeof customPath === "string") {
           // Don't add profiles/ prefix if custom path already has it
           filePath = customPath.startsWith("profiles/")
             ? customPath
