@@ -15,7 +15,13 @@ import {
   Animated,
   Image,
 } from "react-native";
-import { Canvas, Circle, Group } from "@shopify/react-native-skia";
+import {
+  Canvas,
+  Circle,
+  Group,
+  RadialGradient,
+  Blur,
+} from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import MaskedView from "@react-native-masked-view/masked-view";
@@ -264,7 +270,28 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         </Canvas>
       </Animated.View>
 
-      {/* Logo stars with masking */}
+      {/* Outer Aura Glow - Layer 2 */}
+      <Animated.View
+        style={[
+          styles.glowContainer,
+          {
+            opacity: logoFade.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.15], // 15% opacity at core
+            }),
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <LinearGradient
+          colors={["#D1BBA3", "transparent"]}
+          start={{ x: 0.5, y: 0.5 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.glowGradient}
+        />
+      </Animated.View>
+
+      {/* Logo stars with masking - Layer 1 with particle blur */}
       {MaskedView ? (
         <Animated.View
           style={[
@@ -296,7 +323,10 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
             }
           >
             <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-              {renderStars(logoStars, animationTime)}
+              {/* Apply subtle blur to star particles */}
+              <Group layer={<Blur blur={0.5} />}>
+                {renderStars(logoStars, animationTime)}
+              </Group>
             </Canvas>
           </MaskedView>
         </Animated.View>
@@ -366,6 +396,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
+  },
+  glowContainer: {
+    position: "absolute",
+    top: SCREEN_HEIGHT * 0.35 - 250,
+    left: SCREEN_WIDTH / 2 - 250,
+    width: 500,
+    height: 500,
+  },
+  glowGradient: {
+    flex: 1,
+    borderRadius: 250,
   },
   maskedContainer: {
     position: "absolute",
