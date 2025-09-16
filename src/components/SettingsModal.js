@@ -836,6 +836,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 24,
     minWidth: 200,
+    shadowColor: "#957EB5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   signInButtonText: {
     color: "#FFFFFF",
