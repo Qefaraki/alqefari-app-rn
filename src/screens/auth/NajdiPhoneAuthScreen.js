@@ -98,6 +98,13 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
       duration: 300,
       useNativeDriver: true,
     }).start();
+
+    // Focus first OTP input when transitioning to OTP step
+    if (step === "otp") {
+      setTimeout(() => {
+        otpInputs.current[0]?.focus();
+      }, 350);
+    }
   }, [step]);
 
   // Countdown timer
@@ -196,19 +203,43 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
 
   const handleOtpChange = (value, index) => {
     // Only allow digits
-    const digit = value.replace(/\D/g, "").slice(-1);
+    const digit = value.replace(/\D/g, "");
 
+    // Handle paste or multiple digits
+    if (digit.length > 1) {
+      // User pasted a code, fill all boxes
+      const digits = digit.slice(0, 6).split("");
+      const newOtp = ["", "", "", "", "", ""];
+      digits.forEach((d, i) => {
+        if (i < 6) newOtp[i] = d;
+      });
+      setOtp(newOtp);
+
+      // Focus last filled input or submit if complete
+      if (digits.length === 6) {
+        Keyboard.dismiss();
+        handleVerifyOTP(newOtp);
+      } else if (digits.length < 6) {
+        otpInputs.current[digits.length]?.focus();
+      }
+      return;
+    }
+
+    // Single digit entered
+    const singleDigit = digit.slice(-1);
     const newOtp = [...otp];
-    newOtp[index] = digit;
+    newOtp[index] = singleDigit;
     setOtp(newOtp);
 
     // Auto-focus next input
-    if (digit && index < 5) {
-      otpInputs.current[index + 1]?.focus();
+    if (singleDigit && index < 5) {
+      setTimeout(() => {
+        otpInputs.current[index + 1]?.focus();
+      }, 10);
     }
 
     // Auto-submit when complete
-    if (index === 5 && digit) {
+    if (index === 5 && singleDigit) {
       const fullOtp = newOtp.join("");
       if (fullOtp.length === 6) {
         Keyboard.dismiss();
@@ -539,8 +570,11 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                               }
                               onKeyPress={(e) => handleOtpKeyPress(e, index)}
                               keyboardType="number-pad"
-                              maxLength={1}
+                              maxLength={6}
                               textAlign="center"
+                              selectTextOnFocus={true}
+                              autoComplete="one-time-code"
+                              textContentType="oneTimeCode"
                             />
                           ))}
                         </View>
