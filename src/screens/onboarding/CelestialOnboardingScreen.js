@@ -5,122 +5,258 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Image,
   StatusBar,
   Animated,
   Easing,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import Svg, {
+  Circle,
+  Line,
+  RadialGradient,
+  Defs,
+  Stop,
+  G,
+  Path,
+} from "react-native-svg";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// Animated SVG components
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedLine = Animated.createAnimatedComponent(Line);
+
+// Custom Alqefari Logo Component
+const AlqefariLogo = ({
+  size = 60,
+  color = "#D1BBA3",
+  opacity = 1,
+  glow = false,
+}) => {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Defs>
+        {glow && (
+          <RadialGradient id="logoGlow">
+            <Stop offset="0%" stopColor={color} stopOpacity="0.8" />
+            <Stop offset="50%" stopColor={color} stopOpacity="0.3" />
+            <Stop offset="100%" stopColor={color} stopOpacity="0" />
+          </RadialGradient>
+        )}
+      </Defs>
+
+      {/* Glow effect */}
+      {glow && <Circle cx="50" cy="50" r="45" fill="url(#logoGlow)" />}
+
+      {/* Main circle */}
+      <Circle cx="50" cy="50" r="20" fill={color} opacity={opacity} />
+
+      {/* Line above (not connected) */}
+      <Path
+        d="M 50 15 L 50 25"
+        stroke={color}
+        strokeWidth="3"
+        opacity={opacity}
+        strokeLinecap="round"
+      />
+
+      {/* Line to the right (not connected) */}
+      <Path
+        d="M 75 50 L 85 50"
+        stroke={color}
+        strokeWidth="3"
+        opacity={opacity}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+};
 
 export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.8)).current;
+  const logoScale = useRef(new Animated.Value(0.5)).current;
   const logoGlow = useRef(new Animated.Value(0)).current;
 
   const founderOpacity = useRef(new Animated.Value(0)).current;
-  const founderGlow = useRef(new Animated.Value(0)).current;
+  const founderScale = useRef(new Animated.Value(0.8)).current;
 
-  const leftLineOpacity = useRef(new Animated.Value(0)).current;
-  const rightLineOpacity = useRef(new Animated.Value(0)).current;
+  const leftLineProgress = useRef(new Animated.Value(0)).current;
+  const rightLineProgress = useRef(new Animated.Value(0)).current;
 
   const leftSonOpacity = useRef(new Animated.Value(0)).current;
+  const leftSonScale = useRef(new Animated.Value(0)).current;
   const rightSonOpacity = useRef(new Animated.Value(0)).current;
+  const rightSonScale = useRef(new Animated.Value(0)).current;
 
   const textOpacity = useRef(new Animated.Value(0)).current;
+  const textTranslate = useRef(new Animated.Value(30)).current;
   const buttonOpacity = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(0.9)).current;
   const guestLinkOpacity = useRef(new Animated.Value(0)).current;
 
-  const [showConstellation, setShowConstellation] = useState(false);
+  const [showStars, setShowStars] = useState(false);
+  const starAnimations = useRef(
+    [...Array(20)].map(() => ({
+      opacity: new Animated.Value(0),
+      scale: new Animated.Value(0),
+    })),
+  ).current;
 
   useEffect(() => {
+    // Background stars animation
+    setTimeout(() => {
+      setShowStars(true);
+      starAnimations.forEach((star, index) => {
+        Animated.sequence([
+          Animated.delay(index * 50),
+          Animated.parallel([
+            Animated.timing(star.opacity, {
+              toValue: Math.random() * 0.6 + 0.2,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.spring(star.scale, {
+              toValue: 1,
+              friction: 4,
+              tension: 40,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
+      });
+    }, 500);
+
     const animationSequence = () => {
-      // Step 1: Logo appears with glow
+      // Step 1: Logo appears with dramatic effect
       Animated.parallel([
-        Animated.timing(logoOpacity, {
+        Animated.spring(logoOpacity, {
           toValue: 1,
-          duration: 1200,
+          friction: 8,
+          tension: 40,
           useNativeDriver: true,
-          easing: Easing.out(Easing.cubic),
         }),
-        Animated.timing(logoScale, {
+        Animated.spring(logoScale, {
           toValue: 1,
-          duration: 1200,
+          friction: 4,
+          tension: 20,
           useNativeDriver: true,
-          easing: Easing.out(Easing.back),
         }),
         Animated.sequence([
           Animated.timing(logoGlow, {
             toValue: 1,
             duration: 800,
             useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
           }),
           Animated.timing(logoGlow, {
-            toValue: 0.7,
+            toValue: 0.6,
             duration: 400,
             useNativeDriver: true,
           }),
         ]),
       ]).start(() => {
-        // Step 2: Founder name appears
+        // Step 2: Founder name appears within the glow
         Animated.parallel([
           Animated.timing(founderOpacity, {
             toValue: 1,
             duration: 800,
             useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
           }),
-          Animated.timing(founderGlow, {
+          Animated.spring(founderScale, {
             toValue: 1,
-            duration: 800,
+            friction: 5,
             useNativeDriver: true,
           }),
         ]).start(() => {
-          setShowConstellation(true);
-
           // Step 3: Lines draw to sons
           Animated.parallel([
-            Animated.timing(leftLineOpacity, {
+            Animated.timing(leftLineProgress, {
               toValue: 1,
-              duration: 1000,
-              useNativeDriver: true,
+              duration: 1200,
+              useNativeDriver: false,
+              easing: Easing.out(Easing.cubic),
             }),
-            Animated.timing(rightLineOpacity, {
+            Animated.timing(rightLineProgress, {
               toValue: 1,
-              duration: 1000,
-              useNativeDriver: true,
+              duration: 1200,
+              useNativeDriver: false,
+              easing: Easing.out(Easing.cubic),
             }),
           ]).start(() => {
-            // Step 4: Sons appear
+            // Step 4: Sons appear as glowing stars
             Animated.parallel([
-              Animated.timing(leftSonOpacity, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-              }),
-              Animated.timing(rightSonOpacity, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-              }),
+              Animated.sequence([
+                Animated.parallel([
+                  Animated.timing(leftSonOpacity, {
+                    toValue: 1,
+                    duration: 600,
+                    useNativeDriver: true,
+                  }),
+                  Animated.spring(leftSonScale, {
+                    toValue: 1,
+                    friction: 4,
+                    tension: 40,
+                    useNativeDriver: true,
+                  }),
+                ]),
+              ]),
+              Animated.sequence([
+                Animated.delay(100),
+                Animated.parallel([
+                  Animated.timing(rightSonOpacity, {
+                    toValue: 1,
+                    duration: 600,
+                    useNativeDriver: true,
+                  }),
+                  Animated.spring(rightSonScale, {
+                    toValue: 1,
+                    friction: 4,
+                    tension: 40,
+                    useNativeDriver: true,
+                  }),
+                ]),
+              ]),
             ]).start(() => {
               // Step 5: Text and buttons fade in
-              Animated.stagger(200, [
-                Animated.timing(textOpacity, {
-                  toValue: 1,
-                  duration: 600,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(buttonOpacity, {
-                  toValue: 1,
-                  duration: 600,
-                  useNativeDriver: true,
-                }),
-                Animated.timing(guestLinkOpacity, {
-                  toValue: 1,
-                  duration: 600,
-                  useNativeDriver: true,
-                }),
+              Animated.parallel([
+                Animated.parallel([
+                  Animated.timing(textOpacity, {
+                    toValue: 1,
+                    duration: 800,
+                    useNativeDriver: true,
+                  }),
+                  Animated.timing(textTranslate, {
+                    toValue: 0,
+                    duration: 800,
+                    useNativeDriver: true,
+                    easing: Easing.out(Easing.cubic),
+                  }),
+                ]),
+                Animated.sequence([
+                  Animated.delay(300),
+                  Animated.parallel([
+                    Animated.timing(buttonOpacity, {
+                      toValue: 1,
+                      duration: 600,
+                      useNativeDriver: true,
+                    }),
+                    Animated.spring(buttonScale, {
+                      toValue: 1,
+                      friction: 5,
+                      useNativeDriver: true,
+                    }),
+                  ]),
+                ]),
+                Animated.sequence([
+                  Animated.delay(600),
+                  Animated.timing(guestLinkOpacity, {
+                    toValue: 0.4, // Very subtle
+                    duration: 600,
+                    useNativeDriver: true,
+                  }),
+                ]),
               ]).start();
             });
           });
@@ -130,17 +266,17 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
 
     animationSequence();
 
-    // Continuous glow animation
+    // Continuous glow animation for logo
     const glowAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(logoGlow, {
-          toValue: 1,
+          toValue: 0.8,
           duration: 2000,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
         }),
         Animated.timing(logoGlow, {
-          toValue: 0.5,
+          toValue: 0.4,
           duration: 2000,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
@@ -148,7 +284,7 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
       ]),
     );
 
-    setTimeout(() => glowAnimation.start(), 2000);
+    setTimeout(() => glowAnimation.start(), 3000);
 
     return () => glowAnimation.stop();
   }, []);
@@ -163,11 +299,47 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
     setIsGuest(true);
   };
 
+  // Generate random star positions
+  const starPositions = useRef(
+    [...Array(20)].map(() => ({
+      x: Math.random() * SCREEN_WIDTH,
+      y: Math.random() * SCREEN_HEIGHT * 0.6,
+      size: Math.random() * 2 + 1,
+    })),
+  ).current;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Guest Link */}
+      {/* Subtle texture background gradient */}
+      <LinearGradient
+        colors={["#242121", "#1a1818", "#242121"]}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+
+      {/* Background stars */}
+      {showStars &&
+        starPositions.map((star, index) => (
+          <Animated.View
+            key={index}
+            style={[
+              styles.backgroundStar,
+              {
+                left: star.x,
+                top: star.y,
+                width: star.size,
+                height: star.size,
+                opacity: starAnimations[index].opacity,
+                transform: [{ scale: starAnimations[index].scale }],
+              },
+            ]}
+          />
+        ))}
+
+      {/* Guest Link - Very Subtle */}
       <Animated.View
         style={[styles.guestLinkContainer, { opacity: guestLinkOpacity }]}
       >
@@ -176,109 +348,208 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Constellation Container */}
+      {/* Main Constellation Container */}
       <View style={styles.constellationContainer}>
-        {/* Logo with Glow */}
+        {/* Central Logo with integrated founder name */}
+        <View style={styles.logoSection}>
+          {/* Logo Glow Background */}
+          <Animated.View
+            style={[
+              styles.logoGlowBackground,
+              {
+                opacity: logoGlow,
+                transform: [{ scale: logoScale }],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={["#D1BBA300", "#D1BBA330", "#D1BBA300"]}
+              style={styles.glowGradient}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+            />
+          </Animated.View>
+
+          {/* Actual Logo */}
+          <Animated.View
+            style={[
+              styles.logoWrapper,
+              {
+                opacity: logoOpacity,
+                transform: [{ scale: logoScale }],
+              },
+            ]}
+          >
+            <AlqefariLogo size={100} color="#D1BBA3" glow={true} />
+          </Animated.View>
+
+          {/* Founder Name - Integrated with logo glow */}
+          <Animated.View
+            style={[
+              styles.founderNameContainer,
+              {
+                opacity: founderOpacity,
+                transform: [{ scale: founderScale }],
+              },
+            ]}
+          >
+            <Text style={styles.founderText}>سليمان</Text>
+          </Animated.View>
+        </View>
+
+        {/* Constellation SVG for lines and sons */}
+        <Svg
+          width={SCREEN_WIDTH}
+          height={300}
+          style={styles.constellationSvg}
+          viewBox={`0 0 ${SCREEN_WIDTH} 300`}
+        >
+          <Defs>
+            <RadialGradient id="starGlow">
+              <Stop offset="0%" stopColor="#D1BBA3" stopOpacity="0.6" />
+              <Stop offset="40%" stopColor="#D1BBA3" stopOpacity="0.3" />
+              <Stop offset="100%" stopColor="#D1BBA3" stopOpacity="0" />
+            </RadialGradient>
+            <LinearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#D1BBA3" stopOpacity="0.6" />
+              <Stop offset="100%" stopColor="#D1BBA3" stopOpacity="0.2" />
+            </LinearGradient>
+          </Defs>
+
+          {/* Left constellation line */}
+          <AnimatedLine
+            x1={SCREEN_WIDTH / 2}
+            y1="50"
+            x2={SCREEN_WIDTH / 2 - 100}
+            y2="180"
+            stroke="url(#lineGradient)"
+            strokeWidth="1.5"
+            strokeDasharray="150"
+            strokeDashoffset={leftLineProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [150, 0],
+            })}
+          />
+
+          {/* Right constellation line */}
+          <AnimatedLine
+            x1={SCREEN_WIDTH / 2}
+            y1="50"
+            x2={SCREEN_WIDTH / 2 + 100}
+            y2="180"
+            stroke="url(#lineGradient)"
+            strokeWidth="1.5"
+            strokeDasharray="150"
+            strokeDashoffset={rightLineProgress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [150, 0],
+            })}
+          />
+
+          {/* Left son star glow */}
+          <AnimatedCircle
+            cx={SCREEN_WIDTH / 2 - 100}
+            cy="180"
+            r="30"
+            fill="url(#starGlow)"
+            opacity={leftSonOpacity}
+            scale={leftSonScale}
+          />
+
+          {/* Left son star core */}
+          <AnimatedCircle
+            cx={SCREEN_WIDTH / 2 - 100}
+            cy="180"
+            r="6"
+            fill="#D1BBA3"
+            opacity={leftSonOpacity}
+            scale={leftSonScale}
+          />
+
+          {/* Right son star glow */}
+          <AnimatedCircle
+            cx={SCREEN_WIDTH / 2 + 100}
+            cy="180"
+            r="30"
+            fill="url(#starGlow)"
+            opacity={rightSonOpacity}
+            scale={rightSonScale}
+          />
+
+          {/* Right son star core */}
+          <AnimatedCircle
+            cx={SCREEN_WIDTH / 2 + 100}
+            cy="180"
+            r="6"
+            fill="#D1BBA3"
+            opacity={rightSonOpacity}
+            scale={rightSonScale}
+          />
+        </Svg>
+
+        {/* Son Names - Positioned next to their stars */}
         <Animated.View
           style={[
-            styles.logoContainer,
+            styles.leftSonName,
             {
-              opacity: logoOpacity,
-              transform: [{ scale: logoScale }],
+              opacity: leftSonOpacity,
+              transform: [{ scale: leftSonScale }],
             },
           ]}
         >
-          {/* Glow effect behind logo */}
-          <Animated.View
-            style={[
-              styles.logoGlow,
-              {
-                opacity: logoGlow,
-              },
-            ]}
-          />
-          <Image
-            source={require("../../../assets/logo/Alqefari Emblem (White Transparent).png")}
-            style={styles.logo}
-          />
+          <Text style={styles.sonNameText}>عبدالعزيز</Text>
         </Animated.View>
 
-        {/* Founder Name */}
         <Animated.View
-          style={[styles.founderContainer, { opacity: founderOpacity }]}
+          style={[
+            styles.rightSonName,
+            {
+              opacity: rightSonOpacity,
+              transform: [{ scale: rightSonScale }],
+            },
+          ]}
         >
-          <Animated.View
-            style={[styles.founderGlow, { opacity: founderGlow }]}
-          />
-          <Text style={styles.founderText}>سليمان</Text>
+          <Text style={styles.sonNameText}>جربوع</Text>
         </Animated.View>
-
-        {/* Constellation Lines and Sons */}
-        {showConstellation && (
-          <View style={styles.constellationLines}>
-            {/* Left Line and Son */}
-            <View style={styles.leftBranch}>
-              <Animated.View
-                style={[
-                  styles.constellationLine,
-                  styles.leftLine,
-                  { opacity: leftLineOpacity },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.sonContainer,
-                  styles.leftSon,
-                  { opacity: leftSonOpacity },
-                ]}
-              >
-                <View style={styles.sonGlow} />
-                <View style={styles.sonStar} />
-                <Text style={styles.sonText}>عبدالعزيز</Text>
-              </Animated.View>
-            </View>
-
-            {/* Right Line and Son */}
-            <View style={styles.rightBranch}>
-              <Animated.View
-                style={[
-                  styles.constellationLine,
-                  styles.rightLine,
-                  { opacity: rightLineOpacity },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.sonContainer,
-                  styles.rightSon,
-                  { opacity: rightSonOpacity },
-                ]}
-              >
-                <View style={styles.sonGlow} />
-                <View style={styles.sonStar} />
-                <Text style={styles.sonText}>جربوع</Text>
-              </Animated.View>
-            </View>
-          </View>
-        )}
       </View>
 
       {/* Text Content */}
-      <Animated.View style={[styles.textContainer, { opacity: textOpacity }]}>
+      <Animated.View
+        style={[
+          styles.textContainer,
+          {
+            opacity: textOpacity,
+            transform: [{ translateY: textTranslate }],
+          },
+        ]}
+      >
         <Text style={styles.headline}>لكل عائلة عظيمة حكاية.</Text>
         <Text style={styles.subtitle}>وهذه حكاية القفاري.</Text>
       </Animated.View>
 
       {/* CTA Button */}
       <Animated.View
-        style={[styles.buttonContainer, { opacity: buttonOpacity }]}
+        style={[
+          styles.buttonContainer,
+          {
+            opacity: buttonOpacity,
+            transform: [{ scale: buttonScale }],
+          },
+        ]}
       >
         <TouchableOpacity
           style={styles.ctaButton}
           onPress={handleStart}
           activeOpacity={0.8}
         >
-          <Text style={styles.ctaButtonText}>ابدأ الآن</Text>
+          <LinearGradient
+            colors={["#A13333", "#8A2B2B"]}
+            style={styles.buttonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.ctaButtonText}>ابدأ الآن</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Page Indicators */}
@@ -295,131 +566,92 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#242121", // Sadu Night
+    backgroundColor: "#242121",
+  },
+  backgroundStar: {
+    position: "absolute",
+    borderRadius: 50,
+    backgroundColor: "#D1BBA3",
+    opacity: 0.3,
   },
   guestLinkContainer: {
     position: "absolute",
-    top: 50,
+    top: 60,
     right: 20,
     zIndex: 10,
   },
   guestLink: {
-    fontSize: 14,
-    color: "#D1BBA380", // Camel Hair Beige desaturated
-    fontFamily: "SF Arabic",
+    fontSize: 13,
+    color: "#F9F7F340", // Very subtle Al-Jass White
+    fontFamily: "System",
+    fontWeight: "400",
   },
   constellationContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -50,
+    marginTop: -20,
   },
-  logoContainer: {
-    width: 120,
-    height: 120,
+  logoSection: {
+    alignItems: "center",
+    marginBottom: 100,
+  },
+  logoGlowBackground: {
+    position: "absolute",
+    width: 200,
+    height: 200,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
   },
-  logo: {
-    width: 80,
-    height: 80,
-    resizeMode: "contain",
-    tintColor: "#D1BBA3", // Camel Hair Beige
+  glowGradient: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
   },
-  logoGlow: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    backgroundColor: "#D1BBA3",
-    borderRadius: 75,
-    opacity: 0.2,
-  },
-  founderContainer: {
+  logoWrapper: {
     alignItems: "center",
-    marginBottom: 40,
+    justifyContent: "center",
   },
-  founderGlow: {
+  founderNameContainer: {
     position: "absolute",
-    width: 120,
-    height: 40,
-    backgroundColor: "#D1BBA3",
-    borderRadius: 20,
-    opacity: 0.15,
-    top: -5,
+    bottom: -40,
+    alignItems: "center",
   },
   founderText: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "600",
-    fontFamily: "SF Arabic",
+    fontFamily: "System",
     color: "#D1BBA3",
-    letterSpacing: 1,
+    letterSpacing: 1.5,
+    textShadowColor: "#D1BBA3",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
-  constellationLines: {
+  constellationSvg: {
     position: "absolute",
-    width: SCREEN_WIDTH,
-    height: 200,
-    top: 180,
+    top: SCREEN_HEIGHT * 0.28,
   },
-  leftBranch: {
+  leftSonName: {
     position: "absolute",
-    left: SCREEN_WIDTH / 2 - 80,
-    top: 0,
-  },
-  rightBranch: {
-    position: "absolute",
-    right: SCREEN_WIDTH / 2 - 80,
-    top: 0,
-  },
-  constellationLine: {
-    position: "absolute",
-    width: 2,
-    height: 120,
-    backgroundColor: "#D1BBA3",
-    opacity: 0.4,
-    left: 40,
-  },
-  leftLine: {
-    transform: [{ rotate: "-15deg" }],
-    transformOrigin: "top",
-  },
-  rightLine: {
-    transform: [{ rotate: "15deg" }],
-    transformOrigin: "top",
-  },
-  sonContainer: {
-    position: "absolute",
-    top: 110,
+    left: SCREEN_WIDTH / 2 - 100,
+    top: SCREEN_HEIGHT * 0.28 + 200,
     alignItems: "center",
-    width: 80,
   },
-  leftSon: {
-    left: -20,
-  },
-  rightSon: {
-    left: 0,
-  },
-  sonStar: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#D1BBA3",
-    marginBottom: 8,
-  },
-  sonGlow: {
+  rightSonName: {
     position: "absolute",
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#D1BBA3",
-    opacity: 0.15,
-    top: -14,
+    right: SCREEN_WIDTH / 2 - 100,
+    top: SCREEN_HEIGHT * 0.28 + 200,
+    alignItems: "center",
   },
-  sonText: {
-    fontSize: 16,
-    fontFamily: "SF Arabic",
-    color: "#D1BBA3",
-    opacity: 0.9,
+  sonNameText: {
+    fontSize: 18,
+    fontFamily: "System",
+    color: "#F9F7F3",
+    fontWeight: "500",
+    letterSpacing: 0.5,
+    textShadowColor: "#D1BBA3",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   textContainer: {
     alignItems: "center",
@@ -427,19 +659,21 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   headline: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: "#F9F7F3", // Al-Jass White
-    marginBottom: 8,
-    letterSpacing: 0.5,
+    fontFamily: "System",
+    color: "#F9F7F3",
+    marginBottom: 10,
+    letterSpacing: 0.8,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "400",
-    fontFamily: "SF Arabic",
-    color: "#F9F7F3CC", // Al-Jass White with opacity
-    letterSpacing: 0.3,
+    fontFamily: "System",
+    color: "#F9F7F3CC",
+    letterSpacing: 0.5,
+    textAlign: "center",
   },
   buttonContainer: {
     paddingHorizontal: 30,
@@ -447,22 +681,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ctaButton: {
-    backgroundColor: "#A13333", // Najdi Crimson
-    borderRadius: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 60,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 12,
+    overflow: "hidden",
     marginBottom: 30,
     width: "100%",
-    maxWidth: 300,
+    maxWidth: 320,
+    shadowColor: "#A13333",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  buttonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 60,
+    alignItems: "center",
+    justifyContent: "center",
   },
   ctaButtonText: {
-    color: "#F9F7F3", // Al-Jass White
+    color: "#F9F7F3",
     fontSize: 18,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
+    fontWeight: "700",
+    fontFamily: "System",
+    letterSpacing: 0.5,
   },
   dotsContainer: {
     flexDirection: "row",
@@ -473,7 +714,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#D1BBA340", // Camel Hair Beige 25% opacity
+    backgroundColor: "#D1BBA320",
     marginHorizontal: 4,
   },
   activeDot: {
