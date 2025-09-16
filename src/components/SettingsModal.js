@@ -149,7 +149,7 @@ export default function SettingsModal({ visible, onClose }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="#111827" />
+            <Ionicons name="close" size={28} color="#242121" />
           </TouchableOpacity>
           <Text style={styles.title}>الإعدادات</Text>
           <View style={{ width: 28 }} />
@@ -267,7 +267,7 @@ export default function SettingsModal({ visible, onClose }) {
             <Ionicons
               name={expandedSection === "date" ? "chevron-up" : "chevron-down"}
               size={20}
-              color="#6B7280"
+              color="#24212199"
             />
             <View style={styles.sectionHeaderContent}>
               <Text style={styles.sectionTitle}>تنسيق التاريخ</Text>
@@ -420,7 +420,7 @@ export default function SettingsModal({ visible, onClose }) {
               >
                 <View style={styles.signOutContent}>
                   <View style={styles.signOutIconContainer}>
-                    <Ionicons name="log-out-outline" size={22} color="#DC2626" />
+                    <Ionicons name="log-out-outline" size={22} color="#A13333" />
                   </View>
                   <Text style={styles.signOutButtonText}>تسجيل الخروج</Text>
                 </View>
@@ -442,7 +442,7 @@ export default function SettingsModal({ visible, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F7F7F8",
+    backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
     flexDirection: "row",
@@ -450,9 +450,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   closeButton: {
     padding: 4,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   content: {
     flex: 1,
@@ -470,14 +470,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end", // RTL alignment
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     paddingHorizontal: 20,
     paddingVertical: 16,
     marginTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    borderTopColor: "#D1BBA340", // Camel Hair Beige 40%
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: "#D1BBA340",
   },
   sectionHeaderContent: {
     flex: 1,
@@ -547,7 +547,7 @@ const styles = StyleSheet.create({
   },
   segmentedControl: {
     flexDirection: "row",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 10,
     padding: 2,
   },
@@ -558,21 +558,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   segmentActive: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
   },
   segmentText: {
     fontSize: 14,
     fontFamily: "SF Arabic",
-    color: "#6B7280",
+    color: "#24212199", // Sadu Night 60%
     fontWeight: "500",
   },
   segmentTextActive: {
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   switchOption: {
     flexDirection: "row",
@@ -616,27 +616,31 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   profileCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 20,
-    borderRadius: 16,
+    borderRadius: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   profileCardLoading: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 20,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
   },
   profileContent: {
     flexDirection: "row",
@@ -693,13 +697,13 @@ const styles = StyleSheet.create({
   profileName: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1F2937",
+    color: "#242121", // Sadu Night
     marginBottom: 4,
     letterSpacing: -0.5,
   },
   profileDetail: {
     fontSize: 15,
-    color: "#6B7280",
+    color: "#24212199", // Sadu Night 60%
     marginBottom: 6,
     fontWeight: "500",
   },
@@ -711,7 +715,7 @@ const styles = StyleSheet.create({
   profileViewLink: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#007AFF",
+    color: "#A13333", // Najdi Crimson
   },
   signInPrompt: {
     backgroundColor: "#FFFFFF",
@@ -734,16 +738,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   signOutButton: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
-    borderRadius: 14,
-    shadowColor: "#DC2626",
+    borderRadius: 12,
+    shadowColor: "#A13333",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
     borderWidth: 1.5,
-    borderColor: "#FEE2E2",
+    borderColor: "#A1333330", // Najdi Crimson 30%
     overflow: 'hidden',
   },
   signOutContent: {
@@ -758,19 +762,19 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#FEF2F2",
+    backgroundColor: "#A1333310", // Najdi Crimson 10%
     alignItems: 'center',
     justifyContent: 'center',
   },
   signOutButtonText: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#DC2626",
+    color: "#A13333", // Najdi Crimson
     letterSpacing: -0.3,
   },
   signOutHint: {
     fontSize: 13,
-    color: "#9CA3AF",
+    color: "#24212166", // Sadu Night 40%
     textAlign: 'center',
     marginTop: 8,
     fontWeight: "500",
