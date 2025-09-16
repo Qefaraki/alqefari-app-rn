@@ -14,34 +14,21 @@ import {
   Group,
   RadialGradient,
   vec,
-  useSharedValueEffect,
-  useValueEffect,
-  useDerivedValue,
-  useAnimatedValue,
-  Easing,
+  useClockValue,
+  useComputedValue,
 } from "@shopify/react-native-skia";
-import {
-  useSharedValue,
-  useDerivedValue as reanimatedDerivedValue,
-  withTiming,
-  withRepeat,
-  withSequence,
-  interpolate,
-  Extrapolate,
-  runOnJS,
-} from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Parse SVG path to extract points for constellation
-const extractLogoPoints = () => {
+// Generate logo constellation points
+const generateLogoConstellation = () => {
   const points = [];
   const centerX = SCREEN_WIDTH / 2;
   const centerY = SCREEN_HEIGHT * 0.35;
 
-  // Main circle outline (hollow)
+  // Main circle (hollow)
   const numCirclePoints = 45;
   const radius = 35;
   for (let i = 0; i < numCirclePoints; i++) {
@@ -56,10 +43,10 @@ const extractLogoPoints = () => {
     });
   }
 
-  // Top vertical line (detached)
+  // Top line
   for (let i = 0; i < 8; i++) {
     points.push({
-      x: centerX + (Math.random() - 0.5) * 2,
+      x: centerX,
       y: centerY - radius - 10 - i * 3,
       size: 1.5 + Math.random() * 0.5,
       brightness: 0.7 + Math.random() * 0.3,
@@ -68,11 +55,11 @@ const extractLogoPoints = () => {
     });
   }
 
-  // Right horizontal line (detached)
+  // Right line
   for (let i = 0; i < 8; i++) {
     points.push({
       x: centerX + radius + 10 + i * 3,
-      y: centerY + (Math.random() - 0.5) * 2,
+      y: centerY,
       size: 1.5 + Math.random() * 0.5,
       brightness: 0.7 + Math.random() * 0.3,
       delay: 1140 + i * 30,
@@ -83,214 +70,152 @@ const extractLogoPoints = () => {
   return points;
 };
 
-// Generate Arabic text constellation points
+// Generate text constellation
 const generateTextConstellation = (text, baseX, baseY, scale = 1) => {
   const points = [];
-
-  // Simplified dot patterns for Arabic letters
   const patterns = {
-    س: {
-      // Seen
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [9, 0],
-        [12, 0],
-        [0, -3],
-        [3, -4],
-        [6, -4],
-        [9, -4],
-        [12, -3],
-        [0, -6],
-        [12, -6],
-      ],
-    },
-    ل: {
-      // Lam
-      dots: [
-        [3, 0],
-        [3, -3],
-        [3, -6],
-        [3, -9],
-        [3, -12],
-        [2, -12],
-        [4, -12],
-      ],
-    },
-    ي: {
-      // Ya
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [9, 0],
-        [0, -3],
-        [9, -3],
-        [0, -6],
-        [3, -6],
-        [6, -6],
-        [9, -6],
-        [3, -9],
-        [6, -9],
-      ],
-    },
-    م: {
-      // Meem
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [0, -3],
-        [3, -4],
-        [6, -3],
-        [0, -6],
-        [6, -6],
-        [3, -9],
-      ],
-    },
-    ا: {
-      // Alef
-      dots: [
-        [2, 0],
-        [2, -3],
-        [2, -6],
-        [2, -9],
-        [2, -12],
-      ],
-    },
-    ن: {
-      // Noon
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [0, -3],
-        [6, -3],
-        [0, -6],
-        [6, -6],
-        [3, -9],
-      ],
-    },
-    ع: {
-      // Ain
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [9, 0],
-        [0, -3],
-        [9, -3],
-        [0, -6],
-        [3, -6],
-        [6, -6],
-        [9, -6],
-        [9, -9],
-      ],
-    },
-    ب: {
-      // Ba
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [9, 0],
-        [0, -3],
-        [9, -3],
-        [4, -6],
-      ],
-    },
-    د: {
-      // Dal
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [6, -3],
-        [6, -6],
-        [3, -6],
-        [0, -6],
-      ],
-    },
-    ز: {
-      // Zay
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [6, -3],
-        [6, -6],
-        [3, -6],
-        [0, -6],
-        [3, -9],
-      ],
-    },
-    ج: {
-      // Jeem
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [0, -3],
-        [6, -3],
-        [0, -6],
-        [3, -6],
-        [6, -6],
-        [3, -9],
-      ],
-    },
-    ر: {
-      // Ra
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [0, -3],
-        [0, -6],
-        [3, -6],
-      ],
-    },
-    و: {
-      // Waw
-      dots: [
-        [0, 0],
-        [3, 0],
-        [6, 0],
-        [0, -3],
-        [6, -3],
-        [0, -6],
-        [3, -6],
-        [6, -6],
-        [3, -9],
-      ],
-    },
+    س: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [9, 0],
+      [0, -3],
+      [3, -3],
+      [6, -3],
+      [9, -3],
+      [0, -6],
+      [9, -6],
+    ],
+    ل: [
+      [2, 0],
+      [2, -3],
+      [2, -6],
+      [2, -9],
+      [1, -9],
+      [3, -9],
+    ],
+    ي: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [0, -3],
+      [6, -3],
+      [0, -6],
+      [3, -6],
+      [6, -6],
+    ],
+    م: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [0, -3],
+      [3, -4],
+      [6, -3],
+      [0, -6],
+      [6, -6],
+    ],
+    ا: [
+      [1, 0],
+      [1, -3],
+      [1, -6],
+      [1, -9],
+    ],
+    ن: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [0, -3],
+      [6, -3],
+      [0, -6],
+      [6, -6],
+      [3, -8],
+    ],
+    ع: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [0, -3],
+      [6, -3],
+      [0, -6],
+      [3, -6],
+      [6, -6],
+    ],
+    ب: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [9, 0],
+      [0, -3],
+      [9, -3],
+      [4, -6],
+    ],
+    د: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [6, -3],
+      [3, -6],
+      [0, -6],
+    ],
+    ز: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [6, -3],
+      [3, -6],
+      [0, -6],
+      [3, -9],
+    ],
+    ج: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [0, -3],
+      [6, -3],
+      [0, -6],
+      [3, -6],
+      [6, -6],
+      [3, -9],
+    ],
+    ر: [
+      [0, 0],
+      [3, 0],
+      [0, -3],
+      [0, -6],
+    ],
+    و: [
+      [0, 0],
+      [3, 0],
+      [6, 0],
+      [0, -3],
+      [6, -3],
+      [0, -6],
+      [3, -6],
+      [6, -6],
+    ],
   };
 
   let offsetX = 0;
-  const chars = text.split("");
-
-  chars.forEach((char, charIndex) => {
-    const pattern = patterns[char];
-    if (pattern) {
-      pattern.dots.forEach(([dx, dy], i) => {
-        points.push({
-          x: baseX + (offsetX + dx * 2.5) * scale,
-          y: baseY + dy * 2.5 * scale,
-          size: 1.2 + Math.random() * 0.4,
-          brightness: 0.7 + Math.random() * 0.2,
-          delay: 2000 + charIndex * 150 + i * 15,
-          group: "text",
-        });
+  text.split("").forEach((char, charIndex) => {
+    const pattern = patterns[char] || [];
+    pattern.forEach(([dx, dy], i) => {
+      points.push({
+        x: baseX + (offsetX + dx * 2.5) * scale,
+        y: baseY + dy * 2.5 * scale,
+        size: 1.2 + Math.random() * 0.4,
+        brightness: 0.7 + Math.random() * 0.2,
+        delay: 2000 + charIndex * 150 + i * 15,
+        group: "text",
       });
-      offsetX += 35;
-    }
+    });
+    offsetX += 30;
   });
 
   return points;
 };
 
-// Generate ambient starfield
-const generateAmbientStars = (count = 80) => {
+// Generate ambient stars
+const generateAmbientStars = (count = 60) => {
   return Array.from({ length: count }, () => ({
     x: Math.random() * SCREEN_WIDTH,
     y: Math.random() * SCREEN_HEIGHT * 0.7,
@@ -301,97 +226,99 @@ const generateAmbientStars = (count = 80) => {
   }));
 };
 
-// Star Component with Reanimated
-const Star = ({ star, index, globalProgress }) => {
-  // Individual star appearance animation
-  const appearDelay = star.delay / 5000; // Normalize to 0-1
+// Starfield component using Skia Canvas
+const Starfield = ({ stars }) => {
+  const clock = useClockValue();
 
-  // Twinkle animation using Reanimated
-  const twinkle = useSharedValue(1);
+  // Compute animation progress (0-1 over 5 seconds)
+  const progress = useComputedValue(() => {
+    const t = clock.current / 5000;
+    return Math.min(t, 1);
+  }, [clock]);
 
-  React.useEffect(() => {
-    twinkle.value = withRepeat(
-      withSequence(
-        withTiming(0.5, { duration: 2000 + (index % 3) * 1000 }),
-        withTiming(1, { duration: 2000 + (index % 3) * 1000 }),
-      ),
-      -1,
-      true,
-    );
-  }, []);
-
-  // Derive star progress from global progress
-  const starProgress = reanimatedDerivedValue(() => {
-    const p = globalProgress.value;
-    const start = appearDelay;
-    const end = Math.min(start + 0.2, 1);
-    return interpolate(p, [start, end], [0, 1], Extrapolate.CLAMP);
-  });
-
-  // Compute final opacity
-  const opacity = reanimatedDerivedValue(() => {
-    const baseOpacity = star.brightness * starProgress.value;
-    const twinkleEffect = interpolate(twinkle.value, [0.5, 1], [0.7, 1]);
-    return baseOpacity * twinkleEffect;
-  });
-
-  // Compute scale for appearance
-  const scale = reanimatedDerivedValue(() => {
-    return starProgress.value;
-  });
-
-  // Star color based on group
-  const color = star.group === "ambient" ? "#F9F7F3" : "#D1BBA3";
+  // Compute twinkle effect
+  const twinkle = useComputedValue(() => {
+    return 0.7 + 0.3 * Math.sin(clock.current / 500);
+  }, [clock]);
 
   return (
-    <Group transform={[{ scale }]}>
-      <Circle cx={star.x} cy={star.y} r={star.size * 2} opacity={opacity * 0.3}>
-        <RadialGradient
-          c={vec(star.x, star.y)}
-          r={star.size * 4}
-          colors={[color, "transparent"]}
-        />
-      </Circle>
-      <Circle
-        cx={star.x}
-        cy={star.y}
-        r={star.size}
-        color={color}
-        opacity={opacity}
-      />
-    </Group>
+    <Canvas style={StyleSheet.absoluteFillObject}>
+      {stars.map((star, index) => {
+        const appearTime = star.delay / 5000;
+
+        // Calculate star visibility based on progress
+        const opacity = useComputedValue(() => {
+          const p = progress.current;
+          if (p < appearTime) return 0;
+          const fadeIn = Math.min((p - appearTime) / 0.2, 1);
+          return star.brightness * fadeIn * twinkle.current;
+        }, [progress, twinkle]);
+
+        const scale = useComputedValue(() => {
+          const p = progress.current;
+          if (p < appearTime) return 0;
+          return Math.min((p - appearTime) / 0.1, 1);
+        }, [progress]);
+
+        const color = star.group === "ambient" ? "#F9F7F3" : "#D1BBA3";
+
+        return (
+          <Group key={index} transform={[{ scale }]}>
+            {/* Glow */}
+            <Circle
+              cx={star.x}
+              cy={star.y}
+              r={star.size * 3}
+              opacity={opacity}
+              color={color}
+              style="fill"
+            >
+              <RadialGradient
+                c={vec(star.x, star.y)}
+                r={star.size * 3}
+                colors={[color + "40", "transparent"]}
+              />
+            </Circle>
+            {/* Core */}
+            <Circle
+              cx={star.x}
+              cy={star.y}
+              r={star.size}
+              color={color}
+              opacity={opacity}
+            />
+          </Group>
+        );
+      })}
+    </Canvas>
   );
 };
 
-export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
-  // Master animation progress (0 to 1 over 5 seconds) using Reanimated
-  const globalProgress = useSharedValue(0);
-
-  // Text and button animations (using React Native Animated)
+export default function SimpleSkiaStarfieldScreen({ navigation, setIsGuest }) {
   const [showText, setShowText] = useState(false);
   const [showButton, setShowButton] = useState(false);
   const textOpacity = React.useRef(new Animated.Value(0)).current;
   const buttonOpacity = React.useRef(new Animated.Value(0)).current;
 
-  // Pre-calculate all star positions
+  // Pre-calculate all stars
   const stars = useMemo(() => {
-    const ambient = generateAmbientStars(80);
-    const logo = extractLogoPoints();
+    const ambient = generateAmbientStars(60);
+    const logo = generateLogoConstellation();
     const sulaiman = generateTextConstellation(
       "سليمان",
-      SCREEN_WIDTH / 2 - 50,
+      SCREEN_WIDTH / 2 - 45,
       SCREEN_HEIGHT * 0.25,
       1.1,
     );
     const abdulaziz = generateTextConstellation(
       "عبدالعزيز",
-      SCREEN_WIDTH / 2 - 140,
+      SCREEN_WIDTH / 2 - 130,
       SCREEN_HEIGHT * 0.48,
       0.9,
     );
     const jarboo = generateTextConstellation(
       "جربوع",
-      SCREEN_WIDTH / 2 + 30,
+      SCREEN_WIDTH / 2 + 40,
       SCREEN_HEIGHT * 0.48,
       0.9,
     );
@@ -400,13 +327,7 @@ export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
   }, []);
 
   useEffect(() => {
-    // Run main animation sequence using Reanimated
-    globalProgress.value = withTiming(1, {
-      duration: 5000,
-      easing: Easing.out(Easing.cubic),
-    });
-
-    // Animate text after constellation
+    // Show text after constellation
     setTimeout(() => {
       setShowText(true);
       Animated.timing(textOpacity, {
@@ -416,7 +337,7 @@ export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
       }).start();
     }, 5500);
 
-    // Animate button
+    // Show button
     setTimeout(() => {
       setShowButton(true);
       Animated.spring(buttonOpacity, {
@@ -451,17 +372,8 @@ export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
         locations={[0, 0.3, 0.5, 0.7, 1]}
       />
 
-      {/* Skia Canvas for all stars */}
-      <Canvas style={StyleSheet.absoluteFillObject}>
-        {stars.map((star, index) => (
-          <Star
-            key={index}
-            star={star}
-            index={index}
-            globalProgress={globalProgress}
-          />
-        ))}
-      </Canvas>
+      {/* Starfield */}
+      <Starfield stars={stars} />
 
       {/* Guest link */}
       <View style={styles.guestLinkContainer}>
@@ -470,7 +382,7 @@ export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
         </TouchableOpacity>
       </View>
 
-      {/* Text content with React Native animation */}
+      {/* Text content */}
       {showText && (
         <Animated.View style={[styles.textContainer, { opacity: textOpacity }]}>
           <Text style={styles.headline}>لكل عائلة عظيمة حكاية.</Text>
@@ -478,7 +390,7 @@ export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
         </Animated.View>
       )}
 
-      {/* CTA Button with React Native animation */}
+      {/* CTA Button */}
       {showButton && (
         <Animated.View
           style={[styles.buttonContainer, { opacity: buttonOpacity }]}
@@ -498,7 +410,6 @@ export default function SkiaStarfieldScreen({ navigation, setIsGuest }) {
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Page indicators */}
           <View style={styles.dotsContainer}>
             <View style={[styles.dot, styles.activeDot]} />
             <View style={styles.dot} />
