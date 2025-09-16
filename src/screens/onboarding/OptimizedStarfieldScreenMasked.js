@@ -29,8 +29,8 @@ const createMaskedStarfield = () => {
   const centerY = SCREEN_HEIGHT * 0.35;
 
   // Create a denser grid of stars in the logo area
-  const logoWidth = 300; // Larger logo size
-  const logoHeight = 300; // Larger logo size
+  const logoWidth = 400; // Extra large logo size
+  const logoHeight = 400; // Extra large logo size
   const density = 6; // Closer star spacing for better definition
 
   for (let x = -logoWidth / 2; x <= logoWidth / 2; x += density) {
@@ -381,16 +381,16 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   maskImage: {
-    width: 300,
-    height: 300,
+    width: 400,
+    height: 400,
     marginTop: -(SCREEN_HEIGHT * 0.35),
   },
   logoContainer: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.35 - 150,
-    left: SCREEN_WIDTH / 2 - 150,
-    width: 300,
-    height: 300,
+    top: SCREEN_HEIGHT * 0.35 - 200,
+    left: SCREEN_WIDTH / 2 - 200,
+    width: 400,
+    height: 400,
     opacity: 0.2,
   },
   logoImage: {
