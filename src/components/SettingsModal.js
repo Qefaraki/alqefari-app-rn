@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     writingDirection: "rtl",
   },
   section: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
     color: "#A13333", // Najdi Crimson
   },
   signInPrompt: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 20,
@@ -731,6 +731,8 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
   },
   signInPromptText: {
     fontSize: 16,
