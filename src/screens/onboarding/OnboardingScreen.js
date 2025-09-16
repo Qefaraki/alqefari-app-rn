@@ -69,7 +69,7 @@ const createMaskedStarfield = () => {
         y: centerY + y + jitterY,
         size,
         brightness: 0.6 + Math.random() * 0.4,
-        delay: Math.random() * 800,
+        delay: Math.random() * 200, // Much faster - was 800ms
         group: "logo",
       });
     }
@@ -217,7 +217,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   const renderStars = useCallback((stars, time) => {
     return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 200); // Faster fade - was 500ms
       if (fadeInProgress <= 0) return null;
 
       const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
