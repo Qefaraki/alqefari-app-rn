@@ -636,10 +636,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: 24,
-    marginTop: -150, // Move card up significantly from center
+    paddingTop: 120, // Position card near top of screen
   },
   cardWrapper: {
     width: "100%",
