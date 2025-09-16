@@ -67,45 +67,6 @@ const createMaskedStarfield = () => {
   return points;
 };
 
-// Create star constellations for ancestor names (masked versions)
-const createNameStarfield = (width, height) => {
-  const points = [];
-  const density = 2; // Much denser star field for high fidelity
-
-  for (let x = 0; x <= width; x += density) {
-    for (let y = 0; y <= height; y += density) {
-      // Keep almost all stars for maximum definition
-      if (Math.random() > 0.85) continue; // Keep 85% of stars
-
-      // Minimal jitter to maintain text clarity
-      const jitterX = (Math.random() - 0.5) * density * 0.3;
-      const jitterY = (Math.random() - 0.5) * density * 0.3;
-
-      // Smaller, more uniform star sizes for text readability
-      let size;
-      const rand = Math.random();
-      if (rand < 0.05) {
-        size = 1.0; // Very few bright stars
-      } else if (rand < 0.25) {
-        size = 0.7; // Some medium stars
-      } else {
-        size = 0.4; // Mostly tiny stars for definition
-      }
-
-      points.push({
-        x: x + jitterX,
-        y: y + jitterY,
-        size,
-        brightness: 0.8 + Math.random() * 0.2, // Higher baseline brightness
-        delay: Math.random() * 300,
-        group: "name",
-      });
-    }
-  }
-
-  return points;
-};
-
 // Generate background stars
 const generateBackgroundStars = (count) => {
   const stars = [];
@@ -128,7 +89,6 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
 
   // Staged animations
   const logoFade = useRef(new Animated.Value(0)).current;
-  const namesFade = useRef(new Animated.Value(0)).current;
   const backgroundStarsFade = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const buttonFade = useRef(new Animated.Value(0)).current;
@@ -136,86 +96,53 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
   const logoRotate = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.95)).current;
 
-  // Drift animations for names (shooting star effect)
-  const namesDrift = useRef(new Animated.Value(0)).current;
-
   // Memoize all stars
   const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
   const logoStars = useMemo(() => createMaskedStarfield(), []);
 
-  // Create stars for each name with higher resolution
-  const sulimanStars = useMemo(() => createNameStarfield(250, 100), []);
-  const abdulazizStars = useMemo(() => createNameStarfield(200, 80), []);
-  const jarbooStars = useMemo(() => createNameStarfield(200, 80), []);
-
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Names appear early but ultra-subtle (immediately)
-    Animated.timing(namesFade, {
-      toValue: 0.15, // Ultra-subtle, barely visible
-      duration: 2500,
-      useNativeDriver: true,
-    }).start();
+    // Stage 1: Logo fades in first
+    Animated.parallel([
+      Animated.timing(logoFade, {
+        toValue: 1,
+        duration: 2000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 20,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-    // Start slow drift animation for names
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(namesDrift, {
-          toValue: 1,
-          duration: 30000, // Very slow 30-second drift
-          useNativeDriver: true,
-        }),
-        Animated.timing(namesDrift, {
-          toValue: 0,
-          duration: 30000,
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-
-    // Stage 2: Logo fades in as the main focus (after 0.5s)
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(logoFade, {
-          toValue: 1,
-          duration: 500, // Fast 0.5 second fade-in
-          useNativeDriver: true,
-        }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          tension: 20,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 500);
-
-    // Stage 3: Background stars fade in (after 2s)
+    // Stage 2: Background stars fade in (after 1s)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
         toValue: 1,
         duration: 2000,
         useNativeDriver: true,
       }).start();
-    }, 2000);
+    }, 1000);
 
-    // Stage 4: Text fades in (after 3s total)
+    // Stage 3: Text fades in (after 2.5s total)
     setTimeout(() => {
       Animated.timing(contentFade, {
         toValue: 1,
         duration: 1500,
         useNativeDriver: true,
       }).start();
-    }, 3000);
+    }, 2500);
 
-    // Stage 5: Buttons fade in (after 4s total)
+    // Stage 4: Buttons fade in (after 3.5s total)
     setTimeout(() => {
       Animated.timing(buttonFade, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
       }).start();
-    }, 4000);
+    }, 3500);
 
     // Start subtle logo rotation after initial animation
     setTimeout(() => {
@@ -251,18 +178,16 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
     };
   }, [
     logoFade,
-    namesFade,
     backgroundStarsFade,
     contentFade,
     buttonFade,
     logoScale,
     logoRotate,
-    namesDrift,
   ]);
 
   const renderStars = useCallback((stars, time) => {
     return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 1000); // Takes 1 second for stars to fully illuminate
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
       if (fadeInProgress <= 0) return null;
 
       const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
@@ -289,33 +214,6 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
             cy={star.y}
             r={star.size}
             color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
-          />
-        );
-      }
-
-      if (star.group === "name") {
-        // Ultra-subtle name stars - barely visible unless you focus
-        const twinkleSpeed = 0.3 + (index % 3) * 0.2; // Very slow twinkle
-        const twinkleFactor = Math.sin(time * twinkleSpeed + index);
-
-        // ULTRA LOW opacity - max 20%, typically 10-15%
-        const baseOpacity = 0.1; // 10% base
-        const twinkleRange = 0.05; // Only 5% variance
-        const nameOpacity =
-          fadeInProgress *
-          (baseOpacity + (twinkleFactor + 1) * twinkleRange * 0.5);
-
-        // Very subtle warm white, not beige - to blend with background
-        const color = `rgba(249, 247, 243, ${Math.min(0.2, Math.max(0, nameOpacity))})`;
-
-        // Smaller stars for subtlety
-        return (
-          <Circle
-            key={index}
-            cx={star.x}
-            cy={star.y}
-            r={star.size * 0.7} // Smaller stars
-            color={color}
           />
         );
       }
@@ -418,137 +316,6 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         </>
       )}
 
-      {/* Ancestor names as star constellations with PNG masks */}
-
-      {/* سليمان - above logo */}
-      {MaskedView && (
-        <Animated.View
-          style={[
-            styles.sulimanContainer,
-            {
-              opacity: namesFade,
-              transform: [
-                {
-                  translateX: namesDrift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 15], // Subtle rightward drift
-                  }),
-                },
-                {
-                  translateY: namesDrift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -8], // Slight upward drift
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <MaskedView
-            style={styles.nameMaskContainer}
-            maskElement={
-              <View style={styles.nameMaskWrapper}>
-                <Image
-                  source={require("../../../assets/star_names/suliman.png")}
-                  style={styles.sulimanMask}
-                  resizeMode="contain"
-                />
-              </View>
-            }
-          >
-            <Canvas style={{ width: 250, height: 100 }}>
-              {renderStars(sulimanStars, animationTime)}
-            </Canvas>
-          </MaskedView>
-        </Animated.View>
-      )}
-
-      {/* عبدالعزيز - below left */}
-      {MaskedView && (
-        <Animated.View
-          style={[
-            styles.abdulazizContainer,
-            {
-              opacity: namesFade,
-              transform: [
-                {
-                  translateX: namesDrift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -12], // Subtle leftward drift
-                  }),
-                },
-                {
-                  translateY: namesDrift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 10], // Slight downward drift
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <MaskedView
-            style={styles.nameMaskContainer}
-            maskElement={
-              <View style={styles.nameMaskWrapper}>
-                <Image
-                  source={require("../../../assets/star_names/abdulaziz.png")}
-                  style={styles.sonNameMask}
-                  resizeMode="contain"
-                />
-              </View>
-            }
-          >
-            <Canvas style={{ width: 200, height: 80 }}>
-              {renderStars(abdulazizStars, animationTime)}
-            </Canvas>
-          </MaskedView>
-        </Animated.View>
-      )}
-
-      {/* جربوع - below right */}
-      {MaskedView && (
-        <Animated.View
-          style={[
-            styles.jarbooContainer,
-            {
-              opacity: namesFade,
-              transform: [
-                {
-                  translateX: namesDrift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 20], // Subtle rightward drift
-                  }),
-                },
-                {
-                  translateY: namesDrift.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 12], // Slight downward drift
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <MaskedView
-            style={styles.nameMaskContainer}
-            maskElement={
-              <View style={styles.nameMaskWrapper}>
-                <Image
-                  source={require("../../../assets/star_names/jarboo.png")}
-                  style={styles.sonNameMask}
-                  resizeMode="contain"
-                />
-              </View>
-            }
-          >
-            <Canvas style={{ width: 200, height: 80 }}>
-              {renderStars(jarbooStars, animationTime)}
-            </Canvas>
-          </MaskedView>
-        </Animated.View>
-      )}
-
       {/* Content */}
       <Animated.View
         style={[
@@ -633,7 +400,7 @@ const styles = StyleSheet.create({
   },
   content: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.65, // Moved lower
+    top: SCREEN_HEIGHT * 0.65,
     width: SCREEN_WIDTH,
     alignItems: "center",
     paddingHorizontal: 40,
@@ -642,19 +409,19 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "600",
     color: "#F9F7F3",
-    fontFamily: "System", // Better for Arabic rendering
+    fontFamily: "System",
     marginBottom: 12,
     textAlign: "center",
-    writingDirection: "rtl", // Right-to-left for Arabic
+    writingDirection: "rtl",
   },
   subtitle: {
     fontSize: 24,
     fontWeight: "400",
     color: "#F9F7F3",
-    fontFamily: "System", // Better for Arabic rendering
+    fontFamily: "System",
     opacity: 0.95,
     textAlign: "center",
-    writingDirection: "rtl", // Right-to-left for Arabic
+    writingDirection: "rtl",
   },
   buttonContainer: {
     position: "absolute",
@@ -690,52 +457,5 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "SF Arabic",
     opacity: 0.7,
-  },
-  // Name constellation containers
-  sulimanContainer: {
-    position: "absolute",
-    top: SCREEN_HEIGHT * 0.12, // Above logo
-    left: SCREEN_WIDTH / 2 - 125,
-    width: 250,
-    height: 100,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  abdulazizContainer: {
-    position: "absolute",
-    top: SCREEN_HEIGHT * 0.52, // Below logo, left side
-    left: SCREEN_WIDTH / 2 - 200,
-    width: 200,
-    height: 80,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  jarbooContainer: {
-    position: "absolute",
-    top: SCREEN_HEIGHT * 0.52, // Below logo, right side
-    right: SCREEN_WIDTH / 2 - 200,
-    width: 200,
-    height: 80,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  nameMaskContainer: {
-    flex: 1,
-    width: "100%",
-    height: "100%",
-  },
-  nameMaskWrapper: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  sulimanMask: {
-    width: 250,
-    height: 100,
-  },
-  sonNameMask: {
-    width: 200,
-    height: 80,
   },
 });
