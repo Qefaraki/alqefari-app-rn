@@ -217,12 +217,47 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
               </View>
             )}
 
+            {/* Guest Mode Banner */}
+            {isGuest && (
+              <TouchableOpacity
+                onPress={() => {
+                  // Navigate back to auth flow
+                  setIsGuest(false);
+                  setUser(null);
+                }}
+                style={{
+                  backgroundColor: "#A13333",
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  marginHorizontal: 16,
+                  marginTop: 16,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons
+                  name="person-add"
+                  size={20}
+                  color="#F9F7F3"
+                  style={{ marginRight: 8 }}
+                />
+                <Text
+                  style={{ color: "#F9F7F3", fontSize: 16, fontWeight: "600" }}
+                >
+                  انضم إلى شجرة العائلة
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {/* Tree View */}
             <View className="flex-1">
               <TreeView
                 setProfileEditMode={setProfileEditMode}
                 onNetworkStatusChange={setHasNetworkError}
                 user={user}
+                isGuest={isGuest}
                 onAdminDashboard={() => setShowAdminDashboard(true)}
                 onSettingsOpen={() => setShowSettings(true)}
               />
