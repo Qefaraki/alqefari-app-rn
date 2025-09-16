@@ -118,7 +118,7 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
                 onPress={handleAdminLogin}
                 style={{
                   position: "absolute",
-                  bottom: 100, // Below navigation button
+                  bottom: 20, // Moved down to not overlay navigation
                   right: 16,
                   zIndex: 10,
                   width: 44,
@@ -142,39 +142,7 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
               </TouchableOpacity>
             )}
 
-            {/* Guest Mode Banner */}
-            {isGuest && (
-              <TouchableOpacity
-                onPress={() => {
-                  // Navigate back to auth flow
-                  setIsGuest(false);
-                  setUser(null);
-                }}
-                style={{
-                  backgroundColor: "#A13333",
-                  paddingVertical: 12,
-                  paddingHorizontal: 24,
-                  marginHorizontal: 16,
-                  marginTop: 16,
-                  borderRadius: 12,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons
-                  name="person-add"
-                  size={20}
-                  color="#F9F7F3"
-                  style={{ marginRight: 8 }}
-                />
-                <Text
-                  style={{ color: "#F9F7F3", fontSize: 16, fontWeight: "600" }}
-                >
-                  انضم إلى شجرة العائلة
-                </Text>
-              </TouchableOpacity>
-            )}
+            {/* Guest Mode Banner - Removed per user request */}
 
             {/* Tree View */}
             <View className="flex-1">
