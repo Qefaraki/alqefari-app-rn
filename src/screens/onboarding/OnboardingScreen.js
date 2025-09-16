@@ -83,7 +83,7 @@ const generateBackgroundStars = (count) => {
   return stars;
 };
 
-export default function OptimizedStarfieldScreenMasked({ navigation }) {
+export default function OnboardingScreen({ navigation, setIsGuest }) {
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
 
@@ -235,10 +235,13 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
     navigation.navigate("PhoneAuth");
   }, [navigation]);
 
-  const handleSkip = useCallback(() => {
+  const handleExploreAsGuest = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("PhoneAuth");
-  }, [navigation]);
+    // Set guest mode to true
+    if (setIsGuest) {
+      setIsGuest(true);
+    }
+  }, [setIsGuest]);
 
   return (
     <View style={styles.container}>
@@ -352,7 +355,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
 
         <TouchableOpacity
           style={styles.skipButton}
-          onPress={handleSkip}
+          onPress={handleExploreAsGuest}
           activeOpacity={0.7}
         >
           <Text style={styles.skipButtonText}>استكشف كضيف</Text>
