@@ -119,11 +119,11 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Logo appears fast and gets time to be seen
+    // Stage 1: Logo appears almost instantly
     Animated.parallel([
       Animated.timing(logoFade, {
         toValue: 1,
-        duration: 600, // Fast but smooth
+        duration: 200, // Near instant as requested
         useNativeDriver: true,
       }),
       Animated.spring(logoScale, {
