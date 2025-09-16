@@ -478,16 +478,17 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
           {
             opacity: logoFade.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, 0.15], // 15% opacity at core
+              outputRange: [0, 0.25], // Increased to 25% opacity for more visible glow
             }),
           },
         ]}
         pointerEvents="none"
       >
         <LinearGradient
-          colors={["#D1BBA3", "transparent"]}
+          colors={["#D1BBA3", "#D1BBA300"]} // Using hex transparency for smoother gradient
+          locations={[0, 0.7]} // Concentrate glow in center
           start={{ x: 0.5, y: 0.5 }}
-          end={{ x: 0.5, y: 1 }}
+          end={{ x: 0, y: 0 }}
           style={styles.glowGradient}
         />
       </Animated.View>
