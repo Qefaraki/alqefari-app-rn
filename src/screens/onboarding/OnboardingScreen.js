@@ -18,7 +18,14 @@ import {
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import MaskedView from "@react-native-masked-view/masked-view";
+// Try to import MaskedView, but handle the case where it's not available
+let MaskedView;
+try {
+  MaskedView = require("@react-native-masked-view/masked-view").default;
+} catch (error) {
+  console.warn("MaskedView not available, using fallback");
+  MaskedView = null;
+}
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
