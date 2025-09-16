@@ -66,8 +66,8 @@ const generateStars = (count = 80, maxOpacity = 0.8) => {
       id: `star-${i}`,
       x: Math.random(),
       y: Math.random(),
-      size: Math.random() * 1.5 + 0.5, // Smaller stars
-      opacity: (0.2 + Math.random() * 0.4) * maxOpacity, // Dimmer with opacity control
+      size: Math.random() * 2 + 1, // Mix of sizes for depth
+      opacity: (0.3 + Math.random() * 0.5) * maxOpacity, // Brighter range
       animationDelay: Math.random() * 3000,
       duration: 2000 + Math.random() * 3000,
     });
@@ -80,8 +80,8 @@ const generateStars = (count = 80, maxOpacity = 0.8) => {
         id: `sadu-${patternIndex}-${starIndex}`,
         x: star[0],
         y: star[1],
-        size: 2 + Math.random() * 1, // Smaller for subtlety
-        opacity: pattern.brightness * maxOpacity * 0.8, // Controlled brightness
+        size: 3 + Math.random() * 2, // Larger for visibility
+        opacity: pattern.brightness * maxOpacity, // Full pattern brightness
         animationDelay: patternIndex * 500 + starIndex * 100,
         duration: 3000 + Math.random() * 2000,
         isSadu: true,

@@ -133,14 +133,14 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
       }),
     ]).start();
 
-    // Stage 2: Background stars fade in (after 1s)
+    // Stage 2: Background stars fade in (after 1.5s for logo prominence)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
-        toValue: 1,
-        duration: 2000,
+        toValue: 0.8, // Not full opacity to keep logo prominent
+        duration: 2500, // Slower fade for smoother transition
         useNativeDriver: true,
       }).start();
-    }, 1000);
+    }, 1500);
 
     // Stage 3: Text fades in (after 2.5s total)
     setTimeout(() => {
@@ -304,9 +304,9 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
         ]}
       >
         <SaduNightBackdrop
-          starCount={60} // Reduced from 120 for subtlety
+          starCount={100} // Good density for richness
           reduceMotion={reduceMotion}
-          starOpacity={0.3} // Make stars dimmer
+          starOpacity={0.7} // Visible but not overpowering
         />
       </Animated.View>
 
