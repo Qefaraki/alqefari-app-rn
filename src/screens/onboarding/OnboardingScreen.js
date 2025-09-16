@@ -14,7 +14,10 @@ import {
   StatusBar,
   Animated,
   Image,
+  Platform,
+  AccessibilityInfo,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -93,6 +96,8 @@ const generateBackgroundStars = (count) => {
 export default function OnboardingScreen({ navigation, setIsGuest }) {
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
+  const insets = useSafeAreaInsets();
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   // Staged animations
   const logoFade = useRef(new Animated.Value(0)).current;
@@ -103,9 +108,27 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const logoRotate = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.95)).current;
 
+  // Button scale animations for haptic feedback
+  const primaryButtonScale = useRef(new Animated.Value(1)).current;
+  const secondaryButtonScale = useRef(new Animated.Value(1)).current;
+
   // Memoize all stars
   const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
   const logoStars = useMemo(() => createMaskedStarfield(), []);
+
+  // Check for reduce motion preference
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((isEnabled) => {
+      setReduceMotion(isEnabled);
+    });
+
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      (isEnabled) => setReduceMotion(isEnabled),
+    );
+
+    return () => subscription?.remove();
+  }, []);
 
   useEffect(() => {
     // Staged animation sequence
@@ -151,23 +174,35 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
       }).start();
     }, 3500);
 
-    // Start subtle logo rotation after initial animation
-    setTimeout(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(logoRotate, {
-            toValue: 1,
-            duration: 20000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoRotate, {
-            toValue: 0,
-            duration: 20000,
-            useNativeDriver: true,
-          }),
-        ]),
-      ).start();
-    }, 2000);
+    // Start subtle logo rotation after initial animation (unless reduce motion is on)
+    if (!reduceMotion) {
+      setTimeout(() => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(logoRotate, {
+              toValue: 1,
+              duration: 25000,
+              useNativeDriver: true,
+              easing: require("react-native").Easing.inOut(
+                require("react-native").Easing.ease,
+              ),
+            }),
+            // Pause at end
+            Animated.delay(2000),
+            Animated.timing(logoRotate, {
+              toValue: 0,
+              duration: 25000,
+              useNativeDriver: true,
+              easing: require("react-native").Easing.inOut(
+                require("react-native").Easing.ease,
+              ),
+            }),
+            // Pause at start
+            Animated.delay(2000),
+          ]),
+        ).start();
+      }, 2000);
+    }
 
     // Animation frame
     let frameCount = 0;
@@ -190,6 +225,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     buttonFade,
     logoScale,
     logoRotate,
+    reduceMotion,
   ]);
 
   const renderStars = useCallback((stars, time) => {
@@ -237,18 +273,38 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     });
   }, []);
 
+  // Button press animations
+  const animateButtonPress = (scaleValue) => {
+    Animated.sequence([
+      Animated.spring(scaleValue, {
+        toValue: 0.95,
+        useNativeDriver: true,
+        tension: 100,
+        friction: 3,
+      }),
+      Animated.spring(scaleValue, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 40,
+        friction: 3,
+      }),
+    ]).start();
+  };
+
   const handleContinue = useCallback(() => {
+    animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate("PhoneAuth");
-  }, [navigation]);
+  }, [navigation, primaryButtonScale]);
 
   const handleExploreAsGuest = useCallback(() => {
+    animateButtonPress(secondaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     // Set guest mode to true
     if (setIsGuest) {
       setIsGuest(true);
     }
-  }, [setIsGuest]);
+  }, [setIsGuest, secondaryButtonScale]);
 
   return (
     <View style={styles.container}>
@@ -349,24 +405,43 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
           styles.buttonContainer,
           {
             opacity: buttonFade,
+            paddingBottom: Math.max(insets.bottom + 20, 40), // Use safe area
           },
         ]}
       >
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={handleContinue}
-          activeOpacity={0.8}
+        <Animated.View
+          style={[
+            styles.continueButton,
+            {
+              transform: [{ scale: primaryButtonScale }],
+            },
+          ]}
         >
-          <Text style={styles.continueButtonText}>ابدأ الرحلة</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleContinue}
+            activeOpacity={0.8}
+            style={{ width: "100%", alignItems: "center" }}
+          >
+            <Text style={styles.continueButtonText}>ابدأ الرحلة</Text>
+          </TouchableOpacity>
+        </Animated.View>
 
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleExploreAsGuest}
-          activeOpacity={0.7}
+        <Animated.View
+          style={[
+            styles.skipButton,
+            {
+              transform: [{ scale: secondaryButtonScale }],
+            },
+          ]}
         >
-          <Text style={styles.skipButtonText}>استكشف كضيف</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleExploreAsGuest}
+            activeOpacity={0.7}
+            style={{ width: "100%", alignItems: "center" }}
+          >
+            <Text style={styles.skipButtonText}>استكشف كضيف</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -413,13 +488,15 @@ const styles = StyleSheet.create({
     top: SCREEN_HEIGHT * 0.65,
     width: SCREEN_WIDTH,
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: Platform.isPad ? 48 : 32, // Grid-based padding
   },
   title: {
     fontSize: 32,
     fontWeight: "600",
     color: "#F9F7F3",
-    fontFamily: "System",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    letterSpacing: -0.5,
+    lineHeight: 40,
     marginBottom: 12,
     textAlign: "center",
     writingDirection: "rtl",
@@ -428,16 +505,18 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "400",
     color: "#F9F7F3",
-    fontFamily: "System",
-    opacity: 0.95,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    opacity: 0.8, // Design token 80%
+    letterSpacing: -0.3,
+    lineHeight: 32,
     textAlign: "center",
     writingDirection: "rtl",
   },
   buttonContainer: {
     position: "absolute",
-    bottom: 80, // Raised from 50 to 80
+    bottom: 0, // Will use paddingBottom for safe area
     width: SCREEN_WIDTH,
-    paddingHorizontal: 32,
+    paddingHorizontal: Platform.isPad ? 48 : 32, // Grid-based padding
   },
   continueButton: {
     backgroundColor: "#A13333",

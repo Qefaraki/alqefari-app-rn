@@ -31,7 +31,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 expoAutolinking.useExpoModules()
 
-rootProject.name = 'Alqefari Family Tree'
+rootProject.name = 'Alqefari - أسرة القفاري'
 
 expoAutolinking.useExpoVersionCatalog()
 
