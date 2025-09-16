@@ -505,12 +505,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   previewContainer: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 12,
     padding: 16,
     marginTop: 16,
     marginBottom: 20,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
   },
   previewTitle: {
     fontSize: 13,
@@ -558,12 +560,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   segmentActive: {
-    backgroundColor: "#F9F7F3", // Al-Jass White
+    backgroundColor: "#A13333", // Najdi Crimson for active state
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   segmentText: {
     fontSize: 14,
@@ -572,7 +574,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   segmentTextActive: {
-    color: "#242121", // Sadu Night
+    color: "#F9F7F3", // Al-Jass White for contrast on crimson
+    fontWeight: "600",
   },
   switchOption: {
     flexDirection: "row",
@@ -605,14 +608,16 @@ const styles = StyleSheet.create({
   resetButton: {
     margin: 20,
     padding: 16,
-    backgroundColor: "#FEE2E2",
-    borderRadius: 12,
+    backgroundColor: "#A1333310", // Najdi Crimson 10%
+    borderRadius: 10,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#A1333330", // Najdi Crimson 30%
   },
   resetButtonText: {
     fontSize: 15,
     fontFamily: "SF Arabic",
-    color: "#DC2626",
+    color: "#A13333", // Najdi Crimson
     fontWeight: "500",
   },
   profileCard: {
