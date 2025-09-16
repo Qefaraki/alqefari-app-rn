@@ -355,7 +355,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
           onPress={handleSkip}
           activeOpacity={0.7}
         >
-          <Text style={styles.skipButtonText}>تخطي</Text>
+          <Text style={styles.skipButtonText}>استكشف كضيف</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -454,8 +454,7 @@ const styles = StyleSheet.create({
   skipButtonText: {
     color: "#D1BBA3",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "400", // Regular font weight for secondary action
     fontFamily: "SF Arabic",
-    opacity: 0.7,
   },
 });
