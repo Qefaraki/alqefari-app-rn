@@ -233,7 +233,7 @@ export const profilesService = {
         const { data, error } = await this.createProfile({
           name: child.name,
           gender: child.gender,
-          generation: child.generation || null,
+          generation: child.generation, // REQUIRED - must not be null
           father_id: fatherId,
           mother_id: motherId,
           sibling_order: child.sibling_order || 0,

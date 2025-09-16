@@ -50,6 +50,8 @@ const DraggableChildCard = ({
   onReorder,
   isActive,
   isNew,
+  scrollViewRef,
+  containerWidth,
 }) => {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -81,6 +83,25 @@ const DraggableChildCard = ({
       "worklet";
       translateX.value = e.translationX;
       translateY.value = e.translationY;
+
+      // Auto-scroll when near edges
+      const EDGE_THRESHOLD = 60;
+      const screenWidth = containerWidth || 400;
+
+      if (e.absoluteX < EDGE_THRESHOLD && scrollViewRef) {
+        // Near left edge - scroll left
+        runOnJS(() => {
+          scrollViewRef.current?.scrollTo({
+            x: Math.max(0, (e.absoluteX - EDGE_THRESHOLD) * 10),
+            animated: true,
+          });
+        })();
+      } else if (e.absoluteX > screenWidth - EDGE_THRESHOLD && scrollViewRef) {
+        // Near right edge - scroll right
+        runOnJS(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        })();
+      }
     })
     .onEnd(() => {
       "worklet";
@@ -519,6 +540,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                       onReorder={handleReorder}
                       isActive={editingChildId === child.id}
                       isNew={child.isNew}
+                      scrollViewRef={scrollViewRef}
+                      containerWidth={400}
                     />
                   ))
                 )}

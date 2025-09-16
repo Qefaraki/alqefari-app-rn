@@ -25,7 +25,7 @@ const CompactAdminBar = ({ user, onControlPanelPress, onUserPress }) => {
           onPress={() => setIsCollapsed(false)}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-down" size={20} color="#007AFF" />
+          <Ionicons name="chevron-down" size={20} color="#A13333" />
         </TouchableOpacity>
       </View>
     );
@@ -39,7 +39,7 @@ const CompactAdminBar = ({ user, onControlPanelPress, onUserPress }) => {
     <Container
       style={[
         styles.container,
-        Platform.OS === "android" && { backgroundColor: "#FFFFFF" },
+        Platform.OS === "android" && { backgroundColor: "#F9F7F3" },
       ]}
       {...containerProps}
     >
@@ -97,10 +97,10 @@ const CompactAdminBar = ({ user, onControlPanelPress, onUserPress }) => {
 const styles = StyleSheet.create({
   container: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.1)",
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(249, 247, 243, 0.3)", // Al-Jass White with opacity
   },
   userSection: {
     flex: 1,
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   email: {
     fontSize: 14,
-    color: "#333",
+    color: "#242121", // Sadu Night
     fontWeight: "600",
     flex: 1,
   },
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   },
   toggleLabel: {
     fontSize: 13,
-    color: "#666",
+    color: "#24212199", // Sadu Night 60%
     marginRight: 8,
     fontWeight: "600",
   },
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   controlButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(0, 122, 255, 0.1)",
+    backgroundColor: "#A1333310", // Najdi Crimson 10%
   },
   collapseButton: {
     padding: 6,
@@ -153,20 +153,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   collapsedButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     paddingHorizontal: 24,
     paddingVertical: 6,
     borderRadius: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.05)",
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   androidContent: {
-    backgroundColor: "rgba(255, 255, 255, 0.98)",
+    backgroundColor: "rgba(249, 247, 243, 0.98)", // Al-Jass White
   },
 });
 

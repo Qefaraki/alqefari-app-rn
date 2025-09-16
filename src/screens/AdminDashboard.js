@@ -347,54 +347,83 @@ const AdminDashboard = ({ onClose, user }) => {
     ]);
   };
 
-  const handleExportDatabase = async () => {
-    try {
-      setExporting(true);
+  const handleExportDatabase = () => {
+    Alert.alert("اختر صيغة التصدير", "كيف تريد تصدير التقرير؟", [
+      {
+        text: "PDF",
+        onPress: async () => {
+          try {
+            setExporting(true);
+            const pdfExportService =
+              require("../services/pdfExportService").default;
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("*")
+              .order("created_at", { ascending: false })
+              .limit(20);
 
-      // Fetch all profiles with relationships
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select(
-          `
-          *,
-          marriages:marriages!husband_id(
-            *,
-            wife:wife_id(name),
-            husband:husband_id(name)
-          )
-        `,
-        )
-        .order("generation", { ascending: true })
-        .order("sibling_order", { ascending: true });
+            await pdfExportService.exportAdminStatsPDF(stats, profiles || []);
+          } catch (error) {
+            console.error("PDF export error:", error);
+            Alert.alert("خطأ", "فشل تصدير PDF: " + error.message);
+          } finally {
+            setExporting(false);
+          }
+        },
+      },
+      {
+        text: "نص",
+        onPress: async () => {
+          try {
+            setExporting(true);
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select(
+                `
+                  *,
+                  marriages:marriages!husband_id(
+                    *,
+                    wife:wife_id(name),
+                    husband:husband_id(name)
+                  )
+                `,
+              )
+              .order("generation", { ascending: true })
+              .order("sibling_order", { ascending: true });
 
-      if (!profiles || profiles.length === 0) {
-        Alert.alert("تنبيه", "لا توجد بيانات للتصدير");
-        return;
-      }
+            if (!profiles || profiles.length === 0) {
+              Alert.alert("تنبيه", "لا توجد بيانات للتصدير");
+              setExporting(false);
+              return;
+            }
 
-      // Import the simple export service
-      const simpleExportService =
-        require("../services/simpleExportService").default;
+            const simpleExportService =
+              require("../services/simpleExportService").default;
+            const result = await simpleExportService.exportAsFormattedText(
+              profiles,
+              {
+                stats,
+                title: "تقرير شجرة العائلة",
+                timestamp: new Date().toISOString(),
+              },
+            );
 
-      // Export as formatted text file
-      const result = await simpleExportService.exportAsFormattedText(profiles, {
-        title: "شجرة عائلة القفاري",
-        includeMarriages: true,
-        includeDates: true,
-        includeContact: true,
-      });
-
-      if (result.success) {
-        Alert.alert("نجح", "تم تصدير البيانات بنجاح");
-      } else {
-        throw new Error(result.error || "فشل التصدير");
-      }
-    } catch (error) {
-      console.error("Export error:", error);
-      Alert.alert("خطأ", "فشل تصدير قاعدة البيانات: " + error.message);
-    } finally {
-      setExporting(false);
-    }
+            if (!result.success) {
+              throw new Error(result.error || "فشل التصدير");
+            }
+          } catch (error) {
+            console.error("Text export error:", error);
+            Alert.alert("خطأ", "فشل تصدير النص: " + error.message);
+          } finally {
+            setExporting(false);
+          }
+        },
+      },
+      {
+        text: "إلغاء",
+        style: "cancel",
+      },
+    ]);
   };
 
   const handleRecalculateLayouts = async () => {
@@ -435,7 +464,7 @@ const AdminDashboard = ({ onClose, user }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#A13333" />
       </View>
     );
   }
@@ -484,7 +513,7 @@ const AdminDashboard = ({ onClose, user }) => {
         ]}
       >
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={28} color="#374151" />
+          <Ionicons name="close" size={28} color="#242121" />
         </TouchableOpacity>
         <View
           style={{
@@ -537,7 +566,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
-                  { opacity: countAnim, color: "#6366f1" },
+                  { opacity: countAnim, color: "#A13333" },
                 ]}
               >
                 {stats?.basic?.total_profiles || stats?.total_profiles || 0}
@@ -548,7 +577,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
-                  { opacity: countAnim, color: "#10b981" },
+                  { opacity: countAnim, color: "#A13333" },
                 ]}
               >
                 {stats?.basic?.living_count || stats?.alive_count || 0}
@@ -559,7 +588,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
-                  { opacity: countAnim, color: "#3b82f6" },
+                  { opacity: countAnim, color: "#D58C4A" },
                 ]}
               >
                 {stats?.basic?.male_count || stats?.male_count || 0}
@@ -570,7 +599,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
-                  { opacity: countAnim, color: "#ec4899" },
+                  { opacity: countAnim, color: "#D58C4A" },
                 ]}
               >
                 {stats?.basic?.female_count || stats?.female_count || 0}
@@ -581,7 +610,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
-                  { opacity: countAnim, color: "#8b5cf6" },
+                  { opacity: countAnim, color: "#A13333" },
                 ]}
               >
                 {stats?.munasib?.total_munasib || stats?.married_in_count || 0}
@@ -592,7 +621,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Animated.Text
                 style={[
                   styles.statNumber,
-                  { opacity: countAnim, color: "#f59e0b" },
+                  { opacity: countAnim, color: "#D58C4A" },
                 ]}
               >
                 {stats?.family?.total_marriages || stats?.total_marriages || 0}
@@ -715,7 +744,7 @@ const AdminDashboard = ({ onClose, user }) => {
                           `${Math.max(3, ((stats?.profiles_with_photos || 0) / (stats?.total_profiles || 1)) * 100)}%`,
                         ],
                       }),
-                      backgroundColor: "#10b981",
+                      backgroundColor: "#A13333",
                     },
                   ]}
                 />
@@ -749,7 +778,7 @@ const AdminDashboard = ({ onClose, user }) => {
                           `${((stats?.profiles_with_dates || 0) / (stats?.total_profiles || 1)) * 100}%`,
                         ],
                       }),
-                      backgroundColor: "#3b82f6",
+                      backgroundColor: "#D58C4A",
                     },
                   ]}
                 />
@@ -849,7 +878,7 @@ const AdminDashboard = ({ onClose, user }) => {
             activeOpacity={0.8}
           >
             <Text style={styles.primaryButtonText}>فحص البيانات الآن</Text>
-            <Ionicons name="chevron-back" size={20} color="#fff" />
+            <Ionicons name="chevron-back" size={20} color="#F9F7F3" />
           </TouchableOpacity>
         </Animated.View>
 
@@ -908,7 +937,7 @@ const AdminDashboard = ({ onClose, user }) => {
                 onPress={() => setShowActivityScreen(true)}
               >
                 <Text style={styles.viewAllText}>عرض الكل</Text>
-                <Ionicons name="chevron-back" size={16} color="#6366f1" />
+                <Ionicons name="chevron-back" size={16} color="#A13333" />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -937,7 +966,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Ionicons
                 name="chevron-back"
                 size={20}
-                color="#9ca3af"
+                color="#24212199"
                 style={styles.actionArrow}
               />
             </TouchableOpacity>
@@ -954,7 +983,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Ionicons
                 name="chevron-back"
                 size={20}
-                color="#9ca3af"
+                color="#24212199"
                 style={styles.actionArrow}
               />
             </TouchableOpacity>
@@ -972,12 +1001,12 @@ const AdminDashboard = ({ onClose, user }) => {
                 </Text>
               </View>
               {exporting ? (
-                <ActivityIndicator size="small" color="#6366f1" />
+                <ActivityIndicator size="small" color="#A13333" />
               ) : (
                 <Ionicons
                   name="chevron-back"
                   size={20}
-                  color="#9ca3af"
+                  color="#24212199"
                   style={styles.actionArrow}
                 />
               )}
@@ -995,7 +1024,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Ionicons
                 name="chevron-back"
                 size={20}
-                color="#9ca3af"
+                color="#24212199"
                 style={styles.actionArrow}
               />
             </TouchableOpacity>
@@ -1012,7 +1041,7 @@ const AdminDashboard = ({ onClose, user }) => {
               <Ionicons
                 name="chevron-back"
                 size={20}
-                color="#9ca3af"
+                color="#24212199"
                 style={styles.actionArrow}
               />
             </TouchableOpacity>
@@ -1082,10 +1111,10 @@ const AdminDashboard = ({ onClose, user }) => {
                             }),
                             backgroundColor:
                               index === 0
-                                ? "#fbbf24"
+                                ? "#D58C4A" // Desert Ochre
                                 : index === 1
-                                  ? "#94a3b8"
-                                  : "#f97316",
+                                  ? "#D1BBA3" // Camel Hair Beige
+                                  : "#A13333", // Najdi Crimson
                           },
                         ]}
                       />
@@ -1165,14 +1194,14 @@ const AdminDashboard = ({ onClose, user }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     direction: "rtl",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
     flexDirection: "row-reverse", // Always use RTL layout
@@ -1180,49 +1209,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
+    letterSpacing: -0.5,
     textAlign: "right",
     writingDirection: "rtl",
   },
   subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
+    fontSize: 15,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    color: "#242121CC", // Sadu Night 80%
+    lineHeight: 22,
     marginTop: 2,
     textAlign: "right",
     writingDirection: "rtl",
   },
   userEmail: {
-    fontSize: 12,
-    color: "#007AFF",
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: "#A13333", // Najdi Crimson
     marginTop: 4,
-    fontStyle: "italic",
     textAlign: "right",
     writingDirection: "rtl",
   },
   closeButton: {
     padding: 8,
-    borderRadius: 8,
+    borderRadius: 10,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#8c82b4",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
+    borderRadius: 12,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 3,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   statsCard: {
     marginTop: 16,
@@ -1230,7 +1265,8 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
     marginBottom: 16,
     textAlign: "right",
     writingDirection: "rtl",
@@ -1249,21 +1285,21 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#A13333", // Najdi Crimson
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 12,
     marginRight: 0,
   },
   munasibRankText: {
-    color: "#fff",
+    color: "#F9F7F3", // Al-Jass White
     fontSize: 12,
     fontWeight: "600",
   },
   munasibName: {
     flex: 1,
     fontSize: 16,
-    color: "#111827",
+    color: "#242121", // Sadu Night
     fontWeight: "500",
   },
   munasibCount: {
@@ -1272,11 +1308,11 @@ const styles = StyleSheet.create({
   munasibCountText: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#6366f1",
+    color: "#A13333", // Najdi Crimson
   },
   munasibLabel: {
     fontSize: 11,
-    color: "#9ca3af",
+    color: "#24212166", // Sadu Night 40%
     marginTop: 2,
   },
   statsGrid: {
@@ -1286,22 +1322,26 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   statBox: {
-    backgroundColor: "#f3f4f6",
-    paddingVertical: 12,
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: "center",
     width: "48%",
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
   },
   statNumber: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#6366f1",
+    color: "#A13333", // Najdi Crimson
   },
   statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     marginTop: 4,
     textAlign: "center",
   },
@@ -1313,8 +1353,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingVertical: 16,
-    backgroundColor: "#f9fafb",
-    borderRadius: 12,
+    backgroundColor: "#D1BBA310", // Camel Hair Beige 10%
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D1BBA320",
   },
   genderBox: {
     alignItems: "center",
@@ -1346,7 +1388,8 @@ const styles = StyleSheet.create({
   subTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     marginBottom: 12,
     textAlign: "right",
     writingDirection: "rtl",
@@ -1357,27 +1400,30 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   generationLabel: {
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     width: 60,
   },
   generationBarContainer: {
     flex: 1,
     height: 20,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 10,
     marginHorizontal: 10,
     overflow: "hidden",
   },
   generationBar: {
     height: "100%",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#A13333", // Najdi Crimson
     borderRadius: 10,
   },
   generationCount: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
     width: 30,
     textAlign: "right",
   },
@@ -1415,7 +1461,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   newestMemberItem: {
     flexDirection: "row-reverse",
@@ -1424,11 +1470,13 @@ const styles = StyleSheet.create({
   },
   newestMemberName: {
     fontSize: 14,
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
   },
   newestMemberDate: {
     fontSize: 12,
-    color: "#9ca3af",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
   },
   completenessGrid: {
     flexDirection: "row-reverse",
@@ -1447,14 +1495,14 @@ const styles = StyleSheet.create({
   completenessPercentage: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   completenessIcon: {
     fontSize: 20,
   },
   completenessBarContainer: {
     height: 8,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: 8,
@@ -1464,15 +1512,17 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   completenessLabel: {
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
   },
   issuesGrid: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   issueItem: {
     alignItems: "center",
@@ -1480,11 +1530,12 @@ const styles = StyleSheet.create({
   issueCount: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#ef4444",
+    color: "#D58C4A", // Desert Ochre
   },
   issueLabel: {
     fontSize: 11,
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     marginTop: 4,
   },
   dataHealthHeader: {
@@ -1496,18 +1547,18 @@ const styles = StyleSheet.create({
   healthPercentage: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#10b981",
+    color: "#A13333", // Najdi Crimson
   },
   progressBar: {
     height: 6,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 999,
     overflow: "hidden",
     marginBottom: 20,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#A13333", // Najdi Crimson
     borderRadius: 999,
   },
   issuesTags: {
@@ -1517,7 +1568,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tagSuccess: {
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    backgroundColor: "#A1333310", // Najdi Crimson 10%
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -1525,11 +1576,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tagSuccessText: {
-    color: "#10b981",
+    color: "#A13333", // Najdi Crimson
     fontSize: 14,
+    fontFamily: "SF Arabic",
   },
   tagWarning: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    backgroundColor: "#D58C4A20", // Desert Ochre 20%
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -1537,27 +1589,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tagWarningText: {
-    color: "#ef4444",
+    color: "#D58C4A", // Desert Ochre
     fontSize: 14,
+    fontFamily: "SF Arabic",
   },
   primaryButton: {
-    backgroundColor: "#6366f1",
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: "#A13333", // Najdi Crimson
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 10,
     flexDirection: "row-reverse",
     justifyContent: "center",
     alignItems: "center",
+    minHeight: 48,
     gap: 8,
   },
   primaryButtonText: {
-    color: "#fff",
+    color: "#F9F7F3", // Al-Jass White
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
     marginHorizontal: 16,
     marginBottom: 12,
     textAlign: "right",
@@ -1571,7 +1628,7 @@ const styles = StyleSheet.create({
   },
   activityItemBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   activityContent: {
     flex: 1,
@@ -1579,16 +1636,20 @@ const styles = StyleSheet.create({
   activityName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
   },
   activityDescription: {
     fontSize: 14,
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     marginTop: 2,
   },
   activityTime: {
-    fontSize: 14,
-    color: "#9ca3af",
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
   },
   viewAllButton: {
     flexDirection: "row-reverse",
@@ -1598,9 +1659,10 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   viewAllText: {
-    color: "#6366f1",
+    color: "#A13333", // Najdi Crimson
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
   actionItem: {
     flexDirection: "row-reverse",
@@ -1608,15 +1670,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  actionItem: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   actionContent: {
     flexDirection: "row-reverse",
@@ -1629,7 +1683,8 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
   },
   actionArrow: {
     opacity: 0,
@@ -1643,18 +1698,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 8,
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+    borderRadius: 10,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
   },
   adminName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
   },
   adminRole: {
     fontSize: 14,
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
   },
 
   // Munasib (Top Families) Styles
@@ -1665,41 +1724,42 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   munasibBadge: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: "#D58C4A20", // Desert Ochre 20%
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#fde68a",
+    borderColor: "#D58C4A40", // Desert Ochre 40%
   },
   munasibBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#92400e",
+    fontFamily: "SF Arabic",
+    color: "#D58C4A", // Desert Ochre
   },
   topFamiliesContainer: {
     marginTop: 20,
     gap: 12,
   },
   topFamilyCard: {
-    backgroundColor: "#f9fafb",
-    borderRadius: 16,
+    backgroundColor: "#D1BBA310", // Camel Hair Beige 10%
+    borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
     position: "relative",
     overflow: "hidden",
   },
   topFamilyFirst: {
-    borderColor: "#fbbf24",
+    borderColor: "#D58C4A", // Desert Ochre
     borderWidth: 2,
   },
   topFamilySecond: {
-    borderColor: "#94a3b8",
+    borderColor: "#D1BBA3", // Camel Hair Beige
     borderWidth: 1.5,
   },
   topFamilyThird: {
-    borderColor: "#f97316",
+    borderColor: "#A13333", // Najdi Crimson
     borderWidth: 1.5,
   },
   topFamilyRank: {
@@ -1709,24 +1769,25 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 2,
   },
   topFamilyRankText: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   topFamilyName: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
     marginBottom: 8,
     marginRight: 40,
     textAlign: "right",
@@ -1741,16 +1802,17 @@ const styles = StyleSheet.create({
   topFamilyCount: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   topFamilyPercentage: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
   },
   topFamilyBar: {
     height: 8,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 4,
     overflow: "hidden",
   },
@@ -1763,12 +1825,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   showMoreText: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#6366f1",
+    fontFamily: "SF Arabic",
+    color: "#A13333", // Najdi Crimson
   },
   emptyState: {
     padding: 40,
@@ -1777,12 +1840,14 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#6b7280",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     marginBottom: 8,
   },
   emptyStateSubText: {
     fontSize: 14,
-    color: "#9ca3af",
+    fontFamily: "SF Arabic",
+    color: "#24212199", // Sadu Night 60%
     textAlign: "center",
   },
 });

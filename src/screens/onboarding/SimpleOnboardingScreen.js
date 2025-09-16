@@ -37,7 +37,11 @@ const onboardingData = [
   },
 ];
 
-export default function SimpleOnboardingScreen({ navigation }) {
+export default function SimpleOnboardingScreen({
+  navigation,
+  setIsGuest,
+  setUser,
+}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef(null);
@@ -57,7 +61,14 @@ export default function SimpleOnboardingScreen({ navigation }) {
 
   const handleSkip = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.replace("PhoneAuth");
+    // Create guest session - user can browse without login
+    console.log("📱 User skipped onboarding - entering as guest");
+    if (setIsGuest) {
+      setIsGuest(true);
+    }
+    if (setUser) {
+      setUser({ isGuest: true, user_metadata: { isGuest: true } });
+    }
   };
 
   const handleGetStarted = () => {
@@ -119,7 +130,7 @@ export default function SimpleOnboardingScreen({ navigation }) {
             {/* Logo */}
             <View style={styles.logoContainer}>
               <Image
-                source={require("../../../assets/logo/logo.png")}
+                source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
                 style={styles.logo}
               />
             </View>

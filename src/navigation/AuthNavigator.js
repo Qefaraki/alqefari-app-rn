@@ -1,13 +1,13 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
-import SimpleOnboardingScreen from "../screens/onboarding/SimpleOnboardingScreen";
-import PhoneAuthScreen from "../screens/auth/PhoneAuthScreen";
+import OrganicTreeOnboarding from "../screens/onboarding/OrganicTreeOnboarding";
+import LocketPhoneAuthScreen from "../screens/auth/LocketPhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
 
 const Stack = createStackNavigator();
 
-export default function AuthNavigator() {
+export default function AuthNavigator({ setIsGuest, setUser }) {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -33,14 +33,18 @@ export default function AuthNavigator() {
         },
       }}
     >
-      <Stack.Screen
-        name="Onboarding"
-        component={SimpleOnboardingScreen}
-        options={{ gestureEnabled: false }}
-      />
+      <Stack.Screen name="Onboarding" options={{ gestureEnabled: false }}>
+        {(props) => (
+          <OrganicTreeOnboarding
+            {...props}
+            setIsGuest={setIsGuest}
+            setUser={setUser}
+          />
+        )}
+      </Stack.Screen>
       <Stack.Screen
         name="PhoneAuth"
-        component={PhoneAuthScreen}
+        component={LocketPhoneAuthScreen}
         options={{
           gestureEnabled: true,
           gestureDirection: "horizontal",

@@ -21,7 +21,7 @@ const onboardingData = [
     id: 1,
     title: "مرحباً بك في شجرة العائلة",
     subtitle: "اكتشف تاريخ عائلتك وتواصل مع أقاربك",
-    image: require("../../../assets/logo/logo.png"),
+    image: require("../../../assets/logo/Alqefari Emblem (Transparent).png"),
     icon: "people-outline",
     gradient: ["#667eea", "#764ba2"],
     features: [
@@ -34,7 +34,7 @@ const onboardingData = [
     id: 2,
     title: "تواصل مع عائلتك",
     subtitle: "شارك الذكريات والقصص مع أفراد عائلتك",
-    image: require("../../../assets/logo/logo.png"),
+    image: require("../../../assets/logo/Alqefari Emblem (Transparent).png"),
     icon: "heart-outline",
     gradient: ["#f093fb", "#f5576c"],
     features: [
@@ -47,7 +47,7 @@ const onboardingData = [
     id: 3,
     title: "ابدأ رحلتك",
     subtitle: "سجل الآن واكتشف مكانك في شجرة العائلة",
-    image: require("../../../assets/logo/logo.png"),
+    image: require("../../../assets/logo/Alqefari Emblem (Transparent).png"),
     icon: "rocket-outline",
     gradient: ["#4facfe", "#00f2fe"],
     features: [

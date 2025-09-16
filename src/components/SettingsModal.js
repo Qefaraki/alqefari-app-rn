@@ -54,21 +54,23 @@ export default function SettingsModal({ visible, onClose }) {
   const loadUserProfile = async () => {
     setLoadingProfile(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setCurrentUser(user);
-      
+
       if (user) {
         // Try to find matching profile
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
+          .from("profiles")
+          .select("*")
           .or(`email.eq.${user.email},phone.eq.${user.phone}`)
           .single();
-        
+
         setUserProfile(profile);
       }
     } catch (error) {
-      console.error('Error loading user profile:', error);
+      console.error("Error loading user profile:", error);
     } finally {
       setLoadingProfile(false);
     }
@@ -81,7 +83,7 @@ export default function SettingsModal({ visible, onClose }) {
       [
         {
           text: "إلغاء",
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "تسجيل الخروج",
@@ -95,10 +97,10 @@ export default function SettingsModal({ visible, onClose }) {
             } catch (error) {
               Alert.alert("خطأ", "فشل تسجيل الخروج");
             }
-          }
-        }
+          },
+        },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
@@ -162,7 +164,7 @@ export default function SettingsModal({ visible, onClose }) {
               <ActivityIndicator size="small" color="#007AFF" />
             </View>
           ) : currentUser ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.profileCard}
               activeOpacity={0.95}
               onPress={() => {
@@ -176,34 +178,41 @@ export default function SettingsModal({ visible, onClose }) {
               <View style={styles.profileContent}>
                 <View style={styles.profileImageContainer}>
                   {userProfile?.photo_url ? (
-                    <Image 
+                    <Image
                       source={{ uri: userProfile.photo_url }}
                       style={styles.profileImage}
                     />
                   ) : (
                     <View style={styles.profileImagePlaceholder}>
                       <Text style={styles.profileInitial}>
-                        {(userProfile?.name || currentUser.email || 'U')[0].toUpperCase()}
+                        {(userProfile?.name ||
+                          currentUser.email ||
+                          "U")[0].toUpperCase()}
                       </Text>
                     </View>
                   )}
                   <View style={styles.onlineBadge} />
                 </View>
-                
+
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
-                    {userProfile?.name || 'مستخدم جديد'}
+                    {userProfile?.name || "مستخدم جديد"}
                   </Text>
                   <Text style={styles.profileDetail}>
-                    {currentUser.phone ? 
-                      `${currentUser.phone.substring(0, 4)} ••• ${currentUser.phone.slice(-4)}` :
-                      currentUser.email || ''
-                    }
+                    {currentUser.phone
+                      ? `${currentUser.phone.substring(0, 4)} ••• ${currentUser.phone.slice(-4)}`
+                      : currentUser.email || ""}
                   </Text>
                   {userProfile && (
                     <View style={styles.profileLinkContainer}>
-                      <Text style={styles.profileViewLink}>عرض الملف الشخصي</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#007AFF" />
+                      <Text style={styles.profileViewLink}>
+                        عرض الملف الشخصي
+                      </Text>
+                      <Ionicons
+                        name="arrow-forward"
+                        size={14}
+                        color="#007AFF"
+                      />
                     </View>
                   )}
                 </View>
@@ -213,40 +222,51 @@ export default function SettingsModal({ visible, onClose }) {
             <View style={styles.signInPromptCard}>
               <View style={styles.signInIconContainer}>
                 <View style={styles.signInIconBackground}>
-                  <Image 
-                    source={AlqefariLogo} 
+                  <Image
+                    source={AlqefariLogo}
                     style={styles.signInLogo}
                     resizeMode="contain"
                   />
                 </View>
               </View>
-              
+
               <Text style={styles.signInTitle}>حياك الله في شجرة القفاري</Text>
-              <Text style={styles.signInSubtitle}>
-                لصلة الرحم وحفظ الأنساب
-              </Text>
-              
-              <TouchableOpacity 
+              <Text style={styles.signInSubtitle}>لصلة الرحم وحفظ الأنساب</Text>
+
+              <TouchableOpacity
                 style={styles.signInButton}
                 onPress={() => {
-                  // Navigate to sign in
+                  // Close settings and trigger re-authentication
                   onClose();
-                  // TODO: Open auth modal
+                  // Force sign out to show onboarding/auth flow
+                  setTimeout(async () => {
+                    await supabase.auth.signOut();
+                    // This will trigger the auth state change listener
+                    // and show the onboarding screen
+                  }, 100);
                 }}
                 activeOpacity={0.8}
               >
                 <Text style={styles.signInButtonText}>تسجيل الدخول</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </TouchableOpacity>
-              
+
               <View style={styles.signInFeatures}>
                 <View style={styles.signInFeature}>
-                  <Ionicons name="git-network-outline" size={18} color="#D58C4A" />
+                  <Ionicons
+                    name="git-network-outline"
+                    size={18}
+                    color="#D58C4A"
+                  />
                   <Text style={styles.signInFeatureText}>صلة رحم</Text>
                 </View>
                 <View style={styles.signInFeatureDivider} />
                 <View style={styles.signInFeature}>
-                  <Ionicons name="document-text-outline" size={18} color="#D58C4A" />
+                  <Ionicons
+                    name="document-text-outline"
+                    size={18}
+                    color="#D58C4A"
+                  />
                   <Text style={styles.signInFeatureText}>توثيق</Text>
                 </View>
                 <View style={styles.signInFeatureDivider} />
@@ -413,19 +433,23 @@ export default function SettingsModal({ visible, onClose }) {
           {/* Sign Out Button - Beautiful Design */}
           {currentUser && (
             <View style={styles.signOutSection}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.signOutButton}
                 onPress={handleSignOut}
                 activeOpacity={0.9}
               >
                 <View style={styles.signOutContent}>
                   <View style={styles.signOutIconContainer}>
-                    <Ionicons name="log-out-outline" size={22} color="#A13333" />
+                    <Ionicons
+                      name="log-out-outline"
+                      size={22}
+                      color="#A13333"
+                    />
                   </View>
                   <Text style={styles.signOutButtonText}>تسجيل الخروج</Text>
                 </View>
               </TouchableOpacity>
-              
+
               <Text style={styles.signOutHint}>
                 سيتم حفظ جميع إعداداتك محلياً
               </Text>
@@ -631,7 +655,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
@@ -642,8 +666,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 12,
     padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#D1BBA340",
   },
@@ -654,7 +678,7 @@ const styles = StyleSheet.create({
   },
   profileImageContainer: {
     marginRight: 16,
-    position: 'relative',
+    position: "relative",
   },
   profileImage: {
     width: 72,
@@ -685,7 +709,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   onlineBadge: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 2,
     right: 2,
     width: 16,
@@ -713,8 +737,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   profileLinkContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   profileViewLink: {
@@ -729,8 +753,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderRadius: 16,
     padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: "#D1BBA340",
   },
@@ -755,7 +779,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     borderWidth: 1.5,
     borderColor: "#A1333330", // Najdi Crimson 30%
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   signOutContent: {
     flexDirection: "row",
@@ -770,8 +794,8 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: "#A1333310", // Najdi Crimson 10%
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   signOutButtonText: {
     fontSize: 17,
@@ -782,7 +806,7 @@ const styles = StyleSheet.create({
   signOutHint: {
     fontSize: 13,
     color: "#24212166", // Sadu Night 40%
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 8,
     fontWeight: "500",
   },

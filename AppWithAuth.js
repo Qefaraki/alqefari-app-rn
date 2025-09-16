@@ -40,7 +40,7 @@ if (!I18nManager.isRTL) {
 const Stack = createStackNavigator();
 
 // Main app component (after authentication)
-function MainApp({ navigation, user }) {
+function MainApp({ navigation, user, isGuest, onSignOut }) {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [profileEditMode, setProfileEditMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -74,9 +74,15 @@ function MainApp({ navigation, user }) {
         text: "تسجيل الخروج",
         style: "destructive",
         onPress: async () => {
-          const { success } = await phoneAuthService.signOut();
-          if (success) {
-            navigation.replace("Auth");
+          console.log("🚪 Signing out...");
+          // Sign out from Supabase
+          const { error } = await supabase.auth.signOut();
+          if (error) {
+            console.error("Sign out error:", error);
+          }
+          // Call the parent's onSignOut to reset state
+          if (onSignOut) {
+            onSignOut();
           }
         },
       },
@@ -108,7 +114,7 @@ function MainApp({ navigation, user }) {
             <StatusBar style="dark" />
 
             {/* User Info Bar */}
-            {user && (
+            {(user || isGuest) && (
               <View
                 style={{
                   position: "absolute",
@@ -136,7 +142,7 @@ function MainApp({ navigation, user }) {
                     flex: 1,
                   }}
                 >
-                  {linkedProfile ? (
+                  {linkedProfile && !isGuest ? (
                     <>
                       <Ionicons
                         name="person-circle"
@@ -159,7 +165,7 @@ function MainApp({ navigation, user }) {
                       <Text
                         style={{ marginLeft: 8, fontSize: 14, color: "#666" }}
                       >
-                        وضع المشاهدة فقط
+                        {isGuest ? "وضع الضيف" : "وضع المشاهدة فقط"}
                       </Text>
                     </>
                   )}
@@ -255,50 +261,98 @@ function MainApp({ navigation, user }) {
 export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+
+  console.log("🔄 App Component Render:", {
+    initializing,
+    user: !!user,
+    isGuest,
+    timestamp: new Date().toISOString(),
+  });
 
   useEffect(() => {
+    console.log("📱 App Component Mounted - checking auth state");
     checkAuthState();
   }, []);
 
   const checkAuthState = async () => {
+    console.log("🔍 checkAuthState: Starting...");
     try {
-      // Check if user is already logged in
+      // Get current session first
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log("📦 Session result:", {
+        hasSession: !!session,
+        sessionUserId: session?.user?.id,
+      });
+
+      // Then get the user
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      console.log("🔍 Auth Check:", {
-        userExists: !!user,
+      console.log("👤 User result:", {
+        hasUser: !!user,
         userId: user?.id,
         userPhone: user?.phone,
+        isGuest: user?.user_metadata?.isGuest,
       });
 
-      setUser(user);
-
-      // TEMPORARY: Force show onboarding for testing
-      // If user IS logged in, they've seen onboarding
-      // If NO user, they need to see onboarding/auth
-      setHasSeenOnboarding(false); // FORCE ONBOARDING TO SHOW
+      // If there's a mismatch (session but no user), clear everything
+      if (session && !user) {
+        console.log("⚠️ Session mismatch detected, clearing...");
+        await supabase.auth.signOut();
+        setUser(null);
+        setIsGuest(false);
+      } else {
+        console.log(
+          "✅ Setting state - user:",
+          !!user,
+          "isGuest:",
+          user?.user_metadata?.isGuest || false,
+        );
+        setUser(user);
+        setIsGuest(user?.user_metadata?.isGuest || false);
+      }
     } catch (error) {
-      console.error("Auth check error:", error);
+      console.error("❌ Auth check error:", error);
+      // On error, assume no user
+      setUser(null);
+      setIsGuest(false);
     } finally {
+      console.log("🏁 checkAuthState complete, initializing = false");
       setInitializing(false);
     }
   };
 
   // Listen for auth changes
   useEffect(() => {
+    console.log("🎧 Setting up auth state listener...");
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, session) => {
+        console.log("🔔 AUTH STATE CHANGE EVENT:", {
+          event: _event,
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          userId: session?.user?.id,
+        });
+
         setUser(session?.user ?? null);
-        if (session?.user) {
-          setHasSeenOnboarding(true);
+        setIsGuest(session?.user?.user_metadata?.isGuest || false);
+
+        // If user logs out, force them back to onboarding
+        if (_event === "SIGNED_OUT") {
+          console.log("🚪 SIGNED_OUT event - clearing state");
+          setUser(null);
+          setIsGuest(false);
         }
       },
     );
 
     return () => {
+      console.log("🔇 Cleaning up auth listener");
       authListener?.subscription?.unsubscribe();
     };
   }, []);
@@ -321,17 +375,48 @@ export default function App() {
     );
   }
 
+  // Simple logic: If no user (not even guest), show onboarding
+  // If user exists (real or guest), show main app
+  const shouldShowOnboarding = !user && !isGuest;
+
+  console.log("🎯 NAVIGATION DECISION:", {
+    user: !!user,
+    userId: user?.id,
+    isGuest,
+    shouldShowOnboarding,
+    screen: shouldShowOnboarding ? "AUTH/ONBOARDING" : "MAIN APP",
+  });
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {!hasSeenOnboarding ? (
-            // Show authentication flow
-            <Stack.Screen name="Auth" component={AuthNavigator} />
+          {shouldShowOnboarding ? (
+            // Show authentication flow when no user at all
+            <Stack.Screen name="Auth">
+              {(props) => (
+                <AuthNavigator
+                  {...props}
+                  setIsGuest={setIsGuest}
+                  setUser={setUser}
+                />
+              )}
+            </Stack.Screen>
           ) : (
-            // Show main app
+            // Show main app for logged in users or guests
             <Stack.Screen name="Main">
-              {(props) => <MainApp {...props} user={user} />}
+              {(props) => (
+                <MainApp
+                  {...props}
+                  user={user}
+                  isGuest={isGuest}
+                  onSignOut={() => {
+                    // Clear state to show onboarding
+                    setUser(null);
+                    setIsGuest(false);
+                  }}
+                />
+              )}
             </Stack.Screen>
           )}
         </Stack.Navigator>
@@ -340,10 +425,17 @@ export default function App() {
       {/* DEBUG: Force show onboarding button */}
       <TouchableOpacity
         onPress={async () => {
-          console.log("🔴 Force showing onboarding...");
-          await supabase.auth.signOut();
+          console.log("🔴🔴🔴 DEBUG BUTTON PRESSED - FORCE SHOW ONBOARDING");
+          console.log("Current state:", { user: !!user, isGuest });
+
+          const { error } = await supabase.auth.signOut();
+          console.log("Sign out result:", { error });
+
+          console.log("Setting user to null and isGuest to false");
           setUser(null);
-          setHasSeenOnboarding(false);
+          setIsGuest(false);
+
+          console.log("State after reset:", { user: null, isGuest: false });
         }}
         style={{
           position: "absolute",
@@ -353,10 +445,11 @@ export default function App() {
           padding: 15,
           borderRadius: 30,
           zIndex: 9999,
+          elevation: 999,
         }}
       >
-        <Text style={{ color: "white", fontWeight: "bold" }}>
-          Show Onboarding
+        <Text style={{ color: "white", fontWeight: "bold", fontSize: 12 }}>
+          DEBUG: Show Onboarding
         </Text>
       </TouchableOpacity>
     </GestureHandlerRootView>

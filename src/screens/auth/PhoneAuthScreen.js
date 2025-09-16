@@ -196,7 +196,7 @@ export default function PhoneAuthScreen({ navigation }) {
     >
       <View style={styles.header}>
         <Image
-          source={require("../../../assets/logo/logo.png")}
+          source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
           style={styles.logo}
         />
         <Text style={styles.title}>شجرة عائلة القفاري</Text>
