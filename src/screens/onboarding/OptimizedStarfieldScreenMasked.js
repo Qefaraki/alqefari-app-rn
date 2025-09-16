@@ -353,7 +353,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
   ]);
 
   const renderStars = useCallback((stars, time, offset = { x: 0, y: 0 }) => {
-    return stars.map((star, index) => {
+    return stars.flatMap((star, index) => {
       const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
       if (fadeInProgress <= 0) return null;
 
@@ -394,15 +394,35 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
         const shouldFlash = flashChance > 0.995;
         const finalOpacity = shouldFlash ? 1 : logoOpacity;
 
-        return (
+        // Create multi-layer glow effect
+        const glowElements = [];
+
+        // Only add glow to some stars for performance
+        if (index % 3 === 0) {
+          // Outer glow - very subtle
+          glowElements.push(
+            <Circle
+              key={`${index}-glow`}
+              cx={star.x}
+              cy={star.y}
+              r={star.size * 2.5}
+              color={`rgba(209, 187, 163, ${Math.min(0.05, Math.max(0, finalOpacity * 0.05))})`}
+            />,
+          );
+        }
+
+        // Main star
+        glowElements.push(
           <Circle
             key={index}
             cx={star.x}
             cy={star.y}
             r={star.size}
             color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
-          />
+          />,
         );
+
+        return glowElements;
       }
 
       return (
