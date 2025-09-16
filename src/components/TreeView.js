@@ -1921,7 +1921,7 @@ const TreeView = ({
               width={chipWidth}
               height={chipHeight}
               r={16}
-              color="#F9F7F3"
+              color="#FFFFFF"
             />
             <RoundedRect
               x={screenX - chipWidth / 2}
@@ -1992,7 +1992,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={13}
-            color={isSelected ? "#A13333" : "#D1BBA340"}
+            color={isSelected ? "#A13333" : "#D1BBA360"}
             style="stroke"
             strokeWidth={isSelected ? 1.5 : 1}
           />
@@ -2053,7 +2053,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color="#00000008"
+            color="#00000015"
           />
 
           {/* Main card background */}
@@ -2063,7 +2063,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color="#F9F7F3"
+            color="#FFFFFF"
           />
 
           {/* Border */}
@@ -2073,9 +2073,9 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color={isSelected ? "#A13333" : "#D1BBA340"}
+            color={isSelected ? "#A13333" : "#D1BBA360"}
             style="stroke"
-            strokeWidth={isSelected ? 2.5 : 1}
+            strokeWidth={isSelected ? 2.5 : 1.2}
           />
 
           {hasPhoto ? (
