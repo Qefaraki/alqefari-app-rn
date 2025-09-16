@@ -136,6 +136,9 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
   const logoRotate = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.95)).current;
 
+  // Drift animations for names (shooting star effect)
+  const namesDrift = useRef(new Animated.Value(0)).current;
+
   // Memoize all stars
   const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
   const logoStars = useMemo(() => createMaskedStarfield(), []);
@@ -147,29 +150,45 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
 
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Logo fades in first
-    Animated.parallel([
-      Animated.timing(logoFade, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      }),
-      Animated.spring(logoScale, {
-        toValue: 1,
-        tension: 20,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Stage 1: Names appear early but ultra-subtle (immediately)
+    Animated.timing(namesFade, {
+      toValue: 0.15, // Ultra-subtle, barely visible
+      duration: 2500,
+      useNativeDriver: true,
+    }).start();
 
-    // Stage 2: Names fade in (after 1.2s)
+    // Start slow drift animation for names
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(namesDrift, {
+          toValue: 1,
+          duration: 30000, // Very slow 30-second drift
+          useNativeDriver: true,
+        }),
+        Animated.timing(namesDrift, {
+          toValue: 0,
+          duration: 30000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+
+    // Stage 2: Logo fades in as the main focus (after 0.5s)
     setTimeout(() => {
-      Animated.timing(namesFade, {
-        toValue: 1,
-        duration: 1800,
-        useNativeDriver: true,
-      }).start();
-    }, 1200);
+      Animated.parallel([
+        Animated.timing(logoFade, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 20,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 500);
 
     // Stage 3: Background stars fade in (after 2s)
     setTimeout(() => {
@@ -238,6 +257,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
     buttonFade,
     logoScale,
     logoRotate,
+    namesDrift,
   ]);
 
   const renderStars = useCallback((stars, time) => {
@@ -274,23 +294,27 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       }
 
       if (star.group === "name") {
-        // Name stars with Camel Hair Beige color and enhanced glow
-        const twinkleSpeed = 0.6 + (index % 3) * 0.3; // Slower twinkle
+        // Ultra-subtle name stars - barely visible unless you focus
+        const twinkleSpeed = 0.3 + (index % 3) * 0.2; // Very slow twinkle
         const twinkleFactor = Math.sin(time * twinkleSpeed + index);
-        const nameOpacity = fadeInProgress * (0.6 + (twinkleFactor + 1) * 0.2); // Higher base opacity
 
-        // Brighter Camel Hair Beige with some stars more golden
-        const isGolden = index % 7 === 0; // Some stars are more golden
-        const color = isGolden
-          ? `rgba(213, 140, 74, ${Math.min(1, Math.max(0, nameOpacity * 1.2))})` // Desert Ochre accent
-          : `rgba(209, 187, 163, ${Math.min(1, Math.max(0, nameOpacity))})`; // Camel Hair Beige
+        // ULTRA LOW opacity - max 20%, typically 10-15%
+        const baseOpacity = 0.1; // 10% base
+        const twinkleRange = 0.05; // Only 5% variance
+        const nameOpacity =
+          fadeInProgress *
+          (baseOpacity + (twinkleFactor + 1) * twinkleRange * 0.5);
 
+        // Very subtle warm white, not beige - to blend with background
+        const color = `rgba(249, 247, 243, ${Math.min(0.2, Math.max(0, nameOpacity))})`;
+
+        // Smaller stars for subtlety
         return (
           <Circle
             key={index}
             cx={star.x}
             cy={star.y}
-            r={star.size * (isGolden ? 1.3 : 1)} // Golden stars slightly larger
+            r={star.size * 0.7} // Smaller stars
             color={color}
           />
         );
@@ -399,7 +423,26 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       {/* سليمان - above logo */}
       {MaskedView && (
         <Animated.View
-          style={[styles.sulimanContainer, { opacity: namesFade }]}
+          style={[
+            styles.sulimanContainer,
+            {
+              opacity: namesFade,
+              transform: [
+                {
+                  translateX: namesDrift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 15], // Subtle rightward drift
+                  }),
+                },
+                {
+                  translateY: namesDrift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -8], // Slight upward drift
+                  }),
+                },
+              ],
+            },
+          ]}
         >
           <MaskedView
             style={styles.nameMaskContainer}
@@ -423,7 +466,26 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       {/* عبدالعزيز - below left */}
       {MaskedView && (
         <Animated.View
-          style={[styles.abdulazizContainer, { opacity: namesFade }]}
+          style={[
+            styles.abdulazizContainer,
+            {
+              opacity: namesFade,
+              transform: [
+                {
+                  translateX: namesDrift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, -12], // Subtle leftward drift
+                  }),
+                },
+                {
+                  translateY: namesDrift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 10], // Slight downward drift
+                  }),
+                },
+              ],
+            },
+          ]}
         >
           <MaskedView
             style={styles.nameMaskContainer}
@@ -446,7 +508,28 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
 
       {/* جربوع - below right */}
       {MaskedView && (
-        <Animated.View style={[styles.jarbooContainer, { opacity: namesFade }]}>
+        <Animated.View
+          style={[
+            styles.jarbooContainer,
+            {
+              opacity: namesFade,
+              transform: [
+                {
+                  translateX: namesDrift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 20], // Subtle rightward drift
+                  }),
+                },
+                {
+                  translateY: namesDrift.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 12], // Slight downward drift
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <MaskedView
             style={styles.nameMaskContainer}
             maskElement={
