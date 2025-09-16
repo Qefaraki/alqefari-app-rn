@@ -636,10 +636,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: 24,
-    marginTop: -80, // Move card up from center
+    paddingTop: Platform.OS === "ios" ? 160 : 140, // Position from top, not center
   },
   cardWrapper: {
     width: "100%",
@@ -686,9 +686,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.najdiCrimson + "20",
     alignItems: "center",
     justifyContent: "center",
@@ -697,9 +697,9 @@ const styles = StyleSheet.create({
     borderColor: colors.najdiCrimson + "40",
   },
   logoIcon: {
-    width: 36,
-    height: 36,
-    tintColor: colors.alJassWhite,
+    width: 44,
+    height: 44,
+    tintColor: "#F9F7F3", // Al-Jass White explicitly
   },
   title: {
     fontSize: 22,
