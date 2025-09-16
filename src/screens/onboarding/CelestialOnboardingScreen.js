@@ -8,60 +8,76 @@ import {
   StatusBar,
   Animated,
   Easing,
+  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Shadow } from "react-native-shadow-2";
 import * as Haptics from "expo-haptics";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, Line } from "react-native-svg";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Custom Alqefari Logo Component
-const AlqefariLogo = ({ size = 60, color = "#D1BBA3", opacity = 1 }) => {
+// Custom Alqefari Logo Component with correct geometry
+const AlqefariLogo = ({ size = 100, color = "#D1BBA3", strokeWidth = 2.5 }) => {
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {/* Glow effect using View */}
-      <View
-        style={{
-          position: "absolute",
-          width: size * 1.5,
-          height: size * 1.5,
-          borderRadius: size * 0.75,
-          backgroundColor: color,
-          opacity: 0.15,
-        }}
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      {/* Hollow circle (stroke only, no fill) */}
+      <Circle
+        cx="50"
+        cy="50"
+        r="25"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="none"
       />
 
-      {/* SVG Logo */}
-      <Svg width={size} height={size} viewBox="0 0 100 100">
-        {/* Main circle */}
-        <Circle cx="50" cy="50" r="20" fill={color} opacity={opacity} />
+      {/* Horizontal line above */}
+      <Line
+        x1="50"
+        y1="10"
+        x2="50"
+        y2="20"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
 
-        {/* Line above (not connected) */}
-        <Path
-          d="M 50 15 L 50 25"
-          stroke={color}
-          strokeWidth="3"
-          opacity={opacity}
-          strokeLinecap="round"
-        />
+      {/* Horizontal line to the right */}
+      <Line
+        x1="80"
+        y1="50"
+        x2="90"
+        y2="50"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+};
 
-        {/* Line to the right (not connected) */}
-        <Path
-          d="M 75 50 L 85 50"
-          stroke={color}
-          strokeWidth="3"
-          opacity={opacity}
-          strokeLinecap="round"
-        />
-      </Svg>
-    </View>
+// Glowing Star Component
+const GlowingStar = ({ size = 12, color = "#D1BBA3" }) => {
+  return (
+    <Shadow
+      distance={0}
+      startColor={`${color}60`}
+      endColor="transparent"
+      offset={[0, 0]}
+      paintInside={false}
+      style={{
+        borderRadius: size / 2,
+      }}
+    >
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+        }}
+      />
+    </Shadow>
   );
 };
 
@@ -89,9 +105,9 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
 
   const [showStars, setShowStars] = useState(false);
   const starAnimations = useRef(
-    [...Array(20)].map(() => ({
+    [...Array(15)].map(() => ({
       opacity: new Animated.Value(0),
-      scale: new Animated.Value(0),
+      twinkle: new Animated.Value(1),
     })),
   ).current;
 
@@ -100,22 +116,31 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
     setTimeout(() => {
       setShowStars(true);
       starAnimations.forEach((star, index) => {
-        Animated.sequence([
-          Animated.delay(index * 50),
-          Animated.parallel([
-            Animated.timing(star.opacity, {
-              toValue: Math.random() * 0.6 + 0.2,
-              duration: 1000,
+        // Initial appearance
+        Animated.timing(star.opacity, {
+          toValue: Math.random() * 0.4 + 0.2,
+          duration: 1000,
+          delay: index * 100,
+          useNativeDriver: true,
+        }).start();
+
+        // Twinkle effect
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(star.twinkle, {
+              toValue: 0.3,
+              duration: 2000 + Math.random() * 2000,
               useNativeDriver: true,
+              easing: Easing.inOut(Easing.ease),
             }),
-            Animated.spring(star.scale, {
+            Animated.timing(star.twinkle, {
               toValue: 1,
-              friction: 4,
-              tension: 40,
+              duration: 2000 + Math.random() * 2000,
               useNativeDriver: true,
+              easing: Easing.inOut(Easing.ease),
             }),
           ]),
-        ]).start();
+        ).start();
       });
     }, 500);
 
@@ -142,13 +167,13 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
             easing: Easing.out(Easing.cubic),
           }),
           Animated.timing(logoGlow, {
-            toValue: 0.6,
+            toValue: 0.7,
             duration: 400,
             useNativeDriver: true,
           }),
         ]),
       ]).start(() => {
-        // Step 2: Founder name appears within the glow
+        // Step 2: Founder name appears
         Animated.parallel([
           Animated.timing(founderOpacity, {
             toValue: 1,
@@ -162,7 +187,7 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
             useNativeDriver: true,
           }),
         ]).start(() => {
-          // Step 3: Lines draw to sons
+          // Step 3: Lines appear
           Animated.parallel([
             Animated.timing(leftLineOpacity, {
               toValue: 1,
@@ -177,22 +202,20 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
               easing: Easing.out(Easing.cubic),
             }),
           ]).start(() => {
-            // Step 4: Sons appear as glowing stars
+            // Step 4: Sons appear
             Animated.parallel([
-              Animated.sequence([
-                Animated.parallel([
-                  Animated.timing(leftSonOpacity, {
-                    toValue: 1,
-                    duration: 600,
-                    useNativeDriver: true,
-                  }),
-                  Animated.spring(leftSonScale, {
-                    toValue: 1,
-                    friction: 4,
-                    tension: 40,
-                    useNativeDriver: true,
-                  }),
-                ]),
+              Animated.parallel([
+                Animated.timing(leftSonOpacity, {
+                  toValue: 1,
+                  duration: 600,
+                  useNativeDriver: true,
+                }),
+                Animated.spring(leftSonScale, {
+                  toValue: 1,
+                  friction: 4,
+                  tension: 40,
+                  useNativeDriver: true,
+                }),
               ]),
               Animated.sequence([
                 Animated.delay(100),
@@ -211,7 +234,7 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
                 ]),
               ]),
             ]).start(() => {
-              // Step 5: Text and buttons fade in
+              // Step 5: Text and buttons
               Animated.parallel([
                 Animated.parallel([
                   Animated.timing(textOpacity, {
@@ -244,7 +267,7 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
                 Animated.sequence([
                   Animated.delay(600),
                   Animated.timing(guestLinkOpacity, {
-                    toValue: 0.4, // Very subtle
+                    toValue: 0.3,
                     duration: 600,
                     useNativeDriver: true,
                   }),
@@ -258,17 +281,17 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
 
     animationSequence();
 
-    // Continuous glow animation for logo
-    const glowAnimation = Animated.loop(
+    // Continuous glow pulse for logo
+    const glowPulse = Animated.loop(
       Animated.sequence([
         Animated.timing(logoGlow, {
-          toValue: 0.8,
+          toValue: 0.9,
           duration: 2000,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
         }),
         Animated.timing(logoGlow, {
-          toValue: 0.4,
+          toValue: 0.6,
           duration: 2000,
           useNativeDriver: true,
           easing: Easing.inOut(Easing.ease),
@@ -276,9 +299,9 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
       ]),
     );
 
-    setTimeout(() => glowAnimation.start(), 3000);
+    setTimeout(() => glowPulse.start(), 3000);
 
-    return () => glowAnimation.stop();
+    return () => glowPulse.stop();
   }, []);
 
   const handleStart = () => {
@@ -293,9 +316,9 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
 
   // Generate random star positions
   const starPositions = useRef(
-    [...Array(20)].map(() => ({
+    [...Array(15)].map(() => ({
       x: Math.random() * SCREEN_WIDTH,
-      y: Math.random() * SCREEN_HEIGHT * 0.6,
+      y: Math.random() * SCREEN_HEIGHT * 0.5,
       size: Math.random() * 2 + 1,
     })),
   ).current;
@@ -304,15 +327,23 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Subtle texture background gradient */}
-      <LinearGradient
-        colors={["#242121", "#1a1818", "#242121"]}
+      {/* Sadu Pattern Texture Background */}
+      <ImageBackground
+        source={require("../../../assets/white_sadu.png")}
         style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+        imageStyle={styles.backgroundTexture}
+        resizeMode="repeat"
+      >
+        {/* Dark gradient overlay */}
+        <LinearGradient
+          colors={["#242121", "#1a1818", "#242121"]}
+          style={StyleSheet.absoluteFillObject}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </ImageBackground>
 
-      {/* Background stars */}
+      {/* Twinkling background stars */}
       {showStars &&
         starPositions.map((star, index) => (
           <Animated.View
@@ -322,16 +353,18 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
               {
                 left: star.x,
                 top: star.y,
-                width: star.size,
-                height: star.size,
-                opacity: starAnimations[index].opacity,
-                transform: [{ scale: starAnimations[index].scale }],
+                opacity: Animated.multiply(
+                  starAnimations[index].opacity,
+                  starAnimations[index].twinkle,
+                ),
               },
             ]}
-          />
+          >
+            <GlowingStar size={star.size} color="#D1BBA3" />
+          </Animated.View>
         ))}
 
-      {/* Guest Link - Very Subtle */}
+      {/* Guest Link */}
       <Animated.View
         style={[styles.guestLinkContainer, { opacity: guestLinkOpacity }]}
       >
@@ -340,42 +373,32 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* Main Constellation Container */}
+      {/* Main Constellation */}
       <View style={styles.constellationContainer}>
-        {/* Central Logo with integrated founder name */}
-        <View style={styles.logoSection}>
-          {/* Logo Glow Background */}
-          <Animated.View
-            style={[
-              styles.logoGlowBackground,
-              {
-                opacity: logoGlow,
-                transform: [{ scale: logoScale }],
-              },
-            ]}
+        {/* Logo with glow */}
+        <Animated.View
+          style={[
+            styles.logoSection,
+            {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            },
+          ]}
+        >
+          <Shadow
+            distance={0}
+            startColor={`#D1BBA3${Math.round(0.4 * 255).toString(16)}`}
+            endColor="transparent"
+            offset={[0, 0]}
+            paintInside={false}
+            style={styles.logoShadow}
           >
-            <LinearGradient
-              colors={["#D1BBA300", "#D1BBA330", "#D1BBA300"]}
-              style={styles.glowGradient}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-            />
-          </Animated.View>
+            <Animated.View style={{ opacity: logoGlow }}>
+              <AlqefariLogo size={100} color="#D1BBA3" strokeWidth={2.5} />
+            </Animated.View>
+          </Shadow>
 
-          {/* Actual Logo */}
-          <Animated.View
-            style={[
-              styles.logoWrapper,
-              {
-                opacity: logoOpacity,
-                transform: [{ scale: logoScale }],
-              },
-            ]}
-          >
-            <AlqefariLogo size={100} color="#D1BBA3" />
-          </Animated.View>
-
-          {/* Founder Name - Integrated with logo glow */}
+          {/* Founder name positioned directly below logo */}
           <Animated.View
             style={[
               styles.founderNameContainer,
@@ -387,78 +410,100 @@ export default function CelestialOnboardingScreen({ navigation, setIsGuest }) {
           >
             <Text style={styles.founderText}>سليمان</Text>
           </Animated.View>
-        </View>
+        </Animated.View>
 
-        {/* Constellation Lines and Sons using Views */}
+        {/* Glowing constellation lines */}
         <View style={styles.constellationLines}>
-          {/* Left Line */}
+          {/* Left glowing line */}
           <Animated.View
-            style={[
-              styles.constellationLine,
-              styles.leftLine,
-              { opacity: leftLineOpacity },
-            ]}
+            style={[styles.leftLineContainer, { opacity: leftLineOpacity }]}
           >
-            <LinearGradient
-              colors={["#D1BBA360", "#D1BBA320"]}
-              style={{ flex: 1 }}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
+            <Shadow
+              distance={0}
+              startColor="#D1BBA340"
+              endColor="transparent"
+              offset={[0, 0]}
+              paintInside={false}
+              style={styles.lineStyle}
+            >
+              <View style={[styles.constellationLine, styles.leftLine]}>
+                <LinearGradient
+                  colors={["#D1BBA380", "#D1BBA320"]}
+                  style={{ flex: 1, width: 2 }}
+                />
+              </View>
+            </Shadow>
           </Animated.View>
 
-          {/* Right Line */}
+          {/* Right glowing line */}
           <Animated.View
-            style={[
-              styles.constellationLine,
-              styles.rightLine,
-              { opacity: rightLineOpacity },
-            ]}
+            style={[styles.rightLineContainer, { opacity: rightLineOpacity }]}
           >
-            <LinearGradient
-              colors={["#D1BBA360", "#D1BBA320"]}
-              style={{ flex: 1 }}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
+            <Shadow
+              distance={0}
+              startColor="#D1BBA340"
+              endColor="transparent"
+              offset={[0, 0]}
+              paintInside={false}
+              style={styles.lineStyle}
+            >
+              <View style={[styles.constellationLine, styles.rightLine]}>
+                <LinearGradient
+                  colors={["#D1BBA380", "#D1BBA320"]}
+                  style={{ flex: 1, width: 2 }}
+                />
+              </View>
+            </Shadow>
           </Animated.View>
 
-          {/* Left Son */}
+          {/* Left Son with adjacent name */}
           <Animated.View
             style={[
-              styles.sonContainer,
-              styles.leftSon,
+              styles.leftSonContainer,
               {
                 opacity: leftSonOpacity,
                 transform: [{ scale: leftSonScale }],
               },
             ]}
           >
-            {/* Star glow */}
-            <View style={styles.starGlow} />
-            {/* Star core */}
-            <View style={styles.starCore} />
-            {/* Son name */}
-            <Text style={styles.sonNameText}>عبدالعزيز</Text>
+            <View style={styles.starWithName}>
+              <Shadow
+                distance={0}
+                startColor="#D1BBA360"
+                endColor="transparent"
+                offset={[0, 0]}
+                paintInside={false}
+                style={{ borderRadius: 6 }}
+              >
+                <View style={styles.starCore} />
+              </Shadow>
+              <Text style={styles.sonNameText}>عبدالعزيز</Text>
+            </View>
           </Animated.View>
 
-          {/* Right Son */}
+          {/* Right Son with adjacent name */}
           <Animated.View
             style={[
-              styles.sonContainer,
-              styles.rightSon,
+              styles.rightSonContainer,
               {
                 opacity: rightSonOpacity,
                 transform: [{ scale: rightSonScale }],
               },
             ]}
           >
-            {/* Star glow */}
-            <View style={styles.starGlow} />
-            {/* Star core */}
-            <View style={styles.starCore} />
-            {/* Son name */}
-            <Text style={styles.sonNameText}>جربوع</Text>
+            <View style={styles.starWithName}>
+              <Shadow
+                distance={0}
+                startColor="#D1BBA360"
+                endColor="transparent"
+                offset={[0, 0]}
+                paintInside={false}
+                style={{ borderRadius: 6 }}
+              >
+                <View style={styles.starCore} />
+              </Shadow>
+              <Text style={styles.sonNameText}>جربوع</Text>
+            </View>
           </Animated.View>
         </View>
       </View>
@@ -518,11 +563,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#242121",
   },
+  backgroundTexture: {
+    opacity: 0.05, // Very subtle Sadu pattern
+  },
   backgroundStar: {
     position: "absolute",
-    borderRadius: 50,
-    backgroundColor: "#D1BBA3",
-    opacity: 0.3,
   },
   guestLinkContainer: {
     position: "absolute",
@@ -532,7 +577,7 @@ const styles = StyleSheet.create({
   },
   guestLink: {
     fontSize: 13,
-    color: "#F9F7F340", // Very subtle Al-Jass White
+    color: "#F9F7F340",
     fontFamily: "System",
     fontWeight: "400",
   },
@@ -540,31 +585,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -20,
+    marginTop: -30,
   },
   logoSection: {
     alignItems: "center",
-    marginBottom: 100,
+    marginBottom: 120,
   },
-  logoGlowBackground: {
-    position: "absolute",
-    width: 200,
-    height: 200,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  glowGradient: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-  },
-  logoWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
+  logoShadow: {
+    borderRadius: 50,
   },
   founderNameContainer: {
-    position: "absolute",
-    bottom: -40,
+    marginTop: 20,
     alignItems: "center",
   },
   founderText: {
@@ -583,49 +614,52 @@ const styles = StyleSheet.create({
     height: 300,
     top: SCREEN_HEIGHT * 0.32,
   },
-  constellationLine: {
+  leftLineContainer: {
     position: "absolute",
+    left: SCREEN_WIDTH / 2 - 1,
+    top: -40,
+  },
+  rightLineContainer: {
+    position: "absolute",
+    left: SCREEN_WIDTH / 2 - 1,
+    top: -40,
+  },
+  lineStyle: {
     width: 2,
     height: 140,
-    top: -50,
-    left: SCREEN_WIDTH / 2 - 1,
-    transformOrigin: "top",
+  },
+  constellationLine: {
+    width: 2,
+    height: 140,
   },
   leftLine: {
     transform: [{ rotate: "-20deg" }],
+    transformOrigin: "top",
   },
   rightLine: {
     transform: [{ rotate: "20deg" }],
+    transformOrigin: "top",
   },
-  sonContainer: {
+  leftSonContainer: {
     position: "absolute",
+    left: SCREEN_WIDTH / 2 - 120,
+    top: 90,
+  },
+  rightSonContainer: {
+    position: "absolute",
+    right: SCREEN_WIDTH / 2 - 120,
+    top: 90,
+  },
+  starWithName: {
+    flexDirection: "row",
     alignItems: "center",
-    top: 80,
-  },
-  leftSon: {
-    left: SCREEN_WIDTH / 2 - 110,
-  },
-  rightSon: {
-    right: SCREEN_WIDTH / 2 - 110,
-  },
-  starGlow: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#D1BBA3",
-    opacity: 0.15,
+    gap: 12,
   },
   starCore: {
     width: 12,
     height: 12,
     borderRadius: 6,
     backgroundColor: "#D1BBA3",
-    marginBottom: 12,
-    shadowColor: "#D1BBA3",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
   },
   sonNameText: {
     fontSize: 18,
@@ -633,9 +667,6 @@ const styles = StyleSheet.create({
     color: "#F9F7F3",
     fontWeight: "500",
     letterSpacing: 0.5,
-    textShadowColor: "#D1BBA3",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
   },
   textContainer: {
     alignItems: "center",
