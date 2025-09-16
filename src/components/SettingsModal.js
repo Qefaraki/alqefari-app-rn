@@ -241,17 +241,17 @@ export default function SettingsModal({ visible, onClose }) {
               
               <View style={styles.signInFeatures}>
                 <View style={styles.signInFeature}>
-                  <Ionicons name="git-network-outline" size={18} color="#6B7280" />
+                  <Ionicons name="git-network-outline" size={18} color="#D58C4A" />
                   <Text style={styles.signInFeatureText}>صلة رحم</Text>
                 </View>
                 <View style={styles.signInFeatureDivider} />
                 <View style={styles.signInFeature}>
-                  <Ionicons name="document-text-outline" size={18} color="#6B7280" />
+                  <Ionicons name="document-text-outline" size={18} color="#D58C4A" />
                   <Text style={styles.signInFeatureText}>توثيق</Text>
                 </View>
                 <View style={styles.signInFeatureDivider} />
                 <View style={styles.signInFeature}>
-                  <Ionicons name="heart-outline" size={18} color="#6B7280" />
+                  <Ionicons name="heart-outline" size={18} color="#D58C4A" />
                   <Text style={styles.signInFeatureText}>ذكرى</Text>
                 </View>
               </View>
@@ -776,18 +776,20 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   signInPromptCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 8,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 24,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   signInIconContainer: {
     marginBottom: 20,
@@ -796,12 +798,12 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: "#F5F3F7", // Use our background color
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20% opacity
     alignItems: "center",
     justifyContent: "center",
     padding: 5,
     borderWidth: 1,
-    borderColor: "#957EB520", // Subtle border with primary color
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   signInLogo: {
     width: 90,
@@ -812,14 +814,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     fontFamily: "SF Arabic",
-    color: "#111827",
+    color: "#242121", // Sadu Night
     marginBottom: 8,
     textAlign: "center",
   },
   signInSubtitle: {
     fontSize: 15,
     fontFamily: "SF Arabic",
-    color: "#6B7280",
+    color: "#242121CC", // Sadu Night 80%
     marginBottom: 24,
     textAlign: "center",
     lineHeight: 22,
@@ -830,20 +832,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#957EB5", // Primary violet color
+    backgroundColor: "#A13333", // Najdi Crimson
     paddingVertical: 14,
     paddingHorizontal: 32,
-    borderRadius: 12,
+    borderRadius: 10,
     marginBottom: 24,
     minWidth: 200,
-    shadowColor: "#957EB5",
+    shadowColor: "#A13333",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
     elevation: 8,
   },
   signInButtonText: {
-    color: "#FFFFFF",
+    color: "#F9F7F3", // Al-Jass White
     fontSize: 16,
     fontFamily: "SF Arabic",
     fontWeight: "600",
@@ -862,12 +864,12 @@ const styles = StyleSheet.create({
   signInFeatureText: {
     fontSize: 13,
     fontFamily: "SF Arabic",
-    color: "#6B7280",
+    color: "#24212199", // Sadu Night 60%
   },
   signInFeatureDivider: {
     width: 1,
     height: 16,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   profileLinkContainer: {
     flexDirection: "row",

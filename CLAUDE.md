@@ -1,34 +1,37 @@
 # Alqefari Family Tree - Design System & Development Guide
 
-## 🎨 Design Language: "Modern Arabic Elegance"
+## 🎨 Design Language: "Najdi Sadu"
 
-A premium design system combining iOS Human Interface Guidelines with Arabic-first considerations, creating a sophisticated and culturally appropriate family tree experience.
+A culturally authentic design system inspired by Najdi Sadu weaving traditions, creating a warm, sophisticated, and uniquely Saudi family tree experience.
 
 ### Color Palette (60-30-10 Rule)
 
 #### Dominant (60%): Background
-- **Lavender Gray** `#F5F3F7` - Main screen backgrounds
-- Creates clean, airy canvas that doesn't strain eyes
-- Usage: All screen backgrounds, empty states
+- **Al-Jass White** `#F9F7F3` - Primary background
+  - All screens, pages, and modals
+  - Clean canvas with warm undertones
 
-#### Secondary (30%): Primary & Secondary
-- **African Violet** `#957EB5` - Primary brand color
-  - Primary buttons, navigation headers, selected states
-  - Important icons and active elements
-- **Chinese Violet** `#736372` - Secondary interactions
-  - Secondary buttons, card borders, inactive tabs
-  - Supporting UI components
+#### Secondary (30%): Containers
+- **Camel Hair Beige** `#D1BBA3` - Content containers
+  - Cards, sidebars, input fields
+  - Visually distinct from primary background
 
-#### Text & Content
-- **Licorice** `#120309` - All text content
-  - Soft black for excellent readability
-  - Body text, labels, descriptions
+#### Text & Base Elements
+- **Sadu Night** `#242121` - All text content
+  - Body copy, headlines, labels
+  - High contrast without pure black harshness
 
-#### Accent (10%): Highlights
-- **Muted Gold** `#E0C4A1` - Special emphasis
-  - Notification badges, success states
-  - Progress indicators, special achievements
-  - Direct ancestor highlights in tree view
+#### Primary Accent (10%): Actions
+- **Najdi Crimson** `#A13333` - Primary actions
+  - Main buttons, important links
+  - Active navigation states
+  - Critical notifications
+
+#### Secondary Accent: Highlights
+- **Desert Ochre** `#D58C4A` - Secondary emphasis
+  - Secondary icons, tags
+  - Progress bars, warm accents
+  - Non-competing highlights
 
 ### Typography System
 
@@ -38,7 +41,7 @@ title: {
   fontSize: 22,
   fontWeight: "700",
   fontFamily: "SF Arabic",
-  color: "#120309",
+  color: "#242121", // Sadu Night
   letterSpacing: -0.5,
 }
 
@@ -46,7 +49,7 @@ subtitle: {
   fontSize: 15,
   fontWeight: "400",
   fontFamily: "SF Arabic",
-  color: "#736372",
+  color: "#242121CC", // Sadu Night 80%
   lineHeight: 22,
 }
 
@@ -54,14 +57,14 @@ body: {
   fontSize: 16,
   fontWeight: "500",
   fontFamily: "SF Arabic",
-  color: "#120309",
+  color: "#242121", // Sadu Night
 }
 
 caption: {
   fontSize: 13,
   fontWeight: "500",
   fontFamily: "SF Arabic",
-  color: "#736372",
+  color: "#24212199", // Sadu Night 60%
 }
 ```
 
@@ -79,26 +82,26 @@ caption: {
 #### Base Card
 ```javascript
 card: {
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "#F9F7F3", // Al-Jass White
   marginHorizontal: 16,
   marginVertical: 8,
-  borderRadius: 16,
+  borderRadius: 12,
   padding: 24,
   shadowColor: "#000",
   shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
+  shadowOpacity: 0.04,
   shadowRadius: 8,
   elevation: 3,
   borderWidth: 1,
-  borderColor: "#736372" + "20", // 20% opacity
+  borderColor: "#D1BBA3" + "40", // Camel Hair Beige 40%
 }
 ```
 
 #### Primary Button
 ```javascript
 primaryButton: {
-  backgroundColor: "#957EB5",
-  borderRadius: 12,
+  backgroundColor: "#A13333", // Najdi Crimson
+  borderRadius: 10,
   paddingVertical: 14,
   paddingHorizontal: 32,
   minHeight: 48,
@@ -107,7 +110,7 @@ primaryButton: {
 }
 
 primaryButtonText: {
-  color: "#FFFFFF",
+  color: "#F9F7F3", // Al-Jass White
   fontSize: 16,
   fontWeight: "600",
   fontFamily: "SF Arabic",
@@ -117,42 +120,59 @@ primaryButtonText: {
 #### Secondary Button
 ```javascript
 secondaryButton: {
-  backgroundColor: "#F5F3F7",
+  backgroundColor: "transparent",
   borderWidth: 1.5,
-  borderColor: "#736372",
-  borderRadius: 12,
+  borderColor: "#D1BBA3", // Camel Hair Beige
+  borderRadius: 10,
   paddingVertical: 14,
   paddingHorizontal: 32,
 }
 
 secondaryButtonText: {
-  color: "#736372",
+  color: "#242121", // Sadu Night
   fontSize: 16,
   fontWeight: "600",
 }
 ```
 
-#### Navigation Bar
+#### Input Field
 ```javascript
-navigationBar: {
-  backgroundColor: "#957EB5",
-  paddingTop: safeAreaTop,
+inputField: {
+  backgroundColor: "#D1BBA3" + "20", // Camel Hair Beige 20%
+  borderWidth: 1,
+  borderColor: "#D1BBA3" + "40",
+  borderRadius: 8,
+  paddingVertical: 12,
   paddingHorizontal: 16,
-  paddingBottom: 12,
+  fontSize: 16,
+  color: "#242121",
 }
 
-navigationTitle: {
-  color: "#FFFFFF",
-  fontSize: 20,
-  fontWeight: "700",
+inputFieldFocused: {
+  borderColor: "#A13333", // Najdi Crimson on focus
 }
 ```
 
+### Sadu Pattern Usage
+
+Sadu patterns should enrich the design without compromising readability:
+
+#### Permitted Uses:
+- **Background Textures**: Hero sections at 5-10% opacity
+- **Decorative Borders**: UI cards or section dividers
+- **Element Fills**: Profile avatars, decorative placeholders
+- **Loading States**: Subtle pattern animations
+
+#### Restrictions:
+- Never over text content
+- Maximum 10% opacity for backgrounds
+- Use sparingly for cultural accent
+
 ### Icon System
 
-- **Primary Icons**: Use `#957EB5` for important actions
-- **Secondary Icons**: Use `#736372` for supporting elements
-- **Accent Icons**: Use `#E0C4A1` for special highlights
+- **Primary Icons**: Use `#A13333` (Najdi Crimson) for actions
+- **Secondary Icons**: Use `#242121` (Sadu Night) for navigation
+- **Accent Icons**: Use `#D58C4A` (Desert Ochre) for highlights
 - **Icon Sizes**: 20px (small), 24px (default), 28px (large)
 
 ### Interactive States
@@ -193,25 +213,25 @@ navigationTitle: {
 memberCard: {
   ...baseCard,
   borderLeftWidth: 4,
-  borderLeftColor: "#E0C4A1", // Gold accent for family
+  borderLeftColor: "#D58C4A", // Desert Ochre accent
 }
 ```
 
 #### Tree Node
 ```javascript
 treeNode: {
-  backgroundColor: "#FFFFFF",
-  borderRadius: 12,
+  backgroundColor: "#F9F7F3", // Al-Jass White
+  borderRadius: 10,
   borderWidth: 2,
-  borderColor: "#736372",
+  borderColor: "#D1BBA3",
   padding: 12,
   minWidth: 120,
 }
 
-// Direct ancestor gets gold highlight
+// Direct ancestor highlight
 directAncestor: {
-  borderColor: "#E0C4A1",
-  backgroundColor: "#E0C4A1" + "10", // 10% opacity
+  borderColor: "#A13333", // Najdi Crimson
+  backgroundColor: "#A13333" + "08", // 8% opacity
 }
 ```
 
