@@ -112,78 +112,14 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
           <View className="flex-1">
             <StatusBar style="dark" />
 
-            {/* User Info Bar */}
-            {(user || isGuest) && (
-              <View
-                style={{
-                  position: "absolute",
-                  top: 50,
-                  left: 16,
-                  right: 16,
-                  zIndex: 10,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  backgroundColor: "rgba(255,255,255,0.95)",
-                  padding: 12,
-                  borderRadius: 12,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 3,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    flex: 1,
-                  }}
-                >
-                  {linkedProfile && !isGuest ? (
-                    <>
-                      <Ionicons
-                        name="person-circle"
-                        size={24}
-                        color="#007AFF"
-                      />
-                      <Text
-                        style={{
-                          marginLeft: 8,
-                          fontSize: 14,
-                          fontWeight: "600",
-                        }}
-                      >
-                        {linkedProfile.name}
-                      </Text>
-                    </>
-                  ) : (
-                    <>
-                      <Ionicons name="eye-outline" size={24} color="#666" />
-                      <Text
-                        style={{ marginLeft: 8, fontSize: 14, color: "#666" }}
-                      >
-                        {isGuest ? "وضع الضيف" : "وضع المشاهدة فقط"}
-                      </Text>
-                    </>
-                  )}
-                </View>
-
-                <TouchableOpacity onPress={handleSignOut}>
-                  <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Admin Quick Login (for testing) - Bottom left circular button */}
+            {/* Admin Quick Login (for testing) - Bottom right circular button */}
             {!user && (
               <TouchableOpacity
                 onPress={handleAdminLogin}
                 style={{
                   position: "absolute",
                   bottom: 100, // Below navigation button
-                  left: 16,
+                  right: 16,
                   zIndex: 10,
                   width: 44,
                   height: 44,

@@ -63,7 +63,7 @@ const SettingsButton = ({ onPress }) => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 240, // Above AdminToggleButton (which is at 170)
+    bottom: 170, // Middle position (was Admin position)
     right: 16, // Same side as other buttons
   },
   shadowWrapper: {

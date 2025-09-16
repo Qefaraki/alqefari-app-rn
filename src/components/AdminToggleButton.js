@@ -122,7 +122,7 @@ const AdminToggleButton = ({ onLongPress, user }) => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 170, // Above NavigateToRootButton (which is at 100)
+    bottom: 240, // Top position (was Settings position)
     right: 16, // Same side as NavigateToRootButton
   },
   shadowWrapper: {
