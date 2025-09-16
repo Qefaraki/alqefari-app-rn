@@ -119,47 +119,47 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Logo appears immediately and quickly
+    // Stage 1: Logo appears fast and gets time to be seen
     Animated.parallel([
       Animated.timing(logoFade, {
         toValue: 1,
-        duration: 400, // SUPER FAST - was 800
+        duration: 600, // Fast but smooth
         useNativeDriver: true,
       }),
       Animated.spring(logoScale, {
         toValue: 1,
-        tension: 50, // Very snappy - was 30
+        tension: 40, // Smooth spring
         friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Stage 2: Background stars fade in with 0.5s delay as requested
+    // Stage 2: Background stars fade in after logo has been seen (1s after logo starts)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
         toValue: 0.8, // Not full opacity to keep logo prominent
         duration: 2000, // Smooth fade
         useNativeDriver: true,
       }).start();
-    }, 500); // 0.5 second delay as you requested
+    }, 1000); // Give logo 1 second to shine alone
 
-    // Stage 3: Text fades in quickly after logo
+    // Stage 3: Text fades in AFTER background stars are visible
     setTimeout(() => {
       Animated.timing(contentFade, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true,
+      }).start();
+    }, 2500); // After logo and stars have settled
+
+    // Stage 4: Buttons fade in last
+    setTimeout(() => {
+      Animated.timing(buttonFade, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
       }).start();
-    }, 800);
-
-    // Stage 4: Buttons fade in
-    setTimeout(() => {
-      Animated.timing(buttonFade, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    }, 1800);
+    }, 3500); // Final element
 
     // Start subtle logo rotation after initial animation (unless reduce motion is on)
     if (!reduceMotion) {
