@@ -384,7 +384,7 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
             activeOpacity={0.7}
           >
             <Ionicons
-              name="chevron-back"
+              name="chevron-forward"
               size={28}
               color={colors.alJassWhite + "CC"}
             />
@@ -442,6 +442,25 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                         </Text>
 
                         <View style={styles.phoneInputWrapper}>
+                          {/* Phone Number Input */}
+                          <TextInput
+                            style={[
+                              styles.phoneInput,
+                              {
+                                textAlign: "left",
+                                writingDirection: "ltr",
+                              },
+                            ]}
+                            placeholder="50 123 4567"
+                            placeholderTextColor={colors.alJassWhite + "40"}
+                            value={formatPhoneDisplay(phoneNumber)}
+                            onChangeText={handlePhoneChange}
+                            keyboardType="number-pad"
+                            maxLength={11} // 9 digits + 2 spaces
+                            returnKeyType="done"
+                            onSubmitEditing={handleSendOTP}
+                          />
+
                           {/* Country Code Selector */}
                           <TouchableOpacity
                             style={styles.countrySelector}
@@ -460,25 +479,6 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
                               color={colors.alJassWhite + "99"}
                             />
                           </TouchableOpacity>
-
-                          {/* Phone Number Input */}
-                          <TextInput
-                            style={[
-                              styles.phoneInput,
-                              {
-                                textAlign: I18nManager.isRTL ? "left" : "left",
-                                writingDirection: "ltr",
-                              },
-                            ]}
-                            placeholder="50 123 4567"
-                            placeholderTextColor={colors.alJassWhite + "40"}
-                            value={formatPhoneDisplay(phoneNumber)}
-                            onChangeText={handlePhoneChange}
-                            keyboardType="number-pad"
-                            maxLength={11} // 9 digits + 2 spaces
-                            returnKeyType="done"
-                            onSubmitEditing={handleSendOTP}
-                          />
                         </View>
 
                         {error && <Text style={styles.errorText}>{error}</Text>}
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   backButton: {
     position: "absolute",
     top: Platform.OS === "ios" ? 60 : 40,
-    left: 20,
+    right: 20,
     zIndex: 10,
     width: 44,
     height: 44,
@@ -635,9 +635,10 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
     paddingHorizontal: 24,
+    paddingTop: Platform.OS === "ios" ? 140 : 120,
   },
   cardWrapper: {
     width: "100%",
