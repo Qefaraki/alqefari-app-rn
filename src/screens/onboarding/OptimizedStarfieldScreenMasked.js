@@ -170,8 +170,8 @@ const generateBackgroundStars = () => {
     stars.push({
       x: saduStar.x,
       y: saduStar.y,
-      size: 1.0, // Larger than regular background stars for visibility
-      brightness: 0.5, // Much brighter to make patterns clearly visible
+      size: 1.2, // Noticeably larger than regular background stars
+      brightness: 0.7, // Very bright to make patterns stand out clearly
       delay: Math.random() * 500, // Faster fade-in
       group: "background",
       layer: 1,
