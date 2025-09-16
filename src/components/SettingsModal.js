@@ -21,6 +21,9 @@ import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
 import appConfig from "../config/appConfig";
 
+// Family Logo
+const AlqefariLogo = require("../../assets/logo/Alqefari Emblem (Transparent).png");
+
 export default function SettingsModal({ visible, onClose }) {
   const { settings, updateSetting, clearSettings } = useSettings();
   const [expandedSection, setExpandedSection] = useState("date");
@@ -210,7 +213,11 @@ export default function SettingsModal({ visible, onClose }) {
             <View style={styles.signInPromptCard}>
               <View style={styles.signInIconContainer}>
                 <View style={styles.signInIconBackground}>
-                  <Ionicons name="moon" size={28} color="#957EB5" />
+                  <Image 
+                    source={AlqefariLogo} 
+                    style={styles.signInLogo}
+                    resizeMode="contain"
+                  />
                 </View>
               </View>
               
@@ -786,12 +793,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   signInIconBackground: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#957EB520", // 20% opacity of primary color
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: "#F5F3F7", // Use our background color
     alignItems: "center",
     justifyContent: "center",
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#957EB520", // Subtle border with primary color
+  },
+  signInLogo: {
+    width: 68,
+    height: 68,
+    tintColor: "#957EB5", // Tint the logo to match our primary color
   },
   signInTitle: {
     fontSize: 22,
