@@ -58,7 +58,7 @@ const createMaskedStarfield = () => {
         y: centerY + y + jitterY,
         size,
         brightness: 0.6 + Math.random() * 0.4,
-        delay: Math.random() * 800,
+        delay: Math.random() * 400, // Faster appearance
         group: "logo",
       });
     }
@@ -96,8 +96,8 @@ const createNameStarfield = (width, height) => {
         x: x + jitterX,
         y: y + jitterY,
         size,
-        brightness: 0.8 + Math.random() * 0.2, // Higher baseline brightness
-        delay: Math.random() * 300,
+        brightness: 0.8 + Math.random() * 0.2,
+        delay: Math.random() * 200, // Faster appearance
         group: "name",
       });
     }
@@ -115,7 +115,7 @@ const generateBackgroundStars = (count) => {
       y: Math.random() * SCREEN_HEIGHT,
       size: Math.random() * 1.5 + 0.5,
       brightness: Math.random() * 0.3 + 0.1,
-      delay: Math.random() * 2000,
+      delay: Math.random() * 500, // Much faster appearance
       group: "background",
     });
   }
@@ -149,20 +149,64 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
   const jarbooStars = useMemo(() => createNameStarfield(200, 80), []);
 
   useEffect(() => {
-    // Staged animation sequence
-    // Stage 1: Names appear early but ultra-subtle (immediately)
-    Animated.timing(namesFade, {
-      toValue: 0.15, // Ultra-subtle, barely visible
-      duration: 2500,
+    // FAST animation sequence - everything mostly done by 1.5s
+
+    // Everything starts immediately or very quickly
+    // Background stars - immediate (0ms)
+    Animated.timing(backgroundStarsFade, {
+      toValue: 1,
+      duration: 600,
       useNativeDriver: true,
     }).start();
 
-    // Start slow drift animation for names
+    // Names - immediate but ultra-subtle
+    Animated.timing(namesFade, {
+      toValue: 0.15,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+
+    // Logo - slight 200ms delay then FAST fade
+    setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(logoFade, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 40, // Snappier spring
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, 200);
+
+    // Text - 1.2s (when everything else is 80% done)
+    setTimeout(() => {
+      Animated.timing(contentFade, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }).start();
+    }, 1200);
+
+    // Buttons - 1.5s (right after text)
+    setTimeout(() => {
+      Animated.timing(buttonFade, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
+    }, 1500);
+
+    // Start drift animation (keep this slow for ambiance)
     Animated.loop(
       Animated.sequence([
         Animated.timing(namesDrift, {
           toValue: 1,
-          duration: 30000, // Very slow 30-second drift
+          duration: 30000,
           useNativeDriver: true,
         }),
         Animated.timing(namesDrift, {
@@ -173,51 +217,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
       ]),
     ).start();
 
-    // Stage 2: Logo fades in as the main focus (after 0.5s)
-    setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(logoFade, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          tension: 20,
-          friction: 7,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, 500);
-
-    // Stage 3: Background stars fade in (after 2s)
-    setTimeout(() => {
-      Animated.timing(backgroundStarsFade, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: true,
-      }).start();
-    }, 2000);
-
-    // Stage 4: Text fades in (after 3s total)
-    setTimeout(() => {
-      Animated.timing(contentFade, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: true,
-      }).start();
-    }, 3000);
-
-    // Stage 5: Buttons fade in (after 4s total)
-    setTimeout(() => {
-      Animated.timing(buttonFade, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      }).start();
-    }, 4000);
-
-    // Start subtle logo rotation after initial animation
+    // Start subtle logo rotation almost immediately
     setTimeout(() => {
       Animated.loop(
         Animated.sequence([
@@ -233,7 +233,7 @@ export default function OptimizedStarfieldScreenMasked({ navigation }) {
           }),
         ]),
       ).start();
-    }, 2000);
+    }, 1000);
 
     // Animation frame
     let frameCount = 0;
