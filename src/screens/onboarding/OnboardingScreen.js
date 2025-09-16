@@ -19,8 +19,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import SaduNightBackdrop from "../../components/ui/SaduNightBackdrop";
 // Try to import MaskedView, but handle the case where it's not available
 let MaskedView;
 try {
@@ -77,21 +77,7 @@ const createMaskedStarfield = () => {
   return points;
 };
 
-// Generate background stars
-const generateBackgroundStars = (count) => {
-  const stars = [];
-  for (let i = 0; i < count; i++) {
-    stars.push({
-      x: Math.random() * SCREEN_WIDTH,
-      y: Math.random() * SCREEN_HEIGHT,
-      size: Math.random() * 1.5 + 0.5,
-      brightness: Math.random() * 0.3 + 0.1,
-      delay: Math.random() * 2000,
-      group: "background",
-    });
-  }
-  return stars;
-};
+// Background stars generation removed - now using SaduNightBackdrop component
 
 export default function OnboardingScreen({ navigation, setIsGuest }) {
   const [animationTime, setAnimationTime] = useState(0);
@@ -113,7 +99,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const secondaryButtonScale = useRef(new Animated.Value(1)).current;
 
   // Memoize all stars
-  const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
+  // backgroundStars removed - now using SaduNightBackdrop component
   const logoStars = useMemo(() => createMaskedStarfield(), []);
 
   // Check for reduce motion preference
@@ -310,24 +296,14 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Gradient background - much darker */}
-      <LinearGradient
-        colors={["#030303", "#0d0d19", "#030303"]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Background starfield - fades in after logo */}
+      {/* Reusable starry night backdrop */}
       <Animated.View
         style={[
           StyleSheet.absoluteFillObject,
           { opacity: backgroundStarsFade },
         ]}
       >
-        <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-          {renderStars(backgroundStars, animationTime)}
-        </Canvas>
+        <SaduNightBackdrop starCount={120} reduceMotion={reduceMotionEnabled} />
       </Animated.View>
 
       {/* Logo stars with masking */}
