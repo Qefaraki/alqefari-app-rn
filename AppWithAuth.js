@@ -267,11 +267,19 @@ export default function App() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      console.log("🔍 Auth Check:", {
+        userExists: !!user,
+        userId: user?.id,
+        userPhone: user?.phone,
+      });
+
       setUser(user);
 
+      // TEMPORARY: Force show onboarding for testing
       // If user IS logged in, they've seen onboarding
       // If NO user, they need to see onboarding/auth
-      setHasSeenOnboarding(!!user); // true if user exists, false if not
+      setHasSeenOnboarding(false); // FORCE ONBOARDING TO SHOW
     } catch (error) {
       console.error("Auth check error:", error);
     } finally {
@@ -328,6 +336,29 @@ export default function App() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
+
+      {/* DEBUG: Force show onboarding button */}
+      <TouchableOpacity
+        onPress={async () => {
+          console.log("🔴 Force showing onboarding...");
+          await supabase.auth.signOut();
+          setUser(null);
+          setHasSeenOnboarding(false);
+        }}
+        style={{
+          position: "absolute",
+          bottom: 100,
+          right: 20,
+          backgroundColor: "#FF3B30",
+          padding: 15,
+          borderRadius: 30,
+          zIndex: 9999,
+        }}
+      >
+        <Text style={{ color: "white", fontWeight: "bold" }}>
+          Show Onboarding
+        </Text>
+      </TouchableOpacity>
     </GestureHandlerRootView>
   );
 }

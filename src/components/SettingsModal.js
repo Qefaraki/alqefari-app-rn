@@ -210,11 +210,11 @@ export default function SettingsModal({ visible, onClose }) {
             <View style={styles.signInPromptCard}>
               <View style={styles.signInIconContainer}>
                 <View style={styles.signInIconBackground}>
-                  <Ionicons name="sparkles" size={28} color="#007AFF" />
+                  <Ionicons name="moon" size={28} color="#957EB5" />
                 </View>
               </View>
               
-              <Text style={styles.signInTitle}>انضم إلى شجرة العائلة</Text>
+              <Text style={styles.signInTitle}>انضم إلى شجرة القفاري</Text>
               <Text style={styles.signInSubtitle}>
                 احفظ إعداداتك وتواصل مع عائلتك
               </Text>
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#957EB520", // 20% opacity of primary color
     alignItems: "center",
     justifyContent: "center",
   },
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#957EB5", // Primary violet color
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,

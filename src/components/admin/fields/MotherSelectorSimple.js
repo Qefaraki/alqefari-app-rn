@@ -164,44 +164,47 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
         <Text style={styles.label}>{label || "الأم"}</Text>
       </View>
 
-      {/* Main Selector with RTL */}
+      {/* Main Selector with PROPER RTL */}
       <View style={styles.selectorWrapper}>
         <TouchableOpacity
           style={[styles.selector, showDropdown && styles.selectorActive]}
           onPress={toggleDropdown}
           activeOpacity={0.7}
         >
-          {/* Clear button on RIGHT side (appears on left in RTL) */}
-          {selectedMother && (
-            <TouchableOpacity
-              onPress={handleClear}
-              style={styles.clearButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          {/* RTL Container to force right-to-left */}
+          <View style={styles.selectorContent}>
+            {/* Text FIRST (will appear on right in RTL) */}
+            <Text
+              style={
+                selectedMother ? styles.selectedText : styles.placeholderText
+              }
+              numberOfLines={1}
             >
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color="rgba(0,0,0,0.25)"
-              />
-            </TouchableOpacity>
-          )}
+              {selectedMother ? selectedMother.wife_name : "اختر الأم"}
+            </Text>
 
-          {/* Text in center */}
-          <Text
-            style={
-              selectedMother ? styles.selectedText : styles.placeholderText
-            }
-            numberOfLines={1}
-          >
-            {selectedMother ? selectedMother.wife_name : "اختر الأم"}
-          </Text>
+            {/* Clear button SECOND (will appear in middle/left) */}
+            {selectedMother && (
+              <TouchableOpacity
+                onPress={handleClear}
+                style={styles.clearButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color="rgba(0,0,0,0.25)"
+                />
+              </TouchableOpacity>
+            )}
 
-          {/* Chevron on LEFT side (appears on right in RTL) */}
-          <Ionicons
-            name={showDropdown ? "chevron-up" : "chevron-down"}
-            size={16}
-            color="rgba(0,0,0,0.3)"
-          />
+            {/* Chevron LAST (will appear on far left in RTL) */}
+            <Ionicons
+              name={showDropdown ? "chevron-up" : "chevron-down"}
+              size={16}
+              color="rgba(0,0,0,0.3)"
+            />
+          </View>
         </TouchableOpacity>
 
         {/* Beautiful Dropdown */}
@@ -232,14 +235,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
                   onPress={() => handleSelect(wife)}
                   activeOpacity={0.6}
                 >
-                  {/* Current badge on RIGHT (appears left in RTL) */}
-                  {wife.is_current && (
-                    <View style={styles.currentBadge}>
-                      <Text style={styles.currentBadgeText}>الحالية</Text>
-                    </View>
-                  )}
-
-                  {/* Text */}
+                  {/* Text FIRST for RTL */}
                   <Text
                     style={[
                       styles.optionText,
@@ -249,6 +245,13 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
                   >
                     {wife.wife_name}
                   </Text>
+
+                  {/* Badge LAST for RTL */}
+                  {wife.is_current && (
+                    <View style={styles.currentBadge}>
+                      <Text style={styles.currentBadgeText}>الحالية</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -263,18 +266,18 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 16,
     width: "100%",
-    alignSelf: "flex-end", // Align to right
   },
   labelRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end", // Align label to right
+    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+    justifyContent: "flex-start",
     marginBottom: 8,
   },
   label: {
     fontSize: 13,
     color: "rgba(0,0,0,0.5)",
     fontWeight: "500",
-    textAlign: "right",
+    textAlign: I18nManager.isRTL ? "right" : "left",
+    writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
 
   selectorWrapper: {
@@ -282,15 +285,20 @@ const styles = StyleSheet.create({
     width: "100%",
   },
 
-  // Main selector with RTL flex
+  // Main selector container
   selector: {
     backgroundColor: "#F8F8F8",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    flexDirection: "row",
+  },
+
+  // Inner content with RTL-aware flex
+  selectorContent: {
+    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
     justifyContent: "space-between",
+    width: "100%",
   },
   selectorActive: {
     backgroundColor: "#F2F2F2",
@@ -305,16 +313,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#000",
     flex: 1,
-    textAlign: "right",
+    textAlign: I18nManager.isRTL ? "right" : "left",
     fontWeight: "500",
     marginHorizontal: 8,
+    writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   placeholderText: {
     fontSize: 16,
     color: "rgba(0,0,0,0.3)",
     flex: 1,
-    textAlign: "right",
+    textAlign: I18nManager.isRTL ? "right" : "left",
     marginHorizontal: 8,
+    writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   disabledText: {
     fontSize: 16,
@@ -346,9 +356,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   option: {
-    flexDirection: "row",
+    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
-    justifyContent: "flex-end", // RTL alignment
+    justifyContent: "flex-start",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -371,7 +381,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    marginLeft: 8,
+    marginLeft: I18nManager.isRTL ? 0 : 8,
+    marginRight: I18nManager.isRTL ? 8 : 0,
   },
   currentBadgeText: {
     fontSize: 11,

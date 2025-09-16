@@ -1315,6 +1315,10 @@ const TreeView = ({
   const panGesture = Gesture.Pan()
     .onStart(() => {
       "worklet";
+      // Don't start pan if we're pinching
+      if (isPinching.value) {
+        return;
+      }
       cancelAnimation(translateX);
       cancelAnimation(translateY);
       savedTranslateX.value = translateX.value;
@@ -1322,26 +1326,32 @@ const TreeView = ({
     })
     .onUpdate((e) => {
       "worklet";
+      // Don't update during pinch
+      if (isPinching.value) {
+        return;
+      }
       translateX.value = savedTranslateX.value + e.translationX;
       translateY.value = savedTranslateY.value + e.translationY;
     })
     .onEnd((e) => {
       "worklet";
-      // Don't save values if we're pinching - let pinch handle it
-      if (!isPinching.value) {
-        translateX.value = withDecay({
-          velocity: e.velocityX,
-          deceleration: 0.995,
-        });
-        translateY.value = withDecay({
-          velocity: e.velocityY,
-          deceleration: 0.995,
-        });
-
-        // Save current values (before decay animation modifies them)
-        savedTranslateX.value = translateX.value;
-        savedTranslateY.value = translateY.value;
+      // Don't apply momentum if we were pinching
+      if (isPinching.value) {
+        return;
       }
+
+      translateX.value = withDecay({
+        velocity: e.velocityX,
+        deceleration: 0.995,
+      });
+      translateY.value = withDecay({
+        velocity: e.velocityY,
+        deceleration: 0.995,
+      });
+
+      // Save current values (before decay animation modifies them)
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
     });
 
   // Pinch gesture for zoom with combined pan handling for physical iOS devices
@@ -1698,7 +1708,7 @@ const TreeView = ({
     [contextMenuNode, setSelectedPersonId],
   );
 
-  // Compose gestures - long press has priority over tap
+  // Compose gestures - allow simultaneous but with guards in each gesture
   const composed = Gesture.Simultaneous(
     panGesture,
     pinchGesture,
