@@ -119,47 +119,47 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Logo fades in quickly
+    // Stage 1: Logo appears immediately and quickly
     Animated.parallel([
       Animated.timing(logoFade, {
         toValue: 1,
-        duration: 800, // Much faster - was 2000
+        duration: 400, // SUPER FAST - was 800
         useNativeDriver: true,
       }),
       Animated.spring(logoScale, {
         toValue: 1,
-        tension: 30, // Snappier spring - was 20
-        friction: 7,
+        tension: 50, // Very snappy - was 30
+        friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Stage 2: Background stars fade in (delayed by 2s to let logo shine)
+    // Stage 2: Background stars fade in with 0.5s delay as requested
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
         toValue: 0.8, // Not full opacity to keep logo prominent
-        duration: 2500, // Slower fade for smoother transition
+        duration: 2000, // Smooth fade
         useNativeDriver: true,
       }).start();
-    }, 2000); // Increased from 1500ms to 2000ms
+    }, 500); // 0.5 second delay as you requested
 
-    // Stage 3: Text fades in (after 2s total - right after logo settles)
+    // Stage 3: Text fades in quickly after logo
     setTimeout(() => {
       Animated.timing(contentFade, {
-        toValue: 1,
-        duration: 1500,
-        useNativeDriver: true,
-      }).start();
-    }, 2000);
-
-    // Stage 4: Buttons fade in (after 3s total)
-    setTimeout(() => {
-      Animated.timing(buttonFade, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
       }).start();
-    }, 3000);
+    }, 800);
+
+    // Stage 4: Buttons fade in
+    setTimeout(() => {
+      Animated.timing(buttonFade, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }).start();
+    }, 1800);
 
     // Start subtle logo rotation after initial animation (unless reduce motion is on)
     if (!reduceMotion) {
