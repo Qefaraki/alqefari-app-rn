@@ -57,7 +57,7 @@ const SADU_PATTERNS = [
 ];
 
 // Generate stars with cultural patterns
-const generateStars = (count = 80) => {
+const generateStars = (count = 80, maxOpacity = 0.8) => {
   const stars = [];
 
   // Add regular random stars
@@ -66,22 +66,22 @@ const generateStars = (count = 80) => {
       id: `star-${i}`,
       x: Math.random(),
       y: Math.random(),
-      size: Math.random() * 2 + 1,
-      opacity: 0.3 + Math.random() * 0.5,
+      size: Math.random() * 1.5 + 0.5, // Smaller stars
+      opacity: (0.2 + Math.random() * 0.4) * maxOpacity, // Dimmer with opacity control
       animationDelay: Math.random() * 3000,
       duration: 2000 + Math.random() * 3000,
     });
   }
 
-  // Add Sadu pattern stars (brighter and larger)
+  // Add Sadu pattern stars (slightly brighter but still subtle)
   SADU_PATTERNS.forEach((pattern, patternIndex) => {
     pattern.stars.forEach((star, starIndex) => {
       stars.push({
         id: `sadu-${patternIndex}-${starIndex}`,
         x: star[0],
         y: star[1],
-        size: 3 + Math.random() * 2, // Larger for visibility
-        opacity: pattern.brightness,
+        size: 2 + Math.random() * 1, // Smaller for subtlety
+        opacity: pattern.brightness * maxOpacity * 0.8, // Controlled brightness
         animationDelay: patternIndex * 500 + starIndex * 100,
         duration: 3000 + Math.random() * 2000,
         isSadu: true,
@@ -161,12 +161,16 @@ const Star = ({ star, scrollY }) => {
 const SaduNightBackdrop = ({
   children,
   starCount = 80,
+  starOpacity = 1.0, // New prop for controlling overall star brightness
   panValue,
   reduceMotion = false,
   style,
   showGradient = true,
 }) => {
-  const stars = useMemo(() => generateStars(starCount), [starCount]);
+  const stars = useMemo(
+    () => generateStars(starCount, starOpacity),
+    [starCount, starOpacity],
+  );
 
   // Animation value for parallax effect
   const scrollY = panValue || useSharedValue(0);

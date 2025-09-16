@@ -303,7 +303,11 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
           { opacity: backgroundStarsFade },
         ]}
       >
-        <SaduNightBackdrop starCount={120} reduceMotion={reduceMotion} />
+        <SaduNightBackdrop
+          starCount={60} // Reduced from 120 for subtlety
+          reduceMotion={reduceMotion}
+          starOpacity={0.3} // Make stars dimmer
+        />
       </Animated.View>
 
       {/* Logo stars with masking */}
