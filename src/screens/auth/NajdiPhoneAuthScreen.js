@@ -23,7 +23,6 @@ import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-import SaduNightBackdrop from "../../components/ui/SaduNightBackdrop";
 import { phoneAuthService } from "../../services/phoneAuth";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -52,7 +51,11 @@ const countryCodes = [
   { code: "+44", country: "بريطانيا", flag: "🇬🇧", key: "GB" },
 ];
 
-export default function NajdiPhoneAuthScreen({ navigation }) {
+export default function NajdiPhoneAuthScreen({
+  navigation,
+  onOTPSent,
+  onOTPVerified,
+}) {
   const [step, setStep] = useState("phone"); // 'phone' or 'otp'
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]); // Saudi default
@@ -193,6 +196,8 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep("otp");
       setCountdown(60);
+      // Trigger shooting star on OTP sent
+      if (onOTPSent) onOTPSent();
     } else {
       setError(result.error || "حدث خطأ في إرسال الرمز");
       shakeError();
@@ -276,6 +281,9 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Trigger shooting stars on verification
+      if (onOTPVerified) onOTPVerified();
 
       // Always go to NameChainEntry after verification
       // Let the user search for their profile or skip if they want
@@ -406,20 +414,6 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-
-      {/* Starry Night Background */}
-      <SaduNightBackdrop
-        starCount={120}
-        starOpacity={0.56}
-        parallaxOffset={20}
-      />
-
-      {/* Dark gradient overlay */}
-      <LinearGradient
-        colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.8)"]}
-        style={StyleSheet.absoluteFillObject}
-        pointerEvents="none"
-      />
 
       <KeyboardAvoidingView
         style={styles.avoidingView}
@@ -671,7 +665,7 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "transparent", // Changed to transparent for persistent backdrop
   },
   avoidingView: {
     flex: 1,

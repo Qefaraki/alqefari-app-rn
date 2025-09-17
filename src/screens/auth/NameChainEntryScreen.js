@@ -31,7 +31,11 @@ const colors = {
   textHint: "rgba(36, 33, 33, 0.4)", // Text 40%
 };
 
-export default function NameChainEntryScreen({ navigation, route }) {
+export default function NameChainEntryScreen({
+  navigation,
+  route,
+  onSearchSuccess,
+}) {
   const { user } = route.params;
   const [nameChain, setNameChain] = useState("");
   const [searching, setSearching] = useState(false);
@@ -88,6 +92,7 @@ export default function NameChainEntryScreen({ navigation, route }) {
         );
       } else {
         // Found matches, go to profile selection
+        if (onSearchSuccess) onSearchSuccess();
         navigation.navigate("ProfileMatching", {
           profiles: result.profiles,
           nameChain: trimmedName,

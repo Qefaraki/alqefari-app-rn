@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import SaduNightBackdrop from "../../components/ui/SaduNightBackdrop";
+// SaduNightBackdrop now handled at navigator level
 // Try to import MaskedView, but handle the case where it's not available
 let MaskedView;
 try {
@@ -80,7 +80,11 @@ const createMaskedStarfield = () => {
 
 // Background stars generation removed - now using SaduNightBackdrop component
 
-export default function OnboardingScreen({ navigation, setIsGuest }) {
+export default function OnboardingScreen({
+  navigation,
+  setIsGuest,
+  onNavigate,
+}) {
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
@@ -281,8 +285,9 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const handleContinue = useCallback(() => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (onNavigate) onNavigate("PhoneAuth");
     navigation.navigate("PhoneAuth");
-  }, [navigation, primaryButtonScale]);
+  }, [navigation, primaryButtonScale, onNavigate]);
 
   const handleExploreAsGuest = useCallback(() => {
     animateButtonPress(secondaryButtonScale);
@@ -297,19 +302,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Reusable starry night backdrop */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFillObject,
-          { opacity: backgroundStarsFade },
-        ]}
-      >
-        <SaduNightBackdrop
-          starCount={100} // Good density for richness
-          reduceMotion={reduceMotion}
-          starOpacity={0.7} // Visible but not overpowering
-        />
-      </Animated.View>
+      {/* Star backdrop removed - handled at navigator level */}
 
       {/* Logo stars with masking */}
       {MaskedView ? (

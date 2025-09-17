@@ -197,13 +197,13 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       <View style={styles.container}>
         {/* Header with progress dots - matching NameChainEntryScreen */}
         <View style={styles.header}>
-          {/* Progress Dots - Step 4 of 5 */}
+          {/* Progress Dots - Step 4 of 5 - Reversed for RTL */}
           <View style={styles.progressContainer}>
-            <View style={[styles.progressDot, styles.progressDotCompleted]} />
-            <View style={[styles.progressDot, styles.progressDotCompleted]} />
-            <View style={[styles.progressDot, styles.progressDotCompleted]} />
-            <View style={[styles.progressDot, styles.progressDotActive]} />
             <View style={styles.progressDot} />
+            <View style={[styles.progressDot, styles.progressDotActive]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
           </View>
 
           {/* Back button */}
@@ -250,13 +250,13 @@ export default function ProfileMatchingScreen({ navigation, route }) {
     <View style={styles.container}>
       {/* Header with progress dots - matching NameChainEntryScreen */}
       <View style={styles.header}>
-        {/* Progress Dots - Step 4 of 5 */}
+        {/* Progress Dots - Step 4 of 5 - Reversed for RTL */}
         <View style={styles.progressContainer}>
-          <View style={[styles.progressDot, styles.progressDotCompleted]} />
-          <View style={[styles.progressDot, styles.progressDotCompleted]} />
-          <View style={[styles.progressDot, styles.progressDotCompleted]} />
-          <View style={[styles.progressDot, styles.progressDotActive]} />
           <View style={styles.progressDot} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
         </View>
 
         {/* Back button */}
