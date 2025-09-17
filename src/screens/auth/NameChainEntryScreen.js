@@ -128,17 +128,9 @@ export default function NameChainEntryScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-            {/* Header - Native RTL handles the layout */}
+            {/* Header - Order reversed for RTL layout */}
             <View style={styles.header}>
-              {/* Back button - use chevron-back, RN will flip it */}
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Ionicons name="chevron-back" size={28} color={colors.text} />
-              </TouchableOpacity>
-
-              {/* Progress Dots */}
+              {/* Progress Dots FIRST - will appear on right in RTL */}
               <View style={styles.progressContainer}>
                 <View
                   style={[styles.progressDot, styles.progressDotCompleted]}
@@ -150,6 +142,14 @@ export default function NameChainEntryScreen({ navigation, route }) {
                 <View style={styles.progressDot} />
                 <View style={styles.progressDot} />
               </View>
+
+              {/* Back button LAST - will appear on left in RTL */}
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons name="chevron-back" size={28} color={colors.text} />
+              </TouchableOpacity>
             </View>
 
             {/* Main Content */}
@@ -186,7 +186,6 @@ export default function NameChainEntryScreen({ navigation, route }) {
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   multiline={false}
-                  textAlign="left"
                   autoCorrect={false}
                   autoCapitalize="words"
                   returnKeyType="search"
@@ -354,6 +353,8 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: colors.text,
     minHeight: 56,
+    writingDirection: "rtl", // Force RTL text direction
+    textAlign: "right", // Right align for Arabic
   },
 
   searchButton: {
