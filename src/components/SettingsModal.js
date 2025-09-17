@@ -104,6 +104,80 @@ export default function SettingsModal({ visible, onClose }) {
     );
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "⚠️ حذف الحساب",
+      "هل أنت متأكد من حذف حسابك؟\n\nسيتم:\n• إلغاء ربط الحساب بالملف الشخصي\n• حذف جميع طلبات الربط\n• حذف بيانات المستخدم\n\nيمكنك إنشاء حساب جديد لاحقاً",
+      [
+        {
+          text: "إلغاء",
+          style: "cancel",
+        },
+        {
+          text: "حذف الحساب نهائياً",
+          style: "destructive",
+          onPress: () => {
+            // Second confirmation for safety
+            Alert.alert(
+              "تأكيد نهائي",
+              "اكتب 'حذف' للتأكيد",
+              [
+                {
+                  text: "إلغاء",
+                  style: "cancel",
+                },
+                {
+                  text: "حذف",
+                  style: "destructive",
+                  onPress: performAccountDeletion,
+                },
+              ],
+              { cancelable: true },
+            );
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  const performAccountDeletion = async () => {
+    try {
+      // Show loading
+      Alert.alert("جاري الحذف", "يتم حذف الحساب...");
+
+      // Call the RPC function to unlink and delete
+      const { error: unlinkError } = await supabase.rpc(
+        "delete_user_account_and_unlink",
+      );
+
+      if (unlinkError) {
+        console.error("Error deleting account:", unlinkError);
+        Alert.alert("خطأ", "فشل حذف الحساب: " + unlinkError.message);
+        return;
+      }
+
+      // Sign out the user
+      await supabase.auth.signOut();
+
+      // Clear any local state
+      useTreeStore.getState().setSelectedPersonId(null);
+      clearSettings();
+
+      Alert.alert("✅ تم الحذف", "تم حذف الحساب بنجاح", [
+        {
+          text: "موافق",
+          onPress: () => {
+            onClose();
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error("Error in account deletion:", error);
+      Alert.alert("خطأ", "حدث خطأ أثناء حذف الحساب");
+    }
+  };
+
   const renderDatePreview = () => {
     const previewText = formatDateByPreference(sampleDate, settings);
 
@@ -452,6 +526,28 @@ export default function SettingsModal({ visible, onClose }) {
 
               <Text style={styles.signOutHint}>
                 سيتم حفظ جميع إعداداتك محلياً
+              </Text>
+            </View>
+          )}
+
+          {/* Delete Account Button - Danger Zone */}
+          {currentUser && userProfile && (
+            <View style={styles.dangerSection}>
+              <TouchableOpacity
+                style={styles.deleteAccountButton}
+                onPress={handleDeleteAccount}
+                activeOpacity={0.9}
+              >
+                <View style={styles.deleteAccountContent}>
+                  <View style={styles.deleteAccountIconContainer}>
+                    <Ionicons name="trash-outline" size={22} color="#F44336" />
+                  </View>
+                  <Text style={styles.deleteAccountButtonText}>حذف الحساب</Text>
+                </View>
+              </TouchableOpacity>
+
+              <Text style={styles.deleteAccountHint}>
+                سيتم إلغاء ربط الحساب بالملف الشخصي
               </Text>
             </View>
           )}
@@ -911,5 +1007,51 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     marginTop: 2,
+  },
+  dangerSection: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  deleteAccountButton: {
+    backgroundColor: "#FEF2F2", // Light red background
+    marginHorizontal: 16,
+    borderRadius: 12,
+    shadowColor: "#F44336",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1.5,
+    borderColor: "#F4433630", // Red 30%
+    overflow: "hidden",
+  },
+  deleteAccountContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  deleteAccountIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F4433610", // Red 10%
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteAccountButtonText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#F44336", // Red
+    letterSpacing: -0.3,
+  },
+  deleteAccountHint: {
+    fontSize: 13,
+    color: "#9B1C1C", // Dark red
+    marginTop: 8,
+    textAlign: "center",
+    marginHorizontal: 20,
   },
 });

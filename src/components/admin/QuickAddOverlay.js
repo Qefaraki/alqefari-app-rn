@@ -228,16 +228,30 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Initialize with existing siblings
   useEffect(() => {
     if (visible && parentNode) {
+      // First sort by sibling_order, then fix any duplicates
       const sortedSiblings = [...siblings]
-        .sort((a, b) => (a.sibling_order ?? 0) - (b.sibling_order ?? 0))
-        .map((s) => ({
+        .sort((a, b) => {
+          const orderA = a.sibling_order ?? 999;
+          const orderB = b.sibling_order ?? 999;
+          if (orderA === orderB) {
+            // If same order, sort by ID to have consistent ordering
+            return (a.id || "").localeCompare(b.id || "");
+          }
+          return orderA - orderB;
+        })
+        .map((s, index) => ({
           ...s,
           isNew: false,
           isExisting: true,
           mother_id: s.mother_id || s.parent2, // Get mother ID
+          sibling_order: index, // Fix duplicate orders by using index
         }));
 
-      setAllChildren(sortedSiblings);
+      // For RTL: Reverse array so oldest (index 0) appears on the right
+      const rtlSiblings = I18nManager.isRTL
+        ? [...sortedSiblings].reverse()
+        : sortedSiblings;
+      setAllChildren(rtlSiblings);
       setCurrentChild({ name: "", gender: "male", id: null, mother_id: null });
       setEditingChildId(null);
       setSelectedMotherId(null);
@@ -280,6 +294,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       setEditingChildId(null);
     } else if (trimmedName) {
       // Add new child
+      // Calculate the next sibling_order (should be highest + 1)
+      const maxOrder = allChildren.reduce(
+        (max, child) => Math.max(max, child.sibling_order ?? 0),
+        -1,
+      );
+
       const newChild = {
         id: `new-${Date.now()}`,
         name: trimmedName,
@@ -287,14 +307,23 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         mother_id: selectedMotherId,
         isNew: true,
         isExisting: false,
-        sibling_order: allChildren.length,
+        sibling_order: maxOrder + 1, // Will be youngest (highest sibling_order)
       };
-      setAllChildren((prev) => [...prev, newChild]);
 
-      // Scroll to show new child
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      // In RTL: Add to beginning of array (leftmost position for youngest)
+      if (I18nManager.isRTL) {
+        setAllChildren((prev) => [newChild, ...prev]);
+        // Scroll to start for RTL
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ x: 0, animated: true });
+        }, 100);
+      } else {
+        setAllChildren((prev) => [...prev, newChild]);
+        // Scroll to end for LTR
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
     }
 
     // Reset form
@@ -354,14 +383,22 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     const [movedChild] = newChildren.splice(fromIndex, 1);
     newChildren.splice(toIndex, 0, movedChild);
 
-    // Update sibling_order for all children
-    const updatedChildren = newChildren.map((child, index) => ({
-      ...child,
-      sibling_order: index,
-    }));
+    // For RTL: Since display is reversed, we need to reverse the sibling_order
+    const updatedChildren = newChildren.map((child, index) => {
+      // In RTL, the rightmost card (index 0) should have lowest sibling_order
+      const actualOrder = I18nManager.isRTL
+        ? newChildren.length - 1 - index
+        : index;
+      return {
+        ...child,
+        sibling_order: actualOrder,
+        isEdited: child.isExisting ? true : child.isEdited, // Mark as edited if it's an existing child
+      };
+    });
 
     setAllChildren(updatedChildren);
     setHasReordered(true);
+    setHasEdits(true);
   };
 
   // Save all changes
@@ -413,7 +450,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       // 2. Update edited children
       for (const child of editedChildren) {
         const updates = {
-          arabic_name: child.name,
+          name: child.name, // profilesService expects 'name' not 'arabic_name'
           gender: child.gender,
           sibling_order: child.sibling_order,
         };
@@ -425,17 +462,18 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         promises.push(profilesService.updateProfile(child.id, updates));
       }
 
-      // 3. Update sibling orders for reordered children
+      // 3. Update sibling orders for ALL existing children if reordered
       if (hasReordered) {
-        const existingChildren = allChildren.filter(
-          (c) => c.isExisting && !c.isEdited,
-        );
+        const existingChildren = allChildren.filter((c) => c.isExisting);
         for (const child of existingChildren) {
-          promises.push(
-            profilesService.updateProfile(child.id, {
-              sibling_order: child.sibling_order,
-            }),
-          );
+          // Skip if already handled in edited children
+          if (!editedChildren.find((ec) => ec.id === child.id)) {
+            promises.push(
+              profilesService.updateProfile(child.id, {
+                sibling_order: child.sibling_order,
+              }),
+            );
+          }
         }
       }
 
