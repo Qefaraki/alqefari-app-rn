@@ -128,9 +128,17 @@ export default function NameChainEntryScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-            {/* Header - Proper RTL Layout */}
+            {/* Header - Native RTL handles the layout */}
             <View style={styles.header}>
-              {/* Progress Dots on LEFT side for RTL */}
+              {/* Back button - use chevron-back, RN will flip it */}
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons name="chevron-back" size={28} color={colors.text} />
+              </TouchableOpacity>
+
+              {/* Progress Dots */}
               <View style={styles.progressContainer}>
                 <View
                   style={[styles.progressDot, styles.progressDotCompleted]}
@@ -142,18 +150,6 @@ export default function NameChainEntryScreen({ navigation, route }) {
                 <View style={styles.progressDot} />
                 <View style={styles.progressDot} />
               </View>
-
-              {/* Back button on RIGHT side pointing RIGHT (→) for Arabic RTL */}
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={28}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
             </View>
 
             {/* Main Content */}
@@ -190,7 +186,7 @@ export default function NameChainEntryScreen({ navigation, route }) {
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
                   multiline={false}
-                  textAlign="right"
+                  textAlign="left"
                   autoCorrect={false}
                   autoCapitalize="words"
                   returnKeyType="search"
@@ -212,12 +208,12 @@ export default function NameChainEntryScreen({ navigation, route }) {
                   <ActivityIndicator color={colors.background} />
                 ) : (
                   <View style={styles.buttonContent}>
-                    <Text style={styles.buttonText}>البحث في الشجرة</Text>
                     <Ionicons
                       name="search"
                       size={22}
                       color={colors.background}
                     />
+                    <Text style={styles.buttonText}>البحث في الشجرة</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -291,7 +287,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "SF Arabic",
     color: colors.text,
-    textAlign: "right", // RTL: Right align
+    textAlign: "left", // Native RTL will flip this to right
     marginBottom: 8,
     letterSpacing: -0.5,
   },
@@ -300,7 +296,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     fontFamily: "SF Arabic",
     color: colors.textSecondary,
-    textAlign: "right", // RTL: Right align
+    textAlign: "left", // Native RTL will flip this to right
     marginBottom: 32,
     lineHeight: 22,
   },
@@ -315,12 +311,12 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     padding: 16,
     position: "relative",
-    alignItems: "flex-end", // Align content to right for RTL
+    alignItems: "flex-start", // Native RTL will flip this
   },
   exampleBadge: {
     position: "absolute",
     top: -10,
-    right: 20,
+    left: 20, // Use left, RTL will flip to right
     backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingVertical: 2,
@@ -336,7 +332,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "SF Arabic",
     color: colors.text,
-    textAlign: "right", // Right align the text for RTL
+    textAlign: "left", // Native RTL will flip this to right
   },
   inputContainer: {
     backgroundColor: colors.inputBg,
@@ -381,7 +377,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   buttonContent: {
-    flexDirection: "row-reverse", // RTL: Icon on right
+    flexDirection: "row", // Native RTL will handle the order
     alignItems: "center",
     gap: 10,
   },
@@ -393,7 +389,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   helpLink: {
-    alignItems: "flex-end", // RTL: Align to right
+    alignItems: "center", // Center the help link
     paddingVertical: 12,
     marginTop: 8,
   },
@@ -403,6 +399,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textDecorationLine: "underline",
     textDecorationColor: colors.primary,
-    textAlign: "right", // RTL: Right align
   },
 });
