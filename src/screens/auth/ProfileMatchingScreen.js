@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,113 +8,122 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Image,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
-// Match quality colors
-const MATCH_COLORS = {
-  perfect: "#22C55E", // Green
-  excellent: "#3B82F6", // Blue
-  good: "#A855F7", // Purple
-  fair: "#F59E0B", // Amber
-  weak: "#64748B", // Slate
+// Match quality colors - using the desert palette from SearchBar
+const DESERT_PALETTE = [
+  "#A13333", // Najdi Crimson
+  "#D58C4A", // Desert Ochre
+  "#957EB5", // Lavender Haze
+  "#736372", // Muted Plum
+  "#D1BBA399", // Camel Hair Beige 60%
+];
+
+// Get initials from Arabic name
+const getInitials = (name) => {
+  if (!name) return "؟";
+  const arabicName = name.trim();
+  // Take first character for Arabic names
+  return arabicName.charAt(0);
 };
 
-// Profile match card component
-const ProfileMatchCard = ({ profile, isSelected, onPress }) => {
-  const matchColor = MATCH_COLORS[profile.match_quality] || MATCH_COLORS.weak;
+// Convert to Arabic numerals
+const toArabicNumerals = (num) => {
+  const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
+  return num
+    .toString()
+    .split("")
+    .map((digit) => arabicNumerals[parseInt(digit)] || digit)
+    .join("");
+};
 
-  // Get match label in Arabic
-  const getMatchLabel = (quality) => {
-    switch (quality) {
-      case "perfect":
-        return "تطابق كامل";
-      case "excellent":
-        return "تطابق ممتاز";
-      case "good":
-        return "تطابق جيد";
-      case "fair":
-        return "تطابق مقبول";
-      default:
-        return "تطابق جزئي";
-    }
-  };
+// Profile match card component - matching SearchBar UI
+const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
+  // Use rotating colors from desert palette
+  const avatarColor = DESERT_PALETTE[index % DESERT_PALETTE.length];
+  const initials = getInitials(profile.name);
 
   return (
-    <TouchableOpacity
-      style={[styles.profileCard, isSelected && styles.profileCardSelected]}
-      onPress={onPress}
-      activeOpacity={0.7}
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress();
+      }}
+      style={({ pressed }) => [
+        styles.resultCard,
+        pressed && styles.resultCardPressed,
+        isSelected && styles.resultCardSelected,
+      ]}
     >
-      {/* Match Quality Badge */}
-      <View style={[styles.matchBadge, { backgroundColor: matchColor }]}>
-        <Text style={styles.matchBadgeText}>{profile.match_score}%</Text>
-      </View>
+      <View style={styles.cardContent}>
+        {/* Avatar on right for RTL */}
+        <View style={styles.avatarContainer}>
+          {profile.photo_url ? (
+            <Image
+              source={{ uri: profile.photo_url }}
+              style={styles.avatarPhoto}
+            />
+          ) : (
+            <View
+              style={[styles.avatarCircle, { backgroundColor: avatarColor }]}
+            >
+              <Text style={styles.avatarLetter}>{initials}</Text>
+            </View>
+          )}
+        </View>
 
-      {/* Profile Content */}
-      <View style={styles.profileContent}>
-        {/* Name with highlight if matches */}
-        <Text style={styles.profileName}>{profile.name}</Text>
+        {/* Text content */}
+        <View style={styles.textContainer}>
+          <Text style={styles.nameText} numberOfLines={2}>
+            {profile.full_chain || profile.name}
+          </Text>
+          <View style={styles.metaContainer}>
+            <Text style={[styles.generationText, { color: avatarColor }]}>
+              الجيل {toArabicNumerals(profile.generation?.toString() || "0")}
+            </Text>
+            {profile.siblings_count > 0 && (
+              <Text style={styles.metaSeparator}>•</Text>
+            )}
+            {profile.siblings_count > 0 && (
+              <Text style={styles.metaText}>
+                {toArabicNumerals(profile.siblings_count.toString())} إخوة
+              </Text>
+            )}
+            {profile.has_auth && (
+              <>
+                <Text style={styles.metaSeparator}>•</Text>
+                <Text style={styles.linkedText}>مطالب به</Text>
+              </>
+            )}
+          </View>
+        </View>
 
-        {/* Full ancestral chain - exactly like profile pages */}
-        <Text style={styles.fullChain}>
-          {profile.full_chain || profile.name}
-        </Text>
-
-        {/* Match Quality Label */}
-        <View style={styles.matchInfo}>
+        {/* Match score badge on left */}
+        <View style={styles.scoreContainer}>
           <View
-            style={[
-              styles.matchQualityPill,
-              { backgroundColor: matchColor + "20" },
-            ]}
+            style={[styles.scoreBadge, { backgroundColor: avatarColor + "20" }]}
           >
-            <Text style={[styles.matchQualityText, { color: matchColor }]}>
-              {getMatchLabel(profile.match_quality)}
+            <Text style={[styles.scoreText, { color: avatarColor }]}>
+              {profile.match_score}%
             </Text>
           </View>
-
-          {profile.has_auth && (
-            <View style={styles.linkedIndicator}>
-              <Ionicons name="checkmark-circle" size={14} color="#F59E0B" />
-              <Text style={styles.linkedText}>مطالب به</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Family Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.generation || 0}</Text>
-            <Text style={styles.statLabel}>الجيل</Text>
-          </View>
-          {profile.siblings_count > 0 && (
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile.siblings_count}</Text>
-              <Text style={styles.statLabel}>إخوة</Text>
-            </View>
-          )}
-          {profile.children_count > 0 && (
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile.children_count}</Text>
-              <Text style={styles.statLabel}>أبناء</Text>
-            </View>
+          {isSelected && (
+            <Ionicons
+              name="checkmark-circle"
+              size={20}
+              color={avatarColor}
+              style={styles.checkIcon}
+            />
           )}
         </View>
       </View>
-
-      {/* Selection Indicator */}
-      <View style={styles.selectionIndicator}>
-        <View
-          style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}
-        >
-          {isSelected && <View style={styles.radioInner} />}
-        </View>
-      </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 };
 
@@ -123,62 +132,7 @@ export default function ProfileMatchingScreen({ navigation, route }) {
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Group profiles by match quality
-  const groupedProfiles = useMemo(() => {
-    const groups = {
-      perfect: [],
-      excellent: [],
-      good: [],
-      fair: [],
-      weak: [],
-    };
-
-    profiles.forEach((profile) => {
-      const quality = profile.match_quality || "weak";
-      if (groups[quality]) {
-        groups[quality].push(profile);
-      }
-    });
-
-    // Convert to sections array, only include non-empty groups
-    const sections = [];
-    if (groups.perfect.length > 0) {
-      sections.push({
-        title: "تطابق كامل",
-        data: groups.perfect,
-        quality: "perfect",
-      });
-    }
-    if (groups.excellent.length > 0) {
-      sections.push({
-        title: "تطابق ممتاز",
-        data: groups.excellent,
-        quality: "excellent",
-      });
-    }
-    if (groups.good.length > 0) {
-      sections.push({ title: "تطابق جيد", data: groups.good, quality: "good" });
-    }
-    if (groups.fair.length > 0) {
-      sections.push({
-        title: "تطابق مقبول",
-        data: groups.fair,
-        quality: "fair",
-      });
-    }
-    if (groups.weak.length > 0) {
-      sections.push({
-        title: "تطابق جزئي",
-        data: groups.weak,
-        quality: "weak",
-      });
-    }
-
-    return sections;
-  }, [profiles]);
-
   const handleSelectProfile = useCallback((profile) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedProfile(profile);
   }, []);
 
@@ -218,26 +172,13 @@ export default function ProfileMatchingScreen({ navigation, route }) {
     navigation.navigate("ContactAdmin", { user, nameChain });
   };
 
-  const renderProfile = ({ item }) => (
+  const renderProfile = ({ item, index }) => (
     <ProfileMatchCard
       profile={item}
       isSelected={selectedProfile?.id === item.id}
       onPress={() => handleSelectProfile(item)}
-      searchedName={nameChain}
+      index={index}
     />
-  );
-
-  const renderSectionHeader = ({ section }) => (
-    <View style={styles.sectionHeader}>
-      <View
-        style={[
-          styles.sectionIndicator,
-          { backgroundColor: MATCH_COLORS[section.quality] },
-        ]}
-      />
-      <Text style={styles.sectionTitle}>{section.title}</Text>
-      <Text style={styles.sectionCount}>{section.data.length}</Text>
-    </View>
   );
 
   // Empty state
@@ -303,30 +244,24 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       <View style={styles.searchDisplay}>
         <Text style={styles.searchLabel}>البحث عن</Text>
         <Text style={styles.searchQuery}>{nameChain}</Text>
-        <Text style={styles.resultsCount}>{profiles.length} نتيجة</Text>
+        <View style={styles.resultsInfo}>
+          <Text style={styles.resultsCount}>
+            {toArabicNumerals(profiles.length.toString())} نتيجة
+          </Text>
+          {profiles.length > 0 && (
+            <Text style={styles.helpText}>اضغط على الملف الذي يمثلك</Text>
+          )}
+        </View>
       </View>
 
       {/* Results List */}
-      {groupedProfiles.length > 0 ? (
-        <FlatList
-          data={profiles}
-          renderItem={renderProfile}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={() => (
-            <Text style={styles.helpText}>اضغط على الملف الذي يمثلك</Text>
-          )}
-        />
-      ) : (
-        <FlatList
-          data={profiles}
-          renderItem={renderProfile}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
+      <FlatList
+        data={profiles}
+        renderItem={renderProfile}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
 
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
@@ -387,17 +322,17 @@ const styles = StyleSheet.create({
   searchDisplay: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D1BBA340",
+    borderColor: "#D1BBA320",
   },
   searchLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: "#24212199",
+    color: "#24212180",
     marginBottom: 4,
   },
   searchQuery: {
@@ -405,125 +340,112 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: "#242121",
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  resultsInfo: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   resultsCount: {
     fontSize: 13,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: "#24212199",
+    color: "#A13333",
   },
   helpText: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: "400",
     fontFamily: "SF Arabic",
-    color: "#242121CC",
-    textAlign: "center",
-    marginVertical: 16,
+    color: "#24212180",
   },
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 12,
-    paddingHorizontal: 16,
+
+  // Result card styles - matching SearchBar
+  resultCard: {
+    backgroundColor: "#D1BBA310",
+    borderRadius: 12,
+    marginBottom: 8,
+    overflow: "hidden",
   },
-  sectionIndicator: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    marginRight: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: "#242121",
-    flex: 1,
-  },
-  sectionCount: {
-    fontSize: 14,
-    fontWeight: "500",
-    fontFamily: "SF Arabic",
-    color: "#24212199",
+  resultCardPressed: {
     backgroundColor: "#D1BBA320",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
+    transform: [{ scale: 0.99 }],
   },
-  profileCard: {
-    backgroundColor: "#FFFFFF",
-    marginBottom: 12,
-    borderRadius: 12,
-    padding: 16,
+  resultCardSelected: {
+    backgroundColor: "#A1333310",
     borderWidth: 1,
-    borderColor: "#D1BBA340",
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  profileCardSelected: {
     borderColor: "#A13333",
-    borderWidth: 2,
-    backgroundColor: "#A1333308",
   },
-  matchBadge: {
-    position: "absolute",
-    top: 16,
-    right: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 16,
+  cardContent: {
+    flexDirection: "row-reverse", // RTL
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingLeft: 12,
+    paddingRight: 16,
+    minHeight: 60,
   },
-  matchBadgeText: {
-    fontSize: 12,
-    fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: "white",
+
+  // Avatar styles
+  avatarContainer: {
+    marginLeft: 12,
   },
-  profileContent: {
+  avatarPhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#D1BBA320",
+  },
+  avatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarLetter: {
+    fontSize: 17,
+    fontWeight: "400",
+    color: "#F9F7F3",
+    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+  },
+
+  // Text content
+  textContainer: {
     flex: 1,
-    paddingRight: 50,
+    marginLeft: 12,
   },
-  profileName: {
-    fontSize: 18,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
+  nameText: {
+    fontSize: 15,
+    fontWeight: "500",
     color: "#242121",
+    fontFamily: "SF Arabic",
+    textAlign: "right",
+    lineHeight: 22,
     marginBottom: 4,
   },
-  fullChain: {
+  metaContainer: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+  },
+  generationText: {
     fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+  },
+  metaSeparator: {
+    fontSize: 12,
+    color: "#24212140",
+    marginHorizontal: 6,
+  },
+  metaText: {
+    fontSize: 12,
     fontWeight: "400",
     fontFamily: "SF Arabic",
-    color: "#24212199",
-    marginBottom: 12,
-    lineHeight: 22,
-    textAlign: "right",
-  },
-  matchInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8,
-  },
-  matchQualityPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  matchQualityText: {
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-  },
-  linkedIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    color: "#24212180",
   },
   linkedText: {
     fontSize: 12,
@@ -531,48 +453,27 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: "#F59E0B",
   },
-  statsRow: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  statItem: {
+
+  // Score badge
+  scoreContainer: {
     alignItems: "center",
+    gap: 4,
   },
-  statValue: {
-    fontSize: 16,
-    fontWeight: "600",
+  scoreBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  scoreText: {
+    fontSize: 12,
+    fontWeight: "700",
     fontFamily: "SF Arabic",
-    color: "#242121",
   },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: "400",
-    fontFamily: "SF Arabic",
-    color: "#24212199",
-    marginTop: 2,
+  checkIcon: {
+    marginTop: 4,
   },
-  selectionIndicator: {
-    justifyContent: "center",
-    paddingLeft: 16,
-  },
-  radioOuter: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#D1BBA3",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  radioOuterSelected: {
-    borderColor: "#A13333",
-  },
-  radioInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#A13333",
-  },
+
+  // Bottom actions
   bottomActions: {
     position: "absolute",
     bottom: 0,
@@ -583,7 +484,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 34 : 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#D1BBA340",
+    borderTopColor: "#D1BBA320",
   },
   confirmButton: {
     backgroundColor: "#A13333",
@@ -619,6 +520,8 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "SF Arabic",
   },
+
+  // Empty state
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
