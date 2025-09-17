@@ -688,7 +688,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
-    marginTop: -400, // Position card at top of screen
   },
   cardWrapper: {
     width: "100%",
