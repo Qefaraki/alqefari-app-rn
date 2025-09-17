@@ -156,7 +156,7 @@ export default function NameChainEntryScreen({ navigation, route }) {
             <View style={styles.mainContent}>
               <Text style={styles.title}>ابحث عن مكانك في الشجرة</Text>
               <Text style={styles.subtitle}>
-                اكتب اسمك الثلاثي عشان نجد مكانك
+                اكتب اسمك الثلاثي عشان نربطك في الشجرة
               </Text>
 
               {/* Example Section - Better UI Element */}
