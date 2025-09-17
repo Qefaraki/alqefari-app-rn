@@ -33,14 +33,23 @@ const getInitials = (name) => {
   return arabicName.charAt(0);
 };
 
-// Convert to Arabic numerals
-const toArabicNumerals = (num) => {
-  const arabicNumerals = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
-  return num
-    .toString()
-    .split("")
-    .map((digit) => arabicNumerals[parseInt(digit)] || digit)
-    .join("");
+// Convert generation to Arabic ordinal
+const getGenerationName = (generation) => {
+  const generationNames = [
+    "الأول", // 1
+    "الثاني", // 2
+    "الثالث", // 3
+    "الرابع", // 4
+    "الخامس", // 5
+    "السادس", // 6
+    "السابع", // 7
+    "الثامن", // 8
+    "التاسع", // 9
+    "العاشر", // 10
+    "الحادي عشر", // 11
+    "الثاني عشر", // 12
+  ];
+  return generationNames[generation - 1] || `الجيل ${generation}`;
 };
 
 // Profile match card component - matching SearchBar UI
@@ -85,16 +94,8 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
           </Text>
           <View style={styles.metaContainer}>
             <Text style={[styles.generationText, { color: avatarColor }]}>
-              الجيل {toArabicNumerals(profile.generation?.toString() || "0")}
+              {getGenerationName(profile.generation || 1)}
             </Text>
-            {profile.siblings_count > 0 && (
-              <Text style={styles.metaSeparator}>•</Text>
-            )}
-            {profile.siblings_count > 0 && (
-              <Text style={styles.metaText}>
-                {toArabicNumerals(profile.siblings_count.toString())} إخوة
-              </Text>
-            )}
             {profile.has_auth && (
               <>
                 <Text style={styles.metaSeparator}>•</Text>
@@ -113,14 +114,12 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
               {profile.match_score}%
             </Text>
           </View>
-          {isSelected && (
-            <Ionicons
-              name="checkmark-circle"
-              size={20}
-              color={avatarColor}
-              style={styles.checkIcon}
-            />
-          )}
+          {/* Fixed height container prevents jumping */}
+          <View style={styles.checkContainer}>
+            {isSelected && (
+              <Ionicons name="checkmark-circle" size={20} color={avatarColor} />
+            )}
+          </View>
         </View>
       </View>
     </Pressable>
@@ -195,7 +194,7 @@ export default function ProfileMatchingScreen({ navigation, route }) {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-forward" size={24} color="#242121" />
+            <Ionicons name="chevron-back" size={24} color="#242121" />
           </TouchableOpacity>
           <Text style={styles.title}>نتائج البحث</Text>
         </View>
@@ -245,9 +244,7 @@ export default function ProfileMatchingScreen({ navigation, route }) {
         <Text style={styles.searchLabel}>البحث عن</Text>
         <Text style={styles.searchQuery}>{nameChain}</Text>
         <View style={styles.resultsInfo}>
-          <Text style={styles.resultsCount}>
-            {toArabicNumerals(profiles.length.toString())} نتيجة
-          </Text>
+          <Text style={styles.resultsCount}>{profiles.length} نتيجة</Text>
           {profiles.length > 0 && (
             <Text style={styles.helpText}>اضغط على الملف الذي يمثلك</Text>
           )}
@@ -310,7 +307,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginLeft: 8,
+    marginRight: 8, // Will flip to left in RTL
   },
   title: {
     fontSize: 22,
@@ -381,17 +378,16 @@ const styles = StyleSheet.create({
     borderColor: "#A13333",
   },
   cardContent: {
-    flexDirection: "row-reverse", // RTL
+    flexDirection: "row", // Native RTL will handle this
     alignItems: "center",
     paddingVertical: 12,
-    paddingLeft: 12,
-    paddingRight: 16,
+    paddingHorizontal: 16,
     minHeight: 60,
   },
 
   // Avatar styles
   avatarContainer: {
-    marginLeft: 12,
+    marginRight: 12, // Will be flipped to left by native RTL
   },
   avatarPhoto: {
     width: 40,
@@ -416,7 +412,6 @@ const styles = StyleSheet.create({
   // Text content
   textContainer: {
     flex: 1,
-    marginLeft: 12,
   },
   nameText: {
     fontSize: 15,
@@ -428,7 +423,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metaContainer: {
-    flexDirection: "row-reverse",
+    flexDirection: "row", // Native RTL handles this
     alignItems: "center",
   },
   generationText: {
@@ -469,8 +464,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "SF Arabic",
   },
-  checkIcon: {
+  checkContainer: {
+    height: 24, // Fixed height prevents jumping
     marginTop: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   // Bottom actions

@@ -154,9 +154,9 @@ export default function NameChainEntryScreen({ navigation, route }) {
 
             {/* Main Content */}
             <View style={styles.mainContent}>
-              <Text style={styles.title}>البحث عن ملفك الشخصي</Text>
+              <Text style={styles.title}>ابحث عن مكانك في الشجرة</Text>
               <Text style={styles.subtitle}>
-                ادخل الأسماء للبحث في شجرة العائلة
+                اكتب اسمك الثلاثي عشان نجد مكانك
               </Text>
 
               {/* Example Section - Better UI Element */}
