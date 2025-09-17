@@ -1,5 +1,18 @@
 # Alqefari Family Tree - Design System & Development Guide
 
+## ⚠️ IMPORTANT: Native RTL Mode is ENABLED
+
+**The app runs in native RTL mode** (`I18nManager.forceRTL(true)` in index.js). This means:
+
+- React Native automatically flips all layouts for Arabic
+- DO NOT use `flexDirection: 'row-reverse'` - use normal `'row'`
+- DO NOT use `textAlign: 'right'` for Arabic - use `'left'` or `'start'`
+- DO NOT use `alignItems: 'flex-end'` - use `'flex-start'`
+- Back buttons should use `chevron-back` (not forward)
+- React Native handles all RTL transformations automatically
+
+**Simply write layouts as if for LTR, and React Native flips them for RTL.**
+
 ## 🎨 Design Language: "Najdi Sadu"
 
 A culturally authentic design system inspired by Najdi Sadu weaving traditions, creating a warm, sophisticated, and uniquely Saudi family tree experience.
@@ -7,27 +20,32 @@ A culturally authentic design system inspired by Najdi Sadu weaving traditions, 
 ### Color Palette (60-30-10 Rule)
 
 #### Dominant (60%): Background
+
 - **Al-Jass White** `#F9F7F3` - Primary background
   - All screens, pages, and modals
   - Clean canvas with warm undertones
 
 #### Secondary (30%): Containers
+
 - **Camel Hair Beige** `#D1BBA3` - Content containers
   - Cards, sidebars, input fields
   - Visually distinct from primary background
 
 #### Text & Base Elements
+
 - **Sadu Night** `#242121` - All text content
   - Body copy, headlines, labels
   - High contrast without pure black harshness
 
 #### Primary Accent (10%): Actions
+
 - **Najdi Crimson** `#A13333` - Primary actions
   - Main buttons, important links
   - Active navigation states
   - Critical notifications
 
 #### Secondary Accent: Highlights
+
 - **Desert Ochre** `#D58C4A` - Secondary emphasis
   - Secondary icons, tags
   - Progress bars, warm accents
@@ -80,6 +98,7 @@ caption: {
 ### Component Patterns
 
 #### Base Card
+
 ```javascript
 card: {
   backgroundColor: "#F9F7F3", // Al-Jass White
@@ -98,6 +117,7 @@ card: {
 ```
 
 #### Primary Button
+
 ```javascript
 primaryButton: {
   backgroundColor: "#A13333", // Najdi Crimson
@@ -118,6 +138,7 @@ primaryButtonText: {
 ```
 
 #### Secondary Button
+
 ```javascript
 secondaryButton: {
   backgroundColor: "transparent",
@@ -136,6 +157,7 @@ secondaryButtonText: {
 ```
 
 #### Input Field
+
 ```javascript
 inputField: {
   backgroundColor: "#D1BBA3" + "20", // Camel Hair Beige 20%
@@ -158,12 +180,14 @@ inputFieldFocused: {
 Sadu patterns should enrich the design without compromising readability:
 
 #### Permitted Uses:
+
 - **Background Textures**: Hero sections at 5-10% opacity
 - **Decorative Borders**: UI cards or section dividers
 - **Element Fills**: Profile avatars, decorative placeholders
 - **Loading States**: Subtle pattern animations
 
 #### Restrictions:
+
 - Never over text content
 - Maximum 10% opacity for backgrounds
 - Use sparingly for cultural accent
@@ -178,15 +202,18 @@ Sadu patterns should enrich the design without compromising readability:
 ### Interactive States
 
 #### Touch Feedback
+
 - **Cards**: `activeOpacity: 0.95`
 - **Buttons**: `activeOpacity: 0.8`
 - **List Items**: `activeOpacity: 0.7`
 
 #### Focus States
+
 - Add `#957EB5` border with 2px width
 - Include 4px focus ring with 20% opacity
 
 #### Disabled States
+
 - 40% opacity on all elements
 - Remove shadows and borders
 
@@ -209,6 +236,7 @@ Sadu patterns should enrich the design without compromising readability:
 ### Family-Specific Elements
 
 #### Family Member Card
+
 ```javascript
 memberCard: {
   ...baseCard,
@@ -218,6 +246,7 @@ memberCard: {
 ```
 
 #### Tree Node
+
 ```javascript
 treeNode: {
   backgroundColor: "#F9F7F3", // Al-Jass White
@@ -267,17 +296,20 @@ src/
 ## 🔑 Key Implementation Rules
 
 ### RTL Support
+
 - All layouts must work in RTL
 - Use `flexDirection: "row"` with proper RTL handling
 - Test with Arabic content
 
 ### State Management
+
 ```javascript
 // Single source of truth
 const { nodes, updateNode } = useTreeStore();
 ```
 
 ### Error Handling
+
 ```javascript
 if (error) {
   Alert.alert("خطأ", handleSupabaseError(error));
@@ -285,6 +317,7 @@ if (error) {
 ```
 
 ### Performance
+
 - Branch-based loading (max depth 3-5)
 - Viewport culling for visible nodes
 - Debounce real-time subscriptions
@@ -292,6 +325,7 @@ if (error) {
 ## 🎯 Component Examples
 
 ### Hero Card (Sign-in, Welcome)
+
 ```javascript
 <View style={styles.heroCard}>
   <View style={styles.iconContainer}>
@@ -306,6 +340,7 @@ if (error) {
 ```
 
 ### Profile Card
+
 ```javascript
 <TouchableOpacity style={styles.profileCard}>
   <Image source={profileImage} style={styles.profileImage} />
@@ -329,6 +364,7 @@ if (error) {
 ## 📝 Git Workflow & Version Control
 
 ### CRITICAL: Always Save Your Work
+
 ```bash
 # After EVERY feature/fix - commit immediately
 git add -A
@@ -344,6 +380,7 @@ git commit -m "type: Clear description of changes"
 ```
 
 ### Git Best Practices
+
 1. **Commit frequently** - After each working feature
 2. **Never lose work** - Commit before switching tasks
 3. **Clear messages** - Describe WHAT and WHY
@@ -351,7 +388,9 @@ git commit -m "type: Clear description of changes"
 5. **Check status** - `git status` before and after changes
 
 ### Documentation Updates
+
 When you change code, update:
+
 - `CLAUDE.md` - For design/system changes
 - `README.md` - For major features
 - Component comments - For complex logic
@@ -359,12 +398,15 @@ When you change code, update:
 ## ⚠️ Supabase Deployment Rules
 
 ### CRITICAL: NEVER Ask User to Deploy
+
 **I MUST deploy all database changes myself. NEVER tell the user to:**
+
 - ❌ "Run this in Supabase Dashboard"
 - ❌ "Go to Supabase and execute this"
 - ❌ "You need to deploy this SQL"
 
 ### Always Deploy Automatically
+
 ```bash
 # I will ALWAYS run these myself:
 node scripts/execute-sql.js migrations/new-migration.sql
@@ -377,6 +419,7 @@ node scripts/direct-deploy.js
 ```
 
 ### Database Change Workflow
+
 1. Write SQL migration file
 2. Deploy it myself using execute-sql.js
 3. Verify deployment succeeded
@@ -400,15 +443,19 @@ node scripts/direct-deploy.js
 ---
 
 _This design system ensures consistency, cultural appropriateness, and premium feel throughout the Alqefari Family Tree app._
+
 ## 🚀 Multi-Agent Git Workflow
 
 ### CRITICAL: End-of-Session Protocol
+
 When user says "ending for today" or similar, IMMEDIATELY:
+
 1. Check commit count: `git rev-list --count origin/master..HEAD`
 2. If > 20 commits → MUST merge today to prevent divergence
 3. Run full audit from `END_OF_SESSION_PROTOCOL.md`
 
 ### Branch Strategy for Multiple Agents
+
 - **One branch per session/feature** (not per agent)
 - **Daily merges** to prevent divergence
 - **Descriptive commits** with agent context: `feat(claude): Add feature X`

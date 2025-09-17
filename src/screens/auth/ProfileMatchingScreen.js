@@ -59,10 +59,9 @@ const ProfileMatchCard = ({ profile, isSelected, onPress }) => {
         {/* Name with highlight if matches */}
         <Text style={styles.profileName}>{profile.name}</Text>
 
-        {/* Full ancestral chain */}
-        <Text style={styles.fullChain} numberOfLines={2}>
-          {profile.full_chain ||
-            `${profile.name} ${profile.father_name || ""} ${profile.grandfather_name || ""}`}
+        {/* Full ancestral chain - exactly like profile pages */}
+        <Text style={styles.fullChain}>
+          {profile.full_chain || profile.name}
         </Text>
 
         {/* Match Quality Label */}
@@ -497,12 +496,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fullChain: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "400",
     fontFamily: "SF Arabic",
     color: "#24212199",
     marginBottom: 12,
-    lineHeight: 20,
+    lineHeight: 22,
+    textAlign: "right",
   },
   matchInfo: {
     flexDirection: "row",
