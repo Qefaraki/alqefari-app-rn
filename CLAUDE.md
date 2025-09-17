@@ -400,3 +400,18 @@ node scripts/direct-deploy.js
 ---
 
 _This design system ensures consistency, cultural appropriateness, and premium feel throughout the Alqefari Family Tree app._
+## 🚀 Multi-Agent Git Workflow
+
+### CRITICAL: End-of-Session Protocol
+When user says "ending for today" or similar, IMMEDIATELY:
+1. Check commit count: `git rev-list --count origin/master..HEAD`
+2. If > 20 commits → MUST merge today to prevent divergence
+3. Run full audit from `END_OF_SESSION_PROTOCOL.md`
+
+### Branch Strategy for Multiple Agents
+- **One branch per session/feature** (not per agent)
+- **Daily merges** to prevent divergence
+- **Descriptive commits** with agent context: `feat(claude): Add feature X`
+- **Maximum 20 commits** before mandatory merge
+
+See `END_OF_SESSION_PROTOCOL.md` for complete checklist.
