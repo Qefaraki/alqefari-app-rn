@@ -443,7 +443,7 @@ export default function OnboardingScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "transparent", // Changed to transparent to show backdrop
+    backgroundColor: "#000",
   },
   maskedContainer: {
     position: "absolute",
