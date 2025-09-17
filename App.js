@@ -29,14 +29,10 @@ import { useSharedValue } from "react-native-reanimated";
 import { useTreeStore } from "./src/stores/useTreeStore";
 import "./global.css";
 
-// Force RTL for the entire app
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
-
-// Check if RTL is actually enabled
-if (!I18nManager.isRTL) {
-  console.warn("RTL is not enabled. Using hardcoded RTL styles instead.");
-}
+// RTL is now configured at the native level in:
+// - iOS: AppDelegate.swift
+// - Android: MainActivity.kt
+// This ensures RTL is enabled before React Native initializes
 
 const Stack = createStackNavigator();
 

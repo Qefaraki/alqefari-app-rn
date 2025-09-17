@@ -212,8 +212,32 @@ export const phoneAuthService = {
    */
   async searchProfilesByNameChain(nameChain) {
     try {
-      // Split the name chain into components
-      const names = nameChain.trim().split(/\s+/);
+      // Remove common family names before searching
+      const familyNames = [
+        "القفاري",
+        "الدوسري",
+        "العتيبي",
+        "الشمري",
+        "العنزي",
+        "السبيعي",
+        "المطيري",
+        "الحربي",
+        "الزهراني",
+        "الغامدي",
+        "العمري",
+        "المالكي",
+        "الأحمدي",
+        "الجهني",
+        "الخالدي",
+      ];
+
+      let cleanedName = nameChain.trim();
+      familyNames.forEach((family) => {
+        cleanedName = cleanedName.replace(family, "").trim();
+      });
+
+      // Split the cleaned name chain into components
+      const names = cleanedName.split(/\s+/);
       const firstName = names[0] || "";
       const fatherName = names[1] || "";
       const grandfatherName = names[2] || "";

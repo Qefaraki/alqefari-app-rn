@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,26 +9,61 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  Image,
   ScrollView,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
 
+// Najdi Sadu Design System Colors
+const colors = {
+  background: "#F9F7F3", // Al-Jass White
+  container: "#D1BBA3", // Camel Hair Beige
+  text: "#242121", // Sadu Night
+  primary: "#A13333", // Najdi Crimson
+  secondary: "#D58C4A", // Desert Ochre
+  success: "#4CAF50",
+  error: "#F44336",
+  inputBg: "rgba(209, 187, 163, 0.1)", // Container 10%
+  inputBorder: "rgba(209, 187, 163, 0.4)", // Container 40%
+  inputFocusBorder: "#A13333", // Primary
+  textSecondary: "rgba(36, 33, 33, 0.6)", // Text 60%
+  textHint: "rgba(36, 33, 33, 0.4)", // Text 40%
+};
+
 export default function NameChainEntryScreen({ navigation, route }) {
   const { user } = route.params;
   const [nameChain, setNameChain] = useState("");
-  const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef(null);
+
+  // Animation on mount
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, []);
 
   const handleSearch = async () => {
     const trimmedName = nameChain.trim();
-    if (!trimmedName) {
+
+    // Remove family names like القفاري
+    const familyNames = ["القفاري", "الدوسري", "العتيبي", "الشمري", "العنزي"];
+    let cleanedName = trimmedName;
+    familyNames.forEach((family) => {
+      cleanedName = cleanedName.replace(family, "").trim();
+    });
+
+    if (!cleanedName) {
       Alert.alert("خطأ", "يرجى إدخال الاسم الثلاثي");
       return;
     }
 
-    const nameWords = trimmedName.split(" ").filter((w) => w.length > 0);
+    const nameWords = cleanedName.split(" ").filter((w) => w.length > 0);
     if (nameWords.length < 2) {
       Alert.alert("خطأ", "يرجى إدخال اسمك واسم والدك على الأقل");
       return;
@@ -36,7 +71,7 @@ export default function NameChainEntryScreen({ navigation, route }) {
 
     setSearching(true);
     const result =
-      await phoneAuthService.searchProfilesByNameChain(trimmedName);
+      await phoneAuthService.searchProfilesByNameChain(cleanedName);
     setSearching(false);
 
     if (result.success) {
@@ -65,285 +100,302 @@ export default function NameChainEntryScreen({ navigation, route }) {
   };
 
   const handleContactAdmin = () => {
-    // For now, just go to the main app as guest
     Alert.alert(
-      "التواصل مع المشرف",
-      "سيتم إضافة هذه الميزة قريباً. يمكنك الدخول كضيف الآن.",
+      "هل تحتاج مساعدة؟",
+      "تواصل مع المشرف لإضافة ملفك الشخصي إلى الشجرة",
       [
         { text: "إلغاء", style: "cancel" },
-        { text: "دخول كضيف", onPress: () => navigation.replace("Main") },
-      ],
-    );
-  };
-
-  const handleSkip = () => {
-    Alert.alert(
-      "المشاهدة فقط",
-      "ستتمكن من مشاهدة الشجرة فقط دون إمكانية التعديل.",
-      [
-        { text: "إلغاء", style: "cancel" },
-        { text: "موافق", onPress: () => navigation.replace("Main") },
+        {
+          text: "واتساب",
+          onPress: () => {
+            // TODO: Open WhatsApp with admin number
+            Alert.alert("قريباً", "سيتم إضافة رابط واتساب المشرف قريباً");
+          },
+        },
       ],
     );
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#1a1a1a" />
-          </TouchableOpacity>
-          <Text style={styles.title}>البحث عن ملفك الشخصي</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+            {/* Header with Progress */}
+            <View style={styles.header}>
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons name="chevron-back" size={28} color={colors.text} />
+              </TouchableOpacity>
 
-        <View style={styles.content}>
-          <Text style={styles.subtitle}>أدخل اسمك الثلاثي</Text>
-          <Text style={styles.description}>
-            اكتب اسمك الأول واسم والدك وجدك بالترتيب
-          </Text>
-
-          <View style={styles.exampleContainer}>
-            <Text style={styles.exampleTitle}>مثال:</Text>
-            <View style={styles.exampleBox}>
-              <Text style={styles.exampleText}>أحمد محمد عبدالله القفاري</Text>
+              {/* Progress Dots */}
+              <View style={styles.progressContainer}>
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+                <View style={[styles.progressDot, styles.progressDotActive]} />
+                <View style={styles.progressDot} />
+                <View style={styles.progressDot} />
+              </View>
             </View>
-          </View>
 
-          <TextInput
-            style={styles.nameInput}
-            placeholder="اكتب اسمك الثلاثي هنا..."
-            placeholderTextColor="#999"
-            value={nameChain}
-            onChangeText={setNameChain}
-            multiline={false}
-            textAlign="right"
-            autoCorrect={false}
-            autoCapitalize="words"
-          />
-
-          <View style={styles.tipsContainer}>
-            <Text style={styles.tipsTitle}>نصائح:</Text>
-            <View style={styles.tipRow}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>
-                اكتب الاسم كما هو مسجل في الشجرة
+            {/* Main Content */}
+            <View style={styles.mainContent}>
+              <Text style={styles.title}>البحث عن ملفك الشخصي</Text>
+              <Text style={styles.subtitle}>
+                ادخل الأسماء للبحث في شجرة العائلة
               </Text>
+
+              {/* Example Section - Simplified */}
+              <View style={styles.exampleContainer}>
+                <Text style={styles.exampleLabel}>مثال:</Text>
+                <Text style={styles.exampleText}>محمد عبدالله سليمان</Text>
+              </View>
+
+              {/* Input Field with Better Styling */}
+              <View
+                style={[
+                  styles.inputContainer,
+                  isFocused && styles.inputContainerFocused,
+                ]}
+              >
+                <TextInput
+                  ref={inputRef}
+                  style={styles.nameInput}
+                  placeholder="اكتب اسمك الثلاثي هنا..."
+                  placeholderTextColor={colors.textHint}
+                  value={nameChain}
+                  onChangeText={setNameChain}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  multiline={false}
+                  textAlign="right"
+                  autoCorrect={false}
+                  autoCapitalize="words"
+                  returnKeyType="search"
+                  onSubmitEditing={handleSearch}
+                />
+              </View>
+
+              {/* Inline Hint - More Helpful */}
+              {nameChain.length > 0 && (
+                <Animated.View style={styles.hintContainer}>
+                  <Text style={styles.hintText}>
+                    💡 لا تضيف "القفاري" أو أي لقب عائلي
+                  </Text>
+                </Animated.View>
+              )}
+
+              {/* Search Button - Primary Action */}
+              <TouchableOpacity
+                style={[
+                  styles.searchButton,
+                  (!nameChain.trim() || searching) && styles.buttonDisabled,
+                ]}
+                onPress={handleSearch}
+                disabled={searching || !nameChain.trim()}
+                activeOpacity={0.8}
+              >
+                {searching ? (
+                  <ActivityIndicator color={colors.background} />
+                ) : (
+                  <View style={styles.buttonContent}>
+                    <Ionicons
+                      name="search"
+                      size={22}
+                      color={colors.background}
+                    />
+                    <Text style={styles.buttonText}>البحث في الشجرة</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Help Link - Subtle */}
+              <TouchableOpacity
+                style={styles.helpLink}
+                onPress={handleContactAdmin}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.helpText}>هل تحتاج مساعدة؟</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.tipRow}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>لا تستخدم الألقاب أو الكنى</Text>
-            </View>
-            <View style={styles.tipRow}>
-              <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-              <Text style={styles.tipText}>افصل بين الأسماء بمسافة واحدة</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.searchButton,
-              !nameChain.trim() && styles.buttonDisabled,
-            ]}
-            onPress={handleSearch}
-            disabled={searching || !nameChain.trim()}
-          >
-            {searching ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <>
-                <Ionicons name="search" size={20} color="white" />
-                <Text style={styles.buttonText}>البحث في الشجرة</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>أو</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity
-            style={styles.contactButton}
-            onPress={handleContactAdmin}
-          >
-            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-            <Text style={styles.contactButtonText}>تواصل مع المشرف</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipText}>تخطي - المشاهدة فقط</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: colors.background, // Al-Jass White
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 32,
+  },
+  content: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    justifyContent: "space-between",
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   backButton: {
-    padding: 5,
-    marginRight: 10,
+    padding: 8,
+    marginRight: 8,
+  },
+  progressContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.inputBorder, // Container 40%
+  },
+  progressDotCompleted: {
+    backgroundColor: colors.success,
+  },
+  progressDotActive: {
+    backgroundColor: colors.primary, // Najdi Crimson
+    width: 24,
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1a1a1a",
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
+    fontSize: 28,
+    fontWeight: "700",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#1a1a1a",
+    fontSize: 15,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    color: colors.textSecondary,
     textAlign: "center",
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 32,
+    lineHeight: 22,
   },
   exampleContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
   },
-  exampleTitle: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
-  },
-  exampleBox: {
-    backgroundColor: "#f0f0f0",
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
+  exampleLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: colors.textSecondary,
+    marginBottom: 4,
   },
   exampleText: {
-    fontSize: 16,
-    color: "#1a1a1a",
+    fontSize: 18,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: colors.text,
     textAlign: "center",
   },
-  nameInput: {
-    backgroundColor: "white",
+  inputContainer: {
+    backgroundColor: colors.inputBg,
     borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 15,
-    fontSize: 16,
-    color: "#1a1a1a",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: colors.inputBorder,
+    marginBottom: 12,
+    overflow: "hidden",
   },
-  tipsContainer: {
-    backgroundColor: "#f8f9fa",
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 25,
+  inputContainerFocused: {
+    borderColor: colors.primary, // Najdi Crimson on focus
+    backgroundColor: colors.background,
   },
-  tipsTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1a1a1a",
-    marginBottom: 10,
+  nameInput: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 18,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+    minHeight: 56,
   },
-  tipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
+  hintContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
-  tipText: {
+  hintText: {
     fontSize: 13,
-    color: "#666",
-    marginLeft: 8,
-    flex: 1,
+    fontFamily: "SF Arabic",
+    color: colors.textSecondary,
+    textAlign: "right",
   },
   searchButton: {
-    backgroundColor: "#007AFF",
-    paddingVertical: 15,
+    backgroundColor: colors.primary, // Najdi Crimson
     borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     alignItems: "center",
-    flexDirection: "row",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 16,
+    minHeight: 56,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonDisabled: {
-    backgroundColor: "#ccc",
+    backgroundColor: colors.inputBorder,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   buttonText: {
-    color: "white",
-    fontSize: 16,
+    color: colors.background,
+    fontSize: 17,
     fontWeight: "600",
-    marginLeft: 8,
+    fontFamily: "SF Arabic",
+    letterSpacing: -0.3,
   },
-  divider: {
-    flexDirection: "row",
+  helpLink: {
     alignItems: "center",
-    marginVertical: 20,
+    paddingVertical: 12,
+    marginTop: 8,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#e0e0e0",
-  },
-  dividerText: {
-    marginHorizontal: 10,
-    color: "#666",
-    fontSize: 14,
-  },
-  contactButton: {
-    backgroundColor: "white",
-    paddingVertical: 15,
-    borderRadius: 12,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#25D366",
-    marginBottom: 15,
-  },
-  contactButtonText: {
-    color: "#25D366",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  skipButton: {
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  skipText: {
-    color: "#007AFF",
-    fontSize: 14,
+  helpText: {
+    fontSize: 15,
+    fontFamily: "SF Arabic",
+    color: colors.primary,
     textDecorationLine: "underline",
+    textDecorationColor: colors.primary,
   },
 });
