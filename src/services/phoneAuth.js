@@ -192,7 +192,7 @@ export const phoneAuthService = {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("auth_user_id", user.id)
+        .eq("user_id", user.id)
         .single();
 
       if (error) {
@@ -248,7 +248,7 @@ export const phoneAuthService = {
       }
 
       // Filter out already claimed profiles
-      query = query.is("auth_user_id", null);
+      query = query.is("user_id", null);
 
       // Limit results
       query = query.limit(20);
@@ -458,11 +458,11 @@ export const phoneAuthService = {
       // Check if profile is already claimed
       const { data: profile } = await supabase
         .from("profiles")
-        .select("auth_user_id")
+        .select("user_id")
         .eq("id", profileId)
         .single();
 
-      if (profile?.auth_user_id) {
+      if (profile?.user_id) {
         return {
           success: false,
           error: "هذا الملف مرتبط بمستخدم آخر",
@@ -473,7 +473,7 @@ export const phoneAuthService = {
       const { error: updateError } = await supabase
         .from("profiles")
         .update({
-          auth_user_id: user.id,
+          user_id: user.id,
           phone: user.phone,
           updated_at: new Date().toISOString(),
         })
