@@ -1,11 +1,5 @@
 # AHDAF - Alqefari Family Tree Application
 
-A premium iOS-first family tree visualization application built with React Native, featuring a world-class neo‑native design (no glass/blur) and advanced tree navigation.
-
-## 🌟 Features
-
-- **Interactive Family Tree Visualization** - Smooth pan, zoom, and navigation through large family trees
-- **Premium iOS Design** - Native iOS feel with crisp, non‑blur UI components
 - **Admin Mode** - Comprehensive editing capabilities for authorized users
 - **Real-time Updates** - Live synchronization across all connected clients
 - **Arabic-First Design** - Full RTL support with SF Arabic font integration
