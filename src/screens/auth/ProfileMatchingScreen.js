@@ -44,21 +44,21 @@ const getInitials = (name) => {
   return arabicName.charAt(0);
 };
 
-// Convert generation to Arabic ordinal
+// Convert generation to Arabic ordinal with "الجيل" prefix
 const getGenerationName = (generation) => {
   const generationNames = [
-    "الأول", // 1
-    "الثاني", // 2
-    "الثالث", // 3
-    "الرابع", // 4
-    "الخامس", // 5
-    "السادس", // 6
-    "السابع", // 7
-    "الثامن", // 8
-    "التاسع", // 9
-    "العاشر", // 10
-    "الحادي عشر", // 11
-    "الثاني عشر", // 12
+    "الجيل الأول", // 1
+    "الجيل الثاني", // 2
+    "الجيل الثالث", // 3
+    "الجيل الرابع", // 4
+    "الجيل الخامس", // 5
+    "الجيل السادس", // 6
+    "الجيل السابع", // 7
+    "الجيل الثامن", // 8
+    "الجيل التاسع", // 9
+    "الجيل العاشر", // 10
+    "الجيل الحادي عشر", // 11
+    "الجيل الثاني عشر", // 12
   ];
   return generationNames[generation - 1] || `الجيل ${generation}`;
 };
@@ -362,9 +362,9 @@ const styles = StyleSheet.create({
 
   // Main content - EXACT MATCH with NameChainEntryScreen
   mainContent: {
-    flex: 1,
     paddingHorizontal: 16,
     paddingTop: 24,
+    paddingBottom: 16,
   },
   title: {
     fontSize: 28,
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 120,
+    paddingBottom: 140, // More space for bottom actions
   },
 
   // Result card styles - matching SearchBar
@@ -437,9 +437,9 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    minHeight: 60,
+    minHeight: 72, // More height to prevent cramping
   },
 
   // Avatar styles
@@ -472,10 +472,10 @@ const styles = StyleSheet.create({
   },
   nameText: {
     fontSize: 15,
-    fontWeight: "500",
+    fontWeight: "600",
     color: colors.text,
     fontFamily: "SF Arabic",
-    textAlign: "right",
+    textAlign: "left", // Native RTL will flip to right
     lineHeight: 22,
     marginBottom: 4,
   },
@@ -503,7 +503,8 @@ const styles = StyleSheet.create({
   // Score badge
   scoreContainer: {
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
+    marginLeft: 8, // Space from content
   },
   scoreBadge: {
     paddingHorizontal: 8,
@@ -517,8 +518,10 @@ const styles = StyleSheet.create({
   },
   checkContainer: {
     height: 24,
+    width: 24, // Fixed width to prevent layout shift
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 4,
   },
 
   // Bottom actions

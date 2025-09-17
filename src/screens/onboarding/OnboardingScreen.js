@@ -32,6 +32,7 @@ try {
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 // Create a dense starfield that will be masked by the logo
 const createMaskedStarfield = () => {
@@ -384,12 +385,10 @@ export default function OnboardingScreen({
           },
         ]}
       >
-        <Text style={[styles.title, { writingDirection: "rtl" }]}>
-          لكل عائلة عظيمة حكاية.
-        </Text>
-        <Text style={[styles.subtitle, { writingDirection: "rtl" }]}>
-          وهذه حكاية القفاري.
-        </Text>
+        <View style={styles.contentInner}>
+          <Text style={styles.title}>لكل عائلة عظيمة حكاية.</Text>
+          <Text style={styles.subtitle}>وهذه حكاية القفاري.</Text>
+        </View>
       </Animated.View>
 
       {/* Buttons - fade in last */}
@@ -398,43 +397,41 @@ export default function OnboardingScreen({
           styles.buttonContainer,
           {
             opacity: buttonFade,
-            paddingBottom: Math.max(insets.bottom + 20, 40), // Use safe area
+            paddingBottom: Math.max(insets.bottom + 32, 56),
           },
         ]}
       >
-        <Animated.View
-          style={[
-            styles.continueButton,
-            {
-              transform: [{ scale: primaryButtonScale }],
-            },
-          ]}
-        >
-          <TouchableOpacity
+        <View style={styles.buttonGroup}>
+          <AnimatedTouchableOpacity
             onPress={handleContinue}
             activeOpacity={0.8}
-            style={{ width: "100%", alignItems: "center" }}
+            style={[
+              styles.continueButton,
+              {
+                transform: [{ scale: primaryButtonScale }],
+              },
+            ]}
           >
             <Text style={styles.continueButtonText}>ابدأ الرحلة</Text>
-          </TouchableOpacity>
-        </Animated.View>
+          </AnimatedTouchableOpacity>
 
-        <Animated.View
-          style={[
-            styles.skipButton,
-            {
-              transform: [{ scale: secondaryButtonScale }],
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={handleExploreAsGuest}
-            activeOpacity={0.7}
-            style={{ width: "100%", alignItems: "center" }}
+          <Animated.View
+            style={[
+              styles.skipButton,
+              {
+                transform: [{ scale: secondaryButtonScale }],
+              },
+            ]}
           >
-            <Text style={styles.skipButtonText}>استكشف كضيف</Text>
-          </TouchableOpacity>
-        </Animated.View>
+            <TouchableOpacity
+              onPress={handleExploreAsGuest}
+              activeOpacity={0.7}
+              style={{ width: "100%", alignItems: "center" }}
+            >
+              <Text style={styles.skipButtonText}>استكشف كضيف</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
       </Animated.View>
     </View>
   );
@@ -478,10 +475,17 @@ const styles = StyleSheet.create({
   },
   content: {
     position: "absolute",
-    top: SCREEN_HEIGHT * 0.65,
-    width: SCREEN_WIDTH,
+    bottom: Platform.isPad ? 264 : 208,
+    left: 0,
+    right: 0,
+    paddingHorizontal: Platform.isPad ? 48 : 24,
     alignItems: "center",
-    paddingHorizontal: Platform.isPad ? 48 : 32, // Grid-based padding
+  },
+  contentInner: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 32,
@@ -490,7 +494,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     letterSpacing: -0.5,
     lineHeight: 40,
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: "center",
     writingDirection: "rtl",
   },
@@ -507,21 +511,33 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: "absolute",
-    bottom: 60, // Push higher from bottom
-    width: SCREEN_WIDTH,
-    paddingHorizontal: Platform.isPad ? 48 : 24, // Tighter padding
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: Platform.isPad ? 48 : 24,
+    paddingTop: 24,
+    alignItems: "center",
+  },
+  buttonGroup: {
+    width: "100%",
+    maxWidth: 420,
+    alignSelf: "center",
   },
   continueButton: {
     backgroundColor: "#A13333",
-    borderRadius: 12,
-    paddingVertical: 14, // Reduced from 16
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    minHeight: 52,
     alignItems: "center",
-    marginBottom: 8, // Reduced from 12
+    justifyContent: "center",
+    marginBottom: 16,
     shadowColor: "#A13333",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+    width: "100%",
   },
   continueButtonText: {
     color: "#F9F7F3",
@@ -530,13 +546,13 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
   },
   skipButton: {
-    paddingVertical: 10, // Reduced from 12
+    paddingVertical: 10,
     alignItems: "center",
   },
   skipButtonText: {
     color: "#D1BBA3",
     fontSize: 16,
-    fontWeight: "400", // Regular weight for secondary action
+    fontWeight: "400",
     fontFamily: "SF Arabic",
   },
 });
