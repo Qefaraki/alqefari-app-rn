@@ -128,27 +128,32 @@ export default function NameChainEntryScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-            {/* Header with Progress */}
+            {/* Header with Progress - RTL Layout */}
             <View style={styles.header}>
+              {/* Progress Dots on the left for RTL */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressDot} />
+                <View style={styles.progressDot} />
+                <View style={[styles.progressDot, styles.progressDotActive]} />
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+              </View>
+
+              {/* Back button on the right for RTL */}
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}
               >
-                <Ionicons name="chevron-back" size={28} color={colors.text} />
+                <Ionicons
+                  name="chevron-forward"
+                  size={28}
+                  color={colors.text}
+                />
               </TouchableOpacity>
-
-              {/* Progress Dots */}
-              <View style={styles.progressContainer}>
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
-                <View style={[styles.progressDot, styles.progressDotActive]} />
-                <View style={styles.progressDot} />
-                <View style={styles.progressDot} />
-              </View>
             </View>
 
             {/* Main Content */}
@@ -158,10 +163,14 @@ export default function NameChainEntryScreen({ navigation, route }) {
                 ادخل الأسماء للبحث في شجرة العائلة
               </Text>
 
-              {/* Example Section - Simplified */}
+              {/* Example Section - Better UI Element */}
               <View style={styles.exampleContainer}>
-                <Text style={styles.exampleLabel}>مثال:</Text>
-                <Text style={styles.exampleText}>محمد عبدالله سليمان</Text>
+                <View style={styles.exampleCard}>
+                  <View style={styles.exampleBadge}>
+                    <Text style={styles.exampleBadgeText}>مثال</Text>
+                  </View>
+                  <Text style={styles.exampleText}>محمد عبدالله سليمان</Text>
+                </View>
               </View>
 
               {/* Input Field with Better Styling */}
@@ -189,15 +198,6 @@ export default function NameChainEntryScreen({ navigation, route }) {
                 />
               </View>
 
-              {/* Inline Hint - More Helpful */}
-              {nameChain.length > 0 && (
-                <Animated.View style={styles.hintContainer}>
-                  <Text style={styles.hintText}>
-                    💡 لا تضيف "القفاري" أو أي لقب عائلي
-                  </Text>
-                </Animated.View>
-              )}
-
               {/* Search Button - Primary Action */}
               <TouchableOpacity
                 style={[
@@ -212,12 +212,12 @@ export default function NameChainEntryScreen({ navigation, route }) {
                   <ActivityIndicator color={colors.background} />
                 ) : (
                   <View style={styles.buttonContent}>
+                    <Text style={styles.buttonText}>البحث في الشجرة</Text>
                     <Ionicons
                       name="search"
                       size={22}
                       color={colors.background}
                     />
-                    <Text style={styles.buttonText}>البحث في الشجرة</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: Back button on right
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: Platform.OS === "ios" ? 60 : 40,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginRight: 8,
+    marginLeft: 8, // Changed from marginRight for RTL
   },
   progressContainer: {
     flexDirection: "row",
@@ -307,21 +307,36 @@ const styles = StyleSheet.create({
   },
   exampleContainer: {
     marginBottom: 24,
-    paddingHorizontal: 16,
   },
-  exampleLabel: {
-    fontSize: 13,
-    fontWeight: "500",
+  exampleCard: {
+    backgroundColor: colors.inputBg,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.inputBorder,
+    borderStyle: "dashed",
+    padding: 16,
+    position: "relative",
+    alignItems: "center",
+  },
+  exampleBadge: {
+    position: "absolute",
+    top: -10,
+    right: 20,
+    backgroundColor: colors.background,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+  },
+  exampleBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.textSecondary,
-    marginBottom: 4,
   },
   exampleText: {
     fontSize: 18,
     fontWeight: "500",
     fontFamily: "SF Arabic",
     color: colors.text,
-    textAlign: "center",
   },
   inputContainer: {
     backgroundColor: colors.inputBg,
@@ -344,16 +359,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     minHeight: 56,
   },
-  hintContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  hintText: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: colors.textSecondary,
-    textAlign: "right",
-  },
+
   searchButton: {
     backgroundColor: colors.primary, // Najdi Crimson
     borderRadius: 12,
@@ -375,7 +381,7 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   buttonContent: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: Icon on right
     alignItems: "center",
     gap: 10,
   },
