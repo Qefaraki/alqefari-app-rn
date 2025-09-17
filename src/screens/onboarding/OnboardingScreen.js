@@ -507,16 +507,16 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: "absolute",
-    bottom: 0, // Will use paddingBottom for safe area
+    bottom: 60, // Push higher from bottom
     width: SCREEN_WIDTH,
-    paddingHorizontal: Platform.isPad ? 48 : 32, // Grid-based padding
+    paddingHorizontal: Platform.isPad ? 48 : 24, // Tighter padding
   },
   continueButton: {
     backgroundColor: "#A13333",
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14, // Reduced from 16
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8, // Reduced from 12
     shadowColor: "#A13333",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
   },
   skipButton: {
-    paddingVertical: 12,
+    paddingVertical: 10, // Reduced from 12
     alignItems: "center",
   },
   skipButtonText: {
