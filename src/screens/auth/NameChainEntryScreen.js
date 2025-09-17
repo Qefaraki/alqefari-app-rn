@@ -128,28 +128,32 @@ export default function NameChainEntryScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
-            {/* Header with Progress - RTL Layout */}
+            {/* Header - Proper RTL Layout */}
             <View style={styles.header}>
-              {/* Back button on the LEFT for RTL, pointing LEFT */}
+              {/* Progress Dots on LEFT side for RTL */}
+              <View style={styles.progressContainer}>
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+                <View style={[styles.progressDot, styles.progressDotActive]} />
+                <View style={styles.progressDot} />
+                <View style={styles.progressDot} />
+              </View>
+
+              {/* Back button on RIGHT side pointing RIGHT (→) for Arabic RTL */}
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => navigation.goBack()}
               >
-                <Ionicons name="chevron-back" size={28} color={colors.text} />
+                <Ionicons
+                  name="chevron-forward"
+                  size={28}
+                  color={colors.text}
+                />
               </TouchableOpacity>
-
-              {/* Progress Dots on the right for RTL */}
-              <View style={styles.progressContainer}>
-                <View style={styles.progressDot} />
-                <View style={styles.progressDot} />
-                <View style={[styles.progressDot, styles.progressDotActive]} />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
-              </View>
             </View>
 
             {/* Main Content */}
@@ -250,7 +254,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row", // RTL: Back button on LEFT
+    flexDirection: "row", // Natural RTL flow
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: Platform.OS === "ios" ? 60 : 40,
@@ -259,7 +263,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginRight: 8, // Space after back button
   },
   progressContainer: {
     flexDirection: "row",
@@ -288,7 +291,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "SF Arabic",
     color: colors.text,
-    textAlign: "center",
+    textAlign: "right", // RTL: Right align
     marginBottom: 8,
     letterSpacing: -0.5,
   },
@@ -297,7 +300,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     fontFamily: "SF Arabic",
     color: colors.textSecondary,
-    textAlign: "center",
+    textAlign: "right", // RTL: Right align
     marginBottom: 32,
     lineHeight: 22,
   },
@@ -390,7 +393,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   helpLink: {
-    alignItems: "center",
+    alignItems: "flex-end", // RTL: Align to right
     paddingVertical: 12,
     marginTop: 8,
   },
@@ -400,5 +403,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     textDecorationLine: "underline",
     textDecorationColor: colors.primary,
+    textAlign: "right", // RTL: Right align
   },
 });
