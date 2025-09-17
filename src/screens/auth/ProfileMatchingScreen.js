@@ -13,8 +13,20 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
-import { LinearGradient } from "expo-linear-gradient";
+
 import * as Haptics from "expo-haptics";
+
+// Color constants - matching NameChainEntryScreen exactly
+const colors = {
+  background: "#F9F7F3", // Al-Jass White
+  container: "#D1BBA3", // Camel Hair Beige
+  text: "#242121", // Sadu Night
+  textSecondary: "#242121CC", // Sadu Night 80%
+  primary: "#A13333", // Najdi Crimson
+  secondary: "#D58C4A", // Desert Ochre
+  inputBg: "rgba(209, 187, 163, 0.1)", // Container 10%
+  inputBorder: "rgba(209, 187, 163, 0.4)", // Container 40%
+};
 
 // Match quality colors - using the desert palette from SearchBar
 const DESERT_PALETTE = [
@@ -29,7 +41,6 @@ const DESERT_PALETTE = [
 const getInitials = (name) => {
   if (!name) return "؟";
   const arabicName = name.trim();
-  // Take first character for Arabic names
   return arabicName.charAt(0);
 };
 
@@ -71,7 +82,7 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
       ]}
     >
       <View style={styles.cardContent}>
-        {/* Avatar on right for RTL */}
+        {/* Avatar */}
         <View style={styles.avatarContainer}>
           {profile.photo_url ? (
             <Image
@@ -105,7 +116,7 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
           </View>
         </View>
 
-        {/* Match score badge on left */}
+        {/* Match score badge */}
         <View style={styles.scoreContainer}>
           <View
             style={[styles.scoreBadge, { backgroundColor: avatarColor + "20" }]}
@@ -184,38 +195,52 @@ export default function ProfileMatchingScreen({ navigation, route }) {
   if (profiles.length === 0) {
     return (
       <View style={styles.container}>
-        <LinearGradient
-          colors={["#F9F7F3", "#FFFFFF"]}
-          style={StyleSheet.absoluteFillObject}
-        />
-
+        {/* Header with progress dots - matching NameChainEntryScreen */}
         <View style={styles.header}>
+          {/* Progress Dots - Step 4 of 5 */}
+          <View style={styles.progressContainer}>
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotActive]} />
+            <View style={styles.progressDot} />
+          </View>
+
+          {/* Back button */}
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="chevron-back" size={24} color="#242121" />
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>نتائج البحث</Text>
         </View>
 
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="search-outline" size={64} color="#D1BBA3" />
-          </View>
-          <Text style={styles.emptyTitle}>لا توجد نتائج</Text>
-          <Text style={styles.emptySubtitle}>
-            لم نتمكن من العثور على ملفات مطابقة للاسم:
+        <View style={styles.mainContent}>
+          <Text style={styles.title}>لا توجد نتائج</Text>
+          <Text style={styles.subtitle}>
+            لم نتمكن من العثور على ملفات مطابقة
           </Text>
-          <Text style={styles.searchedName}>{nameChain}</Text>
 
-          <TouchableOpacity
-            style={styles.contactAdminButton}
-            onPress={handleContactAdmin}
+          <View style={styles.searchDisplay}>
+            <Text style={styles.searchLabel}>تم البحث عن</Text>
+            <Text style={styles.searchQuery}>{nameChain}</Text>
+          </View>
+
+          <View
+            style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
           >
-            <Ionicons name="chatbubble-outline" size={20} color="#A13333" />
-            <Text style={styles.contactAdminText}>تواصل مع المشرف</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.contactAdminButton}
+              onPress={handleContactAdmin}
+            >
+              <Ionicons
+                name="chatbubble-outline"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={styles.contactAdminText}>تواصل مع المشرف</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -223,31 +248,38 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={["#F9F7F3", "#FFFFFF"]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Header */}
+      {/* Header with progress dots - matching NameChainEntryScreen */}
       <View style={styles.header}>
+        {/* Progress Dots - Step 4 of 5 */}
+        <View style={styles.progressContainer}>
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={styles.progressDot} />
+        </View>
+
+        {/* Back button */}
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-forward" size={24} color="#242121" />
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>اختر ملفك الشخصي</Text>
       </View>
 
-      {/* Search Query Display */}
-      <View style={styles.searchDisplay}>
-        <Text style={styles.searchLabel}>البحث عن</Text>
-        <Text style={styles.searchQuery}>{nameChain}</Text>
-        <View style={styles.resultsInfo}>
-          <Text style={styles.resultsCount}>{profiles.length} نتيجة</Text>
-          {profiles.length > 0 && (
-            <Text style={styles.helpText}>اضغط على الملف الذي يمثلك</Text>
-          )}
+      {/* Main Content - matching NameChainEntryScreen exactly */}
+      <View style={styles.mainContent}>
+        <Text style={styles.title}>اختر ملفك الشخصي</Text>
+        <Text style={styles.subtitle}>اضغط على الملف الذي يمثلك في الشجرة</Text>
+
+        {/* Search Query Display */}
+        <View style={styles.searchDisplay}>
+          <Text style={styles.searchLabel}>البحث عن</Text>
+          <Text style={styles.searchQuery}>{nameChain}</Text>
+          <Text style={styles.resultsCount}>
+            عدد النتائج: {profiles.length}
+          </Text>
         </View>
       </View>
 
@@ -295,67 +327,92 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F7F3",
+    backgroundColor: colors.background,
   },
+
+  // Header - EXACT MATCH with NameChainEntryScreen
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingTop: Platform.OS === "ios" ? 60 : 40,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    backgroundColor: "#F9F7F3",
   },
   backButton: {
     padding: 8,
-    marginRight: 8, // Will flip to left in RTL
+  },
+  progressContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.inputBorder, // Container 40%
+  },
+  progressDotCompleted: {
+    backgroundColor: "#4CAF50", // Green for completed steps
+  },
+  progressDotActive: {
+    backgroundColor: colors.primary, // Najdi Crimson
+    width: 24, // Elongated dot for active step
+  },
+
+  // Main content - EXACT MATCH with NameChainEntryScreen
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
   },
   title: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "700",
     fontFamily: "SF Arabic",
-    color: "#242121",
-    letterSpacing: -0.5,
-  },
-  searchDisplay: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
+    color: colors.text,
+    textAlign: "left", // Native RTL will flip this to right
     marginBottom: 12,
+  },
+  subtitle: {
+    fontSize: 15,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    color: colors.textSecondary,
+    textAlign: "left", // Native RTL will flip this to right
+    marginBottom: 24,
+  },
+
+  // Search display - matching input style
+  searchDisplay: {
+    backgroundColor: colors.inputBg,
+    marginBottom: 24,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D1BBA320",
+    borderColor: colors.inputBorder,
   },
   searchLabel: {
     fontSize: 12,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: "#24212180",
+    color: "#24212199",
     marginBottom: 4,
   },
   searchQuery: {
     fontSize: 18,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: "#242121",
+    color: colors.text,
     marginBottom: 8,
-  },
-  resultsInfo: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
   },
   resultsCount: {
     fontSize: 13,
-    fontWeight: "500",
-    fontFamily: "SF Arabic",
-    color: "#A13333",
-  },
-  helpText: {
-    fontSize: 12,
     fontWeight: "400",
     fontFamily: "SF Arabic",
-    color: "#24212180",
+    color: "#24212199",
   },
+
   listContent: {
     paddingHorizontal: 16,
     paddingBottom: 120,
@@ -375,10 +432,10 @@ const styles = StyleSheet.create({
   resultCardSelected: {
     backgroundColor: "#A1333310",
     borderWidth: 1,
-    borderColor: "#A13333",
+    borderColor: colors.primary,
   },
   cardContent: {
-    flexDirection: "row", // Native RTL will handle this
+    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -387,7 +444,7 @@ const styles = StyleSheet.create({
 
   // Avatar styles
   avatarContainer: {
-    marginRight: 12, // Will be flipped to left by native RTL
+    marginRight: 12,
   },
   avatarPhoto: {
     width: 40,
@@ -416,14 +473,14 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#242121",
+    color: colors.text,
     fontFamily: "SF Arabic",
     textAlign: "right",
     lineHeight: 22,
     marginBottom: 4,
   },
   metaContainer: {
-    flexDirection: "row", // Native RTL handles this
+    flexDirection: "row",
     alignItems: "center",
   },
   generationText: {
@@ -435,12 +492,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#24212140",
     marginHorizontal: 6,
-  },
-  metaText: {
-    fontSize: 12,
-    fontWeight: "400",
-    fontFamily: "SF Arabic",
-    color: "#24212180",
   },
   linkedText: {
     fontSize: 12,
@@ -465,8 +516,7 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
   },
   checkContainer: {
-    height: 24, // Fixed height prevents jumping
-    marginTop: 4,
+    height: 24,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -477,7 +527,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#F9F7F3",
+    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingBottom: Platform.OS === "ios" ? 34 : 24,
     paddingTop: 16,
@@ -485,7 +535,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#D1BBA320",
   },
   confirmButton: {
-    backgroundColor: "#A13333",
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 14,
     paddingHorizontal: 32,
@@ -496,7 +546,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   confirmButtonDisabled: {
-    backgroundColor: "#D1BBA3",
+    backgroundColor: colors.container,
     opacity: 0.5,
   },
   buttonLoading: {
@@ -513,50 +563,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   notFoundButtonText: {
-    color: "#A13333",
+    color: colors.primary,
     fontSize: 14,
     fontWeight: "500",
     fontFamily: "SF Arabic",
   },
 
-  // Empty state
-  emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#D1BBA320",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: "#242121",
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 15,
-    fontWeight: "400",
-    fontFamily: "SF Arabic",
-    color: "#242121CC",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  searchedName: {
-    fontSize: 18,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: "#A13333",
-    marginBottom: 32,
-  },
+  // Contact admin button
   contactAdminButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -566,12 +579,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#A13333",
+    borderColor: colors.primary,
   },
   contactAdminText: {
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: "#A13333",
+    color: colors.primary,
   },
 });
