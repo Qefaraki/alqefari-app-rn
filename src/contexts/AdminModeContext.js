@@ -1,5 +1,5 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '../services/supabase';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { supabase } from "../services/supabase";
 
 const AdminModeContext = createContext({
   isAdminMode: false,
@@ -11,7 +11,7 @@ const AdminModeContext = createContext({
 export const useAdminMode = () => {
   const context = useContext(AdminModeContext);
   if (!context) {
-    throw new Error('useAdminMode must be used within AdminModeProvider');
+    throw new Error("useAdminMode must be used within AdminModeProvider");
   }
   return context;
 };
@@ -36,8 +36,10 @@ export const AdminModeProvider = ({ children }) => {
 
   const checkAdminRole = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         setIsAdmin(false);
         setIsAdminMode(false);
@@ -45,41 +47,38 @@ export const AdminModeProvider = ({ children }) => {
         return;
       }
 
-      // Check if user profile has admin role
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+      // Primary method: Check profiles.role directly
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-      if (error) {
-        console.error('Error checking admin role:', error);
-        setIsAdmin(false);
-        setIsAdminMode(false);
-      } else if (!profile) {
-        // No profile exists for this user yet
-        console.log('No profile found for user:', user.email);
-        setIsAdmin(false);
-        setIsAdminMode(false);
-      } else {
-        const hasAdminRole = profile.role === 'admin';
+      if (profile && !profileError) {
+        const hasAdminRole = profile.role === "admin";
         setIsAdmin(hasAdminRole);
-        
-        // If not admin, ensure admin mode is off
-        if (!hasAdminRole) {
+        if (hasAdminRole) {
+          setIsAdminMode(true); // Auto-enable admin mode for admins
+        }
+      } else {
+        // Fallback: Try the view
+        const { data: adminCheck, error: viewError } = await supabase
+          .from("is_current_user_admin")
+          .select("is_admin")
+          .single();
+
+        if (!viewError && adminCheck) {
+          setIsAdmin(adminCheck.is_admin);
+          if (adminCheck.is_admin) {
+            setIsAdminMode(true);
+          }
+        } else {
+          console.log("Could not verify admin status, defaulting to false");
+          setIsAdmin(false);
           setIsAdminMode(false);
         }
-        
-        // Log role info for debugging
-        console.log('User role info:', {
-          userId: user.id,
-          email: user.email,
-          role: profile.role,
-          isAdmin: hasAdminRole
-        });
       }
     } catch (error) {
-      console.error('Error in checkAdminRole:', error);
       setIsAdmin(false);
       setIsAdminMode(false);
     } finally {
@@ -90,10 +89,7 @@ export const AdminModeProvider = ({ children }) => {
   const toggleAdminMode = () => {
     if (isAdmin) {
       const newMode = !isAdminMode;
-      console.log('AdminModeContext: Toggling admin mode from', isAdminMode, 'to', newMode);
       setIsAdminMode(newMode);
-    } else {
-      console.log('AdminModeContext: Cannot toggle admin mode - user is not admin');
     }
   };
 

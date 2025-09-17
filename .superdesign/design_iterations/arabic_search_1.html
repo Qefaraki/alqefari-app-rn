@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بحث الأسماء - القفاري</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="najdi_ios_theme.css">
+    
+    <!-- Custom Styles -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --background: oklch(0.9851 0.0050 85);
+            --foreground: oklch(0.2500 0.0200 85);
+            --card: oklch(0.9950 0.0030 85);
+            --card-foreground: oklch(0.2500 0.0200 85);
+            --primary: oklch(0.4500 0.1200 45);
+            --primary-foreground: oklch(0.9950 0.0030 85);
+            --secondary: oklch(0.9200 0.0150 85);
+            --muted: oklch(0.9400 0.0100 85);
+            --muted-foreground: oklch(0.5500 0.0150 85);
+            --accent: oklch(0.6000 0.0800 35);
+            --border: oklch(0.9100 0.0080 85);
+            --input: oklch(0.9300 0.0080 85);
+            --ring: oklch(0.4500 0.1200 45);
+        }
+        
+        * {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Arabic', 'Noto Sans Arabic', 'Segoe UI', Arial, sans-serif !important;
+        }
+        
+        body {
+            background-color: var(--background) !important;
+            color: var(--foreground) !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* iOS-style search input */
+        .search-input {
+            background-color: var(--input);
+            border: 1px solid transparent;
+            transition: all 0.2s ease-out;
+            -webkit-appearance: none;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            transform: scale(1.01);
+            box-shadow: 0 0 0 3px oklch(0.4500 0.1200 45 / 0.1);
+        }
+        
+        /* Card animations */
+        .person-card {
+            background-color: var(--card);
+            border: 1px solid var(--border);
+            transition: all 0.2s ease-out;
+            animation: slideUp 0.4s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .person-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08);
+            border-color: var(--primary);
+        }
+        
+        .person-card:active {
+            transform: scale(0.98);
+            transition: transform 0.1s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Stagger animation delay */
+        .person-card:nth-child(1) { animation-delay: 0.1s; }
+        .person-card:nth-child(2) { animation-delay: 0.2s; }
+        .person-card:nth-child(3) { animation-delay: 0.3s; }
+        .person-card:nth-child(4) { animation-delay: 0.4s; }
+        .person-card:nth-child(5) { animation-delay: 0.5s; }
+        .person-card:nth-child(6) { animation-delay: 0.6s; }
+        
+        /* Profile image */
+        .profile-img {
+            animation: fadeInScale 0.3s ease-out;
+        }
+        
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* Generation badge */
+        .generation-badge {
+            background-color: var(--secondary);
+            color: var(--secondary-foreground);
+            transition: all 0.2s ease-out;
+        }
+        
+        .person-card:hover .generation-badge {
+            background-color: var(--accent);
+            color: var(--accent-foreground);
+            transform: scale(1.05);
+        }
+        
+        /* Najdi pattern overlay */
+        .najdi-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(69, 39, 23, 0.03) 10px, rgba(69, 39, 23, 0.03) 20px),
+                repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(69, 39, 23, 0.03) 10px, rgba(69, 39, 23, 0.03) 20px);
+            transition: opacity 0.3s ease-out;
+            pointer-events: none;
+            border-radius: 12px;
+        }
+        
+        .person-card:hover .najdi-pattern {
+            opacity: 1;
+        }
+        
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* iOS-style scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--muted-foreground);
+            border-radius: 3px;
+            opacity: 0.5;
+        }
+        
+        /* Search icon animation */
+        .search-icon {
+            transition: all 0.2s ease-out;
+        }
+        
+        .search-input:focus ~ .search-icon {
+            color: var(--primary);
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2" style="color: var(--primary);">بحث الأسماء</h1>
+            <p class="text-lg" style="color: var(--muted-foreground);">عائلة القفاري</p>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="relative mb-8">
+            <input 
+                type="text" 
+                placeholder="ابحث عن الاسم..."
+                class="search-input w-full px-6 py-4 rounded-2xl text-lg"
+                id="searchInput"
+            >
+            <svg class="search-icon absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6" style="color: var(--muted-foreground);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+        </div>
+        
+        <!-- Cards Container -->
+        <div class="space-y-4" id="cardsContainer">
+            <!-- Card 1 -->
+            <div class="person-card relative rounded-2xl p-6 flex items-center gap-4 cursor-pointer">
+                <div class="najdi-pattern"></div>
+                <img 
+                    src="https://i.pravatar.cc/80?img=1" 
+                    alt="صورة شخصية"
+                    class="profile-img w-20 h-20 rounded-full object-cover flex-shrink-0"
+                >
+                <div class="flex-grow relative z-10">
+                    <h3 class="text-xl font-semibold mb-1">محمد بن عبدالله بن سعد القفاري</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="generation-badge px-3 py-1 rounded-full text-sm font-medium">
+                            الجيل الثالث
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card 2 -->
+            <div class="person-card relative rounded-2xl p-6 flex items-center gap-4 cursor-pointer">
+                <div class="najdi-pattern"></div>
+                <img 
+                    src="https://i.pravatar.cc/80?img=5" 
+                    alt="صورة شخصية"
+                    class="profile-img w-20 h-20 rounded-full object-cover flex-shrink-0"
+                >
+                <div class="flex-grow relative z-10">
+                    <h3 class="text-xl font-semibold mb-1">فاطمة بنت سعد بن محمد القفاري</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="generation-badge px-3 py-1 rounded-full text-sm font-medium">
+                            الجيل الرابع
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card 3 -->
+            <div class="person-card relative rounded-2xl p-6 flex items-center gap-4 cursor-pointer">
+                <div class="najdi-pattern"></div>
+                <img 
+                    src="https://i.pravatar.cc/80?img=3" 
+                    alt="صورة شخصية"
+                    class="profile-img w-20 h-20 rounded-full object-cover flex-shrink-0"
+                >
+                <div class="flex-grow relative z-10">
+                    <h3 class="text-xl font-semibold mb-1">عبدالعزيز بن محمد بن عبدالرحمن القفاري</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="generation-badge px-3 py-1 rounded-full text-sm font-medium">
+                            الجيل الثاني
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card 4 -->
+            <div class="person-card relative rounded-2xl p-6 flex items-center gap-4 cursor-pointer">
+                <div class="najdi-pattern"></div>
+                <img 
+                    src="https://i.pravatar.cc/80?img=8" 
+                    alt="صورة شخصية"
+                    class="profile-img w-20 h-20 rounded-full object-cover flex-shrink-0"
+                >
+                <div class="flex-grow relative z-10">
+                    <h3 class="text-xl font-semibold mb-1">نورة بنت عبدالله بن سعد القفاري</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="generation-badge px-3 py-1 rounded-full text-sm font-medium">
+                            الجيل الخامس
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card 5 -->
+            <div class="person-card relative rounded-2xl p-6 flex items-center gap-4 cursor-pointer">
+                <div class="najdi-pattern"></div>
+                <img 
+                    src="https://i.pravatar.cc/80?img=11" 
+                    alt="صورة شخصية"
+                    class="profile-img w-20 h-20 rounded-full object-cover flex-shrink-0"
+                >
+                <div class="flex-grow relative z-10">
+                    <h3 class="text-xl font-semibold mb-1">سلمان بن فهد بن عبدالعزيز القفاري</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="generation-badge px-3 py-1 rounded-full text-sm font-medium">
+                            الجيل الثالث
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card 6 -->
+            <div class="person-card relative rounded-2xl p-6 flex items-center gap-4 cursor-pointer">
+                <div class="najdi-pattern"></div>
+                <img 
+                    src="https://i.pravatar.cc/80?img=16" 
+                    alt="صورة شخصية"
+                    class="profile-img w-20 h-20 rounded-full object-cover flex-shrink-0"
+                >
+                <div class="flex-grow relative z-10">
+                    <h3 class="text-xl font-semibold mb-1">مريم بنت خالد بن سعد القفاري</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="generation-badge px-3 py-1 rounded-full text-sm font-medium">
+                            الجيل الرابع
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const cards = document.querySelectorAll('.person-card');
+        
+        searchInput.addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            cards.forEach(card => {
+                const name = card.querySelector('h3').textContent.toLowerCase();
+                if (name.includes(searchTerm)) {
+                    card.style.display = 'flex';
+                    card.style.animation = 'slideUp 0.3s ease-out forwards';
+                } else {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        card.style.display = 'none';
+                    }, 300);
+                }
+            });
+        });
+        
+        // Card click animation
+        cards.forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 100);
+            });
+        });
+    </script>
+</body>
+</html>

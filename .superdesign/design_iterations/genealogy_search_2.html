@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genealogy Search</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="desert_dunes_theme.css">
+    
+    <style>
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--background);
+            color: var(--foreground);
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Search Bar - iOS Style */
+        .search-container {
+            background: var(--input);
+            border-radius: var(--radius-sm);
+            padding: 0;
+            margin-bottom: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 1rem 3rem 1rem 1rem;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 1rem;
+            color: var(--foreground);
+            font-weight: 400;
+        }
+        
+        .search-input::placeholder {
+            color: var(--muted-foreground);
+            font-weight: 400;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            color: var(--muted-foreground);
+        }
+        
+        /* Cards - Clean iOS Style */
+        .result-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .result-card:hover::before {
+            opacity: 0.3;
+        }
+        
+        .result-card:active {
+            transform: scale(0.98);
+            background: var(--secondary);
+        }
+        
+        /* Profile Image */
+        .profile-container {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--muted-foreground);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .profile-container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1), transparent);
+        }
+        
+        /* Content */
+        .card-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .generation-label {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+        }
+        
+        .name-chain {
+            font-size: 1rem;
+            line-height: 1.5;
+            color: var(--card-foreground);
+            font-weight: 400;
+        }
+        
+        .family-name {
+            color: var(--primary);
+            font-weight: 500;
+        }
+        
+        /* Subtle geometric accent */
+        .geometric-accent {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, transparent 40%, rgba(0,0,0,0.01) 70%, transparent 71%);
+            transform: rotate(45deg);
+            pointer-events: none;
+        }
+        
+        /* Loading state */
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .skeleton {
+            position: relative;
+            overflow: hidden;
+            background: var(--muted);
+            
+        }
+        
+        .skeleton::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result-card {
+            animation: fadeIn 0.3s ease-out;
+            animation-fill-mode: both;
+        }
+        
+        .result-card:nth-child(1) { animation-delay: 0.05s; }
+        .result-card:nth-child(2) { animation-delay: 0.1s; }
+        .result-card:nth-child(3) { animation-delay: 0.15s; }
+        .result-card:nth-child(4) { animation-delay: 0.2s; }
+        .result-card:nth-child(5) { animation-delay: 0.25s; }
+        
+        /* No results */
+        .no-results {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted-foreground);
+            font-size: 0.95rem;
+        }
+        
+        /* Container */
+        .main-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Search Bar -->
+        <div class="search-container">
+            <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+            <input 
+                type="text" 
+                class="search-input" 
+                placeholder="ابحث بالأسماء"
+                id="searchInput"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+            >
+        </div>
+        
+        <!-- Results -->
+        <div id="results">
+            <!-- Cards will be dynamically inserted here -->
+        </div>
+    </div>
+    
+    <script>
+        // Sample genealogy data
+        const genealogyData = [
+            {
+                id: 1,
+                generation: 5,
+                nameChain: 'محمد بن خالد بن أحمد بن عبدالله القفاري',
+                initial: 'م'
+            },
+            {
+                id: 2,
+                generation: 7,
+                nameChain: 'سعود بن محمد بن خالد بن فهد بن عبدالعزيز بن سلطان القفاري',
+                initial: 'س'
+            },
+            {
+                id: 3,
+                generation: 4,
+                nameChain: 'عبدالرحمن بن صالح بن ناصر القفاري',
+                initial: 'ع'
+            },
+            {
+                id: 4,
+                generation: 6,
+                nameChain: 'فيصل بن عبدالله بن محمد بن إبراهيم بن خالد القفاري',
+                initial: 'ف'
+            },
+            {
+                id: 5,
+                generation: 3,
+                nameChain: 'أحمد بن سعد القفاري',
+                initial: 'أ'
+            },
+            {
+                id: 6,
+                generation: 8,
+                nameChain: 'خالد بن سلطان بن عبدالعزيز بن محمد بن ناصر بن فهد بن سعود القفاري',
+                initial: 'خ'
+            }
+        ];
+        
+        // Convert number to Arabic
+        function toArabicNumber(num) {
+            const arabicNumbers = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return num.toString().split('').map(digit => arabicNumbers[parseInt(digit)]).join('');
+        }
+        
+        // Create card element
+        function createCard(data) {
+            // Highlight family name
+            const nameWithHighlight = data.nameChain.replace(/القفاري$/, '<span class="family-name">القفاري</span>');
+            
+            return `
+                <div class="result-card" data-id="${data.id}">
+                    <div class="geometric-accent"></div>
+                    <div class="profile-container">
+                        <span>${data.initial}</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="generation-label">الجيل ${toArabicNumber(data.generation)}</div>
+                        <div class="name-chain">${nameWithHighlight}</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Create skeleton loader
+        function createSkeleton() {
+            return `
+                <div class="result-card skeleton">
+                    <div class="profile-container skeleton" style="width: 48px; height: 48px;"></div>
+                    <div class="card-content">
+                        <div class="skeleton" style="height: 14px; width: 60px; margin-bottom: 8px; border-radius: 4px;"></div>
+                        <div class="skeleton" style="height: 20px; width: 80%; border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Render results
+        function renderResults(data) {
+            const resultsContainer = document.getElementById('results');
+            
+            if (data.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">لا توجد نتائج</div>';
+                return;
+            }
+            
+            resultsContainer.innerHTML = data.map(item => createCard(item)).join('');
+        }
+        
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.trim().toLowerCase();
+            
+            // Clear previous timeout
+            clearTimeout(searchTimeout);
+            
+            if (searchTerm === '') {
+                renderResults(genealogyData.slice(0, 3)); // Show first 3 by default
+                return;
+            }
+            
+            // Show loading state
+            document.getElementById('results').innerHTML = createSkeleton() + createSkeleton();
+            
+            // Simulate search delay
+            searchTimeout = setTimeout(() => {
+                const filtered = genealogyData.filter(item => 
+                    item.nameChain.toLowerCase().includes(searchTerm)
+                );
+                renderResults(filtered);
+            }, 300);
+        });
+        
+        // Handle card clicks
+        document.getElementById('results').addEventListener('click', (e) => {
+            const card = e.target.closest('.result-card');
+            if (card && !card.classList.contains('skeleton')) {
+                // Handle card selection
+                console.log('Selected:', card.dataset.id);
+            }
+        });
+        
+        // Initial render
+        renderResults(genealogyData.slice(0, 3));
+    </script>
+</body>
+</html>

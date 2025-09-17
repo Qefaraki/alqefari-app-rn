@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شجرة العائلة - القفاري</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Theme CSS -->
+    <link rel="stylesheet" href="najdi_sadu_theme.css">
+    
+    <style>
+        /* Custom styles */
+        body {
+            font-family: var(--font-sans) !important;
+            background: var(--background);
+            color: var(--foreground);
+        }
+        
+        /* Sadu Pattern Background */
+        .sadu-pattern {
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(139, 69, 19, 0.03) 10px, rgba(139, 69, 19, 0.03) 20px),
+                repeating-linear-gradient(-45deg, transparent, transparent 10px, rgba(139, 69, 19, 0.03) 10px, rgba(139, 69, 19, 0.03) 20px);
+        }
+        
+        /* Geometric Divider */
+        .geometric-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            opacity: 0;
+            animation: slideIn 0.8s ease-out forwards;
+        }
+        
+        .geometric-divider::before,
+        .geometric-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to left, transparent, var(--border), transparent);
+        }
+        
+        .geometric-pattern {
+            font-size: 1.5rem;
+            color: var(--accent);
+            animation: patternPulse 3s ease-in-out infinite;
+        }
+        
+        /* Search Bar Styles */
+        .search-container {
+            background: var(--card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            transition: all 0.2s ease-out;
+            border: 1px solid var(--border);
+        }
+        
+        .search-container:focus-within {
+            transform: scale(1.02);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+        
+        .search-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            width: 100%;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            color: var(--foreground);
+        }
+        
+        .search-input::placeholder {
+            color: var(--muted-foreground);
+        }
+        
+        /* Card Styles */
+        .genealogy-card {
+            background: var(--card);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            transition: all 0.2s ease-out;
+            opacity: 0;
+            transform: translateY(30px);
+            animation: cardEntry 0.4s ease-out forwards;
+        }
+        
+        .genealogy-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent);
+        }
+        
+        .genealogy-card:active {
+            transform: scale(0.98);
+        }
+        
+        /* Profile Image */
+        .profile-image {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius-sm);
+            object-fit: cover;
+            background: var(--muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--muted-foreground);
+            font-weight: 600;
+            transition: all 0.3s ease-out;
+        }
+        
+        .profile-image img {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--radius-sm);
+            opacity: 0;
+            animation: imageLoad 0.3s ease-out forwards;
+        }
+        
+        /* Generation Badge */
+        .generation-badge {
+            background: var(--primary);
+            color: var(--primary-foreground);
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-block;
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        /* Name Chain */
+        .name-chain {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            margin-top: 0.5rem;
+        }
+        
+        .name-segment {
+            color: var(--foreground);
+            font-size: 1.1rem;
+            opacity: 0;
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+        
+        .name-separator {
+            color: var(--accent);
+            font-size: 0.875rem;
+            opacity: 0;
+            animation: fadeIn 0.2s ease-out 0.1s forwards;
+        }
+        
+        .family-name {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        
+        /* Animations */
+        @keyframes slideIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        @keyframes patternPulse {
+            0%, 100% {
+                opacity: 0.8;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes cardEntry {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes imageLoad {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+        
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, var(--muted) 25%, var(--accent) 50%, var(--muted) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius-sm);
+        }
+        
+        /* Stagger animation delays */
+        .genealogy-card:nth-child(1) { animation-delay: 0.1s; }
+        .genealogy-card:nth-child(2) { animation-delay: 0.2s; }
+        .genealogy-card:nth-child(3) { animation-delay: 0.3s; }
+        .genealogy-card:nth-child(4) { animation-delay: 0.4s; }
+        
+        .name-segment:nth-child(1) { animation-delay: 0.1s; }
+        .name-segment:nth-child(3) { animation-delay: 0.2s; }
+        .name-segment:nth-child(5) { animation-delay: 0.3s; }
+        .name-segment:nth-child(7) { animation-delay: 0.4s; }
+        .name-segment:nth-child(9) { animation-delay: 0.5s; }
+        .name-segment:nth-child(11) { animation-delay: 0.6s; }
+        .name-segment:nth-child(13) { animation-delay: 0.7s; }
+    </style>
+</head>
+<body class="sadu-pattern min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2" style="font-family: var(--font-serif);">شجرة عائلة القفاري</h1>
+            <p class="text-lg" style="color: var(--muted-foreground);">ابحث عن سلسلة الأنساب</p>
+        </header>
+        
+        <!-- Search Bar -->
+        <div class="search-container mb-8">
+            <div class="flex items-center">
+                <svg class="w-6 h-6 mr-3" style="color: var(--muted-foreground);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    placeholder="ابحث بالأسماء... مثال: محمد، خالد، أحمد"
+                    id="searchInput"
+                >
+            </div>
+        </div>
+        
+        <!-- Geometric Divider -->
+        <div class="geometric-divider mb-8">
+            <span class="geometric-pattern">◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆</span>
+        </div>
+        
+        <!-- Results Container -->
+        <div id="resultsContainer" class="space-y-4">
+            <!-- Example Cards -->
+            <div class="genealogy-card">
+                <div class="flex items-start gap-4">
+                    <div class="profile-image">
+                        <img src="https://ui-avatars.com/api/?name=محمد+القفاري&background=8B4513&color=fff&font-size=0.4" alt="Profile">
+                    </div>
+                    <div class="flex-1">
+                        <div class="generation-badge">الجيل الخامس</div>
+                        <div class="name-chain">
+                            <span class="name-segment">محمد</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">خالد</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">أحمد</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">عبدالله</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment family-name">القفاري</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="genealogy-card">
+                <div class="flex items-start gap-4">
+                    <div class="profile-image">
+                        <img src="https://ui-avatars.com/api/?name=سعود+القفاري&background=8B4513&color=fff&font-size=0.4" alt="Profile">
+                    </div>
+                    <div class="flex-1">
+                        <div class="generation-badge">الجيل السابع</div>
+                        <div class="name-chain">
+                            <span class="name-segment">سعود</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">محمد</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">خالد</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">فهد</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">عبدالعزيز</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">سلطان</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment family-name">القفاري</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="genealogy-card">
+                <div class="flex items-start gap-4">
+                    <div class="profile-image">
+                        <img src="https://ui-avatars.com/api/?name=عبدالرحمن+القفاري&background=8B4513&color=fff&font-size=0.4" alt="Profile">
+                    </div>
+                    <div class="flex-1">
+                        <div class="generation-badge">الجيل الرابع</div>
+                        <div class="name-chain">
+                            <span class="name-segment">عبدالرحمن</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">صالح</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment">ناصر</span>
+                            <span class="name-separator">•</span>
+                            <span class="name-segment family-name">القفاري</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Geometric Divider -->
+        <div class="geometric-divider mt-12">
+            <span class="geometric-pattern">◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆ ◇ ◆</span>
+        </div>
+    </div>
+    
+    <script>
+        // Sample data for demonstration
+        const genealogyData = [
+            {
+                generation: 5,
+                names: ['محمد', 'خالد', 'أحمد', 'عبدالله', 'القفاري'],
+                avatar: 'محمد القفاري'
+            },
+            {
+                generation: 7,
+                names: ['سعود', 'محمد', 'خالد', 'فهد', 'عبدالعزيز', 'سلطان', 'القفاري'],
+                avatar: 'سعود القفاري'
+            },
+            {
+                generation: 4,
+                names: ['عبدالرحمن', 'صالح', 'ناصر', 'القفاري'],
+                avatar: 'عبدالرحمن القفاري'
+            },
+            {
+                generation: 6,
+                names: ['فيصل', 'عبدالله', 'محمد', 'إبراهيم', 'خالد', 'القفاري'],
+                avatar: 'فيصل القفاري'
+            },
+            {
+                generation: 3,
+                names: ['أحمد', 'سعد', 'القفاري'],
+                avatar: 'أحمد القفاري'
+            }
+        ];
+        
+        // Convert generation number to Arabic
+        function toArabicGeneration(num) {
+            const arabicNumbers = {
+                1: 'الأول',
+                2: 'الثاني',
+                3: 'الثالث',
+                4: 'الرابع',
+                5: 'الخامس',
+                6: 'السادس',
+                7: 'السابع',
+                8: 'الثامن',
+                9: 'التاسع',
+                10: 'العاشر'
+            };
+            return `الجيل ${arabicNumbers[num] || num}`;
+        }
+        
+        // Create card HTML
+        function createCard(data, index) {
+            const nameChain = data.names.map((name, i) => {
+                const isLast = i === data.names.length - 1;
+                return `
+                    <span class="name-segment ${isLast ? 'family-name' : ''}">${name}</span>
+                    ${i < data.names.length - 1 ? '<span class="name-separator">•</span>' : ''}
+                `;
+            }).join('');
+            
+            return `
+                <div class="genealogy-card" style="animation-delay: ${index * 0.1}s;">
+                    <div class="flex items-start gap-4">
+                        <div class="profile-image">
+                            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(data.avatar)}&background=8B4513&color=fff&font-size=0.4" alt="Profile">
+                        </div>
+                        <div class="flex-1">
+                            <div class="generation-badge">${toArabicGeneration(data.generation)}</div>
+                            <div class="name-chain">
+                                ${nameChain}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Search functionality
+        const searchInput = document.getElementById('searchInput');
+        const resultsContainer = document.getElementById('resultsContainer');
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (searchTerm.length === 0) {
+                // Show all cards
+                resultsContainer.innerHTML = genealogyData
+                    .map((data, index) => createCard(data, index))
+                    .join('');
+                return;
+            }
+            
+            // Filter results
+            const filtered = genealogyData.filter(data => {
+                return data.names.some(name => name.toLowerCase().includes(searchTerm));
+            });
+            
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="text-center py-12">
+                        <p class="text-xl" style="color: var(--muted-foreground);">لم يتم العثور على نتائج</p>
+                    </div>
+                `;
+            } else {
+                resultsContainer.innerHTML = filtered
+                    .map((data, index) => createCard(data, index))
+                    .join('');
+            }
+        });
+        
+        // Initialize with all cards
+        resultsContainer.innerHTML = genealogyData
+            .slice(0, 3) // Show first 3 cards initially
+            .map((data, index) => createCard(data, index))
+            .join('');
+    </script>
+</body>
+</html>

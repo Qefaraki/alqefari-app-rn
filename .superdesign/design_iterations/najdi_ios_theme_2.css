@@ -1,0 +1,134 @@
+/* Najdi iOS Theme (SF Arabic) */
+
+:root {
+  --background: #FAF9F7;
+  --foreground: #1C1C1C;
+  --card: #FFFFFF;
+  --ivory: #F7F4EF;
+  --beige: #E2D5C2;
+  --accent-red: #C62828;
+  --text-dark: #1C1C1C;
+  --text-light: #7A7A7A;
+
+  --radius-pill: 26px;
+  --radius-card: 20px;
+
+  --shadow-ios: 0px 4px 12px rgba(0, 0, 0, 0.08);
+
+  --font-sans: "SF Arabic", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans Arabic", "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* Optional local font reference if available in workspace */
+@font-face {
+  font-family: "SF Arabic";
+  src: url("../../assets/fonts/SF Arabic Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+html, body {
+  direction: rtl;
+  background: var(--background) !important;
+  color: var(--text-dark) !important;
+  font-family: var(--font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, p, input, button, span, div {
+  font-family: var(--font-sans) !important;
+}
+
+/* Search bar */
+.search-fixed {
+  position: fixed;
+  top: 12px;
+  left: 0;
+  right: 0;
+  z-index: 40;
+}
+
+.search-input {
+  height: 52px;
+  background: var(--ivory) !important;
+  border: 1px solid var(--beige) !important;
+  border-radius: var(--radius-pill) !important;
+  color: var(--text-light) !important;
+}
+
+.search-input::placeholder {
+  color: var(--text-light) !important;
+}
+
+.search-icon {
+  color: var(--text-light) !important;
+}
+
+/* Card */
+.result-card {
+  background: var(--card) !important;
+  border: 2px solid var(--accent-red) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-ios) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Najdi/Sadu corner motifs */
+.result-card::before,
+.result-card::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: repeating-linear-gradient(45deg, #1C1C1C 0 4px, #FFFFFF 4px 8px);
+  pointer-events: none;
+}
+
+.result-card::before {
+  top: -1px;
+  left: -1px;
+  clip-path: polygon(0% 0%, 100% 0%, 0% 100%);
+}
+
+.result-card::after {
+  bottom: -1px;
+  right: -1px;
+  clip-path: polygon(100% 0%, 100% 100%, 0% 100%);
+}
+
+/* Badge */
+.gen-badge {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  padding: 4px 10px;
+  font-size: 16px; /* ~12pt */
+  font-weight: 500;
+  background: var(--ivory) !important;
+  border: 1px solid var(--beige) !important;
+  color: var(--text-light) !important;
+  border-radius: 16px !important;
+}
+
+/* Avatar */
+.avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 9999px;
+  border: 1px solid var(--accent-red) !important;
+  object-fit: cover;
+}
+
+/* Typography scale mapping (pt → px approx) */
+.name-main { font-size: 24px; font-weight: 700; color: var(--text-dark) !important; }
+.name-chain { font-size: 18px; font-weight: 400; color: var(--text-light) !important; }
+
+/* Layout helpers */
+.screen-bg { background: var(--background) !important; }
+.content-pad { padding: 16px 16px 24px 16px; }
+
+
+

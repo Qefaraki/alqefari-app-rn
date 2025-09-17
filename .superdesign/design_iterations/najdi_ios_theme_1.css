@@ -1,0 +1,68 @@
+:root {
+  --background: #FAF9F7;
+  --foreground: #1C1C1C;
+  --card: #FFFFFF;
+  --card-foreground: #1C1C1C;
+  --popover: #FFFFFF;
+  --popover-foreground: #1C1C1C;
+  --primary: #C62828;
+  --primary-foreground: #FFFFFF;
+  --secondary: #E2D5C2;
+  --secondary-foreground: #1C1C1C;
+  --muted: #F7F4EF;
+  --muted-foreground: #7A7A7A;
+  --accent: #C62828;
+  --accent-foreground: #FFFFFF;
+  --destructive: #C62828;
+  --destructive-foreground: #FFFFFF;
+  --border: #E2D5C2;
+  --input: #F7F4EF;
+  --ring: #C62828;
+  --chart-1: #C62828;
+  --chart-2: #E2D5C2;
+  --chart-3: #F7F4EF;
+  --chart-4: #1C1C1C;
+  --chart-5: #7A7A7A;
+  --sidebar: #F7F4EF;
+  --sidebar-foreground: #1C1C1C;
+  --sidebar-primary: #C62828;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E2D5C2;
+  --sidebar-accent-foreground: #1C1C1C;
+  --sidebar-border: #E2D5C2;
+  --sidebar-ring: #C62828;
+  --font-sans: 'SF Arabic', 'Noto Sans Arabic', 'Cairo', 'Tajawal', sans-serif;
+  --font-serif: 'Noto Serif Arabic', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 20px;
+  --radius-search: 26px;
+  --radius-badge: 14px;
+  --shadow-xs: 0px 1px 2px rgba(0,0,0,0.03);
+  --shadow-sm: 0px 2px 4px rgba(0,0,0,0.04);
+  --shadow: 0px 4px 12px rgba(0,0,0,0.08);
+  --shadow-md: 0px 8px 24px rgba(0,0,0,0.10);
+  --spacing: 20px;
+  --spacing-card: 24px;
+  --spacing-search: 16px;
+  --profile-size: 60px;
+  --search-height: 52px;
+  --search-radius: 26px;
+  --badge-radius: 14px;
+}
+
+body {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--foreground) !important;
+  font-family: var(--font-sans) !important;
+}
+
+input, button, select, textarea {
+  font-family: var(--font-sans) !important;
+}

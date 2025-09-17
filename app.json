@@ -1,25 +1,40 @@
 {
   "expo": {
-    "name": "AlqefariTreeRN-Expo",
-    "slug": "AlqefariTreeRN-Expo",
-    "version": "1.0.0",
+    "name": "Alqefari - أسرة القفاري",
+    "slug": "alqefari-family-tree",
+    "version": "2.0.0",
+    "owner": "alqefari",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": "1.0.0",
     "ios": {
+      "bundleIdentifier": "com.Alqefari.alqefari",
       "supportsTablet": true,
+      "buildNumber": "13",
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
-        "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي"
+        "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي",
+        "UISupportsDocumentBrowser": true,
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "ar",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.Alqefari.alqefari",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -33,6 +48,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7503aa5d-8e0a-48ce-9621-3a11303cad17"
+      }
     }
   }
 }

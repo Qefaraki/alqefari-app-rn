@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
 
 const DefinitionList = ({ items = [] }) => {
   return (
@@ -8,7 +8,9 @@ const DefinitionList = ({ items = [] }) => {
         <View key={index}>
           <View style={styles.row}>
             <Text style={styles.label}>{item.label}</Text>
-            <Text numberOfLines={1} style={styles.value}>{item.value ?? '—'}</Text>
+            <Text numberOfLines={1} style={styles.value}>
+              {item.value ?? "—"}
+            </Text>
           </View>
           {index < items.length - 1 && <View style={styles.divider} />}
         </View>
@@ -19,32 +21,32 @@ const DefinitionList = ({ items = [] }) => {
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 12,
   },
   label: {
     fontSize: 13,
-    color: '#667085',
-    fontFamily: 'SF Arabic',
+    color: "#667085",
+    fontFamily: "SF Arabic",
     minWidth: 120,
-    textAlign: 'right',
+    textAlign: "right",
+    writingDirection: "rtl",
   },
   value: {
     fontSize: 15,
-    color: '#0f172a',
-    fontFamily: 'SF Arabic',
-    textAlign: 'left',
+    color: "#0f172a",
+    fontFamily: "SF Arabic",
+    textAlign: "right",
+    writingDirection: "rtl",
     flex: 1,
-    marginLeft: 16,
+    marginRight: 16,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(15,23,42,0.10)',
+    backgroundColor: "rgba(15,23,42,0.10)",
   },
 });
 
 export default DefinitionList;
-
-

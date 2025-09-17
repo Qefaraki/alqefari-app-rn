@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Najdi iOS Genealogy Search</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./najdi_ios_theme_2.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    .container-ios { max-width: 420px; margin: 0 auto; }
+    .card-w { width: 90%; }
+  </style>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) window.lucide.createIcons();
+    });
+  </script>
+  <style>
+    .placeholder-ivory::placeholder { color: var(--text-light) !important; }
+  </style>
+  <link rel="preconnect" href="https://images.unsplash.com" />
+</head>
+<body class="screen-bg">
+  <div class="container-ios min-h-screen content-pad relative">
+    <!-- Fixed Search Bar -->
+    <div class="search-fixed px-4">
+      <div class="flex items-center gap-3 search-input px-4 card-w mx-auto">
+        <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
+        <input type="text" inputmode="search" aria-label="ابحث عن اسم في شجرة القفاري" class="flex-1 bg-transparent outline-none placeholder-ivory" placeholder="ابحث عن اسم في شجرة القفاري" />
+      </div>
+    </div>
+
+    <!-- Spacer under fixed search -->
+    <div style="height: 76px"></div>
+
+    <!-- Results Stack -->
+    <div class="flex flex-col items-center gap-5 pb-12">
+      <!-- Card 1 -->
+      <article class="result-card card-w p-4">
+        <div class="gen-badge">الجيل الخامس</div>
+        <div class="flex items-center gap-4">
+          <img class="avatar" alt="صورة" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop" />
+          <div class="flex-1 min-w-0">
+            <div class="name-main truncate">فاطمة عبد الله القفاري</div>
+            <div class="name-chain truncate">فاطمة عبد الله محمد القفاري</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 2 -->
+      <article class="result-card card-w p-4">
+        <div class="gen-badge">الجيل الرابع</div>
+        <div class="flex items-center gap-4">
+          <img class="avatar" alt="صورة" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=200&auto=format&fit=crop" />
+          <div class="flex-1 min-w-0">
+            <div class="name-main truncate">محمد خالد القفاري</div>
+            <div class="name-chain truncate">محمد خالد عبد الله القفاري</div>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card 3 -->
+      <article class="result-card card-w p-4">
+        <div class="gen-badge">الجيل السابع</div>
+        <div class="flex items-center gap-4">
+          <img class="avatar" alt="صورة" src="https://images.unsplash.com/photo-1557862921-37829c790f19?q=80&w=200&auto=format&fit=crop" />
+          <div class="flex-1 min-w-0">
+            <div class="name-main truncate">ناصر بن عبد العزيز القفاري</div>
+            <div class="name-chain truncate">ناصر عبد العزيز محمد القفاري</div>
+          </div>
+        </div>
+      </article>
+    </div>
+  </div>
+</body>
+</html>
+
+
+

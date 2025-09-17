@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>البحث في الشجرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin_theme_2.css">
+    <style>
+        @font-face {
+            font-family: 'SF Arabic';
+            src: url('https://db.onlinewebfonts.com/t/02f502e5eefeb353e5f83fc5045348dc.woff2') format('woff2');
+            font-weight: 400;
+        }
+
+        * {
+            font-family: 'SF Arabic', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #f2f2f7;
+            color: #000;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior: none;
+        }
+
+        /* iOS Style Search Bar */
+        .search-container {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding: 12px 16px;
+            padding-top: max(12px, env(safe-area-inset-top));
+            border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .search-bar {
+            background: rgba(118, 118, 128, 0.12);
+            border-radius: 10px;
+            padding: 0 12px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .search-bar.focused {
+            background: rgba(118, 118, 128, 0.16);
+        }
+
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 17px;
+            color: #000;
+            placeholder-color: rgba(60, 60, 67, 0.6);
+        }
+
+        .search-input::placeholder {
+            color: rgba(60, 60, 67, 0.6);
+        }
+
+        /* Cancel button */
+        .cancel-btn {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #007AFF;
+            font-size: 17px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+
+        .cancel-btn.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Results container */
+        .results-container {
+            padding: 16px;
+            padding-bottom: 100px;
+        }
+
+        /* Profile card */
+        .profile-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+
+        .profile-card:active {
+            transform: scale(0.98);
+            background: #f2f2f7;
+        }
+
+        /* Profile image */
+        .profile-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #007AFF, #5856D6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        /* Profile info */
+        .profile-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: #000;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .profile-generation {
+            font-size: 15px;
+            color: rgba(60, 60, 67, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .generation-badge {
+            background: rgba(0, 122, 255, 0.1);
+            color: #007AFF;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* Chevron */
+        .chevron {
+            color: rgba(60, 60, 67, 0.3);
+            flex-shrink: 0;
+        }
+
+        /* Loading state */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: rgba(60, 60, 67, 0.6);
+        }
+
+        /* No results */
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .no-results-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .no-results-text {
+            font-size: 17px;
+            color: rgba(60, 60, 67, 0.6);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* iOS bounce scrolling */
+        .scroll-container {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            height: 100vh;
+        }
+
+        /* Hide scrollbar */
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Keyboard appearance */
+        @supports (-webkit-touch-callout: none) {
+            .search-input {
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-container">
+        <!-- Search Bar -->
+        <div class="search-container">
+            <div class="search-bar" id="searchBar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(60, 60, 67, 0.6)" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" 
+                       class="search-input" 
+                       id="searchInput"
+                       placeholder="البحث عن الأسماء..."
+                       autocomplete="off"
+                       autocorrect="off"
+                       spellcheck="false">
+                <button class="cancel-btn" id="cancelBtn">إلغاء</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-container" id="results">
+            <!-- Initial state - show some recent profiles -->
+            <div id="recentProfiles">
+                <h2 style="font-size: 22px; font-weight: 700; margin-bottom: 16px; padding: 0 4px;">الأسماء الأخيرة</h2>
+                
+                <div class="profile-card fade-in" style="animation-delay: 0.1s">
+                    <div class="profile-image">ع</div>
+                    <div class="profile-info">
+                        <div class="profile-name">عبدالله بن خالد بن محمد بن سعد بن عبدالعزيز القفاري</div>
+                        <div class="profile-generation">
+                            <span class="generation-badge">الجيل 7</span>
+                            <span>1423 هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.15s">
+                    <div class="profile-image" style="background: linear-gradient(135deg, #5856D6, #AF52DE)">م</div>
+                    <div class="profile-info">
+                        <div class="profile-name">محمد بن سلمان بن عبدالرحمن بن فهد بن ناصر القفاري</div>
+                        <div class="profile-generation">
+                            <span class="generation-badge">الجيل 6</span>
+                            <span>1398 هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.2s">
+                    <div class="profile-image" style="background: linear-gradient(135deg, #FF3B30, #FF6482)">خ</div>
+                    <div class="profile-info">
+                        <div class="profile-name">خالد بن عبدالله بن سعود بن محمد بن إبراهيم القفاري</div>
+                        <div class="profile-generation">
+                            <span class="generation-badge">الجيل 8</span>
+                            <span>1445 هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.25s">
+                    <div class="profile-image" style="background: linear-gradient(135deg, #FF9500, #FFCC00)">س</div>
+                    <div class="profile-info">
+                        <div class="profile-name">سارة بنت أحمد بن عبدالعزيز بن سالم بن حمد القفاري</div>
+                        <div class="profile-generation">
+                            <span class="generation-badge">الجيل 7</span>
+                            <span>1420 هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+
+                <div class="profile-card fade-in" style="animation-delay: 0.3s">
+                    <div class="profile-image" style="background: linear-gradient(135deg, #34C759, #30D158)">ف</div>
+                    <div class="profile-info">
+                        <div class="profile-name">فاطمة بنت محمد بن خالد بن عبدالرحمن بن سعد القفاري</div>
+                        <div class="profile-generation">
+                            <span class="generation-badge">الجيل 8</span>
+                            <span>1442 هـ</span>
+                        </div>
+                    </div>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Search results will be inserted here -->
+            <div id="searchResults" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const searchBar = document.getElementById('searchBar');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const recentProfiles = document.getElementById('recentProfiles');
+        const searchResults = document.getElementById('searchResults');
+
+        // Sample data for search
+        const profiles = [
+            { name: 'عبدالله بن خالد بن محمد بن سعد بن عبدالعزيز القفاري', generation: 7, year: 1423, initial: 'ع' },
+            { name: 'محمد بن سلمان بن عبدالرحمن بن فهد بن ناصر القفاري', generation: 6, year: 1398, initial: 'م' },
+            { name: 'خالد بن عبدالله بن سعود بن محمد بن إبراهيم القفاري', generation: 8, year: 1445, initial: 'خ' },
+            { name: 'سارة بنت أحمد بن عبدالعزيز بن سالم بن حمد القفاري', generation: 7, year: 1420, initial: 'س' },
+            { name: 'فاطمة بنت محمد بن خالد بن عبدالرحمن بن سعد القفاري', generation: 8, year: 1442, initial: 'ف' },
+            { name: 'أحمد بن عبدالله بن محمد بن خالد بن سعود القفاري', generation: 9, year: 1446, initial: 'أ' },
+            { name: 'نورة بنت سلمان بن عبدالعزيز بن محمد بن فهد القفاري', generation: 7, year: 1425, initial: 'ن' },
+            { name: 'عبدالعزيز بن محمد بن سعد بن خالد بن عبدالله القفاري', generation: 6, year: 1395, initial: 'ع' },
+        ];
+
+        const colors = [
+            'linear-gradient(135deg, #007AFF, #5856D6)',
+            'linear-gradient(135deg, #5856D6, #AF52DE)',
+            'linear-gradient(135deg, #FF3B30, #FF6482)',
+            'linear-gradient(135deg, #FF9500, #FFCC00)',
+            'linear-gradient(135deg, #34C759, #30D158)',
+            'linear-gradient(135deg, #00C7BE, #30D9C4)',
+            'linear-gradient(135deg, #FF2D55, #FF6482)',
+            'linear-gradient(135deg, #5AC8FA, #46C7FF)',
+        ];
+
+        // Focus handling
+        searchInput.addEventListener('focus', () => {
+            searchBar.classList.add('focused');
+            cancelBtn.classList.add('show');
+            searchBar.style.marginLeft = '60px';
+        });
+
+        // Cancel button
+        cancelBtn.addEventListener('click', () => {
+            searchInput.blur();
+            searchInput.value = '';
+            searchBar.classList.remove('focused');
+            cancelBtn.classList.remove('show');
+            searchBar.style.marginLeft = '0';
+            recentProfiles.style.display = 'block';
+            searchResults.style.display = 'none';
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            
+            if (query.length === 0) {
+                recentProfiles.style.display = 'block';
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            recentProfiles.style.display = 'none';
+            searchResults.style.display = 'block';
+
+            // Filter profiles
+            const filtered = profiles.filter(profile => 
+                profile.name.includes(query)
+            );
+
+            // Display results
+            if (filtered.length === 0) {
+                searchResults.innerHTML = `
+                    <div class="no-results fade-in">
+                        <div class="no-results-icon">🔍</div>
+                        <div class="no-results-text">لا توجد نتائج للبحث "${query}"</div>
+                    </div>
+                `;
+            } else {
+                searchResults.innerHTML = filtered.map((profile, index) => `
+                    <div class="profile-card fade-in" style="animation-delay: ${index * 0.05}s">
+                        <div class="profile-image" style="background: ${colors[index % colors.length]}">${profile.initial}</div>
+                        <div class="profile-info">
+                            <div class="profile-name">${highlightMatch(profile.name, query)}</div>
+                            <div class="profile-generation">
+                                <span class="generation-badge">الجيل ${profile.generation}</span>
+                                <span>${profile.year} هـ</span>
+                            </div>
+                        </div>
+                        <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
+                `).join('');
+            }
+        });
+
+        // Highlight search matches
+        function highlightMatch(text, query) {
+            if (!query) return text;
+            const regex = new RegExp(`(${query})`, 'gi');
+            return text.replace(regex, '<mark style="background: rgba(255, 204, 0, 0.3); border-radius: 3px;">$1</mark>');
+        }
+
+        // Add click handlers to profile cards
+        document.addEventListener('click', (e) => {
+            const card = e.target.closest('.profile-card');
+            if (card) {
+                // Simulate navigation
+                card.style.background = '#f2f2f7';
+                setTimeout(() => {
+                    card.style.background = '#fff';
+                }, 200);
+            }
+        });
+
+        // Prevent zoom on double tap
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+    </script>
+</body>
+</html>

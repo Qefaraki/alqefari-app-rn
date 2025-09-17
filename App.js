@@ -1,142 +1,164 @@
-import React, { useState, useEffect } from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { View, Text, TouchableOpacity, Alert, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import TreeView from './src/components/TreeView';
-import ProfileSheet from './src/components/ProfileSheet';
-import { AdminModeProvider } from './src/contexts/AdminModeContext';
-import AdminModeToggle from './src/components/admin/AdminModeToggle';
-import CompactAdminBar from './src/components/admin/CompactAdminBar';
-import AdminDashboard from './src/screens/AdminDashboard';
-import { supabase } from './src/services/supabase';
-import { checkAndCreateAdminProfile } from './src/utils/checkAdminProfile';
-import './global.css';
+import React, { useState, useEffect } from "react";
+import { StatusBar } from "expo-status-bar";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  I18nManager,
+  ActivityIndicator,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { NavigationContainer } from "@react-navigation/native";
+import { createStackNavigator } from "@react-navigation/stack";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
+import TreeView from "./src/components/TreeView";
+import ProfileSheetWrapper from "./src/components/ProfileSheetWrapper";
+import { AdminModeProvider } from "./src/contexts/AdminModeContext";
+import { SettingsProvider } from "./src/contexts/SettingsContext";
+import AdminDashboard from "./src/screens/AdminDashboardUltraOptimized";
+import SettingsModal from "./src/components/SettingsModal";
+import AuthNavigator from "./src/navigation/AuthNavigator";
+import { supabase } from "./src/services/supabase";
+import { phoneAuthService } from "./src/services/phoneAuth";
+import { useSharedValue } from "react-native-reanimated";
+import { useTreeStore } from "./src/stores/useTreeStore";
+import "./global.css";
+
+// Force RTL for the entire app
+I18nManager.allowRTL(true);
+I18nManager.forceRTL(true);
+
+// Check if RTL is actually enabled
+if (!I18nManager.isRTL) {
+  console.warn("RTL is not enabled. Using hardcoded RTL styles instead.");
+}
+
+const Stack = createStackNavigator();
+
+// Main app component (after authentication)
+function MainApp({ navigation, user, isGuest, onSignOut }) {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [profileEditMode, setProfileEditMode] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [hasNetworkError, setHasNetworkError] = useState(false);
+  const [linkedProfile, setLinkedProfile] = useState(null);
+  const initializeProfileSheetProgress = useTreeStore(
+    (s) => s.initializeProfileSheetProgress,
+  );
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
+    initializeProfileSheetProgress(progress);
+  }, [initializeProfileSheetProgress, progress]);
 
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      authListener?.subscription?.unsubscribe();
-    };
-  }, []);
-
-  const handleTestLogin = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: 'admin@test.com',
-        password: 'testadmin123'
-      });
-
-      if (error) {
-        Alert.alert('Login Error', error.message);
-      } else {
-        Alert.alert('Success', 'Logged in as test admin!');
-      }
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setLoading(false);
+  // Check if user has linked profile
+  useEffect(() => {
+    if (user) {
+      checkLinkedProfile();
     }
-  };
+  }, [user]);
 
-  const handleCheckAdminProfile = async () => {
-    const result = await checkAndCreateAdminProfile();
-    if (result.success) {
-      Alert.alert('Success', 'Admin profile is ready!');
-    } else {
-      Alert.alert('Error', result.error?.message || 'Failed to check/create admin profile');
-    }
+  const checkLinkedProfile = async () => {
+    const profile = await phoneAuthService.checkProfileLink(user);
+    setLinkedProfile(profile);
   };
 
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      Alert.alert('Error', error.message);
+    Alert.alert("تسجيل الخروج", "هل أنت متأكد من رغبتك في تسجيل الخروج؟", [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "تسجيل الخروج",
+        style: "destructive",
+        onPress: async () => {
+          // Sign out from Supabase
+          const { error } = await supabase.auth.signOut();
+          if (error) {
+            console.error("Sign out error:", error);
+          }
+          // Call the parent's onSignOut to reset state
+          if (onSignOut) {
+            onSignOut();
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleAdminLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "admin@test.com",
+        password: "testadmin123",
+      });
+
+      if (error) {
+        Alert.alert("Login Error", error.message);
+      } else {
+        Alert.alert("Success", "Logged in as test admin!");
+      }
+    } catch (error) {
+      Alert.alert("Error", error.message);
     }
   };
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <SettingsProvider>
       <AdminModeProvider>
         <BottomSheetModalProvider>
           <View className="flex-1">
             <StatusBar style="dark" />
-            
-            {/* Compact Admin Bar - Only when logged in */}
-            <View className="pt-12">
-              {user && (
-                <CompactAdminBar
-                  user={user}
-                  onControlPanelPress={() => setShowAdminDashboard(true)}
-                  onUserPress={() => {
-                    Alert.alert(
-                      'Account',
-                      user.email,
-                      [
-                        { text: 'Check Admin Profile', onPress: handleCheckAdminProfile },
-                        { text: 'Sign Out', onPress: handleSignOut, style: 'destructive' },
-                        { text: 'Cancel', style: 'cancel' }
-                      ]
-                    );
-                  }}
-                />
-              )}
-            </View>
-            
-            {/* Login Button - Floating when not logged in */}
+
+            {/* Admin Quick Login (for testing) - Bottom right circular button */}
             {!user && (
-              <View style={{ position: 'absolute', top: 60, right: 16, zIndex: 10 }}>
-                <TouchableOpacity
-                  onPress={handleTestLogin}
-                  disabled={loading}
-                  style={{
-                    backgroundColor: '#007AFF',
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                >
-                  <Ionicons name="key" size={16} color="white" style={{ marginRight: 6 }} />
-                  <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                    {loading ? 'Loading...' : 'Admin'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                onPress={handleAdminLogin}
+                style={{
+                  position: "absolute",
+                  bottom: 20, // Moved down to not overlay navigation
+                  right: 16,
+                  zIndex: 10,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: "#A13333", // Najdi Crimson
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 8,
+                  elevation: 5,
+                }}
+              >
+                <Ionicons
+                  name="key"
+                  size={20}
+                  color="#F9F7F3" // Al-Jass White
+                />
+              </TouchableOpacity>
             )}
-            
+
+            {/* Guest Mode Banner - Removed per user request */}
+
             {/* Tree View */}
             <View className="flex-1">
-              <TreeView setProfileEditMode={setProfileEditMode} />
+              <TreeView
+                setProfileEditMode={setProfileEditMode}
+                onNetworkStatusChange={setHasNetworkError}
+                user={user}
+                isGuest={isGuest}
+                onAdminDashboard={() => setShowAdminDashboard(true)}
+                onSettingsOpen={() => setShowSettings(true)}
+              />
             </View>
 
             {/* Profile Sheet */}
-            <ProfileSheet editMode={profileEditMode} />
-            {console.log('App.js: Passing profileEditMode to ProfileSheet:', profileEditMode)}
-            
+            <ProfileSheetWrapper editMode={profileEditMode} />
+
             {/* Admin Dashboard Modal */}
             <Modal
               visible={showAdminDashboard}
@@ -145,18 +167,140 @@ export default function App() {
               onRequestClose={() => setShowAdminDashboard(false)}
             >
               <AdminDashboard
-                navigation={{
-                  goBack: () => setShowAdminDashboard(false),
-                  navigate: (screen, params) => {
-                    console.log('Navigate to:', screen, params);
-                    // Handle navigation here
-                  }
-                }}
+                user={user}
+                onClose={() => setShowAdminDashboard(false)}
               />
             </Modal>
+
+            {/* Settings Modal */}
+            <SettingsModal
+              visible={showSettings}
+              onClose={() => setShowSettings(false)}
+            />
           </View>
         </BottomSheetModalProvider>
       </AdminModeProvider>
+    </SettingsProvider>
+  );
+}
+
+// Root App Component
+export default function App() {
+  const [initializing, setInitializing] = useState(true);
+  const [user, setUser] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    checkAuthState();
+  }, []);
+
+  const checkAuthState = async () => {
+    try {
+      // Get current session first
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      // Then get the user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      // If there's a mismatch (session but no user), clear everything
+      if (session && !user) {
+        await supabase.auth.signOut();
+        setUser(null);
+        setIsGuest(false);
+      } else {
+        setUser(user);
+        setIsGuest(user?.user_metadata?.isGuest || false);
+      }
+    } catch (error) {
+      console.error("Auth check error:", error);
+      // On error, assume no user
+      setUser(null);
+      setIsGuest(false);
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  // Listen for auth changes
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null);
+        setIsGuest(session?.user?.user_metadata?.isGuest || false);
+
+        // If user logs out, force them back to onboarding
+        if (_event === "SIGNED_OUT") {
+          setUser(null);
+          setIsGuest(false);
+        }
+      },
+    );
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
+
+  if (initializing) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#f5f5f5",
+        }}
+      >
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: "#666" }}>
+          جاري التحميل...
+        </Text>
+      </View>
+    );
+  }
+
+  // Simple logic: If no user (not even guest), show onboarding
+  // If user exists (real or guest), show main app
+  const shouldShowOnboarding = !user && !isGuest;
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {shouldShowOnboarding ? (
+            // Show authentication flow when no user at all
+            <Stack.Screen name="Auth">
+              {(props) => (
+                <AuthNavigator
+                  {...props}
+                  setIsGuest={setIsGuest}
+                  setUser={setUser}
+                />
+              )}
+            </Stack.Screen>
+          ) : (
+            // Show main app for logged in users or guests
+            <Stack.Screen name="Main">
+              {(props) => (
+                <MainApp
+                  {...props}
+                  user={user}
+                  isGuest={isGuest}
+                  onSignOut={() => {
+                    // Clear state to show onboarding
+                    setUser(null);
+                    setIsGuest(false);
+                  }}
+                />
+              )}
+            </Stack.Screen>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
     </GestureHandlerRootView>
   );
 }

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>لوحة التحكم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin_theme_2.css">
+    <style>
+        @font-face {
+            font-family: 'SF Arabic';
+            src: url('https://db.onlinewebfonts.com/t/02f502e5eefeb353e5f83fc5045348dc.woff2') format('woff2');
+            font-weight: 400;
+        }
+
+        @font-face {
+            font-family: 'SF Pro Display';
+            src: url('https://db.onlinewebfonts.com/t/0b51833ff62e4af8acb5fd3e2bf59e97.woff2') format('woff2');
+            font-weight: 400;
+        }
+
+        * {
+            font-family: 'SF Arabic', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--background) !important;
+            color: var(--foreground) !important;
+            overscroll-behavior: none;
+            -webkit-font-smoothing: antialiased;
+            touch-action: pan-y;
+        }
+
+        /* Innovative glassmorphism cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(140, 130, 180, 0.15);
+        }
+
+        /* Floating orbs background */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            pointer-events: none;
+            animation: float 20s infinite ease-in-out;
+        }
+
+        .orb1 {
+            width: 300px;
+            height: 300px;
+            background: var(--primary);
+            top: -150px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+
+        .orb2 {
+            width: 250px;
+            height: 250px;
+            background: var(--accent);
+            bottom: -100px;
+            left: -100px;
+            animation-delay: 5s;
+        }
+
+        .orb3 {
+            width: 200px;
+            height: 200px;
+            background: var(--chart-3);
+            top: 50%;
+            left: 50%;
+            animation-delay: 10s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translate(0, 0) scale(1);
+            }
+            33% {
+                transform: translate(30px, -30px) scale(1.1);
+            }
+            66% {
+                transform: translate(-20px, 20px) scale(0.9);
+            }
+        }
+
+        /* Smooth slide animations */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Innovative stat cards */
+        .stat-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            opacity: 0.1;
+            transition: all 0.6s ease;
+        }
+
+        .stat-card:active {
+            transform: scale(0.98);
+        }
+
+        /* Dynamic health ring */
+        .health-ring {
+            width: 200px;
+            height: 200px;
+            position: relative;
+        }
+
+        .health-ring svg {
+            transform: rotate(-90deg);
+        }
+
+        .health-ring-bg {
+            stroke: var(--muted);
+            stroke-width: 12;
+            fill: none;
+        }
+
+        .health-ring-progress {
+            stroke: url(#gradient);
+            stroke-width: 12;
+            fill: none;
+            stroke-linecap: round;
+            stroke-dasharray: 565.48;
+            stroke-dashoffset: 565.48;
+            transition: stroke-dashoffset 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Action buttons */
+        .action-btn {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            border-radius: 20px;
+            padding: 16px 24px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .action-btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        /* Quick action cards */
+        .quick-action {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .quick-action:active {
+            transform: scale(0.95);
+            background: var(--secondary);
+        }
+
+        .quick-action-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+        }
+
+        /* Activity feed */
+        .activity-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .activity-item:active {
+            background: var(--secondary);
+            transform: scale(0.98);
+        }
+
+        .activity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--chart-1), var(--chart-2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        /* Bottom tab bar */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            padding: 8px 0 24px 0;
+            z-index: 50;
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .tab-item.active {
+            background: var(--secondary);
+        }
+
+        .tab-item:active {
+            transform: scale(0.9);
+        }
+
+        /* Pull to refresh */
+        .pull-indicator {
+            position: fixed;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        /* Safe area spacing */
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 20px);
+        }
+
+        .safe-bottom {
+            padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 80px);
+        }
+
+        /* Smooth scrolling with momentum */
+        .scroll-container {
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+
+        /* Hide scrollbar */
+        .scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative overflow-hidden">
+    <!-- Floating orbs -->
+    <div class="orb orb1"></div>
+    <div class="orb orb2"></div>
+    <div class="orb orb3"></div>
+
+    <!-- Pull to refresh indicator -->
+    <div class="pull-indicator" id="pullIndicator">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+    </div>
+
+    <!-- Main container -->
+    <div class="scroll-container h-screen">
+        <!-- Header -->
+        <header class="glass-card sticky top-0 z-40 safe-top">
+            <div class="px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold animate-slide-in">مرحباً، أحمد</h1>
+                        <p class="text-sm text-muted-foreground animate-slide-in" style="animation-delay: 0.1s">لوحة التحكم الخاصة بك</p>
+                    </div>
+                    <div class="relative">
+                        <button class="p-3 rounded-full bg-secondary transition-all duration-300 active:scale-90">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path d="M12 1v6m0 6v6m11-11h-6m-6 0H1"></path>
+                            </svg>
+                        </button>
+                        <span class="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full animate-pulse"></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="px-6 pb-32 safe-bottom">
+            <!-- Health Overview -->
+            <section class="mt-6 animate-slide-up">
+                <div class="glass-card rounded-3xl p-6">
+                    <h2 class="text-lg font-semibold mb-4">صحة النظام</h2>
+                    <div class="flex items-center justify-center">
+                        <div class="health-ring">
+                            <svg width="200" height="200">
+                                <defs>
+                                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" style="stop-color:var(--primary);stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:var(--accent);stop-opacity:1" />
+                                    </linearGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="90" class="health-ring-bg"></circle>
+                                <circle cx="100" cy="100" r="90" class="health-ring-progress" id="healthProgress"></circle>
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span class="text-4xl font-bold" id="healthPercent">0%</span>
+                                <span class="text-sm text-muted-foreground">ممتاز</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="action-btn w-full mt-6 flex items-center justify-center gap-2">
+                        <span>تشخيص كامل</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Stats Grid -->
+            <section class="mt-6 grid grid-cols-2 gap-4">
+                <div class="stat-card animate-slide-up" style="animation-delay: 0.1s">
+                    <div class="relative z-10">
+                        <p class="text-sm text-muted-foreground mb-1">الملفات</p>
+                        <p class="text-3xl font-bold" id="profileCount">0</p>
+                        <p class="text-xs text-accent mt-1">↑ 12% هذا الشهر</p>
+                    </div>
+                </div>
+                <div class="stat-card animate-slide-up" style="animation-delay: 0.2s">
+                    <div class="relative z-10">
+                        <p class="text-sm text-muted-foreground mb-1">الصور</p>
+                        <p class="text-3xl font-bold" id="photoCount">0</p>
+                        <p class="text-xs text-accent mt-1">↑ 8% هذا الشهر</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="mt-6">
+                <h2 class="text-lg font-semibold mb-4 animate-slide-in">إجراءات سريعة</h2>
+                <div class="space-y-3">
+                    <div class="quick-action animate-slide-in" style="animation-delay: 0.1s">
+                        <div class="quick-action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-semibold">إضافة ملف جديد</p>
+                            <p class="text-sm text-muted-foreground">إنشاء ملف شخصي جديد</p>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
+
+                    <div class="quick-action animate-slide-in" style="animation-delay: 0.2s">
+                        <div class="quick-action-icon" style="background: linear-gradient(135deg, var(--chart-2), var(--chart-3))">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                                <polyline points="17 6 23 6 23 12"></polyline>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-semibold">التقارير</p>
+                            <p class="text-sm text-muted-foreground">عرض الإحصائيات المفصلة</p>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
+
+                    <div class="quick-action animate-slide-in" style="animation-delay: 0.3s">
+                        <div class="quick-action-icon" style="background: linear-gradient(135deg, var(--chart-4), var(--chart-5))">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-semibold">النسخ الاحتياطي</p>
+                            <p class="text-sm text-muted-foreground">تصدير البيانات</p>
+                        </div>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Activity -->
+            <section class="mt-6">
+                <h2 class="text-lg font-semibold mb-4 animate-slide-in">النشاط الأخير</h2>
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <div class="activity-item animate-slide-in" style="animation-delay: 0.1s">
+                        <div class="activity-avatar">م</div>
+                        <div class="flex-1">
+                            <p class="font-medium">محمد الأحمد</p>
+                            <p class="text-sm text-muted-foreground">تم تحديث الملف الشخصي</p>
+                        </div>
+                        <span class="text-xs text-muted-foreground">الآن</span>
+                    </div>
+                    <div class="activity-item animate-slide-in" style="animation-delay: 0.2s">
+                        <div class="activity-avatar" style="background: linear-gradient(135deg, var(--chart-3), var(--chart-4))">ف</div>
+                        <div class="flex-1">
+                            <p class="font-medium">فاطمة العلي</p>
+                            <p class="text-sm text-muted-foreground">أضافت 3 صور جديدة</p>
+                        </div>
+                        <span class="text-xs text-muted-foreground">5د</span>
+                    </div>
+                    <div class="activity-item animate-slide-in" style="animation-delay: 0.3s">
+                        <div class="activity-avatar" style="background: linear-gradient(135deg, var(--chart-5), var(--chart-1))">ع</div>
+                        <div class="flex-1">
+                            <p class="font-medium">عبدالله السالم</p>
+                            <p class="text-sm text-muted-foreground">سجل زواج جديد</p>
+                        </div>
+                        <span class="text-xs text-muted-foreground">15د</span>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Bottom Tab Bar -->
+    <nav class="tab-bar">
+        <div class="flex px-4">
+            <div class="tab-item active">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span class="text-xs">الرئيسية</span>
+            </div>
+            <div class="tab-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <span class="text-xs">البحث</span>
+            </div>
+            <div class="tab-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                <span class="text-xs">التقارير</span>
+            </div>
+            <div class="tab-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span class="text-xs">الملف</span>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        // Smooth number animations
+        function animateValue(element, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+                element.textContent = Math.floor(easeOutQuart * (end - start) + start).toLocaleString('ar-SA');
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // Animate health ring
+        function animateHealthRing() {
+            const progress = document.getElementById('healthProgress');
+            const percent = document.getElementById('healthPercent');
+            const targetPercent = 98;
+            const circumference = 2 * Math.PI * 90;
+            const offset = circumference - (targetPercent / 100) * circumference;
+            
+            setTimeout(() => {
+                progress.style.strokeDashoffset = offset;
+                animateValue(percent, 0, targetPercent, 2000);
+                percent.textContent = '0%';
+                
+                // Update percentage text during animation
+                let currentPercent = 0;
+                const interval = setInterval(() => {
+                    currentPercent += 1;
+                    if (currentPercent <= targetPercent) {
+                        percent.textContent = currentPercent + '%';
+                    } else {
+                        clearInterval(interval);
+                    }
+                }, 2000 / targetPercent);
+            }, 500);
+        }
+
+        // Initialize animations
+        document.addEventListener('DOMContentLoaded', function() {
+            animateHealthRing();
+            animateValue(document.getElementById('profileCount'), 0, 12456, 2000);
+            animateValue(document.getElementById('photoCount'), 0, 45678, 2000);
+
+            // Pull to refresh simulation
+            let startY = 0;
+            let pullDistance = 0;
+            const pullIndicator = document.getElementById('pullIndicator');
+            const scrollContainer = document.querySelector('.scroll-container');
+
+            scrollContainer.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].pageY;
+            });
+
+            scrollContainer.addEventListener('touchmove', (e) => {
+                if (scrollContainer.scrollTop === 0) {
+                    pullDistance = e.touches[0].pageY - startY;
+                    if (pullDistance > 0 && pullDistance < 150) {
+                        pullIndicator.style.top = `${pullDistance - 60}px`;
+                        pullIndicator.style.opacity = pullDistance / 150;
+                        pullIndicator.style.transform = `translateX(-50%) rotate(${pullDistance * 2}deg)`;
+                    }
+                }
+            });
+
+            scrollContainer.addEventListener('touchend', () => {
+                if (pullDistance > 100) {
+                    // Trigger refresh
+                    pullIndicator.style.top = '20px';
+                    pullIndicator.style.transform = 'translateX(-50%) rotate(720deg)';
+                    setTimeout(() => {
+                        location.reload();
+                    }, 500);
+                } else {
+                    pullIndicator.style.top = '-60px';
+                    pullIndicator.style.opacity = '0';
+                    pullIndicator.style.transform = 'translateX(-50%) rotate(0deg)';
+                }
+                pullDistance = 0;
+            });
+
+            // Tab bar interactions
+            document.querySelectorAll('.tab-item').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Add haptic feedback simulation
+            document.querySelectorAll('button, .quick-action, .activity-item, .tab-item').forEach(element => {
+                element.addEventListener('click', function() {
+                    if (navigator.vibrate) {
+                        navigator.vibrate(10);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

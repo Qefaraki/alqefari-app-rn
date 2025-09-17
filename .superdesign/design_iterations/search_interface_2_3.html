@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>البحث في الشجرة - الخط الزمني</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="admin_theme_2.css">
+    <style>
+        @font-face {
+            font-family: 'SF Arabic';
+            src: url('https://db.onlinewebfonts.com/t/02f502e5eefeb353e5f83fc5045348dc.woff2') format('woff2');
+            font-weight: 400;
+        }
+
+        * {
+            font-family: 'SF Arabic', -apple-system, BlinkMacSystemFont, sans-serif !important;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #f8f6f3;
+            color: #1a1a1a;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior: none;
+            position: relative;
+        }
+
+        /* Decorative background pattern */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            opacity: 0.03;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(210, 105, 30, 0.1) 0%, transparent 50%);
+            background-size: 100px 100px;
+        }
+
+        /* Header with integrated search */
+        .header {
+            background: linear-gradient(135deg, #8b4513, #d2691e);
+            color: white;
+            padding: 20px;
+            padding-top: max(20px, env(safe-area-inset-top));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 20px,
+                    rgba(255, 255, 255, 0.05) 20px,
+                    rgba(255, 255, 255, 0.05) 40px
+                );
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .search-timeline {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 16px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .search-timeline:focus-within {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-input-timeline {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-size: 17px;
+            color: white;
+        }
+
+        .search-input-timeline::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .search-icon-timeline {
+            color: white;
+            width: 22px;
+            height: 22px;
+        }
+
+        /* Timeline container */
+        .timeline-container {
+            padding: 24px 16px;
+            position: relative;
+        }
+
+        /* Central timeline line */
+        .timeline-line {
+            position: absolute;
+            right: 50%;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #8b4513, #d2691e, #8b4513);
+            transform: translateX(50%);
+        }
+
+        /* Year marker */
+        .year-marker {
+            position: relative;
+            margin-bottom: 48px;
+            text-align: center;
+        }
+
+        .year-badge {
+            background: linear-gradient(135deg, #8b4513, #d2691e);
+            color: white;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            display: inline-block;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 4px 16px rgba(139, 69, 19, 0.3);
+        }
+
+        .year-badge::before,
+        .year-badge::after {
+            content: '◆';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: white;
+        }
+
+        .year-badge::before {
+            right: 8px;
+        }
+
+        .year-badge::after {
+            left: 8px;
+        }
+
+        /* Timeline cards */
+        .timeline-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            position: relative;
+            width: calc(50% - 32px);
+            box-shadow: 0 4px 16px rgba(139, 69, 19, 0.1);
+            border: 1px solid rgba(139, 69, 19, 0.08);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .timeline-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(139, 69, 19, 0.15);
+        }
+
+        .timeline-card:active {
+            transform: translateY(-2px);
+        }
+
+        /* Alternating left/right layout */
+        .timeline-card:nth-child(even) {
+            margin-right: auto;
+            margin-left: 16px;
+        }
+
+        .timeline-card:nth-child(odd) {
+            margin-left: auto;
+            margin-right: 16px;
+        }
+
+        /* Connection dots */
+        .timeline-card::before {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border: 3px solid #8b4513;
+            border-radius: 50%;
+            top: 24px;
+        }
+
+        .timeline-card:nth-child(even)::before {
+            left: -8px;
+        }
+
+        .timeline-card:nth-child(odd)::before {
+            right: -8px;
+        }
+
+        /* Connection lines */
+        .timeline-card::after {
+            content: '';
+            position: absolute;
+            top: 31px;
+            width: 24px;
+            height: 2px;
+            background: #8b4513;
+        }
+
+        .timeline-card:nth-child(even)::after {
+            left: -24px;
+        }
+
+        .timeline-card:nth-child(odd)::after {
+            right: -24px;
+        }
+
+        /* Profile content in timeline */
+        .timeline-profile {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .timeline-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Gradient backgrounds */
+        .gradient-1 { background: linear-gradient(135deg, #8b4513, #a0522d); }
+        .gradient-2 { background: linear-gradient(135deg, #d2691e, #daa520); }
+        .gradient-3 { background: linear-gradient(135deg, #704214, #8b4513); }
+        .gradient-4 { background: linear-gradient(135deg, #cd853f, #deb887); }
+        .gradient-5 { background: linear-gradient(135deg, #a0522d, #bc8f8f); }
+
+        .timeline-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .timeline-name {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .timeline-details {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .timeline-generation {
+            background: rgba(139, 69, 19, 0.1);
+            color: #8b4513;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            width: fit-content;
+        }
+
+        .timeline-generation::before {
+            content: '◈';
+            font-size: 10px;
+        }
+
+        .timeline-date {
+            font-size: 14px;
+            color: rgba(139, 69, 19, 0.7);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .timeline-date::before {
+            content: '📅';
+            font-size: 12px;
+        }
+
+        /* Filter tabs */
+        .filter-tabs {
+            background: white;
+            margin: 16px;
+            padding: 8px;
+            border-radius: 16px;
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 2px 8px rgba(139, 69, 19, 0.08);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .filter-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-tab {
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            color: rgba(139, 69, 19, 0.7);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .filter-tab:hover {
+            background: rgba(139, 69, 19, 0.05);
+        }
+
+        .filter-tab.active {
+            background: linear-gradient(135deg, #8b4513, #d2691e);
+            color: white;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .timeline-line {
+                right: 24px;
+            }
+
+            .timeline-card {
+                width: calc(100% - 48px);
+                margin-right: 48px !important;
+                margin-left: 0 !important;
+            }
+
+            .timeline-card::before {
+                right: -32px !important;
+                left: auto !important;
+            }
+
+            .timeline-card::after {
+                right: -48px !important;
+                left: auto !important;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        /* Loading state */
+        .loading-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 24px;
+            width: calc(50% - 32px);
+            opacity: 0.6;
+        }
+
+        .skeleton-timeline {
+            display: flex;
+            gap: 16px;
+        }
+
+        .skeleton-avatar-timeline {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        .skeleton-content {
+            flex: 1;
+        }
+
+        .skeleton-line {
+            height: 14px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 7px;
+            margin-bottom: 10px;
+        }
+
+        .skeleton-line:last-child {
+            width: 60%;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <h1 class="header-title">الخط الزمني للعائلة</h1>
+            <div class="search-timeline">
+                <svg class="search-icon-timeline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" 
+                       class="search-input-timeline" 
+                       placeholder="البحث في التاريخ العائلي..."
+                       autocomplete="off">
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+        <div class="filter-tab active">جميع الأجيال</div>
+        <div class="filter-tab">القرن الحالي</div>
+        <div class="filter-tab">القرن الماضي</div>
+        <div class="filter-tab">الأحدث</div>
+        <div class="filter-tab">الأقدم</div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-container">
+        <div class="timeline-line"></div>
+
+        <!-- Year 1446 -->
+        <div class="year-marker fade-in-up">
+            <div class="year-badge">١٤٤٦ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.1s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-1">أ</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">أحمد بن عبدالله بن محمد بن خالد القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل التاسع</span>
+                        <span class="timeline-date">ولد في رمضان</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1445 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.2s">
+            <div class="year-badge">١٤٤٥ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.25s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-3">خ</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">خالد بن عبدالله بن سعود بن محمد القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل الثامن</span>
+                        <span class="timeline-date">ولد في شوال</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1442 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.3s">
+            <div class="year-badge">١٤٤٢ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.35s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-5">ف</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">فاطمة بنت محمد بن خالد بن عبدالرحمن القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل الثامن</span>
+                        <span class="timeline-date">ولدت في ذي الحجة</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1425 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.4s">
+            <div class="year-badge">١٤٢٥ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.45s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-2">ن</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">نورة بنت سلمان بن عبدالعزيز بن محمد القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل السابع</span>
+                        <span class="timeline-date">ولدت في محرم</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1423 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.5s">
+            <div class="year-badge">١٤٢٣ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.55s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-1">ع</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">عبدالله بن خالد بن محمد بن سعد القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل السابع</span>
+                        <span class="timeline-date">ولد في ربيع الأول</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1420 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.6s">
+            <div class="year-badge">١٤٢٠ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.65s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-4">س</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">سارة بنت أحمد بن عبدالعزيز بن سالم القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل السابع</span>
+                        <span class="timeline-date">ولدت في جمادى الأولى</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1398 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.7s">
+            <div class="year-badge">١٣٩٨ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.75s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-2">م</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">محمد بن سلمان بن عبدالرحمن بن فهد القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل السادس</span>
+                        <span class="timeline-date">ولد في صفر</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Year 1395 -->
+        <div class="year-marker fade-in-up" style="animation-delay: 0.8s">
+            <div class="year-badge">١٣٩٥ هـ</div>
+        </div>
+
+        <div class="timeline-card fade-in-up" style="animation-delay: 0.85s">
+            <div class="timeline-profile">
+                <div class="timeline-avatar gradient-3">ع</div>
+                <div class="timeline-info">
+                    <div class="timeline-name">عبدالعزيز بن محمد بن سعد بن خالد القفاري</div>
+                    <div class="timeline-details">
+                        <span class="timeline-generation">الجيل السادس</span>
+                        <span class="timeline-date">ولد في رجب</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Filter tabs functionality
+        const filterTabs = document.querySelectorAll('.filter-tab');
+        filterTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                filterTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                // Add filtering logic here
+            });
+        });
+
+        // Search functionality
+        const searchInput = document.querySelector('.search-input-timeline');
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            // Add search logic here
+        });
+
+        // Card click animation
+        const cards = document.querySelectorAll('.timeline-card');
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                card.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    card.style.transform = '';
+                }, 150);
+            });
+        });
+
+        // Smooth scroll to year markers
+        const yearMarkers = document.querySelectorAll('.year-badge');
+        yearMarkers.forEach(marker => {
+            marker.addEventListener('click', () => {
+                marker.parentElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,18 +1,24 @@
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 class StorageService {
   constructor() {
-    this.bucketName = 'profile-photos';
+    this.bucketName = "profile-photos";
   }
 
   /**
    * Uploads a profile photo to Supabase storage with retry logic
    * @param {string} uri - The local URI of the image from ImagePicker
    * @param {string} profileId - The profile ID to associate the photo with
+   * @param {string} customPath - Optional custom storage path
    * @param {function} onProgress - Optional callback for upload progress
    * @returns {Promise<{url: string, error: Error|null}>}
    */
-  async uploadProfilePhoto(uri, profileId, onProgress = null) {
+  async uploadProfilePhoto(
+    uri,
+    profileId,
+    customPath = null,
+    onProgress = null,
+  ) {
     const maxRetries = 3;
     let lastError = null;
 
@@ -21,18 +27,28 @@ class StorageService {
         // Add exponential backoff for retries
         if (attempt > 0) {
           const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         }
 
         // Fetch the image as a blob
         const response = await fetch(uri);
         const blob = await response.blob();
-        
-        // Generate unique filename with timestamp
-        const timestamp = new Date().getTime();
-        const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-        const fileName = `photo_${timestamp}.${fileExt}`;
-        const filePath = `profiles/${profileId}/${fileName}`;
+
+        // Use custom path if provided, otherwise generate one
+        let filePath;
+        if (customPath && typeof customPath === "string") {
+          // Don't add profiles/ prefix if custom path already has it
+          filePath = customPath.startsWith("profiles/")
+            ? customPath
+            : `profiles/${customPath}`;
+        } else {
+          // Generate unique filename with timestamp and random string
+          const timestamp = new Date().getTime();
+          const random = Math.random().toString(36).substring(7);
+          const fileExt = uri.split(".").pop()?.toLowerCase() || "jpg";
+          const fileName = `photo_${timestamp}_${random}.${fileExt}`;
+          filePath = `profiles/${profileId}/${fileName}`;
+        }
 
         // Convert blob to array buffer
         const arrayBuffer = await new Response(blob).arrayBuffer();
@@ -41,14 +57,15 @@ class StorageService {
         const { data, error } = await supabase.storage
           .from(this.bucketName)
           .upload(filePath, arrayBuffer, {
-            contentType: blob.type || 'image/jpeg',
+            contentType: blob.type || "image/jpeg",
             upsert: false, // Don't overwrite existing files
             onUploadProgress: (progress) => {
               if (onProgress) {
-                const percentComplete = (progress.loaded / progress.total) * 100;
+                const percentComplete =
+                  (progress.loaded / progress.total) * 100;
                 onProgress(percentComplete);
               }
-            }
+            },
           });
 
         if (error) {
@@ -56,9 +73,9 @@ class StorageService {
         }
 
         // Get the public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from(this.bucketName)
-          .getPublicUrl(filePath);
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from(this.bucketName).getPublicUrl(filePath);
 
         // Clean up old photos on successful upload
         await this.cleanupOldPhotos(profileId, publicUrl);
@@ -75,7 +92,10 @@ class StorageService {
       }
     }
 
-    return { url: null, error: lastError || new Error('فشل رفع الصورة بعد عدة محاولات') };
+    return {
+      url: null,
+      error: lastError || new Error("فشل رفع الصورة بعد عدة محاولات"),
+    };
   }
 
   /**
@@ -88,7 +108,7 @@ class StorageService {
       // Extract the file path from the URL
       const urlParts = photoUrl.split(`/${this.bucketName}/`);
       if (urlParts.length !== 2) {
-        throw new Error('Invalid photo URL');
+        throw new Error("Invalid photo URL");
       }
 
       const filePath = urlParts[1];
@@ -104,7 +124,7 @@ class StorageService {
 
       return { success: true, error: null };
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error("Delete error:", error);
       return { success: false, error };
     }
   }
@@ -117,18 +137,18 @@ class StorageService {
   validateImage(file) {
     const maxSizeInMB = 5;
     const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
-    
+
     // Check file size
     if (file.fileSize && file.fileSize > maxSizeInBytes) {
       throw new Error(`حجم الصورة يجب أن يكون أقل من ${maxSizeInMB} ميجابايت`);
     }
 
     // Check file type
-    const acceptedTypes = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
-    const fileExt = file.uri?.split('.').pop()?.toLowerCase();
-    
+    const acceptedTypes = ["jpg", "jpeg", "png", "webp", "heic", "heif"];
+    const fileExt = file.uri?.split(".").pop()?.toLowerCase();
+
     if (!fileExt || !acceptedTypes.includes(fileExt)) {
-      throw new Error('نوع الملف غير مدعوم. الرجاء استخدام JPG أو PNG');
+      throw new Error("نوع الملف غير مدعوم. الرجاء استخدام JPG أو PNG");
     }
 
     return true;
@@ -144,6 +164,43 @@ class StorageService {
   }
 
   /**
+   * Upload spouse photo
+   * @param {string} marriageId - The marriage record ID
+   * @param {string} photoUri - The photo URI
+   * @returns {Promise<string>} The public URL of the uploaded photo
+   */
+  async uploadSpousePhoto(marriageId, photoUri) {
+    try {
+      const fileName = `spouse_${marriageId}_${Date.now()}.jpg`;
+      const filePath = `spouses/${marriageId}/${fileName}`;
+
+      // Convert URI to blob
+      const response = await fetch(photoUri);
+      const blob = await response.blob();
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from("profile-photos")
+        .upload(filePath, blob, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (error) throw error;
+
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("profile-photos").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Error uploading spouse photo:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Cleans up old photos when uploading a new one
    * @param {string} profileId - The profile ID
    * @param {string} currentPhotoUrl - The current photo URL to preserve
@@ -152,7 +209,7 @@ class StorageService {
   async cleanupOldPhotos(profileId, currentPhotoUrl = null) {
     try {
       const path = this.getProfilePhotoPath(profileId);
-      
+
       // List all files in the profile's directory
       const { data: files, error } = await supabase.storage
         .from(this.bucketName)
@@ -164,11 +221,11 @@ class StorageService {
 
       // Delete all photos except the current one
       const filesToDelete = files
-        .filter(file => {
+        .filter((file) => {
           if (!currentPhotoUrl) return true;
           return !currentPhotoUrl.includes(file.name);
         })
-        .map(file => `${path}${file.name}`);
+        .map((file) => `${path}${file.name}`);
 
       if (filesToDelete.length > 0) {
         const { error: deleteError } = await supabase.storage
@@ -176,11 +233,11 @@ class StorageService {
           .remove(filesToDelete);
 
         if (deleteError) {
-          console.error('Cleanup error:', deleteError);
+          console.error("Cleanup error:", deleteError);
         }
       }
     } catch (error) {
-      console.error('Cleanup error:', error);
+      console.error("Cleanup error:", error);
     }
   }
 }

@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-import glassTokens from './tokens';
+import React from "react";
+import { View, StyleSheet, Platform } from "react-native";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import glassTokens from "./tokens";
 
 /**
  * Liquid-glass surface inspired by iOS 26 aesthetics.
@@ -25,8 +25,28 @@ const GlassSurface = ({
   ...rest
 }) => {
   return (
-    <View style={[styles.wrapper, style]} {...rest}>
-      <View style={[styles.surface, { borderRadius: radius }]}> 
+    <View
+      style={[
+        styles.wrapper,
+        Platform.OS === "ios"
+          ? glassTokens.elevation.ios
+          : glassTokens.elevation.android,
+        style,
+      ]}
+      {...rest}
+    >
+      <View
+        style={[
+          styles.surface,
+          {
+            borderRadius: radius,
+            backgroundColor:
+              Platform.OS === "ios"
+                ? "rgba(255,255,255,0.15)"
+                : "rgba(255,255,255,0.22)",
+          },
+        ]}
+      >
         {/* Blur */}
         <BlurView
           intensity={blur}
@@ -47,7 +67,10 @@ const GlassSurface = ({
           colors={sheenGradient}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.sheen, { borderTopLeftRadius: radius, borderRadius: radius }]}
+          style={[
+            styles.sheen,
+            { borderTopLeftRadius: radius, borderRadius: radius },
+          ]}
         />
 
         {/* Inner border */}
@@ -73,24 +96,19 @@ const GlassSurface = ({
 const styles = StyleSheet.create({
   wrapper: {
     // Soft ambient elevation without harsh artifacts
-    ...(Platform.OS === 'ios'
-      ? glassTokens.elevation.ios
-      : glassTokens.elevation.android),
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    // Elevation styles applied dynamically in render
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: glassTokens.radii.lg,
   },
   surface: {
-    overflow: 'hidden',
-    backgroundColor: Platform.select({
-      ios: 'rgba(255,255,255,0.15)',
-      android: 'rgba(255,255,255,0.22)',
-    }),
+    overflow: "hidden",
+    // Background color applied dynamically in render
   },
   content: {
-    position: 'relative',
+    position: "relative",
   },
   sheen: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
@@ -100,5 +118,3 @@ const styles = StyleSheet.create({
 });
 
 export default GlassSurface;
-
-
