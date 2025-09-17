@@ -130,7 +130,15 @@ export default function NameChainEntryScreen({ navigation, route }) {
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             {/* Header with Progress - RTL Layout */}
             <View style={styles.header}>
-              {/* Progress Dots on the left for RTL */}
+              {/* Back button on the LEFT for RTL, pointing LEFT */}
+              <TouchableOpacity
+                style={styles.backButton}
+                onPress={() => navigation.goBack()}
+              >
+                <Ionicons name="chevron-back" size={28} color={colors.text} />
+              </TouchableOpacity>
+
+              {/* Progress Dots on the right for RTL */}
               <View style={styles.progressContainer}>
                 <View style={styles.progressDot} />
                 <View style={styles.progressDot} />
@@ -142,18 +150,6 @@ export default function NameChainEntryScreen({ navigation, route }) {
                   style={[styles.progressDot, styles.progressDotCompleted]}
                 />
               </View>
-
-              {/* Back button on the right for RTL */}
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={28}
-                  color={colors.text}
-                />
-              </TouchableOpacity>
             </View>
 
             {/* Main Content */}
@@ -254,7 +250,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: "row-reverse", // RTL: Back button on right
+    flexDirection: "row", // RTL: Back button on LEFT
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: Platform.OS === "ios" ? 60 : 40,
@@ -263,7 +259,7 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginLeft: 8, // Changed from marginRight for RTL
+    marginRight: 8, // Space after back button
   },
   progressContainer: {
     flexDirection: "row",
@@ -316,7 +312,7 @@ const styles = StyleSheet.create({
     borderStyle: "dashed",
     padding: 16,
     position: "relative",
-    alignItems: "center",
+    alignItems: "flex-end", // Align content to right for RTL
   },
   exampleBadge: {
     position: "absolute",
@@ -337,6 +333,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     fontFamily: "SF Arabic",
     color: colors.text,
+    textAlign: "right", // Right align the text for RTL
   },
   inputContainer: {
     backgroundColor: colors.inputBg,
