@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import SaduNightBackdrop from "../../components/ui/SaduNightBackdrop";
 // Try to import MaskedView, but handle the case where it's not available
 let MaskedView;
 try {
@@ -68,7 +69,7 @@ const createMaskedStarfield = () => {
         y: centerY + y + jitterY,
         size,
         brightness: 0.6 + Math.random() * 0.4,
-        delay: Math.random() * 800,
+        delay: Math.random() * 200, // Much faster - was 800ms
         group: "logo",
       });
     }
@@ -77,21 +78,7 @@ const createMaskedStarfield = () => {
   return points;
 };
 
-// Generate background stars
-const generateBackgroundStars = (count) => {
-  const stars = [];
-  for (let i = 0; i < count; i++) {
-    stars.push({
-      x: Math.random() * SCREEN_WIDTH,
-      y: Math.random() * SCREEN_HEIGHT,
-      size: Math.random() * 1.5 + 0.5,
-      brightness: Math.random() * 0.3 + 0.1,
-      delay: Math.random() * 2000,
-      group: "background",
-    });
-  }
-  return stars;
-};
+// Background stars generation removed - now using SaduNightBackdrop component
 
 export default function OnboardingScreen({ navigation, setIsGuest }) {
   const [animationTime, setAnimationTime] = useState(0);
@@ -113,7 +100,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const secondaryButtonScale = useRef(new Animated.Value(1)).current;
 
   // Memoize all stars
-  const backgroundStars = useMemo(() => generateBackgroundStars(80), []);
+  // backgroundStars removed - now using SaduNightBackdrop component
   const logoStars = useMemo(() => createMaskedStarfield(), []);
 
   // Check for reduce motion preference
@@ -132,47 +119,47 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   useEffect(() => {
     // Staged animation sequence
-    // Stage 1: Logo fades in first
+    // Stage 1: Logo appears almost instantly
     Animated.parallel([
       Animated.timing(logoFade, {
         toValue: 1,
-        duration: 2000,
+        duration: 200, // Near instant as requested
         useNativeDriver: true,
       }),
       Animated.spring(logoScale, {
         toValue: 1,
-        tension: 20,
-        friction: 7,
+        tension: 40, // Smooth spring
+        friction: 8,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Stage 2: Background stars fade in (after 1s)
+    // Stage 2: Background stars fade in after logo has been seen (1s after logo starts)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
-        toValue: 1,
-        duration: 2000,
+        toValue: 0.56, // Reduced by 30% from 0.8 (0.8 * 0.7 = 0.56)
+        duration: 2000, // Smooth fade
         useNativeDriver: true,
       }).start();
-    }, 1000);
+    }, 1000); // Give logo 1 second to shine alone
 
-    // Stage 3: Text fades in (after 2.5s total)
+    // Stage 3: Text fades in AFTER background stars are visible
     setTimeout(() => {
       Animated.timing(contentFade, {
         toValue: 1,
         duration: 1500,
         useNativeDriver: true,
       }).start();
-    }, 2500);
+    }, 2500); // After logo and stars have settled
 
-    // Stage 4: Buttons fade in (after 3.5s total)
+    // Stage 4: Buttons fade in last
     setTimeout(() => {
       Animated.timing(buttonFade, {
         toValue: 1,
         duration: 1000,
         useNativeDriver: true,
       }).start();
-    }, 3500);
+    }, 3500); // Final element
 
     // Start subtle logo rotation after initial animation (unless reduce motion is on)
     if (!reduceMotion) {
@@ -230,7 +217,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
 
   const renderStars = useCallback((stars, time) => {
     return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 500);
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 200); // Faster fade - was 500ms
       if (fadeInProgress <= 0) return null;
 
       const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
@@ -310,24 +297,18 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      {/* Gradient background - much darker */}
-      <LinearGradient
-        colors={["#030303", "#0d0d19", "#030303"]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Background starfield - fades in after logo */}
+      {/* Reusable starry night backdrop */}
       <Animated.View
         style={[
           StyleSheet.absoluteFillObject,
           { opacity: backgroundStarsFade },
         ]}
       >
-        <Canvas style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}>
-          {renderStars(backgroundStars, animationTime)}
-        </Canvas>
+        <SaduNightBackdrop
+          starCount={100} // Good density for richness
+          reduceMotion={reduceMotion}
+          starOpacity={0.7} // Visible but not overpowering
+        />
       </Animated.View>
 
       {/* Logo stars with masking */}
@@ -381,6 +362,25 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
           </Canvas>
         </>
       )}
+
+      {/* Bottom vignette gradient - placed behind content and buttons */}
+      <LinearGradient
+        colors={[
+          "transparent",
+          "rgba(0,0,0,0.3)",
+          "rgba(0,0,0,0.7)",
+          "rgba(0,0,0,0.9)",
+        ]}
+        locations={[0, 0.3, 0.7, 1]}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: SCREEN_HEIGHT * 0.25, // Bottom quarter of screen
+          pointerEvents: "none", // Allow touches to pass through
+        }}
+      />
 
       {/* Content */}
       <Animated.View

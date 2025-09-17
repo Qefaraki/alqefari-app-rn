@@ -65,8 +65,15 @@ export default function NameChainEntryScreen({ navigation, route }) {
   };
 
   const handleContactAdmin = () => {
-    // Navigate to contact admin screen or open WhatsApp
-    navigation.navigate("ContactAdmin", { user });
+    // For now, just go to the main app as guest
+    Alert.alert(
+      "التواصل مع المشرف",
+      "سيتم إضافة هذه الميزة قريباً. يمكنك الدخول كضيف الآن.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        { text: "دخول كضيف", onPress: () => navigation.replace("Main") },
+      ],
+    );
   };
 
   const handleSkip = () => {

@@ -16,6 +16,7 @@ import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
+import LinkRequestsManager from "../components/admin/LinkRequestsManager";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
@@ -40,7 +41,9 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
   const [showActivityScreen, setShowActivityScreen] = useState(false);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -77,11 +80,25 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
   const loadDataProgressively = async () => {
     // Load basic stats first (fastest)
     loadBasicStats();
+    loadPendingRequestsCount();
 
     // Load other sections with delays
     setTimeout(() => loadEnhancedStats(), 300);
     setTimeout(() => loadValidationData(), 600);
     setTimeout(() => loadActivityFeed(), 900);
+  };
+
+  const loadPendingRequestsCount = async () => {
+    try {
+      const { count } = await supabase
+        .from("profile_link_requests")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending");
+
+      setPendingRequestsCount(count || 0);
+    } catch (error) {
+      console.log("Error loading pending requests:", error);
+    }
   };
 
   const loadBasicStats = async () => {
@@ -263,6 +280,16 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
         onComplete={() => {
           setShowQuickAdd(false);
           handleRefresh();
+        }}
+      />
+    );
+  }
+  if (showLinkRequests) {
+    return (
+      <LinkRequestsManager
+        onClose={() => {
+          setShowLinkRequests(false);
+          loadPendingRequestsCount(); // Refresh count when closing
         }}
       />
     );
@@ -652,6 +679,23 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
 
             <TouchableOpacity
               style={styles.actionItem}
+              onPress={() => setShowLinkRequests(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>🔗</Text>
+                <Text style={styles.actionText}>طلبات ربط الملفات</Text>
+                {pendingRequestsCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{pendingRequestsCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={handleRecalculateLayouts}
               activeOpacity={0.7}
             >
@@ -1014,6 +1058,22 @@ const styles = StyleSheet.create({
     flexDirection: "row-reverse",
     alignItems: "center",
     gap: 12,
+    flex: 1,
+  },
+  badge: {
+    backgroundColor: "#A13333",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginLeft: 8,
+    minWidth: 24,
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
   actionIcon: {
     fontSize: 24,

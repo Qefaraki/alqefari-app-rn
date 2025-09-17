@@ -1,7 +1,7 @@
 import React from "react";
 import { createStackNavigator } from "@react-navigation/stack";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
-import LocketPhoneAuthScreen from "../screens/auth/LocketPhoneAuthScreen";
+import NajdiPhoneAuthScreen from "../screens/auth/NajdiPhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
 
@@ -44,7 +44,7 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
       </Stack.Screen>
       <Stack.Screen
         name="PhoneAuth"
-        component={LocketPhoneAuthScreen}
+        component={NajdiPhoneAuthScreen}
         options={{
           gestureEnabled: true,
           gestureDirection: "horizontal",

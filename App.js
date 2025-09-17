@@ -17,6 +17,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 import TreeView from "./src/components/TreeView";
 import ProfileSheetWrapper from "./src/components/ProfileSheetWrapper";
+import PendingApprovalBanner from "./src/components/PendingApprovalBanner";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
 import AdminDashboard from "./src/screens/AdminDashboardUltraOptimized";
@@ -46,6 +47,7 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
   const [showSettings, setShowSettings] = useState(false);
   const [hasNetworkError, setHasNetworkError] = useState(false);
   const [linkedProfile, setLinkedProfile] = useState(null);
+  const [linkStatus, setLinkStatus] = useState(null); // 'pending', 'approved', 'rejected', null
   const initializeProfileSheetProgress = useTreeStore(
     (s) => s.initializeProfileSheetProgress,
   );
@@ -59,12 +61,39 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
   useEffect(() => {
     if (user) {
       checkLinkedProfile();
+      checkLinkStatus();
     }
   }, [user]);
 
   const checkLinkedProfile = async () => {
     const profile = await phoneAuthService.checkProfileLink(user);
     setLinkedProfile(profile);
+  };
+
+  const checkLinkStatus = async () => {
+    // Check if user has approved profile
+    const profile = await phoneAuthService.checkProfileLink(user);
+
+    if (profile) {
+      setLinkStatus("approved");
+    } else {
+      // Check for pending requests
+      const result = await phoneAuthService.getUserLinkRequests();
+      if (result.success && result.requests?.length > 0) {
+        const latestRequest = result.requests.sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at),
+        )[0];
+
+        setLinkStatus(latestRequest.status);
+      }
+    }
+  };
+
+  const handleLinkStatusChange = (newStatus) => {
+    setLinkStatus(newStatus);
+    if (newStatus === "approved") {
+      checkLinkedProfile(); // Reload profile when approved
+    }
   };
 
   const handleSignOut = async () => {
@@ -146,6 +175,15 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
 
             {/* Tree View */}
             <View className="flex-1">
+              {/* Pending Approval Banner */}
+              {user && linkStatus === "pending" && (
+                <PendingApprovalBanner
+                  user={user}
+                  onStatusChange={handleLinkStatusChange}
+                  onRefresh={checkLinkStatus}
+                />
+              )}
+
               <TreeView
                 setProfileEditMode={setProfileEditMode}
                 onNetworkStatusChange={setHasNetworkError}
