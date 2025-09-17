@@ -135,17 +135,17 @@ export default function NameChainEntryScreen({
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             {/* Header - Order reversed for RTL layout */}
             <View style={styles.header}>
-              {/* Progress Dots - Step 3 of 5 - Reversed for RTL */}
+              {/* Progress Dots FIRST - will appear on right in RTL */}
               <View style={styles.progressContainer}>
-                <View style={styles.progressDot} />
-                <View style={styles.progressDot} />
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
+                <View
+                  style={[styles.progressDot, styles.progressDotCompleted]}
+                />
                 <View style={[styles.progressDot, styles.progressDotActive]} />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
+                <View style={styles.progressDot} />
+                <View style={styles.progressDot} />
               </View>
 
               {/* Back button LAST - will appear on left in RTL */}
