@@ -276,11 +276,10 @@ export default function NajdiPhoneAuthScreen({ navigation }) {
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (result.hasProfile) {
-        navigation.replace("Main");
-      } else {
-        navigation.replace("NameChainEntry", { user: result.user });
-      }
+
+      // Always go to NameChainEntry after verification
+      // Let the user search for their profile or skip if they want
+      navigation.navigate("NameChainEntry", { user: result.user });
     } else {
       // Better error messages
       let errorMessage = "رمز التحقق غير صحيح";

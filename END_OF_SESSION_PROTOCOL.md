@@ -63,51 +63,75 @@ git commit -m "feat: [Session Summary] - $(date +%Y%m%d)
 
 ### 5️⃣ MERGE DECISION TREE
 
+## 🚫 CRITICAL RULE: AI AGENTS CANNOT MERGE TO MASTER
+
+**AI agents are NEVER allowed to:**
+
+- Push directly to master branch
+- Merge branches into master
+- Force push to any branch
+- Delete the master branch
+
+**AI agents MUST always:**
+
+- Create Pull Requests (PRs) only
+- Push to feature branches
+- Wait for human approval
+
 ```
 Question 1: Is the feature complete and tested?
 ├─ YES → Continue to Question 2
-└─ NO → Push branch, document progress, END
+└─ NO → Push branch, create draft PR, END
 
 Question 2: Are there < 20 commits?
 ├─ YES → Continue to Question 3
-└─ NO → Must merge today (skip to SAFE MERGE)
+└─ NO → Must create PR today (skip to CREATE PR)
 
 Question 3: Does it touch critical files?
-├─ YES → Create PR for review, END
-└─ NO → Proceed to SAFE MERGE
+├─ YES → Create PR with "needs-review" label, END
+└─ NO → Create PR with "ready-to-merge" label
 ```
 
-### 6️⃣ SAFE MERGE PROCEDURE
+### 6️⃣ CREATE PULL REQUEST PROCEDURE
 
 ```bash
-# STEP 1: Create safety tag
-git tag backup-$(date +%Y%m%d-%H%M%S)
-git push origin --tags
+# STEP 1: Push feature branch
+git push origin feature/current-branch
 
-# STEP 2: Test merge
-git checkout master
-git pull origin master
-git merge --no-commit --no-ff feature/current-branch
+# STEP 2: Create PR via GitHub CLI or provide link
+gh pr create \
+  --title "feat: [Summary of changes]" \
+  --body "## Changes Made
+- Feature X added
+- Bug Y fixed
+- Component Z updated
 
-# STEP 3: Verify
-git status
-git diff --stat
+## Testing Done
+- [ ] npm run lint passes
+- [ ] Manual testing completed
+- [ ] No console errors
 
-# STEP 4: Decision point
-read -p "Does everything look correct? (y/n) " -n 1 -r
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    git commit -m "merge: [Feature name] after [session context]"
-    git push origin master
+## Commits: $(git rev-list --count origin/master..HEAD)
+## Files Changed: $(git diff --stat origin/master | tail -1)
 
-    # Clean up
-    git branch -d feature/current-branch
-    git push origin --delete feature/current-branch
-else
-    git merge --abort
-    echo "Merge aborted - pushing branch for review"
-    git checkout feature/current-branch
-    git push origin feature/current-branch
-fi
+**Created by**: AI Agent (Claude/Cursor/etc)
+**Session Date**: $(date +%Y-%m-%d)" \
+  --base master \
+  --head feature/current-branch
+
+# STEP 3: Provide user with PR link
+echo "
+=====================================
+📢 PULL REQUEST CREATED
+=====================================
+Branch: feature/current-branch
+Commits: $(git rev-list --count origin/master..HEAD)
+
+Please review at:
+https://github.com/[username]/[repo]/pull/new/feature/current-branch
+
+The branch is ready for your review and merge.
+====================================="
 ```
 
 ### 7️⃣ POST-MERGE VERIFICATION
@@ -161,20 +185,34 @@ Create session summary:
 
 ## 🔴 EMERGENCY PROCEDURES
 
-### If Merge Goes Wrong:
+### If User Accidentally Asks Agent to Merge:
 
 ```bash
-# Option 1: Revert the merge
-git revert -m 1 HEAD
-git push origin master
+# STOP IMMEDIATELY and inform user:
+echo "
+⚠️ WARNING: AI agents cannot merge to master
+=========================================
+I am not authorized to merge branches.
+Please review the PR I've created instead.
 
-# Option 2: Reset to backup tag
-git reset --hard backup-YYYYMMDD-HHMMSS
-git push origin master --force-with-lease
+To merge yourself:
+1. Review the PR on GitHub
+2. Click 'Merge pull request' if satisfied
+3. Or use: gh pr merge [PR-NUMBER]
+"
+```
 
-# Option 3: Restore from GitHub
-git fetch origin
-git reset --hard origin/master
+### If Something Goes Wrong:
+
+```bash
+# Create safety branch and inform user
+git checkout -b emergency-backup-$(date +%Y%m%d-%H%M%S)
+git push origin emergency-backup-$(date +%Y%m%d-%H%M%S)
+
+echo "
+Created emergency backup branch.
+User should review and fix manually.
+"
 ```
 
 ### If Unsure About Anything:
@@ -212,14 +250,35 @@ alias gcount='git rev-list --count origin/master..HEAD'
 alias gsafe='git tag backup-$(date +%Y%m%d-%H%M%S) && git push origin --tags'
 ```
 
-## 🎯 Golden Rules
+## 🎯 Golden Rules for AI Agents
 
-1. **Never force push to master** (except emergencies)
-2. **Always create backup tag** before risky operations
-3. **Merge daily** if possible (avoid drift)
-4. **Document decisions** in commit messages
-5. **Test before merge** (at minimum: npm run lint)
-6. **Communicate status** to user before major actions
+1. **NEVER push to master branch** - Only feature branches
+2. **NEVER merge branches** - Only create PRs
+3. **NEVER force push anything** - Ever
+4. **ALWAYS create PRs** for user review
+5. **ALWAYS document in PR** what was changed and why
+6. **ALWAYS push feature branch** before ending session
+7. **ALWAYS inform user** about PR creation
+
+## ⛔ Forbidden Commands for AI Agents
+
+These commands must NEVER be executed by AI agents:
+
+```bash
+# ❌ FORBIDDEN - Never do these:
+git push origin master
+git push --force
+git merge master
+git checkout master && git merge feature/branch
+git reset --hard origin/master
+git push --force-with-lease
+
+# ✅ ALLOWED - Only these:
+git push origin feature/branch-name
+gh pr create
+git commit
+git add
+```
 
 ---
 

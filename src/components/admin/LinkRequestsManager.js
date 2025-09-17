@@ -66,7 +66,7 @@ const LinkRequestsManager = ({ onClose }) => {
         .select(
           `
           *,
-          profiles!profile_id (
+          profiles!profile_link_requests_profile_id_fkey (
             id,
             name,
             hid,

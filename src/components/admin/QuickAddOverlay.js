@@ -48,8 +48,8 @@ const COLORS = {
   textMedium: "#242121CC", // Sadu Night 80%
 };
 
-// Card dimensions - more compact
-const CARD_WIDTH = 85;
+// Card dimensions - thinner
+const CARD_WIDTH = 75;
 const CARD_HEIGHT = 85;
 const CARD_SPACING = 8;
 
@@ -156,7 +156,6 @@ const DraggableChildCard = ({
               styles.childCard,
               isActive && styles.childCardActive,
               child.isNew && styles.newCard,
-              child.gender === "female" && styles.femaleCard,
             ]}
             onPress={handlePress}
             activeOpacity={0.7}
@@ -389,22 +388,24 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       // 1. Create new children
       for (const child of newChildren) {
         const profileData = {
-          arabic_name: child.name,
+          name: child.name,
           gender: child.gender,
-          parent1: parentNode.id,
-          birth_year_hijri: null,
-          is_deceased: false,
+          father_id: parentNode.gender === "male" ? parentNode.id : null,
+          mother_id:
+            parentNode.gender === "female" ? parentNode.id : child.mother_id,
           sibling_order: child.sibling_order,
+          status: "alive",
         };
 
-        if (child.mother_id) {
+        // If parent is male and mother is selected, use it
+        if (parentNode.gender === "male" && child.mother_id) {
           profileData.mother_id = child.mother_id;
         }
 
         promises.push(
           profilesService.createProfile(profileData).then(({ data, error }) => {
             if (error) throw error;
-            return { childId: child.id, newId: data.id };
+            return { childId: child.id, newId: data?.id };
           }),
         );
       }
@@ -623,32 +624,24 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   </View>
                 </View>
 
-                {/* Add/Update Button for individual child */}
-                {editingChildId ? (
-                  <TouchableOpacity
-                    style={[
-                      styles.addButton,
-                      !currentChild.name.trim() && styles.addButtonDisabled,
-                    ]}
-                    onPress={handleAddOrUpdateChild}
-                    disabled={!currentChild.name.trim()}
-                  >
-                    <Ionicons name="checkmark" size={20} color="#FFF" />
-                    <Text style={styles.addButtonText}>حفظ التعديل</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.addButton,
-                      !currentChild.name.trim() && styles.addButtonDisabled,
-                    ]}
-                    onPress={handleAddOrUpdateChild}
-                    disabled={!currentChild.name.trim()}
-                  >
-                    <Ionicons name="add" size={20} color="#FFF" />
-                    <Text style={styles.addButtonText}>إضافة طفل</Text>
-                  </TouchableOpacity>
-                )}
+                {/* Add/Update Button - just adds to list, doesn't save to database */}
+                <TouchableOpacity
+                  style={[
+                    styles.addButton,
+                    !currentChild.name.trim() && styles.addButtonDisabled,
+                  ]}
+                  onPress={handleAddOrUpdateChild}
+                  disabled={!currentChild.name.trim()}
+                >
+                  <Ionicons
+                    name={editingChildId ? "checkmark" : "add"}
+                    size={20}
+                    color="#FFF"
+                  />
+                  <Text style={styles.addButtonText}>
+                    {editingChildId ? "تحديث" : "إضافة طفل"}
+                  </Text>
+                </TouchableOpacity>
 
                 {/* Mother Selector - Available for both new and edit */}
                 {parentNode?.gender === "male" && (
@@ -679,9 +672,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   disabled={!hasChanges || loading}
                 >
                   <Text style={styles.saveButtonText}>
-                    {loading
-                      ? "جاري الحفظ..."
-                      : `حفظ الكل (${newChildrenCount + editedChildrenCount})`}
+                    {loading ? "جاري الحفظ..." : "حفظ"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -811,9 +802,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.secondary,
     borderWidth: 1.5,
   },
-  femaleCard: {
-    backgroundColor: "#FFF5F7",
-  },
+
   deleteButton: {
     position: "absolute",
     top: 4,
@@ -823,7 +812,9 @@ const styles = StyleSheet.create({
   orderBadge: {
     position: "absolute",
     top: 6,
-    right: 6,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   orderBadgeText: {
     fontSize: 11,
@@ -831,12 +822,13 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   childName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: COLORS.text,
-    marginTop: 24,
+    marginTop: 20,
     marginBottom: 6,
     textAlign: "center",
+    paddingHorizontal: 4,
   },
   genderLabel: {
     position: "absolute",

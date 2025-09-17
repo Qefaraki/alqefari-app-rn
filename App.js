@@ -41,13 +41,20 @@ if (!I18nManager.isRTL) {
 const Stack = createStackNavigator();
 
 // Main app component (after authentication)
-function MainApp({ navigation, user, isGuest, onSignOut }) {
+function MainApp({
+  navigation,
+  user,
+  isGuest,
+  onSignOut,
+  linkedProfile,
+  linkStatus,
+  onLinkStatusChange,
+  onRefreshLinkStatus,
+}) {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [profileEditMode, setProfileEditMode] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [hasNetworkError, setHasNetworkError] = useState(false);
-  const [linkedProfile, setLinkedProfile] = useState(null);
-  const [linkStatus, setLinkStatus] = useState(null); // 'pending', 'approved', 'rejected', null
   const initializeProfileSheetProgress = useTreeStore(
     (s) => s.initializeProfileSheetProgress,
   );
@@ -57,42 +64,10 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
     initializeProfileSheetProgress(progress);
   }, [initializeProfileSheetProgress, progress]);
 
-  // Check if user has linked profile
-  useEffect(() => {
-    if (user) {
-      checkLinkedProfile();
-      checkLinkStatus();
-    }
-  }, [user]);
-
-  const checkLinkedProfile = async () => {
-    const profile = await phoneAuthService.checkProfileLink(user);
-    setLinkedProfile(profile);
-  };
-
-  const checkLinkStatus = async () => {
-    // Check if user has approved profile
-    const profile = await phoneAuthService.checkProfileLink(user);
-
-    if (profile) {
-      setLinkStatus("approved");
-    } else {
-      // Check for pending requests
-      const result = await phoneAuthService.getUserLinkRequests();
-      if (result.success && result.requests?.length > 0) {
-        const latestRequest = result.requests.sort(
-          (a, b) => new Date(b.created_at) - new Date(a.created_at),
-        )[0];
-
-        setLinkStatus(latestRequest.status);
-      }
-    }
-  };
-
+  // Use the link status change handler from props
   const handleLinkStatusChange = (newStatus) => {
-    setLinkStatus(newStatus);
-    if (newStatus === "approved") {
-      checkLinkedProfile(); // Reload profile when approved
+    if (onLinkStatusChange) {
+      onLinkStatusChange(newStatus);
     }
   };
 
@@ -180,7 +155,7 @@ function MainApp({ navigation, user, isGuest, onSignOut }) {
                 <PendingApprovalBanner
                   user={user}
                   onStatusChange={handleLinkStatusChange}
-                  onRefresh={checkLinkStatus}
+                  onRefresh={onRefreshLinkStatus}
                 />
               )}
 
@@ -227,6 +202,9 @@ export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
+  const [linkedProfile, setLinkedProfile] = useState(null);
+  const [linkStatus, setLinkStatus] = useState(null);
+  const [profileCheckComplete, setProfileCheckComplete] = useState(false);
 
   useEffect(() => {
     checkAuthState();
@@ -249,9 +227,18 @@ export default function App() {
         await supabase.auth.signOut();
         setUser(null);
         setIsGuest(false);
+        setLinkedProfile(null);
+        setLinkStatus(null);
       } else {
         setUser(user);
         setIsGuest(user?.user_metadata?.isGuest || false);
+
+        // Check profile linking status if user exists and not guest
+        if (user && !user?.user_metadata?.isGuest) {
+          await checkProfileLinkingStatus(user);
+        } else {
+          setProfileCheckComplete(true);
+        }
       }
     } catch (error) {
       console.error("Auth check error:", error);
@@ -263,10 +250,38 @@ export default function App() {
     }
   };
 
+  const checkProfileLinkingStatus = async (user) => {
+    try {
+      // Check if user has linked profile
+      const profile = await phoneAuthService.checkProfileLink(user);
+      setLinkedProfile(profile);
+
+      if (profile) {
+        setLinkStatus("approved");
+      } else {
+        // Check for pending requests
+        const result = await phoneAuthService.getUserLinkRequests();
+        if (result.success && result.requests?.length > 0) {
+          const latestRequest = result.requests.sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at),
+          )[0];
+          setLinkStatus(latestRequest.status);
+        } else {
+          setLinkStatus(null);
+        }
+      }
+      setProfileCheckComplete(true);
+    } catch (error) {
+      console.error("Error checking profile link status:", error);
+      setLinkStatus(null);
+      setProfileCheckComplete(true);
+    }
+  };
+
   // Listen for auth changes
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (_event, session) => {
         setUser(session?.user ?? null);
         setIsGuest(session?.user?.user_metadata?.isGuest || false);
 
@@ -274,6 +289,12 @@ export default function App() {
         if (_event === "SIGNED_OUT") {
           setUser(null);
           setIsGuest(false);
+          setLinkedProfile(null);
+          setLinkStatus(null);
+          setProfileCheckComplete(false);
+        } else if (session?.user && !session?.user?.user_metadata?.isGuest) {
+          // Check profile linking when user signs in
+          await checkProfileLinkingStatus(session.user);
         }
       },
     );
@@ -301,9 +322,19 @@ export default function App() {
     );
   }
 
-  // Simple logic: If no user (not even guest), show onboarding
-  // If user exists (real or guest), show main app
-  const shouldShowOnboarding = !user && !isGuest;
+  // Check if user needs to complete profile linking
+  // A user is "incomplete" if they're authenticated but have no linked profile and no pending request
+  const needsProfileLinking =
+    user &&
+    !isGuest &&
+    !linkedProfile &&
+    linkStatus === null &&
+    profileCheckComplete;
+
+  // Show onboarding/auth flow if:
+  // 1. No user at all OR
+  // 2. User exists but hasn't completed profile linking
+  const shouldShowOnboarding = (!user && !isGuest) || needsProfileLinking;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -328,10 +359,30 @@ export default function App() {
                   {...props}
                   user={user}
                   isGuest={isGuest}
+                  linkedProfile={linkedProfile}
+                  linkStatus={linkStatus}
+                  onLinkStatusChange={async (newStatus) => {
+                    setLinkStatus(newStatus);
+                    if (newStatus === "approved") {
+                      // Reload profile when approved
+                      const profile =
+                        await phoneAuthService.checkProfileLink(user);
+                      setLinkedProfile(profile);
+                    }
+                  }}
+                  onRefreshLinkStatus={() => {
+                    // Refresh link status when user manually refreshes
+                    if (user && !isGuest) {
+                      checkProfileLinkingStatus(user);
+                    }
+                  }}
                   onSignOut={() => {
                     // Clear state to show onboarding
                     setUser(null);
                     setIsGuest(false);
+                    setLinkedProfile(null);
+                    setLinkStatus(null);
+                    setProfileCheckComplete(false);
                   }}
                 />
               )}

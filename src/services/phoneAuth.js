@@ -510,7 +510,7 @@ export const phoneAuthService = {
         .select(
           `
           *,
-          profile:profiles(name, hid, generation)
+          profile:profiles!profile_link_requests_profile_id_fkey(name, hid, generation)
         `,
         )
         .eq("user_id", user.id)
