@@ -174,9 +174,16 @@ export default function ProfileMatchingScreen({ navigation, route }) {
     );
 
     if (result.success) {
-      Alert.alert("تم إرسال الطلب", result.message, [
-        { text: "موافق", onPress: () => navigation.replace("Main") },
-      ]);
+      if (result.temporary) {
+        // Temporary direct linking
+        Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
+          { text: "موافق", onPress: () => navigation.replace("Main") },
+        ]);
+      } else {
+        Alert.alert("تم إرسال الطلب", result.message, [
+          { text: "موافق", onPress: () => navigation.replace("Main") },
+        ]);
+      }
     } else {
       Alert.alert("خطأ", result.error);
     }
