@@ -196,7 +196,7 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
             shadowColor: "#FFA500", // Orange glow
             shadowRadius: 8,
             shadowOpacity: 0.8,
-            transform: [{ rotate: "-45deg" }], // Diagonal angle
+            transform: [{ rotate: "45deg" }], // Diagonal angle (flipped for RTL)
             transformOrigin: "right center", // Rotate from the right end
           },
           animatedStyle, // This sets left and top
@@ -305,15 +305,16 @@ const EnhancedSaduBackdrop = forwardRef(
       );
     }, []);
 
-    // Trigger shooting star - BOTTOM LEFT to TOP RIGHT
+    // Trigger shooting star - BOTTOM LEFT to TOP RIGHT (accounting for RTL)
     const triggerShootingStar = (count = 1) => {
       const newStars = [];
       for (let i = 0; i < count; i++) {
-        // Start from bottom-left area
-        const startX = -50; // Start off-screen left
+        // In RTL mode, left is right and right is left!
+        // Start from bottom-RIGHT (which appears as left in RTL)
+        const startX = SCREEN_WIDTH + 50; // Start off-screen RIGHT (appears left in RTL)
         const startY = SCREEN_HEIGHT + 50; // Start below screen
-        // End at top-right area
-        const endX = SCREEN_WIDTH + 50; // End off-screen right
+        // End at top-LEFT (which appears as right in RTL)
+        const endX = -50; // End off-screen LEFT (appears right in RTL)
         const endY = -50; // End above screen
 
         newStars.push({
