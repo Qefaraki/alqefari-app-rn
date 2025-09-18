@@ -13,7 +13,7 @@ import {
   calculateInitialZoom,
 } from "../utils/treeFilter";
 import { calculateTreeLayout } from "../utils/treeLayout";
-import { useTreeStore } from "../stores/treeStore";
+import { useTreeStore } from "../stores/useTreeStore";
 
 // Create context for the filtered store
 const FilteredTreeContext = createContext(null);
