@@ -55,7 +55,7 @@ const countryCodes = [
 export default function NajdiPhoneAuthScreen({
   navigation,
   onOTPSent,
-  showCard = true,
+  showCard = false,
 }) {
   const [step, setStep] = useState("phone"); // 'phone' or 'otp'
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -382,7 +382,9 @@ export default function NajdiPhoneAuthScreen({
             >
               {/* Glass card with blur */}
               <BlurView intensity={20} tint="dark" style={styles.card}>
-                <View style={styles.cardInner}>
+                <Animated.View
+                  style={[styles.cardInner, { opacity: contentOpacity }]}
+                >
                   {/* Back Button */}
                   <TouchableOpacity
                     style={styles.backButton}
@@ -420,7 +422,7 @@ export default function NajdiPhoneAuthScreen({
                       <Animated.View style={[styles.step, phoneStepStyle]}>
                         <View style={styles.iconContainer}>
                           <Image
-                            source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
+                            source={require("../../../assets/logo/STAR_LOGO.png")}
                             style={styles.logoIcon}
                             resizeMode="contain"
                           />
@@ -510,7 +512,7 @@ export default function NajdiPhoneAuthScreen({
                       <Animated.View style={[styles.step, otpStepStyle]}>
                         <View style={styles.iconContainer}>
                           <Image
-                            source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
+                            source={require("../../../assets/logo/STAR_LOGO.png")}
                             style={styles.logoIcon}
                             resizeMode="contain"
                           />
@@ -614,7 +616,7 @@ export default function NajdiPhoneAuthScreen({
                       </Animated.View>
                     )}
                   </View>
-                </View>
+                </Animated.View>
               </BlurView>
             </Animated.View>
           </View>

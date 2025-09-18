@@ -272,7 +272,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         ]}
       >
         <Image
-          source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
+          source={require("../../../assets/logo/STAR_LOGO.png")}
           style={styles.logo}
           resizeMode="contain"
         />

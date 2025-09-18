@@ -739,21 +739,6 @@ const TreeView = ({
     loadTreeData();
   }, [setTreeData]);
 
-  // Auto-center on focus person in filtered view
-  useEffect(() => {
-    if (isFilteredStore && focusPersonId && nodes.length > 0 && !isLoading) {
-      // Find the focus person in the nodes
-      const focusNode = nodes.find((n) => n.id === focusPersonId);
-      if (focusNode) {
-        console.log("Auto-centering on focus person:", focusPersonId);
-        // Small delay to ensure canvas is ready
-        setTimeout(() => {
-          navigateToNode(focusPersonId);
-        }, 100);
-      }
-    }
-  }, [isFilteredStore, focusPersonId, nodes, isLoading, navigateToNode]);
-
   // Real-time subscription for profile updates
   useEffect(() => {
     const channel = supabase
@@ -1310,6 +1295,21 @@ const TreeView = ({
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
+
+  // Auto-center on focus person in filtered view
+  useEffect(() => {
+    if (isFilteredStore && focusPersonId && nodes.length > 0 && !isLoading) {
+      // Find the focus person in the nodes
+      const focusNode = nodes.find((n) => n.id === focusPersonId);
+      if (focusNode) {
+        console.log("Auto-centering on focus person:", focusPersonId);
+        // Small delay to ensure canvas is ready
+        setTimeout(() => {
+          navigateToNode(focusPersonId);
+        }, 300);
+      }
+    }
+  }, [isFilteredStore, focusPersonId, nodes.length, isLoading]); // Don't depend on navigateToNode to avoid re-runs
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {
