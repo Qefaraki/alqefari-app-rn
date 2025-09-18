@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import TreeView from "./TreeView";
 import { FilteredTreeProvider } from "../contexts/FilteredTreeContext";
+import { SettingsProvider } from "../contexts/SettingsContext";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -79,9 +80,11 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
 
         {/* Real TreeView with Filtered Data */}
         <View style={styles.treeContainer}>
-          <FilteredTreeProvider focusPersonId={profile.id}>
-            <TreeView isFilteredView={true} />
-          </FilteredTreeProvider>
+          <SettingsProvider>
+            <FilteredTreeProvider focusPersonId={profile.id}>
+              <TreeView isFilteredView={true} />
+            </FilteredTreeProvider>
+          </SettingsProvider>
         </View>
 
         {/* Action Buttons */}

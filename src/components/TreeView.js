@@ -357,11 +357,11 @@ class SpatialGrid {
 }
 
 const TreeView = ({
-  setProfileEditMode,
-  onNetworkStatusChange,
-  user,
-  onAdminDashboard,
-  onSettingsOpen,
+  setProfileEditMode = () => {}, // Default noop function
+  onNetworkStatusChange = () => {}, // Default noop function
+  user = null, // Default null user
+  onAdminDashboard = () => {}, // Default noop function
+  onSettingsOpen = () => {}, // Default noop function
   isFilteredView = false, // New prop to indicate filtered view
 }) => {
   // Use filtered store if available, otherwise use global store
@@ -375,6 +375,10 @@ const TreeView = ({
   );
   const treeData = useFilteredTreeStore((s) => s.treeData);
   const setTreeData = useFilteredTreeStore((s) => s.setTreeData);
+
+  // Use ref to track if we've already logged the settings warning
+  const hasLoggedSettingsWarning = useRef(false);
+
   // Use settings if available, otherwise use defaults (for filtered view)
   let settings = {
     defaultCalendar: "gregorian",
@@ -388,7 +392,11 @@ const TreeView = ({
     settings = settingsContext.settings;
   } catch (error) {
     // Not in SettingsProvider - use defaults
-    console.log("TreeView running outside SettingsProvider, using defaults");
+    // Only log once to avoid console spam
+    if (!hasLoggedSettingsWarning.current) {
+      console.log("TreeView running outside SettingsProvider, using defaults");
+      hasLoggedSettingsWarning.current = true;
+    }
   }
 
   const dimensions = useWindowDimensions();
