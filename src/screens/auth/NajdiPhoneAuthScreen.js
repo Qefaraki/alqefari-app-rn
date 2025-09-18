@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.1)",
   },
   otpContainer: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL direction
     justifyContent: "center",
     gap: 8,
     marginBottom: 24,
@@ -820,9 +820,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.najdiCrimson + "15",
   },
   otpInputFocused: {
-    borderColor: "#FFD700", // Golden like shooting star
+    borderColor: colors.alJassWhite, // Al-Jass White from our design system
     borderWidth: 2,
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    backgroundColor: "rgba(249, 247, 243, 0.1)", // Al-Jass White with 10% opacity
   },
   otpInputError: {
     borderColor: "#FF6B6B",
