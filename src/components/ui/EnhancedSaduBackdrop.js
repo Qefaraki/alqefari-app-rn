@@ -296,7 +296,7 @@ const EnhancedSaduBackdrop = forwardRef(
         duration: 1000,
         easing: Easing.inOut(Easing.ease),
       });
-    }, [onboardingStep]);
+    }, [onboardingStep, brightness]);
 
     // Auto-scroll animation for depth
     useEffect(() => {
