@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
+import BranchTreeModal from "../../components/BranchTreeModal";
 
 import * as Haptics from "expo-haptics";
 
@@ -141,9 +142,13 @@ export default function ProfileMatchingScreen({ navigation, route }) {
   const { profiles = [], nameChain, user } = route.params;
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showTreeModal, setShowTreeModal] = useState(false);
+  const [treeModalProfile, setTreeModalProfile] = useState(null);
 
   const handleSelectProfile = useCallback((profile) => {
-    setSelectedProfile(profile);
+    // Show tree modal for verification
+    setTreeModalProfile(profile);
+    setShowTreeModal(true);
   }, []);
 
   const handleConfirmProfile = async () => {
@@ -177,6 +182,47 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 
     setSubmitting(false);
   };
+
+  const handleConfirmFromModal = useCallback(
+    async (profile) => {
+      // User confirmed "هذا أنا" in the tree modal
+      setSelectedProfile(profile);
+      setShowTreeModal(false);
+      setTreeModalProfile(null);
+
+      // Auto-submit after confirmation
+      setSubmitting(true);
+      const result = await phoneAuthService.submitProfileLinkRequest(
+        profile.id,
+        nameChain,
+      );
+
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        if (result.temporary) {
+          Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
+            { text: "موافق", onPress: () => navigation.replace("Main") },
+          ]);
+        } else {
+          Alert.alert("تم إرسال الطلب", result.message, [
+            { text: "موافق", onPress: () => navigation.replace("Main") },
+          ]);
+        }
+      } else {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert("خطأ", result.error);
+      }
+
+      setSubmitting(false);
+    },
+    [nameChain, navigation],
+  );
+
+  const handleCloseTreeModal = useCallback(() => {
+    setShowTreeModal(false);
+    setTreeModalProfile(null);
+  }, []);
 
   const handleContactAdmin = () => {
     navigation.navigate("ContactAdmin", { user, nameChain });
@@ -294,32 +340,43 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 
       {/* Bottom Actions */}
       <View style={styles.bottomActions}>
-        <TouchableOpacity
-          style={[
-            styles.confirmButton,
-            !selectedProfile && styles.confirmButtonDisabled,
-            submitting && styles.buttonLoading,
-          ]}
-          onPress={handleConfirmProfile}
-          disabled={!selectedProfile || submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <Text style={styles.confirmButtonText}>تأكيد الاختيار</Text>
-              <Ionicons name="checkmark-circle" size={20} color="white" />
-            </>
-          )}
-        </TouchableOpacity>
+        {selectedProfile ? (
+          <View style={styles.selectedConfirmation}>
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={colors.primary}
+            />
+            <Text style={styles.selectedText}>
+              تم اختيار: {selectedProfile.name}
+            </Text>
+            <Text style={styles.selectedSubtext}>
+              جاري ربط حسابك بهذا الملف...
+            </Text>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.instructionText}>
+              اضغط على ملفك الشخصي لعرض موقعك في الشجرة
+            </Text>
 
-        <TouchableOpacity
-          style={styles.notFoundButton}
-          onPress={handleContactAdmin}
-        >
-          <Text style={styles.notFoundButtonText}>لم أجد ملفي</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.notFoundButton}
+              onPress={handleContactAdmin}
+            >
+              <Text style={styles.notFoundButtonText}>لم أجد ملفي</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
+
+      {/* Branch Tree Modal for verifying identity */}
+      <BranchTreeModal
+        visible={showTreeModal}
+        profile={treeModalProfile}
+        onConfirm={handleConfirmFromModal}
+        onClose={handleCloseTreeModal}
+      />
     </View>
   );
 }
@@ -589,5 +646,31 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.primary,
+  },
+
+  // New styles for the updated flow
+  selectedConfirmation: {
+    alignItems: "center",
+    paddingVertical: 16,
+  },
+  selectedText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    marginTop: 8,
+  },
+  selectedSubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontFamily: "SF Arabic",
+    marginTop: 4,
+  },
+  instructionText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontFamily: "SF Arabic",
+    textAlign: "center",
+    marginBottom: 16,
   },
 });
