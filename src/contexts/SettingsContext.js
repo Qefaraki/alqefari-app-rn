@@ -110,6 +110,3 @@ export const SettingsProvider = ({ children }) => {
     </SettingsContext.Provider>
   );
 };
-
-// Export SettingsContext so it can be imported directly
-export { SettingsContext };
