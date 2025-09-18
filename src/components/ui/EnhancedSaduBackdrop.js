@@ -140,28 +140,39 @@ const Star = ({ star, scrollY, brightness }) => {
   );
 };
 
-// Shooting star component
-const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
+// Shooting star component - warm, golden, dramatic
+const ShootingStar = ({
+  startX,
+  startY,
+  endX,
+  endY,
+  delay = 0,
+  onComplete,
+}) => {
   const progress = useSharedValue(0);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 100 });
-    progress.value = withTiming(
-      1,
-      {
-        duration: 1200, // Slower for better visibility
-        easing: Easing.out(Easing.quad),
-      },
-      () => {
-        opacity.value = withTiming(0, { duration: 200 }, () => {
+    // Delayed start for staggered effect
+    const timer = setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 150 });
+      progress.value = withTiming(
+        1,
+        {
+          duration: 1500, // Slower for dramatic effect
+          easing: Easing.inOut(Easing.quad),
+        },
+        () => {
+          // Don't fade out - just complete when off screen
           if (onComplete) {
             runOnJS(onComplete)();
           }
-        });
-      },
-    );
-  }, []);
+        },
+      );
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [delay]);
 
   const animatedStyle = useAnimatedStyle(() => {
     const x = interpolate(progress.value, [0, 1], [startX, endX]);
@@ -174,8 +185,17 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
   });
 
   const tailStyle = useAnimatedStyle(() => {
-    const tailOpacity = interpolate(progress.value, [0, 0.3, 1], [0, 0.6, 0]);
-    const scaleX = interpolate(progress.value, [0, 0.5, 1], [0, 1, 0.3]);
+    // Tail fades in then stays visible longer
+    const tailOpacity = interpolate(
+      progress.value,
+      [0, 0.2, 0.8, 1],
+      [0, 0.9, 0.7, 0],
+    );
+    const scaleX = interpolate(
+      progress.value,
+      [0, 0.3, 0.7, 1],
+      [0, 1, 0.8, 0.5],
+    );
 
     return {
       opacity: tailOpacity,
@@ -185,39 +205,71 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
 
   return (
     <>
-      {/* Shooting star tail - bigger and brighter */}
+      {/* Multiple tail segments for gradient effect */}
+      {/* Outer glow trail */}
+      <Animated.View
+        style={[
+          {
+            position: "absolute",
+            left: -10,
+            top: -10,
+            width: 250,
+            height: 20,
+            backgroundColor: "#FFA500",
+            opacity: 0.3,
+            borderRadius: 10,
+          },
+          animatedStyle,
+          tailStyle,
+        ]}
+      />
+      {/* Main tail - warm golden */}
+      <Animated.View
+        style={[
+          {
+            position: "absolute",
+            left: 0,
+            top: -2,
+            width: 200,
+            height: 4,
+            backgroundColor: "#FFD700",
+            borderRadius: 2,
+          },
+          animatedStyle,
+          tailStyle,
+        ]}
+      />
+      {/* Inner bright tail */}
       <Animated.View
         style={[
           {
             position: "absolute",
             left: 0,
             top: 0,
-            width: 150, // Longer tail
-            height: 3, // Thicker
-            backgroundColor: "#F9F7F3",
-            shadowColor: "#F9F7F3",
-            shadowRadius: 8,
-            shadowOpacity: 0.8,
+            width: 150,
+            height: 2,
+            backgroundColor: "#FFEB3B",
+            borderRadius: 1,
           },
           animatedStyle,
           tailStyle,
         ]}
       />
-      {/* Shooting star head - bigger and brighter */}
+      {/* Shooting star head - warm golden glow */}
       <Animated.View
         style={[
           {
             position: "absolute",
-            left: -6,
-            top: -6,
-            width: 12, // Bigger head
-            height: 12,
-            borderRadius: 6,
-            backgroundColor: "#F9F7F3",
-            shadowColor: "#F9F7F3",
+            left: -8,
+            top: -8,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            backgroundColor: "#FFFFFF", // White hot center
+            shadowColor: "#FFD700",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 1,
-            shadowRadius: 20, // Bigger glow
+            shadowRadius: 25,
           },
           animatedStyle,
         ]}
@@ -304,14 +356,17 @@ const EnhancedSaduBackdrop = forwardRef(
       );
     }, []);
 
-    // Trigger shooting star
+    // Trigger shooting star - bottom-left to top-right, full screen travel
     const triggerShootingStar = (count = 1) => {
       const newStars = [];
       for (let i = 0; i < count; i++) {
-        const startX = Math.random() * SCREEN_WIDTH;
-        const startY = Math.random() * SCREEN_HEIGHT * 0.3;
-        const endX = startX + (Math.random() - 0.5) * 300;
-        const endY = startY + 200 + Math.random() * 100;
+        // Start from bottom-left area
+        const startX = -50 + Math.random() * 100; // Start off-screen left
+        const startY = SCREEN_HEIGHT - 100 + Math.random() * 150; // Start near bottom
+
+        // End at top-right area (travel across entire screen)
+        const endX = SCREEN_WIDTH + 50 + Math.random() * 100; // End off-screen right
+        const endY = -50 - Math.random() * 100; // End above top
 
         newStars.push({
           id: Date.now() + i,
@@ -319,6 +374,7 @@ const EnhancedSaduBackdrop = forwardRef(
           startY,
           endX,
           endY,
+          delay: i * 200, // Stagger multiple stars
         });
       }
       setShootingStars((prev) => [...prev, ...newStars]);
@@ -372,6 +428,7 @@ const EnhancedSaduBackdrop = forwardRef(
               startY={star.startY}
               endX={star.endX}
               endY={star.endY}
+              delay={star.delay || 0}
               onComplete={() => handleShootingStarComplete(star.id)}
             />
           ))}
