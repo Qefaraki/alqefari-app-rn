@@ -37,7 +37,7 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
       // Copy all the necessary state from global store
       treeData: [],
       nodesMap: new Map(),
-      stage: "tree",
+      stage: { x: 0, y: 0, scale: 1 }, // Initialize with proper transform object
       setStage: (stage) => set({ stage }),
       selectedPersonId: focusPersonId, // Start with focus person selected
       setSelectedPersonId: (id) => set({ selectedPersonId: id }),
