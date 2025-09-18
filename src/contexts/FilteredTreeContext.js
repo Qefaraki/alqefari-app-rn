@@ -26,9 +26,6 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
   const [isReady, setIsReady] = useState(false);
   const storeRef = useRef(null);
 
-  // Get the global store to copy its structure
-  const globalStore = useTreeStore();
-
   useEffect(() => {
     if (!focusPersonId) return;
 
@@ -66,7 +63,7 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
 
     try {
       // First try to get data from global store if available
-      const globalTreeData = globalStore.getState().treeData;
+      const globalTreeData = useTreeStore.getState().treeData;
 
       let allData = [];
 

@@ -1236,9 +1236,11 @@ const TreeView = ({
 
       // Calculate the target scale (zoom level)
       // Use current scale if reasonable, otherwise zoom to readable level
-      const currentScale = scale.value;
+      const currentScaleValue = currentTransform.scale;
       const targetScale =
-        currentScale < 0.8 || currentScale > 3 ? 1.5 : currentScale;
+        currentScaleValue < 0.8 || currentScaleValue > 3
+          ? 1.5
+          : currentScaleValue;
 
       // CORRECT FORMULA: To center a node on screen
       // We want: node canvas position * scale + translate = screen center
@@ -1247,7 +1249,12 @@ const TreeView = ({
       const targetX = dimensions.width / 2 - targetNode.x * targetScale;
       const targetY = dimensions.height / 2 - targetNode.y * targetScale;
 
-      console.log("Current scale:", currentScale, "Target scale:", targetScale);
+      console.log(
+        "Current scale:",
+        currentScaleValue,
+        "Target scale:",
+        targetScale,
+      );
       console.log("Navigating to:", { targetX, targetY, targetScale });
 
       // Cancel any ongoing animations

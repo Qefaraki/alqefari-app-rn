@@ -196,7 +196,7 @@ export const phoneAuthService = {
         .single();
 
       if (error) {
-        console.log("No linked profile found");
+        // Silently return null when no profile found (this is expected for users without profiles)
         return null;
       }
 
