@@ -136,11 +136,61 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
       // Apply filtering
       const filteredData = filterTreeForPerson(allData, focusPersonId);
 
-      // Calculate layout for filtered data
-      const layoutData = calculateTreeLayout(filteredData);
+      // Ensure we have valid data with positions
+      let layoutData = filteredData;
+
+      // Check if filtered data has x/y positions already
+      const hasPositions = filteredData.some(
+        (node) => node.x !== undefined && node.y !== undefined,
+      );
+
+      if (!hasPositions) {
+        // Try to calculate layout
+        try {
+          layoutData = calculateTreeLayout(filteredData);
+
+          // If calculateTreeLayout returns empty or invalid, use filtered data with dummy positions
+          if (!layoutData || layoutData.length === 0) {
+            console.log(
+              "Layout calculation failed, using filtered data with estimated positions",
+            );
+            layoutData = filteredData.map((node, index) => ({
+              ...node,
+              x: (index % 10) * 100,
+              y: Math.floor(index / 10) * 100,
+            }));
+          }
+        } catch (error) {
+          console.error("Error calculating layout:", error);
+          // Fallback: assign basic positions
+          layoutData = filteredData.map((node, index) => ({
+            ...node,
+            x: (index % 10) * 100,
+            y: Math.floor(index / 10) * 100,
+          }));
+        }
+      }
+
+      // Ensure every node has x/y positions
+      const validatedData = layoutData.map((node, index) => {
+        if (
+          node.x === undefined ||
+          node.y === undefined ||
+          isNaN(node.x) ||
+          isNaN(node.y)
+        ) {
+          console.warn(`Node ${node.id} missing position, assigning default`);
+          return {
+            ...node,
+            x: node.x || (index % 10) * 100,
+            y: node.y || Math.floor(index / 10) * 100,
+          };
+        }
+        return node;
+      });
 
       // Update the filtered store
-      storeRef.current.getState().setTreeData(layoutData);
+      storeRef.current.getState().setTreeData(validatedData);
 
       // Calculate initial viewport
       const bounds = calculateFilteredBounds(layoutData);
