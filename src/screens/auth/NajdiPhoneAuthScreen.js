@@ -196,8 +196,10 @@ export default function NajdiPhoneAuthScreen({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep("otp");
       setCountdown(60);
-      // Trigger shooting star on OTP sent
-      if (onOTPSent) onOTPSent();
+      // Trigger shooting star AFTER transitioning to OTP screen
+      setTimeout(() => {
+        if (onOTPSent) onOTPSent();
+      }, 600); // Delay so user sees it on the OTP entry screen
     } else {
       setError(result.error || "حدث خطأ في إرسال الرمز");
       shakeError();
@@ -282,12 +284,13 @@ export default function NajdiPhoneAuthScreen({
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Trigger shooting stars on verification
+      // Trigger shooting stars BEFORE navigating so user sees them
       if (onOTPVerified) onOTPVerified();
 
-      // Always go to NameChainEntry after verification
-      // Let the user search for their profile or skip if they want
-      navigation.navigate("NameChainEntry", { user: result.user });
+      // Delay navigation slightly so user sees the shooting stars
+      setTimeout(() => {
+        navigation.navigate("NameChainEntry", { user: result.user });
+      }, 800); // Give time to see the celebration
     } else {
       // Better error messages
       let errorMessage = "رمز التحقق غير صحيح";

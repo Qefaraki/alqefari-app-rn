@@ -65,7 +65,7 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
               setUser={setUser}
               onNavigate={(screen) => {
                 setCurrentStep(2); // Moving to phone auth
-                backdropRef.current?.triggerShootingStar(1);
+                // Don't trigger shooting star here - we navigate immediately
               }}
             />
           )}

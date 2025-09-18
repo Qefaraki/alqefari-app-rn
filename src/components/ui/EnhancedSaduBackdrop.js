@@ -23,11 +23,11 @@ import Svg, { Line } from "react-native-svg";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-// Star layers for parallax depth
+// Star layers for parallax depth - MUCH BRIGHTER for visibility
 const STAR_LAYERS = {
-  distant: { count: 60, sizeRange: [0.5, 1.5], opacity: 0.3, speed: 0.2 },
-  middle: { count: 40, sizeRange: [1, 2.5], opacity: 0.5, speed: 0.5 },
-  close: { count: 20, sizeRange: [2, 3.5], opacity: 0.7, speed: 1.0 },
+  distant: { count: 80, sizeRange: [0.6, 1.8], opacity: 0.7, speed: 0.2 }, // Was 0.3 opacity
+  middle: { count: 50, sizeRange: [1.2, 2.8], opacity: 0.85, speed: 0.5 }, // Was 0.5 opacity
+  close: { count: 30, sizeRange: [2.2, 4], opacity: 1.0, speed: 1.0 }, // Was 0.7 opacity
 };
 
 // Constellation patterns - subtle tree/family connections
@@ -146,11 +146,11 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
   const opacity = useSharedValue(0);
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 200 });
+    opacity.value = withTiming(1, { duration: 100 });
     progress.value = withTiming(
       1,
       {
-        duration: 800,
+        duration: 1200, // Slower for better visibility
         easing: Easing.out(Easing.quad),
       },
       () => {
@@ -185,36 +185,39 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
 
   return (
     <>
-      {/* Shooting star tail */}
+      {/* Shooting star tail - bigger and brighter */}
       <Animated.View
         style={[
           {
             position: "absolute",
             left: 0,
             top: 0,
-            width: 100,
-            height: 2,
+            width: 150, // Longer tail
+            height: 3, // Thicker
             backgroundColor: "#F9F7F3",
+            shadowColor: "#F9F7F3",
+            shadowRadius: 8,
+            shadowOpacity: 0.8,
           },
           animatedStyle,
           tailStyle,
         ]}
       />
-      {/* Shooting star head */}
+      {/* Shooting star head - bigger and brighter */}
       <Animated.View
         style={[
           {
             position: "absolute",
-            left: -4,
-            top: -4,
-            width: 8,
-            height: 8,
-            borderRadius: 4,
+            left: -6,
+            top: -6,
+            width: 12, // Bigger head
+            height: 12,
+            borderRadius: 6,
             backgroundColor: "#F9F7F3",
             shadowColor: "#F9F7F3",
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 1,
-            shadowRadius: 10,
+            shadowRadius: 20, // Bigger glow
           },
           animatedStyle,
         ]}
