@@ -11,9 +11,17 @@
 export function filterTreeForPerson(allNodes, focusPersonId) {
   if (!allNodes || !focusPersonId) return [];
 
+  // Handle edge case: empty nodes array
+  if (allNodes.length === 0) return [];
+
   const nodesById = new Map(allNodes.map((n) => [n.id, n]));
   const focusNode = nodesById.get(focusPersonId);
-  if (!focusNode) return [];
+
+  // Handle edge case: focus person not found
+  if (!focusNode) {
+    console.warn(`Focus person ${focusPersonId} not found in tree data`);
+    return [];
+  }
 
   const filteredNodes = [];
   const nodesToInclude = new Set();
@@ -26,8 +34,14 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
   // 2. Add ALL ancestors up to root and find the actual root
   let currentId = focusNode.father_id;
   let lastValidAncestor = focusPersonId; // Start with focus person
+  const visitedAncestors = new Set(); // Prevent infinite loops
 
-  while (currentId && nodesById.has(currentId)) {
+  while (
+    currentId &&
+    nodesById.has(currentId) &&
+    !visitedAncestors.has(currentId)
+  ) {
+    visitedAncestors.add(currentId);
     nodesToInclude.add(currentId);
     lastValidAncestor = currentId; // This becomes the highest ancestor we found
     const ancestor = nodesById.get(currentId);
@@ -38,11 +52,20 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
   rootNodeId = lastValidAncestor;
 
   // 3. Add ALL descendants (recursive, no limit)
-  const addAllDescendants = (nodeId) => {
+  const addAllDescendants = (nodeId, depth = 0) => {
+    // Prevent infinite recursion with depth limit
+    if (depth > 100) {
+      console.warn("Max recursion depth reached while adding descendants");
+      return;
+    }
+
     const children = allNodes.filter((n) => n.father_id === nodeId);
     children.forEach((child) => {
-      nodesToInclude.add(child.id);
-      addAllDescendants(child.id); // Recursive
+      // Avoid circular references
+      if (!nodesToInclude.has(child.id)) {
+        nodesToInclude.add(child.id);
+        addAllDescendants(child.id, depth + 1); // Recursive
+      }
     });
   };
   addAllDescendants(focusPersonId);
@@ -87,19 +110,27 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
   }
 
   // 6. Add spouse's parents (in-laws) if married
-  if (focusNode.marriages && focusNode.marriages.length > 0) {
+  if (
+    focusNode.marriages &&
+    Array.isArray(focusNode.marriages) &&
+    focusNode.marriages.length > 0
+  ) {
     focusNode.marriages.forEach((marriage) => {
+      if (!marriage) return; // Skip null marriages
+
       const spouseId = marriage.spouse_id;
       if (spouseId && nodesById.has(spouseId)) {
         const spouse = nodesById.get(spouseId);
-        nodesToInclude.add(spouseId);
+        if (spouse) {
+          nodesToInclude.add(spouseId);
 
-        // Add spouse's parents
-        if (spouse.father_id) {
-          nodesToInclude.add(spouse.father_id);
-        }
-        if (spouse.mother_id) {
-          nodesToInclude.add(spouse.mother_id);
+          // Add spouse's parents if they exist
+          if (spouse.father_id && nodesById.has(spouse.father_id)) {
+            nodesToInclude.add(spouse.father_id);
+          }
+          if (spouse.mother_id && nodesById.has(spouse.mother_id)) {
+            nodesToInclude.add(spouse.mother_id);
+          }
         }
       }
     });
@@ -132,6 +163,21 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
       filteredNodes.push(filteredNode);
     }
   });
+
+  // Edge case: If we have no nodes at all, return empty array
+  if (filteredNodes.length === 0) {
+    console.warn("No nodes found after filtering for person:", focusPersonId);
+    return [];
+  }
+
+  // Edge case: Ensure we have at least one root node
+  const hasRoot = filteredNodes.some((n) => n.isFilteredRoot || !n.father_id);
+  if (!hasRoot && filteredNodes.length > 0) {
+    // Make the first node a root if no root exists
+    console.warn("No root found in filtered tree, marking first node as root");
+    filteredNodes[0].isFilteredRoot = true;
+    filteredNodes[0].father_id = null;
+  }
 
   return filteredNodes;
 }

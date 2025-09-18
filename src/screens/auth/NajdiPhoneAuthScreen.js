@@ -422,7 +422,7 @@ export default function NajdiPhoneAuthScreen({
                       <Animated.View style={[styles.step, phoneStepStyle]}>
                         <View style={styles.iconContainer}>
                           <Image
-                            source={require("../../../assets/logo/STAR_LOGO.png")}
+                            source={require("../../../assets/logo/AlqefariEmblem.png")}
                             style={styles.logoIcon}
                             resizeMode="contain"
                           />
@@ -512,7 +512,7 @@ export default function NajdiPhoneAuthScreen({
                       <Animated.View style={[styles.step, otpStepStyle]}>
                         <View style={styles.iconContainer}>
                           <Image
-                            source={require("../../../assets/logo/STAR_LOGO.png")}
+                            source={require("../../../assets/logo/AlqefariEmblem.png")}
                             style={styles.logoIcon}
                             resizeMode="contain"
                           />

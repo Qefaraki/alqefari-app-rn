@@ -27,7 +27,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
 
   const glassScale = useRef(new Animated.Value(0)).current;
   const glassOpacity = useRef(new Animated.Value(0)).current;
-  const glassBlur = useRef(new Animated.Value(20)).current;
+  const [glassBlur, setGlassBlur] = useState(20);
 
   const shimmerTranslate = useRef(new Animated.Value(-SCREEN_WIDTH)).current;
 
@@ -272,7 +272,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         ]}
       >
         <Image
-          source={require("../../../assets/logo/STAR_LOGO.png")}
+          source={require("../../../assets/logo/AlqefariEmblem.png")}
           style={styles.logo}
           resizeMode="contain"
         />
