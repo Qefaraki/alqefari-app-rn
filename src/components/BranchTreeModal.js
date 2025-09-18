@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import FocusedTreeView from "./FocusedTreeView";
+import TreeView from "./TreeView";
+import { FilteredTreeProvider } from "../contexts/FilteredTreeContext";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -75,9 +77,11 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
           </View>
         </View>
 
-        {/* Focused Tree View */}
+        {/* Real TreeView with Filtered Data */}
         <View style={styles.treeContainer}>
-          <FocusedTreeView focusPersonId={profile.id} />
+          <FilteredTreeProvider focusPersonId={profile.id}>
+            <TreeView isFilteredView={true} />
+          </FilteredTreeProvider>
         </View>
 
         {/* Action Buttons */}

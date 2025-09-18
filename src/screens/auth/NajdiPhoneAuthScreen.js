@@ -22,6 +22,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import {
+  CodeField,
+  Cursor,
+  useBlurOnFulfill,
+  useClearByFocusCell,
+} from "react-native-confirmation-code-field";
 
 import { phoneAuthService } from "../../services/phoneAuth";
 
@@ -60,12 +66,17 @@ export default function NajdiPhoneAuthScreen({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]); // Saudi default
   const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp] = useState(""); // Changed to string for the library
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState("");
 
-  const otpInputs = useRef([]);
+  // New hooks for the library
+  const otpRef = useBlurOnFulfill({ value: otp, cellCount: 6 });
+  const [props, getCellOnLayoutHandler] = useClearByFocusCell({
+    value: otp,
+    setValue: setOtp,
+  });
   const countdownInterval = useRef(null);
 
   // Animations
@@ -255,8 +266,8 @@ export default function NajdiPhoneAuthScreen({
     }
   };
 
-  const handleVerifyOTP = async (otpArray = otp) => {
-    const otpCode = otpArray.join("");
+  const handleVerifyOTP = async (otpCode = otp) => {
+    // otpCode is now already a string
     if (otpCode.length !== 6) {
       setError("يرجى إدخال رمز التحقق كاملاً (٦ أرقام)");
       shakeError();
