@@ -56,7 +56,8 @@ import { useTreeStore } from "../stores/useTreeStore";
 import { useFilteredTreeStore } from "../contexts/FilteredTreeContext";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
-import { useSettings } from "../contexts/SettingsContext";
+import { SettingsContext } from "../contexts/SettingsContext";
+import { useContext } from "react";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import AdminToggleButton from "./AdminToggleButton";
@@ -374,7 +375,21 @@ const TreeView = ({
   );
   const treeData = useFilteredTreeStore((s) => s.treeData);
   const setTreeData = useFilteredTreeStore((s) => s.setTreeData);
-  const { settings } = useSettings();
+  // Use settings if available, otherwise use defaults (for filtered view)
+  let settings = {
+    defaultCalendar: "gregorian",
+    dateFormat: "numeric",
+    showBothCalendars: false,
+    arabicNumerals: false,
+  };
+
+  try {
+    const settingsContext = useSettings();
+    settings = settingsContext.settings;
+  } catch (error) {
+    // Not in SettingsProvider - use defaults
+    console.log("TreeView running outside SettingsProvider, using defaults");
+  }
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);

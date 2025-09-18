@@ -22,12 +22,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import {
-  CodeField,
-  Cursor,
-  useBlurOnFulfill,
-  useClearByFocusCell,
-} from "react-native-confirmation-code-field";
+import { OtpInput } from "react-native-otp-entry";
 
 import { phoneAuthService } from "../../services/phoneAuth";
 
@@ -71,12 +66,8 @@ export default function NajdiPhoneAuthScreen({
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState("");
 
-  // New hooks for the library
-  const otpRef = useBlurOnFulfill({ value: otp, cellCount: 6 });
-  const [props, getCellOnLayoutHandler] = useClearByFocusCell({
-    value: otp,
-    setValue: setOtp,
-  });
+  // Ref for OTP input
+  const otpRef = useRef(null);
   const countdownInterval = useRef(null);
 
   // Animations
@@ -250,7 +241,10 @@ export default function NajdiPhoneAuthScreen({
 
       // Clear OTP and refocus immediately
       setOtp("");
-      otpRef.current?.focus();
+      if (otpRef.current) {
+        otpRef.current.clear();
+        setTimeout(() => otpRef.current?.focus(), 100);
+      }
     }
 
     setLoading(false);
@@ -509,32 +503,32 @@ export default function NajdiPhoneAuthScreen({
                           </Text>
                         </Text>
 
-                        <CodeField
+                        <OtpInput
                           ref={otpRef}
-                          {...props}
-                          value={otp}
-                          onChangeText={handleOtpChange}
-                          cellCount={6}
-                          rootStyle={styles.otpContainer}
-                          keyboardType="number-pad"
-                          textContentType="oneTimeCode"
-                          autoFocus
-                          renderCell={({ index, symbol, isFocused }) => (
-                            <View
-                              key={index}
-                              style={[
-                                styles.otpInput,
-                                symbol && styles.otpInputFilled,
-                                isFocused && styles.otpInputFocused,
-                                error && styles.otpInputError,
-                              ]}
-                              onLayout={getCellOnLayoutHandler(index)}
-                            >
-                              <Text style={styles.otpText}>
-                                {symbol || (isFocused ? <Cursor /> : null)}
-                              </Text>
-                            </View>
-                          )}
+                          numberOfDigits={6}
+                          focusColor={colors.alJassWhite}
+                          focusStickBlinkingDuration={400}
+                          onTextChange={handleOtpChange}
+                          onFilled={(code) => handleVerifyOTP(code)}
+                          type="numeric"
+                          autoFocus={true}
+                          hideStick={false}
+                          blurOnFilled={false}
+                          disabled={loading}
+                          theme={{
+                            containerStyle: styles.otpContainer,
+                            pinCodeContainerStyle: styles.otpInput,
+                            pinCodeTextStyle: styles.otpText,
+                            focusStickStyle: styles.otpCursor,
+                            focusedPinCodeContainerStyle:
+                              styles.otpInputFocused,
+                            filledPinCodeContainerStyle: styles.otpInputFilled,
+                          }}
+                          textInputProps={{
+                            keyboardType: "number-pad",
+                            textContentType: "oneTimeCode",
+                            autoComplete: "one-time-code",
+                          }}
                         />
 
                         {error && <Text style={styles.errorText}>{error}</Text>}
@@ -788,6 +782,11 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: colors.alJassWhite,
     textAlign: "center",
+  },
+  otpCursor: {
+    width: 2,
+    height: 24,
+    backgroundColor: colors.alJassWhite,
   },
   errorText: {
     fontSize: 14,
