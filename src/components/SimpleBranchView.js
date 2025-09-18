@@ -5,10 +5,9 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import profilesService from "../services/profiles";
+import { supabase } from "../services/supabase";
 
 /**
  * SimpleBranchView - A simple text-based tree view for verifying identity
@@ -30,8 +29,11 @@ const SimpleBranchView = ({ focusPersonId }) => {
 
     try {
       // Load the focus person
-      const { data: person, error: personError } =
-        await profilesService.getProfile(focusPersonId);
+      const { data: person, error: personError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", focusPersonId)
+        .single();
 
       if (personError || !person) {
         throw personError || new Error("Person not found");
@@ -43,7 +45,11 @@ const SimpleBranchView = ({ focusPersonId }) => {
       let depth = 0;
 
       while (currentId && depth < 10) {
-        const { data: ancestor } = await profilesService.getProfile(currentId);
+        const { data: ancestor } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", currentId)
+          .single();
         if (!ancestor) break;
         ancestors.push(ancestor);
         currentId = ancestor.father_id;
@@ -51,32 +57,46 @@ const SimpleBranchView = ({ focusPersonId }) => {
       }
 
       // Load siblings
-      const siblings = [];
+      let siblings = [];
       if (person.father_id) {
-        const { data: siblingData } = await profilesService.getChildren(
-          person.father_id,
-        );
+        const { data: siblingData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("father_id", person.father_id)
+          .neq("id", focusPersonId)
+          .order("sibling_order", { ascending: true });
+
         if (siblingData) {
-          siblings.push(...siblingData.filter((s) => s.id !== focusPersonId));
+          siblings = siblingData;
         }
       }
 
       // Load children
-      const { data: children } =
-        await profilesService.getChildren(focusPersonId);
+      const { data: children } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("father_id", focusPersonId)
+        .order("sibling_order", { ascending: true });
 
       // Load uncles (father's siblings)
-      const uncles = [];
+      let uncles = [];
       if (person.father_id) {
-        const { data: father } = await profilesService.getProfile(
-          person.father_id,
-        );
+        const { data: father } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", person.father_id)
+          .single();
+
         if (father && father.father_id) {
-          const { data: unclesData } = await profilesService.getChildren(
-            father.father_id,
-          );
+          const { data: unclesData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("father_id", father.father_id)
+            .neq("id", person.father_id)
+            .order("sibling_order", { ascending: true });
+
           if (unclesData) {
-            uncles.push(...unclesData.filter((u) => u.id !== person.father_id));
+            uncles = unclesData;
           }
         }
       }

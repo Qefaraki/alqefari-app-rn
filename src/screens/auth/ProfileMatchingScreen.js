@@ -185,13 +185,18 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 
   const handleConfirmFromModal = useCallback(
     async (profile) => {
-      // User confirmed "هذا أنا" in the tree modal
-      setSelectedProfile(profile);
+      // Close modal immediately for better UX
       setShowTreeModal(false);
       setTreeModalProfile(null);
 
-      // Auto-submit after confirmation
+      // Show selection
+      setSelectedProfile(profile);
       setSubmitting(true);
+
+      // Small delay for UI feedback
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Submit the link request
       const result = await phoneAuthService.submitProfileLinkRequest(
         profile.id,
         nameChain,
@@ -212,6 +217,8 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert("خطأ", result.error);
+        // Clear selection on error so user can try again
+        setSelectedProfile(null);
       }
 
       setSubmitting(false);
@@ -329,18 +336,27 @@ export default function ProfileMatchingScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Results List */}
-      <FlatList
-        data={profiles}
-        renderItem={renderProfile}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Results List - with proper flex to prevent overlap */}
+      <View style={styles.listContainer}>
+        <FlatList
+          data={profiles}
+          renderItem={renderProfile}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
 
-      {/* Bottom Actions */}
+      {/* Bottom Actions - Fixed and clear */}
       <View style={styles.bottomActions}>
-        {selectedProfile ? (
+        {submitting ? (
+          <View style={styles.selectedConfirmation}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={styles.selectedText}>
+              جاري ربط حسابك بملف {selectedProfile?.name}...
+            </Text>
+          </View>
+        ) : selectedProfile ? (
           <View style={styles.selectedConfirmation}>
             <Ionicons
               name="checkmark-circle"
@@ -351,20 +367,22 @@ export default function ProfileMatchingScreen({ navigation, route }) {
               تم اختيار: {selectedProfile.name}
             </Text>
             <Text style={styles.selectedSubtext}>
-              جاري ربط حسابك بهذا الملف...
+              سيتم ربط حسابك بهذا الملف
             </Text>
           </View>
         ) : (
           <>
             <Text style={styles.instructionText}>
-              اضغط على ملفك الشخصي لعرض موقعك في الشجرة
+              اضغط على ملفك الشخصي للتحقق من موقعك في الشجرة
             </Text>
 
             <TouchableOpacity
               style={styles.notFoundButton}
               onPress={handleContactAdmin}
             >
-              <Text style={styles.notFoundButtonText}>لم أجد ملفي</Text>
+              <Text style={styles.notFoundButtonText}>
+                لم أجد ملفي في القائمة
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -385,6 +403,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+
+  listContainer: {
+    flex: 1, // Take remaining space
+    marginBottom: 100, // Space for fixed bottom section
   },
 
   // Header - EXACT MATCH with NameChainEntryScreen
@@ -472,7 +495,7 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 140, // More space for bottom actions
+    paddingBottom: 20, // Reduced since container handles margin
   },
 
   // Result card styles - matching SearchBar
@@ -581,7 +604,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Bottom actions
+  // Bottom actions - fixed height and better shadow
   bottomActions: {
     position: "absolute",
     bottom: 0,
@@ -592,7 +615,13 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? 34 : 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#D1BBA320",
+    borderTopColor: "#D1BBA340",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 10,
+    minHeight: 100,
   },
   confirmButton: {
     backgroundColor: colors.primary,
@@ -671,6 +700,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontFamily: "SF Arabic",
     textAlign: "center",
-    marginBottom: 16,
+    marginBottom: 12,
+    paddingHorizontal: 8,
   },
 });

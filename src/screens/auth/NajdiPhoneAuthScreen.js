@@ -184,7 +184,8 @@ export default function NajdiPhoneAuthScreen({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep("otp");
       setCountdown(60);
-      // Don't trigger shooting star - removed for better UX
+      // Trigger shooting star immediately when OTP is sent
+      if (onOTPSent) onOTPSent();
     } else {
       setError(result.error || "حدث خطأ في إرسال الرمز");
       shakeError();
@@ -198,46 +199,38 @@ export default function NajdiPhoneAuthScreen({
     if (error) setError("");
 
     // Only allow digits
-    const digit = value.replace(/\D/g, "");
+    const digits = value.replace(/\D/g, "");
 
-    // Handle paste or multiple digits
-    if (digit.length > 1) {
-      // User pasted a code, fill all boxes
-      const digits = digit.slice(0, 6).split("");
-      const newOtp = ["", "", "", "", "", ""];
-      digits.forEach((d, i) => {
-        if (i < 6) newOtp[i] = d;
-      });
+    if (!digits) {
+      // User cleared the field
+      const newOtp = [...otp];
+      newOtp[index] = "";
       setOtp(newOtp);
-
-      // Focus last filled input or submit if complete
-      if (digits.length === 6) {
-        Keyboard.dismiss();
-        handleVerifyOTP(newOtp);
-      } else if (digits.length < 6) {
-        otpInputs.current[digits.length]?.focus();
-      }
       return;
     }
 
-    // Single digit entered
-    const singleDigit = digit.slice(-1);
+    // Always handle as multiple digits for smooth entry
     const newOtp = [...otp];
-    newOtp[index] = singleDigit;
-    setOtp(newOtp);
+    let currentIndex = index;
 
-    // Auto-focus next input immediately (no delay)
-    if (singleDigit && index < 5) {
-      otpInputs.current[index + 1]?.focus();
+    // Fill from current position onwards with ALL digits
+    for (let i = 0; i < digits.length && currentIndex < 6; i++) {
+      newOtp[currentIndex] = digits[i];
+      currentIndex++;
     }
 
-    // Auto-submit when complete
-    if (index === 5 && singleDigit) {
-      const fullOtp = newOtp.join("");
-      if (fullOtp.length === 6) {
-        Keyboard.dismiss();
-        handleVerifyOTP(newOtp);
-      }
+    setOtp(newOtp);
+
+    // Check if we're done
+    const filledCount = newOtp.filter((d) => d).length;
+
+    if (filledCount === 6) {
+      // All filled - auto verify
+      Keyboard.dismiss();
+      handleVerifyOTP(newOtp);
+    } else if (currentIndex < 6) {
+      // Move to next empty box instantly
+      otpInputs.current[currentIndex]?.focus();
     }
   };
 
@@ -566,7 +559,7 @@ export default function NajdiPhoneAuthScreen({
                               }
                               onKeyPress={(e) => handleOtpKeyPress(e, index)}
                               keyboardType="number-pad"
-                              maxLength={6}
+                              maxLength={6 - index}
                               textAlign="center"
                               selectTextOnFocus={true}
                               autoComplete="one-time-code"
