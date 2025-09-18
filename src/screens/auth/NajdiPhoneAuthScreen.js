@@ -209,28 +209,40 @@ export default function NajdiPhoneAuthScreen({
       return;
     }
 
-    // Always handle as multiple digits for smooth entry
-    const newOtp = [...otp];
-    let currentIndex = index;
+    // Check if this is a paste (multiple digits at once)
+    if (digits.length > 1) {
+      // Paste operation - fill from beginning
+      const newOtp = [...otp];
+      for (let i = 0; i < digits.length && i < 6; i++) {
+        newOtp[i] = digits[i];
+      }
+      setOtp(newOtp);
 
-    // Fill from current position onwards with ALL digits
-    for (let i = 0; i < digits.length && currentIndex < 6; i++) {
-      newOtp[currentIndex] = digits[i];
-      currentIndex++;
+      if (newOtp.join("").length === 6) {
+        Keyboard.dismiss();
+        handleVerifyOTP(newOtp);
+      } else {
+        // Focus next empty box
+        const nextEmpty = newOtp.findIndex((v) => !v);
+        if (nextEmpty !== -1) {
+          otpInputs.current[nextEmpty]?.focus();
+        }
+      }
+      return;
     }
 
+    // SINGLE DIGIT - only accept one character per box
+    const newOtp = [...otp];
+    newOtp[index] = digits[0]; // Take ONLY first digit
     setOtp(newOtp);
 
-    // Check if we're done
-    const filledCount = newOtp.filter((d) => d).length;
-
-    if (filledCount === 6) {
-      // All filled - auto verify
+    // IMMEDIATELY move to next box
+    if (index < 5) {
+      otpInputs.current[index + 1]?.focus();
+    } else if (index === 5 && newOtp.join("").length === 6) {
+      // Last box filled and all complete
       Keyboard.dismiss();
       handleVerifyOTP(newOtp);
-    } else if (currentIndex < 6) {
-      // Move to next empty box instantly
-      otpInputs.current[currentIndex]?.focus();
     }
   };
 
@@ -559,11 +571,14 @@ export default function NajdiPhoneAuthScreen({
                               }
                               onKeyPress={(e) => handleOtpKeyPress(e, index)}
                               keyboardType="number-pad"
-                              maxLength={6 - index}
+                              maxLength={1}
                               textAlign="center"
                               selectTextOnFocus={true}
                               autoComplete="one-time-code"
                               textContentType="oneTimeCode"
+                              selection={
+                                digit ? { start: 1, end: 1 } : undefined
+                              }
                             />
                           ))}
                         </View>
