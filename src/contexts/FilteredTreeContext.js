@@ -43,6 +43,11 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
       minZoom: 0.1,
       maxZoom: 3,
 
+      // Add properties for filtered view
+      focusPersonId: focusPersonId, // The person we're verifying
+      isFilteredView: true, // Flag to indicate this is a filtered context
+      permanentHighlight: focusPersonId, // Keep this person always highlighted
+
       // Tree data setters
       setTreeData: (data) => {
         const nodesMap = new Map(data.map((node) => [node.id, node]));

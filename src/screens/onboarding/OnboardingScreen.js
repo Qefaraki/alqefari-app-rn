@@ -21,7 +21,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { Gyroscope } from "expo-sensors";
+// Gyroscope is optional - app works without it
+let Gyroscope;
+try {
+  Gyroscope = require("expo-sensors").Gyroscope;
+} catch (error) {
+  console.log("Gyroscope not available - parallax effects disabled");
+}
 // SaduNightBackdrop now handled at navigator level
 // Try to import MaskedView, but handle the case where it's not available
 let MaskedView;
@@ -87,6 +93,7 @@ export default function OnboardingScreen({
   navigation,
   setIsGuest,
   onNavigate,
+  hideLogo = false,
 }) {
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
@@ -130,32 +137,40 @@ export default function OnboardingScreen({
     return () => subscription?.remove();
   }, []);
 
-  // Gyroscope for parallax effect
+  // Gyroscope for parallax effect (optional - not available in simulator)
   useEffect(() => {
     if (!reduceMotion) {
-      Gyroscope.setUpdateInterval(100);
-      const subscription = Gyroscope.addListener((data) => {
-        // Smooth the values and limit range
-        const smoothX = Math.max(-1, Math.min(1, data.y * 0.5)); // device tilt left/right
-        const smoothY = Math.max(-1, Math.min(1, data.x * 0.5)); // device tilt up/down
+      try {
+        // Check if Gyroscope is available (not in simulator)
+        if (Gyroscope && Gyroscope.setUpdateInterval) {
+          Gyroscope.setUpdateInterval(100);
+          const subscription = Gyroscope.addListener((data) => {
+            // Smooth the values and limit range
+            const smoothX = Math.max(-1, Math.min(1, data.y * 0.5)); // device tilt left/right
+            const smoothY = Math.max(-1, Math.min(1, data.x * 0.5)); // device tilt up/down
 
-        Animated.parallel([
-          Animated.spring(parallaxX, {
-            toValue: smoothX * 15, // 15px max movement
-            useNativeDriver: true,
-            tension: 20,
-            friction: 10,
-          }),
-          Animated.spring(parallaxY, {
-            toValue: smoothY * 15,
-            useNativeDriver: true,
-            tension: 20,
-            friction: 10,
-          }),
-        ]).start();
-      });
+            Animated.parallel([
+              Animated.spring(parallaxX, {
+                toValue: smoothX * 15, // 15px max movement
+                useNativeDriver: true,
+                tension: 20,
+                friction: 10,
+              }),
+              Animated.spring(parallaxY, {
+                toValue: smoothY * 15,
+                useNativeDriver: true,
+                tension: 20,
+                friction: 10,
+              }),
+            ]).start();
+          });
 
-      return () => subscription.remove();
+          return () => subscription?.remove();
+        }
+      } catch (error) {
+        // Gyroscope not available (simulator or web)
+        console.log("Gyroscope not available - parallax disabled");
+      }
     }
   }, [reduceMotion]);
 
@@ -356,8 +371,12 @@ export default function OnboardingScreen({
   const handleContinue = useCallback(() => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (onNavigate) onNavigate("PhoneAuth");
-    navigation.navigate("PhoneAuth");
+    if (onNavigate) {
+      onNavigate("PhoneAuth");
+      // Don't navigate here - let parent handle it
+    } else {
+      navigation.navigate("PhoneAuth");
+    }
   }, [navigation, primaryButtonScale, onNavigate]);
 
   const handleExploreAsGuest = useCallback(() => {
@@ -375,8 +394,8 @@ export default function OnboardingScreen({
 
       {/* Star backdrop removed - handled at navigator level */}
 
-      {/* Logo stars with masking */}
-      {MaskedView ? (
+      {/* Logo stars with masking - hide during transition */}
+      {!hideLogo && MaskedView ? (
         <Animated.View
           style={[
             styles.maskedContainer,
@@ -415,7 +434,7 @@ export default function OnboardingScreen({
             </Canvas>
           </MaskedView>
         </Animated.View>
-      ) : (
+      ) : !hideLogo ? (
         // Fallback if MaskedView not available
         <>
           <View style={styles.logoContainer} pointerEvents="none">
@@ -441,7 +460,7 @@ export default function OnboardingScreen({
             </Canvas>
           </Animated.View>
         </>
-      )}
+      ) : null}
 
       {/* Bottom vignette gradient - placed behind content and buttons */}
       <LinearGradient

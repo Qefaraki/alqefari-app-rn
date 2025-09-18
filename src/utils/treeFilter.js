@@ -18,17 +18,24 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
   const filteredNodes = [];
   const nodesToInclude = new Set();
   const nodesWithHiddenChildren = new Map();
+  let rootNodeId = null; // Track the highest ancestor
 
   // 1. Add focus person
   nodesToInclude.add(focusPersonId);
 
-  // 2. Add ALL ancestors up to root
+  // 2. Add ALL ancestors up to root and find the actual root
   let currentId = focusNode.father_id;
+  let lastValidAncestor = focusPersonId; // Start with focus person
+
   while (currentId && nodesById.has(currentId)) {
     nodesToInclude.add(currentId);
+    lastValidAncestor = currentId; // This becomes the highest ancestor we found
     const ancestor = nodesById.get(currentId);
     currentId = ancestor.father_id;
   }
+
+  // The last valid ancestor is our effective root for the filtered tree
+  rootNodeId = lastValidAncestor;
 
   // 3. Add ALL descendants (recursive, no limit)
   const addAllDescendants = (nodeId) => {
@@ -107,6 +114,19 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
       if (nodesWithHiddenChildren.has(node.id)) {
         filteredNode.hiddenChildrenCount = nodesWithHiddenChildren.get(node.id);
         filteredNode.hasHiddenDescendants = true;
+      }
+
+      // Mark the highest ancestor as root for layout calculations
+      if (node.id === rootNodeId) {
+        filteredNode.isFilteredRoot = true;
+        // Ensure this node has no father_id in the filtered context
+        // to prevent layout issues
+        filteredNode.father_id = null;
+      }
+
+      // Mark the focus person for highlighting
+      if (node.id === focusPersonId) {
+        filteredNode.isFocusPerson = true;
       }
 
       filteredNodes.push(filteredNode);

@@ -376,6 +376,11 @@ const TreeView = ({
   const treeData = useFilteredTreeStore((s) => s.treeData);
   const setTreeData = useFilteredTreeStore((s) => s.setTreeData);
 
+  // Get filtered view specific properties
+  const focusPersonId = useFilteredTreeStore((s) => s.focusPersonId);
+  const permanentHighlight = useFilteredTreeStore((s) => s.permanentHighlight);
+  const isFilteredStore = useFilteredTreeStore((s) => s.isFilteredView);
+
   // Use ref to track if we've already logged the settings warning
   const hasLoggedSettingsWarning = useRef(false);
 
@@ -733,6 +738,21 @@ const TreeView = ({
   useEffect(() => {
     loadTreeData();
   }, [setTreeData]);
+
+  // Auto-center on focus person in filtered view
+  useEffect(() => {
+    if (isFilteredStore && focusPersonId && nodes.length > 0 && !isLoading) {
+      // Find the focus person in the nodes
+      const focusNode = nodes.find((n) => n.id === focusPersonId);
+      if (focusNode) {
+        console.log("Auto-centering on focus person:", focusPersonId);
+        // Small delay to ensure canvas is ready
+        setTimeout(() => {
+          navigateToNode(focusPersonId);
+        }, 100);
+      }
+    }
+  }, [isFilteredStore, focusPersonId, nodes, isLoading, navigateToNode]);
 
   // Real-time subscription for profile updates
   useEffect(() => {
@@ -1996,6 +2016,7 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
+      const isPermanentHighlight = permanentHighlight === node.id;
 
       return (
         <Group key={node.id}>
@@ -2016,7 +2037,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={13}
-            color="#FFFFFF"
+            color={isPermanentHighlight ? "#A1333310" : "#FFFFFF"}
           />
 
           {/* Border */}
@@ -2026,9 +2047,9 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={13}
-            color={isSelected ? "#A13333" : "#D1BBA360"}
+            color={isSelected || isPermanentHighlight ? "#A13333" : "#D1BBA360"}
             style="stroke"
-            strokeWidth={isSelected ? 1.5 : 1}
+            strokeWidth={isSelected || isPermanentHighlight ? 1.5 : 1}
           />
 
           {/* First name only */}
@@ -2076,6 +2097,7 @@ const TreeView = ({
       const y = node.y - nodeHeight / 2;
 
       const isHighlighted = highlightedNodeIdState === node.id;
+      const isPermanentHighlight = permanentHighlight === node.id;
 
       return (
         <Group key={node.id}>
@@ -2097,7 +2119,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color="#FFFFFF"
+            color={isPermanentHighlight ? "#A1333310" : "#FFFFFF"}
           />
 
           {/* Border */}
@@ -2107,9 +2129,9 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color={isSelected ? "#A13333" : "#D1BBA360"}
+            color={isSelected || isPermanentHighlight ? "#A13333" : "#D1BBA360"}
             style="stroke"
-            strokeWidth={isSelected ? 2.5 : 1.2}
+            strokeWidth={isSelected || isPermanentHighlight ? 2.5 : 1.2}
           />
 
           {hasPhoto ? (

@@ -55,7 +55,7 @@ const countryCodes = [
 export default function NajdiPhoneAuthScreen({
   navigation,
   onOTPSent,
-  onOTPVerified,
+  showCard = true,
 }) {
   const [step, setStep] = useState("phone"); // 'phone' or 'otp'
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -72,30 +72,32 @@ export default function NajdiPhoneAuthScreen({
 
   // Animations
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(1)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
   const errorShake = useRef(new Animated.Value(0)).current;
   const buttonPulse = useRef(new Animated.Value(1)).current;
   const stepProgress = useRef(new Animated.Value(0)).current;
 
-  // Screen entry animation
+  // Screen entry animation - content fades in after card is shown
   useEffect(() => {
-    Animated.sequence([
-      Animated.delay(200),
+    if (showCard) {
+      // Card is already shown by transition, just fade in content
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 600,
+          duration: 300,
           useNativeDriver: true,
         }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          friction: 8,
-          tension: 40,
+        Animated.timing(contentOpacity, {
+          toValue: 1,
+          duration: 500,
+          delay: 200,
           useNativeDriver: true,
         }),
-      ]),
-    ]).start();
-  }, []);
+      ]).start();
+    }
+  }, [showCard]);
 
   // Step transition
   useEffect(() => {
@@ -371,6 +373,7 @@ export default function NajdiPhoneAuthScreen({
                 {
                   opacity: fadeAnim,
                   transform: [
+                    { scale: cardScale },
                     { translateY: slideAnim },
                     { translateX: errorShake },
                   ],
@@ -417,7 +420,7 @@ export default function NajdiPhoneAuthScreen({
                       <Animated.View style={[styles.step, phoneStepStyle]}>
                         <View style={styles.iconContainer}>
                           <Image
-                            source={require("../../../assets/logo/STAR_LOGO.png")}
+                            source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
                             style={styles.logoIcon}
                             resizeMode="contain"
                           />
@@ -507,7 +510,7 @@ export default function NajdiPhoneAuthScreen({
                       <Animated.View style={[styles.step, otpStepStyle]}>
                         <View style={styles.iconContainer}>
                           <Image
-                            source={require("../../../assets/logo/STAR_LOGO.png")}
+                            source={require("../../../assets/logo/Alqefari Emblem (Transparent).png")}
                             style={styles.logoIcon}
                             resizeMode="contain"
                           />
