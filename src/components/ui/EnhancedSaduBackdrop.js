@@ -166,16 +166,21 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
   const animatedStyle = useAnimatedStyle(() => {
     const x = interpolate(progress.value, [0, 1], [startX, endX]);
     const y = interpolate(progress.value, [0, 1], [startY, endY]);
+    const starOpacity = interpolate(
+      progress.value,
+      [0, 0.1, 0.9, 1],
+      [0, 0.8, 0.8, 0],
+    ); // Reduced max opacity
 
     return {
-      opacity: opacity.value,
+      opacity: starOpacity * opacity.value,
       left: x, // USE ABSOLUTE POSITIONING
       top: y, // NOT TRANSFORMS!
     };
   });
 
   const tailStyle = useAnimatedStyle(() => {
-    const tailOpacity = interpolate(progress.value, [0, 0.3, 1], [0, 0.6, 0]);
+    const tailOpacity = interpolate(progress.value, [0, 0.3, 1], [0, 0.4, 0]); // Reduced from 0.6 to 0.4
     const tailWidth = interpolate(progress.value, [0, 0.5, 1], [0, 150, 50]); // Dynamic width instead of scaleX
 
     return {
@@ -196,7 +201,7 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
             shadowColor: "#FFA500", // Orange glow
             shadowRadius: 8,
             shadowOpacity: 0.8,
-            transform: [{ rotate: "45deg" }], // Diagonal angle (flipped for RTL)
+            transform: [{ rotate: "-45deg" }], // Original angle was correct
             transformOrigin: "right center", // Rotate from the right end
           },
           animatedStyle, // This sets left and top

@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import TreeView from "./TreeView";
 import profilesService from "../services/profiles";
-import { useTreeStore } from "../stores/useTreeStore";
+import { useTreeStore } from "../stores/treeStore";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
