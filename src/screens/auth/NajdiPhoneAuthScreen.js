@@ -104,10 +104,10 @@ export default function NajdiPhoneAuthScreen({
 
     // Focus first OTP input when transitioning to OTP step
     if (step === "otp") {
-      // Small delay just for animation to settle
+      // Minimal delay just for render
       setTimeout(() => {
         otpInputs.current[0]?.focus();
-      }, 100);
+      }, 50);
     }
   }, [step]);
 
