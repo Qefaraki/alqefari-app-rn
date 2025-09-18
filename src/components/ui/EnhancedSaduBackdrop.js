@@ -169,38 +169,38 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
 
     return {
       opacity: opacity.value,
-      transform: [{ translateX: x }, { translateY: y }],
+      left: x, // USE ABSOLUTE POSITIONING
+      top: y, // NOT TRANSFORMS!
     };
   });
 
   const tailStyle = useAnimatedStyle(() => {
     const tailOpacity = interpolate(progress.value, [0, 0.3, 1], [0, 0.6, 0]);
-    const scaleX = interpolate(progress.value, [0, 0.5, 1], [0, 1, 0.3]);
+    const tailWidth = interpolate(progress.value, [0, 0.5, 1], [0, 150, 50]); // Dynamic width instead of scaleX
 
     return {
       opacity: tailOpacity,
-      transform: [{ scaleX }],
+      width: tailWidth, // Use width instead of transform
     };
   });
 
   return (
     <>
-      {/* Shooting star tail - bigger and brighter */}
+      {/* Shooting star tail - trails behind the head */}
       <Animated.View
         style={[
           {
             position: "absolute",
-            left: 0,
-            top: 0,
-            width: 150, // Longer tail
             height: 3, // Thicker
             backgroundColor: "#FFD700", // Warm golden
             shadowColor: "#FFA500", // Orange glow
             shadowRadius: 8,
             shadowOpacity: 0.8,
+            transform: [{ rotate: "-45deg" }], // Diagonal angle
+            transformOrigin: "right center", // Rotate from the right end
           },
-          animatedStyle,
-          tailStyle,
+          animatedStyle, // This sets left and top
+          tailStyle, // This sets opacity and width
         ]}
       />
       {/* Shooting star head - bigger and brighter */}
@@ -208,8 +208,9 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
         style={[
           {
             position: "absolute",
-            left: -6,
-            top: -6,
+            // NO left/top - we set these in animatedStyle!
+            marginLeft: -6, // Center the star on the position
+            marginTop: -6,
             width: 12, // Bigger head
             height: 12,
             borderRadius: 6,
