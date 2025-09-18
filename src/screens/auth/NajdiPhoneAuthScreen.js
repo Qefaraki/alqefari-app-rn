@@ -199,64 +199,18 @@ export default function NajdiPhoneAuthScreen({
     setLoading(false);
   };
 
-  const handleOtpChange = (value, index) => {
+  const handleOtpChange = (value) => {
     // Clear error when user starts typing
     if (error) setError("");
 
-    // Only allow digits
-    const digits = value.replace(/\D/g, "");
+    // Only allow digits and limit to 6
+    const digits = value.replace(/\D/g, "").slice(0, 6);
+    setOtp(digits);
 
-    if (!digits) {
-      // User cleared the field
-      const newOtp = [...otp];
-      newOtp[index] = "";
-      setOtp(newOtp);
-      return;
-    }
-
-    // Check if this is a paste (multiple digits at once)
-    if (digits.length > 1) {
-      // Paste operation - fill from beginning
-      const newOtp = [...otp];
-      for (let i = 0; i < digits.length && i < 6; i++) {
-        newOtp[i] = digits[i];
-      }
-      setOtp(newOtp);
-
-      if (newOtp.join("").length === 6) {
-        Keyboard.dismiss();
-        handleVerifyOTP(newOtp);
-      } else {
-        // Focus next empty box
-        const nextEmpty = newOtp.findIndex((v) => !v);
-        if (nextEmpty !== -1) {
-          otpInputs.current[nextEmpty]?.focus();
-        }
-      }
-      return;
-    }
-
-    // SINGLE DIGIT - only accept one character per box
-    const newOtp = [...otp];
-    newOtp[index] = digits[0]; // Take ONLY first digit
-    setOtp(newOtp);
-
-    // IMMEDIATELY move to next box
-    if (index < 5) {
-      otpInputs.current[index + 1]?.focus();
-    } else if (index === 5 && newOtp.join("").length === 6) {
-      // Last box filled and all complete
+    // Auto-submit when 6 digits entered
+    if (digits.length === 6) {
       Keyboard.dismiss();
-      handleVerifyOTP(newOtp);
-    }
-  };
-
-  const handleOtpKeyPress = (e, index) => {
-    if (e.nativeEvent.key === "Backspace" && !otp[index] && index > 0) {
-      const newOtp = [...otp];
-      newOtp[index - 1] = "";
-      setOtp(newOtp);
-      otpInputs.current[index - 1]?.focus();
+      handleVerifyOTP(digits); // Pass the string directly
     }
   };
 
