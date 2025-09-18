@@ -104,9 +104,10 @@ export default function NajdiPhoneAuthScreen({
 
     // Focus first OTP input when transitioning to OTP step
     if (step === "otp") {
+      // Small delay just for animation to settle
       setTimeout(() => {
         otpInputs.current[0]?.focus();
-      }, 350);
+      }, 100);
     }
   }, [step]);
 
@@ -154,22 +155,9 @@ export default function NajdiPhoneAuthScreen({
   };
 
   const formatPhoneDisplay = (text) => {
-    // Remove all non-digits
-    const cleaned = text.replace(/\D/g, "");
-
-    // Format based on length
-    let formatted = "";
-    if (cleaned.length <= 2) {
-      formatted = cleaned;
-    } else if (cleaned.length <= 5) {
-      formatted = `${cleaned.slice(0, 2)} ${cleaned.slice(2)}`;
-    } else if (cleaned.length <= 9) {
-      formatted = `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5)}`;
-    } else {
-      formatted = `${cleaned.slice(0, 2)} ${cleaned.slice(2, 5)} ${cleaned.slice(5, 9)}`;
-    }
-
-    return formatted;
+    // Simply return the digits without spacing for display
+    // This prevents confusing cursor jumps while typing
+    return text;
   };
 
   const handlePhoneChange = (text) => {
@@ -196,10 +184,7 @@ export default function NajdiPhoneAuthScreen({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep("otp");
       setCountdown(60);
-      // Trigger shooting star AFTER transitioning to OTP screen
-      setTimeout(() => {
-        if (onOTPSent) onOTPSent();
-      }, 600); // Delay so user sees it on the OTP entry screen
+      // Don't trigger shooting star - removed for better UX
     } else {
       setError(result.error || "حدث خطأ في إرسال الرمز");
       shakeError();
@@ -241,11 +226,9 @@ export default function NajdiPhoneAuthScreen({
     newOtp[index] = singleDigit;
     setOtp(newOtp);
 
-    // Auto-focus next input
+    // Auto-focus next input immediately (no delay)
     if (singleDigit && index < 5) {
-      setTimeout(() => {
-        otpInputs.current[index + 1]?.focus();
-      }, 10);
+      otpInputs.current[index + 1]?.focus();
     }
 
     // Auto-submit when complete
@@ -284,13 +267,8 @@ export default function NajdiPhoneAuthScreen({
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Trigger shooting stars BEFORE navigating so user sees them
-      if (onOTPVerified) onOTPVerified();
-
-      // Delay navigation slightly so user sees the shooting stars
-      setTimeout(() => {
-        navigation.navigate("NameChainEntry", { user: result.user });
-      }, 800); // Give time to see the celebration
+      // Navigate immediately without delay
+      navigation.navigate("NameChainEntry", { user: result.user });
     } else {
       // Better error messages
       let errorMessage = "رمز التحقق غير صحيح";
@@ -306,11 +284,9 @@ export default function NajdiPhoneAuthScreen({
       shakeError();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-      // Clear OTP and refocus
+      // Clear OTP and refocus immediately
       setOtp(["", "", "", "", "", ""]);
-      setTimeout(() => {
-        otpInputs.current[0]?.focus();
-      }, 100);
+      otpInputs.current[0]?.focus();
     }
 
     setLoading(false);
