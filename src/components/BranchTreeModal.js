@@ -9,7 +9,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import SimpleBranchView from "./SimpleBranchView";
+import FocusedTreeView from "./FocusedTreeView";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -75,9 +75,9 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
           </View>
         </View>
 
-        {/* Branch Tree View */}
+        {/* Focused Tree View */}
         <View style={styles.treeContainer}>
-          <SimpleBranchView focusPersonId={profile.id} />
+          <FocusedTreeView focusPersonId={profile.id} />
         </View>
 
         {/* Action Buttons */}
