@@ -6,6 +6,9 @@ const SETTINGS_KEY = "@alqefari_settings";
 
 const SettingsContext = createContext(null);
 
+// Export the context for direct use in components
+export { SettingsContext };
+
 export const useSettings = () => {
   const context = useContext(SettingsContext);
   if (!context) {

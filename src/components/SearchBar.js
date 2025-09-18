@@ -158,10 +158,13 @@ const SearchBar = ({ onSelectResult, style }) => {
       // Force immediate visibility
       searchBarOpacity.setValue(1);
 
-      // Also reset the profileSheetProgress if it's stuck
-      if (profileSheetProgress && profileSheetProgress.value !== 0) {
-        console.log("[SearchBar] Resetting stuck profileSheetProgress");
-        profileSheetProgress.value = 0;
+      // Reset the profileSheetProgress in a separate microtask to avoid render warnings
+      if (profileSheetProgress) {
+        // Use setTimeout to move the shared value update out of the render cycle
+        setTimeout(() => {
+          console.log("[SearchBar] Resetting stuck profileSheetProgress");
+          profileSheetProgress.value = 0;
+        }, 0);
       }
     }
   }, [selectedPersonId, searchBarOpacity, profileSheetProgress]);

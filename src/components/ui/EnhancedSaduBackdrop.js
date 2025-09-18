@@ -17,6 +17,7 @@ import Animated, {
   FadeIn,
   FadeOut,
   withDelay,
+  useAnimatedReaction,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Line } from "react-native-svg";
@@ -236,11 +237,16 @@ const ShootingStar = ({ startX, startY, endX, endY, onComplete }) => {
 const ConstellationLines = ({ brightness }) => {
   const opacity = useSharedValue(0);
 
-  useEffect(() => {
-    opacity.value = withTiming(0.08 * brightness.value, {
-      duration: 2000,
-    });
-  }, [brightness.value]);
+  // Use useAnimatedReaction to react to brightness changes
+  useAnimatedReaction(
+    () => brightness.value,
+    (currentBrightness) => {
+      opacity.value = withTiming(0.08 * currentBrightness, {
+        duration: 2000,
+      });
+    },
+    [],
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

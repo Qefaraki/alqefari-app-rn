@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { Gyroscope } from "expo-sensors";
 // SaduNightBackdrop now handled at navigator level
 // Try to import MaskedView, but handle the case where it's not available
 let MaskedView;
@@ -32,7 +33,8 @@ try {
 }
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity);
 
 // Create a dense starfield that will be masked by the logo
 const createMaskedStarfield = () => {
@@ -70,7 +72,7 @@ const createMaskedStarfield = () => {
         y: centerY + y + jitterY,
         size,
         brightness: 0.6 + Math.random() * 0.4,
-        delay: Math.random() * 200, // Much faster - was 800ms
+        delay: Math.random() * 100, // 2x faster for snappier twinkle
         group: "logo",
       });
     }
@@ -91,6 +93,11 @@ export default function OnboardingScreen({
   const insets = useSafeAreaInsets();
   const [reduceMotion, setReduceMotion] = useState(false);
 
+  // Parallax state
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const parallaxX = useRef(new Animated.Value(0)).current;
+  const parallaxY = useRef(new Animated.Value(0)).current;
+
   // Staged animations
   const logoFade = useRef(new Animated.Value(0)).current;
   const backgroundStarsFade = useRef(new Animated.Value(0)).current;
@@ -99,6 +106,7 @@ export default function OnboardingScreen({
 
   const logoRotate = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.95)).current;
+  const logoBreath = useRef(new Animated.Value(1)).current;
 
   // Button scale animations for haptic feedback
   const primaryButtonScale = useRef(new Animated.Value(1)).current;
@@ -122,6 +130,35 @@ export default function OnboardingScreen({
     return () => subscription?.remove();
   }, []);
 
+  // Gyroscope for parallax effect
+  useEffect(() => {
+    if (!reduceMotion) {
+      Gyroscope.setUpdateInterval(100);
+      const subscription = Gyroscope.addListener((data) => {
+        // Smooth the values and limit range
+        const smoothX = Math.max(-1, Math.min(1, data.y * 0.5)); // device tilt left/right
+        const smoothY = Math.max(-1, Math.min(1, data.x * 0.5)); // device tilt up/down
+
+        Animated.parallel([
+          Animated.spring(parallaxX, {
+            toValue: smoothX * 15, // 15px max movement
+            useNativeDriver: true,
+            tension: 20,
+            friction: 10,
+          }),
+          Animated.spring(parallaxY, {
+            toValue: smoothY * 15,
+            useNativeDriver: true,
+            tension: 20,
+            friction: 10,
+          }),
+        ]).start();
+      });
+
+      return () => subscription.remove();
+    }
+  }, [reduceMotion]);
+
   useEffect(() => {
     // Staged animation sequence
     // Stage 1: Logo appears almost instantly
@@ -139,32 +176,58 @@ export default function OnboardingScreen({
       }),
     ]).start();
 
-    // Stage 2: Background stars fade in after logo has been seen (1s after logo starts)
+    // Start breathing animation after logo appears
+    setTimeout(() => {
+      if (!reduceMotion) {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(logoBreath, {
+              toValue: 1.015, // Much subtler (1.5% growth)
+              duration: 4500, // Slower, more natural breathing
+              useNativeDriver: true,
+              easing: require("react-native").Easing.inOut(
+                require("react-native").Easing.ease,
+              ),
+            }),
+            Animated.timing(logoBreath, {
+              toValue: 1, // Return to normal size (not smaller)
+              duration: 4500,
+              useNativeDriver: true,
+              easing: require("react-native").Easing.inOut(
+                require("react-native").Easing.ease,
+              ),
+            }),
+          ]),
+        ).start();
+      }
+    }, 1000);
+
+    // Stage 2: Background stars fade in after logo has been seen (500ms after logo)
     setTimeout(() => {
       Animated.timing(backgroundStarsFade, {
-        toValue: 0.56, // Reduced by 30% from 0.8 (0.8 * 0.7 = 0.56)
-        duration: 2000, // Smooth fade
+        toValue: 0.56, // Reduced by 30% from 0.8
+        duration: 800, // Faster fade
         useNativeDriver: true,
       }).start();
-    }, 1000); // Give logo 1 second to shine alone
+    }, 500); // Quicker transition
 
-    // Stage 3: Text fades in AFTER background stars are visible
+    // Stage 3: Text fades in while stars are appearing
     setTimeout(() => {
       Animated.timing(contentFade, {
         toValue: 1,
-        duration: 1500,
+        duration: 800,
         useNativeDriver: true,
       }).start();
-    }, 2500); // After logo and stars have settled
+    }, 1000); // Overlap with stars
 
     // Stage 4: Buttons fade in last
     setTimeout(() => {
       Animated.timing(buttonFade, {
         toValue: 1,
-        duration: 1000,
+        duration: 700,
         useNativeDriver: true,
       }).start();
-    }, 3500); // Final element
+    }, 1800); // 2.5s total (was 3.5s)
 
     // Start subtle logo rotation after initial animation (unless reduce motion is on)
     if (!reduceMotion) {
@@ -217,15 +280,16 @@ export default function OnboardingScreen({
     buttonFade,
     logoScale,
     logoRotate,
+    logoBreath,
     reduceMotion,
   ]);
 
   const renderStars = useCallback((stars, time) => {
     return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 200); // Faster fade - was 500ms
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100); // 2x faster fade
       if (fadeInProgress <= 0) return null;
 
-      const twinkle = Math.sin(time * 2 + index * 0.5) * 0.2;
+      const twinkle = Math.sin(time * 4 + index * 0.5) * 0.3; // 2x faster twinkle, slightly more pronounced
       const opacity = star.brightness * fadeInProgress * (1 + twinkle);
 
       if (star.group === "logo") {
@@ -265,20 +329,26 @@ export default function OnboardingScreen({
     });
   }, []);
 
-  // Button press animations
+  // Button press animations with micro-bounce
   const animateButtonPress = (scaleValue) => {
     Animated.sequence([
       Animated.spring(scaleValue, {
-        toValue: 0.95,
+        toValue: 0.98, // Very subtle press
         useNativeDriver: true,
-        tension: 100,
-        friction: 3,
+        tension: 200,
+        friction: 5,
+      }),
+      Animated.spring(scaleValue, {
+        toValue: 1.02, // Micro-bounce back
+        useNativeDriver: true,
+        tension: 150,
+        friction: 4,
       }),
       Animated.spring(scaleValue, {
         toValue: 1,
         useNativeDriver: true,
-        tension: 40,
-        friction: 3,
+        tension: 100,
+        friction: 6,
       }),
     ]).start();
   };
@@ -313,13 +383,17 @@ export default function OnboardingScreen({
             {
               opacity: logoFade,
               transform: [
-                { scale: logoScale },
+                { scale: logoScale }, // Initial scale animation
+                { scaleX: logoBreath }, // Breathing only applies after
+                { scaleY: logoBreath },
                 {
                   rotate: logoRotate.interpolate({
                     inputRange: [0, 1],
                     outputRange: ["0deg", "5deg"],
                   }),
                 },
+                { translateX: parallaxX },
+                { translateY: parallaxY },
               ],
             },
           ]}
@@ -351,9 +425,21 @@ export default function OnboardingScreen({
               resizeMode="contain"
             />
           </View>
-          <Canvas style={StyleSheet.absoluteFillObject}>
-            {renderStars(logoStars, animationTime)}
-          </Canvas>
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFillObject,
+              {
+                transform: [
+                  { translateX: Animated.multiply(parallaxX, 0.5) }, // Half parallax for depth
+                  { translateY: Animated.multiply(parallaxY, 0.5) },
+                ],
+              },
+            ]}
+          >
+            <Canvas style={StyleSheet.absoluteFillObject}>
+              {renderStars(logoStars, animationTime)}
+            </Canvas>
+          </Animated.View>
         </>
       )}
 
@@ -533,9 +619,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 16,
     shadowColor: "#A13333",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 6,
     width: "100%",
   },

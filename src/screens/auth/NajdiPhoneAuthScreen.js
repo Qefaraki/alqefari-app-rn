@@ -74,6 +74,7 @@ export default function NajdiPhoneAuthScreen({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const errorShake = useRef(new Animated.Value(0)).current;
+  const buttonPulse = useRef(new Animated.Value(1)).current;
   const stepProgress = useRef(new Animated.Value(0)).current;
 
   // Screen entry animation
@@ -188,6 +189,8 @@ export default function NajdiPhoneAuthScreen({
     }
 
     setLoading(false);
+    buttonPulse.stopAnimation();
+    buttonPulse.setValue(1);
   };
 
   const handleOtpChange = (value) => {
@@ -248,6 +251,8 @@ export default function NajdiPhoneAuthScreen({
     }
 
     setLoading(false);
+    buttonPulse.stopAnimation();
+    buttonPulse.setValue(1);
   };
 
   const handleResendOTP = async () => {
@@ -267,6 +272,8 @@ export default function NajdiPhoneAuthScreen({
     }
 
     setLoading(false);
+    buttonPulse.stopAnimation();
+    buttonPulse.setValue(1);
   };
 
   const CountryPicker = () => (
@@ -444,7 +451,12 @@ export default function NajdiPhoneAuthScreen({
                           {/* Country Code Selector */}
                           <TouchableOpacity
                             style={styles.countrySelector}
-                            onPress={() => setShowCountryPicker(true)}
+                            onPress={() => {
+                              Haptics.impactAsync(
+                                Haptics.ImpactFeedbackStyle.Light,
+                              );
+                              setShowCountryPicker(true);
+                            }}
                             activeOpacity={0.7}
                           >
                             <Text style={styles.countryFlag}>
@@ -473,7 +485,14 @@ export default function NajdiPhoneAuthScreen({
                           activeOpacity={0.8}
                         >
                           {loading ? (
-                            <ActivityIndicator color={colors.alJassWhite} />
+                            <Animated.Text
+                              style={[
+                                styles.buttonText,
+                                { opacity: buttonPulse },
+                              ]}
+                            >
+                              جاري الإرسال...
+                            </Animated.Text>
                           ) : (
                             <Text style={styles.buttonText}>
                               إرسال رمز التحقق
@@ -544,7 +563,14 @@ export default function NajdiPhoneAuthScreen({
                           activeOpacity={0.8}
                         >
                           {loading ? (
-                            <ActivityIndicator color={colors.alJassWhite} />
+                            <Animated.Text
+                              style={[
+                                styles.buttonText,
+                                { opacity: buttonPulse },
+                              ]}
+                            >
+                              جاري التحقق...
+                            </Animated.Text>
                           ) : (
                             <Text style={styles.buttonText}>تحقق</Text>
                           )}
@@ -784,7 +810,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   otpCursor: {
-    width: 2,
+    width: 3,
     height: 24,
     backgroundColor: colors.alJassWhite,
   },

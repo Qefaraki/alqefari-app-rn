@@ -379,25 +379,24 @@ const TreeView = ({
   // Use ref to track if we've already logged the settings warning
   const hasLoggedSettingsWarning = useRef(false);
 
+  // Try to get settings context - will be null if not in provider
+  const settingsContext = useContext(SettingsContext);
+
   // Use settings if available, otherwise use defaults (for filtered view)
-  let settings = {
+  const settings = settingsContext?.settings || {
     defaultCalendar: "gregorian",
     dateFormat: "numeric",
     showBothCalendars: false,
     arabicNumerals: false,
   };
 
-  try {
-    const settingsContext = useSettings();
-    settings = settingsContext.settings;
-  } catch (error) {
-    // Not in SettingsProvider - use defaults
-    // Only log once to avoid console spam
-    if (!hasLoggedSettingsWarning.current) {
+  // Log once if running outside provider
+  useEffect(() => {
+    if (!settingsContext && !hasLoggedSettingsWarning.current) {
       console.log("TreeView running outside SettingsProvider, using defaults");
       hasLoggedSettingsWarning.current = true;
     }
-  }
+  }, [settingsContext]);
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
