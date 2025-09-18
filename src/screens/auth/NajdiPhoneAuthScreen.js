@@ -113,13 +113,7 @@ export default function NajdiPhoneAuthScreen({
       useNativeDriver: true,
     }).start();
 
-    // Focus first OTP input when transitioning to OTP step
-    if (step === "otp") {
-      // Minimal delay just for render
-      setTimeout(() => {
-        otpInputs.current[0]?.focus();
-      }, 50);
-    }
+    // The new library handles auto-focus
   }, [step]);
 
   // Countdown timer
@@ -301,8 +295,8 @@ export default function NajdiPhoneAuthScreen({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
       // Clear OTP and refocus immediately
-      setOtp(["", "", "", "", "", ""]);
-      otpInputs.current[0]?.focus();
+      setOtp("");
+      otpRef.current?.focus();
     }
 
     setLoading(false);
@@ -561,49 +555,44 @@ export default function NajdiPhoneAuthScreen({
                           </Text>
                         </Text>
 
-                        <View
-                          style={[
-                            styles.otpContainer,
-                            { flexDirection: "row-reverse" },
-                          ]}
-                        >
-                          {otp.map((digit, index) => (
-                            <TextInput
+                        <CodeField
+                          ref={otpRef}
+                          {...props}
+                          value={otp}
+                          onChangeText={handleOtpChange}
+                          cellCount={6}
+                          rootStyle={styles.otpContainer}
+                          keyboardType="number-pad"
+                          textContentType="oneTimeCode"
+                          autoFocus
+                          renderCell={({ index, symbol, isFocused }) => (
+                            <View
                               key={index}
-                              ref={(ref) => (otpInputs.current[index] = ref)}
                               style={[
                                 styles.otpInput,
-                                digit && styles.otpInputFilled,
+                                symbol && styles.otpInputFilled,
+                                isFocused && styles.otpInputFocused,
                                 error && styles.otpInputError,
                               ]}
-                              value={digit}
-                              onChangeText={(value) =>
-                                handleOtpChange(value, index)
-                              }
-                              onKeyPress={(e) => handleOtpKeyPress(e, index)}
-                              keyboardType="number-pad"
-                              maxLength={1}
-                              textAlign="center"
-                              selectTextOnFocus={true}
-                              autoComplete="one-time-code"
-                              textContentType="oneTimeCode"
-                              selection={
-                                digit ? { start: 1, end: 1 } : undefined
-                              }
-                            />
-                          ))}
-                        </View>
+                              onLayout={getCellOnLayoutHandler(index)}
+                            >
+                              <Text style={styles.otpText}>
+                                {symbol || (isFocused ? <Cursor /> : null)}
+                              </Text>
+                            </View>
+                          )}
+                        />
 
                         {error && <Text style={styles.errorText}>{error}</Text>}
 
                         <TouchableOpacity
                           style={[
                             styles.primaryButton,
-                            (otp.join("").length !== 6 || loading) &&
+                            (otp.length !== 6 || loading) &&
                               styles.buttonDisabled,
                           ]}
                           onPress={() => handleVerifyOTP()}
-                          disabled={otp.join("").length !== 6 || loading}
+                          disabled={otp.length !== 6 || loading}
                           activeOpacity={0.8}
                         >
                           {loading ? (
@@ -635,7 +624,7 @@ export default function NajdiPhoneAuthScreen({
                           style={styles.changeNumberButton}
                           onPress={() => {
                             setStep("phone");
-                            setOtp(["", "", "", "", "", ""]);
+                            setOtp("");
                             setCountdown(0);
                             setError("");
                           }}
@@ -823,18 +812,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
-    fontSize: 20,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.alJassWhite,
+    alignItems: "center",
+    justifyContent: "center",
   },
   otpInputFilled: {
     borderColor: colors.najdiCrimson + "80",
     backgroundColor: colors.najdiCrimson + "15",
   },
+  otpInputFocused: {
+    borderColor: "#FFD700", // Golden like shooting star
+    borderWidth: 2,
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+  },
   otpInputError: {
     borderColor: "#FF6B6B",
     backgroundColor: "rgba(255, 107, 107, 0.1)",
+  },
+  otpText: {
+    fontSize: 20,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: colors.alJassWhite,
+    textAlign: "center",
   },
   errorText: {
     fontSize: 14,
