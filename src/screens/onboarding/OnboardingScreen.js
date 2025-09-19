@@ -450,7 +450,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
             </Canvas>
           </Animated.View>
         </>
-      ) : null}
+      )}
 
       {/* Bottom vignette gradient - placed behind content and buttons */}
       <LinearGradient
