@@ -23,7 +23,6 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
   const emblemScale = useRef(new Animated.Value(0.5)).current;
 
   // Effects
-  const glowOpacity = useRef(new Animated.Value(0)).current;
   const whiteFlashOpacity = useRef(new Animated.Value(0)).current;
 
   // Glass card
@@ -55,50 +54,35 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
     };
     animationRef.current = requestAnimationFrame(animate);
 
-    // Main animation sequence
+    // Main animation sequence - cleaner without glow
     Animated.sequence([
-      // Phase 1: Glow builds up (0-300ms)
-      Animated.timing(glowOpacity, {
-        toValue: 0.8,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-
-      // Phase 2: White flash as stars burst (300-600ms)
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(whiteFlashOpacity, {
-            toValue: 0.5,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          Animated.timing(whiteFlashOpacity, {
-            toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(glowOpacity, {
-          toValue: 0.2,
-          duration: 300,
+      // Phase 1: White flash as stars burst (200-400ms)
+      Animated.sequence([
+        Animated.delay(200), // Brief pause for anticipation
+        Animated.timing(whiteFlashOpacity, {
+          toValue: 0.4,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(whiteFlashOpacity, {
+          toValue: 0,
+          duration: 200,
           useNativeDriver: true,
         }),
       ]),
 
-      // Phase 3: Emblem and glass appear (600-1200ms)
+      // Phase 2: Emblem and glass appear (400-1000ms)
       Animated.parallel([
         // Emblem scales in
         Animated.spring(emblemScale, {
           toValue: 1,
           friction: 6,
           tension: 40,
-          delay: 200,
           useNativeDriver: true,
         }),
         Animated.timing(emblemOpacity, {
           toValue: 1,
-          duration: 500,
-          delay: 200,
+          duration: 400,
           useNativeDriver: true,
         }),
         // Glass card materializes
@@ -106,19 +90,13 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
           toValue: 1,
           friction: 7,
           tension: 35,
-          delay: 400,
+          delay: 200,
           useNativeDriver: true,
         }),
         Animated.timing(glassOpacity, {
           toValue: 1,
-          duration: 600,
-          delay: 400,
-          useNativeDriver: true,
-        }),
-        // Glow fades completely
-        Animated.timing(glowOpacity, {
-          toValue: 0,
-          duration: 800,
+          duration: 500,
+          delay: 200,
           useNativeDriver: true,
         }),
       ]),
@@ -209,18 +187,6 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         ]}
       />
 
-      {/* Glow effect behind emblem */}
-      <Animated.View
-        style={[
-          styles.glowContainer,
-          {
-            opacity: glowOpacity,
-          },
-        ]}
-      >
-        <View style={styles.glowCircle} />
-      </Animated.View>
-
       {/* Family emblem (fades in) */}
       <Animated.View
         style={[
@@ -257,25 +223,6 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
 }
 
 const styles = StyleSheet.create({
-  glowContainer: {
-    position: "absolute",
-    top: SCREEN_HEIGHT * 0.35 - 150,
-    left: SCREEN_WIDTH / 2 - 150,
-    width: 300,
-    height: 300,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  glowCircle: {
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    shadowColor: "#fff",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 40,
-  },
   logoContainer: {
     position: "absolute",
     top: SCREEN_HEIGHT * 0.35 - 100,
