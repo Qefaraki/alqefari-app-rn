@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.inputBorder, // Container 40%
   },
   progressDotCompleted: {
-    backgroundColor: colors.success,
+    backgroundColor: colors.secondary, // Desert Ochre - consistent with our design
   },
   progressDotActive: {
     backgroundColor: colors.primary, // Najdi Crimson

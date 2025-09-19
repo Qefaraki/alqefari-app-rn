@@ -1290,7 +1290,7 @@ const TreeView = ({
       savedScale.value = targetScale;
 
       // Start highlight animation only in main view (not in filtered view)
-      if (!isFilteredStore) {
+      if (!isFilteredView) {
         highlightNode(nodeId);
       }
     },
@@ -1303,17 +1303,19 @@ const TreeView = ({
       // Find the focus person in the nodes
       const focusNode = nodes.find((n) => n.id === initialFocusId);
       if (focusNode && focusNode.x !== undefined && focusNode.y !== undefined) {
-        // Small delay to ensure canvas is ready
+        // Slightly longer delay to ensure everything is ready
         const timer = setTimeout(() => {
           console.log("Auto-centering on:", initialFocusId);
-          // Navigate to the node (this will center and highlight it)
+          console.log("Focus node at:", focusNode.x, focusNode.y);
+
+          // Navigate to the node (this will center but NOT highlight if filtered view)
           navigateToNode(initialFocusId);
-        }, 200);
+        }, 500); // Increased delay for reliability
 
         return () => clearTimeout(timer);
       }
     }
-  }, [initialFocusId, nodes.length, isLoading]); // Simple deps
+  }, [initialFocusId, nodes.length, isLoading, navigateToNode]);
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {

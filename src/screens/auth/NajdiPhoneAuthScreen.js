@@ -392,16 +392,12 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                     />
                   </TouchableOpacity>
 
-                  {/* Progress dots - Same style as NameChainEntry */}
+                  {/* Progress dots - RTL order (completed on right) */}
                   <View style={styles.progressContainer}>
-                    {/* Step 1 - Phone number entry */}
-                    <View
-                      style={[
-                        styles.progressDot,
-                        step === "phone" && styles.progressDotActive,
-                        step === "otp" && styles.progressDotCompleted,
-                      ]}
-                    />
+                    {/* Future steps (inactive) - appear on LEFT in RTL */}
+                    <View style={styles.progressDot} />
+                    <View style={styles.progressDot} />
+                    <View style={styles.progressDot} />
                     {/* Step 2 - OTP verification */}
                     <View
                       style={[
@@ -409,10 +405,14 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                         step === "otp" && styles.progressDotActive,
                       ]}
                     />
-                    {/* Future steps (inactive) */}
-                    <View style={styles.progressDot} />
-                    <View style={styles.progressDot} />
-                    <View style={styles.progressDot} />
+                    {/* Step 1 - Phone number entry - appears on RIGHT in RTL */}
+                    <View
+                      style={[
+                        styles.progressDot,
+                        step === "phone" && styles.progressDotActive,
+                        step === "otp" && styles.progressDotCompleted,
+                      ]}
+                    />
                   </View>
 
                   {/* Step container */}
@@ -674,6 +674,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 32,
+    gap: 8,
   },
   progressDot: {
     width: 8,
@@ -682,16 +683,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(249, 247, 243, 0.3)",
   },
   progressDotActive: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
     backgroundColor: colors.najdiCrimson,
+    width: 24, // Elongated when active like NameChainEntry
   },
-  progressLine: {
-    width: 40,
-    height: 1,
-    backgroundColor: "rgba(249, 247, 243, 0.2)",
-    marginHorizontal: 8,
+  progressDotCompleted: {
+    backgroundColor: colors.desertOchre, // Desert Ochre for completed steps (matches our design)
+    width: 8,
   },
   stepContainer: {
     minHeight: 380,
