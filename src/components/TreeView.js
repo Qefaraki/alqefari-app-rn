@@ -1803,11 +1803,16 @@ const TreeView = ({
   );
 
   // Compose gestures - allow simultaneous but with guards in each gesture
-  const composed = Gesture.Simultaneous(
-    panGesture,
-    pinchGesture,
-    isAdminMode ? Gesture.Exclusive(longPressGesture, tapGesture) : tapGesture,
-  );
+  // In filtered view, only allow panning (no zoom, no tap)
+  const composed = isFilteredView
+    ? panGesture
+    : Gesture.Simultaneous(
+        panGesture,
+        pinchGesture,
+        isAdminMode
+          ? Gesture.Exclusive(longPressGesture, tapGesture)
+          : tapGesture,
+      );
 
   // Render connection lines with proper elbow style
   const renderConnection = useCallback(
