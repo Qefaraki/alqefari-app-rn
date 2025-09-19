@@ -99,8 +99,7 @@ export default function OnboardingScreen({
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
-  const { logoStars, renderLocation, setRenderLocation, setStarPhase } =
-    useStarData();
+  const { logoStars } = useStarData();
   const [reduceMotion, setReduceMotion] = useState(false);
 
   // Parallax state

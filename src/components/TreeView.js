@@ -2094,7 +2094,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={13}
-            color={isPermanentHighlight ? "#A1333310" : "#FFFFFF"}
+            color="#FFFFFF"
           />
 
           {/* Border */}
@@ -2176,7 +2176,7 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color={isPermanentHighlight ? "#A1333310" : "#FFFFFF"}
+            color="#FFFFFF"
           />
 
           {/* Border */}
