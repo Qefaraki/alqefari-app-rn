@@ -106,11 +106,11 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
           </View>
         </View>
 
-        {/* Real TreeView with Filtered Data */}
+        {/* Real TreeView with Filtered Data or Skeleton */}
         <View style={styles.treeContainer}>
           <SettingsProvider>
             <FilteredTreeProvider focusPersonId={profile.id}>
-              <TreeView isFilteredView={true} />
+              <TreeOrSkeleton isFilteredView={true} />
             </FilteredTreeProvider>
           </SettingsProvider>
         </View>
