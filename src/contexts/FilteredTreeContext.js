@@ -226,7 +226,12 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
   };
 
   if (!isReady || !storeRef.current) {
-    return null; // Or a loading indicator
+    // Return children wrapped in a loading state context
+    return (
+      <FilteredTreeContext.Provider value={null}>
+        {children}
+      </FilteredTreeContext.Provider>
+    );
   }
 
   return (

@@ -301,39 +301,35 @@ export default function OnboardingScreen({
     reduceMotion,
   ]);
 
-  const renderStars = useCallback(
-    (stars, time) => {
-      // Only render if we're the active renderer
-      if (renderLocation !== "onboarding") return null;
+  const renderStars = useCallback((stars, time) => {
+    // Always render stars in OnboardingScreen
 
-      return stars.map((star, index) => {
-        const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100);
-        if (fadeInProgress <= 0) return null;
+    return stars.map((star, index) => {
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100);
+      if (fadeInProgress <= 0) return null;
 
-        // Use star's brightness property
-        const twinkleSpeed = 0.8 + (index % 4) * 0.3;
-        const twinkleFactor = Math.sin(time * twinkleSpeed + index);
-        const logoOpacity =
-          fadeInProgress * star.brightness * (0.5 + (twinkleFactor + 1) * 0.25);
+      // Use star's brightness property
+      const twinkleSpeed = 0.8 + (index % 4) * 0.3;
+      const twinkleFactor = Math.sin(time * twinkleSpeed + index);
+      const logoOpacity =
+        fadeInProgress * star.brightness * (0.5 + (twinkleFactor + 1) * 0.25);
 
-        // Occasional bright flashes
-        const flashChance = Math.sin(time * 2 + index * 3);
-        const shouldFlash = flashChance > 0.995;
-        const finalOpacity = shouldFlash ? 1 : logoOpacity;
+      // Occasional bright flashes
+      const flashChance = Math.sin(time * 2 + index * 3);
+      const shouldFlash = flashChance > 0.995;
+      const finalOpacity = shouldFlash ? 1 : logoOpacity;
 
-        return (
-          <Circle
-            key={star.id}
-            cx={star.originX}
-            cy={star.originY}
-            r={star.size}
-            color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
-          />
-        );
-      });
-    },
-    [renderLocation],
-  );
+      return (
+        <Circle
+          key={star.id}
+          cx={star.x}
+          cy={star.y}
+          r={star.size}
+          color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
+        />
+      );
+    });
+  }, []);
 
   // Button press animations with micro-bounce
   const animateButtonPress = (scaleValue) => {
@@ -363,8 +359,7 @@ export default function OnboardingScreen({
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Signal transition is starting but don't hand off yet
-    setStarPhase("breaking");
+    // Just navigate - no complex handoff needed
 
     if (onNavigate) {
       onNavigate("PhoneAuth");
@@ -372,7 +367,7 @@ export default function OnboardingScreen({
     } else {
       navigation.navigate("PhoneAuth");
     }
-  }, [navigation, primaryButtonScale, onNavigate, setStarPhase]);
+  }, [navigation, primaryButtonScale, onNavigate]);
 
   const handleExploreAsGuest = useCallback(() => {
     animateButtonPress(secondaryButtonScale);

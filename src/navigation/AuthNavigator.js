@@ -41,19 +41,19 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
   const navigationRef = useRef(null);
 
   const handleTransitionToPhoneAuth = (navigation) => {
-    // Start the transformation immediately
+    // Start the transformation
     setShowTransition(true);
 
-    // Small delay then hide onboarding logo (after handoff)
+    // Hide onboarding logo after a brief delay
     setTimeout(() => {
       setHideOnboardingLogo(true);
-    }, 100);
+    }, 400);
 
-    // Navigate to phone auth screen
+    // Navigate to phone auth
     setTimeout(() => {
       navigation.navigate("PhoneAuth");
       setCurrentStep(2);
-    }, 400);
+    }, 600);
   };
 
   const handleTransitionComplete = () => {

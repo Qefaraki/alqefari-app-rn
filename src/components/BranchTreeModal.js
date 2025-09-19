@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -7,12 +7,40 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Image,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import TreeView from "./TreeView";
-import { FilteredTreeProvider } from "../contexts/FilteredTreeContext";
+import {
+  FilteredTreeProvider,
+  useFilteredTreeStore,
+} from "../contexts/FilteredTreeContext";
 import { SettingsProvider } from "../contexts/SettingsContext";
+import TreeSkeleton from "./TreeSkeleton";
+
+/**
+ * Component that renders either skeleton or tree based on loading state
+ */
+const TreeOrSkeleton = ({ isFilteredView }) => {
+  const treeData = useFilteredTreeStore((s) => s?.treeData);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Check if data is loaded
+    if (treeData && treeData.length > 0) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [treeData]);
+
+  if (isLoading) {
+    return <TreeSkeleton />;
+  }
+
+  return <TreeView isFilteredView={isFilteredView} />;
+};
 
 /**
  * Modal that shows a branch tree view for verifying profile identity

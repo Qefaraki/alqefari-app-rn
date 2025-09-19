@@ -14,29 +14,28 @@ import { useStarData } from "../../contexts/StarDataContext";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function StarToEmblemTransition({ isActive, onComplete }) {
-  const { logoStars, renderLocation, setRenderLocation, setStarPhase } =
-    useStarData();
-  const [animationTime, setAnimationTime] = useState(0);
-  const [currentPhase, setCurrentPhase] = useState("idle");
+  const { emissionStars, centerX, centerY } = useStarData();
+  const [animationFrame, setAnimationFrame] = useState(0);
   const animationRef = useRef(null);
 
-  // Main logo animations
-  const starLogoOpacity = useRef(new Animated.Value(1)).current;
-  const starLogoScale = useRef(new Animated.Value(1)).current;
+  // Logo animations
+  const logoOpacity = useRef(new Animated.Value(1)).current;
+  const logoScale = useRef(new Animated.Value(1)).current;
 
+  // Emblem animations
   const emblemOpacity = useRef(new Animated.Value(0)).current;
-  const emblemScale = useRef(new Animated.Value(0.5)).current;
+  const emblemScale = useRef(new Animated.Value(0.8)).current;
 
   // Effects
-  const whiteFlashOpacity = useRef(new Animated.Value(0)).current;
   const glowOpacity = useRef(new Animated.Value(0)).current;
+  const whiteFlashOpacity = useRef(new Animated.Value(0)).current;
 
   // Glass card
   const glassScale = useRef(new Animated.Value(0)).current;
   const glassOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (isActive && currentPhase === "idle") {
+    if (isActive) {
       startTransformation();
     }
 
@@ -48,21 +47,13 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
   }, [isActive]);
 
   const startTransformation = () => {
-    setCurrentPhase("starting");
-
-    // Take control of star rendering from onboarding
-    setTimeout(() => {
-      setRenderLocation("transition");
-      setStarPhase("breaking");
-    }, 50);
-
-    // Start animation timer for star movement
-    let frameCount = 0;
+    // Start frame animation for star particles
+    let frame = 0;
     const animate = () => {
-      frameCount++;
-      setAnimationTime(frameCount);
-      if (frameCount < 180) {
-        // 3 seconds at 60fps
+      frame++;
+      setAnimationFrame(frame);
+      if (frame < 120) {
+        // 2 seconds at 60fps
         animationRef.current = requestAnimationFrame(animate);
       }
     };
@@ -70,68 +61,77 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
 
     // Main animation sequence
     Animated.sequence([
-      // Phase 1: Stars break apart (0-600ms)
+      // Phase 1: Logo pulse and glow (0-400ms)
       Animated.parallel([
+        Animated.sequence([
+          Animated.timing(logoScale, {
+            toValue: 1.1,
+            duration: 200,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoScale, {
+            toValue: 1.0,
+            duration: 200,
+            easing: Easing.in(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
         Animated.timing(glowOpacity, {
           toValue: 0.6,
           duration: 400,
           useNativeDriver: true,
         }),
-        Animated.timing(starLogoOpacity, {
-          toValue: 0,
-          duration: 600,
-          delay: 200,
-          useNativeDriver: true,
-        }),
       ]),
 
-      // Phase 2: Stars swirl and converge (600-1200ms)
+      // Phase 2: Logo fades as stars emit (400-800ms)
       Animated.parallel([
-        // White flash at transformation point
+        Animated.timing(logoOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        // White flash at transition point
         Animated.sequence([
-          Animated.delay(200),
           Animated.timing(whiteFlashOpacity, {
-            toValue: 0.5,
+            toValue: 0.4,
             duration: 150,
             useNativeDriver: true,
           }),
           Animated.timing(whiteFlashOpacity, {
             toValue: 0,
-            duration: 200,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Emblem appears
-        Animated.parallel([
-          Animated.timing(emblemScale, {
-            toValue: 1,
-            duration: 600,
-            delay: 300,
-            easing: Easing.out(Easing.back),
-            useNativeDriver: true,
-          }),
-          Animated.timing(emblemOpacity, {
-            toValue: 1,
-            duration: 500,
-            delay: 400,
+            duration: 250,
             useNativeDriver: true,
           }),
         ]),
       ]),
 
-      // Phase 3: Glass materializes (1200-1600ms)
+      // Phase 3: Emblem appears (800-1200ms)
       Animated.parallel([
-        Animated.spring(glassScale, {
+        Animated.spring(emblemScale, {
           toValue: 1,
           friction: 7,
           tension: 40,
           useNativeDriver: true,
         }),
-        Animated.timing(glassOpacity, {
+        Animated.timing(emblemOpacity, {
           toValue: 1,
           duration: 400,
           useNativeDriver: true,
         }),
+        // Glass card crystallizes
+        Animated.spring(glassScale, {
+          toValue: 1,
+          friction: 8,
+          tension: 35,
+          useNativeDriver: true,
+        }),
+        Animated.timing(glassOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        // Glow fades
         Animated.timing(glowOpacity, {
           toValue: 0,
           duration: 600,
@@ -139,33 +139,23 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         }),
       ]),
     ]).start(() => {
-      setCurrentPhase("complete");
-      setRenderLocation("none");
-      setStarPhase("emblem");
       if (onComplete) onComplete();
     });
   };
 
-  const renderAnimatedStars = () => {
-    // Only render when we're the active renderer
-    if (currentPhase === "idle" || renderLocation !== "transition") return null;
+  const renderEmissionStars = () => {
+    if (animationFrame === 0) return null;
 
-    return logoStars.map((star) => {
-      // Calculate animation progress (0 to 180 frames = 3 seconds)
-      const progress = animationTime / 180;
+    return emissionStars.map((star) => {
+      const progress = animationFrame / 120; // 0 to 1 over 2 seconds
 
-      // Phase 1: Break apart (0-0.3)
-      if (progress <= 0.3) {
-        const breakProgress = progress / 0.3;
-        const angle = Math.atan2(
-          star.originY - SCREEN_HEIGHT * 0.35,
-          star.originX - SCREEN_WIDTH / 2,
-        );
-        const distance =
-          30 + (star.type === "anchor" ? 50 : 30) * breakProgress;
-        const x = star.originX + Math.cos(angle) * distance * breakProgress;
-        const y = star.originY + Math.sin(angle) * distance * breakProgress;
-        const opacity = star.brightness * (1 - breakProgress * 0.3);
+      // Phase 1: Stars emerge and fly outward (0-40%)
+      if (progress <= 0.4) {
+        const emergeProgress = progress / 0.4;
+        const distance = emergeProgress * 150; // Fly 150px outward
+        const x = star.startX + Math.cos(star.angle) * distance;
+        const y = star.startY + Math.sin(star.angle) * distance;
+        const opacity = emergeProgress * star.brightness;
 
         return (
           <Circle
@@ -178,53 +168,37 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         );
       }
 
-      // Phase 2: Swirl (0.3-0.6)
-      if (progress <= 0.6) {
-        const swirlProgress = (progress - 0.3) / 0.3;
-        const angle = swirlProgress * Math.PI * 1.5 + star.delay * 0.01;
-        const radius = 60 + Math.sin(swirlProgress * Math.PI) * 40;
-        const x = SCREEN_WIDTH / 2 + Math.cos(angle) * radius;
-        const y = SCREEN_HEIGHT * 0.35 + Math.sin(angle) * radius;
-        const opacity = star.brightness * 0.7;
+      // Phase 2: Stars arc and converge (40-100%)
+      const convergeProgress = (progress - 0.4) / 0.6;
 
-        return (
-          <Circle
-            key={star.id}
-            cx={x}
-            cy={y}
-            r={star.size * (1 + swirlProgress * 0.2)}
-            color={`rgba(249, 247, 243, ${opacity})`}
-          />
-        );
-      }
+      // Calculate arc path
+      const maxDistance = 150;
+      const currentDistance = maxDistance * (1 - convergeProgress * 0.8);
+      const arcAngle = star.angle + convergeProgress * Math.PI * 0.5;
 
-      // Phase 3: Form emblem (0.6-1.0)
-      const formProgress = (progress - 0.6) / 0.4;
-      const currentX =
-        star.originX + (star.emblemX - star.originX) * formProgress;
-      const currentY =
-        star.originY + (star.emblemY - star.originY) * formProgress;
-      const opacity = star.brightness * (1 - formProgress * 0.8);
+      const x = centerX + Math.cos(arcAngle) * currentDistance;
+      const y = centerY + Math.sin(arcAngle) * currentDistance;
+      const opacity = star.brightness * (1 - convergeProgress * 0.7);
 
       return (
         <Circle
           key={star.id}
-          cx={currentX}
-          cy={currentY}
-          r={star.size * (1 - formProgress * 0.5)}
+          cx={x}
+          cy={y}
+          r={star.size * (1 - convergeProgress * 0.3)}
           color={`rgba(249, 247, 243, ${opacity})`}
         />
       );
     });
   };
 
-  if (!isActive && currentPhase === "idle") return null;
+  if (!isActive) return null;
 
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {/* Animated stars */}
+      {/* Emission stars */}
       <Canvas style={StyleSheet.absoluteFillObject}>
-        <Group>{renderAnimatedStars()}</Group>
+        <Group>{renderEmissionStars()}</Group>
       </Canvas>
 
       {/* White flash overlay */}
@@ -250,13 +224,13 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         <View style={styles.glowCircle} />
       </Animated.View>
 
-      {/* Star logo (fades out) */}
+      {/* Original logo (fades out) */}
       <Animated.View
         style={[
           styles.logoContainer,
           {
-            opacity: starLogoOpacity,
-            transform: [{ scale: starLogoScale }],
+            opacity: logoOpacity,
+            transform: [{ scale: logoScale }],
           },
         ]}
       >
@@ -316,11 +290,11 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     shadowColor: "#fff",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
-    shadowRadius: 50,
+    shadowRadius: 40,
   },
   logoContainer: {
     position: "absolute",
@@ -330,7 +304,6 @@ const styles = StyleSheet.create({
     height: 200,
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 100,
   },
   logo: {
     width: 180,
@@ -344,7 +317,6 @@ const styles = StyleSheet.create({
     height: 450,
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 50,
   },
   glassCard: {
     width: 360,
@@ -354,9 +326,9 @@ const styles = StyleSheet.create({
   },
   glassOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
 });
