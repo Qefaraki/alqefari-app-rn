@@ -18,11 +18,9 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
   const [animationFrame, setAnimationFrame] = useState(0);
   const animationRef = useRef(null);
 
-  // No duplicate logo - OnboardingScreen handles that
-
   // Emblem animations
   const emblemOpacity = useRef(new Animated.Value(0)).current;
-  const emblemScale = useRef(new Animated.Value(0.8)).current;
+  const emblemScale = useRef(new Animated.Value(0.5)).current;
 
   // Effects
   const glowOpacity = useRef(new Animated.Value(0)).current;
@@ -50,8 +48,8 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
     const animate = () => {
       frame++;
       setAnimationFrame(frame);
-      if (frame < 120) {
-        // 2 seconds at 60fps
+      if (frame < 150) {
+        // 2.5 seconds at 60fps
         animationRef.current = requestAnimationFrame(animate);
       }
     };
@@ -59,7 +57,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
 
     // Main animation sequence
     Animated.sequence([
-      // Phase 1: Just glow effect (0-300ms)
+      // Phase 1: Glow builds up (0-300ms)
       Animated.timing(glowOpacity, {
         toValue: 0.8,
         duration: 300,
@@ -70,53 +68,57 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
       Animated.parallel([
         Animated.sequence([
           Animated.timing(whiteFlashOpacity, {
-            toValue: 0.6,
-            duration: 150,
+            toValue: 0.5,
+            duration: 100,
             useNativeDriver: true,
           }),
           Animated.timing(whiteFlashOpacity, {
             toValue: 0,
-            duration: 250,
+            duration: 200,
             useNativeDriver: true,
           }),
         ]),
-        // Start fading glow
         Animated.timing(glowOpacity, {
-          toValue: 0.3,
+          toValue: 0.2,
           duration: 300,
           useNativeDriver: true,
         }),
       ]),
 
-      // Phase 3: Emblem appears (800-1200ms)
+      // Phase 3: Emblem and glass appear (600-1200ms)
       Animated.parallel([
+        // Emblem scales in
         Animated.spring(emblemScale, {
           toValue: 1,
-          friction: 7,
+          friction: 6,
           tension: 40,
+          delay: 200,
           useNativeDriver: true,
         }),
         Animated.timing(emblemOpacity, {
           toValue: 1,
-          duration: 400,
+          duration: 500,
+          delay: 200,
           useNativeDriver: true,
         }),
-        // Glass card crystallizes
+        // Glass card materializes
         Animated.spring(glassScale, {
           toValue: 1,
-          friction: 8,
+          friction: 7,
           tension: 35,
+          delay: 400,
           useNativeDriver: true,
         }),
         Animated.timing(glassOpacity, {
           toValue: 1,
-          duration: 500,
+          duration: 600,
+          delay: 400,
           useNativeDriver: true,
         }),
-        // Glow fades
+        // Glow fades completely
         Animated.timing(glowOpacity, {
           toValue: 0,
-          duration: 600,
+          duration: 800,
           useNativeDriver: true,
         }),
       ]),
@@ -129,15 +131,25 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
     if (animationFrame === 0) return null;
 
     return emissionStars.map((star) => {
-      const progress = animationFrame / 120; // 0 to 1 over 2 seconds
+      const progress = animationFrame / 150; // 0 to 1 over 2.5 seconds
 
-      // Phase 1: Stars emerge and fly outward (0-40%)
-      if (progress <= 0.4) {
-        const emergeProgress = progress / 0.4;
-        const distance = emergeProgress * 150; // Fly 150px outward
+      // Check if star should be visible yet (staggered emergence)
+      const starDelay = star.delay / 16; // Convert to frames
+      if (animationFrame < starDelay) return null;
+
+      const starProgress = (animationFrame - starDelay) / 150;
+
+      // Phase 1: Explosive burst outward (0-45%)
+      if (starProgress <= 0.45) {
+        const burstProgress = starProgress / 0.45;
+        // Exponential acceleration for explosive feel
+        const distance = Math.pow(burstProgress, 1.8) * 250 * star.speed;
+
         const x = star.startX + Math.cos(star.angle) * distance;
         const y = star.startY + Math.sin(star.angle) * distance;
-        const opacity = emergeProgress * star.brightness;
+
+        // Quick fade in, maintain brightness during burst
+        const opacity = Math.min(1, burstProgress * 3) * star.brightness;
 
         return (
           <Circle
@@ -150,24 +162,27 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         );
       }
 
-      // Phase 2: Stars arc and converge (40-100%)
-      const convergeProgress = (progress - 0.4) / 0.6;
+      // Phase 2: Arc and converge (45-100%)
+      const convergeProgress = (starProgress - 0.45) / 0.55;
 
-      // Calculate arc path
-      const maxDistance = 150;
-      const currentDistance = maxDistance * (1 - convergeProgress * 0.8);
-      const arcAngle = star.angle + convergeProgress * Math.PI * 0.5;
+      // Spiral inward
+      const maxDistance = 250 * star.speed;
+      const spiralAngle = star.angle + convergeProgress * Math.PI * 0.7;
+      const currentDistance = maxDistance * Math.pow(1 - convergeProgress, 1.5);
 
-      const x = centerX + Math.cos(arcAngle) * currentDistance;
-      const y = centerY + Math.sin(arcAngle) * currentDistance;
-      const opacity = star.brightness * (1 - convergeProgress * 0.7);
+      const x = centerX + Math.cos(spiralAngle) * currentDistance;
+      const y = centerY + Math.sin(spiralAngle) * currentDistance;
+
+      // Fade and shrink as converging
+      const opacity = star.brightness * Math.pow(1 - convergeProgress, 2);
+      const size = star.size * (1 - convergeProgress * 0.6);
 
       return (
         <Circle
           key={star.id}
           cx={x}
           cy={y}
-          r={star.size * (1 - convergeProgress * 0.3)}
+          r={size}
           color={`rgba(249, 247, 243, ${opacity})`}
         />
       );
@@ -194,7 +209,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         ]}
       />
 
-      {/* Glow effect */}
+      {/* Glow effect behind emblem */}
       <Animated.View
         style={[
           styles.glowContainer,
@@ -205,8 +220,6 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
       >
         <View style={styles.glowCircle} />
       </Animated.View>
-
-      {/* No duplicate logo - OnboardingScreen handles the logo */}
 
       {/* Family emblem (fades in) */}
       <Animated.View
