@@ -368,17 +368,58 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const handleContinue = useCallback(() => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("PhoneAuth");
-  }, [navigation, primaryButtonScale]);
+
+    // Fade out all components before navigation
+    Animated.parallel([
+      Animated.timing(logoFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Navigate after fade completes
+      navigation.navigate("PhoneAuth");
+    });
+  }, [navigation, primaryButtonScale, logoFade, contentFade, buttonFade]);
 
   const handleExploreAsGuest = useCallback(() => {
     animateButtonPress(secondaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Set guest mode to true
-    if (setIsGuest) {
-      setIsGuest(true);
-    }
-  }, [setIsGuest, secondaryButtonScale]);
+
+    // Fade out all components before setting guest mode
+    Animated.parallel([
+      Animated.timing(logoFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Set guest mode after fade completes
+      if (setIsGuest) {
+        setIsGuest(true);
+      }
+    });
+  }, [setIsGuest, secondaryButtonScale, logoFade, contentFade, buttonFade]);
 
   return (
     <View style={styles.container}>

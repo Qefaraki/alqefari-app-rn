@@ -23,7 +23,8 @@ export async function fetchTreeStructure(focusPersonId) {
       return null;
     }
 
-    // Get immediate family
+    // Get immediate family (using Set to avoid duplicates)
+    const nodeIds = new Set([focusData.id]);
     let structureData = [focusData];
 
     // Fetch children and siblings
@@ -34,10 +35,16 @@ export async function fetchTreeStructure(focusPersonId) {
           "id, father_id, mother_id, sibling_order, generation, photo_url",
         )
         .eq("father_id", focusData.father_id)
+        .neq("id", focusPersonId) // Exclude focus person to avoid duplicate
         .limit(20);
 
       if (siblings) {
-        structureData = [...structureData, ...siblings];
+        siblings.forEach((sibling) => {
+          if (!nodeIds.has(sibling.id)) {
+            nodeIds.add(sibling.id);
+            structureData.push(sibling);
+          }
+        });
       }
     }
 

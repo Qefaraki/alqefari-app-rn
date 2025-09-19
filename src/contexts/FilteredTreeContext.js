@@ -226,12 +226,9 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
   };
 
   if (!isReady || !storeRef.current) {
-    // Return children wrapped in a loading state context
-    return (
-      <FilteredTreeContext.Provider value={null}>
-        {children}
-      </FilteredTreeContext.Provider>
-    );
+    // Don't render children until store is ready
+    // This prevents hook order issues
+    return null;
   }
 
   return (
@@ -247,13 +244,12 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
  */
 export function useFilteredTreeStore(selector) {
   const filteredStore = useContext(FilteredTreeContext);
-  const globalStore = useTreeStore(selector);
 
-  if (filteredStore) {
-    // We're in a filtered context, use the filtered store
-    return filteredStore(selector);
-  }
+  // ALWAYS call hooks in the same order - React rule!
+  // Use filtered store if available, otherwise it will return from global
+  const result = filteredStore
+    ? filteredStore(selector)
+    : useTreeStore(selector);
 
-  // No filtered context, use global store
-  return globalStore;
+  return result;
 }
