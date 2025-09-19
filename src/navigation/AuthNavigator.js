@@ -6,7 +6,6 @@ import NajdiPhoneAuthScreen from "../screens/auth/NajdiPhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
 import EnhancedSaduBackdrop from "../components/ui/EnhancedSaduBackdrop";
-import StarToEmblemTransition from "../components/ui/StarToEmblemTransition";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -34,30 +33,6 @@ const fadeTransition = ({ current }) => {
 export default function AuthNavigator({ setIsGuest, setUser }) {
   const backdropRef = useRef(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [showTransition, setShowTransition] = useState(false);
-  const [hideOnboardingLogo, setHideOnboardingLogo] = useState(false);
-  const [showPhoneAuthCard, setShowPhoneAuthCard] = useState(false);
-  const navigationRef = useRef(null);
-
-  const handleTransitionToPhoneAuth = (navigation) => {
-    // Hide onboarding logo
-    setHideOnboardingLogo(true);
-
-    // Start the transformation
-    setShowTransition(true);
-
-    // Navigate after animation starts
-    setTimeout(() => {
-      navigation.navigate("PhoneAuth");
-      setCurrentStep(2);
-    }, 800); // Navigate when morph is happening
-  };
-
-  const handleTransitionComplete = () => {
-    // Show phone auth card content after transition
-    setShowPhoneAuthCard(true);
-    setShowTransition(false);
-  };
 
   return (
     <View style={styles.container}>
@@ -66,12 +41,6 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
         ref={backdropRef}
         onboardingStep={currentStep}
         style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Star to Emblem transformation layer */}
-      <StarToEmblemTransition
-        isActive={showTransition}
-        onComplete={handleTransitionComplete}
       />
 
       {/* Navigation with transparent cards */}
@@ -90,8 +59,6 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
               {...props}
               setIsGuest={setIsGuest}
               setUser={setUser}
-              hideLogo={hideOnboardingLogo}
-              onNavigate={() => handleTransitionToPhoneAuth(props.navigation)}
             />
           )}
         </Stack.Screen>
@@ -99,9 +66,9 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
           {(props) => (
             <NajdiPhoneAuthScreen
               {...props}
-              showCard={showPhoneAuthCard}
               onOTPSent={() => {
                 backdropRef.current?.triggerShootingStar(1);
+                setCurrentStep(2);
               }}
             />
           )}

@@ -89,12 +89,7 @@ const createMaskedStarfield = () => {
 
 // Background stars generation removed - now using SaduNightBackdrop component
 
-export default function OnboardingScreen({
-  navigation,
-  setIsGuest,
-  onNavigate,
-  hideLogo = false,
-}) {
+export default function OnboardingScreen({ navigation, setIsGuest }) {
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
@@ -371,13 +366,8 @@ export default function OnboardingScreen({
   const handleContinue = useCallback(() => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (onNavigate) {
-      onNavigate("PhoneAuth");
-      // Don't navigate here - let parent handle it
-    } else {
-      navigation.navigate("PhoneAuth");
-    }
-  }, [navigation, primaryButtonScale, onNavigate]);
+    navigation.navigate("PhoneAuth");
+  }, [navigation, primaryButtonScale]);
 
   const handleExploreAsGuest = useCallback(() => {
     animateButtonPress(secondaryButtonScale);
@@ -395,7 +385,7 @@ export default function OnboardingScreen({
       {/* Star backdrop removed - handled at navigator level */}
 
       {/* Logo stars with masking - hide during transition */}
-      {!hideLogo && MaskedView ? (
+      {MaskedView ? (
         <Animated.View
           style={[
             styles.maskedContainer,
@@ -434,7 +424,7 @@ export default function OnboardingScreen({
             </Canvas>
           </MaskedView>
         </Animated.View>
-      ) : !hideLogo ? (
+      ) : (
         // Fallback if MaskedView not available
         <>
           <View style={styles.logoContainer} pointerEvents="none">
