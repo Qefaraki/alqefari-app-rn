@@ -37,7 +37,11 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
       stage: { x: 0, y: 0, scale: 1 }, // Initialize with proper transform object
       setStage: (stage) => set({ stage }),
       selectedPersonId: focusPersonId, // Start with focus person selected
-      setSelectedPersonId: (id) => set({ selectedPersonId: id }),
+      setSelectedPersonId: (id) => {
+        // In filtered view, don't allow changing selection
+        console.log("Selection change blocked in filtered view");
+        // Keep it always as focusPersonId
+      },
       searchQuery: "",
       setSearchQuery: (query) => set({ searchQuery: query }),
       minZoom: 0.1,
