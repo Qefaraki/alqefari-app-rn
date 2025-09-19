@@ -40,17 +40,17 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
   const navigationRef = useRef(null);
 
   const handleTransitionToPhoneAuth = (navigation) => {
-    // Hide onboarding logo
+    // Hide onboarding logo immediately
     setHideOnboardingLogo(true);
 
     // Start the transformation
     setShowTransition(true);
 
-    // Navigate after animation starts
+    // Navigate to phone auth screen quickly
     setTimeout(() => {
       navigation.navigate("PhoneAuth");
       setCurrentStep(2);
-    }, 800); // Navigate when morph is happening
+    }, 300); // Navigate sooner for smoother transition
   };
 
   const handleTransitionComplete = () => {
