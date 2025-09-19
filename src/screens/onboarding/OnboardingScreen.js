@@ -21,7 +21,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { useStarData } from "../../contexts/StarDataContext";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -99,7 +98,6 @@ export default function OnboardingScreen({
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
-  const { logoStars } = useStarData();
   const [reduceMotion, setReduceMotion] = useState(false);
 
   // Parallax state
@@ -123,7 +121,7 @@ export default function OnboardingScreen({
 
   // Memoize all stars
   // backgroundStars removed - now using SaduNightBackdrop component
-  // Now using shared logoStars from context
+  const logoStars = useMemo(() => createMaskedStarfield(), []);
 
   // Check for reduce motion preference
   useEffect(() => {
@@ -302,30 +300,45 @@ export default function OnboardingScreen({
   ]);
 
   const renderStars = useCallback((stars, time) => {
-    // Always render stars in OnboardingScreen
-
     return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100);
+      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100); // 2x faster fade
       if (fadeInProgress <= 0) return null;
 
-      // Use star's brightness property
-      const twinkleSpeed = 0.8 + (index % 4) * 0.3;
-      const twinkleFactor = Math.sin(time * twinkleSpeed + index);
-      const logoOpacity =
-        fadeInProgress * star.brightness * (0.5 + (twinkleFactor + 1) * 0.25);
+      const twinkle = Math.sin(time * 4 + index * 0.5) * 0.3; // 2x faster twinkle, slightly more pronounced
+      const opacity = star.brightness * fadeInProgress * (1 + twinkle);
 
-      // Occasional bright flashes
-      const flashChance = Math.sin(time * 2 + index * 3);
-      const shouldFlash = flashChance > 0.995;
-      const finalOpacity = shouldFlash ? 1 : logoOpacity;
+      if (star.group === "logo") {
+        // Slower, more gentle twinkle effect
+        const twinkleSpeed = 0.8 + (index % 4) * 0.3; // Much slower speeds
+        const twinkleFactor = Math.sin(time * twinkleSpeed + index);
+
+        // Map sine wave (-1 to 1) to opacity (0.3 to 1.0)
+        // Less dramatic range for more subtle twinkling
+        const logoOpacity = fadeInProgress * (0.3 + (twinkleFactor + 1) * 0.35);
+
+        // Occasional bright flashes (less frequent)
+        const flashChance = Math.sin(time * 2 + index * 3);
+        const shouldFlash = flashChance > 0.995;
+        const finalOpacity = shouldFlash ? 1 : logoOpacity;
+
+        return (
+          <Circle
+            key={index}
+            cx={star.x}
+            cy={star.y}
+            r={star.size}
+            color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
+          />
+        );
+      }
 
       return (
         <Circle
-          key={star.id}
+          key={index}
           cx={star.x}
           cy={star.y}
           r={star.size}
-          color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
+          color={`rgba(255, 255, 255, ${opacity})`}
         />
       );
     });
@@ -358,9 +371,6 @@ export default function OnboardingScreen({
   const handleContinue = useCallback(() => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // Just navigate - no complex handoff needed
-
     if (onNavigate) {
       onNavigate("PhoneAuth");
       // Don't navigate here - let parent handle it

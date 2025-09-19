@@ -7,7 +7,6 @@ import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
 import EnhancedSaduBackdrop from "../components/ui/EnhancedSaduBackdrop";
 import StarToEmblemTransition from "../components/ui/StarToEmblemTransition";
-import { StarDataProvider } from "../contexts/StarDataContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -41,19 +40,17 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
   const navigationRef = useRef(null);
 
   const handleTransitionToPhoneAuth = (navigation) => {
+    // Hide onboarding logo
+    setHideOnboardingLogo(true);
+
     // Start the transformation
     setShowTransition(true);
 
-    // Hide onboarding logo after a brief delay
-    setTimeout(() => {
-      setHideOnboardingLogo(true);
-    }, 400);
-
-    // Navigate to phone auth
+    // Navigate after animation starts
     setTimeout(() => {
       navigation.navigate("PhoneAuth");
       setCurrentStep(2);
-    }, 600);
+    }, 800); // Navigate when morph is happening
   };
 
   const handleTransitionComplete = () => {
@@ -63,75 +60,73 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
   };
 
   return (
-    <StarDataProvider>
-      <View style={styles.container}>
-        {/* Persistent star backdrop - never unmounts */}
-        <EnhancedSaduBackdrop
-          ref={backdropRef}
-          onboardingStep={currentStep}
-          style={StyleSheet.absoluteFillObject}
-        />
+    <View style={styles.container}>
+      {/* Persistent star backdrop - never unmounts */}
+      <EnhancedSaduBackdrop
+        ref={backdropRef}
+        onboardingStep={currentStep}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-        {/* Star to Emblem transformation layer */}
-        <StarToEmblemTransition
-          isActive={showTransition}
-          onComplete={handleTransitionComplete}
-        />
+      {/* Star to Emblem transformation layer */}
+      <StarToEmblemTransition
+        isActive={showTransition}
+        onComplete={handleTransitionComplete}
+      />
 
-        {/* Navigation with transparent cards */}
-        <Stack.Navigator
-          screenOptions={{
-            headerShown: false,
+      {/* Navigation with transparent cards */}
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          gestureEnabled: true,
+          cardStyle: { backgroundColor: "transparent" },
+          cardStyleInterpolator: fadeTransition,
+          cardOverlayEnabled: false,
+        }}
+      >
+        <Stack.Screen name="Onboarding" options={{ gestureEnabled: false }}>
+          {(props) => (
+            <OnboardingScreen
+              {...props}
+              setIsGuest={setIsGuest}
+              setUser={setUser}
+              hideLogo={hideOnboardingLogo}
+              onNavigate={() => handleTransitionToPhoneAuth(props.navigation)}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="PhoneAuth">
+          {(props) => (
+            <NajdiPhoneAuthScreen
+              {...props}
+              showCard={showPhoneAuthCard}
+              onOTPSent={() => {
+                backdropRef.current?.triggerShootingStar(1);
+              }}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="NameChainEntry">
+          {(props) => (
+            <NameChainEntryScreen
+              {...props}
+              onSearchSuccess={() => {
+                setCurrentStep(4);
+                backdropRef.current?.triggerShootingStar(3);
+              }}
+            />
+          )}
+        </Stack.Screen>
+        <Stack.Screen
+          name="ProfileMatching"
+          component={ProfileMatchingScreen}
+          options={{
             gestureEnabled: true,
-            cardStyle: { backgroundColor: "transparent" },
-            cardStyleInterpolator: fadeTransition,
-            cardOverlayEnabled: false,
+            gestureDirection: "horizontal",
           }}
-        >
-          <Stack.Screen name="Onboarding" options={{ gestureEnabled: false }}>
-            {(props) => (
-              <OnboardingScreen
-                {...props}
-                setIsGuest={setIsGuest}
-                setUser={setUser}
-                hideLogo={hideOnboardingLogo}
-                onNavigate={() => handleTransitionToPhoneAuth(props.navigation)}
-              />
-            )}
-          </Stack.Screen>
-          <Stack.Screen name="PhoneAuth">
-            {(props) => (
-              <NajdiPhoneAuthScreen
-                {...props}
-                showCard={showPhoneAuthCard}
-                onOTPSent={() => {
-                  backdropRef.current?.triggerShootingStar(1);
-                }}
-              />
-            )}
-          </Stack.Screen>
-          <Stack.Screen name="NameChainEntry">
-            {(props) => (
-              <NameChainEntryScreen
-                {...props}
-                onSearchSuccess={() => {
-                  setCurrentStep(4);
-                  backdropRef.current?.triggerShootingStar(3);
-                }}
-              />
-            )}
-          </Stack.Screen>
-          <Stack.Screen
-            name="ProfileMatching"
-            component={ProfileMatchingScreen}
-            options={{
-              gestureEnabled: true,
-              gestureDirection: "horizontal",
-            }}
-          />
-        </Stack.Navigator>
-      </View>
-    </StarDataProvider>
+        />
+      </Stack.Navigator>
+    </View>
   );
 }
 
