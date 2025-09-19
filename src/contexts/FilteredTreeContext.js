@@ -145,34 +145,48 @@ export function FilteredTreeProvider({ children, focusPersonId }) {
       // Ensure we have valid data with positions
       let layoutData = filteredData;
 
-      // Check if filtered data has x/y positions already
-      const hasPositions = filteredData.some(
-        (node) => node.x !== undefined && node.y !== undefined,
+      // Check if ALL nodes have valid positions from the main tree
+      const allHavePositions = filteredData.every(
+        (node) =>
+          node.x !== undefined &&
+          node.y !== undefined &&
+          !isNaN(node.x) &&
+          !isNaN(node.y),
       );
 
-      if (!hasPositions) {
-        // Try to calculate layout
+      if (allHavePositions) {
+        // Use existing positions from main tree - no need to recalculate
+        console.log("Using existing positions from main tree");
+        layoutData = filteredData;
+      } else {
+        // Need to calculate layout for filtered tree
+        console.log("Calculating new layout for filtered tree");
         try {
-          layoutData = calculateTreeLayout(filteredData);
+          const result = calculateTreeLayout(filteredData);
 
-          // If calculateTreeLayout returns empty or invalid, use filtered data with dummy positions
-          if (!layoutData || layoutData.length === 0) {
-            console.log(
-              "Layout calculation failed, using filtered data with estimated positions",
+          // Check if layout calculation returned valid data
+          if (result && result.nodes && result.nodes.length > 0) {
+            layoutData = result.nodes;
+          } else if (result && Array.isArray(result) && result.length > 0) {
+            layoutData = result;
+          } else {
+            console.warn(
+              "Layout calculation returned no nodes, using fallback positions",
             );
+            // Fallback: simple grid layout
             layoutData = filteredData.map((node, index) => ({
               ...node,
-              x: (index % 10) * 100,
-              y: Math.floor(index / 10) * 100,
+              x: (index % 5) * 150,
+              y: Math.floor(index / 5) * 150,
             }));
           }
         } catch (error) {
           console.error("Error calculating layout:", error);
-          // Fallback: assign basic positions
+          // Fallback: simple grid layout
           layoutData = filteredData.map((node, index) => ({
             ...node,
-            x: (index % 10) * 100,
-            y: Math.floor(index / 10) * 100,
+            x: (index % 5) * 150,
+            y: Math.floor(index / 5) * 150,
           }));
         }
       }

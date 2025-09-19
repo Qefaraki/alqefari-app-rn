@@ -1805,10 +1805,29 @@ const TreeView = ({
     [contextMenuNode, setSelectedPersonId],
   );
 
-  // Compose gestures - allow simultaneous but with guards in each gesture
-  // In filtered view, only allow panning (no zoom, no tap)
+  // Create limited pinch gesture for filtered view (0.5x to 2x zoom only)
+  const limitedPinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      "worklet";
+      isPinching.value = true;
+      cancelAnimation(scale);
+      savedScale.value = scale.value;
+    })
+    .onUpdate((e) => {
+      "worklet";
+      // Limited zoom range for filtered view
+      const newScale = clamp(savedScale.value * e.scale, 0.5, 2.0);
+      scale.value = newScale;
+    })
+    .onEnd(() => {
+      "worklet";
+      isPinching.value = false;
+      savedScale.value = scale.value;
+    });
+
+  // Compose gestures - allow limited zoom in filtered view
   const composed = isFilteredView
-    ? panGesture
+    ? Gesture.Simultaneous(panGesture, limitedPinchGesture)
     : Gesture.Simultaneous(
         panGesture,
         pinchGesture,
