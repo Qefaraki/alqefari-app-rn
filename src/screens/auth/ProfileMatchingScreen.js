@@ -16,6 +16,7 @@ import { phoneAuthService } from "../../services/phoneAuth";
 import BranchTreeModal from "../../components/BranchTreeModal";
 
 import * as Haptics from "expo-haptics";
+import { getProfileDisplayName } from "../../utils/nameChainBuilder";
 
 // Color constants - matching NameChainEntryScreen exactly
 const colors = {
@@ -102,7 +103,7 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
         {/* Text content */}
         <View style={styles.textContainer}>
           <Text style={styles.nameText} numberOfLines={2}>
-            {profile.full_chain || profile.name}
+            {getProfileDisplayName(profile)}
           </Text>
           <View style={styles.metaContainer}>
             <Text style={[styles.generationText, { color: avatarColor }]}>
