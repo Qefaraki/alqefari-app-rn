@@ -297,48 +297,71 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   ]);
 
   const renderStars = useCallback((stars, time) => {
-    return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100); // 2x faster fade
-      if (fadeInProgress <= 0) return null;
+    // Define glow layers - each star will be rendered multiple times with different sizes
+    const glowLayers = [
+      { scale: 4, opacity: 0.08 }, // Very faint outer glow
+      { scale: 2.5, opacity: 0.15 }, // Faint middle glow
+      { scale: 1.6, opacity: 0.3 }, // Inner glow
+      { scale: 1, opacity: 1 }, // Original star (brightest)
+    ];
 
-      const twinkle = Math.sin(time * 4 + index * 0.5) * 0.3; // 2x faster twinkle, slightly more pronounced
-      const opacity = star.brightness * fadeInProgress * (1 + twinkle);
+    // Render each layer of stars
+    return glowLayers
+      .flatMap((layer, layerIndex) =>
+        stars.map((star, index) => {
+          const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100); // 2x faster fade
+          if (fadeInProgress <= 0) return null;
 
-      if (star.group === "logo") {
-        // Slower, more gentle twinkle effect
-        const twinkleSpeed = 0.8 + (index % 4) * 0.3; // Much slower speeds
-        const twinkleFactor = Math.sin(time * twinkleSpeed + index);
+          const twinkle = Math.sin(time * 4 + index * 0.5) * 0.3; // 2x faster twinkle, slightly more pronounced
+          const baseOpacity = star.brightness * fadeInProgress * (1 + twinkle);
 
-        // Map sine wave (-1 to 1) to opacity (0.3 to 1.0)
-        // Less dramatic range for more subtle twinkling
-        const logoOpacity = fadeInProgress * (0.3 + (twinkleFactor + 1) * 0.35);
+          if (star.group === "logo") {
+            // Slower, more gentle twinkle effect for logo stars
+            const twinkleSpeed = 0.8 + (index % 4) * 0.3; // Much slower speeds
+            const twinkleFactor = Math.sin(time * twinkleSpeed + index);
 
-        // Occasional bright flashes (less frequent)
-        const flashChance = Math.sin(time * 2 + index * 3);
-        const shouldFlash = flashChance > 0.995;
-        const finalOpacity = shouldFlash ? 1 : logoOpacity;
+            // Map sine wave (-1 to 1) to opacity (0.3 to 1.0)
+            const logoOpacity =
+              fadeInProgress * (0.3 + (twinkleFactor + 1) * 0.35);
 
-        return (
-          <Circle
-            key={index}
-            cx={star.x}
-            cy={star.y}
-            r={star.size}
-            color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
-          />
-        );
-      }
+            // Occasional bright flashes (less frequent)
+            const flashChance = Math.sin(time * 2 + index * 3);
+            const shouldFlash = flashChance > 0.995;
+            const finalOpacity =
+              (shouldFlash ? 1 : logoOpacity) * layer.opacity;
 
-      return (
-        <Circle
-          key={index}
-          cx={star.x}
-          cy={star.y}
-          r={star.size}
-          color={`rgba(255, 255, 255, ${opacity})`}
-        />
-      );
-    });
+            // Use warmer white for outer glow layers, pure white for core
+            const glowColor =
+              layerIndex < 2
+                ? `rgba(255, 251, 240, ${Math.min(1, Math.max(0, finalOpacity))})` // Warm white glow
+                : `rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`; // Original white
+
+            return (
+              <Circle
+                key={`${layerIndex}-${index}`}
+                cx={star.x}
+                cy={star.y}
+                r={star.size * layer.scale}
+                color={glowColor}
+              />
+            );
+          }
+
+          // Regular stars (if any non-logo stars exist)
+          const opacity = baseOpacity * layer.opacity;
+
+          return (
+            <Circle
+              key={`${layerIndex}-${index}`}
+              cx={star.x}
+              cy={star.y}
+              r={star.size * layer.scale}
+              color={`rgba(255, 255, 255, ${opacity})`}
+            />
+          );
+        }),
+      )
+      .filter(Boolean); // Remove null entries
   }, []);
 
   // Button press animations with micro-bounce

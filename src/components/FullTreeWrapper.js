@@ -29,7 +29,7 @@ const FullTreeWrapper = ({ focusPersonId, onConfirm, onClose }) => {
     <SettingsProvider>
       <TreeView
         isFilteredView={true} // This disables certain interactions
-        focusPersonId={focusPersonId} // For permanent highlight
+        permanentHighlightId={focusPersonId} // For permanent highlight
         initialFocusId={focusPersonId} // For auto-centering
       />
     </SettingsProvider>

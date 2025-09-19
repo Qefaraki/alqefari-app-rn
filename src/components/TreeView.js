@@ -363,7 +363,7 @@ const TreeView = ({
   onAdminDashboard = () => {}, // Default noop function
   onSettingsOpen = () => {}, // Default noop function
   isFilteredView = false, // New prop to indicate filtered view
-  focusPersonId = null, // Person to keep permanently highlighted
+  permanentHighlightId = null, // Person to keep permanently highlighted (prop)
   initialFocusId = null, // Person to center on initially
 }) => {
   // Use filtered store if available, otherwise use global store
@@ -2039,7 +2039,7 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
-      const isPermanentHighlight = focusPersonId === node.id;
+      const isPermanentHighlight = permanentHighlightId === node.id;
 
       return (
         <Group key={node.id}>
