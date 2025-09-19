@@ -10,30 +10,23 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import TreeView from "./TreeView";
-import {
-  FilteredTreeProvider,
-  useFilteredTreeStore,
-} from "../contexts/FilteredTreeContext";
+import { FilteredTreeProvider } from "../contexts/FilteredTreeContext";
 import { SettingsProvider } from "../contexts/SettingsContext";
 import TreeSkeleton from "./TreeSkeleton";
 
 /**
- * Component that renders either skeleton or tree based on loading state
+ * Component that renders tree with loading state
  */
-const TreeOrSkeleton = ({ isFilteredView }) => {
-  const treeData = useFilteredTreeStore((s) => s?.treeData);
+const TreeWithLoading = ({ isFilteredView }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if data is loaded
-    if (treeData && treeData.length > 0) {
-      // Small delay to ensure smooth transition
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [treeData]);
+    // Simple timer-based loading for smooth transition
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 800); // Show skeleton for a brief moment
+    return () => clearTimeout(timer);
+  }, []);
 
   if (isLoading) {
     return <TreeSkeleton />;
@@ -110,7 +103,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
         <View style={styles.treeContainer}>
           <SettingsProvider>
             <FilteredTreeProvider focusPersonId={profile.id}>
-              <TreeOrSkeleton isFilteredView={true} />
+              <TreeWithLoading isFilteredView={true} />
             </FilteredTreeProvider>
           </SettingsProvider>
         </View>

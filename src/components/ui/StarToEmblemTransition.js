@@ -18,9 +18,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
   const [animationFrame, setAnimationFrame] = useState(0);
   const animationRef = useRef(null);
 
-  // Logo animations
-  const logoOpacity = useRef(new Animated.Value(1)).current;
-  const logoScale = useRef(new Animated.Value(1)).current;
+  // No duplicate logo - OnboardingScreen handles that
 
   // Emblem animations
   const emblemOpacity = useRef(new Animated.Value(0)).current;
@@ -61,40 +59,18 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
 
     // Main animation sequence
     Animated.sequence([
-      // Phase 1: Logo pulse and glow (0-400ms)
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(logoScale, {
-            toValue: 1.1,
-            duration: 200,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoScale, {
-            toValue: 1.0,
-            duration: 200,
-            easing: Easing.in(Easing.quad),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(glowOpacity, {
-          toValue: 0.6,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ]),
+      // Phase 1: Just glow effect (0-300ms)
+      Animated.timing(glowOpacity, {
+        toValue: 0.8,
+        duration: 300,
+        useNativeDriver: true,
+      }),
 
-      // Phase 2: Logo fades as stars emit (400-800ms)
+      // Phase 2: White flash as stars burst (300-600ms)
       Animated.parallel([
-        Animated.timing(logoOpacity, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        // White flash at transition point
         Animated.sequence([
           Animated.timing(whiteFlashOpacity, {
-            toValue: 0.4,
+            toValue: 0.6,
             duration: 150,
             useNativeDriver: true,
           }),
@@ -104,6 +80,12 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
             useNativeDriver: true,
           }),
         ]),
+        // Start fading glow
+        Animated.timing(glowOpacity, {
+          toValue: 0.3,
+          duration: 300,
+          useNativeDriver: true,
+        }),
       ]),
 
       // Phase 3: Emblem appears (800-1200ms)
@@ -224,22 +206,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
         <View style={styles.glowCircle} />
       </Animated.View>
 
-      {/* Original logo (fades out) */}
-      <Animated.View
-        style={[
-          styles.logoContainer,
-          {
-            opacity: logoOpacity,
-            transform: [{ scale: logoScale }],
-          },
-        ]}
-      >
-        <Image
-          source={require("../../../assets/logo/STAR_LOGO.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </Animated.View>
+      {/* No duplicate logo - OnboardingScreen handles the logo */}
 
       {/* Family emblem (fades in) */}
       <Animated.View

@@ -47,26 +47,32 @@ const generateLogoStarField = () => {
   return stars;
 };
 
-// Generate emission stars that will fly outward
+// Generate emission stars that burst from logo center
 const generateEmissionStars = () => {
   const stars = [];
   const centerX = SCREEN_WIDTH / 2;
   const centerY = SCREEN_HEIGHT * 0.35;
-  const numStars = 60;
+  const numStars = 80; // More stars for better effect
 
-  // Create ring of stars around logo area
+  // Create stars that will burst outward from center
   for (let i = 0; i < numStars; i++) {
     const angle = (i / numStars) * Math.PI * 2;
-    const radiusVariation = 80 + Math.random() * 40; // 80-120px from center
+
+    // Start positions clustered near center (inside logo area)
+    const startRadius = Math.random() * 30; // Within 30px of center
+    const startAngle = angle + (Math.random() - 0.5) * 0.3; // Slight angle variation
 
     stars.push({
       id: `emission-${i}`,
-      startX: centerX + Math.cos(angle) * radiusVariation,
-      startY: centerY + Math.sin(angle) * radiusVariation,
+      // Start near center
+      startX: centerX + Math.cos(startAngle) * startRadius,
+      startY: centerY + Math.sin(startAngle) * startRadius,
+      // Direction to fly
       angle: angle,
-      speed: 1 + Math.random() * 0.5,
-      size: 0.5 + Math.random() * 2,
-      brightness: 0.7 + Math.random() * 0.3,
+      speed: 0.8 + Math.random() * 0.6,
+      size: 0.5 + Math.random() * 1.5,
+      brightness: 0.6 + Math.random() * 0.4,
+      delay: Math.random() * 200, // Staggered emergence
     });
   }
 
