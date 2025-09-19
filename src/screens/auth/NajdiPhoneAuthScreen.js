@@ -52,11 +52,7 @@ const countryCodes = [
   { code: "+44", country: "بريطانيا", flag: "🇬🇧", key: "GB" },
 ];
 
-export default function NajdiPhoneAuthScreen({
-  navigation,
-  onOTPSent,
-  showCard = false,
-}) {
+export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
   const [step, setStep] = useState("phone"); // 'phone' or 'otp'
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]); // Saudi default
@@ -79,25 +75,23 @@ export default function NajdiPhoneAuthScreen({
   const buttonPulse = useRef(new Animated.Value(1)).current;
   const stepProgress = useRef(new Animated.Value(0)).current;
 
-  // Screen entry animation - content fades in after card is shown
+  // Screen entry animation
   useEffect(() => {
-    if (showCard) {
-      // Card is already shown by transition, just fade in content
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: 500,
-          delay: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [showCard]);
+    // Always show content immediately
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 500,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   // Step transition
   useEffect(() => {
