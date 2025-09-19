@@ -21,8 +21,8 @@ const FullTreeWrapper = ({ focusPersonId, onConfirm, onClose }) => {
       if (!treeData || treeData.length === 0) {
         setIsLoading(true);
         try {
-          // Load from root with good depth
-          const { data } = await profilesService.getBranchData(null, 8, 1000);
+          // Load from root with good depth (max limit is 500)
+          const { data } = await profilesService.getBranchData(null, 6, 500);
           if (data) {
             setTreeData(data);
           }

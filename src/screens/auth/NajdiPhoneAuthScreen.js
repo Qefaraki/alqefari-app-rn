@@ -392,21 +392,27 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                     />
                   </TouchableOpacity>
 
-                  {/* Progress dots */}
+                  {/* Progress dots - Same style as NameChainEntry */}
                   <View style={styles.progressContainer}>
+                    {/* Step 1 - Phone number entry */}
                     <View
                       style={[
                         styles.progressDot,
                         step === "phone" && styles.progressDotActive,
+                        step === "otp" && styles.progressDotCompleted,
                       ]}
                     />
-                    <View style={styles.progressLine} />
+                    {/* Step 2 - OTP verification */}
                     <View
                       style={[
                         styles.progressDot,
                         step === "otp" && styles.progressDotActive,
                       ]}
                     />
+                    {/* Future steps (inactive) */}
+                    <View style={styles.progressDot} />
+                    <View style={styles.progressDot} />
+                    <View style={styles.progressDot} />
                   </View>
 
                   {/* Step container */}
