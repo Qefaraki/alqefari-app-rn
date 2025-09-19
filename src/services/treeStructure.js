@@ -11,15 +11,34 @@ export async function fetchTreeStructure(focusPersonId) {
 
   try {
     // Quick query - just essential fields for structure
-    const { data: structureData, error } = await supabase
+    // Start with focus person
+    const { data: focusData, error: focusError } = await supabase
       .from("profiles")
       .select("id, father_id, mother_id, sibling_order, generation, photo_url")
-      .or(`id.eq.${focusPersonId},father_id.eq.${focusPersonId}`)
-      .limit(100);
+      .eq("id", focusPersonId)
+      .single();
 
-    if (error || !structureData) {
-      console.warn("Could not fetch tree structure:", error);
+    if (focusError || !focusData) {
+      console.warn("Could not fetch focus person:", focusError);
       return null;
+    }
+
+    // Get immediate family
+    let structureData = [focusData];
+
+    // Fetch children and siblings
+    if (focusData.father_id) {
+      const { data: siblings } = await supabase
+        .from("profiles")
+        .select(
+          "id, father_id, mother_id, sibling_order, generation, photo_url",
+        )
+        .eq("father_id", focusData.father_id)
+        .limit(20);
+
+      if (siblings) {
+        structureData = [...structureData, ...siblings];
+      }
     }
 
     // Also fetch ancestors

@@ -18,6 +18,7 @@ import {
   AccessibilityInfo,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -94,6 +95,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
   const [reduceMotion, setReduceMotion] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Parallax state
   const [tilt, setTilt] = useState({ x: 0, y: 0 });

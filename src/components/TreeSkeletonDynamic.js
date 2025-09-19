@@ -6,7 +6,7 @@ import {
   Dimensions,
   ScrollView,
 } from "react-native";
-import Svg, { Line, Rect, Circle } from "react-native-svg";
+import Svg, { Line, Rect, Circle, G } from "react-native-svg";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -106,10 +106,7 @@ const TreeSkeletonDynamic = ({ structure }) => {
               const nodeHeight = hasPhoto ? 90 : 35;
 
               return (
-                <Animated.G
-                  key={node.id || `node-${index}`}
-                  opacity={shimmerOpacity}
-                >
+                <G key={node.id || `node-${index}`} opacity={0.8}>
                   {/* Node background */}
                   <Rect
                     x={node.x + offsetX - nodeWidth / 2}
@@ -141,7 +138,7 @@ const TreeSkeletonDynamic = ({ structure }) => {
                     fill="#D1BBA320"
                     rx={6}
                   />
-                </Animated.G>
+                </G>
               );
             })}
           </Svg>
