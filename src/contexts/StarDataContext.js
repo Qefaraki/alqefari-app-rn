@@ -5,104 +5,59 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const StarDataContext = createContext();
 
-// Generate deterministic star field that forms the logo shape
+// Generate deterministic star field for masking (grid pattern like original OnboardingScreen)
 const generateLogoStarField = () => {
   const stars = [];
   const centerX = SCREEN_WIDTH / 2;
   const centerY = SCREEN_HEIGHT * 0.35;
-  const logoSize = 200; // Match logo dimensions
 
-  // Parameters for star logo shape (8-pointed star)
-  const outerRadius = logoSize * 0.45;
-  const innerRadius = logoSize * 0.25;
-  const points = 8;
+  // Create dense grid matching original createMaskedStarfield pattern
+  const logoWidth = 400;
+  const logoHeight = 400;
+  const density = 6; // Closer star spacing for better definition
 
-  // Generate outline stars that form the star shape
-  for (let i = 0; i < points * 2; i++) {
-    const angle = (i * Math.PI) / points;
-    const radius = i % 2 === 0 ? outerRadius : innerRadius;
+  // Generate grid of stars that will be masked by logo shape
+  for (let x = -logoWidth / 2; x <= logoWidth / 2; x += density) {
+    for (let y = -logoHeight / 2; y <= logoHeight / 2; y += density) {
+      // Keep 70% of stars for proper density
+      if (Math.random() > 0.7) continue;
 
-    // Add multiple stars along each ray
-    for (let j = 0.3; j <= 1; j += 0.15) {
-      const r = radius * j;
-      const x = centerX + Math.cos(angle) * r;
-      const y = centerY + Math.sin(angle) * r;
+      // Small jitter to avoid grid appearance
+      const jitterX = (Math.random() - 0.5) * density * 0.7;
+      const jitterY = (Math.random() - 0.5) * density * 0.7;
 
-      stars.push({
-        id: `ray-${i}-${j}`,
-        originX: x,
-        originY: y,
-        // For emblem formation
-        emblemX: centerX + Math.cos(angle + Math.PI / 8) * r * 0.8,
-        emblemY: centerY + Math.sin(angle + Math.PI / 8) * r * 0.8,
-        size: j === 1 ? 2 : 1 + Math.random() * 0.5,
-        type: "outline",
-        delay: i * 20,
-        brightness: 0.7 + Math.random() * 0.3,
-      });
-    }
-  }
+      // Varied star sizes for depth
+      let size;
+      const rand = Math.random();
+      if (rand < 0.1) {
+        size = 1.5; // Few bright stars
+      } else if (rand < 0.3) {
+        size = 1.0; // Some medium stars
+      } else {
+        size = 0.6; // Mostly tiny stars (points)
+      }
 
-  // Generate fill stars inside the shape
-  const rings = 5;
-  for (let ring = 1; ring <= rings; ring++) {
-    const ringRadius = innerRadius * 0.7 * (ring / rings);
-    const starsInRing = ring * 6;
+      const starX = centerX + x + jitterX;
+      const starY = centerY + y + jitterY;
 
-    for (let i = 0; i < starsInRing; i++) {
-      const angle = (i / starsInRing) * Math.PI * 2;
-      const jitter = (Math.random() - 0.5) * 10;
-      const x = centerX + Math.cos(angle) * ringRadius + jitter;
-      const y = centerY + Math.sin(angle) * ringRadius + jitter;
-
-      // Calculate emblem position (more circular)
-      const emblemAngle = angle + Math.PI / 4;
-      const emblemRadius = ringRadius * 0.9;
+      // Calculate emblem destination (circular/emblem pattern)
+      const angle = Math.atan2(y, x);
+      const distance = Math.sqrt(x * x + y * y);
+      const emblemRadius = Math.min(distance * 0.6, 90);
+      const emblemAngle = angle + Math.PI / 8; // Slight rotation for emblem
 
       stars.push({
-        id: `fill-${ring}-${i}`,
-        originX: x,
-        originY: y,
+        id: `star-${x}-${y}`,
+        originX: starX,
+        originY: starY,
         emblemX: centerX + Math.cos(emblemAngle) * emblemRadius,
         emblemY: centerY + Math.sin(emblemAngle) * emblemRadius,
-        size: 0.5 + Math.random() * 0.8,
-        type: "fill",
-        delay: ring * 50,
-        brightness: 0.5 + Math.random() * 0.5,
+        size: size,
+        brightness: 0.6 + Math.random() * 0.4,
+        delay: Math.random() * 100,
+        type: "logo",
       });
     }
-  }
-
-  // Add bright center stars
-  stars.push({
-    id: "center",
-    originX: centerX,
-    originY: centerY,
-    emblemX: centerX,
-    emblemY: centerY,
-    size: 3,
-    type: "center",
-    delay: 0,
-    brightness: 1,
-  });
-
-  // Add key anchor stars at points
-  for (let i = 0; i < points; i++) {
-    const angle = (i * Math.PI * 2) / points;
-    const x = centerX + Math.cos(angle) * outerRadius;
-    const y = centerY + Math.sin(angle) * outerRadius;
-
-    stars.push({
-      id: `anchor-${i}`,
-      originX: x,
-      originY: y,
-      emblemX: centerX + Math.cos(angle) * outerRadius * 0.7,
-      emblemY: centerY + Math.sin(angle) * outerRadius * 0.7,
-      size: 2.5,
-      type: "anchor",
-      delay: i * 30,
-      brightness: 1,
-    });
   }
 
   return stars;
@@ -110,20 +65,20 @@ const generateLogoStarField = () => {
 
 export const StarDataProvider = ({ children }) => {
   const [logoStars] = useState(() => generateLogoStarField());
-  const [starsVisible, setStarsVisible] = useState(true);
-  const [starPhase, setStarPhase] = useState("logo"); // 'logo', 'transition', 'emblem'
+  const [renderLocation, setRenderLocation] = useState("onboarding"); // 'onboarding' | 'transition' | 'none'
+  const [starPhase, setStarPhase] = useState("logo"); // 'logo', 'breaking', 'swirling', 'forming', 'emblem'
 
   const value = useMemo(
     () => ({
       logoStars,
-      starsVisible,
-      setStarsVisible,
+      renderLocation,
+      setRenderLocation,
       starPhase,
       setStarPhase,
       centerX: SCREEN_WIDTH / 2,
       centerY: SCREEN_HEIGHT * 0.35,
     }),
-    [logoStars, starsVisible, starPhase],
+    [logoStars, renderLocation, starPhase],
   );
 
   return (

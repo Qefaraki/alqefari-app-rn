@@ -141,6 +141,20 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
     if (nodesToInclude.has(node.id)) {
       const filteredNode = { ...node };
 
+      // Clean up parent references that point outside filtered set
+      if (
+        filteredNode.father_id &&
+        !nodesToInclude.has(filteredNode.father_id)
+      ) {
+        filteredNode.father_id = null;
+      }
+      if (
+        filteredNode.mother_id &&
+        !nodesToInclude.has(filteredNode.mother_id)
+      ) {
+        filteredNode.mother_id = null;
+      }
+
       // Add indicator for hidden children
       if (nodesWithHiddenChildren.has(node.id)) {
         filteredNode.hiddenChildrenCount = nodesWithHiddenChildren.get(node.id);
@@ -150,9 +164,10 @@ export function filterTreeForPerson(allNodes, focusPersonId) {
       // Mark the highest ancestor as root for layout calculations
       if (node.id === rootNodeId) {
         filteredNode.isFilteredRoot = true;
-        // Ensure this node has no father_id in the filtered context
-        // to prevent layout issues
+        // CRITICAL: Must null BOTH parent references for layout algorithm
+        // The calculateTreeLayout function checks both father_id and mother_id
         filteredNode.father_id = null;
+        filteredNode.mother_id = null;
       }
 
       // Mark the focus person for highlighting

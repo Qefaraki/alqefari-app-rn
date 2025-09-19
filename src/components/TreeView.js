@@ -1303,37 +1303,40 @@ const TreeView = ({
     if (isFilteredStore && focusPersonId && nodes.length > 0 && !isLoading) {
       // Find the focus person in the nodes
       const focusNode = nodes.find((n) => n.id === focusPersonId);
-      if (focusNode) {
-        console.log(
-          "Initializing view centered on focus person:",
-          focusPersonId,
-        );
-        console.log("Focus node position:", focusNode.x, focusNode.y);
+      if (focusNode && focusNode.x !== undefined && focusNode.y !== undefined) {
+        // Small delay to ensure layout is complete
+        const timer = setTimeout(() => {
+          console.log("Centering on focus person:", focusPersonId);
+          console.log("Node position:", focusNode.x, focusNode.y);
+          console.log("Viewport size:", dimensions.width, dimensions.height);
 
-        // Calculate center position
-        const viewportCenterX = dimensions.width / 2;
-        const viewportCenterY = dimensions.height / 2;
+          // Calculate center position
+          const viewportCenterX = dimensions.width / 2;
+          const viewportCenterY = dimensions.height / 2;
 
-        // Calculate translation to center the node
-        // Note: Translation moves the canvas, so we negate the position
-        const targetX = viewportCenterX - focusNode.x;
-        const targetY = viewportCenterY - focusNode.y;
+          // Calculate translation to center the node
+          // Translation moves the entire canvas, so we translate opposite to node position
+          const targetX = viewportCenterX - focusNode.x;
+          const targetY = viewportCenterY - focusNode.y;
 
-        console.log("Setting initial position to:", targetX, targetY);
+          console.log("Translation target:", targetX, targetY);
 
-        // Set directly without animation
-        translateX.value = targetX;
-        translateY.value = targetY;
-        savedTranslateX.value = targetX;
-        savedTranslateY.value = targetY;
+          // Set directly without animation
+          translateX.value = targetX;
+          translateY.value = targetY;
+          savedTranslateX.value = targetX;
+          savedTranslateY.value = targetY;
 
-        // Set appropriate zoom level for verification
-        const initialScale = 1.5;
-        scale.value = initialScale;
-        savedScale.value = initialScale;
+          // Set reasonable zoom level for verification (not too zoomed)
+          const initialScale = 1.0;
+          scale.value = initialScale;
+          savedScale.value = initialScale;
 
-        // Update stage for consistency
-        setStage({ x: targetX, y: targetY, scale: initialScale });
+          // Update stage for consistency
+          setStage({ x: targetX, y: targetY, scale: initialScale });
+        }, 100); // Small delay for layout
+
+        return () => clearTimeout(timer);
       }
     }
   }, [

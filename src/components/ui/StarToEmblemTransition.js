@@ -14,7 +14,8 @@ import { useStarData } from "../../contexts/StarDataContext";
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function StarToEmblemTransition({ isActive, onComplete }) {
-  const { logoStars, setStarsVisible, setStarPhase } = useStarData();
+  const { logoStars, renderLocation, setRenderLocation, setStarPhase } =
+    useStarData();
   const [animationTime, setAnimationTime] = useState(0);
   const [currentPhase, setCurrentPhase] = useState("idle");
   const animationRef = useRef(null);
@@ -48,8 +49,12 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
 
   const startTransformation = () => {
     setCurrentPhase("starting");
-    setStarsVisible(true); // Take control of stars
-    setStarPhase("transition");
+
+    // Take control of star rendering from onboarding
+    setTimeout(() => {
+      setRenderLocation("transition");
+      setStarPhase("breaking");
+    }, 50);
 
     // Start animation timer for star movement
     let frameCount = 0;
@@ -135,14 +140,15 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
       ]),
     ]).start(() => {
       setCurrentPhase("complete");
-      setStarsVisible(false);
+      setRenderLocation("none");
       setStarPhase("emblem");
       if (onComplete) onComplete();
     });
   };
 
   const renderAnimatedStars = () => {
-    if (currentPhase === "idle") return null;
+    // Only render when we're the active renderer
+    if (currentPhase === "idle" || renderLocation !== "transition") return null;
 
     return logoStars.map((star) => {
       // Calculate animation progress (0 to 180 frames = 3 seconds)

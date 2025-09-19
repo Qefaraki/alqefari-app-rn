@@ -99,7 +99,7 @@ export default function OnboardingScreen({
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
-  const { logoStars, starsVisible, setStarsVisible, setStarPhase } =
+  const { logoStars, renderLocation, setRenderLocation, setStarPhase } =
     useStarData();
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -304,7 +304,8 @@ export default function OnboardingScreen({
 
   const renderStars = useCallback(
     (stars, time) => {
-      if (!starsVisible) return null;
+      // Only render if we're the active renderer
+      if (renderLocation !== "onboarding") return null;
 
       return stars.map((star, index) => {
         const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100);
@@ -332,7 +333,7 @@ export default function OnboardingScreen({
         );
       });
     },
-    [starsVisible],
+    [renderLocation],
   );
 
   // Button press animations with micro-bounce
@@ -363,9 +364,8 @@ export default function OnboardingScreen({
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Hand off stars to transition
-    setStarsVisible(false);
-    setStarPhase("transition");
+    // Signal transition is starting but don't hand off yet
+    setStarPhase("breaking");
 
     if (onNavigate) {
       onNavigate("PhoneAuth");
@@ -373,13 +373,7 @@ export default function OnboardingScreen({
     } else {
       navigation.navigate("PhoneAuth");
     }
-  }, [
-    navigation,
-    primaryButtonScale,
-    onNavigate,
-    setStarsVisible,
-    setStarPhase,
-  ]);
+  }, [navigation, primaryButtonScale, onNavigate, setStarPhase]);
 
   const handleExploreAsGuest = useCallback(() => {
     animateButtonPress(secondaryButtonScale);
