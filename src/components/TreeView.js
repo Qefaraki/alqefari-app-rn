@@ -1314,10 +1314,14 @@ const TreeView = ({
           const viewportCenterX = dimensions.width / 2;
           const viewportCenterY = dimensions.height / 2;
 
+          // Adjust for viewport centering (move node up from bottom)
+          // We want the node to appear in the upper-middle area, not dead center
+          const verticalOffset = dimensions.height * 0.2; // Move up by 20% of screen
+
           // Calculate translation to center the node
           // Translation moves the entire canvas, so we translate opposite to node position
           const targetX = viewportCenterX - focusNode.x;
-          const targetY = viewportCenterY - focusNode.y;
+          const targetY = viewportCenterY - focusNode.y - verticalOffset;
 
           console.log("Translation target:", targetX, targetY);
 
@@ -1475,8 +1479,14 @@ const TreeView = ({
         return;
       }
 
-      // Calculate new scale
-      const newScale = clamp(savedScale.value * e.scale, minZoom, maxZoom);
+      // Calculate new scale (with limits for filtered view)
+      const maxZoomLimit = isFilteredView ? 2.0 : maxZoom;
+      const minZoomLimit = isFilteredView ? 0.5 : minZoom;
+      const newScale = clamp(
+        savedScale.value * e.scale,
+        minZoomLimit,
+        maxZoomLimit,
+      );
 
       // CRITICAL FIX: Track how much the focal point has moved (pan component)
       const focalDeltaX = e.focalX - initialFocalX.value;
@@ -1805,29 +1815,9 @@ const TreeView = ({
     [contextMenuNode, setSelectedPersonId],
   );
 
-  // Create limited pinch gesture for filtered view (0.5x to 2x zoom only)
-  const limitedPinchGesture = Gesture.Pinch()
-    .onStart(() => {
-      "worklet";
-      isPinching.value = true;
-      cancelAnimation(scale);
-      savedScale.value = scale.value;
-    })
-    .onUpdate((e) => {
-      "worklet";
-      // Limited zoom range for filtered view
-      const newScale = clamp(savedScale.value * e.scale, 0.5, 2.0);
-      scale.value = newScale;
-    })
-    .onEnd(() => {
-      "worklet";
-      isPinching.value = false;
-      savedScale.value = scale.value;
-    });
-
-  // Compose gestures - allow limited zoom in filtered view
+  // Compose gestures - use same gestures for filtered view but without tap
   const composed = isFilteredView
-    ? Gesture.Simultaneous(panGesture, limitedPinchGesture)
+    ? Gesture.Simultaneous(panGesture, pinchGesture) // Same zoom, just no tap
     : Gesture.Simultaneous(
         panGesture,
         pinchGesture,
