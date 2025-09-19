@@ -363,6 +363,8 @@ const TreeView = ({
   onAdminDashboard = () => {}, // Default noop function
   onSettingsOpen = () => {}, // Default noop function
   isFilteredView = false, // New prop to indicate filtered view
+  focusPersonId = null, // Person to keep permanently highlighted
+  initialFocusId = null, // Person to center on initially
 }) => {
   // Use filtered store if available, otherwise use global store
   const stage = useFilteredTreeStore((s) => s.stage);
@@ -1298,59 +1300,23 @@ const TreeView = ({
     [nodes, dimensions, translateX, translateY, scale],
   );
 
-  // Initialize centered on focus person in filtered view (no animation)
+  // Auto-center on initial focus person (for modal view)
   useEffect(() => {
-    if (isFilteredStore && focusPersonId && nodes.length > 0 && !isLoading) {
+    if (initialFocusId && nodes.length > 0 && !isLoading) {
       // Find the focus person in the nodes
-      const focusNode = nodes.find((n) => n.id === focusPersonId);
+      const focusNode = nodes.find((n) => n.id === initialFocusId);
       if (focusNode && focusNode.x !== undefined && focusNode.y !== undefined) {
-        // Small delay to ensure layout is complete
+        // Small delay to ensure canvas is ready
         const timer = setTimeout(() => {
-          console.log("Centering on focus person:", focusPersonId);
-          console.log("Node position:", focusNode.x, focusNode.y);
-          console.log("Viewport size:", dimensions.width, dimensions.height);
-
-          // Calculate center position
-          const viewportCenterX = dimensions.width / 2;
-          const viewportCenterY = dimensions.height / 2;
-
-          // Adjust for viewport centering (move node up from bottom)
-          // We want the node to appear in the upper-middle area, not dead center
-          const verticalOffset = dimensions.height * 0.2; // Move up by 20% of screen
-
-          // Calculate translation to center the node
-          // Translation moves the entire canvas, so we translate opposite to node position
-          const targetX = viewportCenterX - focusNode.x;
-          const targetY = viewportCenterY - focusNode.y - verticalOffset;
-
-          console.log("Translation target:", targetX, targetY);
-
-          // Set directly without animation
-          translateX.value = targetX;
-          translateY.value = targetY;
-          savedTranslateX.value = targetX;
-          savedTranslateY.value = targetY;
-
-          // Set reasonable zoom level for verification (not too zoomed)
-          const initialScale = 1.0;
-          scale.value = initialScale;
-          savedScale.value = initialScale;
-
-          // Update stage for consistency
-          setStage({ x: targetX, y: targetY, scale: initialScale });
-        }, 100); // Small delay for layout
+          console.log("Auto-centering on:", initialFocusId);
+          // Navigate to the node (this will center and highlight it)
+          navigateToNode(initialFocusId);
+        }, 200);
 
         return () => clearTimeout(timer);
       }
     }
-  }, [
-    isFilteredStore,
-    focusPersonId,
-    nodes.length,
-    isLoading,
-    dimensions.width,
-    dimensions.height,
-  ]); // Don't depend on animated values to avoid re-runs
+  }, [initialFocusId, nodes.length, isLoading]); // Simple deps
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {
@@ -2073,7 +2039,7 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
-      const isPermanentHighlight = permanentHighlight === node.id;
+      const isPermanentHighlight = focusPersonId === node.id;
 
       return (
         <Group key={node.id}>

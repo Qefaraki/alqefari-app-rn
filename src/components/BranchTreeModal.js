@@ -9,7 +9,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import FilteredTreeWrapper from "./FilteredTreeWrapper";
+import FullTreeWrapper from "./FullTreeWrapper";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -74,11 +74,12 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
             </View>
           </View>
         </View>
-        {/* Real TreeView with Filtered Data or Skeleton */}
+        {/* Full TreeView - No filtering, just centered on focus person */}
         <View style={styles.treeContainer}>
-          <FilteredTreeWrapper
+          <FullTreeWrapper
             focusPersonId={profile.id}
-            isFilteredView={true}
+            onConfirm={onConfirm}
+            onClose={onClose}
           />
         </View>
         {/* Action Buttons */}
