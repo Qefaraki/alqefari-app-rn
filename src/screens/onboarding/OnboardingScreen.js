@@ -52,12 +52,12 @@ const createMaskedStarfield = () => {
   // Create a denser grid of stars in the logo area
   const logoWidth = 400; // Extra large logo size
   const logoHeight = 400; // Extra large logo size
-  const density = 6; // Closer star spacing for better definition
+  const density = 6; // Back to original density for better visual
 
   for (let x = -logoWidth / 2; x <= logoWidth / 2; x += density) {
     for (let y = -logoHeight / 2; y <= logoHeight / 2; y += density) {
       // Keep most stars for better logo definition
-      if (Math.random() > 0.7) continue; // Keep 70% of stars
+      if (Math.random() > 0.65) continue; // Keep 65% of stars for good density
 
       // Small jitter to avoid grid look
       const jitterX = (Math.random() - 0.5) * density * 0.7;
@@ -271,11 +271,17 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
       }, 2000);
     }
 
-    // Animation frame
+    // Animation frame - THROTTLED for performance
     let frameCount = 0;
-    const animate = () => {
-      frameCount++;
-      setAnimationTime(frameCount * 0.016);
+    let lastUpdate = 0;
+    const animate = (timestamp) => {
+      // Throttle to 30 FPS instead of 60 for better performance
+      if (timestamp - lastUpdate > 33) {
+        // ~30 FPS
+        frameCount++;
+        setAnimationTime(frameCount * 0.033); // Adjusted for 30 FPS
+        lastUpdate = timestamp;
+      }
       animationRef.current = requestAnimationFrame(animate);
     };
     animationRef.current = requestAnimationFrame(animate);
@@ -297,71 +303,55 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   ]);
 
   const renderStars = useCallback((stars, time) => {
-    // Define glow layers - each star will be rendered multiple times with different sizes
-    const glowLayers = [
-      { scale: 4, opacity: 0.08 }, // Very faint outer glow
-      { scale: 2.5, opacity: 0.15 }, // Faint middle glow
-      { scale: 1.6, opacity: 0.3 }, // Inner glow
-      { scale: 1, opacity: 1 }, // Original star (brightest)
-    ];
+    // OPTIMIZED: Performance with smooth fade-in
+    return stars
+      .map((star, index) => {
+        // Smooth fade-in calculation
+        const timeSinceStart = time * 1000 - star.delay;
+        if (timeSinceStart < 0) return null;
 
-    // Render each layer of stars
-    return glowLayers
-      .flatMap((layer, layerIndex) =>
-        stars.map((star, index) => {
-          const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100); // 2x faster fade
-          if (fadeInProgress <= 0) return null;
+        // Fade in over 150ms (fast but smooth)
+        const fadeInProgress = Math.min(1, timeSinceStart / 150);
 
-          const twinkle = Math.sin(time * 4 + index * 0.5) * 0.3; // 2x faster twinkle, slightly more pronounced
-          const baseOpacity = star.brightness * fadeInProgress * (1 + twinkle);
+        if (star.group === "logo") {
+          // PERFORMANCE: Batch calculations for groups of stars
+          const groupId = Math.floor(index / 12); // Groups of 12 stars share twinkle
 
-          if (star.group === "logo") {
-            // Slower, more gentle twinkle effect for logo stars
-            const twinkleSpeed = 0.8 + (index % 4) * 0.3; // Much slower speeds
-            const twinkleFactor = Math.sin(time * twinkleSpeed + index);
+          // Gentle, slow twinkle
+          const twinkle = Math.sin(time * 0.7 + groupId * 0.4);
 
-            // Map sine wave (-1 to 1) to opacity (0.3 to 1.0)
-            const logoOpacity =
-              fadeInProgress * (0.3 + (twinkleFactor + 1) * 0.35);
+          // Base opacity with smooth variation
+          const baseOpacity = 0.45 + twinkle * 0.2; // 0.25 to 0.65 range
+          const opacity = star.brightness * baseOpacity * fadeInProgress;
 
-            // Occasional bright flashes (less frequent)
-            const flashChance = Math.sin(time * 2 + index * 3);
-            const shouldFlash = flashChance > 0.995;
-            const finalOpacity =
-              (shouldFlash ? 1 : logoOpacity) * layer.opacity;
-
-            // Use warmer white for outer glow layers, pure white for core
-            const glowColor =
-              layerIndex < 2
-                ? `rgba(255, 251, 240, ${Math.min(1, Math.max(0, finalOpacity))})` // Warm white glow
-                : `rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`; // Original white
-
-            return (
-              <Circle
-                key={`${layerIndex}-${index}`}
-                cx={star.x}
-                cy={star.y}
-                r={star.size * layer.scale}
-                color={glowColor}
-              />
-            );
-          }
-
-          // Regular stars (if any non-logo stars exist)
-          const opacity = baseOpacity * layer.opacity;
+          // Rare sparkles (only for some stars, not every calculation)
+          const shouldSparkle = index % 40 === 0;
+          const sparkle = shouldSparkle && Math.sin(time * 2 + index) > 0.95;
+          const finalOpacity = sparkle ? 1 : opacity;
 
           return (
             <Circle
-              key={`${layerIndex}-${index}`}
+              key={index}
               cx={star.x}
               cy={star.y}
-              r={star.size * layer.scale}
-              color={`rgba(255, 255, 255, ${opacity})`}
+              r={star.size}
+              color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
             />
           );
-        }),
-      )
-      .filter(Boolean); // Remove null entries
+        }
+
+        // Non-logo stars (if any)
+        return (
+          <Circle
+            key={index}
+            cx={star.x}
+            cy={star.y}
+            r={star.size}
+            color={`rgba(255, 255, 255, ${star.brightness * fadeInProgress})`}
+          />
+        );
+      })
+      .filter(Boolean);
   }, []);
 
   // Button press animations with micro-bounce
