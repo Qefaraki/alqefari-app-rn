@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { useStarData } from "../../contexts/StarDataContext";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -98,6 +99,8 @@ export default function OnboardingScreen({
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
+  const { logoStars, starsVisible, setStarsVisible, setStarPhase } =
+    useStarData();
   const [reduceMotion, setReduceMotion] = useState(false);
 
   // Parallax state
@@ -121,7 +124,7 @@ export default function OnboardingScreen({
 
   // Memoize all stars
   // backgroundStars removed - now using SaduNightBackdrop component
-  const logoStars = useMemo(() => createMaskedStarfield(), []);
+  // Now using shared logoStars from context
 
   // Check for reduce motion preference
   useEffect(() => {
@@ -299,50 +302,38 @@ export default function OnboardingScreen({
     reduceMotion,
   ]);
 
-  const renderStars = useCallback((stars, time) => {
-    return stars.map((star, index) => {
-      const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100); // 2x faster fade
-      if (fadeInProgress <= 0) return null;
+  const renderStars = useCallback(
+    (stars, time) => {
+      if (!starsVisible) return null;
 
-      const twinkle = Math.sin(time * 4 + index * 0.5) * 0.3; // 2x faster twinkle, slightly more pronounced
-      const opacity = star.brightness * fadeInProgress * (1 + twinkle);
+      return stars.map((star, index) => {
+        const fadeInProgress = Math.min(1, (time * 1000 - star.delay) / 100);
+        if (fadeInProgress <= 0) return null;
 
-      if (star.group === "logo") {
-        // Slower, more gentle twinkle effect
-        const twinkleSpeed = 0.8 + (index % 4) * 0.3; // Much slower speeds
+        // Use star's brightness property
+        const twinkleSpeed = 0.8 + (index % 4) * 0.3;
         const twinkleFactor = Math.sin(time * twinkleSpeed + index);
+        const logoOpacity =
+          fadeInProgress * star.brightness * (0.5 + (twinkleFactor + 1) * 0.25);
 
-        // Map sine wave (-1 to 1) to opacity (0.3 to 1.0)
-        // Less dramatic range for more subtle twinkling
-        const logoOpacity = fadeInProgress * (0.3 + (twinkleFactor + 1) * 0.35);
-
-        // Occasional bright flashes (less frequent)
+        // Occasional bright flashes
         const flashChance = Math.sin(time * 2 + index * 3);
         const shouldFlash = flashChance > 0.995;
         const finalOpacity = shouldFlash ? 1 : logoOpacity;
 
         return (
           <Circle
-            key={index}
-            cx={star.x}
-            cy={star.y}
+            key={star.id}
+            cx={star.originX}
+            cy={star.originY}
             r={star.size}
             color={`rgba(249, 247, 243, ${Math.min(1, Math.max(0, finalOpacity))})`}
           />
         );
-      }
-
-      return (
-        <Circle
-          key={index}
-          cx={star.x}
-          cy={star.y}
-          r={star.size}
-          color={`rgba(255, 255, 255, ${opacity})`}
-        />
-      );
-    });
-  }, []);
+      });
+    },
+    [starsVisible],
+  );
 
   // Button press animations with micro-bounce
   const animateButtonPress = (scaleValue) => {
@@ -371,13 +362,24 @@ export default function OnboardingScreen({
   const handleContinue = useCallback(() => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Hand off stars to transition
+    setStarsVisible(false);
+    setStarPhase("transition");
+
     if (onNavigate) {
       onNavigate("PhoneAuth");
       // Don't navigate here - let parent handle it
     } else {
       navigation.navigate("PhoneAuth");
     }
-  }, [navigation, primaryButtonScale, onNavigate]);
+  }, [
+    navigation,
+    primaryButtonScale,
+    onNavigate,
+    setStarsVisible,
+    setStarPhase,
+  ]);
 
   const handleExploreAsGuest = useCallback(() => {
     animateButtonPress(secondaryButtonScale);

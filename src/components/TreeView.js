@@ -1290,26 +1290,60 @@ const TreeView = ({
       savedTranslateY.value = targetY;
       savedScale.value = targetScale;
 
-      // Start highlight animation immediately (will reach full brightness as navigation completes)
-      highlightNode(nodeId);
+      // Start highlight animation only in main view (not in filtered view)
+      if (!isFilteredStore) {
+        highlightNode(nodeId);
+      }
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
 
-  // Auto-center on focus person in filtered view
+  // Initialize centered on focus person in filtered view (no animation)
   useEffect(() => {
     if (isFilteredStore && focusPersonId && nodes.length > 0 && !isLoading) {
       // Find the focus person in the nodes
       const focusNode = nodes.find((n) => n.id === focusPersonId);
       if (focusNode) {
-        console.log("Auto-centering on focus person:", focusPersonId);
-        // Small delay to ensure canvas is ready
-        setTimeout(() => {
-          navigateToNode(focusPersonId);
-        }, 300);
+        console.log(
+          "Initializing view centered on focus person:",
+          focusPersonId,
+        );
+        console.log("Focus node position:", focusNode.x, focusNode.y);
+
+        // Calculate center position
+        const viewportCenterX = dimensions.width / 2;
+        const viewportCenterY = dimensions.height / 2;
+
+        // Calculate translation to center the node
+        // Note: Translation moves the canvas, so we negate the position
+        const targetX = viewportCenterX - focusNode.x;
+        const targetY = viewportCenterY - focusNode.y;
+
+        console.log("Setting initial position to:", targetX, targetY);
+
+        // Set directly without animation
+        translateX.value = targetX;
+        translateY.value = targetY;
+        savedTranslateX.value = targetX;
+        savedTranslateY.value = targetY;
+
+        // Set appropriate zoom level for verification
+        const initialScale = 1.5;
+        scale.value = initialScale;
+        savedScale.value = initialScale;
+
+        // Update stage for consistency
+        setStage({ x: targetX, y: targetY, scale: initialScale });
       }
     }
-  }, [isFilteredStore, focusPersonId, nodes.length, isLoading]); // Don't depend on navigateToNode to avoid re-runs
+  }, [
+    isFilteredStore,
+    focusPersonId,
+    nodes.length,
+    isLoading,
+    dimensions.width,
+    dimensions.height,
+  ]); // Don't depend on animated values to avoid re-runs
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {
@@ -1625,12 +1659,18 @@ const TreeView = ({
   // Handle node tap - show profile sheet (edit mode if admin)
   const handleNodeTap = useCallback(
     (nodeId) => {
+      // In filtered view, don't allow selecting other nodes
+      if (isFilteredStore) {
+        console.log("Node tap blocked in filtered view");
+        return;
+      }
+
       // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
       setSelectedPersonId(nodeId);
       setProfileEditMode(isAdminMode);
       // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
     },
-    [setSelectedPersonId, isAdminMode],
+    [setSelectedPersonId, isAdminMode, isFilteredStore],
   );
 
   // Handle chip tap in T3 - zoom to branch
