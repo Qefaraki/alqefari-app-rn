@@ -12,24 +12,64 @@ import { Ionicons } from "@expo/vector-icons";
 import TreeView from "./TreeView";
 import { FilteredTreeProvider } from "../contexts/FilteredTreeContext";
 import { SettingsProvider } from "../contexts/SettingsContext";
-import TreeSkeleton from "./TreeSkeleton";
+import TreeSkeletonDynamic from "./TreeSkeletonDynamic";
+import {
+  fetchTreeStructure,
+  getCachedStructure,
+  setCachedStructure,
+} from "../services/treeStructure";
 
 /**
- * Component that renders tree with loading state
+ * Component that renders tree with progressive loading states
+ * Phase 1: Generic skeleton (0ms)
+ * Phase 2: Structure-based skeleton (100-200ms)
+ * Phase 3: Full tree (500-800ms)
  */
-const TreeWithLoading = ({ isFilteredView }) => {
+const TreeWithProgressiveLoading = ({ isFilteredView, focusPersonId }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const [treeStructure, setTreeStructure] = useState(null);
 
   useEffect(() => {
-    // Simple timer-based loading for smooth transition
+    let mounted = true;
+
+    // Phase 1: Start with generic skeleton (immediate)
+
+    // Phase 2: Try to get cached structure first, then fetch
+    const loadStructure = async () => {
+      // Check cache first
+      const cached = getCachedStructure(focusPersonId);
+      if (cached && mounted) {
+        setTreeStructure(cached);
+        return;
+      }
+
+      // Fetch structure (quick query)
+      const structure = await fetchTreeStructure(focusPersonId);
+      if (structure && mounted) {
+        setTreeStructure(structure);
+        setCachedStructure(focusPersonId, structure);
+      }
+    };
+
+    // Start loading structure immediately
+    loadStructure();
+
+    // Phase 3: Show full tree after delay
     const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800); // Show skeleton for a brief moment
-    return () => clearTimeout(timer);
-  }, []);
+      if (mounted) {
+        setIsLoading(false);
+      }
+    }, 800); // Adjust based on typical load time
+
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
+  }, [focusPersonId]);
 
   if (isLoading) {
-    return <TreeSkeleton />;
+    // Progressive skeleton: starts generic, enhances with structure when available
+    return <TreeSkeletonDynamic structure={treeStructure} />;
   }
 
   return <TreeView isFilteredView={isFilteredView} />;
@@ -103,7 +143,10 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
         <View style={styles.treeContainer}>
           <SettingsProvider>
             <FilteredTreeProvider focusPersonId={profile.id}>
-              <TreeWithLoading isFilteredView={true} />
+              <TreeWithProgressiveLoading
+                isFilteredView={true}
+                focusPersonId={profile.id}
+              />
             </FilteredTreeProvider>
           </SettingsProvider>
         </View>

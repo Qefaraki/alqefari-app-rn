@@ -22,8 +22,7 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
   const emblemOpacity = useRef(new Animated.Value(0)).current;
   const emblemScale = useRef(new Animated.Value(0.5)).current;
 
-  // Effects
-  const whiteFlashOpacity = useRef(new Animated.Value(0)).current;
+  // No effects needed - clean transition
 
   // Glass card
   const glassScale = useRef(new Animated.Value(0)).current;
@@ -54,24 +53,9 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
     };
     animationRef.current = requestAnimationFrame(animate);
 
-    // Main animation sequence - cleaner without glow
+    // Main animation sequence - clean and simple
     Animated.sequence([
-      // Phase 1: White flash as stars burst (200-400ms)
-      Animated.sequence([
-        Animated.delay(200), // Brief pause for anticipation
-        Animated.timing(whiteFlashOpacity, {
-          toValue: 0.4,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(whiteFlashOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]),
-
-      // Phase 2: Emblem and glass appear (400-1000ms)
+      Animated.delay(400), // Wait for stars to burst
       Animated.parallel([
         // Emblem scales in
         Animated.spring(emblemScale, {
@@ -175,17 +159,6 @@ export default function StarToEmblemTransition({ isActive, onComplete }) {
       <Canvas style={StyleSheet.absoluteFillObject}>
         <Group>{renderEmissionStars()}</Group>
       </Canvas>
-
-      {/* White flash overlay */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFillObject,
-          {
-            backgroundColor: "white",
-            opacity: whiteFlashOpacity,
-          },
-        ]}
-      />
 
       {/* Family emblem (fades in) */}
       <Animated.View
