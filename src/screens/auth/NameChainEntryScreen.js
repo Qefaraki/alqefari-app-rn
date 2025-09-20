@@ -135,17 +135,9 @@ export default function NameChainEntryScreen({
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             {/* Header - Order reversed for RTL layout */}
             <View style={styles.header}>
-              {/* Progress Dots - Step 3 of 5 - Reversed for RTL */}
+              {/* Progress Percentage - Step 3 of 5 */}
               <View style={styles.progressContainer}>
-                <View style={styles.progressDot} />
-                <View style={styles.progressDot} />
-                <View style={[styles.progressDot, styles.progressDotActive]} />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
-                <View
-                  style={[styles.progressDot, styles.progressDotCompleted]}
-                />
+                <Text style={styles.progressPercentage}>60%</Text>
               </View>
 
               {/* Back button LAST - will appear on left in RTL */}
@@ -280,6 +272,12 @@ const styles = StyleSheet.create({
   progressDotActive: {
     backgroundColor: colors.primary, // Najdi Crimson
     width: 24,
+  },
+  progressPercentage: {
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: colors.primary,
   },
   mainContent: {
     flex: 1,
