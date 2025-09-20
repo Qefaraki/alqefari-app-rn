@@ -195,7 +195,8 @@ function MainApp({
 
 // Root App Component
 export default function App() {
-  const [initializing, setInitializing] = useState(true);
+  // Start with loading true - we need to check auth state first
+  const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
   const [linkedProfile, setLinkedProfile] = useState(null);
@@ -217,7 +218,7 @@ export default function App() {
         // No session - go straight to onboarding
         setUser(null);
         setIsGuest(false);
-        setInitializing(false);
+        setIsLoading(false);
         return;
       }
 
@@ -233,13 +234,13 @@ export default function App() {
         setProfileCheckComplete(true);
       }
 
-      setInitializing(false);
+      setIsLoading(false);
     } catch (error) {
       console.error("Auth check error:", error);
       // On error, assume no user and show onboarding
       setUser(null);
       setIsGuest(false);
-      setInitializing(false);
+      setIsLoading(false);
     }
   };
 
@@ -297,9 +298,9 @@ export default function App() {
     };
   }, []);
 
-  // Don't block with loading spinner - show onboarding immediately
-  // Only show spinner if we know user exists and we're checking their profile
-  if (initializing && user) {
+  // Show splash screen ONLY during initial auth check
+  // This prevents the app from jumping to tree view
+  if (isLoading) {
     return (
       <View
         style={{
@@ -326,19 +327,18 @@ export default function App() {
     linkStatus === null &&
     profileCheckComplete;
 
-  // Show onboarding/auth flow if:
-  // 1. No user at all OR
-  // 2. User exists but hasn't completed profile linking
-  // 3. BUT: If still initializing and no user, show onboarding (don't wait)
-  const shouldShowOnboarding =
-    (!user && !isGuest) || needsProfileLinking || (initializing && !user);
+  // Determine navigation state based on auth
+  // CRITICAL: This is where we decide what to show
+  const shouldShowOnboarding = !user && !isGuest; // Only show onboarding if NO user at all
+  const shouldShowGuestExperience = isGuest && !user; // Guest mode without real auth
+  const shouldShowMainApp = user && !isGuest; // Authenticated user with profile
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {shouldShowOnboarding ? (
-            // Show authentication flow when no user at all
+          {shouldShowOnboarding || needsProfileLinking ? (
+            // Show authentication flow for new users or incomplete profiles
             <Stack.Screen name="Auth">
               {(props) => (
                 <AuthNavigator
@@ -348,14 +348,31 @@ export default function App() {
                 />
               )}
             </Stack.Screen>
-          ) : (
-            // Show main app for logged in users or guests
+          ) : shouldShowGuestExperience ? (
+            // Show limited guest experience (NOT the main tree!)
+            <Stack.Screen name="GuestExplore">
+              {(props) => {
+                const GuestExploreScreen =
+                  require("./src/screens/guest/GuestExploreScreen").default;
+                return (
+                  <GuestExploreScreen
+                    {...props}
+                    onSignOut={() => {
+                      setIsGuest(false);
+                      setUser(null);
+                    }}
+                  />
+                );
+              }}
+            </Stack.Screen>
+          ) : shouldShowMainApp ? (
+            // Show full app ONLY for authenticated users
             <Stack.Screen name="Main">
               {(props) => (
                 <MainApp
                   {...props}
                   user={user}
-                  isGuest={isGuest}
+                  isGuest={false}
                   linkedProfile={linkedProfile}
                   linkStatus={linkStatus}
                   onLinkStatusChange={async (newStatus) => {
@@ -381,6 +398,17 @@ export default function App() {
                     setLinkStatus(null);
                     setProfileCheckComplete(false);
                   }}
+                />
+              )}
+            </Stack.Screen>
+          ) : (
+            // Fallback - shouldn't happen but show onboarding as safe default
+            <Stack.Screen name="Auth">
+              {(props) => (
+                <AuthNavigator
+                  {...props}
+                  setIsGuest={setIsGuest}
+                  setUser={setUser}
                 />
               )}
             </Stack.Screen>
