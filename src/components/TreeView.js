@@ -1317,10 +1317,14 @@ const TreeView = ({
         console.log("Instant centering on:", initialFocusId);
         console.log("Focus node at:", focusNode.x, focusNode.y);
         console.log("Viewport:", dimensions.width, dimensions.height);
+        console.log("PermanentHighlightId:", permanentHighlightId);
 
         // Calculate center position - MIDDLE of screen, not bottom
+        // Adjust for modal header (approximately 150px)
         const viewportCenterX = dimensions.width / 2;
-        const viewportCenterY = dimensions.height / 2;
+        const viewportCenterY = isFilteredView
+          ? dimensions.height / 2 - 75 // Offset for modal header
+          : dimensions.height / 2;
 
         // Set zoom first
         const targetScale = 1.2;
@@ -2078,6 +2082,11 @@ const TreeView = ({
       const isSelected = selectedPersonId === node.id;
       const isPermanentHighlight = permanentHighlightId === node.id;
 
+      // Debug permanent highlight
+      if (permanentHighlightId && node.id === permanentHighlightId) {
+        console.log("PERMANENT HIGHLIGHT MATCH:", node.id, "tier:", node._tier);
+      }
+
       return (
         <Group key={node.id}>
           {/* Shadow (lighter for T2) */}
@@ -2137,7 +2146,7 @@ const TreeView = ({
         </Group>
       );
     },
-    [selectedPersonId],
+    [selectedPersonId, permanentHighlightId],
   );
 
   // Render node component (T1 - full detail)
@@ -2152,12 +2161,12 @@ const TreeView = ({
         ? NODE_HEIGHT_WITH_PHOTO
         : NODE_HEIGHT_TEXT_ONLY;
       const isSelected = selectedPersonId === node.id;
+      const isPermanentHighlight = permanentHighlightId === node.id;
 
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
 
       const isHighlighted = highlightedNodeIdState === node.id;
-      const isPermanentHighlight = permanentHighlight === node.id;
 
       return (
         <Group key={node.id}>
@@ -2339,7 +2348,12 @@ const TreeView = ({
         </Group>
       );
     },
-    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
+    [
+      selectedPersonId,
+      highlightedNodeIdState,
+      glowOpacityState,
+      permanentHighlightId,
+    ],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
