@@ -115,23 +115,11 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
                 <Text style={styles.linkedText}>مطالب به</Text>
               </>
             )}
-            {/* Inline match dots */}
+            {/* Match percentage */}
             <Text style={styles.metaSeparator}>•</Text>
-            {[1, 2, 3].map((dot) => {
-              const threshold = dot * 33; // 33%, 66%, 100%
-              const isFilled = profile.match_score >= threshold;
-              return (
-                <View
-                  key={dot}
-                  style={[
-                    styles.inlineDot,
-                    isFilled
-                      ? { backgroundColor: avatarColor }
-                      : { backgroundColor: avatarColor + "30" },
-                  ]}
-                />
-              );
-            })}
+            <Text style={[styles.matchPercentage, { color: avatarColor }]}>
+              {Math.round(profile.match_score)}% تطابق
+            </Text>
             <Text
               style={[styles.inlineMatchText, { color: avatarColor + "DD" }]}
             >
@@ -607,12 +595,11 @@ const styles = StyleSheet.create({
     color: "#F59E0B",
   },
 
-  // Inline dots for match indicator
-  inlineDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    marginHorizontal: 1.5,
+  // Match percentage text
+  matchPercentage: {
+    fontSize: 12,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
   inlineMatchText: {
     fontSize: 11,
