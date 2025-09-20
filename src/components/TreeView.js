@@ -355,28 +355,6 @@ class SpatialGrid {
   }
 }
 
-// Helper function to convert generation number to Arabic words
-const getGenerationInArabic = (generation) => {
-  const arabicGenerations = {
-    1: "الأول",
-    2: "الثاني",
-    3: "الثالث",
-    4: "الرابع",
-    5: "الخامس",
-    6: "السادس",
-    7: "السابع",
-    8: "الثامن",
-    9: "التاسع",
-    10: "العاشر",
-    11: "الحادي عشر",
-    12: "الثاني عشر",
-    13: "الثالث عشر",
-    14: "الرابع عشر",
-    15: "الخامس عشر",
-  };
-  return arabicGenerations[generation] || `الجيل ${generation}`;
-};
-
 const TreeView = ({
   setProfileEditMode = () => {}, // Default noop function
   onNetworkStatusChange = () => {}, // Default noop function
@@ -2251,13 +2229,12 @@ const TreeView = ({
 
               {/* Generation badge - positioned in top-right corner for photo nodes */}
               {(() => {
-                const genText = getGenerationInArabic(node.generation);
                 const genParagraph = createArabicParagraph(
-                  genText,
+                  String(node.generation),
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
                   "#24212140", // Sadu Night with 25% opacity
-                  nodeWidth / 2, // Increased width for Arabic text
+                  15,
                 );
 
                 if (!genParagraph) return null;
@@ -2265,9 +2242,9 @@ const TreeView = ({
                 return (
                   <Paragraph
                     paragraph={genParagraph}
-                    x={x} // Center it horizontally
-                    y={y - nodeHeight / 2 + 4} // Top of node
-                    width={nodeWidth}
+                    x={x + nodeWidth - 15}
+                    y={y + 4}
+                    width={15}
                   />
                 );
               })()}
@@ -2307,9 +2284,8 @@ const TreeView = ({
             <>
               {/* Generation badge - centered horizontally at top */}
               {(() => {
-                const genText = getGenerationInArabic(node.generation);
                 const genParagraph = createArabicParagraph(
-                  genText,
+                  String(node.generation),
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
                   "#24212140", // Sadu Night with 25% opacity
