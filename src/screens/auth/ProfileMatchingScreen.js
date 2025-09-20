@@ -120,11 +120,6 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
             <Text style={[styles.matchPercentage, { color: avatarColor }]}>
               {Math.round(profile.match_score)}% تطابق
             </Text>
-            <Text
-              style={[styles.inlineMatchText, { color: avatarColor + "DD" }]}
-            >
-              تطابق
-            </Text>
           </View>
         </View>
 
