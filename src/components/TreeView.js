@@ -427,7 +427,7 @@ const TreeView = ({
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start with false - don't block UI
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -650,7 +650,11 @@ const TreeView = ({
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
-    setIsLoading(true);
+    // Don't set loading to true - load in background
+    // Only show loading for retries
+    if (!isRetrying) {
+      setIsLoading(false);
+    }
     setNetworkError(null);
     setIsRetrying(false);
 
@@ -753,11 +757,17 @@ const TreeView = ({
 
   const handleRetry = async () => {
     setIsRetrying(true);
+    setIsLoading(true); // Only show loading on manual retry
     await loadTreeData();
   };
 
   // Load tree data on mount
   useEffect(() => {
+    // Set local data immediately so tree is visible
+    if (treeData.length === 0) {
+      setTreeData(familyData || []);
+    }
+    // Then load real data in background
     loadTreeData();
   }, [setTreeData]);
 
