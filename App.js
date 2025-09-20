@@ -205,7 +205,13 @@ export default function App() {
   const [profileCheckComplete, setProfileCheckComplete] = useState(false);
 
   useEffect(() => {
+    // Check auth state on mount
     checkAuthState();
+
+    // Clean up function to handle app state changes
+    return () => {
+      // Cleanup if needed
+    };
   }, []);
 
   const checkAuthState = async () => {
@@ -223,14 +229,31 @@ export default function App() {
         return;
       }
 
-      // Session exists - set user immediately to avoid blocking
-      setUser(session.user);
-      setIsGuest(session.user?.user_metadata?.isGuest || false);
+      // CRITICAL: Validate the session is still valid
+      // This prevents showing TreeView with stale sessions
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        // Session is invalid/expired - clear it and show onboarding
+        console.log("Invalid session detected, clearing...");
+        await supabase.auth.signOut();
+        setUser(null);
+        setIsGuest(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Session is valid - NOW we can set the user
+      setUser(user);
+      setIsGuest(user?.user_metadata?.isGuest || false);
 
       // For non-guests, check profile in background (don't block)
-      if (session.user && !session.user?.user_metadata?.isGuest) {
+      if (user && !user?.user_metadata?.isGuest) {
         // Don't await - let it run in background
-        checkProfileLinkingStatus(session.user).catch(console.error);
+        checkProfileLinkingStatus(user).catch(console.error);
       } else {
         setProfileCheckComplete(true);
       }
@@ -277,6 +300,20 @@ export default function App() {
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        // Validate session on auth state changes too
+        if (session && _event !== "SIGNED_OUT") {
+          // Verify the session is still valid
+          const {
+            data: { user },
+            error,
+          } = await supabase.auth.getUser();
+          if (error || !user) {
+            // Invalid session - sign out
+            await supabase.auth.signOut();
+            return;
+          }
+        }
+
         setUser(session?.user ?? null);
         setIsGuest(session?.user?.user_metadata?.isGuest || false);
 
