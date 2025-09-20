@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import TreeView from "./TreeView";
 import { useTreeStore } from "../stores/useTreeStore";
 import { SettingsProvider } from "../contexts/SettingsContext";
-import TreeSkeleton from "./TreeSkeleton";
 import profilesService from "../services/profiles";
 
 /**
@@ -49,9 +49,13 @@ const FullTreeWrapper = ({
     }
   }, [focusPersonId, treeData, setSelectedPersonId]);
 
-  // Show skeleton while loading
+  // Show loading indicator while loading
   if (isLoading || !treeData || treeData.length === 0) {
-    return <TreeSkeleton />;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#A13333" />
+      </View>
+    );
   }
 
   return (
@@ -65,5 +69,14 @@ const FullTreeWrapper = ({
     </SettingsProvider>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F9F7F3",
+  },
+});
 
 export default FullTreeWrapper;
