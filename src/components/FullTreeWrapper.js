@@ -9,7 +9,12 @@ import profilesService from "../services/profiles";
  * Simple wrapper that shows the FULL tree (no filtering)
  * Loads tree if needed, then centers on focus person
  */
-const FullTreeWrapper = ({ focusPersonId, onConfirm, onClose }) => {
+const FullTreeWrapper = ({
+  focusPersonId,
+  focusPersonNameChain,
+  onConfirm,
+  onClose,
+}) => {
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
@@ -55,6 +60,7 @@ const FullTreeWrapper = ({ focusPersonId, onConfirm, onClose }) => {
         isFilteredView={true} // This disables certain interactions
         permanentHighlightId={focusPersonId} // For permanent highlight
         initialFocusId={focusPersonId} // For auto-centering
+        focusPersonNameChain={focusPersonNameChain} // Pass name chain for display
       />
     </SettingsProvider>
   );

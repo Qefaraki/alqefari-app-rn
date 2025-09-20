@@ -115,25 +115,37 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
                 <Text style={styles.linkedText}>مطالب به</Text>
               </>
             )}
+            {/* Inline match dots */}
+            <Text style={styles.metaSeparator}>•</Text>
+            {[1, 2, 3].map((dot) => {
+              const threshold = dot * 33; // 33%, 66%, 100%
+              const isFilled = profile.match_score >= threshold;
+              return (
+                <View
+                  key={dot}
+                  style={[
+                    styles.inlineDot,
+                    isFilled
+                      ? { backgroundColor: avatarColor }
+                      : { backgroundColor: avatarColor + "30" },
+                  ]}
+                />
+              );
+            })}
+            <Text
+              style={[styles.inlineMatchText, { color: avatarColor + "DD" }]}
+            >
+              تطابق
+            </Text>
           </View>
         </View>
 
-        {/* Match score badge */}
-        <View style={styles.scoreContainer}>
-          <View
-            style={[styles.scoreBadge, { backgroundColor: avatarColor + "20" }]}
-          >
-            <Text style={[styles.scoreText, { color: avatarColor }]}>
-              {profile.match_score}%
-            </Text>
+        {/* Selection checkmark only */}
+        {isSelected && (
+          <View style={styles.checkmarkContainer}>
+            <Ionicons name="checkmark-circle" size={22} color={avatarColor} />
           </View>
-          {/* Fixed height container prevents jumping */}
-          <View style={styles.checkContainer}>
-            {isSelected && (
-              <Ionicons name="checkmark-circle" size={20} color={avatarColor} />
-            )}
-          </View>
-        </View>
+        )}
       </View>
     </Pressable>
   );
@@ -327,12 +339,24 @@ export default function ProfileMatchingScreen({ navigation, route }) {
         <Text style={styles.title}>اختر ملفك الشخصي</Text>
         <Text style={styles.subtitle}>اضغط على الملف الذي يمثلك في الشجرة</Text>
 
-        {/* Search Query Display */}
+        {/* Search Query Display with Match Explanation */}
         <View style={styles.searchDisplay}>
           <Text style={styles.searchLabel}>البحث عن</Text>
           <Text style={styles.searchQuery}>{nameChain}</Text>
           <Text style={styles.resultsCount}>
             عدد النتائج: {profiles.length}
+          </Text>
+        </View>
+
+        {/* Match Explanation Helper */}
+        <View style={styles.matchHelper}>
+          <Ionicons
+            name="information-circle-outline"
+            size={16}
+            color={colors.secondary}
+          />
+          <Text style={styles.matchHelperText}>
+            نعرض لك الملفات الأقرب لاسمك بناءً على تطابق الأسماء والجيل
           </Text>
         </View>
       </View>
@@ -563,6 +587,8 @@ const styles = StyleSheet.create({
   metaContainer: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: 3,
   },
   generationText: {
     fontSize: 13,
@@ -581,29 +607,25 @@ const styles = StyleSheet.create({
     color: "#F59E0B",
   },
 
-  // Score badge
-  scoreContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 8, // Space from content
+  // Inline dots for match indicator
+  inlineDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginHorizontal: 1.5,
   },
-  scoreBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  scoreText: {
-    fontSize: 12,
-    fontWeight: "700",
+  inlineMatchText: {
+    fontSize: 11,
+    fontWeight: "500",
     fontFamily: "SF Arabic",
+    marginLeft: 2,
   },
-  checkContainer: {
-    height: 24,
-    width: 24, // Fixed width to prevent layout shift
-    alignItems: "center",
+  checkmarkContainer: {
+    marginLeft: 8,
     justifyContent: "center",
-    marginTop: 4,
   },
+
+  // Score badge
 
   // Bottom actions - fixed height and better shadow
   bottomActions: {
@@ -703,5 +725,26 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 12,
     paddingHorizontal: 8,
+  },
+
+  // Match helper tooltip
+  matchHelper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.secondary + "10",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.secondary + "20",
+  },
+  matchHelperText: {
+    fontSize: 13,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+    flex: 1,
+    marginLeft: 8,
+    lineHeight: 18,
   },
 });

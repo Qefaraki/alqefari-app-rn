@@ -78,6 +78,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
         <View style={styles.treeContainer}>
           <FullTreeWrapper
             focusPersonId={profile.id}
+            focusPersonNameChain={profile.name_chain}
             onConfirm={onConfirm}
             onClose={onClose}
           />

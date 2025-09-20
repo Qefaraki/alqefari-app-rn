@@ -364,6 +364,7 @@ const TreeView = ({
   isFilteredView = false, // New prop to indicate filtered view
   permanentHighlightId = null, // Person to keep permanently highlighted (prop)
   initialFocusId = null, // Person to center on initially
+  focusPersonNameChain = null, // Full name chain for the focus person
 }) => {
   // Use global store directly - no more filtered store complexity
   const stage = useTreeStore((s) => s.stage);
@@ -1297,25 +1298,45 @@ const TreeView = ({
     [nodes, dimensions, translateX, translateY, scale],
   );
 
-  // Auto-center on initial focus person (for modal view)
+  // Instantly position on initial focus person (for modal view)
   useEffect(() => {
     if (initialFocusId && nodes.length > 0 && !isLoading) {
       // Find the focus person in the nodes
       const focusNode = nodes.find((n) => n.id === initialFocusId);
       if (focusNode && focusNode.x !== undefined && focusNode.y !== undefined) {
-        // Slightly longer delay to ensure everything is ready
-        const timer = setTimeout(() => {
-          console.log("Auto-centering on:", initialFocusId);
-          console.log("Focus node at:", focusNode.x, focusNode.y);
+        console.log("Instant centering on:", initialFocusId);
+        console.log("Focus node at:", focusNode.x, focusNode.y);
+        console.log("Viewport:", dimensions.width, dimensions.height);
 
-          // Navigate to the node (this will center but NOT highlight if filtered view)
-          navigateToNode(initialFocusId);
-        }, 500); // Increased delay for reliability
+        // Calculate center position - MIDDLE of screen, not bottom
+        const viewportCenterX = dimensions.width / 2;
+        const viewportCenterY = dimensions.height / 2;
 
-        return () => clearTimeout(timer);
+        // Direct positioning - NO ANIMATION
+        const targetX = viewportCenterX - focusNode.x;
+        const targetY = viewportCenterY - focusNode.y;
+
+        console.log("Setting position to:", targetX, targetY);
+
+        // Set instantly - no animation, no delay
+        translateX.value = targetX;
+        translateY.value = targetY;
+        savedTranslateX.value = targetX;
+        savedTranslateY.value = targetY;
+
+        // Set zoom
+        const targetScale = 1.2;
+        scale.value = targetScale;
+        savedScale.value = targetScale;
       }
     }
-  }, [initialFocusId, nodes.length, isLoading, navigateToNode]);
+  }, [
+    initialFocusId,
+    nodes.length,
+    isLoading,
+    dimensions.width,
+    dimensions.height,
+  ]);
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {
@@ -2213,8 +2234,14 @@ const TreeView = ({
 
               {/* Name text - centered across full width (on top) */}
               {(() => {
+                // Use full name chain for focus person if available
+                const displayName =
+                  node.id === initialFocusId && focusPersonNameChain
+                    ? focusPersonNameChain
+                    : node.name;
+
                 const nameParagraph = createArabicParagraph(
-                  node.name,
+                  displayName,
                   "bold",
                   11,
                   "#242121",
@@ -2262,8 +2289,14 @@ const TreeView = ({
 
               {/* Text-only name - centered across full width (on top) */}
               {(() => {
+                // Use full name chain for focus person if available
+                const displayName =
+                  node.id === initialFocusId && focusPersonNameChain
+                    ? focusPersonNameChain
+                    : node.name;
+
                 const nameParagraph = createArabicParagraph(
-                  node.name,
+                  displayName,
                   "bold",
                   11,
                   "#242121",
