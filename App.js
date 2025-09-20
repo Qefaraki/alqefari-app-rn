@@ -23,6 +23,7 @@ import { SettingsProvider } from "./src/contexts/SettingsContext";
 import AdminDashboard from "./src/screens/AdminDashboardUltraOptimized";
 import SettingsModal from "./src/components/SettingsModal";
 import AuthNavigator from "./src/navigation/AuthNavigator";
+import GuestNavigator from "./src/navigation/GuestNavigator";
 import { supabase } from "./src/services/supabase";
 import { phoneAuthService } from "./src/services/phoneAuth";
 import { useSharedValue } from "react-native-reanimated";
@@ -329,9 +330,9 @@ export default function App() {
 
   // Determine navigation state based on auth
   // CRITICAL: This is where we decide what to show
-  const shouldShowOnboarding = !user && !isGuest; // Only show onboarding if NO user at all
-  const shouldShowGuestExperience = isGuest && !user; // Guest mode without real auth
-  const shouldShowMainApp = user && !isGuest; // Authenticated user with profile
+  const shouldShowOnboarding = !user && !isGuest; // Show onboarding for new users
+  const shouldShowGuestExperience = isGuest; // Guest mode (explore without auth)
+  const shouldShowMainApp = user && !isGuest; // Full app for authenticated users
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -349,21 +350,17 @@ export default function App() {
               )}
             </Stack.Screen>
           ) : shouldShowGuestExperience ? (
-            // Show limited guest experience (NOT the main tree!)
-            <Stack.Screen name="GuestExplore">
-              {(props) => {
-                const GuestExploreScreen =
-                  require("./src/screens/guest/GuestExploreScreen").default;
-                return (
-                  <GuestExploreScreen
-                    {...props}
-                    onSignOut={() => {
-                      setIsGuest(false);
-                      setUser(null);
-                    }}
-                  />
-                );
-              }}
+            // Show limited guest experience with its own navigator
+            <Stack.Screen name="Guest">
+              {(props) => (
+                <GuestNavigator
+                  {...props}
+                  onExitGuestMode={() => {
+                    setIsGuest(false);
+                    setUser(null);
+                  }}
+                />
+              )}
             </Stack.Screen>
           ) : shouldShowMainApp ? (
             // Show full app ONLY for authenticated users
