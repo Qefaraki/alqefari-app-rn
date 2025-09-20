@@ -195,18 +195,14 @@ function MainApp({
 
 // Root App Component
 export default function App() {
-  // Start with initializing = false to show onboarding immediately
-  const [initializing, setInitializing] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
   const [linkedProfile, setLinkedProfile] = useState(null);
   const [linkStatus, setLinkStatus] = useState(null);
   const [profileCheckComplete, setProfileCheckComplete] = useState(false);
-  const [authCheckStarted, setAuthCheckStarted] = useState(false);
 
   useEffect(() => {
-    // Check auth in background without blocking UI
-    setAuthCheckStarted(true);
     checkAuthState();
   }, []);
 
@@ -218,13 +214,14 @@ export default function App() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        // No session - user stays null, onboarding already showing
+        // No session - go straight to onboarding
         setUser(null);
         setIsGuest(false);
+        setInitializing(false);
         return;
       }
 
-      // Session exists - set user (this will trigger navigation automatically)
+      // Session exists - set user immediately to avoid blocking
       setUser(session.user);
       setIsGuest(session.user?.user_metadata?.isGuest || false);
 
@@ -235,11 +232,14 @@ export default function App() {
       } else {
         setProfileCheckComplete(true);
       }
+
+      setInitializing(false);
     } catch (error) {
       console.error("Auth check error:", error);
-      // On error, user stays null, onboarding already showing
+      // On error, assume no user and show onboarding
       setUser(null);
       setIsGuest(false);
+      setInitializing(false);
     }
   };
 
@@ -297,8 +297,25 @@ export default function App() {
     };
   }, []);
 
-  // Never block with loading spinner - let auth check happen in background
-  // The onboarding screen will handle any transition if user is found
+  // Don't block with loading spinner - show onboarding immediately
+  // Only show spinner if we know user exists and we're checking their profile
+  if (initializing && user) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#030303", // Match onboarding background
+        }}
+      >
+        <ActivityIndicator size="large" color="#A13333" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: "#F9F7F3" }}>
+          جاري التحميل...
+        </Text>
+      </View>
+    );
+  }
 
   // Check if user needs to complete profile linking
   // A user is "incomplete" if they're authenticated but have no linked profile and no pending request
@@ -308,10 +325,14 @@ export default function App() {
     !linkedProfile &&
     linkStatus === null &&
     profileCheckComplete;
+
   // Show onboarding/auth flow if:
   // 1. No user at all OR
   // 2. User exists but hasn't completed profile linking
-  const shouldShowOnboarding = (!user && !isGuest) || needsProfileLinking;
+  // 3. BUT: If still initializing and no user, show onboarding (don't wait)
+  const shouldShowOnboarding =
+    (!user && !isGuest) || needsProfileLinking || (initializing && !user);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <NavigationContainer>

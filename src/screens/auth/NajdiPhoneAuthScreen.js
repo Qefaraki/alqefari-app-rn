@@ -394,10 +394,25 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
 
                   {/* Progress dots - RTL order (completed on right) */}
                   <View style={styles.progressContainer}>
-                    {/* Progress percentage based on step */}
-                    <Text style={styles.progressPercentage}>
-                      {step === "phone" ? "20%" : "40%"}
-                    </Text>
+                    {/* Future steps (inactive) - appear on LEFT in RTL */}
+                    <View style={styles.progressDot} />
+                    <View style={styles.progressDot} />
+                    <View style={styles.progressDot} />
+                    {/* Step 2 - OTP verification */}
+                    <View
+                      style={[
+                        styles.progressDot,
+                        step === "otp" && styles.progressDotActive,
+                      ]}
+                    />
+                    {/* Step 1 - Phone number entry - appears on RIGHT in RTL */}
+                    <View
+                      style={[
+                        styles.progressDot,
+                        step === "phone" && styles.progressDotActive,
+                        step === "otp" && styles.progressDotCompleted,
+                      ]}
+                    />
                   </View>
 
                   {/* Step container */}
@@ -674,12 +689,6 @@ const styles = StyleSheet.create({
   progressDotCompleted: {
     backgroundColor: colors.desertOchre, // Desert Ochre for completed steps (matches our design)
     width: 8,
-  },
-  progressPercentage: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.najdiCrimson,
   },
   stepContainer: {
     minHeight: 380,

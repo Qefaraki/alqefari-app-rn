@@ -261,11 +261,15 @@ export default function ProfileMatchingScreen({ navigation, route }) {
   if (profiles.length === 0) {
     return (
       <View style={styles.container}>
-        {/* Header with progress percentage */}
+        {/* Header with progress dots - matching NameChainEntryScreen */}
         <View style={styles.header}>
-          {/* Progress Percentage - Step 4 of 5 */}
+          {/* Progress Dots - Step 4 of 5 - Reversed for RTL */}
           <View style={styles.progressContainer}>
-            <Text style={styles.progressPercentage}>80%</Text>
+            <View style={styles.progressDot} />
+            <View style={[styles.progressDot, styles.progressDotActive]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
+            <View style={[styles.progressDot, styles.progressDotCompleted]} />
           </View>
 
           {/* Back button */}
@@ -310,11 +314,15 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      {/* Header with progress percentage */}
+      {/* Header with progress dots - matching NameChainEntryScreen */}
       <View style={styles.header}>
-        {/* Progress Percentage - Step 4 of 5 */}
+        {/* Progress Dots - Step 4 of 5 - Reversed for RTL */}
         <View style={styles.progressContainer}>
-          <Text style={styles.progressPercentage}>80%</Text>
+          <View style={styles.progressDot} />
+          <View style={[styles.progressDot, styles.progressDotActive]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
+          <View style={[styles.progressDot, styles.progressDotCompleted]} />
         </View>
 
         {/* Back button */}
@@ -455,12 +463,6 @@ const styles = StyleSheet.create({
   progressDotActive: {
     backgroundColor: colors.primary, // Najdi Crimson
     width: 24, // Elongated dot for active step
-  },
-  progressPercentage: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.primary,
   },
 
   // Main content - EXACT MATCH with NameChainEntryScreen
