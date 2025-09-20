@@ -78,7 +78,7 @@ const createMaskedStarfield = () => {
         x: centerX + x + jitterX,
         y: centerY + y + jitterY,
         size,
-        brightness: 0.6 + Math.random() * 0.4,
+        brightness: 0.85 + Math.random() * 0.15, // Increased from 0.6-1.0 to 0.85-1.0
         delay: Math.random() * 100, // 2x faster for snappier twinkle
         group: "logo",
       });
@@ -320,9 +320,9 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
           // Gentle, slow twinkle
           const twinkle = Math.sin(time * 0.7 + groupId * 0.4);
 
-          // Base opacity with smooth variation
-          const baseOpacity = 0.45 + twinkle * 0.2; // 0.25 to 0.65 range
-          const opacity = star.brightness * baseOpacity * fadeInProgress;
+          // Base opacity with smooth variation - INCREASED BY 45%
+          const baseOpacity = 0.65 + twinkle * 0.25; // 0.40 to 0.90 range (was 0.25 to 0.65)
+          const opacity = star.brightness * baseOpacity * fadeInProgress * 1.45; // Additional 45% boost
 
           // Rare sparkles (only for some stars, not every calculation)
           const shouldSparkle = index % 40 === 0;

@@ -355,6 +355,28 @@ class SpatialGrid {
   }
 }
 
+// Helper function to convert generation number to Arabic words
+const getGenerationInArabic = (generation) => {
+  const arabicGenerations = {
+    1: "الأول",
+    2: "الثاني",
+    3: "الثالث",
+    4: "الرابع",
+    5: "الخامس",
+    6: "السادس",
+    7: "السابع",
+    8: "الثامن",
+    9: "التاسع",
+    10: "العاشر",
+    11: "الحادي عشر",
+    12: "الثاني عشر",
+    13: "الثالث عشر",
+    14: "الرابع عشر",
+    15: "الخامس عشر",
+  };
+  return arabicGenerations[generation] || `الجيل ${generation}`;
+};
+
 const TreeView = ({
   setProfileEditMode = () => {}, // Default noop function
   onNetworkStatusChange = () => {}, // Default noop function
@@ -1312,20 +1334,27 @@ const TreeView = ({
         const viewportCenterX = dimensions.width / 2;
         const viewportCenterY = dimensions.height / 2;
 
-        // Direct positioning - NO ANIMATION
-        const targetX = viewportCenterX - focusNode.x;
-        const targetY = viewportCenterY - focusNode.y;
+        // Set zoom first
+        const targetScale = 1.2;
 
-        console.log("Setting position to:", targetX, targetY);
+        // Direct positioning - NO ANIMATION
+        // When scaled, we need to account for the scale in positioning
+        const targetX = viewportCenterX - focusNode.x * targetScale;
+        const targetY = viewportCenterY - focusNode.y * targetScale;
+
+        console.log(
+          "Setting position to:",
+          targetX,
+          targetY,
+          "with scale:",
+          targetScale,
+        );
 
         // Set instantly - no animation, no delay
         translateX.value = targetX;
         translateY.value = targetY;
         savedTranslateX.value = targetX;
         savedTranslateY.value = targetY;
-
-        // Set zoom
-        const targetScale = 1.2;
         scale.value = targetScale;
         savedScale.value = targetScale;
       }
@@ -2212,12 +2241,13 @@ const TreeView = ({
 
               {/* Generation badge - positioned in top-right corner for photo nodes */}
               {(() => {
+                const genText = getGenerationInArabic(node.generation);
                 const genParagraph = createArabicParagraph(
-                  String(node.generation),
+                  genText,
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
                   "#24212140", // Sadu Night with 25% opacity
-                  15,
+                  nodeWidth / 2, // Increased width for Arabic text
                 );
 
                 if (!genParagraph) return null;
@@ -2225,9 +2255,9 @@ const TreeView = ({
                 return (
                   <Paragraph
                     paragraph={genParagraph}
-                    x={x + nodeWidth - 15}
-                    y={y + 4}
-                    width={15}
+                    x={x} // Center it horizontally
+                    y={y - nodeHeight / 2 + 4} // Top of node
+                    width={nodeWidth}
                   />
                 );
               })()}
@@ -2236,7 +2266,7 @@ const TreeView = ({
               {(() => {
                 // Use full name chain for focus person if available
                 const displayName =
-                  node.id === initialFocusId && focusPersonNameChain
+                  node.id === permanentHighlightId && focusPersonNameChain
                     ? focusPersonNameChain
                     : node.name;
 
@@ -2267,8 +2297,9 @@ const TreeView = ({
             <>
               {/* Generation badge - centered horizontally at top */}
               {(() => {
+                const genText = getGenerationInArabic(node.generation);
                 const genParagraph = createArabicParagraph(
-                  String(node.generation),
+                  genText,
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
                   "#24212140", // Sadu Night with 25% opacity
@@ -2291,7 +2322,7 @@ const TreeView = ({
               {(() => {
                 // Use full name chain for focus person if available
                 const displayName =
-                  node.id === initialFocusId && focusPersonNameChain
+                  node.id === permanentHighlightId && focusPersonNameChain
                     ? focusPersonNameChain
                     : node.name;
 

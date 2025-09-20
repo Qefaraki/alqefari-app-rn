@@ -13,10 +13,6 @@ public class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    // Force RTL layout for Arabic support
-    UIView.appearance().semanticContentAttribute = .forceRightToLeft
-    UINavigationBar.appearance().semanticContentAttribute = .forceRightToLeft
-    
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()

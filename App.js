@@ -208,40 +208,37 @@ export default function App() {
 
   const checkAuthState = async () => {
     try {
-      // Get current session first
+      // Quick check for cached session first
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      // Then get the user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      // If there's a mismatch (session but no user), clear everything
-      if (session && !user) {
-        await supabase.auth.signOut();
+      if (!session) {
+        // No session - go straight to onboarding
         setUser(null);
         setIsGuest(false);
-        setLinkedProfile(null);
-        setLinkStatus(null);
-      } else {
-        setUser(user);
-        setIsGuest(user?.user_metadata?.isGuest || false);
-
-        // Check profile linking status if user exists and not guest
-        if (user && !user?.user_metadata?.isGuest) {
-          await checkProfileLinkingStatus(user);
-        } else {
-          setProfileCheckComplete(true);
-        }
+        setInitializing(false);
+        return;
       }
+
+      // Session exists - set user immediately to avoid blocking
+      setUser(session.user);
+      setIsGuest(session.user?.user_metadata?.isGuest || false);
+
+      // For non-guests, check profile in background (don't block)
+      if (session.user && !session.user?.user_metadata?.isGuest) {
+        // Don't await - let it run in background
+        checkProfileLinkingStatus(session.user).catch(console.error);
+      } else {
+        setProfileCheckComplete(true);
+      }
+
+      setInitializing(false);
     } catch (error) {
       console.error("Auth check error:", error);
-      // On error, assume no user
+      // On error, assume no user and show onboarding
       setUser(null);
       setIsGuest(false);
-    } finally {
       setInitializing(false);
     }
   };
@@ -300,18 +297,20 @@ export default function App() {
     };
   }, []);
 
-  if (initializing) {
+  // Don't block with loading spinner - show onboarding immediately
+  // Only show spinner if we know user exists and we're checking their profile
+  if (initializing && user) {
     return (
       <View
         style={{
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: "#f5f5f5",
+          backgroundColor: "#030303", // Match onboarding background
         }}
       >
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: "#666" }}>
+        <ActivityIndicator size="large" color="#A13333" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: "#F9F7F3" }}>
           جاري التحميل...
         </Text>
       </View>
@@ -330,7 +329,9 @@ export default function App() {
   // Show onboarding/auth flow if:
   // 1. No user at all OR
   // 2. User exists but hasn't completed profile linking
-  const shouldShowOnboarding = (!user && !isGuest) || needsProfileLinking;
+  // 3. BUT: If still initializing and no user, show onboarding (don't wait)
+  const shouldShowOnboarding =
+    (!user && !isGuest) || needsProfileLinking || (initializing && !user);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

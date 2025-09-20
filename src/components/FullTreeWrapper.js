@@ -17,7 +17,6 @@ const FullTreeWrapper = ({
 }) => {
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
-  const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -42,12 +41,8 @@ const FullTreeWrapper = ({
     loadTreeIfNeeded();
   }, [treeData, setTreeData]);
 
-  useEffect(() => {
-    // Select the person once tree is loaded
-    if (focusPersonId && treeData && treeData.length > 0) {
-      setSelectedPersonId(focusPersonId);
-    }
-  }, [focusPersonId, treeData, setSelectedPersonId]);
+  // Removed setSelectedPersonId to avoid setState during render warning
+  // The TreeView will handle selection internally
 
   // Show loading indicator while loading
   if (isLoading || !treeData || treeData.length === 0) {
