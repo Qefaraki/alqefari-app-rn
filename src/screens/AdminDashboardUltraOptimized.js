@@ -17,6 +17,7 @@ import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import LinkRequestsManager from "../components/admin/LinkRequestsManager";
+import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
@@ -42,6 +43,8 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showLinkRequests, setShowLinkRequests] = useState(false);
+  const [showProfileCreationRequests, setShowProfileCreationRequests] =
+    useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
@@ -290,6 +293,15 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
         onClose={() => {
           setShowLinkRequests(false);
           loadPendingRequestsCount(); // Refresh count when closing
+        }}
+      />
+    );
+  }
+  if (showProfileCreationRequests) {
+    return (
+      <ProfileCreationRequests
+        onClose={() => {
+          setShowProfileCreationRequests(false);
         }}
       />
     );
@@ -690,6 +702,18 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
                     <Text style={styles.badgeText}>{pendingRequestsCount}</Text>
                   </View>
                 )}
+              </View>
+              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
+              onPress={() => setShowProfileCreationRequests(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>👤</Text>
+                <Text style={styles.actionText}>طلبات إنشاء ملفات</Text>
               </View>
               <Ionicons name="chevron-back" size={20} color="#9ca3af" />
             </TouchableOpacity>

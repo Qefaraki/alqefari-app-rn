@@ -1,13 +1,11 @@
 import "./src/utils/suppressWarnings"; // Suppress known warnings
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   View,
   Text,
   TouchableOpacity,
   Alert,
-  Modal,
-  I18nManager,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,9 +20,10 @@ import PendingApprovalBanner from "./src/components/PendingApprovalBanner";
 import { AdminModeProvider } from "./src/contexts/AdminModeContext";
 import { SettingsProvider } from "./src/contexts/SettingsContext";
 import AdminDashboard from "./src/screens/AdminDashboardUltraOptimized";
-import SettingsModal from "./src/components/SettingsModal";
+import SettingsPage from "./src/screens/SettingsPage";
 import AuthNavigator from "./src/navigation/AuthNavigator";
 import GuestNavigator from "./src/navigation/GuestNavigator";
+import NativeTabBar from "./src/components/NativeTabBar";
 import { supabase } from "./src/services/supabase";
 import { phoneAuthService } from "./src/services/phoneAuth";
 import notificationService from "./src/services/notifications";
@@ -41,19 +40,17 @@ const Stack = createStackNavigator();
 
 // Main app component (after authentication)
 function MainApp({
-  navigation,
   user,
   isGuest,
   onSignOut,
   linkedProfile,
   linkStatus,
   onLinkStatusChange,
-  onRefreshLinkStatus,
 }) {
-  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
-  const [profileEditMode, setProfileEditMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [hasNetworkError, setHasNetworkError] = useState(false);
+  const [activeTab, setActiveTab] = useState("tree");
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const initializeProfileSheetProgress = useTreeStore(
     (s) => s.initializeProfileSheetProgress,
   );
@@ -63,10 +60,29 @@ function MainApp({
     initializeProfileSheetProgress(progress);
   }, [initializeProfileSheetProgress, progress]);
 
-  // Use the link status change handler from props
-  const handleLinkStatusChange = (newStatus) => {
-    if (onLinkStatusChange) {
-      onLinkStatusChange(newStatus);
+  // Check admin status
+  useEffect(() => {
+    if (user) {
+      checkAdminStatus();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [user]);
+
+  const checkAdminStatus = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("admins")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      setIsAdmin(!!data && !error);
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      setIsAdmin(false);
     }
   };
 
@@ -112,16 +128,16 @@ function MainApp({
     <SettingsProvider>
       <AdminModeProvider>
         <BottomSheetModalProvider>
-          <View className="flex-1">
+          <View style={{ flex: 1 }}>
             <StatusBar style="dark" />
 
-            {/* Admin Quick Login (for testing) - Bottom right circular button */}
+            {/* Admin Quick Login (for testing) - Moved up to avoid tab bar */}
             {!user && (
               <TouchableOpacity
                 onPress={handleAdminLogin}
                 style={{
                   position: "absolute",
-                  bottom: 20, // Moved down to not overlay navigation
+                  bottom: 100, // Moved up to avoid tab bar
                   right: 16,
                   zIndex: 10,
                   width: 44,
@@ -145,50 +161,113 @@ function MainApp({
               </TouchableOpacity>
             )}
 
-            {/* Guest Mode Banner - Removed per user request */}
-
-            {/* Tree View */}
-            <View className="flex-1">
-              {/* Pending Approval Banner */}
-              {user && linkStatus === "pending" && (
-                <PendingApprovalBanner
-                  user={user}
-                  onStatusChange={handleLinkStatusChange}
-                  onRefresh={onRefreshLinkStatus}
-                />
+            {/* Tab Content */}
+            <View style={{ flex: 1, marginBottom: 85 }}>
+              {activeTab === "tree" && (
+                <>
+                  {/* Pending Approval Banner */}
+                  {user && linkStatus === "pending" && (
+                    <PendingApprovalBanner
+                      user={user}
+                      onStatusChange={onLinkStatusChange}
+                    />
+                  )}
+                  <TreeView
+                    user={user}
+                    isGuest={isGuest}
+                    onAdminDashboard={() => setActiveTab("settings")}
+                    onSettingsOpen={() => setActiveTab("settings")}
+                  />
+                  <ProfileSheetWrapper />
+                </>
               )}
-
-              <TreeView
-                setProfileEditMode={setProfileEditMode}
-                onNetworkStatusChange={setHasNetworkError}
-                user={user}
-                isGuest={isGuest}
-                onAdminDashboard={() => setShowAdminDashboard(true)}
-                onSettingsOpen={() => setShowSettings(true)}
-              />
+              {activeTab === "settings" && (
+                <>
+                  {isAdmin ? (
+                    <AdminDashboard
+                      user={user}
+                      onClose={() => setActiveTab("tree")}
+                    />
+                  ) : (
+                    <SettingsPage
+                      user={user}
+                      navigation={{ goBack: () => setActiveTab("tree") }}
+                    />
+                  )}
+                </>
+              )}
+              {activeTab === "profile" && (
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    padding: 32,
+                  }}
+                >
+                  {!user || isGuest ? (
+                    <>
+                      <Ionicons
+                        name="person-outline"
+                        size={80}
+                        color="#A13333"
+                      />
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontWeight: "700",
+                          color: "#242121",
+                          marginTop: 16,
+                          fontFamily: "SF Arabic",
+                        }}
+                      >
+                        ملفك الشخصي
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          color: "#736372",
+                          marginTop: 8,
+                          textAlign: "center",
+                          fontFamily: "SF Arabic",
+                        }}
+                      >
+                        سجل دخولك لعرض ملفك الشخصي
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="construct" size={80} color="#D58C4A" />
+                      <Text
+                        style={{
+                          fontSize: 24,
+                          fontWeight: "700",
+                          color: "#242121",
+                          marginTop: 16,
+                          fontFamily: "SF Arabic",
+                        }}
+                      >
+                        قريباً
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          color: "#736372",
+                          marginTop: 8,
+                          textAlign: "center",
+                          fontFamily: "SF Arabic",
+                        }}
+                      >
+                        نعمل على تطوير صفحة الملف الشخصي
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
 
-            {/* Profile Sheet */}
-            <ProfileSheetWrapper editMode={profileEditMode} />
-
-            {/* Admin Dashboard Modal */}
-            <Modal
-              visible={showAdminDashboard}
-              animationType="slide"
-              presentationStyle="fullScreen"
-              onRequestClose={() => setShowAdminDashboard(false)}
-            >
-              <AdminDashboard
-                user={user}
-                onClose={() => setShowAdminDashboard(false)}
-              />
-            </Modal>
-
-            {/* Settings Modal */}
-            <SettingsModal
-              visible={showSettings}
-              onClose={() => setShowSettings(false)}
-            />
+            {/* Native Tab Bar with iOS 26 Liquid Glass / Android Material */}
+            <NativeTabBar activeTab={activeTab} onTabPress={setActiveTab} />
           </View>
         </BottomSheetModalProvider>
       </AdminModeProvider>

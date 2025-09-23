@@ -5,6 +5,7 @@ import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
 import NajdiPhoneAuthScreen from "../screens/auth/NajdiPhoneAuthScreen";
 import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
 import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
+import ContactAdminScreen from "../screens/auth/ContactAdminScreen";
 import EnhancedSaduBackdrop from "../components/ui/EnhancedSaduBackdrop";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -87,6 +88,14 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
         <Stack.Screen
           name="ProfileMatching"
           component={ProfileMatchingScreen}
+          options={{
+            gestureEnabled: true,
+            gestureDirection: "horizontal",
+          }}
+        />
+        <Stack.Screen
+          name="ContactAdmin"
+          component={ContactAdminScreen}
           options={{
             gestureEnabled: true,
             gestureDirection: "horizontal",

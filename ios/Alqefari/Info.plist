@@ -32,6 +32,12 @@
           <string>com.Alqefari.alqefari</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>exp+alqefari-family-tree</string>
+        </array>
+      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>23</string>
@@ -56,6 +62,8 @@
     <string>Allow $(PRODUCT_NAME) to access your device motion</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي</string>
+    <key>RCTNewArchEnabled</key>
+    <true/>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>
     <key>UIRequiredDeviceCapabilities</key>
