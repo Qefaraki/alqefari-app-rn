@@ -382,7 +382,16 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                 >
                   {/* Header row with back button and progress bar */}
                   <View style={styles.headerRow}>
-                    {/* Back button - on RIGHT in RTL */}
+                    {/* Progress bar - FIRST so it appears on LEFT in RTL */}
+                    <View style={styles.progressBarContainer}>
+                      <DuolingoProgressBar
+                        currentStep={step === "phone" ? 1 : 2}
+                        totalSteps={5}
+                        showStepCount={true}
+                      />
+                    </View>
+
+                    {/* Back button - SECOND so it appears on RIGHT in RTL */}
                     <TouchableOpacity
                       style={styles.backButtonNew}
                       onPress={() => navigation.goBack()}
@@ -395,15 +404,6 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                         color={colors.alJassWhite + "CC"}
                       />
                     </TouchableOpacity>
-
-                    {/* Progress bar - fills remaining space */}
-                    <View style={styles.progressBarContainer}>
-                      <DuolingoProgressBar
-                        currentStep={step === "phone" ? 1 : 2}
-                        totalSteps={5}
-                        showStepCount={true}
-                      />
-                    </View>
                   </View>
 
                   {/* Step container */}
@@ -653,13 +653,13 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 12, // In native RTL, this becomes margin on the right side
+    marginRight: 12, // In native RTL, this becomes margin on the left side
   },
   progressBarContainer: {
     flex: 1,
     height: 44,
     justifyContent: "center", // Center progress bar vertically
-    paddingRight: 12, // Add padding to keep progress bar away from edge
+    paddingLeft: 12, // In native RTL, this becomes padding on the right
   },
   contentContainer: {
     flex: 1,
