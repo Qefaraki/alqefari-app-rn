@@ -1580,6 +1580,15 @@ const TreeView = ({
     });
 
   // Handle node tap - show profile sheet (edit mode if admin)
+  const handleNodeTap = useCallback(
+    (nodeId) => {
+      // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
+      setSelectedPersonId(nodeId);
+      setProfileEditMode(isAdminMode);
+      // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
+    },
+    [setSelectedPersonId, isAdminMode],
+  );
 
   // Handle chip tap in T3 - zoom to branch
   const handleChipTap = useCallback(
@@ -2456,8 +2465,8 @@ const TreeView = ({
           );
         })()}
 
-      <SearchBar onSelectResult={handleSearchResultSelect} />
 
+      <SearchBar onSelectResult={handleSearchResultSelect} />
 
       <NavigateToRootButton
         nodes={nodes}

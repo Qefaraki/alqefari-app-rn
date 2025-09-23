@@ -456,8 +456,6 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   return (
     <>
-      {/* Backdrop when search is active or focused */}
-      {(showResults || isFocused) && (
         <Animated.View
           style={[
             styles.backdrop,
