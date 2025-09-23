@@ -194,12 +194,12 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     // Clear error when user starts typing
     if (error) setError("");
 
-    // Only allow digits and limit to 6
-    const digits = value.replace(/\D/g, "").slice(0, 6);
+    // Only allow digits and limit to 4
+    const digits = value.replace(/\D/g, "").slice(0, 4);
     setOtp(digits);
 
-    // Auto-submit when 6 digits entered
-    if (digits.length === 6) {
+    // Auto-submit when 4 digits entered
+    if (digits.length === 4) {
       Keyboard.dismiss();
       handleVerifyOTP(digits); // Pass the string directly
     }
@@ -207,7 +207,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
 
   const handleVerifyOTP = async (otpCode = otp) => {
     // otpCode is now already a string
-    if (otpCode.length !== 6) {
+    if (otpCode.length !== 4) {
       setError("يرجى إدخال رمز التحقق كاملاً (٦ أرقام)");
       shakeError();
       return;
@@ -520,7 +520,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
 
                         <OtpInput
                           ref={otpRef}
-                          numberOfDigits={6}
+                          numberOfDigits={4}
                           focusColor={colors.alJassWhite}
                           focusStickBlinkingDuration={400}
                           onTextChange={handleOtpChange}
@@ -551,11 +551,11 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                         <TouchableOpacity
                           style={[
                             styles.primaryButton,
-                            (otp.length !== 6 || loading) &&
+                            (otp.length !== 4 || loading) &&
                               styles.buttonDisabled,
                           ]}
                           onPress={() => handleVerifyOTP()}
-                          disabled={otp.length !== 6 || loading}
+                          disabled={otp.length !== 4 || loading}
                           activeOpacity={0.8}
                         >
                           {loading ? (
