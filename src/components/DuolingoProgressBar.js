@@ -120,7 +120,7 @@ const DuolingoProgressBar = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   progressContainer: {
     height: 8,

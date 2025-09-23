@@ -380,33 +380,36 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                 <Animated.View
                   style={[styles.cardInner, { opacity: contentOpacity }]}
                 >
-                  {/* Back Button */}
-                  <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => navigation.goBack()}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="chevron-back"
-                      size={28}
-                      color={colors.alJassWhite + "CC"}
-                    />
-                  </TouchableOpacity>
+                  {/* Header row with back button and progress bar */}
+                  <View style={styles.headerRow}>
+                    <TouchableOpacity
+                      style={styles.backButtonNew}
+                      onPress={() => navigation.goBack()}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name="chevron-back"
+                        size={28}
+                        color={colors.alJassWhite + "CC"}
+                      />
+                    </TouchableOpacity>
 
-                  {/* Duolingo-style progress bar */}
-                  <DuolingoProgressBar
-                    currentStep={step === "phone" ? 1 : 2}
-                    totalSteps={5}
-                    steps={[
-                      "الهاتف",
-                      "التحقق",
-                      "الاسم",
-                      "المطابقة",
-                      "الموافقة",
-                    ]}
-                    showLabels={false}
-                    style={{ marginBottom: 24 }}
-                  />
+                    <View style={styles.progressBarContainer}>
+                      <DuolingoProgressBar
+                        currentStep={step === "phone" ? 1 : 2}
+                        totalSteps={5}
+                        steps={[
+                          "الهاتف",
+                          "التحقق",
+                          "الاسم",
+                          "المطابقة",
+                          "الموافقة",
+                        ]}
+                        showLabels={false}
+                        style={{ marginVertical: 0 }}
+                      />
+                    </View>
+                  </View>
 
                   {/* Step container */}
                   <View style={styles.stepContainer}>
@@ -640,6 +643,24 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     alignItems: "center",
+    justifyContent: "center",
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 32,
+    marginTop: -12,
+    marginHorizontal: -12,
+  },
+  backButtonNew: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  progressBarContainer: {
+    flex: 1,
     justifyContent: "center",
   },
   contentContainer: {
