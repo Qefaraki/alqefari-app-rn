@@ -24,6 +24,11 @@ import appConfig from "../config/appConfig";
 // Family Logo
 const AlqefariLogo = require("../../assets/logo/Alqefari Emblem (Transparent).png");
 
+// Profile cache to avoid repeated calls
+let profileCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export default function SettingsModal({ visible, onClose }) {
   const { settings, updateSetting, clearSettings } = useSettings();
   const [expandedSection, setExpandedSection] = useState("date");
@@ -53,6 +58,16 @@ export default function SettingsModal({ visible, onClose }) {
 
   const loadUserProfile = async () => {
     setLoadingProfile(true);
+    
+    // Check cache first
+    const now = Date.now();
+    if (profileCache && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION)) {
+      setCurrentUser(profileCache.user);
+      setUserProfile(profileCache.profile);
+      setLoadingProfile(false);
+      return;
+    }
+    
     try {
       const {
         data: { user },
@@ -68,6 +83,10 @@ export default function SettingsModal({ visible, onClose }) {
           .single();
 
         setUserProfile(profile);
+        
+        // Update cache
+        profileCache = { user, profile };
+        cacheTimestamp = Date.now();
       }
     } catch (error) {
       console.error("Error loading user profile:", error);
@@ -91,6 +110,9 @@ export default function SettingsModal({ visible, onClose }) {
           onPress: async () => {
             try {
               await supabase.auth.signOut();
+              // Clear cache on sign out
+              profileCache = null;
+              cacheTimestamp = null;
               // Clear any local state
               useTreeStore.getState().setSelectedPersonId(null);
               onClose();
@@ -159,6 +181,9 @@ export default function SettingsModal({ visible, onClose }) {
 
       // Sign out the user
       await supabase.auth.signOut();
+              // Clear cache on sign out
+              profileCache = null;
+              cacheTimestamp = null;
 
       // Clear any local state
       useTreeStore.getState().setSelectedPersonId(null);
@@ -234,8 +259,16 @@ export default function SettingsModal({ visible, onClose }) {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Profile Section - Beautiful World-Class Design */}
           {loadingProfile ? (
-            <View style={styles.profileCardLoading}>
-              <ActivityIndicator size="small" color="#007AFF" />
+            <View style={styles.profileCard}>
+              <View style={styles.profileContent}>
+                <View style={styles.profileImageContainer}>
+                  <View style={[styles.profileImagePlaceholder, {backgroundColor: "#D1BBA340"}]} />
+                </View>
+                <View style={styles.profileTextContainer}>
+                  <View style={{height: 18, width: 120, backgroundColor: "#D1BBA340", borderRadius: 9, marginBottom: 8}} />
+                  <View style={{height: 14, width: 180, backgroundColor: "#D1BBA340", borderRadius: 7}} />
+                </View>
+              </View>
             </View>
           ) : currentUser ? (
             <TouchableOpacity
@@ -315,6 +348,9 @@ export default function SettingsModal({ visible, onClose }) {
                   // Force sign out to show onboarding/auth flow
                   setTimeout(async () => {
                     await supabase.auth.signOut();
+              // Clear cache on sign out
+              profileCache = null;
+              cacheTimestamp = null;
                     // This will trigger the auth state change listener
                     // and show the onboarding screen
                   }, 100);
@@ -587,9 +623,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionHeader: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: chevron on left, content on right
     alignItems: "center",
-    justifyContent: "flex-end", // RTL alignment
     backgroundColor: "#F9F7F3", // Al-Jass White
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -698,7 +733,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   switchOption: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: switch on left, text on right
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
@@ -768,12 +803,13 @@ const styles = StyleSheet.create({
     borderColor: "#D1BBA340",
   },
   profileContent: {
-    flexDirection: "row",
+    flexDirection: "row-reverse", // RTL: image on right, text on left
     alignItems: "center",
     padding: 20,
   },
   profileImageContainer: {
-    marginRight: 16,
+    marginLeft: 16, // Changed for RTL
+    marginRight: 0,
     position: "relative",
   },
   profileImage: {
@@ -793,7 +829,7 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 36,
     backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    backgroundColor: "#007AFF",
+    backgroundColor: "#A13333", // Najdi Crimson instead of blue
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 3,

@@ -1,0 +1,910 @@
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  Switch,
+  ScrollView,
+  Alert,
+  I18nManager,
+  Image,
+  ActivityIndicator,
+  Animated,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useSettings } from "../contexts/SettingsContext";
+import { formatDateByPreference } from "../utils/dateDisplay";
+import { gregorianToHijri } from "../utils/hijriConverter";
+import { supabase } from "../services/supabase";
+import { useTreeStore } from "../stores/useTreeStore";
+import appConfig from "../config/appConfig";
+
+// Family Logo
+const AlqefariLogo = require("../../assets/logo/Alqefari Emblem (Transparent).png");
+
+// Profile cache
+let profileCache = null;
+let cacheTimestamp = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Skeleton Loader Component
+const SkeletonLoader = () => {
+  const shimmerAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, []);
+
+  return (
+    <View style={styles.profileCard}>
+      <View style={styles.profileContent}>
+        <View style={styles.profileImageContainer}>
+          <Animated.View
+            style={[
+              styles.skeletonAvatar,
+              {
+                opacity: shimmerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
+          />
+        </View>
+        <View style={styles.profileTextContainer}>
+          <Animated.View
+            style={[
+              styles.skeletonText,
+              { width: 120 },
+              {
+                opacity: shimmerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
+          />
+          <Animated.View
+            style={[
+              styles.skeletonText,
+              { width: 180, marginTop: 8 },
+              {
+                opacity: shimmerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 0.7],
+                }),
+              },
+            ]}
+          />
+        </View>
+        <View style={{ width: 20 }} />
+      </View>
+    </View>
+  );
+};
+
+export default function SettingsModal({ visible, onClose }) {
+  const { settings, updateSetting, clearSettings } = useSettings();
+  const [expandedSection, setExpandedSection] = useState("date");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+
+  // Sample date for preview - using a valid date
+  const sampleGregorian = { day: 15, month: 3, year: 2024 };
+  const sampleHijri = gregorianToHijri(2024, 3, 15);
+
+  const sampleDate = {
+    gregorian: sampleGregorian,
+    hijri: sampleHijri || { day: 5, month: 9, year: 1445 }, // Fallback if conversion fails
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  // Load user profile with caching
+  useEffect(() => {
+    if (visible) {
+      loadUserProfile();
+    }
+  }, [visible]);
+
+  const loadUserProfile = async () => {
+    setLoadingProfile(true);
+
+    try {
+      // Check cache first
+      const now = Date.now();
+      if (
+        profileCache &&
+        cacheTimestamp &&
+        now - cacheTimestamp < CACHE_DURATION
+      ) {
+        setCurrentUser(profileCache.user);
+        setUserProfile(profileCache.profile);
+        setLoadingProfile(false);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUser(user);
+
+      if (user) {
+        // Try to find matching profile
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .or(`email.eq.${user.email},phone.eq.${user.phone}`)
+          .single();
+
+        setUserProfile(profile);
+
+        // Update cache
+        profileCache = { user, profile };
+        cacheTimestamp = Date.now();
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      "تسجيل الخروج",
+      "هل أنت متأكد من تسجيل الخروج؟",
+      [
+        {
+          text: "إلغاء",
+          style: "cancel",
+        },
+        {
+          text: "تسجيل الخروج",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await supabase.auth.signOut();
+              // Clear cache on sign out
+              profileCache = null;
+              cacheTimestamp = null;
+              // Clear any local state
+              useTreeStore.getState().setSelectedPersonId(null);
+              onClose();
+            } catch (error) {
+              Alert.alert("خطأ", "فشل تسجيل الخروج");
+            }
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  const handleClearSettings = () => {
+    Alert.alert(
+      "إعادة تعيين الإعدادات",
+      "سيتم إرجاع جميع الإعدادات إلى القيم الافتراضية",
+      [
+        {
+          text: "إلغاء",
+          style: "cancel",
+        },
+        {
+          text: "إعادة تعيين",
+          style: "destructive",
+          onPress: clearSettings,
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  const dateFormatOptions = [
+    { label: "الهجري", value: "hijri" },
+    { label: "الميلادي", value: "gregorian" },
+    { label: "كلاهما", value: "both" },
+  ];
+
+  const displayFormatOptions = [
+    { label: "الأرقام العربية", value: "arabic" },
+    { label: "الأرقام الإنجليزية", value: "english" },
+  ];
+
+  const dateOrderOptions = [
+    { label: "يوم-شهر-سنة", value: "dmy" },
+    { label: "شهر-يوم-سنة", value: "mdy" },
+    { label: "سنة-شهر-يوم", value: "ymd" },
+  ];
+
+  const formatTypeOptions = [
+    { label: "رقمي", value: "numeric" },
+    { label: "نصي", value: "text" },
+  ];
+
+  const renderSegmentedControl = (options, value, onValueChange) => {
+    return (
+      <View style={styles.segmentedControl}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.segment,
+              value === option.value && styles.segmentActive,
+            ]}
+            onPress={() => onValueChange(option.value)}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                value === option.value && styles.segmentTextActive,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={28} color="#242121" />
+          </TouchableOpacity>
+          <Text style={styles.title}>الإعدادات</Text>
+          <View style={{ width: 28 }} />
+        </View>
+
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Profile Section - Beautiful World-Class Design with Skeleton Loader */}
+          {loadingProfile ? (
+            <SkeletonLoader />
+          ) : currentUser ? (
+            <TouchableOpacity
+              style={styles.profileCard}
+              activeOpacity={0.95}
+              onPress={() => {
+                if (userProfile) {
+                  // Open profile editor
+                  useTreeStore.getState().setSelectedPersonId(userProfile.id);
+                  onClose();
+                }
+              }}
+            >
+              <View style={styles.profileContent}>
+                <View style={styles.profileImageContainer}>
+                  {userProfile?.photo_url ? (
+                    <Image
+                      source={{ uri: userProfile.photo_url }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.profileImagePlaceholder}>
+                      <Text style={styles.profileInitial}>
+                        {(userProfile?.name ||
+                          currentUser.email ||
+                          "U")[0].toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.onlineBadge} />
+                </View>
+
+                <View style={styles.profileTextContainer}>
+                  <Text style={styles.profileName}>
+                    {userProfile?.name || "ملف شخصي غير مربوط"}
+                  </Text>
+                  <Text style={styles.profileInfo}>
+                    {currentUser.phone || currentUser.email}
+                  </Text>
+                  {userProfile && (
+                    <View style={styles.profileBadge}>
+                      <Text style={styles.profileBadgeText}>
+                        الجيل {userProfile.generation}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                <Ionicons
+                  name="chevron-back"
+                  size={20}
+                  color="#9CA3AF"
+                  style={styles.chevron}
+                />
+              </View>
+
+              {/* Sign Out Button */}
+              <TouchableOpacity
+                style={styles.signOutButton}
+                onPress={handleSignOut}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={20}
+                  color="#DC2626"
+                  style={styles.signOutIcon}
+                />
+                <Text style={styles.signOutText}>تسجيل الخروج</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.profileCardEmpty}>
+              <Text style={styles.profileEmptyText}>لم يتم تسجيل الدخول</Text>
+            </View>
+          )}
+
+          {/* Logo & Version Info */}
+          <View style={styles.logoSection}>
+            <Image source={AlqefariLogo} style={styles.logo} />
+            <Text style={styles.appTitle}>شجرة عائلة القفاري</Text>
+            <Text style={styles.versionText}>
+              الإصدار {appConfig.version} • {appConfig.environment}
+            </Text>
+          </View>
+
+          {/* Date Format Settings */}
+          <TouchableOpacity
+            onPress={() => toggleSection("date")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.sectionHeader}>
+              <Ionicons
+                name={
+                  expandedSection === "date" ? "chevron-up" : "chevron-down"
+                }
+                size={20}
+                color="#6B7280"
+              />
+              <View style={styles.sectionHeaderContent}>
+                <Text style={styles.sectionTitle}>تنسيق التاريخ</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {settings.dateFormat === "hijri"
+                    ? "التقويم الهجري"
+                    : settings.dateFormat === "gregorian"
+                      ? "التقويم الميلادي"
+                      : "كلا التقويمين"}
+                </Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {expandedSection === "date" && (
+            <View style={styles.section}>
+              {/* Date Preview */}
+              <View style={styles.previewContainer}>
+                <Text style={styles.previewTitle}>معاينة التنسيق</Text>
+                <Text style={styles.previewText}>
+                  {formatDateByPreference(
+                    sampleDate,
+                    settings.dateFormat,
+                    settings.displayFormat,
+                    settings.dateOrder,
+                    settings.formatType,
+                  )}
+                </Text>
+              </View>
+
+              {/* Date Format Options */}
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>نوع التقويم</Text>
+                {renderSegmentedControl(
+                  dateFormatOptions,
+                  settings.dateFormat,
+                  (value) => updateSetting("dateFormat", value),
+                )}
+              </View>
+
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>نوع الأرقام</Text>
+                {renderSegmentedControl(
+                  displayFormatOptions,
+                  settings.displayFormat,
+                  (value) => updateSetting("displayFormat", value),
+                )}
+              </View>
+
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>ترتيب التاريخ</Text>
+                {renderSegmentedControl(
+                  dateOrderOptions,
+                  settings.dateOrder,
+                  (value) => updateSetting("dateOrder", value),
+                )}
+              </View>
+
+              <View style={styles.optionGroup}>
+                <Text style={styles.optionGroupLabel}>تنسيق العرض</Text>
+                {renderSegmentedControl(
+                  formatTypeOptions,
+                  settings.formatType,
+                  (value) => updateSetting("formatType", value),
+                )}
+                <Text style={styles.optionHint}>
+                  {settings.formatType === "numeric"
+                    ? "مثال: ١٥/٣/١٤٤٦"
+                    : "مثال: ١٥ رمضان ١٤٤٦"}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Display Settings */}
+          <TouchableOpacity
+            onPress={() => toggleSection("display")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.sectionHeader}>
+              <Ionicons
+                name={
+                  expandedSection === "display" ? "chevron-up" : "chevron-down"
+                }
+                size={20}
+                color="#6B7280"
+              />
+              <View style={styles.sectionHeaderContent}>
+                <Text style={styles.sectionTitle}>إعدادات العرض</Text>
+                <Text style={styles.sectionSubtitle}>تخصيص واجهة التطبيق</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {expandedSection === "display" && (
+            <View style={styles.section}>
+              {/* Show Photos Switch */}
+              <View style={styles.switchOption}>
+                <View style={styles.switchOptionContent}>
+                  <Text style={styles.switchOptionLabel}>عرض الصور</Text>
+                  <Text style={styles.switchOptionHint}>
+                    إظهار صور الأشخاص في الشجرة عند توفرها
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.showPhotos}
+                  onValueChange={(value) => updateSetting("showPhotos", value)}
+                  trackColor={{ false: "#D1D5DB", true: "#A1333350" }}
+                  thumbColor={settings.showPhotos ? "#A13333" : "#F3F4F6"}
+                />
+              </View>
+
+              {/* Birth Dates Switch */}
+              <View style={styles.switchOption}>
+                <View style={styles.switchOptionContent}>
+                  <Text style={styles.switchOptionLabel}>
+                    عرض تواريخ الميلاد
+                  </Text>
+                  <Text style={styles.switchOptionHint}>
+                    إظهار تواريخ الميلاد في بطاقات المعلومات
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.showBirthDates}
+                  onValueChange={(value) =>
+                    updateSetting("showBirthDates", value)
+                  }
+                  trackColor={{ false: "#D1D5DB", true: "#A1333350" }}
+                  thumbColor={settings.showBirthDates ? "#A13333" : "#F3F4F6"}
+                />
+              </View>
+
+              {/* Death Dates Switch */}
+              <View style={styles.switchOption}>
+                <View style={styles.switchOptionContent}>
+                  <Text style={styles.switchOptionLabel}>
+                    عرض تواريخ الوفاة
+                  </Text>
+                  <Text style={styles.switchOptionHint}>
+                    إظهار تواريخ الوفاة للمتوفين
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.showDeathDates}
+                  onValueChange={(value) =>
+                    updateSetting("showDeathDates", value)
+                  }
+                  trackColor={{ false: "#D1D5DB", true: "#A1333350" }}
+                  thumbColor={settings.showDeathDates ? "#A13333" : "#F3F4F6"}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Reset Button */}
+          <TouchableOpacity
+            style={styles.resetButton}
+            onPress={handleClearSettings}
+          >
+            <Text style={styles.resetButtonText}>
+              إعادة تعيين جميع الإعدادات
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#F9F7F3", // Al-Jass White
+    borderBottomWidth: 1,
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
+  },
+  closeButton: {
+    padding: 4,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#242121", // Sadu Night
+  },
+  content: {
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: "row-reverse", // RTL: Chevron on left, content on right
+    alignItems: "center",
+    backgroundColor: "#F9F7F3", // Al-Jass White
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#D1BBA340", // Camel Hair Beige 40%
+    borderBottomWidth: 1,
+    borderBottomColor: "#D1BBA340",
+  },
+  sectionHeaderContent: {
+    flex: 1,
+    marginRight: 12, // Space from chevron (RTL)
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#111827",
+    textAlign: "right",
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+    marginTop: 2,
+    textAlign: "right",
+  },
+  section: {
+    backgroundColor: "#F9F7F3", // Al-Jass White
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  previewContainer: {
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    marginBottom: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
+  },
+  previewTitle: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+    marginBottom: 8,
+  },
+  previewText: {
+    fontSize: 18,
+    fontFamily: "SF Arabic",
+    color: "#111827",
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  optionGroup: {
+    marginBottom: 24,
+  },
+  optionGroupLabel: {
+    fontSize: 15,
+    fontFamily: "SF Arabic",
+    color: "#374151",
+    fontWeight: "500",
+    marginBottom: 12,
+    textAlign: "right",
+  },
+  optionHint: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+    marginTop: 8,
+    textAlign: "right",
+  },
+  segmentedControl: {
+    flexDirection: "row-reverse", // RTL layout
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+    borderRadius: 8,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  segmentActive: {
+    backgroundColor: "#A13333", // Najdi Crimson
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 14,
+    fontFamily: "SF Arabic",
+    color: "#374151",
+    fontWeight: "500",
+  },
+  segmentTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  switchOption: {
+    flexDirection: "row-reverse", // RTL: Switch on left, text on right
+    alignItems: "center",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#D1BBA320",
+  },
+  switchOptionContent: {
+    flex: 1,
+    paddingRight: 0, // Remove right padding in RTL
+    paddingLeft: 16, // Add left padding for switch
+  },
+  switchOptionLabel: {
+    fontSize: 16,
+    fontFamily: "SF Arabic",
+    color: "#111827",
+    fontWeight: "500",
+    textAlign: "right",
+  },
+  switchOptionHint: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+    marginTop: 2,
+    textAlign: "right",
+  },
+  resetButton: {
+    margin: 20,
+    padding: 16,
+    backgroundColor: "#A1333310", // Najdi Crimson 10%
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#A1333330", // Najdi Crimson 30%
+  },
+  resetButtonText: {
+    fontSize: 15,
+    fontFamily: "SF Arabic",
+    color: "#A13333", // Najdi Crimson
+    fontWeight: "500",
+  },
+  profileCard: {
+    backgroundColor: "#F9F7F3", // Al-Jass White
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
+  },
+  profileCardLoading: {
+    backgroundColor: "#F9F7F3", // Al-Jass White
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
+  },
+  profileContent: {
+    flexDirection: "row-reverse", // RTL: Image on right, text on left
+    alignItems: "center",
+    padding: 20,
+  },
+  profileImageContainer: {
+    marginLeft: 16, // Changed from marginRight for RTL
+    position: "relative",
+  },
+  profileImage: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  profileImagePlaceholder: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#A13333", // Changed to Najdi Crimson
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  profileInitial: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  onlineBadge: {
+    position: "absolute",
+    bottom: 2,
+    left: 2, // Changed from right for RTL
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#10B981",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+  },
+  profileTextContainer: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#111827",
+    textAlign: "right",
+  },
+  profileInfo: {
+    fontSize: 14,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+    marginTop: 2,
+    textAlign: "right",
+  },
+  profileBadge: {
+    marginTop: 8,
+    alignSelf: "flex-end", // Align to right for RTL
+    backgroundColor: "#A1333320", // Najdi Crimson 20%
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  profileBadgeText: {
+    fontSize: 12,
+    fontFamily: "SF Arabic",
+    color: "#A13333", // Najdi Crimson
+    fontWeight: "600",
+  },
+  chevron: {
+    marginLeft: 8,
+  },
+  signOutButton: {
+    flexDirection: "row-reverse", // RTL layout
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    backgroundColor: "#FEF2F2",
+  },
+  signOutIcon: {
+    marginLeft: 8, // Changed from marginRight for RTL
+  },
+  signOutText: {
+    fontSize: 15,
+    fontFamily: "SF Arabic",
+    color: "#DC2626",
+    fontWeight: "500",
+  },
+  profileCardEmpty: {
+    backgroundColor: "#F9F7F3",
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 20,
+    borderRadius: 12,
+    padding: 40,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
+  },
+  profileEmptyText: {
+    fontSize: 16,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+  },
+  logoSection: {
+    alignItems: "center",
+    paddingVertical: 24,
+    marginBottom: 12,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 12,
+    opacity: 0.9,
+  },
+  appTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  versionText: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: "#6B7280",
+  },
+  // Skeleton Loader styles
+  skeletonAvatar: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#D1BBA340",
+  },
+  skeletonText: {
+    height: 14,
+    backgroundColor: "#D1BBA340",
+    borderRadius: 7,
+  },
+});
