@@ -9,29 +9,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-// // Temporarily removed - // import FullTreeWrapper from "./FullTreeWrapper";
-
-// Helper function to convert generation number to Arabic words
-const getGenerationInArabic = (generation) => {
-  const arabicGenerations = {
-    1: "الأول",
-    2: "الثاني",
-    3: "الثالث",
-    4: "الرابع",
-    5: "الخامس",
-    6: "السادس",
-    7: "السابع",
-    8: "الثامن",
-    9: "التاسع",
-    10: "العاشر",
-    11: "الحادي عشر",
-    12: "الثاني عشر",
-    13: "الثالث عشر",
-    14: "الرابع عشر",
-    15: "الخامس عشر",
-  };
-  return arabicGenerations[generation] || `الجيل ${generation}`;
-};
+import FocusedTreeView from "./FocusedTreeView";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -90,21 +68,18 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
               )}
               {profile.generation && (
                 <Text style={styles.profileMeta}>
-                  الجيل {getGenerationInArabic(profile.generation)}
+                  الجيل {profile.generation}
                 </Text>
               )}
             </View>
           </View>
         </View>
-        {/* Full TreeView - No filtering, just centered on focus person */}
+
+        {/* Focused Tree View */}
         <View style={styles.treeContainer}>
-          {/* <FullTreeWrapper
-            focusPersonId={profile.id}
-            focusPersonNameChain={profile.name_chain}
-            onConfirm={onConfirm}
-            onClose={onClose}
-          /> */}
+          <FocusedTreeView focusPersonId={profile.id} />
         </View>
+
         {/* Action Buttons */}
         <View style={styles.actions}>
           <TouchableOpacity

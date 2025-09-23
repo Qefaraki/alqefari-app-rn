@@ -55,8 +55,7 @@ import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
-import { SettingsContext } from "../contexts/SettingsContext";
-import { useContext } from "react";
+import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import AdminToggleButton from "./AdminToggleButton";
@@ -356,47 +355,21 @@ class SpatialGrid {
 }
 
 const TreeView = ({
-  setProfileEditMode = () => {}, // Default noop function
-  onNetworkStatusChange = () => {}, // Default noop function
-  user = null, // Default null user
-  onAdminDashboard = () => {}, // Default noop function
-  onSettingsOpen = () => {}, // Default noop function
-  isFilteredView = false, // New prop to indicate filtered view
+  setProfileEditMode,
+  onNetworkStatusChange,
+  user,
+  onAdminDashboard,
+  onSettingsOpen,
 }) => {
-  // Use filtered store if available, otherwise use global store
   const stage = useTreeStore((s) => s.stage);
   const setStage = useTreeStore((s) => s.setStage);
   const minZoom = useTreeStore((s) => s.minZoom);
   const maxZoom = useTreeStore((s) => s.maxZoom);
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
-  const setSelectedPersonId = useTreeStore(
-    (s) => s.setSelectedPersonId,
-  );
+  const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
-
-  // Use ref to track if we've already logged the settings warning
-  const hasLoggedSettingsWarning = useRef(false);
-
-  // Use settings if available, otherwise use defaults (for filtered view)
-  let settings = {
-    defaultCalendar: "gregorian",
-    dateFormat: "numeric",
-    showBothCalendars: false,
-    arabicNumerals: false,
-  };
-
-  try {
-    const settingsContext = useSettings();
-    settings = settingsContext.settings;
-  } catch (error) {
-    // Not in SettingsProvider - use defaults
-    // Only log once to avoid console spam
-    if (!hasLoggedSettingsWarning.current) {
-      console.log("TreeView running outside SettingsProvider, using defaults");
-      hasLoggedSettingsWarning.current = true;
-    }
-  }
+  const { settings } = useSettings();
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
@@ -2481,35 +2454,28 @@ const TreeView = ({
           );
         })()}
 
-      {/* Only show controls when not in filtered view */}
-      {!isFilteredView && (
-        <>
-          {/* Search bar */}
-          <SearchBar onSelectResult={handleSearchResultSelect} />
+      {/* Search bar */}
+      <SearchBar onSelectResult={handleSearchResultSelect} />
 
-          {/* Navigate to Root Button */}
-          <NavigateToRootButton
-            nodes={nodes}
-            viewport={dimensions}
-            sharedValues={{
-              translateX: translateX,
-              translateY: translateY,
-              scale: scale,
-            }}
-          />
+      {/* Navigate to Root Button */}
+      <NavigateToRootButton
+        nodes={nodes}
+        viewport={dimensions}
+        sharedValues={{
+          translateX: translateX,
+          translateY: translateY,
+          scale: scale,
+        }}
+      />
 
-          {/* Settings Button - Always rendered like other buttons */}
-          <SettingsButton onPress={onSettingsOpen} />
+      {/* Settings Button - Always rendered like other buttons */}
+      <SettingsButton onPress={onSettingsOpen} />
 
-          {/* Admin Toggle Button - Only when logged in */}
-          {user && (
-            <AdminToggleButton user={user} onLongPress={onAdminDashboard} />
-          )}
-        </>
-      )}
+      {/* Admin Toggle Button - Only when logged in */}
+      {user && <AdminToggleButton user={user} onLongPress={onAdminDashboard} />}
 
-      {/* Admin components - hide in filtered view */}
-      {isAdminMode && !isFilteredView && (
+      {/* Admin components */}
+      {isAdminMode && (
         <>
           <SystemStatusIndicator />
         </>
