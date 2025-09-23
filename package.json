@@ -19,7 +19,8 @@
     "build:ios:preview": "eas build --platform ios --profile preview",
     "submit:ios": "eas submit --platform ios --latest",
     "deploy": "eas build --platform ios --profile production --auto-submit",
-    "deploy:preview": "eas build --platform ios --profile preview"
+    "deploy:preview": "eas build --platform ios --profile preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
