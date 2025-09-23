@@ -44,11 +44,15 @@ const DuolingoProgressBar = ({
       <View style={styles.progressWrapper}>
         {/* Background track */}
         <View style={styles.track}>
-          {/* Filled progress */}
+          {/* Filled progress - positioned absolute with left:0 (becomes right:0 in RTL) */}
           <Animated.View
             style={[
               styles.fill,
               {
+                position: "absolute",
+                left: 0, // In native RTL, this becomes right: 0 (fills from right)
+                top: 0,
+                bottom: 0,
                 width: progressAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: ["0%", "100%"],
@@ -94,10 +98,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0, 0, 0, 0.05)",
   },
   fill: {
-    height: "100%",
     backgroundColor: colors.primary,
     borderRadius: 6,
-    position: "relative",
     // Add subtle shadow for depth
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 1 },
