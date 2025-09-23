@@ -456,33 +456,33 @@ const SearchBar = ({ onSelectResult, style }) => {
 
   return (
     <>
-        <Animated.View
-          style={[
-            styles.backdrop,
-            {
-              opacity: backdropOpacity,
-            },
-          ]}
-          pointerEvents={showResults || isFocused ? "auto" : "none"}
-        >
-          <Pressable
-            style={{ flex: 1 }}
-            onPress={() => {
-              setQuery("");
-              setResults([]);
-              setShowResults(false);
-              setIsFocused(false);
-              Keyboard.dismiss();
-              inputRef.current?.blur();
-              // Animate backdrop out
-              Animated.timing(backdropOpacity, {
-                toValue: 0,
-                duration: 200,
-                useNativeDriver: true,
-              }).start();
-            }}
-          />
-        </Animated.View>
+      <Animated.View
+        style={[
+          styles.backdrop,
+          {
+            opacity: backdropOpacity,
+          },
+        ]}
+        pointerEvents={showResults || isFocused ? "auto" : "none"}
+      >
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => {
+            setQuery("");
+            setResults([]);
+            setShowResults(false);
+            setIsFocused(false);
+            Keyboard.dismiss();
+            inputRef.current?.blur();
+            // Animate backdrop out
+            Animated.timing(backdropOpacity, {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }).start();
+          }}
+        />
+      </Animated.View>
       )}{" "}
       <View style={[styles.container, { top: insets.top + 10 }, style]}>
         <Animated.View
@@ -583,7 +583,7 @@ const styles = {
     position: "absolute",
     left: 12,
     right: 12,
-    height: 48,
+    // Remove fixed height to allow expansion for results
     zIndex: 10001,
     elevation: 1001,
   },
@@ -631,8 +631,8 @@ const styles = {
     borderRadius: 24, // Match search bar radius
     borderTopLeftRadius: 20, // Slightly softer top
     borderTopRightRadius: 20,
-    maxHeight: 460, // Increased max height to prevent cropping
-    overflow: "hidden",
+    maxHeight: "70%", // Use percentage of screen height instead of fixed pixels
+    overflow: "visible", // Allow content to be fully visible
     paddingTop: 12,
     paddingBottom: 0, // Remove container padding, use content padding instead
     // Matching shadow system (slightly lighter)
@@ -643,12 +643,12 @@ const styles = {
     elevation: 2,
   },
   resultsList: {
-    maxHeight: 420, // Increased to allow full content visibility
+    flexGrow: 0, // Prevent list from growing unnecessarily
     backgroundColor: "transparent",
   },
   resultsContent: {
     paddingTop: 0,
-    paddingBottom: 12, // Increased bottom padding to ensure last item is fully visible
+    paddingBottom: 20, // Increased bottom padding to ensure last item is fully visible
     paddingHorizontal: 12,
   },
   // Clean card design - no borders
@@ -657,7 +657,7 @@ const styles = {
     borderRadius: 12,
     marginHorizontal: 4,
     marginBottom: 4,
-    overflow: "hidden",
+    overflow: "visible", // Allow content to be fully visible
     borderWidth: 0, // No borders, ultra-clean
   },
   resultCardPressed: {
