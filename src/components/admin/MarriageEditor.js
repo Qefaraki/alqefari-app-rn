@@ -10,7 +10,7 @@ import {
   Text,
   StyleSheet,
   Modal,
-  SafeAreaView,
+  
   TouchableOpacity,
   TextInput,
   ScrollView,
@@ -21,6 +21,7 @@ import {
   Animated,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import CardSurface from "../ios/CardSurface";
 import Button from "../ui/Button";

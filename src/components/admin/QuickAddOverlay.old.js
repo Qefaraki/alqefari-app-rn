@@ -10,10 +10,11 @@ import {
   Platform,
   Alert,
   Modal,
-  SafeAreaView,
+  
   I18nManager,
   Animated,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   GestureDetector,
   Gesture,
@@ -672,7 +673,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>
-        </SafeAreaView>
+        </>
       </GestureHandlerRootView>
     </Modal>
   );

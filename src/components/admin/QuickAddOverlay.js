@@ -10,12 +10,13 @@ import {
   Platform,
   Alert,
   Modal,
-  SafeAreaView,
+  
   I18nManager,
   Animated,
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   GestureDetector,
   Gesture,

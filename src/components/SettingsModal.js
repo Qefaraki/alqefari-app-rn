@@ -6,13 +6,13 @@ import {
   Modal,
   TouchableOpacity,
   Switch,
-  SafeAreaView,
   ScrollView,
   Alert,
   I18nManager,
   Image,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";

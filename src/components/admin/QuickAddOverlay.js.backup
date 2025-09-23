@@ -11,9 +11,9 @@ import {
   Platform,
   Alert,
   Modal,
-  SafeAreaView,
+  
 } from "react-native";
-import Animated, {
+import { SafeAreaView } from "react-native-safe-area-context";import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
@@ -343,7 +343,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
+      < style={styles.container}>
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -480,7 +480,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </>
     </Modal>
   );
 };

@@ -1,3 +1,4 @@
+import "./src/utils/suppressWarnings"; // Suppress known warnings
 import React, { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -209,8 +210,7 @@ export default function App() {
     checkAuthState();
 
     // Clean up function to handle app state changes
-    return () => {
-    };
+    return () => {};
   }, []);
 
   const checkAuthState = async () => {
@@ -249,10 +249,10 @@ export default function App() {
       setUser(user);
       setIsGuest(user?.user_metadata?.isGuest || false);
 
-      // For non-guests, check profile in background (don't block)
+      // For non-guests, check profile BEFORE showing the app
       if (user && !user?.user_metadata?.isGuest) {
-        // Don't await - let it run in background
-        checkProfileLinkingStatus(user).catch(console.error);
+        // Wait for profile check to complete
+        await checkProfileLinkingStatus(user);
       } else {
         setProfileCheckComplete(true);
       }
@@ -372,84 +372,84 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {shouldShowOnboarding || needsProfileLinking ? (
-            // Show authentication flow for new users or incomplete profiles
-            <Stack.Screen name="Auth">
-              {(props) => (
-                <AuthNavigator
-                  {...props}
-                  setIsGuest={setIsGuest}
-                  setUser={setUser}
-                />
-              )}
-            </Stack.Screen>
-          ) : shouldShowGuestExperience ? (
-            // Show limited guest experience with its own navigator
-            <Stack.Screen name="Guest">
-              {(props) => (
-                <GuestNavigator
-                  {...props}
-                  onExitGuestMode={() => {
-                    setIsGuest(false);
-                    setUser(null);
-                  }}
-                />
-              )}
-            </Stack.Screen>
-          ) : shouldShowMainApp ? (
-            // Show full app ONLY for authenticated users
-            <Stack.Screen name="Main">
-              {(props) => (
-                <MainApp
-                  {...props}
-                  user={user}
-                  isGuest={false}
-                  linkedProfile={linkedProfile}
-                  linkStatus={linkStatus}
-                  onLinkStatusChange={async (newStatus) => {
-                    setLinkStatus(newStatus);
-                    if (newStatus === "approved") {
-                      // Reload profile when approved
-                      const profile =
-                        await phoneAuthService.checkProfileLink(user);
-                      setLinkedProfile(profile);
-                    }
-                  }}
-                  onRefreshLinkStatus={() => {
-                    // Refresh link status when user manually refreshes
-                    if (user && !isGuest) {
-                      checkProfileLinkingStatus(user);
-                    }
-                  }}
-                  onSignOut={() => {
-                    // Clear state to show onboarding
-                    setUser(null);
-                    setIsGuest(false);
-                    setLinkedProfile(null);
-                    setLinkStatus(null);
-                    setProfileCheckComplete(false);
-                  }}
-                />
-              )}
-            </Stack.Screen>
-          ) : (
-            // Fallback - shouldn't happen but show onboarding as safe default
-            <Stack.Screen name="Auth">
-              {(props) => (
-                <AuthNavigator
-                  {...props}
-                  setIsGuest={setIsGuest}
-                  setUser={setUser}
-                />
-              )}
-            </Stack.Screen>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-          </GestureHandlerRootView>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {shouldShowOnboarding || needsProfileLinking ? (
+              // Show authentication flow for new users or incomplete profiles
+              <Stack.Screen name="Auth">
+                {(props) => (
+                  <AuthNavigator
+                    {...props}
+                    setIsGuest={setIsGuest}
+                    setUser={setUser}
+                  />
+                )}
+              </Stack.Screen>
+            ) : shouldShowGuestExperience ? (
+              // Show limited guest experience with its own navigator
+              <Stack.Screen name="Guest">
+                {(props) => (
+                  <GuestNavigator
+                    {...props}
+                    onExitGuestMode={() => {
+                      setIsGuest(false);
+                      setUser(null);
+                    }}
+                  />
+                )}
+              </Stack.Screen>
+            ) : shouldShowMainApp ? (
+              // Show full app ONLY for authenticated users
+              <Stack.Screen name="Main">
+                {(props) => (
+                  <MainApp
+                    {...props}
+                    user={user}
+                    isGuest={false}
+                    linkedProfile={linkedProfile}
+                    linkStatus={linkStatus}
+                    onLinkStatusChange={async (newStatus) => {
+                      setLinkStatus(newStatus);
+                      if (newStatus === "approved") {
+                        // Reload profile when approved
+                        const profile =
+                          await phoneAuthService.checkProfileLink(user);
+                        setLinkedProfile(profile);
+                      }
+                    }}
+                    onRefreshLinkStatus={() => {
+                      // Refresh link status when user manually refreshes
+                      if (user && !isGuest) {
+                        checkProfileLinkingStatus(user);
+                      }
+                    }}
+                    onSignOut={() => {
+                      // Clear state to show onboarding
+                      setUser(null);
+                      setIsGuest(false);
+                      setLinkedProfile(null);
+                      setLinkStatus(null);
+                      setProfileCheckComplete(false);
+                    }}
+                  />
+                )}
+              </Stack.Screen>
+            ) : (
+              // Fallback - shouldn't happen but show onboarding as safe default
+              <Stack.Screen name="Auth">
+                {(props) => (
+                  <AuthNavigator
+                    {...props}
+                    setIsGuest={setIsGuest}
+                    setUser={setUser}
+                  />
+                )}
+              </Stack.Screen>
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+      </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }

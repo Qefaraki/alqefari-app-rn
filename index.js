@@ -1,3 +1,5 @@
+import "./src/utils/suppressWarnings"; // Suppress known warnings - must be first
+import "./src/utils/suppressWarnings"; // Suppress known warnings - must be first
 import { I18nManager, NativeModules, Platform } from "react-native";
 import "react-native-gesture-handler";
 import "react-native-reanimated";

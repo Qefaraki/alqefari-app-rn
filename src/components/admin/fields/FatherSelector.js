@@ -7,9 +7,10 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
-  SafeAreaView,
+  
   TextInput,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import CardSurface from "../../ios/CardSurface";

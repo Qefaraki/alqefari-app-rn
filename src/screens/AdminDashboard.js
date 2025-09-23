@@ -11,8 +11,9 @@ import {
   I18nManager,
   Dimensions,
   Animated,
-  SafeAreaView,
+
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { profilesService } from "../services/profiles";
 import { useAdminMode } from "../contexts/AdminModeContext";

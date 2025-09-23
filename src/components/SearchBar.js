@@ -135,10 +135,8 @@ const SearchBar = ({ onSelectResult, style }) => {
     },
     (result) => {
       "worklet";
-      // Only update if opacity actually changed
-      if (result.opacity !== lastOpacity.current) {
-        runOnJS(updateOpacity)(result.opacity, result.progress);
-      }
+      // Always call the update function, let it handle the check
+      runOnJS(updateOpacity)(result.opacity, result.progress);
     },
     [profileSheetProgress],
   );

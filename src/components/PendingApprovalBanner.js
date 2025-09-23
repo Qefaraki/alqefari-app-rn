@@ -295,17 +295,20 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
 
 const styles = StyleSheet.create({
   container: {
+    position: "absolute",
+    top: 10,
+    left: 16,
+    right: 16,
+    zIndex: 1000,
     backgroundColor: colors.background,
-    marginHorizontal: 16,
-    marginTop: 8,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.container + "40",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 5,
   },
   pendingContainer: {
     borderColor: colors.secondary + "60",

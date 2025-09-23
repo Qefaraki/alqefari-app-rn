@@ -9,10 +9,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   Modal,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import profilesService from "../services/profiles";
 import { handleSupabaseError, supabase } from "../services/supabase";
