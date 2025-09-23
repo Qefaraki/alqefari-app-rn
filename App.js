@@ -14,6 +14,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { SafeAreaProvider } from "react-native-safe-area-context";import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import TreeView from "./src/components/TreeView";
 import ProfileSheetWrapper from "./src/components/ProfileSheetWrapper";
@@ -372,8 +373,10 @@ export default function App() {
   const shouldShowMainApp = user && !isGuest; // Full app for authenticated users
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
+      <SafeAreaProvider>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {shouldShowOnboarding || needsProfileLinking ? (
             // Show authentication flow for new users or incomplete profiles
@@ -450,5 +453,5 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
-  );
+    </SafeAreaProvider>  );
 }
