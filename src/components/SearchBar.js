@@ -487,9 +487,7 @@ const SearchBar = ({ onSelectResult, style }) => {
             }}
           />
         </Animated.View>
-      <View style={[styles.container, { top: insets.top + 10 }, style]}>
-
-      <View style={[styles.container, { top: insets.top + 10 }, style]}>
+      )}      <View style={[styles.container, { top: insets.top + 10 }, style]}>
         <Animated.View
           style={[
             styles.searchBarContainer,
