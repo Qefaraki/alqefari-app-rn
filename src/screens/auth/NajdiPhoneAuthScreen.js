@@ -589,21 +589,6 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                             </TouchableOpacity>
                           )}
                         </View>
-
-                        <TouchableOpacity
-                          style={styles.changeNumberButton}
-                          onPress={() => {
-                            setStep("phone");
-                            setOtp("");
-                            setCountdown(0);
-                            setError("");
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Text style={styles.changeNumberText}>
-                            تغيير رقم الهاتف
-                          </Text>
-                        </TouchableOpacity>
                       </Animated.View>
                     )}
                   </View>
@@ -789,14 +774,15 @@ const styles = StyleSheet.create({
   },
   otpContainer: {
     flexDirection: "row-reverse", // RTL direction
-    justifyContent: "center",
-    gap: 8,
+    justifyContent: "space-between",
+    gap: 12,
     marginBottom: 24,
     width: "100%",
+    paddingHorizontal: 20, // Add padding to match button width
   },
   otpInput: {
-    width: 45,
-    height: 52,
+    width: 60, // Larger width for 4 digits
+    height: 60, // Square boxes
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
@@ -878,15 +864,7 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: colors.najdiCrimson,
   },
-  changeNumberButton: {
-    alignItems: "center",
-  },
-  changeNumberText: {
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.alJassWhite + "99",
-  },
+
   // Modal styles
   modalOverlay: {
     flex: 1,
