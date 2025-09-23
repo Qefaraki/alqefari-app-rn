@@ -487,7 +487,8 @@ const SearchBar = ({ onSelectResult, style }) => {
             }}
           />
         </Animated.View>
-      )}      <View style={[styles.container, { top: insets.top + 10 }, style]}>
+      )}{" "}
+      <View style={[styles.container, { top: insets.top + 10 }, style]}>
         <Animated.View
           style={[
             styles.searchBarContainer,
@@ -581,14 +582,12 @@ const styles = {
     backgroundColor: "rgba(0, 0, 0, 0.2)", // Lighter backdrop
     zIndex: 9999,
     elevation: 999,
-  },
-    // top is now dynamic based on safe area insets
+  container: {
     position: "absolute",
-    top: 90, // Moved down to avoid Dynamic Island
     left: 12,
     right: 12,
-    height: 48, // Fixed height matching search bar
-    zIndex: 10001, // Higher than backdrop
+    height: 48,
+    zIndex: 10001,
     elevation: 1001,
   },
   searchBarContainer: {
