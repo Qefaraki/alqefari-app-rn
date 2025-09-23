@@ -25,11 +25,11 @@ const DuolingoProgressBar = ({
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Animate progress fill
+    // Animate progress fill - using transform instead of width for native driver
     Animated.timing(progressAnim, {
       toValue: currentStep / totalSteps,
       duration: 500,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
 
     // Pulse animation on step change
@@ -56,18 +56,21 @@ const DuolingoProgressBar = ({
         {/* Background track */}
         <View style={styles.trackBackground} />
 
-        {/* Filled progress */}
-        <Animated.View
-          style={[
-            styles.trackFilled,
-            {
-              width: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: ["0%", "100%"],
-              }),
-            },
-          ]}
-        />
+        {/* Filled progress - using scaleX for native animation */}
+        <View style={styles.trackFilledContainer}>
+          <Animated.View
+            style={[
+              styles.trackFilled,
+              {
+                transform: [
+                  {
+                    scaleX: progressAnim,
+                  },
+                ],
+              },
+            ]}
+          />
+        </View>
 
         {/* Segment dividers */}
         {[...Array(totalSteps - 1)].map((_, index) => (
@@ -82,16 +85,20 @@ const DuolingoProgressBar = ({
           />
         ))}
 
-        {/* Current step indicator */}
+        {/* Current step indicator - using translateX for native animation */}
         <Animated.View
           style={[
             styles.currentIndicator,
             {
-              left: progressAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, SCREEN_WIDTH - 48],
-              }),
-              transform: [{ scale: scaleAnim }],
+              transform: [
+                {
+                  translateX: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, SCREEN_WIDTH - 48],
+                  }),
+                },
+                { scale: scaleAnim },
+              ],
             },
           ]}
         >
@@ -144,11 +151,21 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.inactive,
   },
+  trackFilledContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: "hidden",
+    borderRadius: 4,
+  },
   trackFilled: {
     position: "absolute",
     top: 0,
     left: 0,
     bottom: 0,
+    right: 0,
     backgroundColor: colors.primary,
     borderRadius: 4,
   },
@@ -162,6 +179,7 @@ const styles = StyleSheet.create({
   currentIndicator: {
     position: "absolute",
     top: -6,
+    left: 0,
     width: 20,
     height: 20,
     marginLeft: -10,
