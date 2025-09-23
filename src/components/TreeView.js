@@ -1579,7 +1579,6 @@ const TreeView = ({
       }
     });
 
-
   // Handle chip tap in T3 - zoom to branch
   const handleChipTap = useCallback(
     (hero) => {
@@ -2454,8 +2453,6 @@ const TreeView = ({
             />
           );
         })()}
-
-
       <SearchBar onSelectResult={handleSearchResultSelect} />
 
       <NavigateToRootButton
