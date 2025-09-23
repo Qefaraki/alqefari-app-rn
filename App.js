@@ -107,7 +107,6 @@ function MainApp({
   };
 
   return (
-    <SafeAreaProvider>
     <SettingsProvider>
       <AdminModeProvider>
         <BottomSheetModalProvider>
@@ -342,7 +341,6 @@ export default function App() {
   // This prevents the app from jumping to tree view
   if (isLoading) {
     return (
-    <SafeAreaProvider>
       <View
         style={{
           flex: 1,
