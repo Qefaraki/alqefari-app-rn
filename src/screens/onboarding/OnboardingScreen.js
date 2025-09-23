@@ -201,6 +201,33 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
         }),
       ]).start();
 
+      // Stage 2: Background stars fade in after logo
+      setTimeout(() => {
+        Animated.timing(backgroundStarsFade, {
+          toValue: 0.56, // Reduced by 30% from 0.8
+          duration: 800, // Faster fade
+          useNativeDriver: true,
+        }).start();
+      }, 500);
+
+      // Stage 3: Text/content fades in
+      setTimeout(() => {
+        Animated.timing(contentFade, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }).start();
+      }, 1000);
+
+      // Stage 4: Buttons fade in last
+      setTimeout(() => {
+        Animated.timing(buttonFade, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }).start();
+      }, 1800);
+
       // Return cleanup function if needed
       return () => {
         // Cleanup animations if needed
