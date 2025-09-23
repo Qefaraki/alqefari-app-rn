@@ -387,7 +387,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                       <DuolingoProgressBar
                         currentStep={step === "phone" ? 1 : 2}
                         totalSteps={5}
-                        showStepCount={true}
+                        showStepCount={false}
                       />
                     </View>
 
@@ -643,9 +643,9 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row", // Native RTL handles this - flows right-to-left
     alignItems: "center",
-    marginBottom: 28,
-    marginTop: -8,
-    marginHorizontal: -8,
+    marginBottom: 32,
+    marginTop: 0,
+    marginHorizontal: 0,
     height: 44, // Fixed height to match back button
   },
   backButtonNew: {
@@ -653,13 +653,12 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12, // In native RTL, this becomes margin on the left side
+    marginLeft: 8, // Small spacing between button and progress bar
   },
   progressBarContainer: {
     flex: 1,
     height: 44,
     justifyContent: "center", // Center progress bar vertically
-    paddingLeft: 12, // In native RTL, this becomes padding on the right
   },
   contentContainer: {
     flex: 1,
@@ -679,9 +678,9 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     backgroundColor: "rgba(36, 33, 33, 0.4)",
-    paddingTop: 24,
+    paddingTop: 20,
     paddingBottom: 32,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   progressContainer: {
     flexDirection: "row",
