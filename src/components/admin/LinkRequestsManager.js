@@ -16,6 +16,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import { phoneAuthService } from "../../services/phoneAuth";
+import {
+  notifyUserOfApproval,
+  notifyUserOfRejection,
+} from "../../services/notifications";
 import * as Haptics from "expo-haptics";
 
 // Najdi Sadu Color Palette
@@ -175,6 +179,9 @@ const LinkRequestsManager = ({ onClose }) => {
 
               if (requestError) throw requestError;
 
+              // Send push notification to user
+              await notifyUserOfApproval(request.user_id, request.profiles);
+
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success,
               );
@@ -212,6 +219,9 @@ const LinkRequestsManager = ({ onClose }) => {
         .eq("id", selectedRequest.id);
 
       if (error) throw error;
+
+      // Send push notification to user about rejection
+      await notifyUserOfRejection(selectedRequest.user_id, rejectReason);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert("تم", "تم رفض الطلب");

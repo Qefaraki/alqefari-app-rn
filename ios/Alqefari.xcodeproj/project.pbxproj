@@ -9,24 +9,24 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		6DD039BF76BEE967464C1A90 /* libPods-Alqefari.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2F0978A504F9E9A60D83DE1F /* libPods-Alqefari.a */; };
-		7478CBE6880B1B45B848EDA7 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 03A24A52F1FAC10E181F67E0 /* PrivacyInfo.xcprivacy */; };
+		95EC95FF0675BC6670716F05 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB0C84EEF3FA6F5504E38C25 /* ExpoModulesProvider.swift */; };
+		A5DE94C682F7B6AFF46B15CA /* libPods-Alqefari.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DFEA2EA6199C9FD53C44D90A /* libPods-Alqefari.a */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		DBC55A6DC83C250F3A09D5E4 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71360B4058E88B710D512B65 /* ExpoModulesProvider.swift */; };
+		ECF8FCF663D537A80E09B5B0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 806521A3D6384A12020CF72B /* PrivacyInfo.xcprivacy */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		03A24A52F1FAC10E181F67E0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Alqefari/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Alqefari.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Alqefari.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Alqefari/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Alqefari/Info.plist; sourceTree = "<group>"; };
-		2F0978A504F9E9A60D83DE1F /* libPods-Alqefari.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Alqefari.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		71360B4058E88B710D512B65 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Alqefari/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		80BA42F64B072623BEB1EA63 /* Pods-Alqefari.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Alqefari.release.xcconfig"; path = "Target Support Files/Pods-Alqefari/Pods-Alqefari.release.xcconfig"; sourceTree = "<group>"; };
-		95F08076FFC02E673872A4E4 /* Pods-Alqefari.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Alqefari.debug.xcconfig"; path = "Target Support Files/Pods-Alqefari/Pods-Alqefari.debug.xcconfig"; sourceTree = "<group>"; };
+		576F242DFF0700CE6B069B86 /* Pods-Alqefari.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Alqefari.release.xcconfig"; path = "Target Support Files/Pods-Alqefari/Pods-Alqefari.release.xcconfig"; sourceTree = "<group>"; };
+		806521A3D6384A12020CF72B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Alqefari/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9BBA0D9D57EF352DE7BBE1D7 /* Pods-Alqefari.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Alqefari.debug.xcconfig"; path = "Target Support Files/Pods-Alqefari/Pods-Alqefari.debug.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Alqefari/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		CB0C84EEF3FA6F5504E38C25 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Alqefari/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		DFEA2EA6199C9FD53C44D90A /* libPods-Alqefari.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Alqefari.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Alqefari/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Alqefari-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Alqefari-Bridging-Header.h"; path = "Alqefari/Alqefari-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6DD039BF76BEE967464C1A90 /* libPods-Alqefari.a in Frameworks */,
+				A5DE94C682F7B6AFF46B15CA /* libPods-Alqefari.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,7 +53,15 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				03A24A52F1FAC10E181F67E0 /* PrivacyInfo.xcprivacy */,
+				806521A3D6384A12020CF72B /* PrivacyInfo.xcprivacy */,
+			);
+			name = Alqefari;
+			sourceTree = "<group>";
+		};
+		160E9094BB59C6DF20F31E12 /* Alqefari */ = {
+			isa = PBXGroup;
+			children = (
+				CB0C84EEF3FA6F5504E38C25 /* ExpoModulesProvider.swift */,
 			);
 			name = Alqefari;
 			sourceTree = "<group>";
@@ -62,9 +70,27 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				2F0978A504F9E9A60D83DE1F /* libPods-Alqefari.a */,
+				DFEA2EA6199C9FD53C44D90A /* libPods-Alqefari.a */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		3BF3A9D35BB5CC23DD5DA2BF /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				160E9094BB59C6DF20F31E12 /* Alqefari */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
+		5E4F11F1F5C428A0597BAA78 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				9BBA0D9D57EF352DE7BBE1D7 /* Pods-Alqefari.debug.xcconfig */,
+				576F242DFF0700CE6B069B86 /* Pods-Alqefari.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -81,8 +107,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				B366C12C59EA975BC8F892F2 /* ExpoModulesProviders */,
-				D8365D0B7C9891D3947E5246 /* Pods */,
+				5E4F11F1F5C428A0597BAA78 /* Pods */,
+				3BF3A9D35BB5CC23DD5DA2BF /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -97,14 +123,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		B366C12C59EA975BC8F892F2 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				E648B5726B64A18F00ECF298 /* Alqefari */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -114,24 +132,6 @@
 			path = Alqefari/Supporting;
 			sourceTree = "<group>";
 		};
-		D8365D0B7C9891D3947E5246 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				95F08076FFC02E673872A4E4 /* Pods-Alqefari.debug.xcconfig */,
-				80BA42F64B072623BEB1EA63 /* Pods-Alqefari.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		E648B5726B64A18F00ECF298 /* Alqefari */ = {
-			isa = PBXGroup;
-			children = (
-				71360B4058E88B710D512B65 /* ExpoModulesProvider.swift */,
-			);
-			name = Alqefari;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -139,14 +139,14 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Alqefari" */;
 			buildPhases = (
-				405389B616E47AF969E28C25 /* [CP] Check Pods Manifest.lock */,
-				25812DE9AB37FD98F648D02E /* [Expo] Configure project */,
+				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
+				7882304FDC597A83846915C2 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
-				643466423D4834FDABB6B825 /* [CP] Embed Pods Frameworks */,
-				E0CC308E574781677FE0A2A2 /* [CP] Copy Pods Resources */,
+				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
+				C4CB716DB91833ED0F69A014 /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -196,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				7478CBE6880B1B45B848EDA7 /* PrivacyInfo.xcprivacy in Resources */,
+				ECF8FCF663D537A80E09B5B0 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,26 +218,7 @@
 			shellPath = /bin/sh;
 			shellScript = "if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env\"\nfi\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n# The project root by default is one level up from the ios directory\nexport PROJECT_ROOT=\"$PROJECT_DIR\"/..\n\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  export SKIP_BUNDLING=1\nfi\nif [[ -z \"$ENTRY_FILE\" ]]; then\n  # Set the entry JS file using the bundler's entry resolution.\n  export ENTRY_FILE=\"$(\"$NODE_BINARY\" -e \"require('expo/scripts/resolveAppEntry')\" \"$PROJECT_ROOT\" ios absolute | tail -n 1)\"\nfi\n\nif [[ -z \"$CLI_PATH\" ]]; then\n  # Use Expo CLI\n  export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\nfi\nif [[ -z \"$BUNDLE_COMMAND\" ]]; then\n  # Default Expo CLI command for bundling\n  export BUNDLE_COMMAND=\"export:embed\"\nfi\n\n# Source .xcode.env.updates if it exists to allow\n# SKIP_BUNDLING to be unset if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.updates\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.updates\"\nfi\n# Source local changes to allow overrides\n# if needed\nif [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n  source \"$PODS_ROOT/../.xcode.env.local\"\nfi\n\n`\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts/react-native-xcode.sh'\"`\n\n";
 		};
-		25812DE9AB37FD98F648D02E /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Alqefari/expo-configure-project.sh\"\n";
-		};
-		405389B616E47AF969E28C25 /* [CP] Check Pods Manifest.lock */ = {
+		08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -259,33 +240,36 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		643466423D4834FDABB6B825 /* [CP] Embed Pods Frameworks */ = {
+		7882304FDC597A83846915C2 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Alqefari/Pods-Alqefari-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			inputFileListPaths = (
 			);
-			name = "[CP] Embed Pods Frameworks";
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Alqefari/Pods-Alqefari-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Alqefari/expo-configure-project.sh\"\n";
 		};
-		E0CC308E574781677FE0A2A2 /* [CP] Copy Pods Resources */ = {
+		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Alqefari/Pods-Alqefari-resources.sh",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXApplication/ExpoApplication_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/EXNotifications/ExpoNotifications_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/EXUpdates.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoDevice/ExpoDevice_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
@@ -303,8 +287,10 @@
 			);
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoApplication_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoNotifications_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXUpdates.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoDevice_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
@@ -325,6 +311,24 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Alqefari/Pods-Alqefari-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		C4CB716DB91833ED0F69A014 /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Alqefari/Pods-Alqefari-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Alqefari/Pods-Alqefari-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -333,7 +337,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				DBC55A6DC83C250F3A09D5E4 /* ExpoModulesProvider.swift in Sources */,
+				95EC95FF0675BC6670716F05 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,7 +346,7 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 95F08076FFC02E673872A4E4 /* Pods-Alqefari.debug.xcconfig */;
+			baseConfigurationReference = 9BBA0D9D57EF352DE7BBE1D7 /* Pods-Alqefari.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -378,7 +382,7 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 80BA42F64B072623BEB1EA63 /* Pods-Alqefari.release.xcconfig */;
+			baseConfigurationReference = 576F242DFF0700CE6B069B86 /* Pods-Alqefari.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;

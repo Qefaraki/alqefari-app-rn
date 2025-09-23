@@ -1,5 +1,5 @@
 import "./src/utils/suppressWarnings"; // Suppress known warnings
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   View,
@@ -27,6 +27,7 @@ import AuthNavigator from "./src/navigation/AuthNavigator";
 import GuestNavigator from "./src/navigation/GuestNavigator";
 import { supabase } from "./src/services/supabase";
 import { phoneAuthService } from "./src/services/phoneAuth";
+import notificationService from "./src/services/notifications";
 import { useSharedValue } from "react-native-reanimated";
 import { useTreeStore } from "./src/stores/useTreeStore";
 import "./global.css";
@@ -208,10 +209,55 @@ export default function App() {
   useEffect(() => {
     // Check auth state on mount
     checkAuthState();
+    // Initialize notifications
+    initializeNotifications();
 
     // Clean up function to handle app state changes
-    return () => {};
+    return () => {
+      notificationService.cleanup();
+    };
   }, []);
+
+  // Initialize push notifications
+  const initializeNotifications = async () => {
+    try {
+      // Initialize notification service
+      const token = await notificationService.initialize();
+      if (token) {
+        console.log("Push notifications initialized");
+      }
+
+      // Set navigation callbacks (will be set up later with navigation ref)
+      notificationService.setNavigationCallbacks({
+        navigateToProfile: (profileId) => {
+          console.log("Navigate to profile:", profileId);
+        },
+        navigateToAdminRequests: () => {
+          console.log("Navigate to admin requests");
+        },
+      });
+
+      // Set event callbacks
+      notificationService.setEventCallbacks({
+        onApprovalReceived: async (data) => {
+          // Refresh profile link status when approved
+          if (user) {
+            await checkProfileLinkingStatus(user);
+          }
+        },
+        onRejectionReceived: (data) => {
+          // Update link status to rejected
+          setLinkStatus("rejected");
+        },
+        onNewRequestReceived: (data) => {
+          // Update admin badge count
+          console.log("New request received:", data);
+        },
+      });
+    } catch (error) {
+      console.error("Failed to initialize notifications:", error);
+    }
+  };
 
   const checkAuthState = async () => {
     try {

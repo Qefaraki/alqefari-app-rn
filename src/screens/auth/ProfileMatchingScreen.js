@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
+import { notifyAdminsOfNewRequest } from "../../services/notifications";
 import BranchTreeModal from "../../components/BranchTreeModal";
 
 import * as Haptics from "expo-haptics";
@@ -167,6 +168,13 @@ export default function ProfileMatchingScreen({ navigation, route }) {
           { text: "موافق", onPress: () => navigation.replace("Main") },
         ]);
       } else {
+        // Notify admins of new request
+        await notifyAdminsOfNewRequest({
+          id: result.requestId,
+          name_chain: nameChain,
+          profile_name: selectedProfile.name,
+        });
+
         Alert.alert("تم إرسال الطلب", result.message, [
           { text: "موافق", onPress: () => navigation.replace("Main") },
         ]);

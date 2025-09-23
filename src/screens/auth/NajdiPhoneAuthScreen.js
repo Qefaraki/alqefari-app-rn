@@ -23,6 +23,7 @@ import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { OtpInput } from "react-native-otp-entry";
+import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 
 import { phoneAuthService } from "../../services/phoneAuth";
 
@@ -392,28 +393,20 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                     />
                   </TouchableOpacity>
 
-                  {/* Progress dots - RTL order (completed on right) */}
-                  <View style={styles.progressContainer}>
-                    {/* Future steps (inactive) - appear on LEFT in RTL */}
-                    <View style={styles.progressDot} />
-                    <View style={styles.progressDot} />
-                    <View style={styles.progressDot} />
-                    {/* Step 2 - OTP verification */}
-                    <View
-                      style={[
-                        styles.progressDot,
-                        step === "otp" && styles.progressDotActive,
-                      ]}
-                    />
-                    {/* Step 1 - Phone number entry - appears on RIGHT in RTL */}
-                    <View
-                      style={[
-                        styles.progressDot,
-                        step === "phone" && styles.progressDotActive,
-                        step === "otp" && styles.progressDotCompleted,
-                      ]}
-                    />
-                  </View>
+                  {/* Duolingo-style progress bar */}
+                  <DuolingoProgressBar
+                    currentStep={step === "phone" ? 1 : 2}
+                    totalSteps={5}
+                    steps={[
+                      "الهاتف",
+                      "التحقق",
+                      "الاسم",
+                      "المطابقة",
+                      "الموافقة",
+                    ]}
+                    showLabels={false}
+                    style={{ marginHorizontal: -10, marginBottom: 24 }}
+                  />
 
                   {/* Step container */}
                   <View style={styles.stepContainer}>

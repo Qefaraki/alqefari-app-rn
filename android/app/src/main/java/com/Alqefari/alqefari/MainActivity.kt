@@ -2,13 +2,11 @@ package com.Alqefari.alqefari
 
 import android.os.Build
 import android.os.Bundle
-import android.view.View
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
-import com.facebook.react.modules.i18nmanager.I18nUtil
 
 import expo.modules.ReactActivityDelegateWrapper
 
@@ -18,17 +16,6 @@ class MainActivity : ReactActivity() {
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
-    
-    // Force RTL layout for Arabic support
-    val sharedI18nUtilInstance = I18nUtil.getInstance()
-    sharedI18nUtilInstance.allowRTL(applicationContext, true)
-    sharedI18nUtilInstance.forceRTL(applicationContext, true)
-    
-    // Force RTL layout direction for all views
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-      window.decorView.layoutDirection = View.LAYOUT_DIRECTION_RTL
-    }
-    
     super.onCreate(null)
   }
 

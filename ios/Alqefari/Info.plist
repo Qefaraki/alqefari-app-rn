@@ -34,7 +34,7 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>19</string>
+    <string>20</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSMinimumSystemVersion</key>
@@ -50,6 +50,10 @@
     </dict>
     <key>NSCameraUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Allow $(PRODUCT_NAME) to access your device motion</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي</string>
     <key>UILaunchStoryboardName</key>

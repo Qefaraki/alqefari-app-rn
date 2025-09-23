@@ -50,16 +50,6 @@ target 'Alqefari' do
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
 
-    # Fix duplicate symbols between RNReanimated and RNWorklets
-    installer.pods_project.targets.each do |target|
-      if target.name == 'RNWorklets' || target.name == 'react-native-worklets-core'
-        target.build_configurations.each do |config|
-          config.build_settings['OTHER_LDFLAGS'] = '$(inherited) -Wl,-dead_strip'
-          config.build_settings['DEAD_CODE_STRIPPING'] = 'YES'
-        end
-      end
-    end
-
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.
     installer.target_installation_results.pod_target_installation_results
