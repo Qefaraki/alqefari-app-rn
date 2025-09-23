@@ -623,8 +623,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionHeader: {
-    flexDirection: "row-reverse", // RTL: chevron on left, content on right
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "#F9F7F3", // Al-Jass White
     paddingHorizontal: 20,
     paddingVertical: 16,
@@ -643,16 +644,16 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: "#111827",
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    writingDirection: "rtl",
+    // textAlign removed - let native RTL handle it
+    // writingDirection removed - native RTL handles it
   },
   sectionSubtitle: {
     fontSize: 14,
     fontFamily: "SF Arabic",
     color: "#6B7280",
     marginTop: 2,
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    writingDirection: "rtl",
+    // textAlign removed - let native RTL handle it
+    // writingDirection removed - native RTL handles it
   },
   section: {
     backgroundColor: "#F9F7F3", // Al-Jass White
@@ -691,16 +692,16 @@ const styles = StyleSheet.create({
     color: "#374151",
     fontWeight: "500",
     marginBottom: 12,
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    writingDirection: "rtl",
+    // textAlign removed - let native RTL handle it
+    // writingDirection removed - native RTL handles it
   },
   optionHint: {
     fontSize: 13,
     fontFamily: "SF Arabic",
     color: "#6B7280",
     marginTop: 8,
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    writingDirection: "rtl",
+    // textAlign removed - let native RTL handle it
+    // writingDirection removed - native RTL handles it
   },
   segmentedControl: {
     flexDirection: "row",
@@ -733,7 +734,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   switchOption: {
-    flexDirection: "row-reverse", // RTL: switch on left, text on right
+    flexDirection: "row", // React Native handles RTL automatically
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: 12,
@@ -749,16 +750,16 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: "#111827",
     fontWeight: "500",
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    writingDirection: "rtl",
+    // textAlign removed - let native RTL handle it
+    // writingDirection removed - native RTL handles it
   },
   switchOptionHint: {
     fontSize: 13,
     fontFamily: "SF Arabic",
     color: "#6B7280",
     marginTop: 2,
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    writingDirection: "rtl",
+    // textAlign removed - let native RTL handle it
+    // writingDirection removed - native RTL handles it
   },
   resetButton: {
     margin: 20,
@@ -803,13 +804,12 @@ const styles = StyleSheet.create({
     borderColor: "#D1BBA340",
   },
   profileContent: {
-    flexDirection: "row-reverse", // RTL: image on right, text on left
+    flexDirection: "row",
     alignItems: "center",
     padding: 20,
   },
   profileImageContainer: {
-    marginLeft: 16, // Changed for RTL
-    marginRight: 0,
+    marginRight: 16, // React Native handles RTL automatically
     position: "relative",
   },
   profileImage: {
