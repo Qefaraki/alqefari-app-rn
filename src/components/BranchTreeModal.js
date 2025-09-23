@@ -9,7 +9,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import FullTreeWrapper from "./FullTreeWrapper";
+// // Temporarily removed - // import FullTreeWrapper from "./FullTreeWrapper";
 
 // Helper function to convert generation number to Arabic words
 const getGenerationInArabic = (generation) => {
@@ -55,7 +55,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
             style={styles.closeButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="close" size={28} color="#242121" />
+            <Ionicons name="close" size={28} color="#242121" /> */ }
           </TouchableOpacity>
 
           <View style={styles.headerContent}>
@@ -73,7 +73,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
               <Image
                 source={{ uri: profile.avatar_url }}
                 style={styles.avatar}
-              />
+              /> */ }
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
                 <Text style={styles.avatarText}>
@@ -98,12 +98,12 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
         </View>
         {/* Full TreeView - No filtering, just centered on focus person */}
         <View style={styles.treeContainer}>
-          <FullTreeWrapper
+          { /* <FullTreeWrapper
             focusPersonId={profile.id}
             focusPersonNameChain={profile.name_chain}
             onConfirm={onConfirm}
             onClose={onClose}
-          />
+          /> */ }
         </View>
         {/* Action Buttons */}
         <View style={styles.actions}>
@@ -113,7 +113,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
             activeOpacity={0.8}
           >
             <Text style={styles.confirmButtonText}>هذا أنا</Text>
-            <Ionicons name="checkmark-circle" size={20} color="#F9F7F3" />
+            <Ionicons name="checkmark-circle" size={20} color="#F9F7F3" /> */ }
           </TouchableOpacity>
 
           <TouchableOpacity

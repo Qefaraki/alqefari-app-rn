@@ -53,6 +53,7 @@ import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
+import { useFilteredTreeStore } from "../contexts/FilteredTreeContext";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
 import { SettingsContext } from "../contexts/SettingsContext";
@@ -362,50 +363,45 @@ const TreeView = ({
   onAdminDashboard = () => {}, // Default noop function
   onSettingsOpen = () => {}, // Default noop function
   isFilteredView = false, // New prop to indicate filtered view
-  permanentHighlightId = null, // Person to keep permanently highlighted (prop)
-  initialFocusId = null, // Person to center on initially
-  focusPersonNameChain = null, // Full name chain for the focus person
 }) => {
-  // Use global store directly - no more filtered store complexity
-  const stage = useTreeStore((s) => s.stage);
-  const setStage = useTreeStore((s) => s.setStage);
-  const minZoom = useTreeStore((s) => s.minZoom);
-  const maxZoom = useTreeStore((s) => s.maxZoom);
-  const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
-  const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
-  const treeData = useTreeStore((s) => s.treeData);
-  const setTreeData = useTreeStore((s) => s.setTreeData);
-
-  // These don't exist in global store, so they're null
-  const focusPersonId = null;
-  const permanentHighlight = null;
-  const isFilteredStore = false;
+  // Use filtered store if available, otherwise use global store
+  const stage = useFilteredTreeStore((s) => s.stage);
+  const setStage = useFilteredTreeStore((s) => s.setStage);
+  const minZoom = useFilteredTreeStore((s) => s.minZoom);
+  const maxZoom = useFilteredTreeStore((s) => s.maxZoom);
+  const selectedPersonId = useFilteredTreeStore((s) => s.selectedPersonId);
+  const setSelectedPersonId = useFilteredTreeStore(
+    (s) => s.setSelectedPersonId,
+  );
+  const treeData = useFilteredTreeStore((s) => s.treeData);
+  const setTreeData = useFilteredTreeStore((s) => s.setTreeData);
 
   // Use ref to track if we've already logged the settings warning
   const hasLoggedSettingsWarning = useRef(false);
 
-  // Try to get settings context - will be null if not in provider
-  const settingsContext = useContext(SettingsContext);
-
   // Use settings if available, otherwise use defaults (for filtered view)
-  const settings = settingsContext?.settings || {
+  let settings = {
     defaultCalendar: "gregorian",
     dateFormat: "numeric",
     showBothCalendars: false,
     arabicNumerals: false,
   };
 
-  // Log once if running outside provider
-  useEffect(() => {
-    if (!settingsContext && !hasLoggedSettingsWarning.current) {
+  try {
+    const settingsContext = useSettings();
+    settings = settingsContext.settings;
+  } catch (error) {
+    // Not in SettingsProvider - use defaults
+    // Only log once to avoid console spam
+    if (!hasLoggedSettingsWarning.current) {
       console.log("TreeView running outside SettingsProvider, using defaults");
       hasLoggedSettingsWarning.current = true;
     }
-  }, [settingsContext]);
+  }
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // Start with false - don't block UI
+  const [isLoading, setIsLoading] = useState(true);
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -439,7 +435,7 @@ const TreeView = ({
 
   // Initialize profile sheet progress shared value for SearchBar coordination
   const profileSheetProgress = useSharedValue(0);
-  const initializeProfileSheetProgress = useTreeStore(
+  const initializeProfileSheetProgress = useFilteredTreeStore(
     (s) => s.initializeProfileSheetProgress,
   );
 
@@ -628,11 +624,7 @@ const TreeView = ({
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
-    // Don't set loading to true - load in background
-    // Only show loading for retries
-    if (!isRetrying) {
-      setIsLoading(false);
-    }
+    setIsLoading(true);
     setNetworkError(null);
     setIsRetrying(false);
 
@@ -735,17 +727,11 @@ const TreeView = ({
 
   const handleRetry = async () => {
     setIsRetrying(true);
-    setIsLoading(true); // Only show loading on manual retry
     await loadTreeData();
   };
 
   // Load tree data on mount
   useEffect(() => {
-    // Set local data immediately so tree is visible
-    if (treeData.length === 0) {
-      setTreeData(familyData || []);
-    }
-    // Then load real data in background
     loadTreeData();
   }, [setTreeData]);
 
@@ -1250,11 +1236,9 @@ const TreeView = ({
 
       // Calculate the target scale (zoom level)
       // Use current scale if reasonable, otherwise zoom to readable level
-      const currentScaleValue = currentTransform.scale;
+      const currentScale = scale.value;
       const targetScale =
-        currentScaleValue < 0.8 || currentScaleValue > 3
-          ? 1.5
-          : currentScaleValue;
+        currentScale < 0.8 || currentScale > 3 ? 1.5 : currentScale;
 
       // CORRECT FORMULA: To center a node on screen
       // We want: node canvas position * scale + translate = screen center
@@ -1263,12 +1247,7 @@ const TreeView = ({
       const targetX = dimensions.width / 2 - targetNode.x * targetScale;
       const targetY = dimensions.height / 2 - targetNode.y * targetScale;
 
-      console.log(
-        "Current scale:",
-        currentScaleValue,
-        "Target scale:",
-        targetScale,
-      );
+      console.log("Current scale:", currentScale, "Target scale:", targetScale);
       console.log("Navigating to:", { targetX, targetY, targetScale });
 
       // Cancel any ongoing animations
@@ -1300,64 +1279,11 @@ const TreeView = ({
       savedTranslateY.value = targetY;
       savedScale.value = targetScale;
 
-      // Start highlight animation only in main view (not in filtered view)
-      if (!isFilteredView) {
-        highlightNode(nodeId);
-      }
+      // Start highlight animation immediately (will reach full brightness as navigation completes)
+      highlightNode(nodeId);
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
-
-  // Instantly position on initial focus person (for modal view)
-  useEffect(() => {
-    if (initialFocusId && nodes.length > 0 && !isLoading) {
-      // Find the focus person in the nodes
-      const focusNode = nodes.find((n) => n.id === initialFocusId);
-      if (focusNode && focusNode.x !== undefined && focusNode.y !== undefined) {
-        console.log("Instant centering on:", initialFocusId);
-        console.log("Focus node at:", focusNode.x, focusNode.y);
-        console.log("Viewport:", dimensions.width, dimensions.height);
-        console.log("PermanentHighlightId:", permanentHighlightId);
-
-        // Calculate center position - MIDDLE of screen, not bottom
-        // Adjust for modal header (approximately 150px)
-        const viewportCenterX = dimensions.width / 2;
-        const viewportCenterY = isFilteredView
-          ? dimensions.height / 2 - 75 // Offset for modal header
-          : dimensions.height / 2;
-
-        // Set zoom first
-        const targetScale = 1.2;
-
-        // Direct positioning - NO ANIMATION
-        // When scaled, we need to account for the scale in positioning
-        const targetX = viewportCenterX - focusNode.x * targetScale;
-        const targetY = viewportCenterY - focusNode.y * targetScale;
-
-        console.log(
-          "Setting position to:",
-          targetX,
-          targetY,
-          "with scale:",
-          targetScale,
-        );
-
-        // Set instantly - no animation, no delay
-        translateX.value = targetX;
-        translateY.value = targetY;
-        savedTranslateX.value = targetX;
-        savedTranslateY.value = targetY;
-        scale.value = targetScale;
-        savedScale.value = targetScale;
-      }
-    }
-  }, [
-    initialFocusId,
-    nodes.length,
-    isLoading,
-    dimensions.width,
-    dimensions.height,
-  ]);
 
   // Highlight node with elegant golden effect using Reanimated
   const highlightNode = useCallback((nodeId) => {
@@ -1486,14 +1412,8 @@ const TreeView = ({
         return;
       }
 
-      // Calculate new scale (with limits for filtered view)
-      const maxZoomLimit = isFilteredView ? 2.0 : maxZoom;
-      const minZoomLimit = isFilteredView ? 0.5 : minZoom;
-      const newScale = clamp(
-        savedScale.value * e.scale,
-        minZoomLimit,
-        maxZoomLimit,
-      );
+      // Calculate new scale
+      const newScale = clamp(savedScale.value * e.scale, minZoom, maxZoom);
 
       // CRITICAL FIX: Track how much the focal point has moved (pan component)
       const focalDeltaX = e.focalX - initialFocalX.value;
@@ -1679,18 +1599,12 @@ const TreeView = ({
   // Handle node tap - show profile sheet (edit mode if admin)
   const handleNodeTap = useCallback(
     (nodeId) => {
-      // In filtered view, don't allow selecting other nodes
-      if (isFilteredStore) {
-        console.log("Node tap blocked in filtered view");
-        return;
-      }
-
       // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
       setSelectedPersonId(nodeId);
       setProfileEditMode(isAdminMode);
       // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
     },
-    [setSelectedPersonId, isAdminMode, isFilteredStore],
+    [setSelectedPersonId, isAdminMode],
   );
 
   // Handle chip tap in T3 - zoom to branch
@@ -1822,16 +1736,12 @@ const TreeView = ({
     [contextMenuNode, setSelectedPersonId],
   );
 
-  // Compose gestures - use same gestures for filtered view but without tap
-  const composed = isFilteredView
-    ? Gesture.Simultaneous(panGesture, pinchGesture) // Same zoom, just no tap
-    : Gesture.Simultaneous(
-        panGesture,
-        pinchGesture,
-        isAdminMode
-          ? Gesture.Exclusive(longPressGesture, tapGesture)
-          : tapGesture,
-      );
+  // Compose gestures - allow simultaneous but with guards in each gesture
+  const composed = Gesture.Simultaneous(
+    panGesture,
+    pinchGesture,
+    isAdminMode ? Gesture.Exclusive(longPressGesture, tapGesture) : tapGesture,
+  );
 
   // Render connection lines with proper elbow style
   const renderConnection = useCallback(
@@ -2080,12 +1990,6 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
-      const isPermanentHighlight = permanentHighlightId === node.id;
-
-      // Debug permanent highlight
-      if (permanentHighlightId && node.id === permanentHighlightId) {
-        console.log("PERMANENT HIGHLIGHT MATCH:", node.id, "tier:", node._tier);
-      }
 
       return (
         <Group key={node.id}>
@@ -2116,9 +2020,9 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={13}
-            color={isSelected || isPermanentHighlight ? "#A13333" : "#D1BBA360"}
+            color={isSelected ? "#A13333" : "#D1BBA360"}
             style="stroke"
-            strokeWidth={isSelected || isPermanentHighlight ? 1.5 : 1}
+            strokeWidth={isSelected ? 1.5 : 1}
           />
 
           {/* First name only */}
@@ -2146,7 +2050,7 @@ const TreeView = ({
         </Group>
       );
     },
-    [selectedPersonId, permanentHighlightId],
+    [selectedPersonId],
   );
 
   // Render node component (T1 - full detail)
@@ -2161,7 +2065,6 @@ const TreeView = ({
         ? NODE_HEIGHT_WITH_PHOTO
         : NODE_HEIGHT_TEXT_ONLY;
       const isSelected = selectedPersonId === node.id;
-      const isPermanentHighlight = permanentHighlightId === node.id;
 
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
@@ -2198,9 +2101,9 @@ const TreeView = ({
             width={nodeWidth}
             height={nodeHeight}
             r={CORNER_RADIUS}
-            color={isSelected || isPermanentHighlight ? "#A13333" : "#D1BBA360"}
+            color={isSelected ? "#A13333" : "#D1BBA360"}
             style="stroke"
-            strokeWidth={isSelected || isPermanentHighlight ? 2.5 : 1.2}
+            strokeWidth={isSelected ? 2.5 : 1.2}
           />
 
           {hasPhoto ? (
@@ -2260,14 +2163,8 @@ const TreeView = ({
 
               {/* Name text - centered across full width (on top) */}
               {(() => {
-                // Use full name chain for focus person if available
-                const displayName =
-                  node.id === permanentHighlightId && focusPersonNameChain
-                    ? focusPersonNameChain
-                    : node.name;
-
                 const nameParagraph = createArabicParagraph(
-                  displayName,
+                  node.name,
                   "bold",
                   11,
                   "#242121",
@@ -2315,14 +2212,8 @@ const TreeView = ({
 
               {/* Text-only name - centered across full width (on top) */}
               {(() => {
-                // Use full name chain for focus person if available
-                const displayName =
-                  node.id === permanentHighlightId && focusPersonNameChain
-                    ? focusPersonNameChain
-                    : node.name;
-
                 const nameParagraph = createArabicParagraph(
-                  displayName,
+                  node.name,
                   "bold",
                   11,
                   "#242121",
@@ -2348,12 +2239,7 @@ const TreeView = ({
         </Group>
       );
     },
-    [
-      selectedPersonId,
-      highlightedNodeIdState,
-      glowOpacityState,
-      permanentHighlightId,
-    ],
+    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
