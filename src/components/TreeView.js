@@ -53,7 +53,6 @@ import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
-import { useFilteredTreeStore } from "../contexts/FilteredTreeContext";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
 import { SettingsContext } from "../contexts/SettingsContext";
@@ -365,16 +364,16 @@ const TreeView = ({
   isFilteredView = false, // New prop to indicate filtered view
 }) => {
   // Use filtered store if available, otherwise use global store
-  const stage = useFilteredTreeStore((s) => s.stage);
-  const setStage = useFilteredTreeStore((s) => s.setStage);
-  const minZoom = useFilteredTreeStore((s) => s.minZoom);
-  const maxZoom = useFilteredTreeStore((s) => s.maxZoom);
-  const selectedPersonId = useFilteredTreeStore((s) => s.selectedPersonId);
-  const setSelectedPersonId = useFilteredTreeStore(
+  const stage = useTreeStore((s) => s.stage);
+  const setStage = useTreeStore((s) => s.setStage);
+  const minZoom = useTreeStore((s) => s.minZoom);
+  const maxZoom = useTreeStore((s) => s.maxZoom);
+  const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
+  const setSelectedPersonId = useTreeStore(
     (s) => s.setSelectedPersonId,
   );
-  const treeData = useFilteredTreeStore((s) => s.treeData);
-  const setTreeData = useFilteredTreeStore((s) => s.setTreeData);
+  const treeData = useTreeStore((s) => s.treeData);
+  const setTreeData = useTreeStore((s) => s.setTreeData);
 
   // Use ref to track if we've already logged the settings warning
   const hasLoggedSettingsWarning = useRef(false);
@@ -435,7 +434,7 @@ const TreeView = ({
 
   // Initialize profile sheet progress shared value for SearchBar coordination
   const profileSheetProgress = useSharedValue(0);
-  const initializeProfileSheetProgress = useFilteredTreeStore(
+  const initializeProfileSheetProgress = useTreeStore(
     (s) => s.initializeProfileSheetProgress,
   );
 
