@@ -761,21 +761,8 @@ const styles = StyleSheet.create({
     // textAlign removed - let native RTL handle it
     // writingDirection removed - native RTL handles it
   },
-  resetButton: {
-    margin: 20,
-    padding: 16,
-    backgroundColor: "#A1333310", // Najdi Crimson 10%
-    borderRadius: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#A1333330", // Najdi Crimson 30%
-  },
-  resetButtonText: {
-    fontSize: 15,
-    fontFamily: "SF Arabic",
-    color: "#A13333", // Najdi Crimson
-    fontWeight: "500",
-  },
+
+
   profileCard: {
     backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
@@ -896,52 +883,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontWeight: "500",
   },
-  signOutSection: {
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  signOutButton: {
-    backgroundColor: "#F9F7F3", // Al-Jass White
-    marginHorizontal: 16,
-    borderRadius: 12,
-    shadowColor: "#A13333",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1.5,
-    borderColor: "#A1333330", // Najdi Crimson 30%
-    overflow: "hidden",
-  },
-  signOutContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  signOutIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#A1333310", // Najdi Crimson 10%
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  signOutButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#A13333", // Najdi Crimson
-    letterSpacing: -0.3,
-  },
-  signOutHint: {
-    fontSize: 13,
-    color: "#24212166", // Sadu Night 40%
-    textAlign: "center",
-    marginTop: 8,
-    fontWeight: "500",
-  },
+
+
+
+
+
+
   signInPromptCard: {
     backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
@@ -1044,50 +991,59 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 2,
   },
-  dangerSection: {
-    marginTop: 8,
-    marginBottom: 24,
+
+
+
+
+
+
+  // Unified action button styles based on CLAUDE.md design system
+  actionButtonsSection: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    gap: 12, // Space between buttons
   },
-  deleteAccountButton: {
-    backgroundColor: "#FEF2F2", // Light red background
-    marginHorizontal: 16,
-    borderRadius: 12,
-    shadowColor: "#F44336",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1.5,
-    borderColor: "#F4433630", // Red 30%
-    overflow: "hidden",
-  },
-  deleteAccountContent: {
+  actionButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 10,
+    minHeight: 48, // Accessibility minimum
   },
-  deleteAccountIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#F4433610", // Red 10%
-    alignItems: "center",
-    justifyContent: "center",
+  buttonIcon: {
+    marginRight: 8, // Space between icon and text (native RTL will flip this)
   },
-  deleteAccountButtonText: {
-    fontSize: 17,
+  actionButtonText: {
+    fontSize: 16,
     fontWeight: "600",
-    color: "#F44336", // Red
-    letterSpacing: -0.3,
+    fontFamily: "SF Arabic",
   },
-  deleteAccountHint: {
-    fontSize: 13,
-    color: "#9B1C1C", // Dark red
-    marginTop: 8,
-    textAlign: "center",
-    marginHorizontal: 20,
+  // Primary button - for main actions
+  primaryButton: {
+    backgroundColor: "#A13333", // Najdi Crimson
+  },
+  primaryButtonText: {
+    color: "#F9F7F3", // Al-Jass White
+  },
+  // Secondary button - for alternative actions
+  secondaryButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: "#D1BBA3", // Camel Hair Beige
+  },
+  secondaryButtonText: {
+    color: "#242121", // Sadu Night
+  },
+  // Danger button - for destructive actions
+  dangerButton: {
+    backgroundColor: "#A1333310", // Najdi Crimson 10%
+    borderWidth: 1.5,
+    borderColor: "#A13333", // Najdi Crimson
+  },
+  dangerButtonText: {
+    color: "#A13333", // Najdi Crimson
   },
 });
