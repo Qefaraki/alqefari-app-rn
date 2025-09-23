@@ -133,8 +133,10 @@ const SearchBar = ({ onSelectResult, style }) => {
     },
     (result) => {
       "worklet";
-      // Call the JS function with both opacity and sheet progress
-      runOnJS(updateOpacity)(result.opacity, result.progress);
+      // Only update if opacity actually changed
+      if (result.opacity !== lastOpacity.current) {
+        runOnJS(updateOpacity)(result.opacity, result.progress);
+      }
     },
     [profileSheetProgress],
   );
@@ -146,7 +148,6 @@ const SearchBar = ({ onSelectResult, style }) => {
   useEffect(() => {
     if (!selectedPersonId) {
       // No person selected = sheet is closed, FORCE SearchBar visible
-      console.log("[SearchBar] No person selected, forcing visible");
       lastOpacity.current = 1;
       isFirstMount.current = true; // Reset first mount flag
 
@@ -155,29 +156,15 @@ const SearchBar = ({ onSelectResult, style }) => {
         animationRef.current.stop();
       }
 
-      // Force immediate visibility
+      // Force immediate visibility without animation
       searchBarOpacity.setValue(1);
 
-      // Reset the profileSheetProgress in a separate microtask to avoid render warnings
-      if (profileSheetProgress) {
-        // Use setTimeout to move the shared value update out of the render cycle
-        setTimeout(() => {
-          console.log("[SearchBar] Resetting stuck profileSheetProgress");
-          profileSheetProgress.value = 0;
-        }, 0);
+      // Reset the profileSheetProgress immediately if it exists
+      if (profileSheetProgress && profileSheetProgress.value !== 0) {
+        profileSheetProgress.value = 0;
       }
     }
   }, [selectedPersonId, searchBarOpacity, profileSheetProgress]);
-
-  // Additional safety: Reset when admin mode changes
-  useEffect(() => {
-    // When admin mode toggles, ensure SearchBar is visible
-    if (!selectedPersonId) {
-      console.log("[SearchBar] Admin mode changed, ensuring visible");
-      searchBarOpacity.setValue(1);
-      lastOpacity.current = 1;
-    }
-  }, [isAdminMode, selectedPersonId, searchBarOpacity]);
 
   const showBackdrop = () => {
     Animated.timing(backdropOpacity, {
