@@ -210,9 +210,8 @@ export default function App() {
     checkAuthState();
 
     // Clean up function to handle app state changes
-    return (
-    <SafeAreaProvider>) => {
-      // Cleanup if needed
+    return () => {
+    return () => {
     };
   }, []);
 
@@ -333,8 +332,8 @@ export default function App() {
       },
     );
 
-    return (
-    <SafeAreaProvider>) => {
+    return () => {
+    return () => {
       authListener?.subscription?.unsubscribe();
     };
   }, []);
