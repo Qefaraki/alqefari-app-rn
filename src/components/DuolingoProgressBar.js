@@ -50,7 +50,7 @@ const DuolingoProgressBar = ({
               styles.fill,
               {
                 position: "absolute",
-                left: 0, // In native RTL, this becomes right: 0 (fills from right)
+                right: 0, // In native RTL, this becomes left: 0 (fills from right-to-left)
                 top: 0,
                 bottom: 0,
                 width: progressAnim.interpolate({
