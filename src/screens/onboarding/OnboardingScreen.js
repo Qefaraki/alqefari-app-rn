@@ -176,12 +176,14 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     React.useCallback(() => {
       // Reset all animation values when screen focuses
       logoFade.setValue(0);
-      logoScale.setValue(0.5);
-      titleFade.setValue(0);
-      subtitleFade.setValue(0);
+      logoScale.setValue(0.95);
+      backgroundStarsFade.setValue(0);
+      contentFade.setValue(0);
       buttonFade.setValue(0);
-      buttonScale.setValue(0.9);
       logoBreath.setValue(1);
+      logoRotate.setValue(0);
+      primaryButtonScale.setValue(1);
+      secondaryButtonScale.setValue(1);
 
       // Restart the animation sequence
       // Stage 1: Logo appears almost instantly
@@ -206,11 +208,13 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     }, [
       logoFade,
       logoScale,
-      titleFade,
-      subtitleFade,
+      backgroundStarsFade,
+      contentFade,
       buttonFade,
-      buttonScale,
       logoBreath,
+      logoRotate,
+      primaryButtonScale,
+      secondaryButtonScale,
     ]),
   );
 
