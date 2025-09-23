@@ -382,10 +382,12 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                 >
                   {/* Header row with back button and progress bar */}
                   <View style={styles.headerRow}>
+                    {/* Back button - on RIGHT in RTL */}
                     <TouchableOpacity
                       style={styles.backButtonNew}
                       onPress={() => navigation.goBack()}
                       activeOpacity={0.7}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                       <Ionicons
                         name="chevron-back"
@@ -394,19 +396,12 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                       />
                     </TouchableOpacity>
 
+                    {/* Progress bar - fills remaining space */}
                     <View style={styles.progressBarContainer}>
                       <DuolingoProgressBar
                         currentStep={step === "phone" ? 1 : 2}
                         totalSteps={5}
-                        steps={[
-                          "الهاتف",
-                          "التحقق",
-                          "الاسم",
-                          "المطابقة",
-                          "الموافقة",
-                        ]}
-                        showLabels={false}
-                        style={{ marginVertical: 0 }}
+                        showStepCount={true}
                       />
                     </View>
                   </View>
@@ -646,22 +641,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerRow: {
-    flexDirection: "row",
+    flexDirection: "row", // In RTL, this automatically becomes RTL
     alignItems: "center",
-    marginBottom: 32,
-    marginTop: -12,
-    marginHorizontal: -12,
+    marginBottom: 28,
+    marginTop: -8,
+    marginHorizontal: -8,
+    height: 44, // Fixed height to match back button
   },
   backButtonNew: {
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 8,
+    marginEnd: 12, // Use marginEnd instead of marginRight for RTL
   },
   progressBarContainer: {
     flex: 1,
-    justifyContent: "center",
+    height: 44,
+    justifyContent: "center", // Center progress bar vertically
   },
   contentContainer: {
     flex: 1,
@@ -681,7 +678,9 @@ const styles = StyleSheet.create({
   },
   cardInner: {
     backgroundColor: "rgba(36, 33, 33, 0.4)",
-    padding: 32,
+    paddingTop: 24,
+    paddingBottom: 32,
+    paddingHorizontal: 24,
   },
   progressContainer: {
     flexDirection: "row",
