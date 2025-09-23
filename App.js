@@ -452,6 +452,7 @@ export default function App() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-    </GestureHandlerRootView>
-    </SafeAreaProvider>  );
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  );
 }
