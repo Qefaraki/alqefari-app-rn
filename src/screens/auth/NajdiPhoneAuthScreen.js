@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerRow: {
-    flexDirection: "row", // In RTL, this automatically becomes RTL
+    flexDirection: "row", // Native RTL handles this - flows right-to-left
     alignItems: "center",
     marginBottom: 28,
     marginTop: -8,
@@ -653,12 +653,13 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginEnd: 12, // Use marginEnd instead of marginRight for RTL
+    marginLeft: 12, // In native RTL, this becomes margin on the right side
   },
   progressBarContainer: {
     flex: 1,
     height: 44,
     justifyContent: "center", // Center progress bar vertically
+    paddingRight: 12, // Add padding to keep progress bar away from edge
   },
   contentContainer: {
     flex: 1,
