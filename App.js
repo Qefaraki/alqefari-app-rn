@@ -210,7 +210,6 @@ export default function App() {
 
     // Clean up function to handle app state changes
     return () => {
-    return () => {
     };
   }, []);
 
@@ -331,7 +330,6 @@ export default function App() {
       },
     );
 
-    return () => {
     return () => {
       authListener?.subscription?.unsubscribe();
     };
