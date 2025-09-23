@@ -1,7 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Dimensions, Animated } from "react-native";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import { View, Text, StyleSheet, Animated } from "react-native";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -39,9 +37,6 @@ const DuolingoProgressBar = ({
       }),
     ]).start();
   }, [currentStep]);
-
-  // Calculate progress percentage
-  const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
     <Animated.View style={[styles.container, style, { opacity: opacityAnim }]}>
