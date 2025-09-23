@@ -405,7 +405,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                       "الموافقة",
                     ]}
                     showLabels={false}
-                    style={{ marginHorizontal: -10, marginBottom: 24 }}
+                    style={{ marginBottom: 24 }}
                   />
 
                   {/* Step container */}

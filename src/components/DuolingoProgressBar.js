@@ -22,83 +22,70 @@ const DuolingoProgressBar = ({
   style,
 }) => {
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Animate progress fill - using transform instead of width for native driver
-    Animated.timing(progressAnim, {
-      toValue: currentStep / totalSteps,
-      duration: 500,
-      useNativeDriver: true,
-    }).start();
-
-    // Pulse animation on step change
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 1.05,
-        duration: 150,
-        useNativeDriver: true,
+    // Animate progress width change
+    Animated.parallel([
+      Animated.timing(progressAnim, {
+        toValue: currentStep / totalSteps,
+        duration: 500,
+        useNativeDriver: false, // Can't use native driver for width
       }),
-      Animated.timing(scaleAnim, {
+      Animated.timing(opacityAnim, {
         toValue: 1,
-        duration: 150,
+        duration: 300,
         useNativeDriver: true,
       }),
     ]).start();
   }, [currentStep]);
 
-  // Calculate segment width
-  const segmentWidth = (SCREEN_WIDTH - 48) / totalSteps;
+  // Calculate progress percentage
+  const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
-    <View style={[styles.container, style]}>
+    <Animated.View style={[styles.container, style, { opacity: opacityAnim }]}>
       <View style={styles.progressContainer}>
         {/* Background track */}
         <View style={styles.trackBackground} />
 
-        {/* Filled progress - using scaleX for native animation */}
-        <View style={styles.trackFilledContainer}>
-          <Animated.View
-            style={[
-              styles.trackFilled,
-              {
-                transform: [
-                  {
-                    scaleX: progressAnim,
-                  },
-                ],
-              },
-            ]}
-          />
-        </View>
+        {/* Filled progress using width percentage */}
+        <Animated.View
+          style={[
+            styles.trackFilled,
+            {
+              width: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+              }),
+            },
+          ]}
+        />
 
         {/* Segment dividers */}
-        {[...Array(totalSteps - 1)].map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.segmentDivider,
-              {
-                left: segmentWidth * (index + 1),
-              },
-            ]}
-          />
-        ))}
+        <View style={styles.segmentContainer}>
+          {[...Array(totalSteps - 1)].map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.segmentDivider,
+                {
+                  left: `${((index + 1) / totalSteps) * 100}%`,
+                },
+              ]}
+            />
+          ))}
+        </View>
 
-        {/* Current step indicator - using translateX for native animation */}
+        {/* Current step indicator dot */}
         <Animated.View
           style={[
             styles.currentIndicator,
             {
-              transform: [
-                {
-                  translateX: progressAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, SCREEN_WIDTH - 48],
-                  }),
-                },
-                { scale: scaleAnim },
-              ],
+              left: progressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ["0%", "100%"],
+              }),
             },
           ]}
         >
@@ -110,10 +97,7 @@ const DuolingoProgressBar = ({
       {showLabels && steps.length > 0 && (
         <View style={styles.labelsContainer}>
           {steps.map((step, index) => (
-            <View
-              key={index}
-              style={[styles.labelWrapper, { width: segmentWidth }]}
-            >
+            <View key={index} style={[styles.labelWrapper, { flex: 1 }]}>
               <Text
                 style={[
                   styles.labelText,
@@ -128,13 +112,20 @@ const DuolingoProgressBar = ({
           ))}
         </View>
       )}
-    </View>
+
+      {/* Step counter */}
+      <View style={styles.stepCounter}>
+        <Text style={styles.stepCounterText}>
+          {currentStep} من {totalSteps}
+        </Text>
+      </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 24,
+    paddingVertical: 16,
   },
   progressContainer: {
     height: 8,
@@ -151,23 +142,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: colors.inactive,
   },
-  trackFilledContainer: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflow: "hidden",
-    borderRadius: 4,
-  },
   trackFilled: {
     position: "absolute",
     top: 0,
     left: 0,
     bottom: 0,
-    right: 0,
     backgroundColor: colors.primary,
     borderRadius: 4,
+  },
+  segmentContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   segmentDivider: {
     position: "absolute",
@@ -179,7 +167,6 @@ const styles = StyleSheet.create({
   currentIndicator: {
     position: "absolute",
     top: -6,
-    left: 0,
     width: 20,
     height: 20,
     marginLeft: -10,
@@ -210,7 +197,7 @@ const styles = StyleSheet.create({
   labelText: {
     fontSize: 11,
     fontFamily: "SF Arabic",
-    color: colors.inactive,
+    color: colors.text + "60",
     textAlign: "center",
   },
   labelTextCompleted: {
@@ -220,6 +207,15 @@ const styles = StyleSheet.create({
   labelTextActive: {
     color: colors.primary,
     fontWeight: "700",
+  },
+  stepCounter: {
+    alignItems: "center",
+    marginTop: 8,
+  },
+  stepCounterText: {
+    fontSize: 12,
+    fontFamily: "SF Arabic",
+    color: colors.text + "80",
   },
 });
 
