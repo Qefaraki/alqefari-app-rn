@@ -2460,6 +2460,7 @@ const TreeView = ({
 
       <NavigateToRootButton
         nodes={nodes}
+        viewport={dimensions}
         sharedValues={{
           translateX: translateX,
           translateY: translateY,

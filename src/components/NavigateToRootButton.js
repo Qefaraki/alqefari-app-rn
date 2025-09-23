@@ -1,23 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, Easing } from 'react-native-reanimated';
-import Svg, { Path, G } from 'react-native-svg';
+import React, { useEffect, useState } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  Easing,
+} from "react-native-reanimated";
+import Svg, { Path, G } from "react-native-svg";
 
 const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
   const [rootNode, setRootNode] = useState(null);
-  
+
   // Find and cache the root node when nodes change
   useEffect(() => {
     if (nodes && nodes.length > 0) {
-      const root = nodes.find(n => n.generation === 1);
+      const root = nodes.find((n) => n.generation === 1);
       if (root) {
         setRootNode(root);
         // console.log('Root node found:', root.name, 'at position:', root.x, root.y);
       }
     }
   }, [nodes]);
-  
+
   const iconScale = useSharedValue(1);
   const iconRotate = useSharedValue(0);
 
@@ -33,21 +39,31 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
       // console.warn('NavigateToRootButton: Root node not ready yet');
       return;
     }
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Tap animation
     iconScale.value = withSequence(
       withTiming(0.9, { duration: 90, easing: Easing.out(Easing.quad) }),
       withTiming(1.05, { duration: 160, easing: Easing.out(Easing.back(1.6)) }),
-      withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) })
+      withTiming(1, { duration: 120, easing: Easing.out(Easing.quad) }),
     );
     iconRotate.value = withSequence(
       withTiming(-8, { duration: 90, easing: Easing.out(Easing.quad) }),
-      withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) })
+      withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) }),
     );
-    
+
     if (!sharedValues) {
       // console.warn('NavigateToRootButton: No shared values provided');
+      return;
+    }
+
+    if (!viewport || !viewport.width || !viewport.height) {
+      console.warn("NavigateToRootButton: Viewport not ready");
+      return;
+    }
+
+    if (!viewport || !viewport.width || !viewport.height) {
+      console.warn("NavigateToRootButton: Viewport not ready");
       return;
     }
     
@@ -55,13 +71,13 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
     const targetX = viewport.width / 2 - rootNode.x;
     const targetY = 200 - rootNode.y; // Position near top with padding
     const targetScale = 1; // Reset to default zoom
-    
+
     // console.log('Navigate to root:', {
     //   rootNode: { name: rootNode.name, x: rootNode.x, y: rootNode.y },
     //   viewport: { width: viewport.width, height: viewport.height },
     //   target: { x: targetX, y: targetY, scale: targetScale }
     // });
-    
+
     // Animate the shared values directly
     sharedValues.translateX.value = withTiming(targetX, {
       duration: 600,
@@ -76,10 +92,10 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
       easing: Easing.inOut(Easing.ease),
     });
   };
-  
+
   // Always render the button, but disable if root not found
   const isDisabled = !rootNode;
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.shadowWrapper}>
@@ -89,7 +105,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
           style={({ pressed }) => [
             styles.button,
             pressed && styles.buttonPressed,
-            isDisabled && styles.buttonDisabled
+            isDisabled && styles.buttonDisabled,
           ]}
         >
           {/* Pointer icon */}
@@ -119,7 +135,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
     bottom: 100,
   },
@@ -127,37 +143,37 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     // Shadow properties for iOS
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.30,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
     // Shadow for Android
     elevation: 12,
   },
   button: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     width: 56,
     height: 56,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconContainer: {
     width: 56,
     height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonPressed: {
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: "rgba(0,0,0,0.05)",
     transform: [{ scale: 0.96 }],
   },
   buttonDisabled: {
