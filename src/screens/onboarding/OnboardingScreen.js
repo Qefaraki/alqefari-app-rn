@@ -18,7 +18,7 @@ import {
   AccessibilityInfo,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
@@ -171,23 +171,51 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     }
   }, [reduceMotion]);
 
-  useEffect(() => {
-    // Staged animation sequence
-    // Stage 1: Logo appears almost instantly
-    Animated.parallel([
-      Animated.timing(logoFade, {
-        toValue: 1,
-        duration: 200, // Near instant as requested
-        useNativeDriver: true,
-      }),
-      Animated.spring(logoScale, {
-        toValue: 1,
-        tension: 40, // Smooth spring
-        friction: 8,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  // Reset and restart animations when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      // Reset all animation values when screen focuses
+      logoFade.setValue(0);
+      logoScale.setValue(0.5);
+      titleFade.setValue(0);
+      subtitleFade.setValue(0);
+      buttonFade.setValue(0);
+      buttonScale.setValue(0.9);
+      logoBreath.setValue(1);
 
+      // Restart the animation sequence
+      // Stage 1: Logo appears almost instantly
+      Animated.parallel([
+        Animated.timing(logoFade, {
+          toValue: 1,
+          duration: 200, // Near instant as requested
+          useNativeDriver: true,
+        }),
+        Animated.spring(logoScale, {
+          toValue: 1,
+          tension: 40, // Smooth spring
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Return cleanup function if needed
+      return () => {
+        // Cleanup animations if needed
+      };
+    }, [
+      logoFade,
+      logoScale,
+      titleFade,
+      subtitleFade,
+      buttonFade,
+      buttonScale,
+      logoBreath,
+    ]),
+  );
+
+  // Continue with other animations
+  useEffect(() => {
     // Start breathing animation after logo appears
     setTimeout(() => {
       if (!reduceMotion) {
@@ -291,16 +319,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [
-    logoFade,
-    backgroundStarsFade,
-    contentFade,
-    buttonFade,
-    logoScale,
-    logoRotate,
-    logoBreath,
-    reduceMotion,
-  ]);
+  }, [reduceMotion]);
 
   const renderStars = useCallback((stars, time) => {
     // OPTIMIZED: Performance with smooth fade-in
