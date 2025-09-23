@@ -96,6 +96,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const insets = useSafeAreaInsets();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const hasBeenMountedRef = useRef(false); // Track if this is a return visit
 
   // Parallax state
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -174,6 +175,9 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   // Reset and restart animations when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
+      // Determine if this is a return visit (back navigation)
+      const isReturning = hasBeenMountedRef.current;
+
       // Reset all animation values when screen focuses
       logoFade.setValue(0);
       logoScale.setValue(0.95);
@@ -185,48 +189,83 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
       primaryButtonScale.setValue(1);
       secondaryButtonScale.setValue(1);
 
-      // Restart the animation sequence
-      // Stage 1: Logo appears almost instantly
-      Animated.parallel([
-        Animated.timing(logoFade, {
-          toValue: 1,
-          duration: 200, // Near instant as requested
-          useNativeDriver: true,
-        }),
-        Animated.spring(logoScale, {
-          toValue: 1,
-          tension: 40, // Smooth spring
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      if (isReturning) {
+        // FAST animations when returning (back button pressed)
+        // Everything appears almost immediately
+        Animated.parallel([
+          Animated.timing(logoFade, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoScale, {
+            toValue: 1,
+            duration: 100,
+            useNativeDriver: true,
+          }),
+          Animated.timing(backgroundStarsFade, {
+            toValue: 0.56,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(contentFade, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(buttonFade, {
+            toValue: 1,
+            duration: 200, // Buttons appear very quickly
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else {
+        // NORMAL staged animations for first mount
+        // Mark that we've mounted once
+        hasBeenMountedRef.current = true;
 
-      // Stage 2: Background stars fade in after logo
-      setTimeout(() => {
-        Animated.timing(backgroundStarsFade, {
-          toValue: 0.56, // Reduced by 30% from 0.8
-          duration: 800, // Faster fade
-          useNativeDriver: true,
-        }).start();
-      }, 500);
+        // Stage 1: Logo appears almost instantly
+        Animated.parallel([
+          Animated.timing(logoFade, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.spring(logoScale, {
+            toValue: 1,
+            tension: 40,
+            friction: 8,
+            useNativeDriver: true,
+          }),
+        ]).start();
 
-      // Stage 3: Text/content fades in
-      setTimeout(() => {
-        Animated.timing(contentFade, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start();
-      }, 1000);
+        // Stage 2: Background stars fade in after logo
+        setTimeout(() => {
+          Animated.timing(backgroundStarsFade, {
+            toValue: 0.56,
+            duration: 800,
+            useNativeDriver: true,
+          }).start();
+        }, 500);
 
-      // Stage 4: Buttons fade in last
-      setTimeout(() => {
-        Animated.timing(buttonFade, {
-          toValue: 1,
-          duration: 700,
-          useNativeDriver: true,
-        }).start();
-      }, 1800);
+        // Stage 3: Text/content fades in
+        setTimeout(() => {
+          Animated.timing(contentFade, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }).start();
+        }, 1000);
+
+        // Stage 4: Buttons fade in last
+        setTimeout(() => {
+          Animated.timing(buttonFade, {
+            toValue: 1,
+            duration: 700,
+            useNativeDriver: true,
+          }).start();
+        }, 1800);
+      }
 
       // Return cleanup function if needed
       return () => {
