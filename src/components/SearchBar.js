@@ -15,7 +15,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
