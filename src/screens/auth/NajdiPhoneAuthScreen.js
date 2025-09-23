@@ -394,7 +394,18 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                     {/* Back button - SECOND so it appears on RIGHT in RTL */}
                     <TouchableOpacity
                       style={styles.backButtonNew}
-                      onPress={() => navigation.goBack()}
+                      onPress={() => {
+                        if (step === "otp") {
+                          // Go back to phone step
+                          setStep("phone");
+                          setOtp("");
+                          setError("");
+                          setCountdown(0);
+                        } else {
+                          // Go back to onboarding
+                          navigation.goBack();
+                        }
+                      }}
                       activeOpacity={0.7}
                       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
