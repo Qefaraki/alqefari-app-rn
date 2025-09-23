@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 import * as Haptics from "expo-haptics";
+import {
+  validateSaudiPhone,
+  sanitizeInput,
+  checkRateLimit,
+  formatPhoneNumber,
+} from "../../utils/validationUtils";
+import { APP_CONFIG, ERROR_MESSAGES } from "../../config/constants";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -30,6 +37,7 @@ const colors = {
   inputBg: "rgba(209, 187, 163, 0.1)", // Container 10%
   inputBorder: "rgba(209, 187, 163, 0.4)", // Container 40%
   success: "#4CAF50",
+  error: "#F44336",
   whatsapp: "#25D366",
 };
 
@@ -37,11 +45,70 @@ export default function ContactAdminScreen({ navigation, route }) {
   const { user, nameChain } = route.params || {};
   const [additionalInfo, setAdditionalInfo] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [existingRequest, setExistingRequest] = useState(null);
+
+  // Check for existing pending request
+  useEffect(() => {
+    checkExistingRequest();
+  }, []);
+
+  const checkExistingRequest = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("profile_creation_requests")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("status", ["pending", "reviewing"])
+        .single();
+
+      if (data && !error) {
+        setExistingRequest(data);
+        Alert.alert(
+          "طلب موجود",
+          "لديك طلب قيد المراجعة بالفعل. سيتم التواصل معك قريباً.",
+          [{ text: "موافق", onPress: () => navigation.goBack() }],
+        );
+      }
+    } catch (err) {
+      // No existing request, which is fine
+      console.log("No existing request");
+    }
+  };
+
+  const validatePhone = (phone) => {
+    setPhoneError("");
+    if (!phone.trim()) {
+      setPhoneError("يرجى إدخال رقم الهاتف");
+      return false;
+    }
+    if (!validateSaudiPhone(phone)) {
+      setPhoneError(ERROR_MESSAGES.PHONE_INVALID);
+      return false;
+    }
+    return true;
+  };
 
   const handleSubmitRequest = async () => {
-    if (!phoneNumber.trim()) {
-      Alert.alert("خطأ", "يرجى إدخال رقم الهاتف");
+    // Validate phone
+    if (!validatePhone(phoneNumber)) {
+      return;
+    }
+
+    // Check for existing request
+    if (existingRequest) {
+      Alert.alert("تنبيه", ERROR_MESSAGES.DUPLICATE_REQUEST);
+      return;
+    }
+
+    // Rate limiting
+    if (
+      !checkRateLimit(user?.id || "anonymous", "profile_request", 3, 3600000)
+    ) {
+      Alert.alert("تنبيه", ERROR_MESSAGES.RATE_LIMIT);
       return;
     }
 
@@ -49,66 +116,106 @@ export default function ContactAdminScreen({ navigation, route }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
+      // Sanitize inputs
+      const sanitizedInfo = sanitizeInput(additionalInfo);
+      const sanitizedNameChain = sanitizeInput(nameChain).substring(
+        0,
+        APP_CONFIG.MAX_NAME_CHAIN_LENGTH,
+      );
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+
       // Create profile creation request
       const { data, error } = await supabase
         .from("profile_creation_requests")
         .insert({
           user_id: user?.id,
-          name_chain: nameChain,
-          phone_number: phoneNumber,
-          additional_info: additionalInfo || null,
+          name_chain: sanitizedNameChain,
+          phone_number: formattedPhone,
+          additional_info: sanitizedInfo || null,
           status: "pending",
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23505") {
+          // Unique constraint violation
+          throw new Error(ERROR_MESSAGES.DUPLICATE_REQUEST);
+        }
+        throw error;
+      }
 
-      // Notify admins (using existing audit log for now)
+      // Notify admins (audit log - phone number excluded for privacy)
       await supabase.from("audit_log").insert({
         action_type: "profile_creation_request",
         actor_id: user?.id || null,
         details: {
           request_id: data.id,
-          name_chain: nameChain,
-          phone_number: phoneNumber,
-          additional_info: additionalInfo,
+          name_chain: sanitizedNameChain,
+          // Phone number excluded from audit log for privacy
+          has_additional_info: !!sanitizedInfo,
         },
       });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      Alert.alert("تم إرسال الطلب ✓", "سيتم التواصل معك قريباً من قبل المشرف", [
-        {
-          text: "موافق",
-          onPress: () => navigation.navigate("Onboarding"),
-        },
-      ]);
+      Alert.alert(
+        "تم إرسال الطلب ✓",
+        `سيتم التواصل معك خلال ${APP_CONFIG.DEFAULT_REVIEW_TIME_HOURS} ساعة`,
+        [
+          {
+            text: "موافق",
+            onPress: () => navigation.navigate("Onboarding"),
+          },
+        ],
+      );
     } catch (error) {
       console.error("Error submitting request:", error);
-      Alert.alert("خطأ", "حدث خطأ في إرسال الطلب. حاول مرة أخرى.");
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+      const errorMessage = error.message || ERROR_MESSAGES.GENERIC_ERROR;
+      Alert.alert("خطأ", errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleWhatsApp = () => {
-    // Admin WhatsApp number - should be configured in environment
-    const adminNumber = "+966501234567"; // Replace with actual admin number
+    if (!APP_CONFIG.ENABLE_WHATSAPP) {
+      Alert.alert("غير متاح", "خدمة WhatsApp غير متاحة حالياً");
+      return;
+    }
+
+    // Validate phone first
+    if (!validatePhone(phoneNumber)) {
+      return;
+    }
+
+    const adminNumber = APP_CONFIG.ADMIN_WHATSAPP;
+    // Sanitize message content to prevent injection
+    const sanitizedName = sanitizeInput(nameChain);
+    const sanitizedPhone = formatPhoneNumber(phoneNumber);
+    const sanitizedInfo = sanitizeInput(additionalInfo);
+
     const message = encodeURIComponent(
-      `السلام عليكم\n\nأرغب في إضافة ملفي إلى شجرة العائلة:\nالاسم: ${nameChain}\nرقم الهاتف: ${phoneNumber}\n${additionalInfo ? `معلومات إضافية: ${additionalInfo}` : ""}`,
+      `السلام عليكم\n\nأرغب في إضافة ملفي إلى شجرة العائلة:\nالاسم: ${sanitizedName}\nرقم الهاتف: ${sanitizedPhone}${sanitizedInfo ? `\nمعلومات إضافية: ${sanitizedInfo}` : ""}`,
     );
+
     const url = `whatsapp://send?phone=${adminNumber}&text=${message}`;
 
     Linking.canOpenURL(url)
       .then((supported) => {
         if (supported) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           Linking.openURL(url);
         } else {
           Alert.alert("خطأ", "WhatsApp غير مثبت على هذا الجهاز");
         }
       })
-      .catch((err) => console.error("Error opening WhatsApp:", err));
+      .catch((err) => {
+        console.error("Error opening WhatsApp:", err);
+        Alert.alert("خطأ", "لا يمكن فتح WhatsApp");
+      });
   };
 
   return (
@@ -163,29 +270,50 @@ export default function ContactAdminScreen({ navigation, route }) {
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>رقم الهاتف *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, phoneError ? styles.inputError : null]}
               placeholder="05XXXXXXXX"
               placeholderTextColor={colors.textMuted}
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangeText={(text) => {
+                setPhoneNumber(text);
+                setPhoneError(""); // Clear error on change
+              }}
+              onBlur={() => validatePhone(phoneNumber)}
               keyboardType="phone-pad"
-              textAlign="right"
+              textAlign="left"
               maxLength={10}
+              accessibilityLabel="رقم الهاتف"
+              accessibilityHint="أدخل رقم هاتفك السعودي"
+              editable={!existingRequest}
             />
+            {phoneError ? (
+              <Text style={styles.errorText}>{phoneError}</Text>
+            ) : null}
           </View>
 
           {/* Additional Info */}
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>معلومات إضافية (اختياري)</Text>
+            <Text style={styles.inputLabel}>
+              معلومات إضافية (اختياري) - {additionalInfo.length}/
+              {APP_CONFIG.MAX_ADDITIONAL_INFO_LENGTH}
+            </Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="أي معلومات قد تساعد في التحقق من هويتك..."
               placeholderTextColor={colors.textMuted}
               value={additionalInfo}
-              onChangeText={setAdditionalInfo}
+              onChangeText={(text) => {
+                if (text.length <= APP_CONFIG.MAX_ADDITIONAL_INFO_LENGTH) {
+                  setAdditionalInfo(text);
+                }
+              }}
               multiline
               numberOfLines={4}
-              textAlign="right"
+              textAlign="left"
+              maxLength={APP_CONFIG.MAX_ADDITIONAL_INFO_LENGTH}
+              accessibilityLabel="معلومات إضافية"
+              accessibilityHint="أضف أي معلومات قد تساعد في التحقق من هويتك"
+              editable={!existingRequest}
             />
           </View>
 
@@ -198,14 +326,17 @@ export default function ContactAdminScreen({ navigation, route }) {
                 submitting && styles.buttonDisabled,
               ]}
               onPress={handleSubmitRequest}
-              disabled={submitting}
+              disabled={submitting || existingRequest}
               activeOpacity={0.8}
+              accessibilityLabel="إرسال الطلب"
+              accessibilityHint="اضغط لإرسال طلب إنشاء ملف شخصي"
+              accessibilityRole="button"
             >
               {submitting ? (
-                <ActivityIndicator color="#FFF" />
+                <ActivityIndicator color={colors.background} />
               ) : (
                 <>
-                  <Ionicons name="send" size={20} color="#FFF" />
+                  <Ionicons name="send" size={20} color={colors.background} />
                   <Text style={styles.primaryButtonText}>إرسال الطلب</Text>
                 </>
               )}
@@ -216,8 +347,15 @@ export default function ContactAdminScreen({ navigation, route }) {
               style={styles.whatsappButton}
               onPress={handleWhatsApp}
               activeOpacity={0.8}
+              accessibilityLabel="تواصل عبر واتساب"
+              accessibilityHint="اضغط لفتح واتساب والتواصل مع المشرف"
+              accessibilityRole="button"
             >
-              <Ionicons name="logo-whatsapp" size={20} color="#FFF" />
+              <Ionicons
+                name="logo-whatsapp"
+                size={20}
+                color={colors.background}
+              />
               <Text style={styles.whatsappButtonText}>تواصل عبر واتساب</Text>
             </TouchableOpacity>
           </View>
@@ -339,7 +477,7 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: colors.text,
     marginBottom: 8,
-    textAlign: "right",
+    textAlign: "left", // Native RTL will flip this
   },
   input: {
     backgroundColor: colors.inputBg,
@@ -358,19 +496,21 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
 
-  // Buttons
+  // Buttons - Following CLAUDE.md button specs
   buttonContainer: {
-    gap: 12,
-    marginTop: 32,
+    gap: 16, // 8px grid
+    marginTop: 32, // 8px grid (4*8)
   },
   primaryButton: {
     backgroundColor: colors.primary,
     borderRadius: 10,
-    paddingVertical: 16,
+    paddingVertical: 14, // From CLAUDE.md
+    paddingHorizontal: 32, // From CLAUDE.md
+    minHeight: 48, // CRITICAL: From CLAUDE.md
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 8, // 8px grid
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -381,25 +521,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: "#FFF",
+    color: colors.background, // Al-Jass White from CLAUDE.md
   },
   buttonDisabled: {
     opacity: 0.6,
   },
+  inputError: {
+    borderColor: colors.error,
+    borderWidth: 1.5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.error,
+    marginTop: 4,
+    fontFamily: "SF Arabic",
+    textAlign: "left", // Native RTL will flip this
+  },
   whatsappButton: {
     backgroundColor: colors.whatsapp,
     borderRadius: 10,
-    paddingVertical: 16,
+    paddingVertical: 14, // From CLAUDE.md
+    paddingHorizontal: 32, // From CLAUDE.md
+    minHeight: 48, // CRITICAL: From CLAUDE.md
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 8, // 8px grid
   },
   whatsappButtonText: {
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: "#FFF",
+    color: colors.background, // Al-Jass White from CLAUDE.md
   },
 
   // Helper

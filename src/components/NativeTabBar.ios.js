@@ -62,7 +62,7 @@ function NativeTabBarWithExpoUI({ activeTab, onTabPress }) {
         <Button onPress={() => onTabPress("tree")} variant="plain">
           <VStack spacing={4}>
             <Image
-              systemName={activeTab === "tree" ? "house.fill" : "house"}
+              systemName={activeTab === "tree" ? "tree.fill" : "tree"}
               size={24}
               color={activeTab === "tree" ? "#A13333" : "#736372"}
             />
@@ -71,7 +71,7 @@ function NativeTabBarWithExpoUI({ activeTab, onTabPress }) {
               color={activeTab === "tree" ? "#A13333" : "#736372"}
               weight={activeTab === "tree" ? "semibold" : "regular"}
             >
-              الرئيسية
+              الشجرة
             </Text>
           </VStack>
         </Button>
@@ -138,7 +138,7 @@ function NativeTabBarFallback({ activeTab, onTabPress }) {
           activeOpacity={0.7}
         >
           <Ionicons
-            name={activeTab === "tree" ? "home" : "home-outline"}
+            name={activeTab === "tree" ? "leaf" : "leaf-outline"}
             size={24}
             color={activeTab === "tree" ? "#A13333" : "#736372"}
           />
@@ -148,7 +148,7 @@ function NativeTabBarFallback({ activeTab, onTabPress }) {
               activeTab === "tree" && styles.activeTabText,
             ]}
           >
-            الرئيسية
+            الشجرة
           </RNText>
         </TouchableOpacity>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -49,138 +49,143 @@ const statusLabels = {
   rejected: "مرفوض",
 };
 
-// Request card component
-const RequestCard = ({
-  request,
-  onApprove,
-  onReject,
-  onReview,
-  onWhatsApp,
-}) => {
-  const statusColor = statusColors[request.status] || colors.textMuted;
+// Request card component - memoized for performance
+const RequestCard = memo(
+  ({ request, onApprove, onReject, onReview, onWhatsApp }) => {
+    const statusColor = statusColors[request.status] || colors.textMuted;
 
-  const formattedDate = new Date(request.created_at).toLocaleDateString(
-    "ar-SA",
-    {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  );
+    const formattedDate = new Date(request.created_at).toLocaleDateString(
+      "ar-SA",
+      {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      },
+    );
 
-  return (
-    <View style={styles.card}>
-      {/* Header with status badge */}
-      <View style={styles.cardHeader}>
-        <View
-          style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}
-        >
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {statusLabels[request.status]}
-          </Text>
-        </View>
-        <Text style={styles.dateText}>{formattedDate}</Text>
-      </View>
-
-      {/* Request details */}
-      <View style={styles.cardBody}>
-        <View style={styles.detailRow}>
-          <Ionicons name="person-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.detailLabel}>الاسم:</Text>
-          <Text style={styles.detailValue}>{request.name_chain}</Text>
+    return (
+      <View style={styles.card}>
+        {/* Header with status badge */}
+        <View style={styles.cardHeader}>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: statusColor + "20" },
+            ]}
+          >
+            <View
+              style={[styles.statusDot, { backgroundColor: statusColor }]}
+            />
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {statusLabels[request.status]}
+            </Text>
+          </View>
+          <Text style={styles.dateText}>{formattedDate}</Text>
         </View>
 
-        <View style={styles.detailRow}>
-          <Ionicons name="call-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.detailLabel}>الهاتف:</Text>
-          <Text style={styles.detailValue}>{request.phone_number}</Text>
-        </View>
-
-        {request.additional_info && (
-          <View style={[styles.detailRow, styles.infoRow]}>
+        {/* Request details */}
+        <View style={styles.cardBody}>
+          <View style={styles.detailRow}>
             <Ionicons
-              name="information-circle-outline"
+              name="person-outline"
               size={18}
               color={colors.textMuted}
             />
-            <Text style={styles.detailLabel}>معلومات إضافية:</Text>
+            <Text style={styles.detailLabel}>الاسم:</Text>
+            <Text style={styles.detailValue}>{request.name_chain}</Text>
           </View>
-        )}
-        {request.additional_info && (
-          <Text style={styles.additionalInfo}>{request.additional_info}</Text>
-        )}
 
-        {request.admin_notes && (
-          <>
+          <View style={styles.detailRow}>
+            <Ionicons name="call-outline" size={18} color={colors.textMuted} />
+            <Text style={styles.detailLabel}>الهاتف:</Text>
+            <Text style={styles.detailValue}>{request.phone_number}</Text>
+          </View>
+
+          {request.additional_info && (
             <View style={[styles.detailRow, styles.infoRow]}>
               <Ionicons
-                name="document-text-outline"
+                name="information-circle-outline"
                 size={18}
-                color={colors.primary}
+                color={colors.textMuted}
               />
-              <Text style={[styles.detailLabel, { color: colors.primary }]}>
-                ملاحظات المشرف:
-              </Text>
+              <Text style={styles.detailLabel}>معلومات إضافية:</Text>
             </View>
-            <Text style={[styles.additionalInfo, styles.adminNotes]}>
-              {request.admin_notes}
+          )}
+          {request.additional_info && (
+            <Text style={styles.additionalInfo}>{request.additional_info}</Text>
+          )}
+
+          {request.admin_notes && (
+            <>
+              <View style={[styles.detailRow, styles.infoRow]}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+                <Text style={[styles.detailLabel, { color: colors.primary }]}>
+                  ملاحظات المشرف:
+                </Text>
+              </View>
+              <Text style={[styles.additionalInfo, styles.adminNotes]}>
+                {request.admin_notes}
+              </Text>
+            </>
+          )}
+        </View>
+
+        {/* Action buttons */}
+        {request.status === "pending" && (
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.whatsappButton]}
+              onPress={() => onWhatsApp(request)}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
+              <Text style={styles.actionButtonText}>واتساب</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.reviewButton]}
+              onPress={() => onReview(request)}
+            >
+              <Ionicons name="eye-outline" size={18} color="#FFF" />
+              <Text style={styles.actionButtonText}>مراجعة</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.approveButton]}
+              onPress={() => onApprove(request)}
+            >
+              <Ionicons name="checkmark" size={18} color="#FFF" />
+              <Text style={styles.actionButtonText}>موافقة</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.rejectButton]}
+              onPress={() => onReject(request)}
+            >
+              <Ionicons name="close" size={18} color="#FFF" />
+              <Text style={styles.actionButtonText}>رفض</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {request.status === "reviewing" && (
+          <View style={styles.reviewingBanner}>
+            <Ionicons name="time-outline" size={16} color={colors.accent} />
+            <Text style={styles.reviewingText}>
+              يتم مراجعة هذا الطلب حالياً
+              {request.reviewed_by && " بواسطة مشرف آخر"}
             </Text>
-          </>
+          </View>
         )}
       </View>
-
-      {/* Action buttons */}
-      {request.status === "pending" && (
-        <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.whatsappButton]}
-            onPress={() => onWhatsApp(request)}
-          >
-            <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
-            <Text style={styles.actionButtonText}>واتساب</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.reviewButton]}
-            onPress={() => onReview(request)}
-          >
-            <Ionicons name="eye-outline" size={18} color="#FFF" />
-            <Text style={styles.actionButtonText}>مراجعة</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton]}
-            onPress={() => onApprove(request)}
-          >
-            <Ionicons name="checkmark" size={18} color="#FFF" />
-            <Text style={styles.actionButtonText}>موافقة</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.rejectButton]}
-            onPress={() => onReject(request)}
-          >
-            <Ionicons name="close" size={18} color="#FFF" />
-            <Text style={styles.actionButtonText}>رفض</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {request.status === "reviewing" && (
-        <View style={styles.reviewingBanner}>
-          <Ionicons name="time-outline" size={16} color={colors.accent} />
-          <Text style={styles.reviewingText}>
-            يتم مراجعة هذا الطلب حالياً
-            {request.reviewed_by && " بواسطة مشرف آخر"}
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-};
+    );
+  },
+);
 
 export default function ProfileCreationRequests({ onClose }) {
   const [requests, setRequests] = useState([]);
@@ -310,46 +315,57 @@ export default function ProfileCreationRequests({ onClose }) {
   };
 
   const handleReject = (request) => {
-    Alert.prompt(
-      "رفض الطلب",
-      `سبب رفض طلب ${request.name_chain}:`,
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "رفض",
-          style: "destructive",
-          onPress: async (reason) => {
-            try {
-              const {
-                data: { user },
-              } = await supabase.auth.getUser();
+    // Since Alert.prompt is iOS only, use a simple confirmation
+    Alert.alert("رفض الطلب", `هل تريد رفض طلب ${request.name_chain}؟`, [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "رفض",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
 
-              const { error } = await supabase
-                .from("profile_creation_requests")
-                .update({
-                  status: "rejected",
-                  reviewed_by: user.id,
-                  reviewed_at: new Date().toISOString(),
-                  admin_notes: reason || "تم الرفض",
-                })
-                .eq("id", request.id);
-
-              if (error) throw error;
-
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Warning,
-              );
-              Alert.alert("تم", "تم رفض الطلب");
-              fetchRequests();
-            } catch (error) {
-              console.error("Error rejecting request:", error);
-              Alert.alert("خطأ", "فشل في رفض الطلب");
+            if (!user) {
+              Alert.alert("خطأ", "يجب تسجيل الدخول كمشرف");
+              return;
             }
-          },
+
+            // Verify admin status
+            const { data: adminData } = await supabase
+              .from("admins")
+              .select("id")
+              .eq("user_id", user.id)
+              .single();
+
+            if (!adminData) {
+              Alert.alert("خطأ", "ليس لديك صلاحيات المشرف");
+              return;
+            }
+
+            const { error } = await supabase
+              .from("profile_creation_requests")
+              .update({
+                status: "rejected",
+                reviewed_by: user.id,
+                reviewed_at: new Date().toISOString(),
+                admin_notes: "تم الرفض من قبل المشرف",
+              })
+              .eq("id", request.id);
+
+            if (error) throw error;
+
+            Haptics.notificationAsync(Haptics.notificationFeedbackType.Warning);
+            Alert.alert("تم", "تم رفض الطلب");
+            fetchRequests();
+          } catch (error) {
+            console.error("Error rejecting request:", error);
+            Alert.alert("خطأ", "فشل في رفض الطلب");
+          }
         },
-      ],
-      "plain-text",
-    );
+      },
+    ]);
   };
 
   const renderRequest = ({ item }) => (
