@@ -15,7 +15,6 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-
 import TreeView from "./src/components/TreeView";
 import ProfileSheetWrapper from "./src/components/ProfileSheetWrapper";
 import PendingApprovalBanner from "./src/components/PendingApprovalBanner";
@@ -108,6 +107,7 @@ function MainApp({
   };
 
   return (
+    <SafeAreaProvider>
     <SettingsProvider>
       <AdminModeProvider>
         <BottomSheetModalProvider>
@@ -210,7 +210,8 @@ export default function App() {
     checkAuthState();
 
     // Clean up function to handle app state changes
-    return () => {
+    return (
+    <SafeAreaProvider>) => {
       // Cleanup if needed
     };
   }, []);
@@ -332,7 +333,8 @@ export default function App() {
       },
     );
 
-    return () => {
+    return (
+    <SafeAreaProvider>) => {
       authListener?.subscription?.unsubscribe();
     };
   }, []);
@@ -341,6 +343,7 @@ export default function App() {
   // This prevents the app from jumping to tree view
   if (isLoading) {
     return (
+    <SafeAreaProvider>
       <View
         style={{
           flex: 1,
@@ -373,10 +376,9 @@ export default function App() {
   const shouldShowMainApp = user && !isGuest; // Full app for authenticated users
 
   return (
-      <SafeAreaProvider>
     <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {shouldShowOnboarding || needsProfileLinking ? (
             // Show authentication flow for new users or incomplete profiles
@@ -452,7 +454,7 @@ export default function App() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-      </GestureHandlerRootView>
+          </GestureHandlerRootView>
     </SafeAreaProvider>
   );
 }
