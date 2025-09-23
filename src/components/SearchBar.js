@@ -14,6 +14,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
@@ -22,6 +24,7 @@ import { useAdminMode } from "../contexts/AdminModeContext";
 
 const SearchBar = ({ onSelectResult, style }) => {
   const [query, setQuery] = useState("");
+  const insets = useSafeAreaInsets();
   const [results, setResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
@@ -485,9 +488,9 @@ const SearchBar = ({ onSelectResult, style }) => {
             }}
           />
         </Animated.View>
-      )}
+      <View style={[styles.container, { top: insets.top + 10 }, style]}>
 
-      <View style={[styles.container, style]}>
+      <View style={[styles.container, { top: insets.top + 10 }, style]}>
         <Animated.View
           style={[
             styles.searchBarContainer,
@@ -582,7 +585,7 @@ const styles = {
     zIndex: 9999,
     elevation: 999,
   },
-  container: {
+    // top is now dynamic based on safe area insets
     position: "absolute",
     top: 90, // Moved down to avoid Dynamic Island
     left: 12,
