@@ -582,7 +582,7 @@ const styles = {
     backgroundColor: "rgba(0, 0, 0, 0.2)", // Lighter backdrop
     zIndex: 9999,
     elevation: 999,
-  },  },
+  },
   container: {
     position: "absolute",
     left: 12,
