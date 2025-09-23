@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  KeyboardAvoidingView,
   Platform,
   Keyboard,
   ActivityIndicator,
@@ -356,10 +355,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <KeyboardAvoidingView
-        style={styles.avoidingView}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
+      <View style={styles.avoidingView}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.contentContainer}>
             <Animated.View
@@ -608,7 +604,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
             </Animated.View>
           </View>
         </SafeAreaView>
-      </KeyboardAvoidingView>
+      </View>
 
       <CountryPicker />
     </View>
