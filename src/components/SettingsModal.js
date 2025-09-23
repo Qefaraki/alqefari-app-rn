@@ -516,77 +516,77 @@ export default function SettingsModal({ visible, onClose }) {
             </View>
           )}
 
-          {/* Reset Settings */}
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={() => {
-              Alert.alert(
-                "إعادة تعيين الإعدادات",
-                "هل تريد إعادة جميع الإعدادات إلى القيم الافتراضية؟",
-                [
-                  { text: "إلغاء", style: "cancel" },
-                  {
-                    text: "إعادة تعيين",
-                    style: "destructive",
-                    onPress: clearSettings,
-                  },
-                ],
-                { cancelable: true },
-              );
-            }}
-          >
-            <Text style={styles.resetButtonText}>
-              إعادة تعيين جميع الإعدادات
-            </Text>
-          </TouchableOpacity>
+          {/* Action Buttons Section - Unified Design */}
+          <View style={styles.actionButtonsSection}>
+            {/* Reset Settings Button - Secondary Style */}
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryButton]}
+              onPress={() => {
+                Alert.alert(
+                  "إعادة تعيين الإعدادات",
+                  "هل تريد إعادة جميع الإعدادات إلى القيم الافتراضية؟",
+                  [
+                    { text: "إلغاء", style: "cancel" },
+                    {
+                      text: "إعادة تعيين",
+                      style: "destructive",
+                      onPress: clearSettings,
+                    },
+                  ],
+                  { cancelable: true }
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="refresh-outline"
+                size={20}
+                color="#242121"
+                style={styles.buttonIcon}
+              />
+              <Text style={[styles.actionButtonText, styles.secondaryButtonText]}>
+                إعادة تعيين الإعدادات
+              </Text>
+            </TouchableOpacity>
 
-          {/* Sign Out Button - Beautiful Design */}
-          {currentUser && (
-            <View style={styles.signOutSection}>
+            {/* Sign Out Button - Primary Style */}
+            {currentUser && (
               <TouchableOpacity
-                style={styles.signOutButton}
+                style={[styles.actionButton, styles.primaryButton]}
                 onPress={handleSignOut}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
               >
-                <View style={styles.signOutContent}>
-                  <View style={styles.signOutIconContainer}>
-                    <Ionicons
-                      name="log-out-outline"
-                      size={22}
-                      color="#A13333"
-                    />
-                  </View>
-                  <Text style={styles.signOutButtonText}>تسجيل الخروج</Text>
-                </View>
+                <Ionicons
+                  name="log-out-outline"
+                  size={20}
+                  color="#F9F7F3"
+                  style={styles.buttonIcon}
+                />
+                <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
+                  تسجيل الخروج
+                </Text>
               </TouchableOpacity>
+            )}
 
-              <Text style={styles.signOutHint}>
-                سيتم حفظ جميع إعداداتك محلياً
-              </Text>
-            </View>
-          )}
-
-          {/* Delete Account Button - Danger Zone */}
-          {currentUser && userProfile && (
-            <View style={styles.dangerSection}>
+            {/* Delete Account Button - Danger Style */}
+            {currentUser && userProfile && (
               <TouchableOpacity
-                style={styles.deleteAccountButton}
+                style={[styles.actionButton, styles.dangerButton]}
                 onPress={handleDeleteAccount}
-                activeOpacity={0.9}
+                activeOpacity={0.8}
               >
-                <View style={styles.deleteAccountContent}>
-                  <View style={styles.deleteAccountIconContainer}>
-                    <Ionicons name="trash-outline" size={22} color="#F44336" />
-                  </View>
-                  <Text style={styles.deleteAccountButtonText}>حذف الحساب</Text>
-                </View>
+                <Ionicons
+                  name="trash-outline"
+                  size={20}
+                  color="#A13333"
+                  style={styles.buttonIcon}
+                />
+                <Text style={[styles.actionButtonText, styles.dangerButtonText]}>
+                  حذف الحساب
+                </Text>
               </TouchableOpacity>
-
-              <Text style={styles.deleteAccountHint}>
-                سيتم إلغاء ربط الحساب بالملف الشخصي
-              </Text>
-            </View>
-          )}
+            )}
+          </View>
 
           <View style={{ height: 50 }} />
         </ScrollView>
