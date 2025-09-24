@@ -38,18 +38,22 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const checkAuth = async () => {
+    console.log('[DEBUG AuthContext] checkAuth starting');
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      console.log('[DEBUG AuthContext] getUser result:', user ? 'User found' : 'No user');
 
       if (user) {
         setUser(user);
         await checkAdminStatus(user);
       }
     } catch (error) {
-      console.error("Error checking auth:", error);
+      console.error('[DEBUG AuthContext] Error checking auth:', error);
     } finally {
+      console.log('[DEBUG AuthContext] Setting isLoading to false');
       setIsLoading(false);
     }
   };

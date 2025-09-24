@@ -20,23 +20,23 @@ import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import tokens from '../components/ui/tokens';
 import NetworkError from '../components/NetworkError';
 
-// Helper component for proper date handling in list items
-const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> = ({ article, onPress }) => {
-  const subtitle = useRelativeDate(article.publishedAt);
-  return (
-    <RecentArticleItem
-      article={article}
-      subtitle={subtitle}
-      onPress={onPress}
-    />
-  );
-};
-
 const NewsScreen: React.FC = () => {
   const flatListRef = useRef<FlatList>(null);
 
   // Get settings to force re-renders when they change
   const { settings } = useSettings();
+
+  // Define ArticleWithDate INSIDE NewsScreen so it re-renders with fresh hook values
+  const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> = ({ article, onPress }) => {
+    const subtitle = useRelativeDate(article.publishedAt);
+    return (
+      <RecentArticleItem
+        article={article}
+        subtitle={subtitle}
+        onPress={onPress}
+      />
+    );
+  };
 
   // Get state from simplified store
   const featured = useNewsStore((state) => state.featured);
@@ -137,12 +137,13 @@ const NewsScreen: React.FC = () => {
   const isLoadingInitial = status === 'loading' && recent.length === 0;
   const listData = isLoadingInitial ? Array.from({ length: 6 }) : recent;
 
-  // Render item - removed useCallback to get fresh settings on every render
+  // Render item - now uses ArticleWithDate which is defined inside NewsScreen
   const renderItem = ({ item }: { item: NewsArticle | any }) => {
     if (isLoadingInitial) {
       return <RecentArticleSkeleton />;
     }
     const article = item as NewsArticle;
+
     return (
       <ArticleWithDate
         article={article}
@@ -151,14 +152,13 @@ const NewsScreen: React.FC = () => {
     );
   };
 
-  // Key extractor - include settings timestamp to force re-render on settings change
+  // Key extractor - simplified but still includes settings for re-render
   const keyExtractor = (item: NewsArticle | any, index: number) => {
     if (isLoadingInitial) {
       return `loading-${index}`;
     }
-    // Include a settings-based key component to force re-render
-    const settingsKey = `${settings.defaultCalendar}-${settings.dateFormat}-${settings.arabicNumerals}`;
-    return `recent-${(item as NewsArticle).id}-${settingsKey}`;
+    // Include settings in key to force re-render when they change
+    return `recent-${(item as NewsArticle).id}-${settings.defaultCalendar}-${settings.arabicNumerals}`;
   };
 
   return (

@@ -423,13 +423,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           },
         ]}
       >
-        <View style={styles.headerContent}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>لوحة الإدارة</Text>
-            <Text style={styles.subtitle}>Admin Dashboard</Text>
-          </View>
-          {user?.email && <Text style={styles.userEmail}>{user.email}</Text>}
-        </View>
+        <Text style={styles.title}>الإدارة</Text>
       </Animated.View>
 
       <ScrollView
@@ -721,18 +715,6 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => setShowQuickAdd(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>➕</Text>
-                <Text style={styles.actionText}>إضافة ملف جديد</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionItem}
               onPress={() => setShowLinkRequests(true)}
               activeOpacity={0.7}
             >
@@ -744,18 +726,6 @@ const AdminDashboardUltraOptimized = ({ user }) => {
                     <Text style={styles.badgeText}>{pendingRequestsCount}</Text>
                   </View>
                 )}
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={() => setShowProfileCreationRequests(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>👤</Text>
-                <Text style={styles.actionText}>طلبات إنشاء ملفات</Text>
               </View>
               <Ionicons name="chevron-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
@@ -782,25 +752,6 @@ const AdminDashboardUltraOptimized = ({ user }) => {
                 <Text style={styles.actionText}>إعادة حساب التخطيط</Text>
               </View>
               <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionItem}
-              onPress={handleExportDatabase}
-              activeOpacity={0.7}
-              disabled={exporting}
-            >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>📄</Text>
-                <Text style={styles.actionText}>
-                  {exporting ? "جاري التصدير..." : "تصدير PDF"}
-                </Text>
-              </View>
-              {exporting ? (
-                <ActivityIndicator size="small" color="#6366f1" />
-              ) : (
-                <Ionicons name="chevron-back" size={20} color="#9ca3af" />
-              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -890,46 +841,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     backgroundColor: "#F9F7F3", // Al-Jass White
-    borderBottomWidth: 1,
-    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  titleContainer: {
-    alignItems: "center",
   },
   title: {
-    fontSize: 22,
+    fontSize: 34,
     fontWeight: "700",
     color: "#242121", // Sadu Night
-    fontFamily: "SF Arabic",
-    letterSpacing: -0.5,
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#242121CC", // Sadu Night 80%
-    marginTop: 2,
-    fontFamily: "SF Pro Display",
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  userEmail: {
-    fontSize: 13,
-    color: "#24212199", // Sadu Night 60%
-    marginTop: 4,
-    fontFamily: "SF Pro Display",
-    fontWeight: "500",
-    textAlign: "center",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System"
+    }),
   },
   closeButton: {
     padding: 8,
