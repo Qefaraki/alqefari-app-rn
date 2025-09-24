@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
   },
 });
 
-export const RecentArticleItem = memo(RecentArticleItemComponent, areRecentArticlePropsEqual);
+// Removed memo to allow settings updates to trigger re-renders
+export const RecentArticleItem = RecentArticleItemComponent;
 
 export default RecentArticleItem;

@@ -6,6 +6,7 @@ import tokens from '../tokens';
 import CachedImage from '../../CachedImage';
 import { NewsArticle } from '../../../services/news';
 import { useRelativeDate } from '../../../hooks/useFormattedDate';
+import { useSettings } from '../../../contexts/SettingsContext';
 
 type Props = {
   article: NewsArticle;
@@ -19,6 +20,8 @@ const HERO_HEIGHT = 168;
 
 const NewsCardComponent: React.FC<Props> = ({ article, onPress }) => {
   const subtitle = useRelativeDate(article.publishedAt);
+  // Get settings to trigger re-render on settings change
+  const { settings } = useSettings();
 
   return (
     <Surface style={styles.container} radius={18}>
@@ -48,16 +51,8 @@ const NewsCardComponent: React.FC<Props> = ({ article, onPress }) => {
   );
 };
 
-const arePropsEqual = (prev: Props, next: Props) => {
-  return (
-    prev.article.id === next.article.id &&
-    prev.article.title === next.article.title &&
-    prev.article.summary === next.article.summary &&
-    prev.article.heroImage === next.article.heroImage &&
-    prev.article.publishedAt === next.article.publishedAt &&
-    prev.onPress === next.onPress
-  );
-};
+// Remove memoization to ensure settings changes trigger re-renders
+// The performance impact is minimal since we're only rendering a few cards at a time
 
 const styles = StyleSheet.create({
   container: {
@@ -99,4 +94,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default memo(NewsCardComponent, arePropsEqual);
+export default NewsCardComponent; // Removed memo to allow settings updates
