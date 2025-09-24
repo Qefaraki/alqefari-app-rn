@@ -21,7 +21,7 @@ import { supabase } from "../../services/supabase";
 import { toArabicNumerals } from "../../utils/dateUtils";
 import familyNameService from "../../services/familyNameService";
 import CardSurface from "../ios/CardSurface";
-import { useTreeStore } from "../../stores/treeStore";
+import { useTreeStore } from "../../stores/useTreeStore";
 
 // Design system colors - matching the app
 const colors = {
