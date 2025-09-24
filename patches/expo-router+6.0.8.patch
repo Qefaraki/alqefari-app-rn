@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-router/_ctx.ios.js b/node_modules/expo-router/_ctx.ios.js
+index b30ee6c..178bbfb 100644
+--- a/node_modules/expo-router/_ctx.ios.js
++++ b/node_modules/expo-router/_ctx.ios.js
+@@ -1,6 +1,6 @@
+ export const ctx = require.context(
+-  process.env.EXPO_ROUTER_APP_ROOT,
++  "../../app",
+   true,
+   /^(?:\.\/)(?!(?:(?:(?:.*\+api)|(?:\+html)|(?:\+middleware)))\.[tj]sx?$).*(?:\.android|\.web)?\.[tj]sx?$/,
+-  process.env.EXPO_ROUTER_IMPORT_MODE
++  "sync"
+ );

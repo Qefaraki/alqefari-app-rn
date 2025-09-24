@@ -17,18 +17,12 @@ import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
+import { accountDeletionService } from "../services/accountDeletion";
+import { useRouter } from "expo-router";
 import appConfig from "../config/appConfig";
 
-// Try to use native iOS settings view if available
-let NativeSettingsView = null;
-if (Platform.OS === "ios") {
-  try {
-    NativeSettingsView =
-      require("../components/NativeSettingsView.ios").default;
-  } catch {
-    // Fallback to React Native implementation
-  }
-}
+// Native SwiftUI settings temporarily disabled due to missing Expo UI native module
+const NativeSettingsView = null;
 
 // Family Logo
 const AlqefariLogo = require("../../assets/logo/Alqefari Emblem (Transparent).png");
@@ -39,29 +33,17 @@ let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function SettingsPage({ user }) {
+  const router = useRouter();
   const { settings, updateSetting, clearSettings } = useSettings();
 
   // Check if we can use native SwiftUI view
-  const [useNativeView, setUseNativeView] = useState(false);
+  const useNativeView = false;
   const [expandedSection, setExpandedSection] = useState("date");
   const [currentUser, setCurrentUser] = useState(user);
   const [userProfile, setUserProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Check for native view availability
-  useEffect(() => {
-    if (Platform.OS === "ios" && NativeSettingsView) {
-      try {
-        // Test if Expo UI is available
-        const testUI = require("@expo/ui/swift-ui");
-        if (testUI.Host) {
-          setUseNativeView(true);
-        }
-      } catch {
-        setUseNativeView(false);
-      }
-    }
-  }, []);
 
   // Sample date for preview
   const sampleGregorian = { day: 15, month: 3, year: 2024 };
@@ -151,6 +133,8 @@ export default function SettingsPage({ user }) {
         "rectangle.portrait.and.arrow.right": "log-out-outline",
         "chevron.down": "chevron-down",
         "chevron.forward": "chevron-forward",
+        "arrow.clockwise": "refresh",
+        trash: "trash-outline",
       };
       return (
         <Ionicons name={sfMap[name] || fallback} size={size} color={color} />
@@ -160,20 +144,6 @@ export default function SettingsPage({ user }) {
   };
 
   // Use native iOS Settings view if available
-  if (useNativeView && NativeSettingsView) {
-    return (
-      <NativeSettingsView
-        settings={settings}
-        onNameSettingChange={(value) =>
-          updateSetting("showEnglishNames", value)
-        }
-        onSignOut={handleSignOut}
-        user={currentUser}
-        profile={userProfile}
-      />
-    );
-  }
-
   // Fallback to React Native implementation
   return (
     <SafeAreaView style={styles.container}>
@@ -260,10 +230,12 @@ export default function SettingsPage({ user }) {
               <View style={styles.datePreview}>
                 <Text style={styles.previewLabel}>معاينة:</Text>
                 <Text style={styles.previewDate}>
-                  {formatDateByPreference(sampleDate, settings.dateDisplay)}
+                  {formatDateByPreference(sampleDate, settings)}
                 </Text>
               </View>
 
+              {/* Calendar Selection */}
+              <Text style={styles.subSectionTitle}>التقويم</Text>
               <View style={styles.optionsList}>
                 {[
                   { value: "hijri", label: "هجري فقط" },
@@ -293,6 +265,47 @@ export default function SettingsPage({ user }) {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              {/* Date Format Type */}
+              <Text style={styles.subSectionTitle}>تنسيق التاريخ</Text>
+              <View style={styles.switchRow}>
+                <View style={styles.switchTextContainer}>
+                  <Text style={styles.switchLabel}>استخدام الكلمات</Text>
+                  <Text style={styles.switchDescription}>
+                    {settings.dateFormat === "words"
+                      ? "١٥ رمضان ١٤٤٥"
+                      : "15/09/1445"}
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.dateFormat === "words"}
+                  onValueChange={(value) =>
+                    updateSetting("dateFormat", value ? "words" : "numeric")
+                  }
+                  trackColor={{ false: "#E5E5EA", true: "#A13333" }}
+                  thumbColor="#F9F7F3"
+                  ios_backgroundColor="#E5E5EA"
+                />
+              </View>
+
+              {/* Arabic Numerals */}
+              <View style={styles.switchRow}>
+                <View style={styles.switchTextContainer}>
+                  <Text style={styles.switchLabel}>الأرقام العربية</Text>
+                  <Text style={styles.switchDescription}>
+                    {settings.arabicNumerals ? "١٥/٩/١٤٤٥" : "15/9/1445"}
+                  </Text>
+                </View>
+                <Switch
+                  value={settings.arabicNumerals}
+                  onValueChange={(value) =>
+                    updateSetting("arabicNumerals", value)
+                  }
+                  trackColor={{ false: "#E5E5EA", true: "#A13333" }}
+                  thumbColor="#F9F7F3"
+                  ios_backgroundColor="#E5E5EA"
+                />
+              </View>
             </View>
           )}
 
@@ -315,7 +328,12 @@ export default function SettingsPage({ user }) {
           {expandedSection === "names" && (
             <View style={styles.sectionContent}>
               <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>إظهار الأسماء الإنجليزية</Text>
+                <View style={styles.switchTextContainer}>
+                  <Text style={styles.switchLabel}>إظهار الأسماء الإنجليزية</Text>
+                  <Text style={styles.switchDescription}>
+                    عرض الأسماء باللغة الإنجليزية في الشجرة
+                  </Text>
+                </View>
                 <Switch
                   value={settings.showEnglishNames}
                   onValueChange={(value) =>
@@ -328,6 +346,77 @@ export default function SettingsPage({ user }) {
               </View>
             </View>
           )}
+
+          {/* Action Buttons */}
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                Alert.alert(
+                  "إعادة تعيين الإعدادات",
+                  "سيتم إرجاع جميع الإعدادات إلى القيم الافتراضية",
+                  [
+                    { text: "إلغاء", style: "cancel" },
+                    {
+                      text: "إعادة تعيين",
+                      style: "destructive",
+                      onPress: clearSettings,
+                    },
+                  ],
+                );
+              }}
+              activeOpacity={0.8}
+            >
+              {renderSFSymbol("arrow.clockwise", "refresh", "#736372")}
+              <Text style={styles.secondaryButtonText}>إعادة تعيين الإعدادات</Text>
+            </TouchableOpacity>
+
+            {currentUser && (
+              <TouchableOpacity
+                style={styles.dangerButton}
+                onPress={() => {
+                  Alert.alert(
+                    "حذف الحساب",
+                    "هل أنت متأكد من رغبتك في حذف حسابك نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
+                    [
+                      { text: "إلغاء", style: "cancel" },
+                      {
+                        text: "حذف الحساب",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            Alert.alert("جاري الحذف", "يتم حذف الحساب...");
+                            const result = await accountDeletionService.deleteAccount();
+
+                            if (!result.success) {
+                              Alert.alert("خطأ", "فشل حذف الحساب: " + (result.error || "Unknown error"));
+                              return;
+                            }
+
+                            clearSettings();
+                            profileCache = null;
+                            cacheTimestamp = null;
+
+                            // Navigate to onboarding
+                            router.replace("/");
+                          } catch (error) {
+                            Alert.alert("خطأ", "فشل حذف الحساب");
+                            // Sign out anyway for security
+                            await supabase.auth.signOut();
+                            router.replace("/");
+                          }
+                        },
+                      },
+                    ],
+                  );
+                }}
+                activeOpacity={0.8}
+              >
+                {renderSFSymbol("trash", "trash", "#DC2626")}
+                <Text style={styles.dangerButtonText}>حذف الحساب</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* App Information */}
           <View style={styles.appInfoSection}>
@@ -519,6 +608,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: "#A13333",
   },
+  subSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#736372",
+    fontFamily: "SF Arabic",
+    marginTop: 16,
+    marginBottom: 8,
+  },
   switchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -527,12 +624,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: "#F9F7F3",
     borderRadius: 8,
+    marginBottom: 8,
+  },
+  switchTextContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   switchLabel: {
     fontSize: 16,
     color: "#242121",
     fontFamily: "SF Arabic",
-    flex: 1,
+  },
+  switchDescription: {
+    fontSize: 13,
+    color: "#736372",
+    fontFamily: "SF Arabic",
+    marginTop: 2,
+  },
+  actionButtonsContainer: {
+    paddingHorizontal: 16,
+    marginTop: 32,
+    gap: 12,
+  },
+  secondaryButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: "#D1BBA3",
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButtonText: {
+    color: "#242121",
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    marginLeft: 8,
+  },
+  dangerButton: {
+    backgroundColor: "#DC262610",
+    borderWidth: 1.5,
+    borderColor: "#DC2626",
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dangerButtonText: {
+    color: "#DC2626",
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    marginLeft: 8,
   },
   appInfoSection: {
     alignItems: "center",

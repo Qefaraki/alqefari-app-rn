@@ -7,7 +7,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -20,7 +23,7 @@
     "ios": {
       "bundleIdentifier": "com.Alqefari.alqefari",
       "supportsTablet": true,
-      "buildNumber": "23",
+      "buildNumber": "24",
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
         "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي",
@@ -46,7 +49,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "alqefari",
     "plugins": [
+      "expo-router",
       "expo-dev-client",
       "expo-font",
       [

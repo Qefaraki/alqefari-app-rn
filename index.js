@@ -1,9 +1,8 @@
 import "./src/utils/suppressWarnings"; // Suppress known warnings - must be first
-import "./src/utils/suppressWarnings"; // Suppress known warnings - must be first
+import "./global.css"; // Import NativeWind styles
 import { I18nManager, NativeModules, Platform } from "react-native";
 import "react-native-gesture-handler";
 import "react-native-reanimated";
-import { registerRootComponent } from "expo";
 
 // Force RTL at the earliest possible point
 I18nManager.allowRTL(true);
@@ -17,9 +16,5 @@ if (Platform.OS === "ios") {
   }
 }
 
-import App from "./App";
-
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+// Import expo-router entry point
+import "expo-router/entry";

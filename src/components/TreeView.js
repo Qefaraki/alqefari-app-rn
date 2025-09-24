@@ -59,7 +59,6 @@ import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import AdminToggleButton from "./AdminToggleButton";
-import SettingsButton from "./SettingsButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -358,6 +357,7 @@ const TreeView = ({
   setProfileEditMode,
   onNetworkStatusChange,
   user,
+  isAdmin,
   onAdminDashboard,
   onSettingsOpen,
 }) => {
@@ -411,8 +411,8 @@ const TreeView = ({
     (s) => s.initializeProfileSheetProgress,
   );
 
-  // Initialize immediately on first render - don't wait for useEffect
-  useMemo(() => {
+  // Initialize profile sheet progress after mount to avoid setState during render
+  useEffect(() => {
     initializeProfileSheetProgress(profileSheetProgress);
   }, []); // Empty deps = run once on mount
 
@@ -2356,7 +2356,7 @@ const TreeView = ({
   // TIER 3: Only render hero chips
   if (tier === 3 && AGGREGATION_ENABLED) {
     return (
-      <View className="flex-1" style={{ backgroundColor: "#F9F7F3" }}>
+      <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
             {renderTier3(
@@ -2373,7 +2373,7 @@ const TreeView = ({
   }
 
   return (
-    <View className="flex-1" style={{ backgroundColor: "#F9F7F3" }}>
+    <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
       <GestureDetector gesture={composed}>
         <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
@@ -2465,13 +2465,8 @@ const TreeView = ({
         }}
       />
 
-      {/* Settings Button - Always rendered like other buttons */}
-      <SettingsButton onPress={onSettingsOpen} />
-
-      {/* Admin Toggle Button - Only when logged in */}
-      {user ? (
-        <AdminToggleButton user={user} onLongPress={onAdminDashboard} />
-      ) : null}
+      {/* Admin Toggle Button - Only for admins */}
+      {isAdmin ? <AdminToggleButton user={user} /> : null}
 
       {/* Admin components */}
       {isAdminMode && (

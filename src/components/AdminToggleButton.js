@@ -11,7 +11,7 @@ import Animated, {
 import Svg, { Path } from "react-native-svg";
 import { useAdminMode } from "../contexts/AdminModeContext";
 
-const AdminToggleButton = ({ onLongPress, user }) => {
+const AdminToggleButton = ({ user }) => {
   const { isAdminMode, toggleAdminMode } = useAdminMode();
   // Removed tooltip state - no longer needed
 
@@ -46,17 +46,6 @@ const AdminToggleButton = ({ onLongPress, user }) => {
     // Tooltip disabled - no longer showing text on press
   };
 
-  const handleLongPress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-    // Animate for long press
-    iconScale.value = withSequence(
-      withTiming(1.1, { duration: 200, easing: Easing.out(Easing.quad) }),
-      withTiming(1, { duration: 200, easing: Easing.out(Easing.quad) }),
-    );
-
-    onLongPress();
-  };
 
   return (
     <View style={styles.container}>
@@ -69,8 +58,6 @@ const AdminToggleButton = ({ onLongPress, user }) => {
       >
         <Pressable
           onPress={handlePress}
-          onLongPress={handleLongPress}
-          delayLongPress={500}
           style={({ pressed }) => [
             styles.button,
             pressed && styles.buttonPressed,
@@ -122,7 +109,7 @@ const AdminToggleButton = ({ onLongPress, user }) => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 240, // Top position (was Settings position)
+    bottom: 120, // Positioned above tab bar
     right: 16, // Same side as NavigateToRootButton
   },
   shadowWrapper: {

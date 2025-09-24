@@ -87,31 +87,31 @@ const ValidationDashboard = ({ navigation }) => {
         title: "تخطيطات مفقودة",
         description: "ملفات شخصية بدون مواضع تخطيط",
         icon: "grid-outline",
-        color: "#FF9500",
+        color: "#D58C4A", // Desert Ochre
       },
       invalid_gender: {
         title: "قيم جنس غير صحيحة",
         description: "ملفات بقيم جنس غير صحيحة",
         icon: "alert-circle-outline",
-        color: "#FF3B30",
+        color: "#A13333", // Najdi Crimson
       },
       orphaned_child: {
         title: "أطفال أيتام",
         description: "أطفال بمراجع والدين محذوفة",
         icon: "people-outline",
-        color: "#FF6B35",
+        color: "#D58C4A", // Desert Ochre
       },
       missing_hid: {
         title: "معرفات مفقودة",
         description: "ملفات بدون معرف HID",
         icon: "barcode-outline",
-        color: "#FF9500",
+        color: "#D58C4A", // Desert Ochre
       },
       duplicate_hid: {
         title: "معرفات مكررة",
         description: "ملفات بنفس معرف HID",
         icon: "copy-outline",
-        color: "#FF3B30",
+        color: "#A13333", // Najdi Crimson
       },
     };
 
@@ -120,7 +120,7 @@ const ValidationDashboard = ({ navigation }) => {
         title: category,
         description: "مشكلة غير معروفة",
         icon: "help-outline",
-        color: "#8E8E93",
+        color: "#24212166", // Sadu Night 40%
       }
     );
   };
@@ -202,7 +202,7 @@ const ValidationDashboard = ({ navigation }) => {
             <Text
               style={[
                 styles.summaryValue,
-                { color: totalIssues > 0 ? "#FF3B30" : "#34C759" },
+                { color: totalIssues > 0 ? "#A13333" : "#D58C4A" }, // Najdi Crimson : Desert Ochre
               ]}
             >
               {totalIssues}
@@ -275,7 +275,7 @@ const ValidationDashboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
     flexDirection: "row",
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E5E5EA",
   },
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#000000",
+    color: "#242121", // Sadu Night
   },
   refreshButton: {
     padding: 4,
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#666666",
+    color: "#24212199", // Sadu Night 60%
   },
   summary: {
     margin: 16,
@@ -322,17 +322,17 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 14,
-    color: "#666666",
+    color: "#24212199", // Sadu Night 60%
     marginBottom: 4,
   },
   summaryValue: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#000000",
+    color: "#242121", // Sadu Night
   },
   lastRunText: {
     fontSize: 12,
-    color: "#8E8E93",
+    color: "#24212166", // Sadu Night 40%
     textAlign: "center",
   },
   scrollView: {
@@ -361,12 +361,12 @@ const styles = StyleSheet.create({
   issueTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000000",
+    color: "#242121", // Sadu Night
     marginBottom: 2,
   },
   issueDescription: {
     fontSize: 13,
-    color: "#666666",
+    color: "#24212199", // Sadu Night 60%
   },
   issueCount: {
     minWidth: 40,
@@ -384,12 +384,12 @@ const styles = StyleSheet.create({
   },
   sampleIdsLabel: {
     fontSize: 12,
-    color: "#8E8E93",
+    color: "#24212166", // Sadu Night 40%
     marginBottom: 4,
   },
   sampleIdsText: {
     fontSize: 11,
-    color: "#666666",
+    color: "#24212199", // Sadu Night 60%
   },
   emptyState: {
     alignItems: "center",
@@ -398,12 +398,12 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#000000",
+    color: "#242121", // Sadu Night
     marginTop: 16,
   },
   emptyStateText: {
     fontSize: 16,
-    color: "#666666",
+    color: "#24212199", // Sadu Night 60%
     marginTop: 8,
   },
   fixResults: {
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   fixResultsTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000000",
+    color: "#242121", // Sadu Night
     marginBottom: 12,
   },
   fixResultRow: {
@@ -423,16 +423,16 @@ const styles = StyleSheet.create({
   },
   fixResultKey: {
     fontSize: 14,
-    color: "#666666",
+    color: "#24212199", // Sadu Night 60%
   },
   fixResultValue: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#34C759",
+    color: "#D58C4A", // Desert Ochre
   },
   actionContainer: {
     padding: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E5EA",
   },

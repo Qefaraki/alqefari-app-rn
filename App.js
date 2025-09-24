@@ -164,7 +164,7 @@ function MainApp({
             {/* Tab Content */}
             <View style={{ flex: 1, marginBottom: 85 }}>
               {activeTab === "tree" && (
-                <>
+                <View style={{ flex: 1 }}>
                   {/* Pending Approval Banner */}
                   {user && linkStatus === "pending" && (
                     <PendingApprovalBanner
@@ -172,14 +172,16 @@ function MainApp({
                       onStatusChange={onLinkStatusChange}
                     />
                   )}
-                  <TreeView
-                    user={user}
-                    isGuest={isGuest}
-                    onAdminDashboard={() => setActiveTab("settings")}
-                    onSettingsOpen={() => setActiveTab("settings")}
-                  />
+                  <View style={{ flex: 1 }}>
+                    <TreeView
+                      user={user}
+                      isGuest={isGuest}
+                      onAdminDashboard={() => setActiveTab("settings")}
+                      onSettingsOpen={() => setActiveTab("settings")}
+                    />
+                  </View>
                   <ProfileSheetWrapper />
-                </>
+                </View>
               )}
               {activeTab === "settings" && (
                 <>

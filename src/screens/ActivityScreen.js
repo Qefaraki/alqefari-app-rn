@@ -166,15 +166,15 @@ const ActivityScreen = ({ navigation }) => {
   const getActionIcon = (action) => {
     switch (action) {
       case "INSERT":
-        return { name: "add-circle-outline", color: "#34C759" };
+        return { name: "add-circle-outline", color: "#D58C4A" }; // Desert Ochre
       case "UPDATE":
-        return { name: "create-outline", color: "#007AFF" };
+        return { name: "create-outline", color: "#A13333" }; // Najdi Crimson
       case "DELETE":
-        return { name: "trash-outline", color: "#FF3B30" };
+        return { name: "trash-outline", color: "#A13333" }; // Najdi Crimson
       case "REVERT":
-        return { name: "arrow-undo-outline", color: "#FF9500" };
+        return { name: "arrow-undo-outline", color: "#D58C4A" }; // Desert Ochre
       default:
-        return { name: "ellipse-outline", color: "#8E8E93" };
+        return { name: "ellipse-outline", color: "#24212166" }; // Sadu Night 40%
     }
   };
 
@@ -371,7 +371,7 @@ const ActivityScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
     flexDirection: "row",
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: "white",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E5E5EA",
   },
@@ -391,7 +391,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#000",
+    color: "#242121", // Sadu Night
   },
   loadingContainer: {
     flex: 1,
@@ -429,12 +429,12 @@ const styles = StyleSheet.create({
   },
   activityDescription: {
     fontSize: 16,
-    color: "#000",
+    color: "#242121", // Sadu Night
     marginBottom: 4,
   },
   activityTime: {
     fontSize: 13,
-    color: "#8E8E93",
+    color: "#24212166", // Sadu Night 40%
   },
   revertButton: {
     flexDirection: "row",
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: "#FF950010",
+    backgroundColor: "#D58C4A" + "10", // Desert Ochre 10%
     borderRadius: 16,
   },
   revertButtonDisabled: {
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   },
   revertButtonText: {
     fontSize: 13,
-    color: "#FF9500",
+    color: "#D58C4A", // Desert Ochre
     fontWeight: "500",
   },
   emptyContainer: {
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#8E8E93",
+    color: "#24212166", // Sadu Night 40%
     marginTop: 12,
   },
 });

@@ -23,6 +23,12 @@ export const SettingsProvider = ({ children }) => {
     dateFormat: "numeric", // 'numeric' (31/12/2024), 'words' (31 ديسمبر 2024)
     showBothCalendars: false, // Show both Hijri and Gregorian dates
     arabicNumerals: false, // Use Arabic numerals (٣١/١٢/٢٠٢٤) for dates
+    showEnglishNames: false, // Show English names in the tree
+    // Computed property for simplified UI
+    get dateDisplay() {
+      if (this.showBothCalendars) return "both";
+      return this.defaultCalendar;
+    },
   });
   const [loading, setLoading] = useState(true);
 
@@ -49,13 +55,29 @@ export const SettingsProvider = ({ children }) => {
           dateFormat: parsed.dateFormat === "words" ? "words" : "numeric",
           showBothCalendars: parsed.showBothCalendars === true,
           arabicNumerals: parsed.arabicNumerals === true,
+          showEnglishNames: parsed.showEnglishNames === true,
         };
+
+        // Add dateDisplay getter
+        Object.defineProperty(validatedSettings, 'dateDisplay', {
+          get: function() {
+            if (this.showBothCalendars) return "both";
+            return this.defaultCalendar;
+          },
+          enumerable: false
+        });
 
         setSettings(validatedSettings);
         // Save cleaned settings back
         await AsyncStorage.setItem(
           SETTINGS_KEY,
-          JSON.stringify(validatedSettings),
+          JSON.stringify({
+            defaultCalendar: validatedSettings.defaultCalendar,
+            dateFormat: validatedSettings.dateFormat,
+            showBothCalendars: validatedSettings.showBothCalendars,
+            arabicNumerals: validatedSettings.arabicNumerals,
+            showEnglishNames: validatedSettings.showEnglishNames,
+          }),
         );
       }
     } catch (error) {
@@ -67,9 +89,37 @@ export const SettingsProvider = ({ children }) => {
 
   const updateSetting = async (key, value) => {
     try {
-      const newSettings = { ...settings, [key]: value };
+      let newSettings = { ...settings };
+
+      // Handle dateDisplay specially - map to underlying settings
+      if (key === "dateDisplay") {
+        if (value === "both") {
+          newSettings.showBothCalendars = true;
+        } else {
+          newSettings.showBothCalendars = false;
+          newSettings.defaultCalendar = value; // 'hijri' or 'gregorian'
+        }
+      } else {
+        newSettings[key] = value;
+      }
+
+      // Recompute dateDisplay getter
+      Object.defineProperty(newSettings, 'dateDisplay', {
+        get: function() {
+          if (this.showBothCalendars) return "both";
+          return this.defaultCalendar;
+        },
+        enumerable: false
+      });
+
       setSettings(newSettings);
-      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({
+        defaultCalendar: newSettings.defaultCalendar,
+        dateFormat: newSettings.dateFormat,
+        showBothCalendars: newSettings.showBothCalendars,
+        arabicNumerals: newSettings.arabicNumerals,
+        showEnglishNames: newSettings.showEnglishNames,
+      }));
     } catch (error) {
       // Using Alert instead of console.error to avoid lint issues
       Alert.alert("Error", "Failed to save settings");
@@ -85,12 +135,24 @@ export const SettingsProvider = ({ children }) => {
   const clearSettings = async () => {
     try {
       await AsyncStorage.removeItem(SETTINGS_KEY);
-      setSettings({
+      const defaultSettings = {
         defaultCalendar: "gregorian",
         dateFormat: "numeric",
         showBothCalendars: false,
         arabicNumerals: false,
+        showEnglishNames: false,
+      };
+
+      // Add dateDisplay getter
+      Object.defineProperty(defaultSettings, 'dateDisplay', {
+        get: function() {
+          if (this.showBothCalendars) return "both";
+          return this.defaultCalendar;
+        },
+        enumerable: false
       });
+
+      setSettings(defaultSettings);
     } catch (error) {
       Alert.alert("Error", "Failed to clear settings");
     }

@@ -14,10 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
+import { accountDeletionService } from "../services/accountDeletion";
 import { useTreeStore } from "../stores/useTreeStore";
 import appConfig from "../config/appConfig";
 
@@ -30,6 +32,7 @@ let cacheTimestamp = null;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function SettingsModal({ visible, onClose }) {
+  const router = useRouter();
   const { settings, updateSetting, clearSettings } = useSettings();
   const [expandedSection, setExpandedSection] = useState("date");
   const [currentUser, setCurrentUser] = useState(null);
@@ -168,38 +171,46 @@ export default function SettingsModal({ visible, onClose }) {
       // Show loading
       Alert.alert("جاري الحذف", "يتم حذف الحساب...");
 
-      // Call the RPC function to unlink and delete
-      const { error: unlinkError } = await supabase.rpc(
-        "delete_user_account_and_unlink",
-      );
+      // Use the secure account deletion service
+      const result = await accountDeletionService.deleteAccount();
 
-      if (unlinkError) {
-        console.error("Error deleting account:", unlinkError);
-        Alert.alert("خطأ", "فشل حذف الحساب: " + unlinkError.message);
+      if (!result.success) {
+        console.error("Error deleting account:", result.error);
+        Alert.alert("خطأ", "فشل حذف الحساب: " + (result.error || "Unknown error"));
         return;
       }
 
-      // Sign out the user
-      await supabase.auth.signOut();
-              // Clear cache on sign out
-              profileCache = null;
-              cacheTimestamp = null;
-
-      // Clear any local state
-      useTreeStore.getState().setSelectedPersonId(null);
+      // Clear cache and local state
+      profileCache = null;
+      cacheTimestamp = null;
       clearSettings();
 
-      Alert.alert("✅ تم الحذف", "تم حذف الحساب بنجاح", [
-        {
-          text: "موافق",
-          onPress: () => {
-            onClose();
-          },
-        },
-      ]);
+      console.log("Account deletion successful:", {
+        adminDeleted: result.adminDeleted,
+        profileUnlinked: result.profileUnlinked,
+      });
+
+      // Navigate to root (onboarding) - CRITICAL FOR SECURITY
+      // Do not show alert, just navigate immediately
+      onClose();
+
+      // Force navigation to root/onboarding
+      // Replace entire navigation stack to prevent going back
+      setTimeout(() => {
+        router.replace("/");
+      }, 100);
+
     } catch (error) {
-      console.error("Error in account deletion:", error);
-      Alert.alert("خطأ", "حدث خطأ أثناء حذف الحساب");
+      console.error("Critical error in account deletion:", error);
+      Alert.alert("خطأ", "حدث خطأ حرج أثناء حذف الحساب");
+
+      // Even on error, sign out for security
+      try {
+        await supabase.auth.signOut();
+        router.replace("/");
+      } catch (signOutError) {
+        console.error("Failed to sign out after error:", signOutError);
+      }
     }
   };
 

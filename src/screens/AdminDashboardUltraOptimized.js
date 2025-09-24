@@ -16,14 +16,14 @@ import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
-import LinkRequestsManager from "../components/admin/LinkRequestsManager";
+import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
 import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
 
-const AdminDashboardUltraOptimized = ({ onClose, user }) => {
+const AdminDashboardUltraOptimized = ({ user }) => {
   // Loading states for each section
   const [statsLoading, setStatsLoading] = useState(true);
   const [enhancedLoading, setEnhancedLoading] = useState(true);
@@ -289,10 +289,10 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
   }
   if (showLinkRequests) {
     return (
-      <LinkRequestsManager
-        onClose={() => {
+      <ProfileConnectionManager
+        onBack={() => {
           setShowLinkRequests(false);
-          loadPendingRequestsCount(); // Refresh count when closing
+          loadPendingRequestsCount(); // Refresh count when returning
         }}
       />
     );
@@ -380,12 +380,11 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
           },
         ]}
       >
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={28} color="#374151" />
-        </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>لوحة التحكم</Text>
-          <Text style={styles.subtitle}>Admin Dashboard</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>لوحة الإدارة</Text>
+            <Text style={styles.subtitle}>Admin Dashboard</Text>
+          </View>
           {user?.email && <Text style={styles.userEmail}>{user.email}</Text>}
         </View>
       </Animated.View>
@@ -415,37 +414,37 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
             <Animated.View style={{ opacity: fadeAnim }}>
               <View style={styles.statsGrid}>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#6366f1" }]}>
+                  <Text style={[styles.statNumber, { color: "#A13333" }]}>
                     {stats?.total_profiles || 0}
                   </Text>
                   <Text style={styles.statLabel}>إجمالي الأفراد</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#10b981" }]}>
+                  <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
                     {stats?.alive_count || 0}
                   </Text>
                   <Text style={styles.statLabel}>على قيد الحياة</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#3b82f6" }]}>
+                  <Text style={[styles.statNumber, { color: "#A13333" }]}>
                     {stats?.male_count || 0}
                   </Text>
                   <Text style={styles.statLabel}>ذكور</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#ec4899" }]}>
+                  <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
                     {stats?.female_count || 0}
                   </Text>
                   <Text style={styles.statLabel}>إناث</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#8b5cf6" }]}>
+                  <Text style={[styles.statNumber, { color: "#A13333" }]}>
                     {stats?.munasib?.total_munasib || 0}
                   </Text>
                   <Text style={styles.statLabel}>منتسبين</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#f59e0b" }]}>
+                  <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
                     {stats?.total_marriages || 0}
                   </Text>
                   <Text style={styles.statLabel}>عقود زواج</Text>
@@ -497,7 +496,7 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
                             `${Math.max(3, ((stats?.profiles_with_photos || 0) / (stats?.total_profiles || 1)) * 100)}%`,
                           ],
                         }),
-                        backgroundColor: "#10b981",
+                        backgroundColor: "#D58C4A",
                       },
                     ]}
                   />
@@ -531,7 +530,7 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
                             `${((stats?.profiles_with_dates || 0) / (stats?.total_profiles || 1)) * 100}%`,
                           ],
                         }),
-                        backgroundColor: "#3b82f6",
+                        backgroundColor: "#A13333",
                       },
                     ]}
                   />
@@ -833,7 +832,7 @@ const AdminDashboardUltraOptimized = ({ onClose, user }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
     flexDirection: "row-reverse",
@@ -841,41 +840,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 16,
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   headerContent: {
     flex: 1,
-    alignItems: "flex-start",
-    marginRight: 12,
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  titleContainer: {
+    alignItems: "center",
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
-    color: "#111827",
-    textAlign: "right",
+    color: "#242121", // Sadu Night
+    fontFamily: "SF Arabic",
+    letterSpacing: -0.5,
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
+    fontSize: 15,
+    color: "#242121CC", // Sadu Night 80%
     marginTop: 2,
+    fontFamily: "SF Pro Display",
+    lineHeight: 22,
+    textAlign: "center",
   },
   userEmail: {
-    fontSize: 12,
-    color: "#007AFF",
+    fontSize: 13,
+    color: "#24212199", // Sadu Night 60%
     marginTop: 4,
-    fontStyle: "italic",
+    fontFamily: "SF Pro Display",
+    fontWeight: "500",
+    textAlign: "center",
   },
   closeButton: {
     padding: 8,
     borderRadius: 8,
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     marginHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
     padding: 20,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -883,7 +894,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
   },
   statsCard: {
     marginTop: 16,
@@ -891,7 +902,8 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#6b7280",
+    color: "#242121", // Sadu Night
+    fontFamily: "SF Arabic",
     marginBottom: 16,
     textAlign: "right",
   },
@@ -901,10 +913,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   statBox: {
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
     alignItems: "center",
     width: "48%",
     marginBottom: 10,
@@ -915,7 +929,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: "#6b7280",
+    color: "#24212199", // Sadu Night 60%
     marginTop: 4,
     textAlign: "center",
   },
@@ -936,14 +950,14 @@ const styles = StyleSheet.create({
   completenessPercentage: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   completenessIcon: {
     fontSize: 20,
   },
   completenessBarContainer: {
     height: 8,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: 8,
@@ -954,7 +968,7 @@ const styles = StyleSheet.create({
   },
   completenessLabel: {
     fontSize: 12,
-    color: "#6b7280",
+    color: "#24212199", // Sadu Night 60%
   },
   dataHealthHeader: {
     flexDirection: "row-reverse",
@@ -965,18 +979,18 @@ const styles = StyleSheet.create({
   healthPercentage: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#10b981",
+    color: "#D58C4A", // Desert Ochre
   },
   progressBar: {
     height: 6,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: "#D1BBA340", // Camel Hair Beige 40%
     borderRadius: 999,
     overflow: "hidden",
     marginBottom: 20,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#6366f1",
+    backgroundColor: "#D58C4A", // Desert Ochre
     borderRadius: 999,
   },
   issuesTags: {
@@ -986,7 +1000,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tagSuccess: {
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    backgroundColor: "#D58C4A" + "1A", // Desert Ochre 10%
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -994,11 +1008,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tagSuccessText: {
-    color: "#10b981",
+    color: "#D58C4A", // Desert Ochre
     fontSize: 14,
   },
   tagWarning: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    backgroundColor: "#A13333" + "1A", // Najdi Crimson 10%
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
@@ -1006,27 +1020,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   tagWarningText: {
-    color: "#ef4444",
+    color: "#A13333", // Najdi Crimson
     fontSize: 14,
   },
   primaryButton: {
-    backgroundColor: "#6366f1",
-    paddingVertical: 12,
-    borderRadius: 12,
+    backgroundColor: "#A13333", // Najdi Crimson
+    paddingVertical: 14,
+    borderRadius: 10,
     flexDirection: "row-reverse",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
   },
   primaryButtonText: {
-    color: "#fff",
+    color: "#F9F7F3", // Al-Jass White
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    color: "#242121", // Sadu Night
     marginHorizontal: 16,
     marginBottom: 12,
     textAlign: "right",
@@ -1047,16 +1062,16 @@ const styles = StyleSheet.create({
   activityName: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   activityDescription: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "#24212199", // Sadu Night 60%
     marginTop: 2,
   },
   activityTime: {
     fontSize: 14,
-    color: "#9ca3af",
+    color: "#24212166", // Sadu Night 40%
   },
   viewAllButton: {
     flexDirection: "row-reverse",
@@ -1066,7 +1081,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   viewAllText: {
-    color: "#6366f1",
+    color: "#A13333", // Najdi Crimson
     fontSize: 16,
     fontWeight: "500",
   },
@@ -1094,7 +1109,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   badgeText: {
-    color: "#FFFFFF",
+    color: "#F9F7F3", // Al-Jass White
     fontSize: 12,
     fontWeight: "600",
     fontFamily: "SF Arabic",
@@ -1105,7 +1120,8 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#111827",
+    color: "#242121", // Sadu Night
+    fontFamily: "SF Arabic",
   },
   munasibHeader: {
     flexDirection: "row-reverse",
@@ -1114,31 +1130,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   munasibBadge: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: "#D58C4A" + "20", // Desert Ochre 20%
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#fde68a",
+    borderColor: "#D58C4A" + "60", // Desert Ochre 60%
   },
   munasibBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#92400e",
+    color: "#242121", // Sadu Night
   },
   topFamiliesContainer: {
     gap: 12,
   },
   topFamilyCard: {
-    backgroundColor: "#f9fafb",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
     position: "relative",
   },
   topFamilyFirst: {
-    borderColor: "#fbbf24",
+    borderColor: "#D58C4A", // Desert Ochre
     borderWidth: 2,
   },
   topFamilyRank: {
@@ -1148,7 +1164,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#fff",
+    backgroundColor: "#F9F7F3", // Al-Jass White
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -1160,12 +1176,12 @@ const styles = StyleSheet.create({
   topFamilyRankText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   topFamilyName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
+    color: "#242121", // Sadu Night
     marginRight: 32,
     textAlign: "right",
   },
@@ -1178,12 +1194,12 @@ const styles = StyleSheet.create({
   topFamilyCount: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#111827",
+    color: "#242121", // Sadu Night
   },
   topFamilyPercentage: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#6b7280",
+    color: "#24212199", // Sadu Night 60%
   },
 });
 
