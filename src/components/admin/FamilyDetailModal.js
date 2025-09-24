@@ -41,10 +41,14 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
     try {
       setLoading(true);
 
-      // Get all profiles for name chain building
+      // Get ALL profiles to build chains properly (like ProfileSheet does)
       const { data: allProfilesData } = await supabase
         .from("profiles")
-        .select("id, name, father_id, father_name, grandfather_name");
+        .select("id, name, father_id, gender");
+
+      // Create a Map for O(1) lookups like ProfileSheet
+      const profilesMap = new Map();
+      allProfilesData?.forEach(p => profilesMap.set(p.id, p));
 
       setAllProfiles(allProfilesData || []);
 
@@ -56,8 +60,8 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
         .select(
           `
           *,
-          husband:profiles!marriages_husband_id_fkey(*),
-          wife:profiles!marriages_wife_id_fkey(*)
+          husband:profiles!marriages_husband_id_fkey(id, name, hid, father_id, gender, generation),
+          wife:profiles!marriages_wife_id_fkey(id, name, hid, father_id, gender, generation)
         `,
         )
         .or(
@@ -120,9 +124,38 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
   };
 
   const renderMemberCard = ({ item }) => {
-    // Build proper name chains
+    // Get Munasib name (spouse from other family)
     const munasibName = item.munasib ? item.munasib.name : "غير معروف";
-    const alqefariChain = buildNameChain(item.alqefari, allProfiles);
+
+    // Build full name chain for Al-Qefari member (like ProfileSheet does)
+    let alqefariChain = "";
+    if (item.alqefari) {
+      const names = [];
+      let currentId = item.alqefari.id;
+
+      // Build the ancestry chain by traversing father_id links
+      const profilesMap = new Map();
+      allProfiles?.forEach(p => profilesMap.set(p.id, p));
+
+      while (currentId) {
+        const p = profilesMap.get(currentId);
+        if (!p) break;
+        names.push(p.name);
+        currentId = p.father_id;
+      }
+
+      // Add family name at the end
+      names.push("القفاري");
+
+      // Build the chain with proper connector
+      if (names.length > 1) {
+        const connector = item.alqefari.gender === "female" ? "بنت" : "بن";
+        // Join all names with the connector for the first relationship
+        alqefariChain = names[0] + " " + connector + " " + names.slice(1).join(" ");
+      } else {
+        alqefariChain = names.join(" ");
+      }
+    }
 
     return (
       <TouchableOpacity
@@ -144,7 +177,7 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
               />
             </View>
             <Text style={styles.alqefariName} numberOfLines={2}>
-              {alqefariChain}
+              {alqefariChain || "غير معروف"}
             </Text>
             {item.status === "divorced" && (
               <View style={styles.statusBadge}>

@@ -107,11 +107,8 @@ export default function MunasibManager({ visible, onClose }) {
           <Text style={styles.familyName} numberOfLines={1}>
             عائلة {item.family_name}
           </Text>
-          <View style={styles.familyRight}>
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{item.count}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#24212160" />
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{item.count}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -300,11 +297,6 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     fontWeight: "500",
     color: "#242121",
-  },
-  familyRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
   },
   countBadge: {
     backgroundColor: "#A13333", // Najdi Crimson

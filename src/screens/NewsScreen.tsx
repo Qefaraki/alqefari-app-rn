@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNewsStore } from '../stores/useNewsStore';
-import { useAbsoluteDate, useRelativeDate } from '../hooks/useFormattedDate';
+import { useAbsoluteDateNoMemo as useAbsoluteDate, useRelativeDateNoMemo as useRelativeDate } from '../hooks/useFormattedDateNoMemo';
 import { useSettings } from '../contexts/SettingsContext';
 import FeaturedNewsCarousel from '../components/ui/news/FeaturedNewsCarousel';
 import { RecentArticleItem, RecentArticleSkeleton } from '../components/ui/news/RecentArticleItem';
@@ -26,17 +26,8 @@ const NewsScreen: React.FC = () => {
   // Get settings to force re-renders when they change
   const { settings } = useSettings();
 
-  // Define ArticleWithDate INSIDE NewsScreen so it re-renders with fresh hook values
-  const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> = ({ article, onPress }) => {
-    const subtitle = useRelativeDate(article.publishedAt);
-    return (
-      <RecentArticleItem
-        article={article}
-        subtitle={subtitle}
-        onPress={onPress}
-      />
-    );
-  };
+  // Get date for header - will update on settings change
+  const headerDate = useAbsoluteDate(new Date());
 
   // Get state from simplified store
   const featured = useNewsStore((state) => state.featured);
@@ -137,16 +128,20 @@ const NewsScreen: React.FC = () => {
   const isLoadingInitial = status === 'loading' && recent.length === 0;
   const listData = isLoadingInitial ? Array.from({ length: 6 }) : recent;
 
-  // Render item - now uses ArticleWithDate which is defined inside NewsScreen
+  // Render item - calculate date directly here without memoization
   const renderItem = ({ item }: { item: NewsArticle | any }) => {
     if (isLoadingInitial) {
       return <RecentArticleSkeleton />;
     }
     const article = item as NewsArticle;
 
+    // Calculate subtitle directly - no memoization, always fresh
+    const subtitle = useRelativeDate(article.publishedAt);
+
     return (
-      <ArticleWithDate
+      <RecentArticleItem
         article={article}
+        subtitle={subtitle}
         onPress={() => handleOpenArticle(article)}
       />
     );

@@ -5,7 +5,7 @@ import Surface from '../Surface';
 import tokens from '../tokens';
 import CachedImage from '../../CachedImage';
 import { NewsArticle } from '../../../services/news';
-import { useRelativeDate } from '../../../hooks/useFormattedDate';
+import { useRelativeDateNoMemo as useRelativeDate } from '../../../hooks/useFormattedDateNoMemo';
 import { useSettings } from '../../../contexts/SettingsContext';
 
 type Props = {

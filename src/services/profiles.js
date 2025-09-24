@@ -103,8 +103,8 @@ export const profilesService = {
             start_date,
             end_date,
             munasib,
-            husband:profiles!marriages_husband_id_fkey(id, name),
-            wife:profiles!marriages_wife_id_fkey(id, name)
+            husband:profiles!marriages_husband_id_fkey(id, name, photo_url),
+            wife:profiles!marriages_wife_id_fkey(id, name, photo_url)
           `,
           )
           .or(`husband_id.eq.${personId},wife_id.eq.${personId}`)
@@ -112,18 +112,36 @@ export const profilesService = {
 
         if (marriageError) throw marriageError;
 
-        // Format the data to match expected structure
-        return (marriages || []).map((m) => ({
-          id: m.id,
-          husband_id: m.husband_id,
-          wife_id: m.wife_id,
-          husband_name: m.husband?.name,
-          wife_name: m.wife?.name,
-          status: m.status,
-          start_date: m.start_date,
-          end_date: m.end_date,
-          is_current: m.status === "married",
-          spouse_name: isHusband ? m.wife?.name : m.husband?.name,
+        // Format the data to match RPC structure
+        return (marriages || []).map((m) => {
+          const spouse = isHusband ? m.wife : m.husband;
+          return {
+            marriage_id: m.id,
+            spouse_id: spouse?.id,
+            spouse_name: spouse?.name,
+            spouse_photo: spouse?.photo_url,
+            munasib: m.munasib,
+            status: m.status,
+            start_date: m.start_date,
+            end_date: m.end_date,
+            // Also include for backward compatibility
+            husband_id: m.husband_id,
+            wife_id: m.wife_id,
+            husband_name: m.husband?.name,
+            wife_name: m.wife?.name,
+          };
+        });
+      }
+
+      // Transform RPC response to include backward compatibility fields
+      if (data && Array.isArray(data)) {
+        return data.map(m => ({
+          ...m,
+          // RPC returns these fields
+          id: m.marriage_id,
+          // Add backward compatibility fields for ProfileSheet
+          husband_name: m.spouse_name, // Will be fixed in ProfileSheet
+          wife_name: m.spouse_name,     // Will be fixed in ProfileSheet
         }));
       }
 
