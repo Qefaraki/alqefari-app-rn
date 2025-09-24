@@ -19,8 +19,8 @@ import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // NEW Premium 
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
 import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
+import MunasibManager from "../components/admin/MunasibManager";
+import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
 
@@ -46,6 +46,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [showProfileCreationRequests, setShowProfileCreationRequests] =
     useState(false);
+  const [showMunasibManager, setShowMunasibManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
@@ -230,18 +231,50 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   const handleExportDatabase = async () => {
     try {
       setExporting(true);
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
 
-      const jsonData = JSON.stringify(profiles, null, 2);
-      const fileUri = FileSystem.documentDirectory + "alqefari_backup.json";
-      await FileSystem.writeAsStringAsync(fileUri, jsonData);
-      await Sharing.shareAsync(fileUri);
+      // Show export options
+      Alert.alert(
+        "تصدير شجرة العائلة",
+        "اختر نوع التصدير",
+        [
+          {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => setExporting(false),
+          },
+          {
+            text: "تقرير المنتسبين",
+            onPress: async () => {
+              try {
+                await pdfExportService.exportMunasibReport();
+              } catch (error) {
+                console.error("Munasib export error:", error);
+              } finally {
+                setExporting(false);
+              }
+            },
+          },
+          {
+            text: "الشجرة الكاملة",
+            onPress: async () => {
+              try {
+                await pdfExportService.exportFamilyTreePDF({
+                  includePhotos: true,
+                  includeMarriages: true,
+                  includeMunasib: true,
+                });
+              } catch (error) {
+                console.error("PDF export error:", error);
+              } finally {
+                setExporting(false);
+              }
+            },
+          },
+        ],
+        { cancelable: true, onDismiss: () => setExporting(false) }
+      );
     } catch (error) {
-      Alert.alert("خطأ", "فشل تصدير قاعدة البيانات");
-    } finally {
+      Alert.alert("خطأ", "فشل تصدير شجرة العائلة");
       setExporting(false);
     }
   };
@@ -303,6 +336,15 @@ const AdminDashboardUltraOptimized = ({ user }) => {
       <ProfileCreationRequests
         onClose={() => {
           setShowProfileCreationRequests(false);
+        }}
+      />
+    );
+  }
+  if (showMunasibManager) {
+    return (
+      <MunasibManager
+        onBack={() => {
+          setShowMunasibManager(false);
         }}
       />
     );
@@ -720,6 +762,18 @@ const AdminDashboardUltraOptimized = ({ user }) => {
 
             <TouchableOpacity
               style={styles.actionItem}
+              onPress={() => setShowMunasibManager(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>👥</Text>
+                <Text style={styles.actionText}>إدارة المنتسبين</Text>
+              </View>
+              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={handleRecalculateLayouts}
               activeOpacity={0.7}
             >
@@ -737,9 +791,9 @@ const AdminDashboardUltraOptimized = ({ user }) => {
               disabled={exporting}
             >
               <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>💾</Text>
+                <Text style={styles.actionIcon}>📄</Text>
                 <Text style={styles.actionText}>
-                  {exporting ? "جاري التصدير..." : "تصدير قاعدة البيانات"}
+                  {exporting ? "جاري التصدير..." : "تصدير PDF"}
                 </Text>
               </View>
               {exporting ? (

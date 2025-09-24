@@ -15,12 +15,16 @@
 - ✅ **Photo System with Caching** - expo-image integration with CachedImage component
 - ✅ **Activity & Revert View** - ActivityScreen with audit log display
 - ✅ **Munasib/Spouse System** - 150 spouse profiles using NULL HID system (not 2000.X pattern)
+- ✅ **Munasib Management System** - Search, filter, family statistics, marriage connections view
+- ✅ **PDF Export System** - Family tree, individual profiles, and Munasib reports
+- ✅ **Golden Node Highlight** - 2.5 second animation with LottieGlow effect
 
 #### Admin Edit Mode - Completed Phases
 
 - ✅ **Phase 1: Core Identity Fields** - Name, Bio, Sibling Order editors
 - ✅ **Phase 2: Visual Identity** - PhotoEditor with upload/URL support
 - ✅ **Phase 3: Smart Date Editing** - DateEditor with Hijri/Gregorian support
+- ✅ **Phase 4: Multiple Photos Gallery** - Gallery view in edit page (not admin dashboard)
 
 #### Performance & UX
 
@@ -40,30 +44,20 @@
 
 **Priority: CRITICAL - Breaking Issue**
 
-- [ ] **Remove get_person_with_relations RPC call**
-  - profiles.js line 143 calls non-existent RPC
-  - Remove the call and refactor dependent code
-  - This is causing errors in production
+- ✅ **Removed get_person_with_relations RPC call** - Function removed from codebase
 
-### 2. Complete Export System
+### 2. Export System
 
-**Priority: HIGH - Core Feature Missing**
-**Current State:** Only JSON export exists (profiles.js line 582)
-**Needed:**
+**Priority: COMPLETED**
+**Current State:** PDF export fully implemented
 
-- [ ] **PDF Export Implementation**
-  - Family tree visualization as PDF
+- ✅ **PDF Export Implementation**
+  - Family tree visualization as PDF with RTL support
   - Individual profile reports
-  - Bulk profile book generation
-  - Use react-native-pdf or similar
-- [ ] **CSV Export Implementation**
-  - Tabular data for Excel/Google Sheets
-  - Include all profile fields
-  - Marriage relationships in separate sheet
-- [ ] **Tree Image Export**
-  - PNG/JPG of current tree view
-  - High-resolution option for printing
-  - Use Skia canvas snapshot
+  - Munasib-specific reports
+  - Uses react-native-html-to-pdf
+- ❌ **CSV/JSON Export** - Not required (PDF only)
+- [ ] **Tree Image Export** - Optional future enhancement
 
 ---
 
@@ -73,9 +67,9 @@
 
 **Priority: MEDIUM**
 
-#### Phase 4: Relationship Editor
+#### Phase 5: Relationship Editor
 
-**Current State:** Can only edit basic fields, not relationships
+**Current State:** Basic relationship management exists
 **Needed:**
 
 - [ ] Parent selector modal with search
@@ -83,7 +77,7 @@
 - [ ] Bulk parent reassignment for siblings
 - [ ] Visual relationship verification
 
-#### Phase 5: Advanced Admin Tools
+#### Phase 6: Advanced Admin Tools
 
 **Current State:** Basic field editing only
 **Needed:**
@@ -106,46 +100,51 @@
 
 #### Missing Features
 
-- [ ] **Image Editor Integration**
-  - Crop with aspect ratio lock (1:1 for profiles)
-  - Rotate in 90° increments
-  - Basic filters (brightness, contrast)
-- [ ] **Multiple Photos Per Profile**
+- ❌ **Image Editor Integration** - Not required
+- ✅ **Multiple Photos Per Profile** - Implemented in edit page
   - Photo gallery with primary selection
-  - Slideshow view in ProfileSheet
-  - Maximum 10 photos per person
+  - Gallery view in ProfileEditor
+  - Multiple photo support exists
 
 ### 5. Search Improvements
 
 **Priority: MEDIUM**
-**Current State:** Basic exact match search
-**Needed:**
+**Current State:** Arabic name chain search implemented
+**Completed:**
 
-- [ ] **Recent Searches Storage**
-  - Store last 20 searches locally
-  - Quick access from search modal
+- ✅ **Arabic Name Chain Search** - search_name_chain function with SearchModal UI
+- ✅ **Navigation Animation** - Golden highlight with 2.5 second LottieGlow animation
+- ✅ **Smooth pan/zoom** - Animated navigation to search results
+
+**Not Required:**
+- ❌ **Recent Searches Storage** - Not needed
+
+**Future Enhancement:**
 - [ ] **Fuzzy Name Matching**
   - Handle عبدالله vs عبد الله
   - Common misspellings (احمد vs أحمد)
-- [ ] **Navigation Animation**
-  - Golden highlight effect on found node
-  - Smooth pan/zoom to result
-  - 2-second highlight pulse
 
-### 6. Munasib System Refinements
+### 6. Munasib System
 
-**Priority: MEDIUM**
-**Current State:** 150 profiles with NULL HID are spouses
-**Needed:**
+**Priority: COMPLETED**
+**Current State:** Full Munasib management system implemented
 
-- [ ] **Visual Indicators**
-  - Badge showing "منتسب" on spouse profiles
-  - Different color in search results
-  - Filter option in admin dashboard
-- [ ] **family_origin Field**
-  - Track which family spouses come from
-  - Currently TODO in MarriageEditor.js line 282
-  - Add to profile edit form
+**Completed:**
+- ✅ **Munasib Management Dashboard**
+  - Search and filter Munasib profiles
+  - Family statistics with ranking
+  - Marriage connections display
+  - Export to PDF functionality
+- ✅ **Admin Dashboard Integration**
+  - Dedicated Munasib Manager component
+  - Family origin tracking
+  - Comprehensive analytics
+
+**Not Required:**
+- ❌ **Munasib badges** - Management system implemented instead
+
+**Future Enhancement:**
+- [ ] **family_origin Field** - Add to profile edit form
 
 ---
 
@@ -191,23 +190,23 @@
 
 ## 📊 Implementation Timeline
 
-### Sprint 1 (Week 1-2) - Critical Fixes
+### Sprint 1 (Completed) - Critical Fixes
 
-1. Fix get_person_with_relations issue ⚠️
-2. Implement PDF export
-3. Implement CSV export
+1. ✅ Fixed get_person_with_relations issue
+2. ✅ Implemented PDF export
+3. ✅ Implemented Munasib management system
 
-### Sprint 2 (Week 3-4) - Admin Tools
+### Sprint 2 (Current) - Admin Tools
 
-1. Complete Relationship Editor (Phase 4)
-2. Add Advanced Admin Tools (Phase 5)
+1. Complete Relationship Editor
+2. Add Advanced Admin Tools
 3. Fix image transformation issue
 
-### Sprint 3 (Week 5-6) - Polish
+### Sprint 3 (Future) - Polish
 
-1. Search improvements
-2. Munasib visual indicators
-3. Photo gallery support
+1. Fuzzy search matching
+2. Performance optimizations
+3. Platform-specific features
 
 ---
 
@@ -216,14 +215,15 @@
 ### Must Have (P0)
 
 - ✅ No console errors from missing RPCs
-- ✅ PDF/CSV export working
-- ✅ All admin edit phases complete
+- ✅ PDF export working
+- ✅ Munasib management system
+- ✅ Golden highlight animation
 
 ### Should Have (P1)
 
 - ✅ Image transformation fixed or fallback working
-- ✅ Search with fuzzy matching
-- ✅ Munasib profiles clearly marked
+- ✅ Arabic name chain search
+- ✅ Munasib management dashboard
 
 ### Nice to Have (P2)
 
@@ -263,46 +263,39 @@
 ### Export System Details
 
 ```javascript
-// Current: profiles.js line 582
-async exportData(format = "json") {
-  // Only JSON implemented
+// Implemented: pdfExport.js service
+exportFamilyTreePDF(options) {
+  // Generates PDF with RTL support
+  // Arabic typography and generation names
+  // Statistics and profile cards
 }
 
-// Needed:
-async exportToPDF(options) {
-  // Generate PDF with react-native-pdf
-  // Include tree visualization
-  // Profile cards with photos
-}
-
-async exportToCSV() {
-  // Convert profiles to CSV
-  // Separate sheets for marriages
-  // Include all fields
+exportMunasibReport(options) {
+  // Munasib-specific PDF reports
+  // Family statistics and rankings
+  // Marriage connections included
 }
 ```
 
 ### get_person_with_relations Fix
 
 ```javascript
-// Current: profiles.js line 143
-const { data, error } = await supabase.rpc("get_person_with_relations", {
-  // This RPC doesn't exist!
-});
-
-// Fix: Remove this call or implement the RPC
+// ✅ FIXED: Function removed from codebase
+// No longer calling non-existent RPC
 ```
 
-### Munasib Visual Indicators
+### Munasib Management System
 
 ```javascript
-// MarriageEditor.js line 282
-// TODO: Add is_munasib: true when database supports it
+// Implemented: MunasibManager.js component
+// Full management dashboard with:
+- Search and filtering
+- Family statistics
+- Marriage connections
+- PDF export
 
-// Profile display should show:
-{
-  profile.hid === null && <Badge text="منتسب" color="purple" />;
-}
+// Munasib identified by:
+profile.hid === null // No HID means Munasib/spouse
 ```
 
 ---
@@ -312,10 +305,14 @@ const { data, error } = await supabase.rpc("get_person_with_relations", {
 ### v1.4.0 (Current) - January 2025
 
 - ✅ QuickAddOverlay for bulk children
-- ✅ Search system implementation
+- ✅ Arabic name chain search implementation
 - ✅ Image caching with expo-image
 - ✅ Activity log with revert
 - ✅ Munasib system (150 spouse profiles)
+- ✅ PDF export service (family tree, profiles, Munasib reports)
+- ✅ Munasib management dashboard
+- ✅ Golden highlight animation (2.5 second LottieGlow)
+- ✅ Multiple photos gallery in edit page
 
 ### v1.3.0 - Photo System & Caching
 

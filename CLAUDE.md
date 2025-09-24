@@ -280,6 +280,63 @@ SELECT * FROM admin_validation_dashboard();
 SELECT * FROM admin_auto_fix_issues();
 ```
 
+## 📄 PDF Export System
+
+The app includes a comprehensive PDF export service for generating Arabic-first family tree reports:
+
+### Available Exports
+
+1. **Full Family Tree** - All profiles organized by generation
+2. **Individual Profile** - Single person report with relationships
+3. **Munasib Report** - Profiles of spouses married into the family
+
+### Export Service Usage
+
+```javascript
+import pdfExportService from './services/pdfExport';
+
+// Export full family tree
+await pdfExportService.exportFamilyTreePDF({
+  title: "شجرة عائلة القفاري",
+  includePhotos: true,
+  includeMunasib: true
+});
+
+// Export Munasib report
+await pdfExportService.exportMunasibReport();
+```
+
+### PDF Features
+
+- RTL Arabic typography with Noto Naskh font
+- Generation-based organization
+- Statistics (total count, gender breakdown)
+- Photo inclusion (optional)
+- Munasib highlighting
+- Sharing via iOS/Android native share
+
+## 👥 Munasib Management System
+
+Full management dashboard for Munasib (spouse) profiles:
+
+### Features
+
+- **Search & Filter**: Find Munasib by name, phone, location
+- **Family Statistics**: Ranked list of most common family origins
+- **Marriage Connections**: See which Al-Qefari member they're married to
+- **Export to PDF**: Generate Munasib-specific reports
+
+### Identifying Munasib
+
+```javascript
+// Munasib profiles have NULL HID
+const isMunasib = profile.hid === null;
+```
+
+### Component Location
+
+`src/components/admin/MunasibManager.js` - Accessible from admin dashboard
+
 ## 🏗 Project Structure
 
 ```
@@ -287,8 +344,10 @@ src/
 ├── components/      # Reusable UI components
 │   ├── ui/         # Design system components
 │   └── admin/      # Admin-only features
+│       └── MunasibManager.js  # Munasib management dashboard
 ├── screens/        # App screens
 ├── services/       # API & Supabase
+│   └── pdfExport.js  # PDF generation service
 ├── stores/         # Zustand state management
 └── config/         # App configuration
 ```
@@ -449,7 +508,7 @@ _This design system ensures consistency, cultural appropriateness, and premium f
 - Added Najdi Sadu color tokens to `src/components/ui/tokens.js` (`tokens.colors.najdi`) for quick access to Al-Jass, Camel Hair, Najdi Crimson, and Desert Ochre across new components.
 - Introduced cached WordPress news service (`src/services/news.ts`) with 24h TTL and background refresh.
 - Created reusable news UI primitives (`FeaturedNewsCarousel`, `NewsCard`, `RecentArticleItem`) that lean on the Najdi palette and subtle Sadu patterns.
-- Added `NewsScreen` with localized Gregorian/Hijri headers, Expo-router tab integration, infinite scroll pagination, and link-out article viewing.
+- Added `NewsScreen` with localized Gregorian/Hijri headers, Expo-router tab integration, proactive prefetching/infinite scroll, shimmer loading states, and link-out article viewing.
 
 ## 🚀 Multi-Agent Git Workflow
 
