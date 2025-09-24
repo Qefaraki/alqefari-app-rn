@@ -95,7 +95,8 @@ The app uses a custom neo‑native design system featuring:
 
 ### Key Commands
 
-- `npm start` - Start the Expo development server (with iOS and Android)
+- `npm start` - Start the Expo development server in dev-client mode (keeps runtimeVersion in sync)
+- `npm run start:clean` - Same as above but clears Metro caches if you see stale bundles
 - `npm run ios` - Run on iOS simulator only
 - `npm run android` - Run on Android emulator only
 

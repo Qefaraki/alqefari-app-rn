@@ -1,0 +1,7 @@
+diff --git a/node_modules/react-native-reanimated/package.json b/node_modules/react-native-reanimated/package.json
+index 0189a91..c21c4a1 100644
+--- a/node_modules/react-native-reanimated/package.json
++++ b/node_modules/react-native-reanimated/package.json
+@@
+-  "react-native": "src/index",
++  "react-native": "lib/module/index",

@@ -1,11 +1,10 @@
-import React, { useMemo } from 'react';
-import { FlatList, ImageBackground, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Dimensions, FlatList, ImageBackground, NativeSyntheticEvent, NativeScrollEvent, StyleSheet, View } from 'react-native';
 import tokens from '../tokens';
 import NewsCard from './NewsCard';
 import { NewsArticle } from '../../../services/news';
 import Surface from '../Surface';
 import SkeletonLoader, { SkeletonText } from '../SkeletonLoader';
-import { ActivityIndicator } from 'react-native';
 
 type Props = {
   articles: NewsArticle[];
@@ -14,9 +13,14 @@ type Props = {
   renderSubtitle: (article: NewsArticle) => string;
   onEndReached?: () => void;
   loadingMore?: boolean;
+  onMomentumScrollEnd?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 };
 
 const patternSource = require('../../../../assets/sadu_patterns/png/14.png');
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+const CARD_SPACING = 12;
+const SNAP_INTERVAL = CARD_WIDTH + CARD_SPACING;
 
 const FeaturedNewsCarousel: React.FC<Props> = ({
   articles,
@@ -25,20 +29,44 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
   renderSubtitle,
   onEndReached,
   loadingMore = false,
+  onMomentumScrollEnd,
 }) => {
   const data = useMemo(() => (loading ? Array.from({ length: 3 }) : articles), [loading, articles]);
+  const listRef = useRef<FlatList<any>>(null);
+  const offsetRef = useRef(0);
+
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    offsetRef.current = event.nativeEvent.contentOffset.x;
+  }, []);
+
+  useEffect(() => {
+    if (loading || !articles.length) return;
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: offsetRef.current, animated: false });
+    });
+  }, [articles.length, loading]);
 
   return (
     <View style={styles.wrapper}>
       <ImageBackground source={patternSource} resizeMode="cover" style={styles.pattern} imageStyle={styles.patternImage} />
       <FlatList
+        ref={listRef}
         horizontal
         data={data as any[]}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        keyExtractor={(_, index) => `featured-${index}`}
+        keyExtractor={(item, index) =>
+          loading ? `featured-loading-${index}` : `featured-${(item as NewsArticle).id}`
+        }
         onEndReachedThreshold={0.6}
         onEndReached={onEndReached}
+        snapToInterval={SNAP_INTERVAL}
+        snapToAlignment="start"
+        decelerationRate="fast"
+        disableIntervalMomentum
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item, index }) => {
           if (loading) {
             return <FeaturedSkeleton index={index} count={data.length} />;
@@ -65,9 +93,7 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
         }}
         ListFooterComponent={
           loadingMore && !loading ? (
-            <View style={styles.loaderWrapper}>
-              <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-            </View>
+            <FeaturedSkeleton index={0} count={1} />
           ) : null
         }
       />
@@ -82,8 +108,8 @@ const FeaturedSkeleton: React.FC<{ index: number; count?: number }> = ({ index, 
     <Surface
       style={[
         styles.skeletonCard,
-        isFirst && { marginLeft: 16 },
-        isLast && { marginRight: 16 },
+        isFirst && { marginLeft: 0 },
+        isLast && { marginRight: 0 },
       ]}
       radius={18}
     >
@@ -115,19 +141,20 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 4,
     paddingRight: 16,
+    paddingLeft: 16,
   },
   cardWrapper: {
-    marginRight: 12,
+    marginRight: CARD_SPACING,
   },
   cardWrapperFirst: {
-    marginLeft: 16,
+    marginLeft: 0,
   },
   cardWrapperLast: {
-    marginRight: 16,
+    marginRight: 0,
   },
   skeletonCard: {
-    width: 300,
-    marginRight: 12,
+    width: CARD_WIDTH,
+    marginRight: CARD_SPACING,
     backgroundColor: tokens.colors.najdi.background,
   },
   skeletonImage: {
@@ -141,11 +168,6 @@ const styles = StyleSheet.create({
   },
   skeletonLine: {
     marginBottom: 8,
-  },
-  loaderWrapper: {
-    width: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 

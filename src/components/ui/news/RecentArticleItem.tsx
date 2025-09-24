@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from '../tokens';
@@ -13,7 +13,9 @@ type Props = {
   onPress: () => void;
 };
 
-export const RecentArticleItem: React.FC<Props> = ({ article, subtitle, onPress }) => {
+const THUMBNAIL_SIZE = 72;
+
+const RecentArticleItemComponent: React.FC<Props> = ({ article, subtitle, onPress }) => {
   return (
     <Surface style={styles.surface} radius={16}>
       <Pressable style={styles.row} onPress={onPress} android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
@@ -39,11 +41,22 @@ export const RecentArticleItem: React.FC<Props> = ({ article, subtitle, onPress 
   );
 };
 
+const areRecentArticlePropsEqual = (prev: Props, next: Props) => {
+  return (
+    prev.article.id === next.article.id &&
+    prev.article.title === next.article.title &&
+    prev.article.summary === next.article.summary &&
+    prev.article.heroImage === next.article.heroImage &&
+    prev.subtitle === next.subtitle &&
+    prev.onPress === next.onPress
+  );
+};
+
 export const RecentArticleSkeleton: React.FC = () => {
   return (
     <Surface style={styles.surface} radius={16}>
       <View style={styles.row}>
-        <SkeletonLoader width={64} height={64} borderRadius={12} />
+        <SkeletonLoader width={THUMBNAIL_SIZE} height={THUMBNAIL_SIZE} borderRadius={12} />
         <View style={styles.content}>
           <SkeletonLoader width="90%" height={18} style={styles.skeletonLine} />
           <SkeletonText lines={1} />
@@ -58,6 +71,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: tokens.colors.najdi.background,
     width: '100%',
+    minHeight: 108,
   },
   row: {
     flexDirection: 'row',
@@ -67,8 +81,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   thumbnailWrapper: {
-    width: 64,
-    height: 64,
+    width: THUMBNAIL_SIZE,
+    height: THUMBNAIL_SIZE,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
@@ -77,6 +91,7 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: '100%',
+    backgroundColor: tokens.colors.najdi.background,
   },
   thumbnailFallback: {
     justifyContent: 'center',
@@ -101,5 +116,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
+
+export const RecentArticleItem = memo(RecentArticleItemComponent, areRecentArticlePropsEqual);
 
 export default RecentArticleItem;

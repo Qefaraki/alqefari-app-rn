@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { memo } from 'react';
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Surface from '../Surface';
 import tokens from '../tokens';
@@ -12,7 +12,11 @@ type Props = {
   onPress: () => void;
 };
 
-const NewsCard: React.FC<Props> = ({ article, subtitle, onPress }) => {
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+const HERO_HEIGHT = 168;
+
+const NewsCardComponent: React.FC<Props> = ({ article, subtitle, onPress }) => {
   return (
     <Surface style={styles.container} radius={18}>
       <Pressable style={styles.pressable} onPress={onPress} android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
@@ -41,9 +45,20 @@ const NewsCard: React.FC<Props> = ({ article, subtitle, onPress }) => {
   );
 };
 
+const arePropsEqual = (prev: Props, next: Props) => {
+  return (
+    prev.article.id === next.article.id &&
+    prev.article.title === next.article.title &&
+    prev.article.summary === next.article.summary &&
+    prev.article.heroImage === next.article.heroImage &&
+    prev.subtitle === next.subtitle &&
+    prev.onPress === next.onPress
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
-    width: 300,
+    width: CARD_WIDTH,
     backgroundColor: tokens.colors.najdi.background,
   },
   pressable: {
@@ -51,7 +66,8 @@ const styles = StyleSheet.create({
   },
   hero: {
     width: '100%',
-    height: 160,
+    height: HERO_HEIGHT,
+    aspectRatio: 16 / 9,
   },
   heroFallback: {
     alignItems: 'center',
@@ -62,6 +78,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16,
     gap: 8,
+    minHeight: 120,
   },
   title: {
     fontSize: 18,
@@ -79,4 +96,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default NewsCard;
+export default memo(NewsCardComponent, arePropsEqual);

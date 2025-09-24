@@ -23,7 +23,7 @@
     "ios": {
       "bundleIdentifier": "com.Alqefari.alqefari",
       "supportsTablet": true,
-      "buildNumber": "24",
+      "buildNumber": "27",
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
         "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي",
@@ -51,7 +51,12 @@
     },
     "scheme": "alqefari",
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "sitemap": false
+        }
+      ],
       "expo-dev-client",
       "expo-font",
       [

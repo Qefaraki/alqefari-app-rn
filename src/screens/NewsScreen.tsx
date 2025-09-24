@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   ImageBackground,
@@ -17,9 +16,7 @@ import { gregorianToHijri } from '../utils/hijriConverter';
 import { toArabicNumerals } from '../utils/dateUtils';
 import { useNewsStore } from '../stores/useNewsStore';
 import FeaturedNewsCarousel from '../components/ui/news/FeaturedNewsCarousel';
-import RecentArticleItem, {
-  RecentArticleSkeleton,
-} from '../components/ui/news/RecentArticleItem';
+import { RecentArticleItem, RecentArticleSkeleton } from '../components/ui/news/RecentArticleItem';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import tokens from '../components/ui/tokens';
 import NetworkError from '../components/NetworkError';
@@ -73,11 +70,10 @@ const buildSubtitle = (article: NewsArticle, settings: any) => {
   };
   const hijri = gregorianToHijri(gregorian.year, gregorian.month, gregorian.day);
   const formatted = formatDateByPreference({ gregorian, hijri }, settings);
-  const relative = formatRelativeTime(article.publishedAt, settings?.arabicNumerals);
   if (formatted) {
-    return `${relative} • ${formatted}`;
+    return formatted;
   }
-  return relative;
+  return formatRelativeTime(article.publishedAt, settings?.arabicNumerals);
 };
 
 const NewsScreen: React.FC = () => {
@@ -92,6 +88,8 @@ const NewsScreen: React.FC = () => {
   const refresh = useNewsStore((state) => state.refresh);
   const loadMoreRecent = useNewsStore((state) => state.loadMoreRecent);
   const loadMoreFeatured = useNewsStore((state) => state.loadMoreFeatured);
+  const prefetchRecent = useNewsStore((state) => state.prefetchRecent);
+  const prefetchFeatured = useNewsStore((state) => state.prefetchFeatured);
   const isLoadingMoreRecent = useNewsStore((state) => state.isLoadingMoreRecent);
   const isLoadingMoreFeatured = useNewsStore((state) => state.isLoadingMoreFeatured);
   const hasMoreRecent = useNewsStore((state) => state.hasMoreRecent);
@@ -128,7 +126,7 @@ const NewsScreen: React.FC = () => {
     loadMoreRecent();
   }, [hasMoreRecent, isLoadingMoreRecent, loadMoreRecent]);
 
-  const renderHeader = () => (
+  const headerComponent = useMemo(() => (
     <View style={styles.headerContainer}>
       <ImageBackground
         source={require('../../assets/sadu_patterns/png/18.png')}
@@ -146,17 +144,22 @@ const NewsScreen: React.FC = () => {
         loading={status === 'loading' && featured.length === 0}
         loadingMore={isLoadingMoreFeatured}
         onArticlePress={handleOpenArticle}
-        renderSubtitle={(article) =>
-          formatRelativeTime(article.publishedAt, settings?.arabicNumerals)
-        }
+        renderSubtitle={(article) => buildSubtitle(article, settings)}
         onEndReached={() => {
           if (!hasMoreFeatured || isLoadingMoreFeatured) return;
           loadMoreFeatured();
         }}
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          if (status !== 'ready') return;
+          const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+          if (contentOffset.x + layoutMeasurement.width >= contentSize.width * 0.7) {
+            prefetchFeatured();
+          }
+        }}
       />
       <Text style={styles.sectionTitle}>آخر المقالات</Text>
     </View>
-  );
+  ), [featured, headerDate, hasMoreFeatured, isLoadingMoreFeatured, loadMoreFeatured, handleOpenArticle, prefetchFeatured, settings, status]);
 
   if (status === 'error' && featured.length === 0 && recent.length === 0) {
     return (
@@ -169,37 +172,50 @@ const NewsScreen: React.FC = () => {
   const isLoadingInitial = status === 'loading' && recent.length === 0;
   const listData = isLoadingInitial ? Array.from({ length: 6 }) : recent;
 
+  const renderItem = useCallback(({ item }: { item: NewsArticle | any }) => {
+    if (isLoadingInitial) {
+      return <RecentArticleSkeleton />;
+    }
+    const article = item as NewsArticle;
+    return (
+      <RecentArticleItem
+        article={article}
+        subtitle={buildSubtitle(article, settings)}
+        onPress={() => handleOpenArticle(article)}
+      />
+    );
+  }, [handleOpenArticle, isLoadingInitial, settings]);
+
+  const keyExtractor = useCallback((item: NewsArticle | any, index: number) => {
+    if (isLoadingInitial) {
+      return `loading-${index}`;
+    }
+    return `recent-${(item as NewsArticle).id}`;
+  }, [isLoadingInitial]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
         data={listData as any[]}
-        keyExtractor={(item, index) => {
-          if (isLoadingInitial) {
-            return `loading-${index}`;
-          }
-          return `recent-${(item as NewsArticle).id}`;
-        }}
-        renderItem={({ item }) => {
-          if (isLoadingInitial) {
-            return <RecentArticleSkeleton />;
-          }
-
-          const article = item as NewsArticle;
-          return (
-            <RecentArticleItem
-              article={article}
-              subtitle={buildSubtitle(article, settings)}
-              onPress={() => handleOpenArticle(article)}
-            />
-          );
-        }}
-        ListHeaderComponent={renderHeader}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
+        ListHeaderComponent={headerComponent}
+        initialNumToRender={6}
+        windowSize={5}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={tokens.colors.najdi.primary} />
         }
         contentContainerStyle={styles.listContent}
-        onEndReachedThreshold={0.6}
+        onEndReachedThreshold={0.5}
         onEndReached={handleLoadMoreRecent}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+        onScroll={({ nativeEvent }) => {
+          if (status !== 'ready') return;
+          const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height * 0.7) {
+            prefetchRecent();
+          }
+        }}
         ListEmptyComponent={!isLoadingInitial ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>لا توجد أخبار حالياً</Text>
@@ -208,10 +224,11 @@ const NewsScreen: React.FC = () => {
         ) : undefined}
         ListFooterComponent={
           isLoadingMoreRecent ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+            <View style={styles.footerSkeletons}>
+              <RecentArticleSkeleton />
+              <RecentArticleSkeleton />
             </View>
-          ) : null
+          ) : <View style={styles.footerSpacer} />
         }
       />
     </SafeAreaView>
@@ -274,8 +291,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: tokens.colors.najdi.textMuted,
   },
-  footerLoader: {
-    paddingVertical: 16,
+  footerSkeletons: {
+    paddingVertical: 8,
+    gap: 12,
+  },
+  footerSpacer: {
+    height: 32,
   },
 });
 

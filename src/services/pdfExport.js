@@ -1,9 +1,17 @@
-import RNHTMLtoPDF from "react-native-html-to-pdf";
 import { Platform, Alert } from "react-native";
+import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system";
 import { supabase } from "./supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
+
+// Try to import native module, fallback to null if not available
+let RNHTMLtoPDF = null;
+try {
+  RNHTMLtoPDF = require("react-native-html-to-pdf").default;
+} catch (e) {
+  console.log("react-native-html-to-pdf not available, using expo-print fallback");
+}
 
 class PDFExportService {
   /**
@@ -434,33 +442,60 @@ class PDFExportService {
       // Generate HTML
       const html = this.generateFamilyTreeHTML(profiles, options);
 
-      // PDF options
-      const pdfOptions = {
-        html,
-        fileName: `AlqefariTree_${Date.now()}`,
-        directory: Platform.OS === "ios" ? "Documents" : "Download",
-        base64: false,
-        height: 842, // A4 height in points
-        width: 595, // A4 width in points
-        padding: 24,
-        bgColor: "#F9F7F3",
-        ...options.pdfOptions,
-      };
+      // Try native PDF generation first, fallback to Expo Print
+      let pdfUri = null;
 
-      // Create PDF
-      const pdf = await RNHTMLtoPDF.convert(pdfOptions);
+      if (RNHTMLtoPDF) {
+        // Use native module if available
+        try {
+          const pdfOptions = {
+            html,
+            fileName: `AlqefariTree_${Date.now()}`,
+            directory: Platform.OS === "ios" ? "Documents" : "Download",
+            base64: false,
+            height: 842, // A4 height in points
+            width: 595, // A4 width in points
+            padding: 24,
+            bgColor: "#F9F7F3",
+            ...options.pdfOptions,
+          };
 
-      if (pdf.filePath) {
+          const pdf = await RNHTMLtoPDF.convert(pdfOptions);
+          if (pdf.filePath) {
+            pdfUri = pdf.filePath;
+          }
+        } catch (error) {
+          console.log("Native PDF generation failed, using Expo Print fallback", error);
+        }
+      }
+
+      // Fallback to Expo Print
+      if (!pdfUri) {
+        const { uri } = await Print.printToFileAsync({
+          html,
+          base64: false,
+        });
+
+        // Save to a more permanent location
+        const fileName = `AlqefariTree_${Date.now()}.pdf`;
+        const newUri = `${FileSystem.documentDirectory}${fileName}`;
+        await FileSystem.moveAsync({
+          from: uri,
+          to: newUri,
+        });
+        pdfUri = newUri;
+      }
+
+      if (pdfUri) {
         // Share the PDF
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(pdf.filePath, {
+          await Sharing.shareAsync(pdfUri, {
             mimeType: "application/pdf",
             dialogTitle: "شارك شجرة العائلة",
             UTI: "com.adobe.pdf",
           });
         }
-
-        return pdf.filePath;
+        return pdfUri;
       }
 
       throw new Error("Failed to generate PDF");
@@ -496,28 +531,55 @@ class PDFExportService {
         title: `ملف ${profile.name}`,
       });
 
-      const pdfOptions = {
-        html,
-        fileName: `Profile_${profile.name}_${Date.now()}`,
-        directory: Platform.OS === "ios" ? "Documents" : "Download",
-        base64: false,
-        height: 842,
-        width: 595,
-        padding: 24,
-        bgColor: "#F9F7F3",
-      };
+      let pdfUri = null;
 
-      const pdf = await RNHTMLtoPDF.convert(pdfOptions);
+      if (RNHTMLtoPDF) {
+        try {
+          const pdfOptions = {
+            html,
+            fileName: `Profile_${profile.name}_${Date.now()}`,
+            directory: Platform.OS === "ios" ? "Documents" : "Download",
+            base64: false,
+            height: 842,
+            width: 595,
+            padding: 24,
+            bgColor: "#F9F7F3",
+          };
 
-      if (pdf.filePath) {
+          const pdf = await RNHTMLtoPDF.convert(pdfOptions);
+          if (pdf.filePath) {
+            pdfUri = pdf.filePath;
+          }
+        } catch (error) {
+          console.log("Native PDF generation failed, using Expo Print fallback", error);
+        }
+      }
+
+      // Fallback to Expo Print
+      if (!pdfUri) {
+        const { uri } = await Print.printToFileAsync({
+          html,
+          base64: false,
+        });
+
+        const fileName = `Profile_${profile.name}_${Date.now()}.pdf`;
+        const newUri = `${FileSystem.documentDirectory}${fileName}`;
+        await FileSystem.moveAsync({
+          from: uri,
+          to: newUri,
+        });
+        pdfUri = newUri;
+      }
+
+      if (pdfUri) {
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(pdf.filePath, {
+          await Sharing.shareAsync(pdfUri, {
             mimeType: "application/pdf",
             dialogTitle: `شارك ملف ${profile.name}`,
             UTI: "com.adobe.pdf",
           });
         }
-        return pdf.filePath;
+        return pdfUri;
       }
 
       throw new Error("Failed to generate PDF");

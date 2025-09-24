@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Image } from 'react-native';
 import {
   fetchFeaturedNews,
   fetchRecentNews,
@@ -41,6 +42,16 @@ const createErrorMessage = (error: unknown) => {
   return 'حدث خطأ أثناء تحميل الأخبار.';
 };
 
+const prefetchHeroImages = (articles: NewsArticle[]) => {
+  articles.forEach((article) => {
+    if (article.heroImage) {
+      Image.prefetch(article.heroImage).catch(() => {
+        // Ignore prefetch failures
+      });
+    }
+  });
+};
+
 export const useNewsStore = create<NewsStore>((set, get) => ({
   featured: [],
   recent: [],
@@ -75,6 +86,9 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
       const featured = featuredRes.articles;
       const recent = recentRes.articles;
 
+      prefetchHeroImages(featured);
+      prefetchHeroImages(recent);
+
       set({
         featured,
         recent,
@@ -85,7 +99,16 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
         recentTotalPages: recentRes.totalPages,
         hasMoreFeatured: featuredRes.totalPages > 1,
         hasMoreRecent: recentRes.totalPages > 1,
+        featuredPrefetch: null,
+        recentPrefetch: null,
       });
+
+      if (featuredRes.totalPages > 1) {
+        get().prefetchFeatured();
+      }
+      if (recentRes.totalPages > 1) {
+        get().prefetchRecent();
+      }
     } catch (error) {
       set({
         status: 'error',
@@ -108,6 +131,9 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
       const featured = featuredRes.articles;
       const recent = recentRes.articles;
 
+      prefetchHeroImages(featured);
+      prefetchHeroImages(recent);
+
       set({
         featured,
         recent,
@@ -118,7 +144,16 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
         recentTotalPages: recentRes.totalPages,
         hasMoreFeatured: featuredRes.totalPages > 1,
         hasMoreRecent: recentRes.totalPages > 1,
+        featuredPrefetch: null,
+        recentPrefetch: null,
       });
+
+      if (featuredRes.totalPages > 1) {
+        get().prefetchFeatured();
+      }
+      if (recentRes.totalPages > 1) {
+        get().prefetchRecent();
+      }
     } catch (error) {
       set({ errorMessage: createErrorMessage(error) });
     } finally {
@@ -147,6 +182,8 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
       const prefetched = get().featuredPrefetch;
       let response: NewsResponse = prefetched ?? (await fetchFeaturedNews(nextPage));
 
+      prefetchHeroImages(response.articles);
+
       set((state) => ({
         featured: [...state.featured, ...response.articles],
         featuredPage: response.articles.length ? nextPage : state.featuredPage,
@@ -154,6 +191,10 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
         hasMoreFeatured: nextPage < response.totalPages,
         featuredPrefetch: null,
       }));
+
+      if (response.totalPages > nextPage) {
+        get().prefetchFeatured();
+      }
     } catch (error) {
       set({ errorMessage: createErrorMessage(error) });
     } finally {
@@ -182,6 +223,8 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
       const prefetched = get().recentPrefetch;
       let response: NewsResponse = prefetched ?? (await fetchRecentNews(nextPage));
 
+      prefetchHeroImages(response.articles);
+
       set((state) => ({
         recent: [...state.recent, ...response.articles],
         recentPage: response.articles.length ? nextPage : state.recentPage,
@@ -189,6 +232,10 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
         hasMoreRecent: nextPage < response.totalPages,
         recentPrefetch: null,
       }));
+
+      if (response.totalPages > nextPage) {
+        get().prefetchRecent();
+      }
     } catch (error) {
       set({ errorMessage: createErrorMessage(error) });
     } finally {
@@ -213,6 +260,7 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
     try {
       const nextPage = featuredPage + 1;
       const response = await fetchFeaturedNews(nextPage);
+      prefetchHeroImages(response.articles);
       set({ featuredPrefetch: response });
     } catch (error) {
       // Prefetch failures are non-fatal, ignore
@@ -238,6 +286,7 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
     try {
       const nextPage = recentPage + 1;
       const response = await fetchRecentNews(nextPage);
+      prefetchHeroImages(response.articles);
       set({ recentPrefetch: response });
     } catch (error) {
       // Ignore prefetch errors
