@@ -28,6 +28,7 @@ import Button from "../ui/Button";
 import profilesService from "../../services/profiles";
 import { handleSupabaseError } from "../../services/supabase";
 import appConfig from "../../config/appConfig";
+import familyNameService from "../../services/familyNameService";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -272,11 +273,15 @@ export default function MarriageEditor({
       // First, create the new person as Munasib (no HID)
       // Note: Currently the admin_create_profile function auto-generates HID
       // This will need to be handled differently when the database supports nullable HIDs
+      // Extract family origin from the spouse name
+      const familyOrigin = familyNameService.extractFamilyName(spouseName.trim());
+
       const newPersonData = {
         name: spouseName.trim(),
         gender: spouseGender,
         generation: person.generation, // Same generation as spouse
         is_root: false,
+        family_origin: familyOrigin, // Add family origin for Munasib tracking
         // TODO: Add is_munasib: true when database supports it
         // This flag would prevent HID generation for married-in spouses
       };

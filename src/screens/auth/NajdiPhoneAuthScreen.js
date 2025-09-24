@@ -147,6 +147,18 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     ]).start();
   };
 
+  // Convert Arabic numerals to Western numerals
+  const convertArabicToWestern = (text) => {
+    const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+    const westernNumerals = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+    let converted = text;
+    for (let i = 0; i < arabicNumerals.length; i++) {
+      converted = converted.replace(new RegExp(arabicNumerals[i], 'g'), westernNumerals[i]);
+    }
+    return converted;
+  };
+
   const formatPhoneDisplay = (text) => {
     // Simply return the digits without spacing for display
     // This prevents confusing cursor jumps while typing
@@ -154,8 +166,10 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
   };
 
   const handlePhoneChange = (text) => {
+    // Convert Arabic numerals to Western first
+    const convertedText = convertArabicToWestern(text);
     // Only allow digits
-    const digitsOnly = text.replace(/\D/g, "");
+    const digitsOnly = convertedText.replace(/\D/g, "");
     setPhoneNumber(digitsOnly.slice(0, 9)); // Max 9 digits for Saudi numbers
   };
 
@@ -193,8 +207,10 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     // Clear error when user starts typing
     if (error) setError("");
 
+    // Convert Arabic numerals to Western first
+    const convertedValue = convertArabicToWestern(value);
     // Only allow digits and limit to 4
-    const digits = value.replace(/\D/g, "").slice(0, 4);
+    const digits = convertedValue.replace(/\D/g, "").slice(0, 4);
     setOtp(digits);
 
     // Auto-submit when 4 digits entered

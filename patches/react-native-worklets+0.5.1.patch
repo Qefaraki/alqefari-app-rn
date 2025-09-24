@@ -1,7 +1,0 @@
-diff --git a/node_modules/react-native-worklets/package.json b/node_modules/react-native-worklets/package.json
-index 31f5187..7352bc8 100644
---- a/node_modules/react-native-worklets/package.json
-+++ b/node_modules/react-native-worklets/package.json
-@@
--  "react-native": "./src/index",
-+  "react-native": "./lib/module/index",

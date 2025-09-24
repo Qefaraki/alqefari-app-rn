@@ -8,10 +8,10 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
-  Image,
   Alert,
   RefreshControl,
   Animated,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { toArabicNumerals } from "../../utils/dateUtils";
 import pdfExportService from "../../services/pdfExport";
+import familyNameService from "../../services/familyNameService";
 
 // Design system colors
 const colors = {
@@ -31,27 +32,30 @@ const colors = {
   accent: "#957EB5", // Lavender (Munasib color)
   success: "#4CAF50",
   error: "#F44336",
+  warning: "#FF9800",
 };
 
 // Desert palette for avatars
-const AVATAR_COLORS = [
+const FAMILY_COLORS = [
   "#A13333", // Najdi Crimson
   "#D58C4A", // Desert Ochre
   "#957EB5", // Lavender
   "#736372", // Muted Plum
   "#8B7355", // Desert Brown
+  "#6B8E23", // Olive
+  "#CD853F", // Peru
+  "#DAA520", // Goldenrod
 ];
 
 export default function MunasibManager({ onBack }) {
-  const [munasibProfiles, setMunasibProfiles] = useState([]);
-  const [filteredProfiles, setFilteredProfiles] = useState([]);
-  const [marriages, setMarriages] = useState([]);
   const [familyStats, setFamilyStats] = useState([]);
+  const [selectedFamily, setSelectedFamily] = useState(null);
+  const [familyMembers, setFamilyMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedFamily, setSelectedFamily] = useState(null);
-  const [selectedProfile, setSelectedProfile] = useState(null);
+  const [filteredStats, setFilteredStats] = useState([]);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   // Animation values
@@ -59,7 +63,7 @@ export default function MunasibManager({ onBack }) {
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    loadMunasibData();
+    loadFamilyStats();
 
     // Start animations
     Animated.parallel([
@@ -77,421 +81,518 @@ export default function MunasibManager({ onBack }) {
   }, []);
 
   useEffect(() => {
-    filterProfiles();
-  }, [searchQuery, selectedFamily, munasibProfiles]);
+    filterFamilies();
+  }, [searchQuery, familyStats]);
 
-  const loadMunasibData = async () => {
+  const loadFamilyStats = async () => {
     try {
       setLoading(true);
 
-      // Fetch Munasib profiles (those without HID)
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .is("hid", null)
-        .order("name");
-
-      if (profilesError) throw profilesError;
-
-      // Fetch marriages involving Munasib
-      const { data: marriagesData, error: marriagesError } = await supabase
-        .from("marriages")
-        .select(
-          `
-          *,
-          husband:profiles!marriages_husband_id_fkey(id, name, hid, photo_url, generation),
-          wife:profiles!marriages_wife_id_fkey(id, name, hid, photo_url, generation)
-        `
-        )
-        .or(`husband_id.in.(${profiles.map((p) => p.id).join(",")}),wife_id.in.(${profiles.map((p) => p.id).join(",")})`);
-
-      if (marriagesError) throw marriagesError;
-
-      // Process family statistics
-      const familyGroups = {};
-      profiles.forEach((profile) => {
-        // Extract family name (last part of name)
-        const familyName = profile.name?.split(" ").pop() || "غير محدد";
-        if (!familyGroups[familyName]) {
-          familyGroups[familyName] = {
-            name: familyName,
-            count: 0,
-            males: 0,
-            females: 0,
-            profiles: [],
-          };
-        }
-        familyGroups[familyName].count++;
-        familyGroups[familyName].profiles.push(profile.id);
-
-        if (profile.gender === "male") {
-          familyGroups[familyName].males++;
-        } else {
-          familyGroups[familyName].females++;
-        }
-      });
-
-      // Convert to array and sort by count
-      const familyStatsArray = Object.values(familyGroups).sort(
-        (a, b) => b.count - a.count
+      // Get family connection statistics
+      const { data: stats, error: statsError } = await supabase.rpc(
+        "get_family_connection_stats"
       );
 
-      setMunasibProfiles(profiles || []);
-      setMarriages(marriagesData || []);
-      setFamilyStats(familyStatsArray);
-      setFilteredProfiles(profiles || []);
+      if (statsError) {
+        console.error("Stats error:", statsError);
+        // Fallback to direct query
+        await loadFamilyStatsFallback();
+        return;
+      }
+
+      // Process and sort statistics
+      const processedStats = (stats || []).map((stat, index) => ({
+        ...stat,
+        color: FAMILY_COLORS[index % FAMILY_COLORS.length],
+        displayName: stat.family_name || "غير محدد",
+      }));
+
+      setFamilyStats(processedStats);
+      setFilteredStats(processedStats);
     } catch (error) {
-      console.error("Error loading Munasib data:", error);
-      Alert.alert("خطأ", "فشل تحميل بيانات المنتسبين");
+      console.error("Error loading family stats:", error);
+      Alert.alert("خطأ", "فشل تحميل إحصائيات العائلات");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const filterProfiles = () => {
-    let filtered = [...munasibProfiles];
+  const loadFamilyStatsFallback = async () => {
+    try {
+      // Get all Munasib profiles
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .is("hid", null)
+        .order("name");
 
-    // Filter by search query
-    if (searchQuery.trim()) {
-      const query = searchQuery.trim().toLowerCase();
-      filtered = filtered.filter(
-        (profile) =>
-          profile.name?.toLowerCase().includes(query) ||
-          profile.phone?.includes(query) ||
-          profile.location?.toLowerCase().includes(query)
-      );
-    }
+      if (error) throw error;
 
-    // Filter by selected family
-    if (selectedFamily) {
-      filtered = filtered.filter((profile) => {
-        const familyName = profile.name?.split(" ").pop();
-        return familyName === selectedFamily;
+      // Get marriages for these profiles
+      const profileIds = profiles.map((p) => p.id);
+      const { data: marriages, error: marriageError } = await supabase
+        .from("marriages")
+        .select(
+          `
+          *,
+          husband:profiles!marriages_husband_id_fkey(id, name, hid, generation),
+          wife:profiles!marriages_wife_id_fkey(id, name, hid, generation)
+        `
+        )
+        .or(
+          `husband_id.in.(${profileIds.join(",")}),wife_id.in.(${profileIds.join(",")})`
+        );
+
+      if (marriageError) throw marriageError;
+
+      // Group by family
+      const familyGroups = familyNameService.getFamilyStatistics(profiles);
+
+      // Add marriage counts
+      Object.values(familyGroups).forEach((group) => {
+        group.marriages = marriages.filter((m) =>
+          group.profiles.some((p) => p.id === m.husband_id || p.id === m.wife_id)
+        );
+        group.activeMarriages = group.marriages.filter(
+          (m) => m.status === "married"
+        ).length;
+        group.totalMarriages = group.marriages.length;
       });
-    }
 
-    setFilteredProfiles(filtered);
+      // Convert to array and sort
+      const statsArray = Object.values(familyGroups)
+        .map((group, index) => ({
+          family_name: group.name,
+          total_marriages: group.totalMarriages || group.count,
+          active_marriages: group.activeMarriages || 0,
+          male_spouses: group.males,
+          female_spouses: group.females,
+          generations: group.generations,
+          color: FAMILY_COLORS[index % FAMILY_COLORS.length],
+          displayName: group.name,
+        }))
+        .sort((a, b) => b.total_marriages - a.total_marriages);
+
+      setFamilyStats(statsArray);
+      setFilteredStats(statsArray);
+    } catch (error) {
+      console.error("Fallback error:", error);
+      setFamilyStats([]);
+      setFilteredStats([]);
+    }
   };
 
-  const getMarriageInfo = (profileId) => {
-    const marriage = marriages.find(
-      (m) => m.husband_id === profileId || m.wife_id === profileId
+  const filterFamilies = () => {
+    if (!searchQuery.trim()) {
+      setFilteredStats(familyStats);
+      return;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    const filtered = familyStats.filter((stat) =>
+      stat.displayName.toLowerCase().includes(query)
     );
 
-    if (!marriage) return null;
-
-    const isMunasibHusband = marriage.husband_id === profileId;
-    const spouse = isMunasibHusband ? marriage.wife : marriage.husband;
-
-    // Check if spouse is from Al-Qefari (has HID)
-    const isSpouseAlqefari = spouse?.hid !== null;
-
-    return {
-      spouse,
-      isSpouseAlqefari,
-      marriageDate: marriage.marriage_date,
-    };
+    setFilteredStats(filtered);
   };
 
-  const handleProfilePress = (profile) => {
-    const marriageInfo = getMarriageInfo(profile.id);
+  const loadFamilyMembers = async (familyName) => {
+    try {
+      setLoading(true);
+
+      // Get all marriages to this family
+      const { data, error } = await supabase.rpc("get_marriages_by_family", {
+        p_family_name: familyName,
+      });
+
+      if (error) {
+        console.error("Error loading family members:", error);
+        // Fallback query
+        await loadFamilyMembersFallback(familyName);
+        return;
+      }
+
+      setFamilyMembers(data || []);
+    } catch (error) {
+      console.error("Error:", error);
+      Alert.alert("خطأ", "فشل تحميل تفاصيل العائلة");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadFamilyMembersFallback = async (familyName) => {
+    try {
+      // Find all profiles with this family origin
+      const { data: munasibProfiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .ilike("family_origin", `%${familyName}%`)
+        .is("hid", null);
+
+      if (profileError) throw profileError;
+
+      // Get marriages for these profiles
+      const profileIds = munasibProfiles.map((p) => p.id);
+      const { data: marriages, error: marriageError } = await supabase
+        .from("marriages")
+        .select(
+          `
+          *,
+          husband:profiles!marriages_husband_id_fkey(*),
+          wife:profiles!marriages_wife_id_fkey(*)
+        `
+        )
+        .or(
+          `husband_id.in.(${profileIds.join(",")}),wife_id.in.(${profileIds.join(",")})`
+        );
+
+      if (marriageError) throw marriageError;
+
+      // Transform to member format
+      const members = marriages.map((m) => {
+        const isMunasibHusband = m.husband?.hid === null;
+        const alqefariMember = isMunasibHusband ? m.wife : m.husband;
+        const munasibSpouse = isMunasibHusband ? m.husband : m.wife;
+
+        return {
+          marriage_id: m.id,
+          alqefari_member_id: alqefariMember?.id,
+          alqefari_member_name: alqefariMember?.name || "غير معروف",
+          alqefari_member_hid: alqefariMember?.hid,
+          spouse_id: munasibSpouse?.id,
+          spouse_name: munasibSpouse?.name || "غير معروف",
+          spouse_family: munasibSpouse?.family_origin || familyName,
+          marriage_status: m.status,
+          marriage_date: m.start_date,
+          is_active: m.status === "married",
+        };
+      });
+
+      setFamilyMembers(members);
+    } catch (error) {
+      console.error("Fallback error:", error);
+      setFamilyMembers([]);
+    }
+  };
+
+  const handleFamilyPress = async (family) => {
+    setSelectedFamily(family);
+    await loadFamilyMembers(family.family_name);
+    setShowDetailsModal(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleMemberPress = (member) => {
+    const statusText =
+      member.marriage_status === "married"
+        ? "متزوج"
+        : member.marriage_status === "divorced"
+        ? "مطلق"
+        : "أرمل";
 
     Alert.alert(
-      profile.name || "غير معروف",
-      `${profile.gender === "male" ? "ذكر" : "أنثى"}${
-        profile.generation ? ` - الجيل ${toArabicNumerals(profile.generation)}` : ""
-      }${profile.phone ? `\nالهاتف: ${profile.phone}` : ""}${
-        profile.location ? `\nالمكان: ${profile.location}` : ""
-      }${
-        marriageInfo
-          ? `\n\n${profile.gender === "male" ? "متزوج من" : "متزوجة من"}: ${
-              marriageInfo.spouse?.name || "غير معروف"
-            }${
-              marriageInfo.isSpouseAlqefari
-                ? ` (من عائلة القفاري - ${marriageInfo.spouse.hid})`
-                : " (منتسب)"
-            }`
-          : ""
+      member.alqefari_member_name,
+      `${statusText} من ${member.spouse_name}\nمن عائلة ${member.spouse_family}\n${
+        member.alqefari_member_hid ? `HID: ${member.alqefari_member_hid}` : ""
       }`,
-      [{ text: "حسناً", style: "default" }]
+      [
+        {
+          text: "إغلاق",
+          style: "cancel",
+        },
+      ]
     );
   };
 
-  const handleExportMunasib = async () => {
+  const handleExportFamily = async (familyName) => {
     try {
       setExporting(true);
+      // TODO: Implement family-specific export
       await pdfExportService.exportMunasibReport();
     } catch (error) {
       console.error("Export error:", error);
+      Alert.alert("خطأ", "فشل تصدير التقرير");
     } finally {
       setExporting(false);
     }
   };
 
   const renderFamilyCard = ({ item, index }) => {
-    const isSelected = selectedFamily === item.name;
-    const avatarColor = AVATAR_COLORS[index % AVATAR_COLORS.length];
+    const percentage = Math.round(
+      (item.total_marriages / (familyStats[0]?.total_marriages || 1)) * 100
+    );
 
     return (
       <TouchableOpacity
-        style={[styles.familyCard, isSelected && styles.familyCardSelected]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          setSelectedFamily(isSelected ? null : item.name);
-        }}
+        style={styles.familyCard}
+        onPress={() => handleFamilyPress(item)}
         activeOpacity={0.7}
       >
-        <View style={styles.familyRank}>
-          <Text style={styles.familyRankText}>{index + 1}</Text>
-        </View>
-
-        <View style={styles.familyContent}>
-          <Text style={styles.familyName}>{item.name}</Text>
+        <View style={styles.familyHeader}>
+          <View
+            style={[styles.familyIcon, { backgroundColor: item.color + "20" }]}
+          >
+            <Text style={[styles.familyInitial, { color: item.color }]}>
+              {item.displayName.charAt(0)}
+            </Text>
+          </View>
+          <View style={styles.familyInfo}>
+            <Text style={styles.familyName}>{item.displayName}</Text>
+            <Text style={styles.familySubtitle}>
+              {toArabicNumerals(item.total_marriages)} زواج
+              {item.active_marriages > 0 &&
+                ` (${toArabicNumerals(item.active_marriages)} نشط)`}
+            </Text>
+          </View>
           <View style={styles.familyStats}>
-            <Text style={styles.familyStat}>
-              {toArabicNumerals(item.count)} فرد
-            </Text>
-            <Text style={styles.familyStatSeparator}>•</Text>
-            <Text style={styles.familyStat}>
-              {toArabicNumerals(item.males)} ذكر
-            </Text>
-            <Text style={styles.familyStatSeparator}>•</Text>
-            <Text style={styles.familyStat}>
-              {toArabicNumerals(item.females)} أنثى
-            </Text>
+            <View
+              style={[styles.percentageBadge, { borderColor: item.color }]}
+            >
+              <Text style={[styles.percentageText, { color: item.color }]}>
+                {toArabicNumerals(percentage)}%
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </View>
         </View>
 
-        <View
-          style={[
-            styles.familyPercentage,
-            { backgroundColor: avatarColor + "20", borderColor: avatarColor },
-          ]}
-        >
-          <Text style={[styles.familyPercentageText, { color: avatarColor }]}>
-            {toArabicNumerals(
-              Math.round((item.count / munasibProfiles.length) * 100)
-            )}
-            %
+        <View style={styles.familyDetails}>
+          <View style={styles.detailItem}>
+            <Ionicons name="male" size={16} color={colors.primary} />
+            <Text style={styles.detailText}>
+              {toArabicNumerals(item.male_spouses)} ذكور
+            </Text>
+          </View>
+          <View style={styles.detailDivider} />
+          <View style={styles.detailItem}>
+            <Ionicons name="female" size={16} color={colors.accent} />
+            <Text style={styles.detailText}>
+              {toArabicNumerals(item.female_spouses)} إناث
+            </Text>
+          </View>
+          {item.generations && item.generations.length > 0 && (
+            <>
+              <View style={styles.detailDivider} />
+              <View style={styles.detailItem}>
+                <Ionicons name="git-branch" size={16} color={colors.secondary} />
+                <Text style={styles.detailText}>
+                  أجيال {item.generations.map(toArabicNumerals).join("، ")}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderMemberItem = ({ item }) => {
+    const statusColor =
+      item.marriage_status === "married"
+        ? colors.success
+        : item.marriage_status === "divorced"
+        ? colors.warning
+        : colors.textSecondary;
+
+    const statusIcon =
+      item.marriage_status === "married"
+        ? "checkmark-circle"
+        : item.marriage_status === "divorced"
+        ? "close-circle"
+        : "alert-circle";
+
+    return (
+      <TouchableOpacity
+        style={styles.memberCard}
+        onPress={() => handleMemberPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.memberHeader}>
+          <View style={styles.memberInfo}>
+            <Text style={styles.memberName}>{item.alqefari_member_name}</Text>
+            <Text style={styles.memberHID}>{item.alqefari_member_hid || "—"}</Text>
+          </View>
+          <Ionicons name="heart" size={16} color={colors.primary} />
+          <View style={styles.memberInfo}>
+            <Text style={styles.spouseName}>{item.spouse_name}</Text>
+            <Text style={styles.spouseFamily}>من عائلة {item.spouse_family}</Text>
+          </View>
+        </View>
+        <View style={styles.memberStatus}>
+          <Ionicons name={statusIcon} size={20} color={statusColor} />
+          <Text style={[styles.statusText, { color: statusColor }]}>
+            {item.marriage_status === "married"
+              ? "متزوج"
+              : item.marriage_status === "divorced"
+              ? "مطلق"
+              : "أرمل"}
           </Text>
         </View>
       </TouchableOpacity>
     );
   };
 
-  const renderProfileCard = ({ item, index }) => {
-    const marriageInfo = getMarriageInfo(item.id);
-    const avatarColor = AVATAR_COLORS[index % AVATAR_COLORS.length];
-    const initials = item.name ? item.name.charAt(0) : "؟";
-
+  if (loading && !refreshing) {
     return (
-      <TouchableOpacity
-        style={styles.profileCard}
-        onPress={() => handleProfilePress(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.profileContent}>
-          {/* Avatar */}
-          {item.photo_url ? (
-            <Image source={{ uri: item.photo_url }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarPlaceholder, { backgroundColor: avatarColor }]}>
-              <Text style={styles.avatarText}>{initials}</Text>
-            </View>
-          )}
-
-          {/* Profile Info */}
-          <View style={styles.profileInfo}>
-            <Text style={styles.profileName} numberOfLines={1}>
-              {item.name || "غير معروف"}
-            </Text>
-            <View style={styles.profileMeta}>
-              <View style={styles.munasibBadge}>
-                <Text style={styles.munasibBadgeText}>منتسب</Text>
-              </View>
-              {marriageInfo && marriageInfo.isSpouseAlqefari && (
-                <>
-                  <Text style={styles.metaDot}>•</Text>
-                  <Text style={styles.marriageText}>
-                    متزوج{item.gender === "female" ? "ة" : ""} من القفاري
-                  </Text>
-                </>
-              )}
-            </View>
-          </View>
-
-          {/* Chevron */}
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={colors.textSecondary}
-          />
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>جارِ تحميل العائلات المتصلة...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>إدارة المنتسبين</Text>
-        <TouchableOpacity
-          style={styles.exportButton}
-          onPress={handleExportMunasib}
-          disabled={exporting}
-        >
-          {exporting ? (
-            <ActivityIndicator size="small" color={colors.primary} />
-          ) : (
-            <Ionicons name="download-outline" size={24} color={colors.primary} />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              loadMunasibData();
-            }}
-            tintColor={colors.primary}
-          />
-        }
+    <SafeAreaView style={styles.container}>
+      <Animated.View
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
       >
-        {/* Statistics Card */}
-        <Animated.View
-          style={[
-            styles.statsCard,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <Text style={styles.statsTitle}>إحصائيات المنتسبين</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {toArabicNumerals(munasibProfiles.length)}
-              </Text>
-              <Text style={styles.statLabel}>إجمالي المنتسبين</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {toArabicNumerals(familyStats.length)}
-              </Text>
-              <Text style={styles.statLabel}>عائلة مختلفة</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>
-                {toArabicNumerals(
-                  marriages.filter(
-                    (m) =>
-                      (!m.husband?.hid && m.wife?.hid) ||
-                      (m.husband?.hid && !m.wife?.hid)
-                  ).length
-                )}
-              </Text>
-              <Text style={styles.statLabel}>زواج من القفاري</Text>
-            </View>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>العائلات المتصلة</Text>
+            <Text style={styles.subtitle}>
+              {toArabicNumerals(filteredStats.length)} عائلة
+            </Text>
           </View>
-        </Animated.View>
+          <TouchableOpacity
+            style={styles.exportButton}
+            onPress={() => handleExportFamily(null)}
+            disabled={exporting}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="download-outline" size={24} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        </View>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color={colors.textSecondary}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="ابحث بالاسم أو الهاتف..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
-        </View>
-
-        {/* Top Families */}
-        {!selectedFamily && searchQuery === "" && (
-          <View style={styles.familiesSection}>
-            <Text style={styles.sectionTitle}>العائلات الأكثر انتساباً</Text>
-            <FlatList
-              data={familyStats.slice(0, 5)}
-              renderItem={renderFamilyCard}
-              keyExtractor={(item) => item.name}
-              scrollEnabled={false}
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color={colors.textSecondary} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="ابحث عن عائلة..."
+              placeholderTextColor={colors.textSecondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
             />
-          </View>
-        )}
-
-        {/* Selected Family or Search Results */}
-        {(selectedFamily || searchQuery) && (
-          <View style={styles.filterHeader}>
-            {selectedFamily && (
-              <TouchableOpacity
-                style={styles.filterChip}
-                onPress={() => setSelectedFamily(null)}
-              >
-                <Text style={styles.filterChipText}>عائلة {selectedFamily}</Text>
-                <Ionicons name="close-circle" size={18} color={colors.primary} />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             )}
-            <Text style={styles.filterResultCount}>
-              {toArabicNumerals(filteredProfiles.length)} نتيجة
-            </Text>
           </View>
-        )}
-
-        {/* Profiles List */}
-        <View style={styles.profilesSection}>
-          <Text style={styles.sectionTitle}>
-            {selectedFamily
-              ? `أفراد عائلة ${selectedFamily}`
-              : searchQuery
-              ? "نتائج البحث"
-              : "جميع المنتسبين"}
-          </Text>
-          {filteredProfiles.length > 0 ? (
-            <FlatList
-              data={filteredProfiles}
-              renderItem={renderProfileCard}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="people-outline"
-                size={48}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.emptyText}>لا توجد نتائج</Text>
-            </View>
-          )}
         </View>
-      </ScrollView>
+
+        {/* Statistics Summary */}
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>
+              {toArabicNumerals(
+                familyStats.reduce((sum, f) => sum + f.total_marriages, 0)
+              )}
+            </Text>
+            <Text style={styles.summaryLabel}>إجمالي الزواجات</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>
+              {toArabicNumerals(
+                familyStats.reduce((sum, f) => sum + f.active_marriages, 0)
+              )}
+            </Text>
+            <Text style={styles.summaryLabel}>زواجات نشطة</Text>
+          </View>
+        </View>
+
+        {/* Family List */}
+        <FlatList
+          data={filteredStats}
+          renderItem={renderFamilyCard}
+          keyExtractor={(item) => item.family_name}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                loadFamilyStats();
+              }}
+              colors={[colors.primary]}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={64} color={colors.textSecondary} />
+              <Text style={styles.emptyText}>لا توجد عائلات متصلة</Text>
+            </View>
+          }
+        />
+      </Animated.View>
+
+      {/* Family Details Modal */}
+      <Modal
+        visible={showDetailsModal}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowDetailsModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowDetailsModal(false)}
+              style={styles.modalBackButton}
+            >
+              <Ionicons name="close" size={28} color={colors.text} />
+            </TouchableOpacity>
+            <View style={styles.modalTitleContainer}>
+              <Text style={styles.modalTitle}>
+                عائلة {selectedFamily?.displayName}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {toArabicNumerals(familyMembers.length)} زواج
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.modalExportButton}
+              onPress={() => handleExportFamily(selectedFamily?.family_name)}
+              disabled={exporting}
+            >
+              <Ionicons name="share-outline" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={familyMembers}
+            renderItem={renderMemberItem}
+            keyExtractor={(item) => item.marriage_id}
+            contentContainerStyle={styles.modalListContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>لا توجد بيانات</Text>
+              </View>
+            }
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -500,6 +601,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  content: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontFamily: "SF Arabic",
   },
 
   // Header
@@ -512,271 +627,282 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.container + "40",
   },
   backButton: {
-    padding: 4,
+    padding: 8,
+  },
+  titleContainer: {
+    flex: 1,
+    marginLeft: 8,
   },
   title: {
-    flex: 1,
-    fontSize: 34,
+    fontSize: 24,
     fontWeight: "700",
     color: colors.text,
     fontFamily: "SF Arabic",
-    textAlign: "center",
-    marginHorizontal: 16,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   exportButton: {
-    padding: 4,
+    padding: 8,
   },
 
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
+  // Search
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  searchBar: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: colors.container + "20",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: colors.container + "40",
+  },
+  searchInput: {
+    flex: 1,
+    marginHorizontal: 12,
+    fontSize: 16,
+    color: colors.text,
+    fontFamily: "SF Arabic",
   },
 
-  // Stats Card
-  statsCard: {
-    backgroundColor: "white",
+  // Summary
+  summaryContainer: {
+    flexDirection: "row",
     marginHorizontal: 16,
-    marginTop: 16,
+    marginBottom: 16,
+    backgroundColor: "white",
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 3,
   },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: colors.text,
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  statItem: {
+  summaryCard: {
+    flex: 1,
     alignItems: "center",
   },
-  statNumber: {
-    fontSize: 24,
+  summaryValue: {
+    fontSize: 28,
     fontWeight: "700",
-    color: colors.accent,
+    color: colors.primary,
+    fontFamily: "SF Arabic",
   },
-  statLabel: {
-    fontSize: 12,
+  summaryLabel: {
+    fontSize: 14,
     color: colors.textSecondary,
     marginTop: 4,
   },
-
-  // Search
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
+  summaryDivider: {
+    width: 1,
+    backgroundColor: colors.container + "40",
     marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.container + "40",
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-  },
-
-  // Sections
-  familiesSection: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  profilesSection: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: colors.text,
-    marginBottom: 12,
   },
 
   // Family Cards
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 100,
+  },
   familyCard: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 12,
     padding: 16,
-    borderRadius: 10,
-    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
     borderWidth: 1,
     borderColor: colors.container + "20",
   },
-  familyCardSelected: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accent + "08",
-  },
-  familyRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.accent + "20",
+  familyHeader: {
+    flexDirection: "row",
     alignItems: "center",
+  },
+  familyIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
-    marginRight: 12,
+    alignItems: "center",
   },
-  familyRankText: {
-    fontSize: 14,
+  familyInitial: {
+    fontSize: 20,
     fontWeight: "700",
-    color: colors.accent,
+    fontFamily: "SF Arabic",
   },
-  familyContent: {
+  familyInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   familyName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 4,
+    fontFamily: "SF Arabic",
+  },
+  familySubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   familyStats: {
     flexDirection: "row",
     alignItems: "center",
   },
-  familyStat: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  familyStatSeparator: {
-    marginHorizontal: 6,
-    color: colors.textSecondary,
-  },
-  familyPercentage: {
+  percentageBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  familyPercentageText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  // Profile Cards
-  profileCard: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.container + "20",
-    overflow: "hidden",
-  },
-  profileContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
-  },
-  avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "white",
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.text,
-    marginBottom: 4,
-  },
-  profileMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  munasibBadge: {
-    backgroundColor: colors.accent + "20",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  munasibBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: colors.accent,
-  },
-  metaDot: {
-    marginHorizontal: 6,
-    color: colors.textSecondary,
-    fontSize: 10,
-  },
-  marriageText: {
-    fontSize: 12,
-    color: colors.secondary,
-    fontWeight: "500",
-  },
-
-  // Filter
-  filterHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  filterChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primary + "10",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
     marginRight: 8,
   },
-  filterChipText: {
+  percentageText: {
     fontSize: 14,
-    color: colors.primary,
-    fontWeight: "500",
-    marginRight: 4,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
-  filterResultCount: {
-    fontSize: 14,
+  familyDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.container + "20",
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  detailText: {
+    fontSize: 13,
     color: colors.textSecondary,
-    marginLeft: "auto",
+    marginLeft: 4,
+  },
+  detailDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: colors.container + "40",
+    marginHorizontal: 12,
   },
 
   // Empty State
-  emptyState: {
+  emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 48,
+    paddingVertical: 64,
   },
   emptyText: {
     fontSize: 16,
     color: colors.textSecondary,
+    marginTop: 16,
+    fontFamily: "SF Arabic",
+  },
+
+  // Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.container + "40",
+  },
+  modalBackButton: {
+    padding: 8,
+  },
+  modalTitleContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  modalExportButton: {
+    padding: 8,
+  },
+  modalListContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 100,
+  },
+
+  // Member Cards
+  memberCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  memberHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+  },
+  memberHID: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  spouseName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    textAlign: "right",
+  },
+  spouseFamily: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textAlign: "right",
+  },
+  memberStatus: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.container + "20",
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginLeft: 8,
+    fontFamily: "SF Arabic",
   },
 });

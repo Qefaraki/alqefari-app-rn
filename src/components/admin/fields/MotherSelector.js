@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import CardSurface from "../../ios/CardSurface";
 import { supabase } from "../../../services/supabase";
+import familyNameService from "../../../services/familyNameService";
 
 // Enable RTL
 I18nManager.forceRTL(true);
