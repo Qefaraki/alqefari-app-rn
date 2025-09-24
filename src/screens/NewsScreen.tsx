@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Alert,
   FlatList,
@@ -10,74 +10,31 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useSettings } from '../contexts/SettingsContext';
-import { formatDateByPreference } from '../utils/dateDisplay';
-import { gregorianToHijri } from '../utils/hijriConverter';
-import { toArabicNumerals } from '../utils/dateUtils';
 import { useNewsStore } from '../stores/useNewsStore';
+import { useFormattedDate, useRelativeDate, useAbsoluteDate } from '../hooks/useFormattedDate';
+import { useDebounce } from '../hooks/useDebounce';
 import FeaturedNewsCarousel from '../components/ui/news/FeaturedNewsCarousel';
 import { RecentArticleItem, RecentArticleSkeleton } from '../components/ui/news/RecentArticleItem';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import tokens from '../components/ui/tokens';
 import NetworkError from '../components/NetworkError';
 
-const formatRelativeTime = (isoDate: string, useArabicNumerals: boolean) => {
-  const target = new Date(isoDate);
-  const now = new Date();
-  const diffMs = now.getTime() - target.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  const maybeConvert = (value: number) =>
-    useArabicNumerals ? toArabicNumerals(value) : value;
-
-  if (diffDays > 14) {
-    const g = {
-      day: target.getDate(),
-      month: target.getMonth() + 1,
-      year: target.getFullYear(),
-    };
-    const hijri = gregorianToHijri(g.year, g.month, g.day);
-    return formatDateByPreference({ gregorian: g, hijri }, { arabicNumerals: true });
-  }
-
-  if (diffDays >= 7) {
-    return diffDays < 14 ? 'منذ أسبوع' : 'منذ أسبوعين';
-  }
-
-  if (diffDays > 0) {
-    return `منذ ${maybeConvert(diffDays)} يوم`;
-  }
-
-  if (diffHours > 0) {
-    return `منذ ${maybeConvert(diffHours)} ساعة`;
-  }
-
-  if (diffMinutes > 0) {
-    return `منذ ${maybeConvert(diffMinutes)} دقيقة`;
-  }
-
-  return 'قبل لحظات';
-};
-
-const buildSubtitle = (article: NewsArticle, settings: any) => {
-  const date = new Date(article.publishedAt);
-  const gregorian = {
-    day: date.getDate(),
-    month: date.getMonth() + 1,
-    year: date.getFullYear(),
-  };
-  const hijri = gregorianToHijri(gregorian.year, gregorian.month, gregorian.day);
-  const formatted = formatDateByPreference({ gregorian, hijri }, settings);
-  if (formatted) {
-    return formatted;
-  }
-  return formatRelativeTime(article.publishedAt, settings?.arabicNumerals);
+// Helper component to properly handle date formatting with hooks
+const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> = ({ article, onPress }) => {
+  const subtitle = useRelativeDate(article.publishedAt);
+  return (
+    <RecentArticleItem
+      article={article}
+      subtitle={subtitle}
+      onPress={onPress}
+    />
+  );
 };
 
 const NewsScreen: React.FC = () => {
-  const { settings } = useSettings();
+  // Ref to track scroll position and prevent jumps
+  const flatListRef = useRef<FlatList>(null);
+  const scrollPositionRef = useRef(0);
 
   const featured = useNewsStore((state) => state.featured);
   const recent = useNewsStore((state) => state.recent);
@@ -99,16 +56,8 @@ const NewsScreen: React.FC = () => {
     loadInitial();
   }, [loadInitial]);
 
-  const headerDate = useMemo(() => {
-    const now = new Date();
-    const g = {
-      day: now.getDate(),
-      month: now.getMonth() + 1,
-      year: now.getFullYear(),
-    };
-    const hijri = gregorianToHijri(g.year, g.month, g.day);
-    return formatDateByPreference({ gregorian: g, hijri }, settings);
-  }, [settings]);
+  // Use the new unified date formatting hook for header
+  const headerDate = useAbsoluteDate(new Date());
 
   const handleOpenArticle = useCallback((article: NewsArticle) => {
     if (article.permalink) {
@@ -121,10 +70,36 @@ const NewsScreen: React.FC = () => {
     Alert.alert('لا يوجد رابط', stripHtmlForDisplay(article.summary || ''));
   }, []);
 
-  const handleLoadMoreRecent = useCallback(() => {
-    if (!hasMoreRecent || isLoadingMoreRecent) return;
+  // Debounced load more to prevent multiple triggers
+  const handleLoadMoreRecent = useDebounce(() => {
+    if (!hasMoreRecent || isLoadingMoreRecent || status !== 'ready') return;
+
+    // Save current scroll position before loading more
+    const currentPosition = scrollPositionRef.current;
+
     loadMoreRecent();
-  }, [hasMoreRecent, isLoadingMoreRecent, loadMoreRecent]);
+
+    // Restore scroll position after new items are loaded
+    setTimeout(() => {
+      flatListRef.current?.scrollToOffset({
+        offset: currentPosition,
+        animated: false
+      });
+    }, 100);
+  }, 500);
+
+  // Debounced prefetch for better performance
+  const handlePrefetchRecent = useDebounce(() => {
+    if (status === 'ready' && hasMoreRecent) {
+      prefetchRecent();
+    }
+  }, 1000);
+
+  const handlePrefetchFeatured = useDebounce(() => {
+    if (status === 'ready' && hasMoreFeatured) {
+      prefetchFeatured();
+    }
+  }, 1000);
 
   const headerComponent = useMemo(() => (
     <View style={styles.headerContainer}>
@@ -144,22 +119,21 @@ const NewsScreen: React.FC = () => {
         loading={status === 'loading' && featured.length === 0}
         loadingMore={isLoadingMoreFeatured}
         onArticlePress={handleOpenArticle}
-        renderSubtitle={(article) => buildSubtitle(article, settings)}
         onEndReached={() => {
           if (!hasMoreFeatured || isLoadingMoreFeatured) return;
           loadMoreFeatured();
         }}
         onMomentumScrollEnd={({ nativeEvent }) => {
-          if (status !== 'ready') return;
           const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-          if (contentOffset.x + layoutMeasurement.width >= contentSize.width * 0.7) {
-            prefetchFeatured();
+          // Trigger prefetch at 90% scroll instead of 70%
+          if (contentOffset.x + layoutMeasurement.width >= contentSize.width * 0.9) {
+            handlePrefetchFeatured();
           }
         }}
       />
       <Text style={styles.sectionTitle}>آخر المقالات</Text>
     </View>
-  ), [featured, headerDate, hasMoreFeatured, isLoadingMoreFeatured, loadMoreFeatured, handleOpenArticle, prefetchFeatured, settings, status]);
+  ), [featured, headerDate, hasMoreFeatured, isLoadingMoreFeatured, loadMoreFeatured, handleOpenArticle, handlePrefetchFeatured, status]);
 
   if (status === 'error' && featured.length === 0 && recent.length === 0) {
     return (
@@ -178,13 +152,12 @@ const NewsScreen: React.FC = () => {
     }
     const article = item as NewsArticle;
     return (
-      <RecentArticleItem
+      <ArticleWithDate
         article={article}
-        subtitle={buildSubtitle(article, settings)}
         onPress={() => handleOpenArticle(article)}
       />
     );
-  }, [handleOpenArticle, isLoadingInitial, settings]);
+  }, [handleOpenArticle, isLoadingInitial]);
 
   const keyExtractor = useCallback((item: NewsArticle | any, index: number) => {
     if (isLoadingInitial) {
@@ -196,26 +169,33 @@ const NewsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
+        ref={flatListRef}
         data={listData as any[]}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={headerComponent}
         initialNumToRender={6}
         windowSize={5}
+        maxToRenderPerBatch={3}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews={true}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={tokens.colors.najdi.primary} />
         }
         contentContainerStyle={styles.listContent}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.8}
         onEndReached={handleLoadMoreRecent}
-        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+        // Prevent scroll jump by maintaining position manually
         onScroll={({ nativeEvent }) => {
-          if (status !== 'ready') return;
           const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
-          if (contentOffset.y + layoutMeasurement.height >= contentSize.height * 0.7) {
-            prefetchRecent();
+          scrollPositionRef.current = contentOffset.y;
+
+          // Trigger prefetch at 90% scroll
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height * 0.9) {
+            handlePrefetchRecent();
           }
         }}
+        scrollEventThrottle={16}
         ListEmptyComponent={!isLoadingInitial ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>لا توجد أخبار حالياً</Text>

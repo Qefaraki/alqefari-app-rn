@@ -3,6 +3,7 @@ import { Image } from 'react-native';
 import {
   fetchFeaturedNews,
   fetchRecentNews,
+  clearNewsCache,
   NewsArticle,
   NewsResponse,
 } from '../services/news';
@@ -123,6 +124,9 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
     set({ isRefreshing: true, errorMessage: undefined });
 
     try {
+      // Clear cache on pull-to-refresh for immediate fresh content
+      await clearNewsCache();
+
       const [featuredRes, recentRes] = await Promise.all([
         fetchFeaturedNews(1),
         fetchRecentNews(1),

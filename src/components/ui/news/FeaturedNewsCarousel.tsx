@@ -10,7 +10,6 @@ type Props = {
   articles: NewsArticle[];
   loading?: boolean;
   onArticlePress: (article: NewsArticle) => void;
-  renderSubtitle: (article: NewsArticle) => string;
   onEndReached?: () => void;
   loadingMore?: boolean;
   onMomentumScrollEnd?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
@@ -18,15 +17,16 @@ type Props = {
 
 const patternSource = require('../../../../assets/sadu_patterns/png/14.png');
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+const HORIZONTAL_PADDING = 16;
 const CARD_SPACING = 12;
+// Simpler card width calculation - 85% of screen width for better visibility
+const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.85);
 const SNAP_INTERVAL = CARD_WIDTH + CARD_SPACING;
 
 const FeaturedNewsCarousel: React.FC<Props> = ({
   articles,
   loading = false,
   onArticlePress,
-  renderSubtitle,
   onEndReached,
   loadingMore = false,
   onMomentumScrollEnd,
@@ -64,6 +64,7 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
         snapToAlignment="start"
         decelerationRate="fast"
         disableIntervalMomentum
+        pagingEnabled={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onMomentumScrollEnd={onMomentumScrollEnd}
@@ -85,7 +86,6 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
             >
               <NewsCard
                 article={article}
-                subtitle={renderSubtitle(article)}
                 onPress={() => onArticlePress(article)}
               />
             </View>
@@ -140,26 +140,28 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 4,
-    paddingRight: 16,
-    paddingLeft: 16,
+    // No horizontal padding - cards handle their own spacing
   },
   cardWrapper: {
     marginRight: CARD_SPACING,
   },
   cardWrapperFirst: {
-    marginLeft: 0,
+    marginLeft: HORIZONTAL_PADDING, // Edge spacing for first item
   },
   cardWrapperLast: {
-    marginRight: 0,
+    marginRight: HORIZONTAL_PADDING, // Edge spacing for last item
   },
   skeletonCard: {
     width: CARD_WIDTH,
     marginRight: CARD_SPACING,
     backgroundColor: tokens.colors.najdi.background,
+    borderWidth: 1,
+    borderColor: `${tokens.colors.najdi.container}30`,
   },
   skeletonImage: {
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
+    backgroundColor: `${tokens.colors.najdi.container}20`,
   },
   skeletonContent: {
     paddingHorizontal: 18,

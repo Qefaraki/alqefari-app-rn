@@ -4,7 +4,9 @@ const API_BASE = 'https://alqefari.com/wp-json/wp/v2/posts';
 const FEATURED_CATEGORY = 1369;
 const FEATURED_PAGE_SIZE = 5;
 const RECENT_PAGE_SIZE = 6;
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+// Smart cache TTL: shorter for news content
+const CACHE_TTL_RECENT = 3 * 60 * 60 * 1000; // 3 hours for recent articles
+const CACHE_TTL_FEATURED = 6 * 60 * 60 * 1000; // 6 hours for featured articles
 const CACHE_DIR = `${FileSystem.cacheDirectory}news-cache`;
 const REQUEST_TIMEOUT = 8000; // 8 seconds
 
@@ -40,6 +42,7 @@ type CacheEntry = {
   payload: NewsArticle[];
   totalPages: number;
   totalItems: number;
+  cacheType?: 'recent' | 'featured';
 };
 
 export type NewsResponse = {
@@ -73,7 +76,11 @@ const readFromCache = async (key: string): Promise<CacheEntry | null> => {
     const raw = await FileSystem.readAsStringAsync(filePath);
     const parsed: CacheEntry = JSON.parse(raw);
 
-    if (Date.now() - parsed.timestamp > CACHE_TTL) {
+    // Use different TTL based on cache type
+    const isRecent = key.includes('recent');
+    const ttl = isRecent ? CACHE_TTL_RECENT : CACHE_TTL_FEATURED;
+
+    if (Date.now() - parsed.timestamp > ttl) {
       await FileSystem.deleteAsync(filePath, { idempotent: true });
       return null;
     }
@@ -97,6 +104,7 @@ const writeToCache = async (
       payload,
       totalPages,
       totalItems,
+      cacheType: key.includes('recent') ? 'recent' : 'featured',
     };
     await FileSystem.writeAsStringAsync(cachePathForKey(key), JSON.stringify(entry));
   } catch (error) {
@@ -277,6 +285,33 @@ export const clearNewsCache = async () => {
   } catch (error) {
     // No-op
   }
+};
+
+// Check if cache has newer content available
+export const checkForNewContent = async (): Promise<boolean> => {
+  try {
+    // Quick HEAD request to check if content has changed
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(`${API_BASE}?per_page=1`, {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (response.ok) {
+      const lastModified = response.headers.get('Last-Modified');
+      if (lastModified) {
+        // Store and compare last modified times
+        // Implementation depends on your needs
+        return true; // For now, always suggest checking for new content
+      }
+    }
+  } catch (error) {
+    // Ignore check failures
+  }
+  return false;
 };
 
 export const stripHtmlForDisplay = stripHtml;

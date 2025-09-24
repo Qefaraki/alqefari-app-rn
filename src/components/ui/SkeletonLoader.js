@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { View, Animated, StyleSheet } from "react-native";
+import tokens from './tokens';
 
 const SkeletonLoader = ({
   width = "100%",
@@ -30,9 +31,10 @@ const SkeletonLoader = ({
     return () => shimmerAnimation.stop();
   }, [shimmerAnim, shimmerSpeed]);
 
+  // Enhanced shimmer effect with better visibility
   const opacity = shimmerAnim.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0.3, 0.7, 0.3],
+    outputRange: [0.2, 1.0, 0.2], // Much more visible shimmer
   });
 
   return (
@@ -86,21 +88,21 @@ export const SkeletonStatBox = ({ style = {} }) => {
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: "#e5e7eb",
+    backgroundColor: `${tokens.colors.najdi.container}40`, // Use Najdi Camel Hair Beige at 40%
   },
   textContainer: {
     width: "100%",
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: `${tokens.colors.najdi.container}40`, // Camel Hair Beige 40%
   },
   statBox: {
-    backgroundColor: "#f3f4f6",
+    backgroundColor: `${tokens.colors.najdi.container}20`, // Camel Hair Beige 20%
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,

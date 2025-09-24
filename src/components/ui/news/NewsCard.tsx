@@ -5,18 +5,21 @@ import Surface from '../Surface';
 import tokens from '../tokens';
 import CachedImage from '../../CachedImage';
 import { NewsArticle } from '../../../services/news';
+import { useRelativeDate } from '../../../hooks/useFormattedDate';
 
 type Props = {
   article: NewsArticle;
-  subtitle: string;
   onPress: () => void;
 };
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = Math.min(320, SCREEN_WIDTH - 48);
+// Match carousel card width calculation
+const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.85);
 const HERO_HEIGHT = 168;
 
-const NewsCardComponent: React.FC<Props> = ({ article, subtitle, onPress }) => {
+const NewsCardComponent: React.FC<Props> = ({ article, onPress }) => {
+  const subtitle = useRelativeDate(article.publishedAt);
+
   return (
     <Surface style={styles.container} radius={18}>
       <Pressable style={styles.pressable} onPress={onPress} android_ripple={{ color: 'rgba(0,0,0,0.04)' }}>
@@ -51,7 +54,7 @@ const arePropsEqual = (prev: Props, next: Props) => {
     prev.article.title === next.article.title &&
     prev.article.summary === next.article.summary &&
     prev.article.heroImage === next.article.heroImage &&
-    prev.subtitle === next.subtitle &&
+    prev.article.publishedAt === next.article.publishedAt &&
     prev.onPress === next.onPress
   );
 };
@@ -67,7 +70,7 @@ const styles = StyleSheet.create({
   hero: {
     width: '100%',
     height: HERO_HEIGHT,
-    aspectRatio: 16 / 9,
+    // Removed aspectRatio to avoid conflict with fixed height
   },
   heroFallback: {
     alignItems: 'center',

@@ -21,7 +21,9 @@
     "submit:ios": "eas submit --platform ios --latest",
     "deploy": "eas build --platform ios --profile production --auto-submit",
     "deploy:preview": "eas build --platform ios --profile preview",
-    "postinstall": "npx patch-package || true"
+    "postinstall": "npx patch-package || true",
+    "dev:reset": "node scripts/fix-metro.js && npm run start:clean",
+    "dev:rebuild": "node scripts/fix-metro.js && npx expo run:ios --clear"
   },
   "dependencies": {
     "@expo/ui": "~0.2.0-beta.4",
