@@ -48,14 +48,13 @@
 
 ### 2. Export System
 
-**Priority: COMPLETED**
-**Current State:** PDF export fully implemented
+**Priority: LOW - Not Working Properly**
+**Current State:** PDF export implemented but broken in dev build
 
-- ✅ **PDF Export Implementation**
-  - Family tree visualization as PDF with RTL support
-  - Individual profile reports
-  - Munasib-specific reports
-  - Uses react-native-html-to-pdf
+- ⚠️ **PDF Export Implementation**
+  - Code implemented with react-native-html-to-pdf and expo-print fallback
+  - Currently broken in dev build - needs fixing later
+  - Not a priority to fix
 - ❌ **CSV/JSON Export** - Not required (PDF only)
 - [ ] **Tree Image Export** - Optional future enhancement
 
@@ -215,7 +214,7 @@
 ### Must Have (P0)
 
 - ✅ No console errors from missing RPCs
-- ✅ PDF export working
+- ⚠️ PDF export (implemented but broken - not priority to fix)
 - ✅ Munasib management system
 - ✅ Golden highlight animation
 
