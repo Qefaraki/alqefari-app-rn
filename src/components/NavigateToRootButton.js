@@ -136,7 +136,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    right: 16,
+    left: 16,  // Move to left side of screen
     bottom: 100,
   },
   shadowWrapper: {

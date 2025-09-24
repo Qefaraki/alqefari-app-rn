@@ -53,6 +53,28 @@ export default function NativeTabBar({ activeTab, onTabPress }) {
 
             <Spacer />
 
+            {/* News Tab */}
+            <Button onPress={() => onTabPress("news")} variant="plain">
+              <VStack spacing={4}>
+                <Image
+                  systemName={
+                    activeTab === "news" ? "newspaper.fill" : "newspaper"
+                  }
+                  size={24}
+                  color={activeTab === "news" ? "#A13333" : "#736372"}
+                />
+                <Text
+                  size={11}
+                  color={activeTab === "news" ? "#A13333" : "#736372"}
+                  weight={activeTab === "news" ? "semibold" : "regular"}
+                >
+                  الأخبار
+                </Text>
+              </VStack>
+            </Button>
+
+            <Spacer />
+
             {/* Settings Tab */}
             <Button onPress={() => onTabPress("settings")} variant="plain">
               <VStack spacing={4}>

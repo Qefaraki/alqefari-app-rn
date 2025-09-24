@@ -60,6 +60,12 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    // Never show admin for anonymous users
+    if (user.is_anonymous) {
+      setIsAdmin(false);
+      return;
+    }
+
     try {
       // Use RPC function to bypass RLS issues
       const { data, error } = await supabase
@@ -69,7 +75,7 @@ export const AuthProvider = ({ children }) => {
         console.log("Admin check error:", error);
         setIsAdmin(false);
       } else {
-        console.log("Admin check for user:", user.id, "Result:", data);
+        console.log("Admin check for user:", user.id, "Result:", data, "Email:", user.email);
         setIsAdmin(data === true);
       }
     } catch (error) {

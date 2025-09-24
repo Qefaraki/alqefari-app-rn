@@ -12,6 +12,15 @@ const tokens = {
     accent: '#007AFF',
     success: '#34C759',
     danger: '#FF3B30',
+    najdi: {
+      background: '#F9F7F3', // Al-Jass White
+      container: '#D1BBA3', // Camel Hair Beige
+      text: '#242121', // Sadu Night
+      textMuted: '#736372',
+      primary: '#A13333', // Najdi Crimson
+      secondary: '#D58C4A', // Desert Ochre
+      focus: '#957EB5',
+    },
   },
   radii: {
     sm: 12,
@@ -40,4 +49,3 @@ const tokens = {
 };
 
 export default tokens;
-

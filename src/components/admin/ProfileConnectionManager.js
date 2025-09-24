@@ -95,13 +95,13 @@ const ProfileConnectionManager = ({ onBack }) => {
           *,
           profiles!profile_link_requests_profile_id_fkey (
             id,
-            name_ar,
+            name,
             hid,
             generation,
             father_id,
             gender,
             status,
-            profile_photo_url
+            photo_url
           )
         `
         )
@@ -173,7 +173,7 @@ const ProfileConnectionManager = ({ onBack }) => {
 
     Alert.alert(
       "تأكيد الموافقة",
-      `هل تريد الموافقة على ربط "${request.profiles.name_ar}" بهذا الحساب؟`,
+      `هل تريد الموافقة على ربط "${request.profiles.name}" بهذا الحساب؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -307,9 +307,9 @@ const ProfileConnectionManager = ({ onBack }) => {
         >
           {/* Profile Image or Avatar */}
           <View style={styles.avatarContainer}>
-            {request.profiles?.profile_photo_url ? (
+            {request.profiles?.photo_url ? (
               <Image
-                source={{ uri: request.profiles.profile_photo_url }}
+                source={{ uri: request.profiles.photo_url }}
                 style={styles.avatar}
               />
             ) : (
@@ -318,7 +318,7 @@ const ProfileConnectionManager = ({ onBack }) => {
                 style={styles.avatarGradient}
               >
                 <Text style={styles.avatarText}>
-                  {request.profiles?.name_ar?.charAt(0) || "؟"}
+                  {request.profiles?.name?.charAt(0) || "؟"}
                 </Text>
               </LinearGradient>
             )}
@@ -332,7 +332,7 @@ const ProfileConnectionManager = ({ onBack }) => {
           {/* Profile Info */}
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>
-              {request.profiles?.name_ar || "غير معروف"}
+              {request.profiles?.name || "غير معروف"}
             </Text>
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
@@ -806,8 +806,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 16,
-    paddingBottom: 32,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
   requestCard: {
     backgroundColor: colors.background,
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   profileName: {
     fontSize: 17,

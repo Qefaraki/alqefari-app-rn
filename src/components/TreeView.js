@@ -2466,7 +2466,7 @@ const TreeView = ({
       />
 
       {/* Admin Toggle Button - Only for admins */}
-      {isAdmin ? <AdminToggleButton user={user} /> : null}
+      {isAdmin && user && !user.is_anonymous ? <AdminToggleButton user={user} /> : null}
 
       {/* Admin components */}
       {isAdminMode && (

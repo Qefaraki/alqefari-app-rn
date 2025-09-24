@@ -68,7 +68,7 @@ const AdminToggleButton = ({ user }) => {
             <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
               <Path
                 d="M12 12v-9l4.912 1.914a1.7 1.7 0 0 1 .428 2.925z"
-                stroke={isAdminMode ? "#007AFF" : "#5F6368"}
+                stroke={isAdminMode ? "#A13333" : "#5F6368"}
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -76,7 +76,7 @@ const AdminToggleButton = ({ user }) => {
               />
               <Path
                 d="M12 12h9l-1.914 4.912a1.7 1.7 0 0 1 -2.925 .428z"
-                stroke={isAdminMode ? "#007AFF" : "#5F6368"}
+                stroke={isAdminMode ? "#A13333" : "#5F6368"}
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -84,7 +84,7 @@ const AdminToggleButton = ({ user }) => {
               />
               <Path
                 d="M12 12h-9l1.914 -4.912a1.7 1.7 0 0 1 2.925 -.428z"
-                stroke={isAdminMode ? "#007AFF" : "#5F6368"}
+                stroke={isAdminMode ? "#A13333" : "#5F6368"}
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -92,7 +92,7 @@ const AdminToggleButton = ({ user }) => {
               />
               <Path
                 d="M12 12v9l-4.912 -1.914a1.7 1.7 0 0 1 -.428 -2.925z"
-                stroke={isAdminMode ? "#007AFF" : "#5F6368"}
+                stroke={isAdminMode ? "#A13333" : "#5F6368"}
                 strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -109,8 +109,8 @@ const AdminToggleButton = ({ user }) => {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 120, // Positioned above tab bar
-    right: 16, // Same side as NavigateToRootButton
+    bottom: 170, // Positioned higher to avoid overlap with NavigateToRootButton
+    left: 16, // Left side of screen
   },
   shadowWrapper: {
     width: 56,
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   shadowWrapperActive: {
-    // Slight blue tint when active
-    backgroundColor: "#F0F7FF",
+    // Slight red tint when active
+    backgroundColor: "#FFF5F5",
   },
   button: {
     position: "absolute",

@@ -1,7 +1,7 @@
 import "../global.css"; // Import global CSS for NativeWind styles
 import React from "react";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
-import { DynamicColorIOS, Platform } from "react-native";
+import { DynamicColorIOS, Platform, View } from "react-native";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { AdminModeProvider } from "../src/contexts/AdminModeContext";
 import { SettingsProvider } from "../src/contexts/SettingsContext";
@@ -9,9 +9,13 @@ import { SettingsProvider } from "../src/contexts/SettingsContext";
 function TabLayout() {
   const { isAdmin, isLoading } = useAuth();
 
-  // Don't render tabs until auth is loaded
+  // Show loading state while auth is initializing
   if (isLoading) {
-    return null;
+    return (
+      <View style={{ flex: 1, backgroundColor: "#F9F7F3", justifyContent: "center", alignItems: "center" }}>
+        {/* Loading indicator - will be brief */}
+      </View>
+    );
   }
 
   console.log("TabLayout rendering - isAdmin:", isAdmin, "Platform:", Platform.OS);
@@ -33,6 +37,11 @@ function TabLayout() {
       <NativeTabs.Trigger name="index">
         <Label>الشجرة</Label>
         <Icon sf={{ default: "tree", selected: "tree.fill" }} />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="news">
+        <Label>الأخبار</Label>
+        <Icon sf={{ default: "newspaper", selected: "newspaper.fill" }} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="settings">

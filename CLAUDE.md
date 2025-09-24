@@ -444,6 +444,13 @@ node scripts/direct-deploy.js
 
 _This design system ensures consistency, cultural appropriateness, and premium feel throughout the Alqefari Family Tree app._
 
+## 📰 News Screen Additions (January 2025)
+
+- Added Najdi Sadu color tokens to `src/components/ui/tokens.js` (`tokens.colors.najdi`) for quick access to Al-Jass, Camel Hair, Najdi Crimson, and Desert Ochre across new components.
+- Introduced cached WordPress news service (`src/services/news.ts`) with 24h TTL and background refresh.
+- Created reusable news UI primitives (`FeaturedNewsCarousel`, `NewsCard`, `RecentArticleItem`) that lean on the Najdi palette and subtle Sadu patterns.
+- Added `NewsScreen` with localized Gregorian/Hijri headers, Expo-router tab integration, infinite scroll pagination, and link-out article viewing.
+
 ## 🚀 Multi-Agent Git Workflow
 
 ### CRITICAL: End-of-Session Protocol
