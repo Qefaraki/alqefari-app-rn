@@ -18,6 +18,12 @@ export function useFormattedDate(
 ): string {
   const { settings } = useSettings();
 
+  // Extract specific settings to ensure proper re-renders
+  const defaultCalendar = settings?.defaultCalendar;
+  const dateFormat = settings?.dateFormat;
+  const showBothCalendars = settings?.showBothCalendars;
+  const arabicNumerals = settings?.arabicNumerals;
+
   return useMemo(() => {
     if (!date) return '';
 
@@ -91,7 +97,7 @@ export function useFormattedDate(
     const hijri = gregorianToHijri(gregorian.year, gregorian.month, gregorian.day);
 
     return formatDateByPreference({ gregorian, hijri }, settings);
-  }, [date, settings, options.relative, options.relativeThreshold]);
+  }, [date, defaultCalendar, dateFormat, showBothCalendars, arabicNumerals, options.relative, options.relativeThreshold]);
 }
 
 // Convenience hooks for common use cases

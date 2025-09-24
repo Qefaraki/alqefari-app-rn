@@ -8,18 +8,18 @@ import {
   StyleSheet,
   Text,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNewsStore } from '../stores/useNewsStore';
-import { useAbsoluteDate, useRelativeDate } from '../hooks/useFormattedDate';
+import { useFormattedDate, useRelativeDate, useAbsoluteDate } from '../hooks/useFormattedDate';
+import { useDebounce } from '../hooks/useDebounce';
 import FeaturedNewsCarousel from '../components/ui/news/FeaturedNewsCarousel';
 import { RecentArticleItem, RecentArticleSkeleton } from '../components/ui/news/RecentArticleItem';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import tokens from '../components/ui/tokens';
 import NetworkError from '../components/NetworkError';
 
-// Helper component for proper date handling in list items
+// Helper component to properly handle date formatting with hooks
 const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> = ({ article, onPress }) => {
   const subtitle = useRelativeDate(article.publishedAt);
   return (
@@ -32,33 +32,33 @@ const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> =
 };
 
 const NewsScreen: React.FC = () => {
+  // Ref to track scroll position and prevent jumps
   const flatListRef = useRef<FlatList>(null);
+  const scrollPositionRef = useRef(0);
 
-  // Get state from simplified store
   const featured = useNewsStore((state) => state.featured);
   const recent = useNewsStore((state) => state.recent);
   const status = useNewsStore((state) => state.status);
   const errorMessage = useNewsStore((state) => state.errorMessage);
   const isRefreshing = useNewsStore((state) => state.isRefreshing);
-  const isLoadingMore = useNewsStore((state) => state.isLoadingMore);
-  const hasMoreRecent = useNewsStore((state) => state.hasMoreRecent);
-  const hasMoreFeatured = useNewsStore((state) => state.hasMoreFeatured);
-
-  // Get actions
   const loadInitial = useNewsStore((state) => state.loadInitial);
   const refresh = useNewsStore((state) => state.refresh);
   const loadMoreRecent = useNewsStore((state) => state.loadMoreRecent);
   const loadMoreFeatured = useNewsStore((state) => state.loadMoreFeatured);
+  const prefetchRecent = useNewsStore((state) => state.prefetchRecent);
+  const prefetchFeatured = useNewsStore((state) => state.prefetchFeatured);
+  const isLoadingMoreRecent = useNewsStore((state) => state.isLoadingMoreRecent);
+  const isLoadingMoreFeatured = useNewsStore((state) => state.isLoadingMoreFeatured);
+  const hasMoreRecent = useNewsStore((state) => state.hasMoreRecent);
+  const hasMoreFeatured = useNewsStore((state) => state.hasMoreFeatured);
 
-  // Load initial data
   useEffect(() => {
     loadInitial();
-  }, []);
+  }, [loadInitial]);
 
-  // Get formatted date for header
+  // Use the new unified date formatting hook for header
   const headerDate = useAbsoluteDate(new Date());
 
-  // Handle article opening
   const handleOpenArticle = useCallback((article: NewsArticle) => {
     if (article.permalink) {
       Linking.openURL(article.permalink).catch(() => {
@@ -66,18 +66,41 @@ const NewsScreen: React.FC = () => {
       });
       return;
     }
+
     Alert.alert('لا يوجد رابط', stripHtmlForDisplay(article.summary || ''));
   }, []);
 
-  // Simple onEndReached handler without debouncing
-  const handleLoadMore = useCallback(() => {
-    // Only load more if we're ready and not already loading
-    if (status === 'ready' && !isLoadingMore && hasMoreRecent) {
-      loadMoreRecent();
-    }
-  }, [status, isLoadingMore, hasMoreRecent, loadMoreRecent]);
+  // Debounced load more to prevent multiple triggers
+  const handleLoadMoreRecent = useDebounce(() => {
+    if (!hasMoreRecent || isLoadingMoreRecent || status !== 'ready') return;
 
-  // Header component
+    // Save current scroll position before loading more
+    const currentPosition = scrollPositionRef.current;
+
+    loadMoreRecent();
+
+    // Restore scroll position after new items are loaded
+    setTimeout(() => {
+      flatListRef.current?.scrollToOffset({
+        offset: currentPosition,
+        animated: false
+      });
+    }, 100);
+  }, 500);
+
+  // Debounced prefetch for better performance
+  const handlePrefetchRecent = useDebounce(() => {
+    if (status === 'ready' && hasMoreRecent) {
+      prefetchRecent();
+    }
+  }, 1000);
+
+  const handlePrefetchFeatured = useDebounce(() => {
+    if (status === 'ready' && hasMoreFeatured) {
+      prefetchFeatured();
+    }
+  }, 1000);
+
   const headerComponent = useMemo(() => (
     <View style={styles.headerContainer}>
       <ImageBackground
@@ -91,36 +114,27 @@ const NewsScreen: React.FC = () => {
           <Text style={styles.screenSubtitle}>{headerDate}</Text>
         </View>
       </ImageBackground>
-
       <FeaturedNewsCarousel
         articles={featured}
         loading={status === 'loading' && featured.length === 0}
-        loadingMore={false}
+        loadingMore={isLoadingMoreFeatured}
         onArticlePress={handleOpenArticle}
         onEndReached={() => {
-          if (hasMoreFeatured && !isLoadingMore) {
-            loadMoreFeatured();
+          if (!hasMoreFeatured || isLoadingMoreFeatured) return;
+          loadMoreFeatured();
+        }}
+        onMomentumScrollEnd={({ nativeEvent }) => {
+          const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+          // Trigger prefetch at 90% scroll instead of 70%
+          if (contentOffset.x + layoutMeasurement.width >= contentSize.width * 0.9) {
+            handlePrefetchFeatured();
           }
         }}
       />
-
       <Text style={styles.sectionTitle}>آخر المقالات</Text>
     </View>
-  ), [featured, headerDate, status, handleOpenArticle, hasMoreFeatured, isLoadingMore, loadMoreFeatured]);
+  ), [featured, headerDate, hasMoreFeatured, isLoadingMoreFeatured, loadMoreFeatured, handleOpenArticle, handlePrefetchFeatured, status]);
 
-  // Footer component for loading indicator
-  const footerComponent = useCallback(() => {
-    if (!isLoadingMore) return null;
-
-    return (
-      <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-        <Text style={styles.loadingText}>جاري التحميل...</Text>
-      </View>
-    );
-  }, [isLoadingMore]);
-
-  // Render error state
   if (status === 'error' && featured.length === 0 && recent.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -129,11 +143,9 @@ const NewsScreen: React.FC = () => {
     );
   }
 
-  // Show loading skeletons for initial load
   const isLoadingInitial = status === 'loading' && recent.length === 0;
   const listData = isLoadingInitial ? Array.from({ length: 6 }) : recent;
 
-  // Render item
   const renderItem = useCallback(({ item }: { item: NewsArticle | any }) => {
     if (isLoadingInitial) {
       return <RecentArticleSkeleton />;
@@ -147,7 +159,6 @@ const NewsScreen: React.FC = () => {
     );
   }, [handleOpenArticle, isLoadingInitial]);
 
-  // Key extractor
   const keyExtractor = useCallback((item: NewsArticle | any, index: number) => {
     if (isLoadingInitial) {
       return `loading-${index}`;
@@ -159,43 +170,46 @@ const NewsScreen: React.FC = () => {
     <SafeAreaView style={styles.safeArea}>
       <FlatList
         ref={flatListRef}
-        data={listData}
+        data={listData as any[]}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={headerComponent}
-        ListFooterComponent={footerComponent}
-        ListEmptyComponent={
-          !isLoadingInitial ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>لا توجد أخبار حالياً</Text>
-              <Text style={styles.emptySubtitle}>عد لاحقاً للاطلاع على آخر التحديثات</Text>
-            </View>
-          ) : undefined
+        initialNumToRender={6}
+        windowSize={5}
+        maxToRenderPerBatch={3}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews={true}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={refresh} tintColor={tokens.colors.najdi.primary} />
         }
         contentContainerStyle={styles.listContent}
+        onEndReachedThreshold={0.8}
+        onEndReached={handleLoadMoreRecent}
+        // Prevent scroll jump by maintaining position manually
+        onScroll={({ nativeEvent }) => {
+          const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+          scrollPositionRef.current = contentOffset.y;
 
-        // Pagination settings - SIMPLIFIED
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.5}
-
-        // Performance settings
-        initialNumToRender={10}
-        maxToRenderPerBatch={5}
-        windowSize={10}
-        removeClippedSubviews={true}
-
-        // Pull to refresh
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={refresh}
-            tintColor={tokens.colors.najdi.primary}
-          />
+          // Trigger prefetch at 90% scroll
+          if (contentOffset.y + layoutMeasurement.height >= contentSize.height * 0.9) {
+            handlePrefetchRecent();
+          }
+        }}
+        scrollEventThrottle={16}
+        ListEmptyComponent={!isLoadingInitial ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>لا توجد أخبار حالياً</Text>
+            <Text style={styles.emptySubtitle}>عد لاحقاً للاطلاع على آخر التحديثات</Text>
+          </View>
+        ) : undefined}
+        ListFooterComponent={
+          isLoadingMoreRecent ? (
+            <View style={styles.footerSkeletons}>
+              <RecentArticleSkeleton />
+              <RecentArticleSkeleton />
+            </View>
+          ) : <View style={styles.footerSpacer} />
         }
-
-        // Prevent bouncing at bottom when loading
-        bounces={!isLoadingMore}
-        showsVerticalScrollIndicator={true}
       />
     </SafeAreaView>
   );
@@ -257,14 +271,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: tokens.colors.najdi.textMuted,
   },
-  loadingFooter: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 8,
+  footerSkeletons: {
+    paddingVertical: 8,
+    gap: 12,
   },
-  loadingText: {
-    fontSize: 14,
-    color: tokens.colors.najdi.textMuted,
+  footerSpacer: {
+    height: 32,
   },
 });
 
