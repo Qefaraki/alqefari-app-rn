@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
+import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // NEW Premium Dashboard
+import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // NEW Premium Dashboard
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
 import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
@@ -274,7 +276,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
     return <ActivityScreen onClose={() => setShowActivityScreen(false)} />;
   }
   if (showAuditLog) {
-    return <AuditLogViewer onClose={() => setShowAuditLog(false)} />;
+    return <ActivityLogDashboard onClose={() => setShowAuditLog(false)} />;
   }
   if (showQuickAdd) {
     return (
@@ -755,7 +757,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
             >
               <View style={styles.actionContent}>
                 <Text style={styles.actionIcon}>📋</Text>
-                <Text style={styles.actionText}>سجل التدقيق</Text>
+                <Text style={styles.actionText}>سجل النشاط المفصل</Text>
               </View>
               <Ionicons name="chevron-back" size={20} color="#9ca3af" />
             </TouchableOpacity>
