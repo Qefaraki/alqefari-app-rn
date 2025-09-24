@@ -152,18 +152,18 @@ const NewsScreen: React.FC = () => {
     );
   };
 
-  // Key extractor - simplified but still includes settings for re-render
+  // Key extractor - simplified since FlatList key handles settings changes
   const keyExtractor = (item: NewsArticle | any, index: number) => {
     if (isLoadingInitial) {
       return `loading-${index}`;
     }
-    // Include settings in key to force re-render when they change
-    return `recent-${(item as NewsArticle).id}-${settings.defaultCalendar}-${settings.arabicNumerals}`;
+    return `recent-${(item as NewsArticle).id}`;
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
+        key={`news-list-${settings.defaultCalendar}-${settings.dateFormat}-${settings.arabicNumerals}-${settings.showBothCalendars}`}
         ref={flatListRef}
         data={listData}
         keyExtractor={keyExtractor}
@@ -186,11 +186,10 @@ const NewsScreen: React.FC = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
 
-        // Performance settings - removed removeClippedSubviews to ensure re-renders
+        // Performance settings
         initialNumToRender={10}
         maxToRenderPerBatch={5}
         windowSize={10}
-        removeClippedSubviews={false}
 
         // Pull to refresh
         refreshControl={

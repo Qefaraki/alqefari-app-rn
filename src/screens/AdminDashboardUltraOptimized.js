@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Platform,
   Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -340,15 +341,13 @@ const AdminDashboardUltraOptimized = ({ user }) => {
       />
     );
   }
-  if (showMunasibManager) {
-    return (
-      <MunasibManager
-        onBack={() => {
-          setShowMunasibManager(false);
-        }}
-      />
-    );
-  }
+  // Render MunasibManager as a modal
+  const renderMunasibManager = () => (
+    <MunasibManager
+      visible={showMunasibManager}
+      onClose={() => setShowMunasibManager(false)}
+    />
+  );
   if (showValidationDashboard) {
     return (
       <ValidationDashboard
@@ -831,6 +830,9 @@ const AdminDashboardUltraOptimized = ({ user }) => {
             </Animated.View>
           )}
       </ScrollView>
+
+      {/* MunasibManager Modal */}
+      {renderMunasibManager()}
     </SafeAreaView>
   );
 };

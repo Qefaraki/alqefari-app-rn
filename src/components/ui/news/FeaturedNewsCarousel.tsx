@@ -53,6 +53,7 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
     <View style={styles.wrapper}>
       <ImageBackground source={patternSource} resizeMode="cover" style={styles.pattern} imageStyle={styles.patternImage} />
       <FlatList
+        key={`carousel-${settings.defaultCalendar}-${settings.dateFormat}-${settings.arabicNumerals}`}
         ref={listRef}
         horizontal
         data={data as any[]}

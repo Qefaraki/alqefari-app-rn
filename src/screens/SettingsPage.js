@@ -34,7 +34,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function SettingsPage({ user }) {
   const router = useRouter();
-  const { settings, updateSetting, clearSettings } = useSettings();
+  const { settings, updateSetting, resetSettings } = useSettings();
 
   // Check if we can use native SwiftUI view
   const useNativeView = false;
@@ -113,7 +113,7 @@ export default function SettingsPage({ user }) {
         text: "تسجيل الخروج",
         style: "destructive",
         onPress: async () => {
-          clearSettings();
+          resetSettings();
           profileCache = null;
           cacheTimestamp = null;
           await supabase.auth.signOut();

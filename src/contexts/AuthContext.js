@@ -17,11 +17,13 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[DEBUG AuthContext] Mounting AuthProvider, calling checkAuth');
     checkAuth();
 
     // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[DEBUG AuthContext] Auth state changed:', event, 'session:', !!session);
         if (session?.user) {
           setUser(session.user);
           await checkAdminStatus(session.user);
@@ -29,6 +31,9 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           setIsAdmin(false);
         }
+        // CRITICAL FIX: Always set isLoading to false when auth state changes
+        console.log('[DEBUG AuthContext] Setting isLoading to false from auth state change');
+        setIsLoading(false);
       }
     );
 
@@ -39,21 +44,41 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     console.log('[DEBUG AuthContext] checkAuth starting');
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
 
+    // Hard 1-second timeout that ALWAYS resolves
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        console.log('[DEBUG AuthContext] Auth check timed out, continuing anyway');
+        resolve({ data: { user: null } });
+      }, 1000);
+    });
+
+    try {
+      // Race between actual auth check and timeout
+      const result = await Promise.race([
+        supabase.auth.getUser().catch(err => {
+          console.error('[DEBUG AuthContext] getUser error:', err);
+          return { data: { user: null } };
+        }),
+        timeoutPromise
+      ]);
+
+      const user = result?.data?.user;
       console.log('[DEBUG AuthContext] getUser result:', user ? 'User found' : 'No user');
 
       if (user) {
         setUser(user);
-        await checkAdminStatus(user);
+        // Check admin status but don't wait for it
+        checkAdminStatus(user).catch(err =>
+          console.error('[DEBUG AuthContext] Admin check error:', err)
+        );
       }
     } catch (error) {
-      console.error('[DEBUG AuthContext] Error checking auth:', error);
+      // This should never happen with our setup, but just in case
+      console.error('[DEBUG AuthContext] Unexpected error:', error);
     } finally {
-      console.log('[DEBUG AuthContext] Setting isLoading to false');
+      // ALWAYS set isLoading to false no matter what
+      console.log('[DEBUG AuthContext] Setting isLoading to false (guaranteed)');
       setIsLoading(false);
     }
   };

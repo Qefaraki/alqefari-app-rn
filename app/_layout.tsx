@@ -54,127 +54,87 @@ class ErrorBoundary extends Component {
 
 function TabLayout() {
   const { user, isAdmin, isLoading } = useAuth();
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [shouldShowOnboarding, setShouldShowOnboarding] = useState(false);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  const [debugInfo, setDebugInfo] = useState({ startTime: Date.now(), states: [] });
+  const [appState, setAppState] = useState('determining'); // 'determining', 'onboarding', 'authenticated', 'guest'
+  const [hasCheckedLocal, setHasCheckedLocal] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false); // Track if onboarding was completed
 
-  // DEBUG: Track state changes
+  // INSTANT local check for first-time users (no network calls)
   useEffect(() => {
-    const state = {
-      time: Date.now() - debugInfo.startTime,
-      isCheckingAuth,
-      isLoading,
-      hasUser: !!user,
-      shouldShowOnboarding,
-      loadingTimeout
-    };
-    console.log('[DEBUG _layout]', JSON.stringify(state));
-    setDebugInfo(prev => ({ ...prev, states: [...prev.states.slice(-10), state] }));
-  }, [isCheckingAuth, isLoading, user, shouldShowOnboarding, loadingTimeout]);
+    const checkLocalState = async () => {
+      try {
+        // These checks are instant (< 10ms)
+        const [hasCompletedOnboarding, authToken] = await Promise.all([
+          AsyncStorage.getItem('hasCompletedOnboarding'),
+          AsyncStorage.getItem('supabase.auth.token')
+        ]);
 
-  // Add timeout to prevent infinite loading
-  useEffect(() => {
-    console.log('[DEBUG _layout] Setting up 5 second timeout for loading state');
-    const timer = setTimeout(() => {
-      if (isCheckingAuth || isLoading) {
-        console.error('[DEBUG _layout] TIMEOUT: Still loading after 5 seconds!');
-        console.error('[DEBUG _layout] States history:', debugInfo.states);
-        setLoadingTimeout(true);
-        setIsCheckingAuth(false);
+        console.log('[DEBUG] Local check - onboarding:', hasCompletedOnboarding, 'token:', !!authToken);
+
+        // Store whether onboarding was completed
+        setOnboardingCompleted(hasCompletedOnboarding === 'true');
+
+        // Instant routing decision based on local data only
+        if (hasCompletedOnboarding === null || hasCompletedOnboarding !== 'true') {
+          // First time user OR didn't complete onboarding
+          setAppState('onboarding');
+        } else if (authToken) {
+          // Has token cached AND completed onboarding
+          setAppState('authenticated');
+        } else {
+          // Has completed onboarding but no token - guest mode
+          setAppState('guest');
+        }
+        setHasCheckedLocal(true);
+      } catch (error) {
+        console.error('[DEBUG] Local check error:', error);
+        // Default to guest mode on error
+        setAppState('guest');
+        setHasCheckedLocal(true);
       }
-    }, 5000);
+    };
 
-    return () => clearTimeout(timer);
+    checkLocalState();
   }, []);
 
-  // Optimistic auth check - only for initial load, not hot reload
+  // Update app state when auth completes (but don't block on it)
   useEffect(() => {
-    console.log('[DEBUG _layout] Initial mount - user:', user, 'isLoading:', isLoading);
-
-    // If AuthContext already has a user (e.g., during hot reload), skip AsyncStorage check
-    if (user) {
-      console.log('[DEBUG _layout] User exists, skipping AsyncStorage check');
-      setIsCheckingAuth(false);
-      setShouldShowOnboarding(false);
-      return;
-    }
-
-    // Only check AsyncStorage if AuthContext doesn't have user yet
-    if (isLoading) {
-      console.log('[DEBUG _layout] AuthContext still loading, checking AsyncStorage');
-      checkOptimisticAuth();
-    } else {
-      // AuthContext finished loading with no user
-      console.log('[DEBUG _layout] AuthContext loaded with no user');
-      setIsCheckingAuth(false);
-      setShouldShowOnboarding(true);
-    }
-  }, []); // Only run once on mount
-
-  const checkOptimisticAuth = async () => {
-    console.log('[DEBUG _layout] checkOptimisticAuth starting');
-    try {
-      // Quick check for cached auth session (< 50ms)
-      const keys = await AsyncStorage.getAllKeys();
-      console.log('[DEBUG _layout] AsyncStorage keys:', keys.length);
-
-      const supabaseAuthKey = keys.find(key => key.includes("supabase.auth"));
-      console.log('[DEBUG _layout] Found supabase auth key:', !!supabaseAuthKey);
-
-      let hasSession = false;
-      if (supabaseAuthKey) {
-        const sessionData = await AsyncStorage.getItem(supabaseAuthKey);
-        hasSession = sessionData !== null && sessionData !== "null";
-        console.log('[DEBUG _layout] Session exists:', hasSession, 'data length:', sessionData?.length);
-      }
-
-      if (!hasSession) {
-        // No session in storage, but wait for AuthContext to confirm
-        console.log('[DEBUG _layout] No session in storage');
-        setIsCheckingAuth(false);
-      } else {
-        // Session exists - optimistically hide onboarding
-        console.log('[DEBUG _layout] Session exists, hiding onboarding');
-        setIsCheckingAuth(false);
-      }
-    } catch (error) {
-      console.error('[DEBUG _layout] Error checking cached auth:', error);
-      // Error checking cache - wait for AuthContext
-      setIsCheckingAuth(false);
-    }
-  };
-
-  // Update when auth state changes - this is the source of truth
-  useEffect(() => {
-    console.log('[DEBUG _layout] Auth state changed - isLoading:', isLoading, 'user:', !!user);
-
-    // AuthContext has finished loading
-    if (!isLoading) {
-      console.log('[DEBUG _layout] AuthContext finished loading');
-      setIsCheckingAuth(false);
-
-      // Set onboarding based on actual user state
-      if (!user) {
-        console.log('[DEBUG _layout] No user, showing onboarding');
-        setShouldShowOnboarding(true);
-      } else {
-        console.log('[DEBUG _layout] User exists, hiding onboarding');
-        setShouldShowOnboarding(false);
+    if (!isLoading && hasCheckedLocal) {
+      // Auth has completed loading in background
+      if (user && onboardingCompleted) {
+        // Only switch to authenticated if onboarding was completed
+        setAppState('authenticated');
+      } else if (user && !onboardingCompleted) {
+        // User exists but onboarding not complete - stay in onboarding
+        setAppState('onboarding');
+      } else if (appState === 'determining') {
+        // Only switch to guest if we haven't already made a decision
+        setAppState('guest');
       }
     }
-  }, [user, isLoading]);
+  }, [isLoading, user, hasCheckedLocal, appState, onboardingCompleted]);
 
-  // Show onboarding screen (no tabs)
-  if (shouldShowOnboarding) {
+  // Don't wait for auth - make instant decision based on local state
+  if (!hasCheckedLocal) {
+    // This should only show for a few milliseconds while AsyncStorage loads
+    return null;
+  }
+
+
+
+  // Show onboarding for first-time users
+  if (appState === 'onboarding') {
+    console.log('[DEBUG] Showing onboarding');
     return (
       <NavigationIndependentTree>
         <NavigationContainer>
           <AuthNavigator
-            setIsGuest={() => {}}
+            setIsGuest={() => {
+              setAppState('guest');
+            }}
             setUser={(newUser) => {
-              // When user successfully signs in, hide onboarding
-              setShouldShowOnboarding(false);
+              // When user successfully signs in, mark onboarding complete
+              AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              setAppState('authenticated');
             }}
           />
         </NavigationContainer>
@@ -182,32 +142,8 @@ function TabLayout() {
     );
   }
 
-  // CRITICAL: Replace null with visible loading screen to debug white screen issue
-  if (isCheckingAuth || isLoading) {
-    console.log('[DEBUG _layout] LOADING SCREEN SHOWN - isCheckingAuth:', isCheckingAuth, 'isLoading:', isLoading);
-
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#A13333" />
-        <Text style={styles.loadingText}>جاري التحميل...</Text>
-        <Text style={styles.debugText}>
-          {`Checking: ${isCheckingAuth}\nLoading: ${isLoading}\nTimeout: ${loadingTimeout}`}
-        </Text>
-        {loadingTimeout && (
-          <View style={styles.timeoutWarning}>
-            <Text style={styles.timeoutText}>
-              ⚠️ Loading timeout - stuck in loading state!
-            </Text>
-            <Text style={styles.debugText}>
-              Check console for debug logs
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  console.log('[DEBUG _layout] RENDERING TABS - isAdmin:', isAdmin, 'Platform:', Platform.OS);
+  // Show tabs immediately - auth loads in background
+  console.log('[DEBUG] Showing tabs - appState:', appState, 'isAdmin:', isAdmin);
 
   return (
     <NativeTabs

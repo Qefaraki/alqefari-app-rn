@@ -23,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { OtpInput } from "react-native-otp-entry";
 import DuolingoProgressBar from "../../components/DuolingoProgressBar";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { phoneAuthService } from "../../services/phoneAuth";
 
@@ -236,6 +237,9 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Mark onboarding as complete since auth succeeded
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
 
       // Navigate immediately without delay
       navigation.navigate("NameChainEntry", { user: result.user });

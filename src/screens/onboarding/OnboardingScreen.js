@@ -22,6 +22,7 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -471,6 +472,8 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // DON'T mark onboarding as complete yet - wait until auth succeeds
+
     // Fade out all components before navigation
     Animated.parallel([
       Animated.timing(logoFade, {
@@ -494,9 +497,12 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     });
   }, [navigation, primaryButtonScale, logoFade, contentFade, buttonFade]);
 
-  const handleExploreAsGuest = useCallback(() => {
+  const handleExploreAsGuest = useCallback(async () => {
     animateButtonPress(secondaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Mark onboarding as complete
+    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
 
     // Fade out all components before setting guest mode
     Animated.parallel([

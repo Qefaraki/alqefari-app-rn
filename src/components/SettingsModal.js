@@ -22,6 +22,7 @@ import { supabase } from "../services/supabase";
 import { accountDeletionService } from "../services/accountDeletion";
 import { useTreeStore } from "../stores/useTreeStore";
 import appConfig from "../config/appConfig";
+import SignInModal from "./SignInModal";
 
 // Family Logo
 const AlqefariLogo = require("../../assets/logo/Alqefari Emblem (Transparent).png");
@@ -38,6 +39,7 @@ export default function SettingsModal({ visible, onClose }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [showSignInModal, setShowSignInModal] = useState(false);
 
   // Sample date for preview - using a valid date
   const sampleGregorian = { day: 15, month: 3, year: 2024 };
@@ -354,17 +356,7 @@ export default function SettingsModal({ visible, onClose }) {
               <TouchableOpacity
                 style={styles.signInButton}
                 onPress={() => {
-                  // Close settings and trigger re-authentication
-                  onClose();
-                  // Force sign out to show onboarding/auth flow
-                  setTimeout(async () => {
-                    await supabase.auth.signOut();
-              // Clear cache on sign out
-              profileCache = null;
-              cacheTimestamp = null;
-                    // This will trigger the auth state change listener
-                    // and show the onboarding screen
-                  }, 100);
+                  setShowSignInModal(true);
                 }}
                 activeOpacity={0.8}
               >
@@ -603,6 +595,15 @@ export default function SettingsModal({ visible, onClose }) {
         </ScrollView>
       </SafeAreaView>
     </Modal>
+
+    <SignInModal
+      visible={showSignInModal}
+      onClose={() => setShowSignInModal(false)}
+      onAuthSuccess={(user) => {
+        setCurrentUser(user);
+        loadUserProfile();
+      }}
+    />
   );
 }
 
