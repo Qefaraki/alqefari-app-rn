@@ -62,6 +62,7 @@ export default function MunasibManager({ onBack }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredStats, setFilteredStats] = useState([]);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [expandedMember, setExpandedMember] = useState(null);
 
   // Get navigation functions from tree store
   const { setSelectedPersonId, setViewportTarget } = useTreeStore();
@@ -288,49 +289,116 @@ export default function MunasibManager({ onBack }) {
     );
   };
 
-  const renderMemberItem = ({ item }) => {
+  const renderMemberItem = ({ item, index }) => {
     const isCurrentlyMarried = item.status === "married";
-    const alqefariName = item.alqefari_member?.name || "غير معروف";
-    const spouseName = item.spouse?.name || "غير معروف";
+    const alqefariMember = item.alqefari_member;
+    const spouse = item.spouse;
+    const isExpanded = expandedMember === item.marriage_id;
+
+    // Extract full names with family lineage
+    const alqefariFullName = alqefariMember?.name || "غير معروف";
+    const spouseFullName = spouse?.name || "غير معروف";
+
+    // Extract generation info if available
+    const alqefariGeneration = alqefariMember?.generation ?
+      `الجيل ${toArabicNumerals(alqefariMember.generation)}` : "";
 
     return (
-      <TouchableOpacity
-        onPress={() => {
-          Alert.alert(
-            alqefariName,
-            `${isCurrentlyMarried ? "الزوجة" : "الزوجة السابقة"}: ${spouseName}`,
-            [
-              {
-                text: "عرض في الشجرة",
-                onPress: () => handleViewOnTree(item.alqefari_member),
-              },
-              {
-                text: "عرض الملف الشخصي",
-                onPress: () => handleViewProfile(item.alqefari_member),
-              },
-              {
-                text: "إغلاق",
-                style: "cancel",
-              },
-            ]
-          );
-        }}
-        activeOpacity={0.9}
-      >
-        <CardSurface radius={10} style={styles.memberCard}>
-          <View style={styles.memberContent}>
-            <View style={styles.nameSection}>
-              <Text style={styles.memberName}>{alqefariName}</Text>
-              <Text style={styles.spouseName}>{spouseName}</Text>
+      <View style={styles.memberCardContainer}>
+        <TouchableOpacity
+          onPress={() => {
+            setExpandedMember(isExpanded ? null : item.marriage_id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.95}
+        >
+          <CardSurface radius={12} style={[
+            styles.memberCard,
+            isExpanded && styles.memberCardExpanded
+          ]}>
+            {/* Main Content */}
+            <View style={styles.memberMainContent}>
+              <View style={styles.coupleSection}>
+                {/* Al-Qefari Member */}
+                <View style={styles.personInfo}>
+                  <Text style={styles.personRole}>من عائلة القفاري</Text>
+                  <Text style={styles.personName}>{alqefariFullName}</Text>
+                  {alqefariGeneration ? (
+                    <Text style={styles.personGeneration}>{alqefariGeneration}</Text>
+                  ) : null}
+                </View>
+
+                {/* Connection Symbol */}
+                <View style={styles.connectionSymbol}>
+                  <SaduPattern size={20} color={isCurrentlyMarried ? colors.primary : colors.textSecondary} />
+                </View>
+
+                {/* Spouse */}
+                <View style={styles.personInfo}>
+                  <Text style={styles.personRole}>
+                    {isCurrentlyMarried ?
+                      (alqefariMember?.gender === "male" ? "الزوجة" : "الزوج") :
+                      (alqefariMember?.gender === "male" ? "الزوجة السابقة" : "الزوج السابق")
+                    }
+                  </Text>
+                  <Text style={styles.personName}>{spouseFullName}</Text>
+                  <Text style={styles.personFamily}>من عائلة {selectedFamily?.displayName}</Text>
+                </View>
+              </View>
+
+              {/* Expand Indicator */}
+              <Ionicons
+                name={isExpanded ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={colors.textSecondary}
+              />
             </View>
-            {!isCurrentlyMarried && (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>سابقاً</Text>
+
+            {/* Expanded Actions */}
+            {isExpanded && (
+              <View style={styles.expandedSection}>
+                <View style={styles.divider} />
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => {
+                      handleViewOnTree(alqefariMember);
+                      setExpandedMember(null);
+                    }}
+                  >
+                    <Ionicons name="git-branch-outline" size={20} color={colors.primary} />
+                    <Text style={styles.actionButtonText}>عرض في الشجرة</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => {
+                      handleViewProfile(alqefariMember);
+                      setExpandedMember(null);
+                    }}
+                  >
+                    <Ionicons name="person-outline" size={20} color={colors.primary} />
+                    <Text style={styles.actionButtonText}>الملف الشخصي</Text>
+                  </TouchableOpacity>
+
+                  {spouse && (
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => {
+                        handleViewProfile(spouse);
+                        setExpandedMember(null);
+                      }}
+                    >
+                      <Ionicons name="person-outline" size={20} color={colors.secondary} />
+                      <Text style={styles.actionButtonText}>ملف {alqefariMember?.gender === "male" ? "الزوجة" : "الزوج"}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             )}
-          </View>
-        </CardSurface>
-      </TouchableOpacity>
+          </CardSurface>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -422,28 +490,35 @@ export default function MunasibManager({ onBack }) {
         visible={showDetailsModal}
         animationType="slide"
         transparent={false}
-        onRequestClose={() => setShowDetailsModal(false)}
+        onRequestClose={() => {
+          setShowDetailsModal(false);
+          setExpandedMember(null);
+        }}
       >
-        <SafeAreaView style={styles.modalContainer} edges={["top"]}>
+        <SafeAreaView style={styles.modalContainer} edges={["top", "bottom"]}>
           <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setShowDetailsModal(false);
+                setExpandedMember(null);
+              }}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons name="close" size={28} color={colors.text} />
+            </TouchableOpacity>
             <View style={styles.modalTitleSection}>
               <Text style={styles.modalTitle}>
                 عائلة {selectedFamily?.displayName}
               </Text>
               <Text style={styles.modalSubtitle}>
                 {familyMembers.length > 1
-                  ? `${toArabicNumerals(familyMembers.length)} أفراد`
+                  ? `${toArabicNumerals(familyMembers.length)} ${familyMembers.length === 2 ? "زواجان" : "زواجات"}`
                   : familyMembers.length === 1
-                  ? "فرد واحد"
+                  ? "زواج واحد"
                   : "لا توجد بيانات"}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => setShowDetailsModal(false)}
-              style={styles.modalCloseButton}
-            >
-              <Ionicons name="close" size={28} color={colors.text} />
-            </TouchableOpacity>
+            <View style={{ width: 40 }} />
           </View>
 
           <FlatList
@@ -615,14 +690,18 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  modalCloseButton: {
+    padding: 8,
+    marginRight: 8,
+  },
   modalTitleSection: {
     flex: 1,
+    alignItems: "center",
   },
   modalTitle: {
     fontSize: 24,
@@ -636,10 +715,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontFamily: "SF Arabic",
   },
-  modalCloseButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
   modalListContent: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -647,40 +722,82 @@ const styles = StyleSheet.create({
   },
 
   // Member Cards
+  memberCardContainer: {
+    marginBottom: 12,
+  },
   memberCard: {
     backgroundColor: "white",
-    marginBottom: 10,
-    padding: 14,
+    padding: 16,
   },
-  memberContent: {
+  memberCardExpanded: {
+    paddingBottom: 0,
+  },
+  memberMainContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  nameSection: {
+  coupleSection: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  personInfo: {
     flex: 1,
   },
-  memberName: {
-    fontSize: 16,
+  personRole: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontFamily: "SF Arabic",
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  personName: {
+    fontSize: 15,
     fontWeight: "600",
     color: colors.text,
     fontFamily: "SF Arabic",
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  spouseName: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontFamily: "SF Arabic",
-  },
-  statusBadge: {
-    backgroundColor: colors.container + "30",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  statusText: {
+  personGeneration: {
     fontSize: 12,
     color: colors.textSecondary,
     fontFamily: "SF Arabic",
+  },
+  personFamily: {
+    fontSize: 12,
+    color: colors.accent,
+    fontFamily: "SF Arabic",
+    marginTop: 2,
+  },
+  connectionSymbol: {
+    marginHorizontal: 16,
+    alignItems: "center",
+  },
+  expandedSection: {
+    marginTop: 16,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginBottom: 12,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingBottom: 12,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    marginLeft: 6,
   },
 });

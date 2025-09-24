@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNewsStore } from '../stores/useNewsStore';
 import { useAbsoluteDate, useRelativeDate } from '../hooks/useFormattedDate';
+import { useSettings } from '../contexts/SettingsContext';
 import FeaturedNewsCarousel from '../components/ui/news/FeaturedNewsCarousel';
 import { RecentArticleItem, RecentArticleSkeleton } from '../components/ui/news/RecentArticleItem';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
@@ -33,6 +34,9 @@ const ArticleWithDate: React.FC<{ article: NewsArticle; onPress: () => void }> =
 
 const NewsScreen: React.FC = () => {
   const flatListRef = useRef<FlatList>(null);
+
+  // Get settings to force re-renders when they change
+  const { settings } = useSettings();
 
   // Get state from simplified store
   const featured = useNewsStore((state) => state.featured);
@@ -108,8 +112,8 @@ const NewsScreen: React.FC = () => {
     </View>
   );
 
-  // Footer component for loading indicator
-  const footerComponent = useCallback(() => {
+  // Footer component for loading indicator - removed useCallback for consistency
+  const footerComponent = () => {
     if (!isLoadingMore) return null;
 
     return (
@@ -118,7 +122,7 @@ const NewsScreen: React.FC = () => {
         <Text style={styles.loadingText}>جاري التحميل...</Text>
       </View>
     );
-  }, [isLoadingMore]);
+  };
 
   // Render error state
   if (status === 'error' && featured.length === 0 && recent.length === 0) {
@@ -133,8 +137,8 @@ const NewsScreen: React.FC = () => {
   const isLoadingInitial = status === 'loading' && recent.length === 0;
   const listData = isLoadingInitial ? Array.from({ length: 6 }) : recent;
 
-  // Render item
-  const renderItem = useCallback(({ item }: { item: NewsArticle | any }) => {
+  // Render item - removed useCallback to get fresh settings on every render
+  const renderItem = ({ item }: { item: NewsArticle | any }) => {
     if (isLoadingInitial) {
       return <RecentArticleSkeleton />;
     }
@@ -145,15 +149,17 @@ const NewsScreen: React.FC = () => {
         onPress={() => handleOpenArticle(article)}
       />
     );
-  }, [handleOpenArticle, isLoadingInitial]);
+  };
 
-  // Key extractor
-  const keyExtractor = useCallback((item: NewsArticle | any, index: number) => {
+  // Key extractor - include settings timestamp to force re-render on settings change
+  const keyExtractor = (item: NewsArticle | any, index: number) => {
     if (isLoadingInitial) {
       return `loading-${index}`;
     }
-    return `recent-${(item as NewsArticle).id}`;
-  }, [isLoadingInitial]);
+    // Include a settings-based key component to force re-render
+    const settingsKey = `${settings.defaultCalendar}-${settings.dateFormat}-${settings.arabicNumerals}`;
+    return `recent-${(item as NewsArticle).id}-${settingsKey}`;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -163,6 +169,8 @@ const NewsScreen: React.FC = () => {
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         ListHeaderComponent={headerComponent}
+        // Force re-render when settings change
+        extraData={settings}
         ListFooterComponent={footerComponent}
         ListEmptyComponent={
           !isLoadingInitial ? (
@@ -178,11 +186,11 @@ const NewsScreen: React.FC = () => {
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
 
-        // Performance settings
+        // Performance settings - removed removeClippedSubviews to ensure re-renders
         initialNumToRender={10}
         maxToRenderPerBatch={5}
         windowSize={10}
-        removeClippedSubviews={true}
+        removeClippedSubviews={false}
 
         // Pull to refresh
         refreshControl={

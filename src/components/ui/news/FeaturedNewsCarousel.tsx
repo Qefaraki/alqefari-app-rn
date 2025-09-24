@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useSettings } from '../../../contexts/SettingsContext';
 import { Dimensions, FlatList, ImageBackground, NativeSyntheticEvent, NativeScrollEvent, StyleSheet, View } from 'react-native';
 import tokens from '../tokens';
 import NewsCard from './NewsCard';
@@ -31,6 +32,8 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
   loadingMore = false,
   onMomentumScrollEnd,
 }) => {
+  // Get settings to force re-renders
+  const { settings } = useSettings();
   const data = useMemo(() => (loading ? Array.from({ length: 3 }) : articles), [loading, articles]);
   const listRef = useRef<FlatList<any>>(null);
   const offsetRef = useRef(0);
@@ -55,9 +58,14 @@ const FeaturedNewsCarousel: React.FC<Props> = ({
         data={data as any[]}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        keyExtractor={(item, index) =>
-          loading ? `featured-loading-${index}` : `featured-${(item as NewsArticle).id}`
-        }
+        keyExtractor={(item, index) => {
+          if (loading) return `featured-loading-${index}`;
+          // Include settings to force re-render on change
+          const settingsKey = `${settings.defaultCalendar}-${settings.dateFormat}-${settings.arabicNumerals}`;
+          return `featured-${(item as NewsArticle).id}-${settingsKey}`;
+        }}
+        // Force re-render when settings change
+        extraData={settings}
         onEndReachedThreshold={0.6}
         onEndReached={onEndReached}
         snapToInterval={SNAP_INTERVAL}

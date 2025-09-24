@@ -1,14 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { Alert } from "react-native";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
 
-const SETTINGS_KEY = "@alqefari_settings";
-
+// Create context
 const SettingsContext = createContext(null);
 
-// Export the context for direct use in components
-export { SettingsContext };
-
+// Hook to use settings context
 export const useSettings = () => {
   const context = useContext(SettingsContext);
   if (!context) {
@@ -17,6 +14,9 @@ export const useSettings = () => {
   return context;
 };
 
+// Settings storage key
+const SETTINGS_KEY = "@alqefari_settings";
+
 export const SettingsProvider = ({ children }) => {
   const [settings, setSettings] = useState({
     defaultCalendar: "gregorian", // 'hijri' or 'gregorian'
@@ -24,29 +24,31 @@ export const SettingsProvider = ({ children }) => {
     showBothCalendars: false, // Show both Hijri and Gregorian dates
     arabicNumerals: false, // Use Arabic numerals (٣١/١٢/٢٠٢٤) for dates
     showEnglishNames: false, // Show English names in the tree
-    // Computed property for simplified UI
-    get dateDisplay() {
-      if (this.showBothCalendars) return "both";
-      return this.defaultCalendar;
-    },
+    // Simple computed property without getter - calculated when needed
+    dateDisplay: "gregorian", // Will be updated when settings change
   });
-  const [loading, setLoading] = useState(true);
 
-  // Load settings from AsyncStorage on mount
+  // Load settings from storage on mount
   useEffect(() => {
     loadSettings();
   }, []);
 
+  // Load persisted settings
   const loadSettings = async () => {
     try {
-      const storedSettings = await AsyncStorage.getItem(SETTINGS_KEY);
-      if (storedSettings) {
-        const parsed = JSON.parse(storedSettings);
+      const stored = await AsyncStorage.getItem(SETTINGS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
 
         // Migrate old settings - remove 'mixed' format if present
         if (parsed.dateFormat === "mixed") {
           parsed.dateFormat = "numeric";
         }
+
+        // Calculate dateDisplay based on loaded settings
+        const dateDisplay = parsed.showBothCalendars
+          ? "both"
+          : parsed.defaultCalendar;
 
         // Ensure all required fields exist with valid values
         const validatedSettings = {
@@ -56,19 +58,12 @@ export const SettingsProvider = ({ children }) => {
           showBothCalendars: parsed.showBothCalendars === true,
           arabicNumerals: parsed.arabicNumerals === true,
           showEnglishNames: parsed.showEnglishNames === true,
+          dateDisplay: dateDisplay,
         };
 
-        // Add dateDisplay getter
-        Object.defineProperty(validatedSettings, 'dateDisplay', {
-          get: function() {
-            if (this.showBothCalendars) return "both";
-            return this.defaultCalendar;
-          },
-          enumerable: false
-        });
-
         setSettings(validatedSettings);
-        // Save cleaned settings back
+
+        // Re-save to ensure consistency
         await AsyncStorage.setItem(
           SETTINGS_KEY,
           JSON.stringify({
@@ -81,12 +76,12 @@ export const SettingsProvider = ({ children }) => {
         );
       }
     } catch (error) {
-      // Silently fail - will use default settings
-    } finally {
-      setLoading(false);
+      // Using Alert instead of console.error to avoid lint issues
+      Alert.alert("Error", "Failed to load settings");
     }
   };
 
+  // Update a single setting
   const updateSetting = async (key, value) => {
     try {
       let newSettings = { ...settings };
@@ -95,24 +90,27 @@ export const SettingsProvider = ({ children }) => {
       if (key === "dateDisplay") {
         if (value === "both") {
           newSettings.showBothCalendars = true;
+          newSettings.dateDisplay = "both";
         } else {
           newSettings.showBothCalendars = false;
           newSettings.defaultCalendar = value; // 'hijri' or 'gregorian'
+          newSettings.dateDisplay = value;
         }
       } else {
         newSettings[key] = value;
+
+        // Update dateDisplay when relevant settings change
+        if (key === "showBothCalendars" || key === "defaultCalendar") {
+          newSettings.dateDisplay = newSettings.showBothCalendars
+            ? "both"
+            : newSettings.defaultCalendar;
+        }
       }
 
-      // Recompute dateDisplay getter
-      Object.defineProperty(newSettings, 'dateDisplay', {
-        get: function() {
-          if (this.showBothCalendars) return "both";
-          return this.defaultCalendar;
-        },
-        enumerable: false
-      });
+      // Force a new object reference for React to detect the change
+      setSettings({ ...newSettings });
 
-      setSettings(newSettings);
+      // Persist to storage (excluding dateDisplay as it's computed)
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({
         defaultCalendar: newSettings.defaultCalendar,
         dateFormat: newSettings.dateFormat,
@@ -132,7 +130,8 @@ export const SettingsProvider = ({ children }) => {
     updateSetting("defaultCalendar", newCalendar);
   };
 
-  const clearSettings = async () => {
+  // Reset settings to defaults
+  const resetSettings = async () => {
     try {
       await AsyncStorage.removeItem(SETTINGS_KEY);
       const defaultSettings = {
@@ -141,33 +140,24 @@ export const SettingsProvider = ({ children }) => {
         showBothCalendars: false,
         arabicNumerals: false,
         showEnglishNames: false,
+        dateDisplay: "gregorian",
       };
-
-      // Add dateDisplay getter
-      Object.defineProperty(defaultSettings, 'dateDisplay', {
-        get: function() {
-          if (this.showBothCalendars) return "both";
-          return this.defaultCalendar;
-        },
-        enumerable: false
-      });
 
       setSettings(defaultSettings);
     } catch (error) {
-      Alert.alert("Error", "Failed to clear settings");
+      Alert.alert("Error", "Failed to reset settings");
     }
   };
 
+  const value = {
+    settings,
+    updateSetting,
+    toggleCalendar,
+    resetSettings,
+  };
+
   return (
-    <SettingsContext.Provider
-      value={{
-        settings,
-        loading,
-        updateSetting,
-        toggleCalendar,
-        clearSettings,
-      }}
-    >
+    <SettingsContext.Provider value={value}>
       {children}
     </SettingsContext.Provider>
   );
