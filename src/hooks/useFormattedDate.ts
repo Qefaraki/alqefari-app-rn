@@ -37,8 +37,14 @@ export function useFormattedDate(
       dateObj = new Date(date);
       if (isNaN(dateObj.getTime())) return '';
     } else if (typeof date === 'object' && 'gregorian' in date) {
-      // Already formatted date object
-      return formatDateByPreference(date, settings);
+      // Already formatted date object - use current settings
+      const currentSettings = {
+        defaultCalendar,
+        dateFormat,
+        showBothCalendars,
+        arabicNumerals
+      };
+      return formatDateByPreference(date, currentSettings);
     } else {
       return '';
     }
@@ -55,7 +61,8 @@ export function useFormattedDate(
       if (diffDays <= relativeThreshold) {
         const formatRelative = (value: number | string): string => {
           const str = String(value);
-          return settings?.arabicNumerals ? toArabicNumerals(str) : str;
+          // Use extracted arabicNumerals value instead of settings object
+          return arabicNumerals ? toArabicNumerals(str) : str;
         };
 
         // For dates older than threshold, show actual date with user preferences
@@ -96,7 +103,15 @@ export function useFormattedDate(
     };
     const hijri = gregorianToHijri(gregorian.year, gregorian.month, gregorian.day);
 
-    return formatDateByPreference({ gregorian, hijri }, settings);
+    // Create settings object from extracted values to ensure proper updates
+    const currentSettings = {
+      defaultCalendar,
+      dateFormat,
+      showBothCalendars,
+      arabicNumerals
+    };
+
+    return formatDateByPreference({ gregorian, hijri }, currentSettings);
   }, [date, defaultCalendar, dateFormat, showBothCalendars, arabicNumerals, options.relative, options.relativeThreshold]);
 }
 

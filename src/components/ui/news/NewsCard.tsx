@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Surface from '../Surface';

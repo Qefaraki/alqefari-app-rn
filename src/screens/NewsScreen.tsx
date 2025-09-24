@@ -77,8 +77,8 @@ const NewsScreen: React.FC = () => {
     }
   }, [status, isLoadingMore, hasMoreRecent, loadMoreRecent]);
 
-  // Header component
-  const headerComponent = useMemo(() => (
+  // Header component - removed useMemo to ensure settings updates are reflected
+  const headerComponent = (
     <View style={styles.headerContainer}>
       <ImageBackground
         source={require('../../assets/sadu_patterns/png/18.png')}
@@ -106,7 +106,7 @@ const NewsScreen: React.FC = () => {
 
       <Text style={styles.sectionTitle}>آخر المقالات</Text>
     </View>
-  ), [featured, headerDate, status, handleOpenArticle, hasMoreFeatured, isLoadingMore, loadMoreFeatured]);
+  );
 
   // Footer component for loading indicator
   const footerComponent = useCallback(() => {
