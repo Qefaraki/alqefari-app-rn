@@ -22,10 +22,16 @@ type NewsStore = {
   recentPage: number;
   featuredTotalPages: number;
   recentTotalPages: number;
+  featuredPrefetch?: NewsResponse | null;
+  recentPrefetch?: NewsResponse | null;
+  isPrefetchingFeatured: boolean;
+  isPrefetchingRecent: boolean;
   loadInitial: () => Promise<void>;
   refresh: () => Promise<void>;
   loadMoreFeatured: () => Promise<void>;
   loadMoreRecent: () => Promise<void>;
+  prefetchFeatured: () => Promise<void>;
+  prefetchRecent: () => Promise<void>;
 };
 
 const createErrorMessage = (error: unknown) => {
@@ -49,6 +55,10 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
   recentPage: 0,
   featuredTotalPages: 0,
   recentTotalPages: 0,
+  featuredPrefetch: null,
+  recentPrefetch: null,
+  isPrefetchingFeatured: false,
+  isPrefetchingRecent: false,
 
   loadInitial: async () => {
     const { status } = get();
@@ -134,12 +144,15 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
 
     try {
       const nextPage = featuredPage + 1;
-      const next = await fetchFeaturedNews(nextPage);
+      const prefetched = get().featuredPrefetch;
+      let response: NewsResponse = prefetched ?? (await fetchFeaturedNews(nextPage));
+
       set((state) => ({
-        featured: [...state.featured, ...next.articles],
-        featuredPage: next.articles.length ? nextPage : state.featuredPage,
-        featuredTotalPages: next.totalPages,
-        hasMoreFeatured: nextPage < next.totalPages,
+        featured: [...state.featured, ...response.articles],
+        featuredPage: response.articles.length ? nextPage : state.featuredPage,
+        featuredTotalPages: response.totalPages,
+        hasMoreFeatured: nextPage < response.totalPages,
+        featuredPrefetch: null,
       }));
     } catch (error) {
       set({ errorMessage: createErrorMessage(error) });
@@ -166,17 +179,70 @@ export const useNewsStore = create<NewsStore>((set, get) => ({
 
     try {
       const nextPage = recentPage + 1;
-      const next = await fetchRecentNews(nextPage);
+      const prefetched = get().recentPrefetch;
+      let response: NewsResponse = prefetched ?? (await fetchRecentNews(nextPage));
+
       set((state) => ({
-        recent: [...state.recent, ...next.articles],
-        recentPage: next.articles.length ? nextPage : state.recentPage,
-        recentTotalPages: next.totalPages,
-        hasMoreRecent: nextPage < next.totalPages,
+        recent: [...state.recent, ...response.articles],
+        recentPage: response.articles.length ? nextPage : state.recentPage,
+        recentTotalPages: response.totalPages,
+        hasMoreRecent: nextPage < response.totalPages,
+        recentPrefetch: null,
       }));
     } catch (error) {
       set({ errorMessage: createErrorMessage(error) });
     } finally {
       set({ isLoadingMoreRecent: false });
+    }
+  },
+
+  prefetchFeatured: async () => {
+    const {
+      hasMoreFeatured,
+      featuredPage,
+      featuredTotalPages,
+      isPrefetchingFeatured,
+      featuredPrefetch,
+    } = get();
+
+    if (!hasMoreFeatured || isPrefetchingFeatured || featuredPrefetch) return;
+    if (featuredTotalPages === 0 || featuredPage >= featuredTotalPages) return;
+
+    set({ isPrefetchingFeatured: true });
+
+    try {
+      const nextPage = featuredPage + 1;
+      const response = await fetchFeaturedNews(nextPage);
+      set({ featuredPrefetch: response });
+    } catch (error) {
+      // Prefetch failures are non-fatal, ignore
+    } finally {
+      set({ isPrefetchingFeatured: false });
+    }
+  },
+
+  prefetchRecent: async () => {
+    const {
+      hasMoreRecent,
+      recentPage,
+      recentTotalPages,
+      isPrefetchingRecent,
+      recentPrefetch,
+    } = get();
+
+    if (!hasMoreRecent || isPrefetchingRecent || recentPrefetch) return;
+    if (recentTotalPages === 0 || recentPage >= recentTotalPages) return;
+
+    set({ isPrefetchingRecent: true });
+
+    try {
+      const nextPage = recentPage + 1;
+      const response = await fetchRecentNews(nextPage);
+      set({ recentPrefetch: response });
+    } catch (error) {
+      // Ignore prefetch errors
+    } finally {
+      set({ isPrefetchingRecent: false });
     }
   },
 }));

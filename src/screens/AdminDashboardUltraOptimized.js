@@ -16,7 +16,6 @@ import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // NEW Premium Dashboard
-import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // NEW Premium Dashboard
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
 import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
