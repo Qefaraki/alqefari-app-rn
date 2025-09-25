@@ -2,8 +2,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 const API_BASE = 'https://alqefari.com/wp-json/wp/v2/posts';
 const FEATURED_CATEGORY = 1369;
-const FEATURED_PAGE_SIZE = 5;
-const RECENT_PAGE_SIZE = 6;
+const FEATURED_PAGE_SIZE = 10; // Increased from 5
+const RECENT_PAGE_SIZE = 12; // Increased from 6
 // Smart cache TTL: shorter for news content
 const CACHE_TTL_RECENT = 3 * 60 * 60 * 1000; // 3 hours for recent articles
 const CACHE_TTL_FEATURED = 6 * 60 * 60 * 1000; // 6 hours for featured articles

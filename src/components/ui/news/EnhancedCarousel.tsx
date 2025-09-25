@@ -38,7 +38,7 @@ const CarouselCard: React.FC<{
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
 
   return (
-    <Surface style={styles.card} radius={18}>
+    <Surface style={styles.card} radius={16}>
       <Pressable
         style={styles.cardPressable}
         onPress={onPress}
@@ -76,7 +76,7 @@ const CarouselCard: React.FC<{
 
 // Skeleton loading card
 const SkeletonCard: React.FC = () => (
-  <Surface style={styles.card} radius={18}>
+  <Surface style={styles.card} radius={16}>
     <View style={styles.cardPressable}>
       <View style={[styles.heroImage, styles.skeletonImage]} />
       <View style={styles.cardContent}>

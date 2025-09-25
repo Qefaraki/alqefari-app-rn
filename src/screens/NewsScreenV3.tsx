@@ -47,15 +47,23 @@ const NewsScreenV3: React.FC = () => {
     prefetchNextRecent,
     setScrollPosition,
     clearError,
+    cleanup,
   } = useOptimizedNewsStore();
 
   // Get current date for header
   const headerDate = useAbsoluteDateNoMemo(new Date());
 
-  // Initialize on mount
+  // Initialize on mount and cleanup on unmount
   useEffect(() => {
     initialize();
-  }, []);
+
+    // Cleanup timers on unmount
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [initialize, cleanup]);
 
   // Restore scroll position when returning to screen
   useEffect(() => {
@@ -252,6 +260,13 @@ const NewsScreenV3: React.FC = () => {
         maintainVisibleContentPosition={{
           minIndexForVisible: 1,
         }}
+        // Performance optimizations
+        removeClippedSubviews={true}
+        drawDistance={200}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={10}
       />
     </SafeAreaView>
   );
