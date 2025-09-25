@@ -188,8 +188,11 @@ export default function ProfileMatchingScreen({ navigation, route }) {
         // Request sent for admin approval - also mark onboarding complete
         await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
 
+        // Trigger profile status refresh to detect pending request
+        await checkProfileStatus(user);
+
         // Note: User won't have linked profile until admin approves
-        // They'll stay in guest mode for now
+        // But they have a pending request now, so can use app in limited mode
         Alert.alert("تم إرسال الطلب", result.message, [
           { text: "موافق" },
         ]);
@@ -239,7 +242,11 @@ export default function ProfileMatchingScreen({ navigation, route }) {
           // Request sent for admin approval - also mark onboarding complete
           await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
 
+          // Trigger profile status refresh to detect pending request
+          await checkProfileStatus(user);
+
           // Note: User won't have linked profile until admin approves
+          // But they have a pending request now, so can use app in limited mode
           Alert.alert("تم إرسال الطلب", result.message, [
             { text: "موافق" },
           ]);

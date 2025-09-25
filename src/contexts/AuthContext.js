@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
 
@@ -35,6 +36,7 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           setIsAdmin(false);
           setHasLinkedProfile(false);
+          setHasPendingRequest(false);
         }
         console.log('[DEBUG AuthContext] Setting isLoading to false from auth state change');
         setIsLoading(false);
@@ -129,6 +131,7 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setIsAdmin(false);
         setHasLinkedProfile(false);
+        setHasPendingRequest(false);
       }
     } catch (error) {
       // This should never happen with our Promise.race setup
@@ -145,6 +148,7 @@ export const AuthProvider = ({ children }) => {
   const checkProfileStatus = async (user) => {
     if (!user) {
       setHasLinkedProfile(false);
+      setHasPendingRequest(false);
       return false;
     }
 
@@ -159,10 +163,28 @@ export const AuthProvider = ({ children }) => {
       const hasProfile = !!profile && !error;
       console.log('[DEBUG AuthContext] Profile check for user:', user.id, 'Has profile:', hasProfile);
       setHasLinkedProfile(hasProfile);
+
+      // If no linked profile, check for pending request
+      if (!hasProfile) {
+        const { data: pendingRequest, error: requestError } = await supabase
+          .from('profile_link_requests')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .single();
+
+        const hasPending = !!pendingRequest && !requestError;
+        console.log('[DEBUG AuthContext] Pending request check:', hasPending);
+        setHasPendingRequest(hasPending);
+      } else {
+        setHasPendingRequest(false);
+      }
+
       return hasProfile;
     } catch (error) {
       console.log('[DEBUG AuthContext] Profile check error:', error);
       setHasLinkedProfile(false);
+      setHasPendingRequest(false);
       return false;
     }
   };
@@ -203,6 +225,7 @@ export const AuthProvider = ({ children }) => {
         user,
         isAdmin,
         hasLinkedProfile,
+        hasPendingRequest,
         isLoading,
         checkAuth,
         checkAdminStatus,

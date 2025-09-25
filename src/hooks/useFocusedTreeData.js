@@ -15,11 +15,34 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
   // Keep track of loaded branches to avoid duplicate loads
   const loadedBranches = useRef(new Set());
   const nodesMap = useRef(new Map());
+  const abortControllerRef = useRef(null);
 
   // Load initial focused data
   useEffect(() => {
     if (!focusPersonId) return;
+
+    // Cancel any existing requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
     loadInitialData();
+
+    // Cleanup function to cancel pending requests
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      // Clear cached data when component unmounts or focusPersonId changes
+      loadedBranches.current.clear();
+      nodesMap.current.clear();
+      setNodes([]);
+      setCenterNode(null);
+    };
   }, [focusPersonId]);
 
   const loadInitialData = async () => {
@@ -36,7 +59,12 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
         300 // max nodes for initial load
       );
 
-      if (branchError) throw branchError;
+      if (branchError) {
+        console.error('Error fetching branch data:', branchError);
+        setError(branchError);
+        setLoading(false);
+        return;
+      }
 
       if (!branchData || branchData.length === 0) {
         // Fallback to manual loading
@@ -85,7 +113,12 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
         .eq('id', personId)
         .single();
 
-      if (!person) throw new Error('Person not found');
+      if (!person) {
+        console.error('Person not found');
+        setError(new Error('Person not found'));
+        setLoading(false);
+        return;
+      }
 
       setCenterNode(person);
       allNodes.push(person);
@@ -175,7 +208,9 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
       loadedBranches.current.add(personId);
     } catch (err) {
       console.error('Error in manual branch loading:', err);
-      throw err;
+      setError(err);
+    } finally {
+      setLoading(false);
     }
   };
 

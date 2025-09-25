@@ -58,6 +58,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   const translateY = useSharedValue(0);
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
 
   // Animation state for glow
   const glowOpacity = useSharedValue(0.5);
@@ -124,10 +126,6 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       );
     }
   }, [centerNode, layoutNodes, focusPersonId]);
-
-  // Saved translation values
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
 
   // Pan gesture
   const panGesture = Gesture.Pan()

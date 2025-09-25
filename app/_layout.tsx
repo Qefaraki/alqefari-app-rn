@@ -55,7 +55,7 @@ class ErrorBoundary extends Component {
 }
 
 function TabLayout() {
-  const { user, isAdmin, hasLinkedProfile, isLoading } = useAuth();
+  const { user, isAdmin, hasLinkedProfile, hasPendingRequest, isLoading } = useAuth();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean | null>(null);
 
@@ -94,9 +94,15 @@ function TabLayout() {
       return 'authenticated';
     }
 
-    // If user is authenticated but NO linked profile, continue onboarding
-    if (user && !hasLinkedProfile) {
-      console.log('[DEBUG] Authenticated but no profile - continuing onboarding');
+    // If user is authenticated AND has a pending request, show tabs (limited access)
+    if (user && hasPendingRequest) {
+      console.log('[DEBUG] Showing tabs - authenticated user with pending request');
+      return 'authenticated-pending';
+    }
+
+    // If user is authenticated but NO linked profile AND NO pending request, continue onboarding
+    if (user && !hasLinkedProfile && !hasPendingRequest) {
+      console.log('[DEBUG] Authenticated but no profile or pending request - continuing onboarding');
       return 'onboarding';
     }
 
@@ -149,7 +155,7 @@ function TabLayout() {
   }
 
   // Show tabs - user state is managed by AuthContext
-  console.log('[DEBUG] Showing tabs - user:', !!user, 'isAdmin:', isAdmin);
+  console.log('[DEBUG] Showing tabs - user:', !!user, 'isAdmin:', isAdmin, 'hasPendingRequest:', hasPendingRequest);
 
   return (
     <NativeTabs

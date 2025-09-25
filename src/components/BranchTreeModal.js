@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import SimplifiedTreeView from "./SimplifiedTreeView";
+import TreeErrorBoundary from "./TreeErrorBoundary";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -77,7 +78,12 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
 
         {/* Simplified Tree View with Glow Effect */}
         <View style={styles.treeContainer}>
-          <SimplifiedTreeView focusPersonId={profile.id} />
+          <TreeErrorBoundary
+            fallbackMessage="لم نتمكن من عرض شجرة العائلة لهذا الشخص"
+            onRetry={() => {}}
+          >
+            <SimplifiedTreeView focusPersonId={profile.id} />
+          </TreeErrorBoundary>
         </View>
 
         {/* Action Buttons */}
