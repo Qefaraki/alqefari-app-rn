@@ -161,7 +161,10 @@ function TabLayout() {
     >
       <NativeTabs.Trigger name="index">
         <Label>الشجرة</Label>
-        <Icon sf={{ default: "tree", selected: "tree.fill" }} />
+        <Icon
+          src={require("../assets/logo/STAR_LOGO.png")}
+          style={{ width: 26, height: 26 }}
+        />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="news">

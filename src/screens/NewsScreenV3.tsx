@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerPatternWrapper: {
-    borderRadius: 18,
+    borderRadius: 16, // Standardized to 16px
     overflow: 'hidden',
     marginHorizontal: 16,
   },

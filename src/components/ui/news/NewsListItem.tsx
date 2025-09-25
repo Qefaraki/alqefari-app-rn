@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import CachedImage from '../../CachedImage';
 import { NewsArticle, stripHtmlForDisplay } from '../../../services/news';
 import Surface from '../Surface';
@@ -18,6 +19,7 @@ const NewsListItemComponent: React.FC<NewsListItemProps> = ({ article, onPress }
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
 
   const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress(article);
   };
 
@@ -30,6 +32,10 @@ const NewsListItemComponent: React.FC<NewsListItemProps> = ({ article, onPress }
         ]}
         onPress={handlePress}
         android_ripple={{ color: 'rgba(0,0,0,0.04)' }}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`مقال: ${article.title}`}
+        accessibilityHint={`اضغط لفتح المقال. ${relativeDate}`}
       >
         <View style={styles.content}>
           {/* Text Content - Left Side */}
