@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ImageBackground,
@@ -16,8 +16,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  interpolate,
+  interpolateColor,
+  runOnJS,
+} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
@@ -34,9 +41,23 @@ type ListItem =
   | { type: 'article'; data: NewsArticle; index: number }
   | { type: 'skeleton'; id: number };
 
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
 const NewsScreenV3: React.FC = () => {
   const flashListRef = useRef<FlashList<ListItem>>(null);
   const scrollOffsetRef = useRef(0);
+
+  // State for extracted colors
+  const [extractedColors, setExtractedColors] = useState({
+    vibrant: tokens.colors.najdi.primary,
+    muted: tokens.colors.najdi.container,
+    dominant: tokens.colors.najdi.secondary,
+  });
+
+  // Animated values for smooth color transitions
+  const colorTransition = useSharedValue(0);
+  const previousColors = useRef(extractedColors);
+  const targetColors = useRef(extractedColors);
 
   // Store state
   const {
@@ -59,6 +80,27 @@ const NewsScreenV3: React.FC = () => {
 
   // Get current date for header
   const headerDate = useAbsoluteDateNoMemo(new Date());
+
+  // Handle color extraction from carousel with smooth transition
+  const handleColorExtracted = useCallback((colors: any) => {
+    // Update colors with animation
+    setExtractedColors(colors);
+
+    // Animate the transition
+    colorTransition.value = 0;
+    colorTransition.value = withTiming(1, { duration: 800 });
+  }, [colorTransition]);
+
+  // Animated style for smooth color transitions
+  const animatedBackgroundStyle = useAnimatedStyle(() => {
+    return {
+      opacity: interpolate(
+        colorTransition.value,
+        [0, 0.5, 1],
+        [1, 0.8, 1]
+      ),
+    };
+  });
 
   // Initialize on mount and cleanup on unmount
   useEffect(() => {
@@ -141,17 +183,38 @@ const NewsScreenV3: React.FC = () => {
           <Text style={styles.subtitle}>{headerDate}</Text>
         </View>
 
-        {/* Glassmorphic carousel container */}
+        {/* Color-extracted carousel container */}
         <View style={styles.carouselSection}>
-          <BlurView intensity={20} tint="light" style={styles.glassmorphicContainer}>
+          {/* Dynamic gradient background with animated transition */}
+          <Animated.View style={[styles.colorGradientBackground, animatedBackgroundStyle]}>
             <LinearGradient
-              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
-              style={styles.gradientOverlay}
+              colors={[
+                extractedColors.dominant ? `${extractedColors.dominant}20` : '#A1333320',
+                extractedColors.muted ? `${extractedColors.muted}50` : '#F9F7F350',
+                'rgba(249, 247, 243, 0)'
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ flex: 1 }}
+            />
+          </Animated.View>
+
+          <View style={styles.frostedContainer}>
+            {/* Semi-transparent overlay for frosted effect */}
+            <LinearGradient
+              colors={[
+                'rgba(249, 247, 243, 0.85)',
+                'rgba(249, 247, 243, 0.7)',
+                'rgba(249, 247, 243, 0.6)'
+              ]}
+              style={styles.frostOverlay}
             >
               {/* Section header */}
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>السنوية الرئيسية</Text>
-                <View style={styles.sectionAccent} />
+                <View style={[styles.sectionAccent, {
+                  backgroundColor: extractedColors.vibrant || tokens.colors.najdi.primary
+                }]} />
               </View>
 
               {/* Featured carousel */}
@@ -161,9 +224,10 @@ const NewsScreenV3: React.FC = () => {
                 onReachEnd={loadMoreFeatured}
                 loading={isInitialLoading && featured.length === 0}
                 loadingMore={false}
+                onColorExtracted={handleColorExtracted}
               />
             </LinearGradient>
-          </BlurView>
+          </View>
 
           {/* Edge gradients for depth */}
           <LinearGradient
@@ -189,7 +253,7 @@ const NewsScreenV3: React.FC = () => {
         </View>
       </View>
     );
-  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured]);
+  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured, handleColorExtracted, extractedColors, animatedBackgroundStyle]);
 
   // Render list item
   const renderItem = useCallback(
@@ -336,18 +400,27 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     position: 'relative',
   },
-  glassmorphicContainer: {
+  colorGradientBackground: {
+    position: 'absolute',
+    top: -100,
+    left: -50,
+    right: -50,
+    bottom: -50,
+  },
+  frostedContainer: {
     marginHorizontal: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(249, 247, 243, 0.3)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 24,
     elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(209, 187, 163, 0.2)',
   },
-  gradientOverlay: {
+  frostOverlay: {
     padding: 16,
     paddingBottom: 20,
   },

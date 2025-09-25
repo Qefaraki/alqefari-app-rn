@@ -21,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { getAllSwatches } from 'react-native-palette';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
@@ -33,6 +34,7 @@ interface EnhancedCarouselProps {
   onReachEnd?: () => void;
   loading?: boolean;
   loadingMore?: boolean;
+  onColorExtracted?: (colors: { vibrant?: string; muted?: string; dominant?: string }) => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -167,29 +169,57 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
   onReachEnd,
   loading = false,
   loadingMore = false,
+  onColorExtracted,
 }) => {
   const flatListRef = useRef<FlatList<NewsArticle>>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useSharedValue(0);
   const scrollHintAnim = useSharedValue(0);
+  const [extractedColors, setExtractedColors] = useState<Record<string, any>>({});
 
-  // Auto-scroll hint animation on mount
+  // Auto-scroll hint animation on mount and initial color extraction
   useEffect(() => {
-    if (articles.length > 1 && !loading) {
-      // Delay the hint slightly
-      const timer = setTimeout(() => {
-        // Also do actual scroll hint
-        if (flatListRef.current) {
-          flatListRef.current.scrollToOffset({ offset: 50, animated: true });
-          setTimeout(() => {
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-          }, 400);
-        }
-      }, 600);
+    if (articles.length > 0 && !loading) {
+      // Extract colors from first article
+      if (articles[0]?.heroImage && onColorExtracted) {
+        const imageUrl = articles[0].heroImage;
+        getAllSwatches({ quality: 'low' }, imageUrl, (err, swatches) => {
+          if (err) {
+            console.log('Initial color extraction failed:', err);
+            onColorExtracted({
+              vibrant: tokens.colors.najdi.primary,
+              muted: tokens.colors.najdi.container,
+              dominant: tokens.colors.najdi.secondary,
+            });
+          } else if (swatches && swatches.length > 0) {
+            // Use the most prominent colors from swatches
+            const colors = {
+              dominant: swatches[0]?.hex || tokens.colors.najdi.primary,
+              vibrant: swatches[1]?.hex || tokens.colors.najdi.secondary,
+              muted: swatches[2]?.hex || tokens.colors.najdi.container,
+            };
+            setExtractedColors(prev => ({ ...prev, [imageUrl]: colors }));
+            onColorExtracted(colors);
+          }
+        });
+      }
 
-      return () => clearTimeout(timer);
+      if (articles.length > 1) {
+        // Delay the hint slightly
+        const timer = setTimeout(() => {
+          // Also do actual scroll hint
+          if (flatListRef.current) {
+            flatListRef.current.scrollToOffset({ offset: 50, animated: true });
+            setTimeout(() => {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            }, 400);
+          }
+        }, 600);
+
+        return () => clearTimeout(timer);
+      }
     }
-  }, [articles.length, loading]);
+  }, [articles, loading, onColorExtracted]);
 
   // Calculate snap offsets for each card
   const snapOffsets = useMemo(() => {
@@ -210,10 +240,41 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
       // Update shared value for animations
       scrollX.value = offsetX;
 
-      // Haptic feedback on card change
+      // Haptic feedback on card change and color extraction
       if (index !== currentIndex) {
         Haptics.selectionAsync();
         setCurrentIndex(index);
+
+        // Extract colors from current article image if available
+        if (!loading && articles[index]?.heroImage && onColorExtracted) {
+          const imageUrl = articles[index].heroImage;
+          if (extractedColors[imageUrl]) {
+            // Use cached colors
+            onColorExtracted(extractedColors[imageUrl]);
+          } else {
+            // Extract new colors
+            getAllSwatches({ quality: 'low' }, imageUrl, (err, swatches) => {
+              if (err) {
+                console.log('Color extraction failed:', err);
+                // Fallback to default colors
+                onColorExtracted({
+                  vibrant: tokens.colors.najdi.primary,
+                  muted: tokens.colors.najdi.container,
+                  dominant: tokens.colors.najdi.secondary,
+                });
+              } else if (swatches && swatches.length > 0) {
+                // Use the most prominent colors from swatches
+                const colors = {
+                  dominant: swatches[0]?.hex || tokens.colors.najdi.primary,
+                  vibrant: swatches[1]?.hex || tokens.colors.najdi.secondary,
+                  muted: swatches[2]?.hex || tokens.colors.najdi.container,
+                };
+                setExtractedColors(prev => ({ ...prev, [imageUrl]: colors }));
+                onColorExtracted(colors);
+              }
+            });
+          }
+        }
       }
 
       // Check if we're near the end (last 3 cards from end)
@@ -224,7 +285,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
         onReachEnd();
       }
     },
-    [currentIndex, onReachEnd, loadingMore, loading, scrollX]
+    [currentIndex, onReachEnd, loadingMore, loading, scrollX, articles, onColorExtracted, extractedColors]
   );
 
   // Render individual item
