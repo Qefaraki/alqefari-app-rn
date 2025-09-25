@@ -7,6 +7,8 @@ import {
   ActivityIndicator,
   Platform,
   StatusBar,
+  Linking,
+  Alert,
 } from 'react-native';
 import BottomSheet, {
   BottomSheetScrollView,
@@ -88,6 +90,21 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
   // Process article content and extract gallery
   useEffect(() => {
     if (!article) return;
+
+    // Check if article has HTML content
+    if (!article.html || article.html.length === 0) {
+      // If no HTML content, open the permalink in browser
+      if (article.permalink) {
+        Linking.openURL(article.permalink).catch(() => {
+          Alert.alert('تعذر فتح الرابط', 'حاول مرة أخرى لاحقاً.');
+        });
+        onClose();
+      } else {
+        Alert.alert('لا يوجد محتوى', 'هذا المقال لا يحتوي على محتوى للعرض.');
+        onClose();
+      }
+      return;
+    }
 
     setIsLoading(true);
 
