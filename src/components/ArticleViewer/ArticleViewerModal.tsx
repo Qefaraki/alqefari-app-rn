@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useImperativeHandle } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,14 @@ import {
   StatusBar,
   Linking,
   Alert,
+  TouchableOpacity,
+  ListRenderItemInfo,
 } from 'react-native';
-import BottomSheet, {
-  BottomSheetScrollView,
+import {
+  BottomSheetModal,
+  BottomSheetFlatList,
   BottomSheetBackdrop,
+  BottomSheetModalProvider,
 } from '@gorhom/bottom-sheet';
 import {
   useSharedValue,
@@ -20,18 +24,24 @@ import {
   runOnJS,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { NewsArticle } from '../../services/news';
 import { useSettings } from '../../contexts/SettingsContext';
 import tokens from '../ui/tokens';
 import ArticleHeader from './components/ArticleHeader';
 import ArticleContent from './components/ArticleContent';
-import ArticleGallery from './components/ArticleGallery/GalleryContainer';
 import ArticleActions from './components/ArticleActions';
+import ArticleSkeletonLoader from './components/ArticleSkeletonLoader';
 import { extractGalleryImages } from './utils/galleryExtractor';
 import { useArticleCache } from './hooks/useArticleCache';
 import { useImagePreloader } from './hooks/useImagePreloader';
+import { getWordPressImageSizes } from './utils/imageOptimizer';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const GALLERY_COLUMNS = 2;
+const PADDING = 8;
+const COLUMN_WIDTH = (screenWidth - PADDING * (GALLERY_COLUMNS + 1)) / GALLERY_COLUMNS;
 
 interface ArticleViewerModalProps {
   article: NewsArticle | null;
@@ -39,47 +49,105 @@ interface ArticleViewerModalProps {
   onClose: () => void;
 }
 
+// Section types for FlatList
+type SectionType = 'HEADER' | 'ACTIONS' | 'CONTENT' | 'GALLERY_SEPARATOR' | 'GALLERY_IMAGE' | 'BOTTOM_PADDING';
+
+interface SectionItem {
+  id: string;
+  type: SectionType;
+  data?: any;
+}
+
+// Memoized gallery image component with progressive loading
+const GalleryImageItem = React.memo(({
+  url,
+  index,
+  isNightMode,
+  onPress,
+}: {
+  url: string;
+  index: number;
+  isNightMode: boolean;
+  onPress: () => void;
+}) => {
+  const [isLoaded, setIsLoaded] = React.useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = React.useState<string>('');
+  const isLeftColumn = index % 2 === 0;
+
+  React.useEffect(() => {
+    // Start with thumbnail, then load full image
+    const sizes = getWordPressImageSizes(url);
+
+    // Load thumbnail first
+    setCurrentImageUrl(sizes.thumbnail);
+
+    // Then load the full image
+    const loadFullImage = async () => {
+      try {
+        await Image.prefetch(url);
+        setCurrentImageUrl(url);
+      } catch {
+        // Keep thumbnail if full image fails
+      }
+    };
+
+    loadFullImage();
+  }, [url]);
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.galleryImageContainer,
+        { width: COLUMN_WIDTH },
+        !isLeftColumn && { marginLeft: PADDING },
+      ]}
+      activeOpacity={0.8}
+      onPress={onPress}
+    >
+      <Image
+        source={{ uri: currentImageUrl || url }}
+        style={styles.galleryImage}
+        contentFit="cover"
+        transition={300}
+        onLoad={() => setIsLoaded(true)}
+        recyclingKey={url}
+        cachePolicy="memory-disk"
+        priority="low"
+      />
+
+      {!isLoaded && (
+        <View style={styles.imageLoadingOverlay}>
+          <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
+
+GalleryImageItem.displayName = 'GalleryImageItem';
+
 const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
   article,
   visible,
   onClose,
 }) => {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const scrollRef = useRef<any>(null);
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
   const { settings } = useSettings();
 
-  // State
+  // Refs for non-render values
+  const hasProcessedRef = useRef(false);
+  const lastArticleIdRef = useRef<number | null>(null);
+
+  // State - only what triggers renders
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [galleryImages, setGalleryImages] = useState<string[]>([]);
-  const [processedContent, setProcessedContent] = useState<string>('');
   const [readingProgress, setReadingProgress] = useState(0);
   const [fontSize, setFontSize] = useState(16);
   const [isNightMode, setIsNightMode] = useState(false);
+  const [isContentReady, setIsContentReady] = useState(false);
 
   // Animation values
   const animatedPosition = useSharedValue(0);
   const scrollY = useSharedValue(0);
-
-  // Snap points - dynamic based on content
-  const snapPoints = useMemo(() => {
-    if (!article) return ['50%'];
-
-    // Adjust snap points based on article length
-    const hasGallery = galleryImages.length > 0;
-    const baseSnaps = ['50%', '92%'];
-
-    // Add full screen snap if there's a gallery
-    if (hasGallery) {
-      baseSnaps.push('100%');
-    }
-
-    return baseSnaps;
-  }, [article, galleryImages]);
-
-  // Calculate status bar height
-  const statusBarHeight =
-    Platform.OS === 'ios' ? 47 : StatusBar.currentHeight || 24;
 
   // Cache management
   const { getCachedArticle, cacheArticle, clearOldCache } = useArticleCache();
@@ -87,48 +155,180 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
   // Image preloading
   const { preloadImages, cancelPreloading } = useImagePreloader();
 
-  // Process article content and extract gallery
-  useEffect(() => {
-    if (!article) return;
+  // Initialize with empty data for instant opening
+  const [articleData, setArticleData] = useState({
+    processedContent: '',
+    galleryImages: [] as string[],
+    wordCount: 0,
+    readingTime: 0,
+    isValid: false
+  });
 
-    // Check if article has HTML content
-    if (!article.html || article.html.length === 0) {
-      // If no HTML content, open the permalink in browser
+  // Process article content asynchronously
+  useEffect(() => {
+    if (!article) {
+      setIsContentReady(false);
+      return;
+    }
+
+    // Open immediately with skeleton
+    setIsContentReady(false);
+
+    // Process content asynchronously
+    const processContentAsync = async () => {
+      // Small delay to ensure smooth opening animation
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      if (!article.html || article.html.length === 0) {
+        setArticleData({
+          processedContent: '',
+          galleryImages: [],
+          wordCount: 0,
+          readingTime: 0,
+          isValid: false
+        });
+        setIsContentReady(true);
+        return;
+      }
+
+      // Extract gallery and process content
+      const { content, galleryImages: gallery } = extractGalleryImages(article.html);
+
+      // Calculate reading metrics
+      const wordCount = article.html.replace(/<[^>]*>/g, '').split(/\s+/).length;
+      const readingTime = Math.ceil(wordCount / 200);
+
+      setArticleData({
+        processedContent: content,
+        galleryImages: gallery,
+        wordCount,
+        readingTime,
+        isValid: true
+      });
+
+      // Cache the article
+      cacheArticle(article);
+
+      // Start preloading gallery images
+      if (gallery.length > 0) {
+        preloadImages(gallery.slice(0, 3));
+      }
+
+      setIsContentReady(true);
+    };
+
+    processContentAsync();
+  }, [article?.id, cacheArticle, preloadImages]);
+
+  // Create sections for FlatList
+  const sections = useMemo(() => {
+    if (!articleData.isValid || !article) return [];
+
+    const items: SectionItem[] = [];
+
+    // Add header section
+    items.push({
+      id: 'header',
+      type: 'HEADER',
+      data: {
+        article,
+        readingTime: articleData.readingTime,
+        wordCount: articleData.wordCount,
+        scrollY,
+        isNightMode,
+      }
+    });
+
+    // Add actions section
+    items.push({
+      id: 'actions',
+      type: 'ACTIONS',
+      data: {
+        article,
+        fontSize,
+        isNightMode,
+        readingProgress,
+      }
+    });
+
+    // Add content section
+    items.push({
+      id: 'content',
+      type: 'CONTENT',
+      data: {
+        html: articleData.processedContent,
+        fontSize,
+        isNightMode,
+        settings,
+      }
+    });
+
+    // Add gallery sections if images exist
+    if (articleData.galleryImages.length > 0) {
+      // Add separator
+      items.push({
+        id: 'gallery-separator',
+        type: 'GALLERY_SEPARATOR',
+        data: {
+          imageCount: articleData.galleryImages.length,
+        }
+      });
+
+      // Add gallery images as pairs for 2-column layout
+      for (let i = 0; i < articleData.galleryImages.length; i += GALLERY_COLUMNS) {
+        const imageRow: string[] = [];
+        for (let j = 0; j < GALLERY_COLUMNS && i + j < articleData.galleryImages.length; j++) {
+          imageRow.push(articleData.galleryImages[i + j]);
+        }
+
+        items.push({
+          id: `gallery-row-${i}`,
+          type: 'GALLERY_IMAGE',
+          data: {
+            images: imageRow,
+            startIndex: i,
+          }
+        });
+      }
+    }
+
+    // Add bottom padding
+    items.push({
+      id: 'bottom-padding',
+      type: 'BOTTOM_PADDING',
+      data: null
+    });
+
+    return items;
+  }, [article, articleData, fontSize, isNightMode, settings, readingProgress, scrollY]);
+
+  // Snap points derived from article data
+  const snapPoints = useMemo(() => {
+    if (!article) return ['50%'];
+
+    const baseSnaps = ['50%', '92%'];
+
+    // Add full screen snap if there's a gallery
+    if (articleData.galleryImages.length > 0) {
+      baseSnaps.push('100%');
+    }
+
+    return baseSnaps;
+  }, [article, articleData.galleryImages.length]);
+
+  // Handle invalid article
+  useEffect(() => {
+    if (isContentReady && !articleData.isValid && article) {
       if (article.permalink) {
         Linking.openURL(article.permalink).catch(() => {
           Alert.alert('تعذر فتح الرابط', 'حاول مرة أخرى لاحقاً.');
         });
-        onClose();
       } else {
         Alert.alert('لا يوجد محتوى', 'هذا المقال لا يحتوي على محتوى للعرض.');
-        onClose();
       }
-      return;
+      onClose();
     }
-
-    setIsLoading(true);
-
-    // Extract gallery images and process content
-    const { content, galleryImages: gallery } = extractGalleryImages(article.html);
-    setProcessedContent(content);
-    setGalleryImages(gallery);
-
-    // Cache the article
-    cacheArticle(article);
-
-    // Start preloading gallery images when sheet opens to 50%
-    if (currentSnapIndex >= 0 && gallery.length > 0) {
-      // Preload first 6 images immediately
-      preloadImages(gallery.slice(0, 6));
-
-      // Preload next batch when sheet is more open
-      if (currentSnapIndex >= 1) {
-        preloadImages(gallery.slice(6, 18));
-      }
-    }
-
-    setIsLoading(false);
-  }, [article, currentSnapIndex]);
+  }, [isContentReady, articleData.isValid, article, onClose]);
 
   // Track reading progress based on scroll
   useAnimatedReaction(
@@ -152,11 +352,17 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
-    // Start preloading more images as user engages
-    if (index === 2 && galleryImages.length > 18) {
-      preloadImages(galleryImages.slice(18));
+    // Progressive image preloading based on engagement
+    if (articleData.galleryImages.length > 0) {
+      if (index === 1 && articleData.galleryImages.length > 6) {
+        // User engaged more - preload next batch
+        preloadImages(articleData.galleryImages.slice(6, 18));
+      } else if (index === 2 && articleData.galleryImages.length > 18) {
+        // Full screen - preload all remaining
+        preloadImages(articleData.galleryImages.slice(18));
+      }
     }
-  }, [galleryImages]);
+  }, [articleData.galleryImages, preloadImages]);
 
   // Custom backdrop
   const renderBackdrop = useCallback(
@@ -202,38 +408,134 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     setIsNightMode(prev => !prev);
   }, []);
 
-  // Show/hide sheet based on visibility
+  // Handle gallery image press
+  const handleGalleryImagePress = useCallback((url: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('معاينة', 'سيتم فتح معاينة الصورة بالحجم الكامل قريباً');
+  }, []);
+
+  // Render different section types
+  const renderItem = useCallback(({ item }: ListRenderItemInfo<SectionItem>) => {
+    switch (item.type) {
+      case 'HEADER':
+        return (
+          <ArticleHeader
+            article={item.data.article}
+            readingTime={item.data.readingTime}
+            wordCount={item.data.wordCount}
+            scrollY={item.data.scrollY}
+            isNightMode={item.data.isNightMode}
+          />
+        );
+
+      case 'ACTIONS':
+        return (
+          <ArticleActions
+            article={item.data.article}
+            fontSize={item.data.fontSize}
+            onFontSizeChange={adjustFontSize}
+            isNightMode={item.data.isNightMode}
+            onToggleNightMode={toggleNightMode}
+            readingProgress={item.data.readingProgress}
+          />
+        );
+
+      case 'CONTENT':
+        return (
+          <ArticleContent
+            html={item.data.html}
+            fontSize={item.data.fontSize}
+            isNightMode={item.data.isNightMode}
+            settings={item.data.settings}
+          />
+        );
+
+      case 'GALLERY_SEPARATOR':
+        return (
+          <View style={styles.gallerySeparator}>
+            <View style={styles.separatorLine} />
+            <Text style={styles.galleryTitle}>
+              📸 {item.data.imageCount} صور من الحدث
+            </Text>
+            <View style={styles.separatorLine} />
+          </View>
+        );
+
+      case 'GALLERY_IMAGE':
+        return (
+          <View style={styles.galleryRow}>
+            {item.data.images.map((url: string, index: number) => (
+              <GalleryImageItem
+                key={url}
+                url={url}
+                index={item.data.startIndex + index}
+                isNightMode={isNightMode}
+                onPress={() => handleGalleryImagePress(url)}
+              />
+            ))}
+            {/* Add empty space for incomplete rows */}
+            {item.data.images.length < GALLERY_COLUMNS && (
+              <View
+                style={{
+                  width: COLUMN_WIDTH * (GALLERY_COLUMNS - item.data.images.length) + PADDING * (GALLERY_COLUMNS - item.data.images.length - 1),
+                  marginLeft: PADDING,
+                }}
+              />
+            )}
+          </View>
+        );
+
+      case 'BOTTOM_PADDING':
+        return <View style={{ height: 100 }} />;
+
+      default:
+        return null;
+    }
+  }, [adjustFontSize, toggleNightMode, handleGalleryImagePress, isNightMode]);
+
+  // Key extractor
+  const keyExtractor = useCallback((item: SectionItem) => item.id, []);
+
+  // Imperative handle for sheet control
+  const openSheet = useCallback(() => {
+    if (article && visible) {
+      // Open immediately without waiting for content
+      bottomSheetRef.current?.present();
+    }
+  }, [article, visible]);
+
+  const closeSheet = useCallback(() => {
+    bottomSheetRef.current?.dismiss();
+    // Reset state
+    cancelPreloading();
+    setReadingProgress(0);
+    lastArticleIdRef.current = null;
+    hasProcessedRef.current = false;
+  }, [cancelPreloading]);
+
+  // Single effect for visibility changes
   useEffect(() => {
     if (visible && article) {
-      bottomSheetRef.current?.expand();
+      openSheet();
     } else {
-      bottomSheetRef.current?.close();
-      // Cleanup
-      cancelPreloading();
-      setGalleryImages([]);
-      setProcessedContent('');
-      setReadingProgress(0);
+      closeSheet();
     }
-  }, [visible, article]);
+  }, [visible, article?.id]); // Only depend on article.id to avoid unnecessary calls
 
-  // Clear old cache on mount
+  // Clear old cache once on mount
   useEffect(() => {
     clearOldCache();
-  }, []);
+  }, []); // Empty deps is intentional - only run once
 
   if (!article) return null;
 
-  // Calculate reading time
-  const wordCount = article.html.replace(/<[^>]*>/g, '').split(/\s+/).length;
-  const readingTime = Math.ceil(wordCount / 200); // 200 words per minute
-
   return (
-    <BottomSheet
+    <BottomSheetModal
       ref={bottomSheetRef}
       snapPoints={snapPoints}
       animatedPosition={animatedPosition}
       onChange={handleSheetChange}
-      onClose={onClose}
+      onDismiss={onClose}
       backdropComponent={renderBackdrop}
       handleComponent={renderHandle}
       backgroundStyle={[
@@ -245,76 +547,39 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
       // Enable keyboard handling for comments/sharing
       keyboardBehavior="interactive"
       keyboardBlurBehavior="restore"
+      // Modal-specific optimizations
+      enableDismissOnClose={true}
+      stackBehavior="push"
     >
-      <BottomSheetScrollView
-        ref={scrollRef}
-        style={[styles.container, isNightMode && styles.containerDark]}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        onScroll={(e) => {
-          scrollY.value = e.nativeEvent.contentOffset.y;
-        }}
-        scrollEventThrottle={16}
-      >
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-            <Text style={styles.loadingText}>جاري التحميل...</Text>
-          </View>
-        ) : (
-          <>
-            {/* Article Header */}
-            <ArticleHeader
-              article={article}
-              readingTime={readingTime}
-              wordCount={wordCount}
-              scrollY={scrollY}
-              isNightMode={isNightMode}
-            />
-
-            {/* Article Actions Bar */}
-            <ArticleActions
-              article={article}
-              fontSize={fontSize}
-              onFontSizeChange={adjustFontSize}
-              isNightMode={isNightMode}
-              onToggleNightMode={toggleNightMode}
-              readingProgress={readingProgress}
-            />
-
-            {/* Article Content */}
-            <ArticleContent
-              html={processedContent}
-              fontSize={fontSize}
-              isNightMode={isNightMode}
-              settings={settings}
-            />
-
-            {/* Gallery Section (if images detected) */}
-            {galleryImages.length > 0 && (
-              <>
-                <View style={styles.gallerySeparator}>
-                  <View style={styles.separatorLine} />
-                  <Text style={styles.galleryTitle}>
-                    📸 {galleryImages.length} صور من الحدث
-                  </Text>
-                  <View style={styles.separatorLine} />
-                </View>
-
-                <ArticleGallery
-                  images={galleryImages}
-                  articleTitle={article.title}
-                  isNightMode={isNightMode}
-                />
-              </>
-            )}
-
-            {/* Bottom padding for safe area */}
-            <View style={{ height: 100 }} />
-          </>
-        )}
-      </BottomSheetScrollView>
-    </BottomSheet>
+      {!isContentReady ? (
+        <ArticleSkeletonLoader
+          isNightMode={isNightMode}
+          hasImage={!!article?.heroImage}
+        />
+      ) : !articleData.isValid ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.errorText}>لا يمكن عرض المحتوى</Text>
+        </View>
+      ) : (
+        <BottomSheetFlatList
+          data={sections}
+          renderItem={renderItem}
+          keyExtractor={keyExtractor}
+          style={[styles.container, isNightMode && styles.containerDark]}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          onScroll={(e) => {
+            scrollY.value = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={5}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={3}
+          windowSize={10}
+        />
+      )}
+    </BottomSheetModal>
   );
 };
 
@@ -368,6 +633,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: tokens.colors.najdi.text,
   },
+  errorText: {
+    fontSize: 16,
+    color: tokens.colors.najdi.textMuted,
+  },
   gallerySeparator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -385,6 +654,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
+  galleryRow: {
+    flexDirection: 'row',
+    paddingHorizontal: PADDING,
+    marginBottom: PADDING,
+  },
+  galleryImageContainer: {
+    height: COLUMN_WIDTH,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  galleryImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
+// Export with provider wrapper for standalone use
 export default ArticleViewerModal;
+
+// Also export the raw component for use within existing provider
+export { ArticleViewerModal as ArticleViewerModalRaw };

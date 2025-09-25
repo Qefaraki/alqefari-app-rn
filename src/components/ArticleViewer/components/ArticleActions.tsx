@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   Share,
   Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
 import tokens from '../../ui/tokens';
@@ -47,19 +47,6 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
     }
   };
 
-  // Copy link
-  const handleCopyLink = async () => {
-    if (!article.permalink) return;
-
-    try {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await Clipboard.setStringAsync(article.permalink);
-      Alert.alert('تم', 'تم نسخ الرابط', undefined, { cancelable: true });
-    } catch (error) {
-      Alert.alert('خطأ', 'فشل نسخ الرابط');
-    }
-  };
-
   return (
     <View style={[styles.container, isNightMode && styles.containerDark]}>
       {/* Reading Progress Indicator */}
@@ -86,13 +73,9 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
             fontSize <= 12 && styles.disabledText,
             isNightMode && styles.textDark,
           ]}>
-            ص-
+            -
           </Text>
         </TouchableOpacity>
-
-        <Text style={[styles.currentFontSize, isNightMode && styles.textDark]}>
-          {fontSize}
-        </Text>
 
         <TouchableOpacity
           style={styles.actionButton}
@@ -107,7 +90,7 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
             fontSize >= 24 && styles.disabledText,
             isNightMode && styles.textDark,
           ]}>
-            ص+
+            +
           </Text>
         </TouchableOpacity>
       </View>
@@ -131,30 +114,24 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
           />
         </TouchableOpacity>
 
-        {/* Copy Link */}
-        {article.permalink && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleCopyLink}
-          >
-            <Ionicons
-              name="link"
-              size={20}
-              color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
-            />
-          </TouchableOpacity>
-        )}
-
-        {/* Share */}
+        {/* Share using native iOS SF symbol */}
         <TouchableOpacity
           style={styles.actionButton}
           onPress={handleShare}
         >
-          <Ionicons
-            name="share-social"
-            size={20}
-            color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
-          />
+          {Platform.OS === 'ios' ? (
+            <Ionicons
+              name="share-outline"
+              size={20}
+              color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
+            />
+          ) : (
+            <Ionicons
+              name="share-social-outline"
+              size={20}
+              color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -171,7 +148,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: 'rgba(0,0,0,0.1)',
-    // Add subtle shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -196,18 +172,13 @@ const styles = StyleSheet.create({
   fontSizeControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 8,
   },
   fontSizeText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
-  },
-  currentFontSize: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: tokens.colors.najdi.textMuted,
-    minWidth: 20,
+    minWidth: 24,
     textAlign: 'center',
   },
   separator: {
@@ -218,12 +189,11 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 12,
   },
   actionButton: {
     padding: 8,
     borderRadius: 8,
-    // Add hover effect area
     minWidth: 36,
     minHeight: 36,
     justifyContent: 'center',

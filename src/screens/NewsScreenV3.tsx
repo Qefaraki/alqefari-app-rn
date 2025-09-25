@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ImageBackground,
@@ -25,6 +25,7 @@ import EnhancedCarousel from '../components/ui/news/EnhancedCarousel';
 import { WorldClassNewsCard } from '../components/ui/news/WorldClassNewsCard';
 import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
 import NetworkError from '../components/NetworkError';
+import ArticleViewerModal from '../components/ArticleViewer/ArticleViewerModal';
 import tokens from '../components/ui/tokens';
 
 // Item types for mixed list
@@ -55,6 +56,10 @@ const NewsScreenV3: React.FC = () => {
     clearError,
     cleanup,
   } = useOptimizedNewsStore();
+
+  // State for article viewer
+  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const [articleViewerVisible, setArticleViewerVisible] = useState(false);
 
   // Get current date for header
   const headerDate = useAbsoluteDateNoMemo(new Date());
@@ -89,13 +94,9 @@ const NewsScreenV3: React.FC = () => {
     // Save scroll position before navigating
     setScrollPosition(scrollOffsetRef.current, 0);
 
-    if (article.permalink) {
-      Linking.openURL(article.permalink).catch(() => {
-        Alert.alert('تعذر فتح الرابط', 'حاول مرة أخرى لاحقاً.');
-      });
-      return;
-    }
-    Alert.alert('لا يوجد رابط', stripHtmlForDisplay(article.summary || ''));
+    // Open in the article viewer modal
+    setSelectedArticle(article);
+    setArticleViewerVisible(true);
   }, [setScrollPosition]);
 
   // Handle scroll for pre-fetching
@@ -288,6 +289,16 @@ const NewsScreenV3: React.FC = () => {
         initialNumToRender={5}
         maxToRenderPerBatch={5}
         windowSize={10}
+      />
+
+      {/* Article Viewer Modal */}
+      <ArticleViewerModal
+        article={selectedArticle}
+        visible={articleViewerVisible}
+        onClose={() => {
+          setArticleViewerVisible(false);
+          setSelectedArticle(null);
+        }}
       />
     </SafeAreaView>
   );

@@ -1,13 +1,14 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, memo } from 'react';
 import {
   View,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   Text,
   ActivityIndicator,
   Alert,
+  ListRenderItemInfo,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,8 @@ const { width: screenWidth } = Dimensions.get('window');
 const PADDING = 8;
 const COLUMNS = 2;
 const COLUMN_WIDTH = (screenWidth - PADDING * (COLUMNS + 1)) / COLUMNS;
+const DEFAULT_ASPECT_RATIO = 1;
+const ESTIMATED_ITEM_HEIGHT = COLUMN_WIDTH / DEFAULT_ASPECT_RATIO + PADDING;
 
 interface MasonryViewProps {
   images: string[];
@@ -27,11 +30,92 @@ interface MasonryViewProps {
   onToggleSelection?: (url: string) => void;
 }
 
-interface MasonryItem {
-  url: string;
+interface MasonryRow {
+  id: string;
+  items: Array<{ url: string; columnIndex: number }>;
   height: number;
-  column: number;
 }
+
+// Memoized image item component
+const MasonryImageItem = memo(({
+  url,
+  isSelected,
+  isSelectionMode,
+  selectedIndex,
+  onPress,
+  isNightMode,
+}: {
+  url: string;
+  isSelected: boolean;
+  isSelectionMode: boolean;
+  selectedIndex: number;
+  onPress: () => void;
+  isNightMode: boolean;
+}) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.imageContainer,
+        isSelected && styles.selectedContainer,
+      ]}
+      activeOpacity={0.8}
+      onPress={onPress}
+    >
+      <Image
+        source={{ uri: url }}
+        style={styles.image}
+        contentFit="cover"
+        transition={300}
+        onLoad={() => setIsLoaded(true)}
+        recyclingKey={url}
+        cachePolicy="memory-disk"
+      />
+
+      {/* Loading indicator */}
+      {!isLoaded && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+        </View>
+      )}
+
+      {/* Selection overlay */}
+      {isSelectionMode && (
+        <View style={[styles.selectionOverlay, isSelected && styles.selectedOverlay]}>
+          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+            {isSelected && (
+              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+            )}
+          </View>
+          {isSelected && (
+            <View style={styles.selectedBadge}>
+              <Text style={styles.selectedNumber}>
+                {selectedIndex + 1}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Gradient overlay for better visibility */}
+      {isSelectionMode && (
+        <View style={styles.gradientOverlay} />
+      )}
+    </TouchableOpacity>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison for better memo performance
+  return (
+    prevProps.url === nextProps.url &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isSelectionMode === nextProps.isSelectionMode &&
+    prevProps.selectedIndex === nextProps.selectedIndex &&
+    prevProps.isNightMode === nextProps.isNightMode
+  );
+});
+
+MasonryImageItem.displayName = 'MasonryImageItem';
 
 const MasonryView: React.FC<MasonryViewProps> = ({
   images,
@@ -40,51 +124,35 @@ const MasonryView: React.FC<MasonryViewProps> = ({
   selectedImages = new Set(),
   onToggleSelection,
 }) => {
-  const [imageDimensions, setImageDimensions] = useState<Map<string, { width: number; height: number }>>(new Map());
-  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  // Pre-calculate masonry layout as rows for FlatList
+  const masonryRows = useMemo(() => {
+    const rows: MasonryRow[] = [];
+    let currentRow: Array<{ url: string; columnIndex: number }> = [];
+    let rowId = 0;
 
-  // Calculate masonry layout
-  const masonryLayout = useMemo(() => {
-    const columnHeights = Array(COLUMNS).fill(0);
-    const items: MasonryItem[] = [];
+    for (let i = 0; i < images.length; i += COLUMNS) {
+      currentRow = [];
 
-    images.forEach(url => {
-      // Find the shortest column
-      const shortestColumnIndex = columnHeights.indexOf(Math.min(...columnHeights));
+      // Fill the current row with up to COLUMNS items
+      for (let j = 0; j < COLUMNS && i + j < images.length; j++) {
+        currentRow.push({
+          url: images[i + j],
+          columnIndex: j,
+        });
+      }
 
-      // Get image dimensions or use default aspect ratio
-      const dimensions = imageDimensions.get(url);
-      const aspectRatio = dimensions ? dimensions.width / dimensions.height : 1;
-      const itemHeight = COLUMN_WIDTH / aspectRatio;
-
-      items.push({
-        url,
-        height: itemHeight,
-        column: shortestColumnIndex,
+      rows.push({
+        id: `row-${rowId}`,
+        items: currentRow,
+        height: ESTIMATED_ITEM_HEIGHT,
       });
+      rowId++;
+    }
 
-      // Update column height
-      columnHeights[shortestColumnIndex] += itemHeight + PADDING;
-    });
+    return rows;
+  }, [images]);
 
-    return { items, maxHeight: Math.max(...columnHeights) };
-  }, [images, imageDimensions]);
-
-  // Handle image load to get dimensions
-  const handleImageLoad = useCallback((url: string, width: number, height: number) => {
-    setImageDimensions(prev => {
-      const newMap = new Map(prev);
-      newMap.set(url, { width, height });
-      return newMap;
-    });
-    setLoadedImages(prev => {
-      const newSet = new Set(prev);
-      newSet.add(url);
-      return newSet;
-    });
-  }, []);
-
-  // Handle image press
+  // Handle image press with memoization
   const handleImagePress = useCallback((url: string) => {
     if (isSelectionMode && onToggleSelection) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -92,93 +160,83 @@ const MasonryView: React.FC<MasonryViewProps> = ({
     } else {
       // Open full screen viewer
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // TODO: Implement full screen image viewer
       Alert.alert('معاينة', 'سيتم فتح معاينة الصورة بالحجم الكامل قريباً');
     }
   }, [isSelectionMode, onToggleSelection]);
 
-  // Group items by column
-  const columns = useMemo(() => {
-    const cols: MasonryItem[][] = Array.from({ length: COLUMNS }, () => []);
+  // Get selected index for a URL
+  const getSelectedIndex = useCallback((url: string) => {
+    if (!selectedImages.has(url)) return -1;
+    return Array.from(selectedImages).indexOf(url);
+  }, [selectedImages]);
 
-    masonryLayout.items.forEach(item => {
-      cols[item.column].push(item);
-    });
+  // Render a row of masonry items
+  const renderRow = useCallback(({ item }: ListRenderItemInfo<MasonryRow>) => {
+    return (
+      <View style={styles.row}>
+        {item.items.map((imageItem, index) => (
+          <View
+            key={imageItem.url}
+            style={[
+              styles.columnItem,
+              { width: COLUMN_WIDTH },
+              index > 0 && { marginLeft: PADDING },
+            ]}
+          >
+            <MasonryImageItem
+              url={imageItem.url}
+              isSelected={selectedImages.has(imageItem.url)}
+              isSelectionMode={isSelectionMode}
+              selectedIndex={getSelectedIndex(imageItem.url)}
+              onPress={() => handleImagePress(imageItem.url)}
+              isNightMode={isNightMode}
+            />
+          </View>
+        ))}
+        {/* Add empty space for incomplete rows */}
+        {item.items.length < COLUMNS && (
+          <View
+            style={[
+              styles.columnItem,
+              {
+                width: COLUMN_WIDTH * (COLUMNS - item.items.length) + PADDING * (COLUMNS - item.items.length - 1),
+                marginLeft: PADDING,
+              },
+            ]}
+          />
+        )}
+      </View>
+    );
+  }, [selectedImages, isSelectionMode, getSelectedIndex, handleImagePress, isNightMode]);
 
-    return cols;
-  }, [masonryLayout]);
+  // Key extractor
+  const keyExtractor = useCallback((item: MasonryRow) => item.id, []);
+
+  // Get item layout for performance
+  const getItemLayout = useCallback((data: MasonryRow[] | null | undefined, index: number) => ({
+    length: ESTIMATED_ITEM_HEIGHT,
+    offset: ESTIMATED_ITEM_HEIGHT * index,
+    index,
+  }), []);
 
   return (
-    <ScrollView
+    <FlatList
+      data={masonryRows}
+      renderItem={renderRow}
+      keyExtractor={keyExtractor}
+      getItemLayout={getItemLayout}
       style={[styles.container, isNightMode && styles.containerDark]}
       contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.masonryContainer}>
-        {columns.map((column, columnIndex) => (
-          <View key={columnIndex} style={styles.column}>
-            {column.map((item, itemIndex) => {
-              const isSelected = selectedImages.has(item.url);
-              const isLoaded = loadedImages.has(item.url);
-
-              return (
-                <TouchableOpacity
-                  key={`${columnIndex}-${itemIndex}`}
-                  style={[
-                    styles.imageContainer,
-                    { height: item.height },
-                    isSelected && styles.selectedContainer,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => handleImagePress(item.url)}
-                >
-                  <Image
-                    source={{ uri: item.url }}
-                    style={styles.image}
-                    contentFit="cover"
-                    transition={300}
-                    onLoad={(event) => {
-                      const { width, height } = event.source;
-                      handleImageLoad(item.url, width, height);
-                    }}
-                  />
-
-                  {/* Loading indicator */}
-                  {!isLoaded && (
-                    <View style={styles.loadingOverlay}>
-                      <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-                    </View>
-                  )}
-
-                  {/* Selection overlay */}
-                  {isSelectionMode && (
-                    <View style={[styles.selectionOverlay, isSelected && styles.selectedOverlay]}>
-                      <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                        {isSelected && (
-                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                        )}
-                      </View>
-                      {isSelected && (
-                        <View style={styles.selectedBadge}>
-                          <Text style={styles.selectedNumber}>
-                            {Array.from(selectedImages).indexOf(item.url) + 1}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-
-                  {/* Gradient overlay for better visibility */}
-                  {isSelectionMode && (
-                    <View style={styles.gradientOverlay} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-    </ScrollView>
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={4}
+      updateCellsBatchingPeriod={50}
+      initialNumToRender={6}
+      windowSize={10}
+      maintainVisibleContentPosition={{
+        minIndexForVisible: 0,
+      }}
+    />
   );
 };
 
@@ -192,17 +250,17 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingVertical: PADDING,
-  },
-  masonryContainer: {
-    flexDirection: 'row',
     paddingHorizontal: PADDING,
   },
-  column: {
-    flex: 1,
-    paddingHorizontal: PADDING / 2,
+  row: {
+    flexDirection: 'row',
+    marginBottom: PADDING,
+  },
+  columnItem: {
+    height: ESTIMATED_ITEM_HEIGHT - PADDING,
   },
   imageContainer: {
-    marginBottom: PADDING,
+    flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: 'rgba(0,0,0,0.05)',

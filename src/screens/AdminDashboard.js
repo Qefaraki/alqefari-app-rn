@@ -21,7 +21,7 @@ import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
 

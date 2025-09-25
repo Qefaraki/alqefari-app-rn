@@ -1,7 +1,7 @@
 import { Platform, Alert } from "react-native";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { supabase } from "./supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
 

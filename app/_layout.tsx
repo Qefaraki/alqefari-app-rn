@@ -8,6 +8,8 @@ import { AdminModeProvider } from "../src/contexts/AdminModeContext";
 import { SettingsProvider } from "../src/contexts/SettingsContext";
 import AuthNavigator from "../src/navigation/AuthNavigator";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Error Boundary to catch and display any silent errors
 class ErrorBoundary extends Component {
@@ -182,7 +184,9 @@ function AppWithProviders() {
   return (
     <SettingsProvider>
       <AdminModeProvider>
-        <TabLayout />
+        <BottomSheetModalProvider>
+          <TabLayout />
+        </BottomSheetModalProvider>
       </AdminModeProvider>
     </SettingsProvider>
   );
@@ -254,10 +258,12 @@ export default function RootLayout() {
   console.log('[DEBUG RootLayout] Rendering root layout');
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <AppWithProviders />
-      </AuthProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <AuthProvider>
+          <AppWithProviders />
+        </AuthProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
