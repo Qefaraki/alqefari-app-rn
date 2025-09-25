@@ -70,15 +70,10 @@ const FeatureCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArtic
             style={styles.featureImage}
             imageStyle={styles.featureImageStyle}
           >
-            <ImageBackground
-              source={saduPattern}
-              style={StyleSheet.absoluteFillObject}
-              imageStyle={styles.featureOverlayPattern}
+            <LinearGradient
+              colors={['transparent', 'transparent', 'rgba(0,0,0,0.7)']}
+              style={styles.featureGradient}
             >
-              <LinearGradient
-                colors={['transparent', 'transparent', 'rgba(0,0,0,0.7)']}
-                style={styles.featureGradient}
-              >
               <View style={styles.featureContent}>
                 <View style={styles.featureBadge}>
                   <View style={styles.featureDot} />
@@ -98,7 +93,6 @@ const FeatureCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArtic
                 </View>
               </View>
             </LinearGradient>
-            </ImageBackground>
           </ImageBackground>
         ) : (
           <View style={[styles.featureImage, styles.featurePlaceholder]}>
@@ -146,18 +140,11 @@ const LargeStoryCard: React.FC<{ article: NewsArticle; onPress: (article: NewsAr
         onPress={handlePress}
       >
         {article.heroImage ? (
-          <View style={styles.largeImage}>
-            <CachedImage
-              source={{ uri: article.heroImage }}
-              style={StyleSheet.absoluteFillObject}
-              contentFit="cover"
-            />
-            <ImageBackground
-              source={saduPattern}
-              style={StyleSheet.absoluteFillObject}
-              imageStyle={styles.largeOverlayPattern}
-            />
-          </View>
+          <CachedImage
+            source={{ uri: article.heroImage }}
+            style={styles.largeImage}
+            contentFit="cover"
+          />
         ) : (
           <View style={[styles.largeImage, styles.largePlaceholder]}>
             <ImageBackground
@@ -230,18 +217,11 @@ const SideBySideCard: React.FC<{ article: NewsArticle; onPress: (article: NewsAr
           </View>
 
           {article.heroImage ? (
-            <View style={styles.sideImage}>
-              <CachedImage
-                source={{ uri: article.heroImage }}
-                style={StyleSheet.absoluteFillObject}
-                contentFit="cover"
-              />
-              <ImageBackground
-                source={saduPattern}
-                style={StyleSheet.absoluteFillObject}
-                imageStyle={styles.sideOverlayPattern}
-              />
-            </View>
+            <CachedImage
+              source={{ uri: article.heroImage }}
+              style={styles.sideImage}
+              contentFit="cover"
+            />
           ) : (
             <View style={[styles.sideImage, styles.sidePlaceholder]}>
               <ImageBackground
@@ -363,11 +343,6 @@ const styles = StyleSheet.create({
     opacity: 0.08,
     resizeMode: 'repeat',
   },
-  featureOverlayPattern: {
-    opacity: 0.15, // Subtle overlay
-    resizeMode: 'repeat',
-    tintColor: '#A13333', // Najdi Crimson tint
-  },
   featureGradient: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -443,12 +418,6 @@ const styles = StyleSheet.create({
   largeImage: {
     width: '100%',
     height: 200,
-    overflow: 'hidden',
-  },
-  largeOverlayPattern: {
-    opacity: 0.12, // Subtle overlay
-    resizeMode: 'repeat',
-    tintColor: '#D58C4A', // Desert Ochre tint
   },
   largePlaceholder: {
     backgroundColor: '#D1BBA310',
@@ -555,12 +524,6 @@ const styles = StyleSheet.create({
     width: 160,
     height: 120,
     borderRadius: 6,
-    overflow: 'hidden',
-  },
-  sideOverlayPattern: {
-    opacity: 0.1, // Subtle overlay
-    resizeMode: 'repeat',
-    tintColor: '#D1BBA3', // Camel Hair Beige tint
   },
   sidePlaceholder: {
     backgroundColor: '#D1BBA310',
