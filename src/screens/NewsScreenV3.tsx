@@ -210,7 +210,7 @@ const NewsScreenV3: React.FC = () => {
           <View style={styles.endLine} />
           <View style={styles.endPatternWrapper}>
             <ImageBackground
-              source={require('../../assets/sadu_patterns/png/1.png')}
+              source={require('../../assets/sadu_patterns/png/42.png')}
               style={styles.endPatternContainer}
               imageStyle={styles.endPatternImage}
             />
@@ -240,7 +240,12 @@ const NewsScreenV3: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <FlashList
+      <ImageBackground
+        source={require('../../assets/sadu_patterns/png/15.png')}
+        style={styles.bottomPattern}
+        imageStyle={styles.bottomPatternImage}
+      />
+      <FlashList
         ref={flashListRef}
         data={listData}
         renderItem={renderItem}
@@ -281,6 +286,19 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: tokens.colors.najdi.background,
+  },
+  bottomPattern: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 200, // Only bottom 200px
+    zIndex: -1,
+  },
+  bottomPatternImage: {
+    opacity: 0.1, // Subtle pattern
+    resizeMode: 'repeat',
+    tintColor: tokens.colors.najdi.secondary, // Desert Ochre tint
   },
   headerContainer: {
     paddingBottom: 12,
