@@ -72,16 +72,34 @@ const GalleryImageItem = React.memo(({
 }) => {
   const [isLoaded, setIsLoaded] = React.useState(false);
   const [currentImageUrl, setCurrentImageUrl] = React.useState<string>('');
+  const [shouldLoad, setShouldLoad] = React.useState(false);
   const isLeftColumn = index % 2 === 0;
 
+  // Defer loading for images that aren't immediately visible
   React.useEffect(() => {
+    // Load first 6 images immediately, defer others
+    if (index < 6) {
+      setShouldLoad(true);
+    } else {
+      // Delay loading for images further down
+      const timer = setTimeout(() => {
+        setShouldLoad(true);
+      }, 100 * Math.min(index - 6, 10)); // Progressive delay up to 1 second
+
+      return () => clearTimeout(timer);
+    }
+  }, [index]);
+
+  React.useEffect(() => {
+    if (!shouldLoad) return;
+
     // Start with thumbnail, then load full image
     const sizes = getWordPressImageSizes(url);
 
-    // Load thumbnail first
+    // Load thumbnail first for instant display
     setCurrentImageUrl(sizes.thumbnail);
 
-    // Then load the full image
+    // Then load the full image progressively
     const loadFullImage = async () => {
       try {
         await Image.prefetch(url);
@@ -91,8 +109,12 @@ const GalleryImageItem = React.memo(({
       }
     };
 
-    loadFullImage();
-  }, [url]);
+    // Delay full image load based on position
+    const delay = index < 12 ? 0 : (index - 12) * 50;
+    const timer = setTimeout(loadFullImage, delay);
+
+    return () => clearTimeout(timer);
+  }, [url, shouldLoad, index]);
 
   return (
     <TouchableOpacity
@@ -104,20 +126,28 @@ const GalleryImageItem = React.memo(({
       activeOpacity={0.8}
       onPress={onPress}
     >
-      <Image
-        source={{ uri: currentImageUrl || url }}
-        style={styles.galleryImage}
-        contentFit="cover"
-        transition={300}
-        onLoad={() => setIsLoaded(true)}
-        recyclingKey={url}
-        cachePolicy="memory-disk"
-        priority="low"
-      />
+      {shouldLoad ? (
+        <>
+          <Image
+            source={{ uri: currentImageUrl || url }}
+            style={styles.galleryImage}
+            contentFit="cover"
+            transition={300}
+            onLoad={() => setIsLoaded(true)}
+            recyclingKey={url}
+            cachePolicy="memory-disk"
+            priority={index < 12 ? "normal" : "low"}
+          />
 
-      {!isLoaded && (
-        <View style={styles.imageLoadingOverlay}>
-          <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+          {!isLoaded && (
+            <View style={styles.imageLoadingOverlay}>
+              <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+            </View>
+          )}
+        </>
+      ) : (
+        <View style={[styles.galleryImage, styles.imagePlaceholder]}>
+          <Ionicons name="image-outline" size={32} color="rgba(0,0,0,0.2)" />
         </View>
       )}
     </TouchableOpacity>
@@ -161,10 +191,12 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     galleryImages: [] as string[],
     wordCount: 0,
     readingTime: 0,
-    isValid: false
+    isValid: false,
+    isGalleryLoading: false,
+    galleryExtracted: false
   });
 
-  // Process article content asynchronously
+  // Process article content asynchronously (without gallery extraction)
   useEffect(() => {
     if (!article) {
       setIsContentReady(false);
@@ -185,40 +217,77 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
           galleryImages: [],
           wordCount: 0,
           readingTime: 0,
-          isValid: false
+          isValid: false,
+          isGalleryLoading: false,
+          galleryExtracted: false
         });
         setIsContentReady(true);
         return;
       }
 
-      // Extract gallery and process content
-      const { content, galleryImages: gallery } = extractGalleryImages(article.html);
-
-      // Calculate reading metrics
+      // Calculate reading metrics without blocking on gallery extraction
       const wordCount = article.html.replace(/<[^>]*>/g, '').split(/\s+/).length;
       const readingTime = Math.ceil(wordCount / 200);
 
-      setArticleData({
-        processedContent: content,
-        galleryImages: gallery,
+      // Set content WITHOUT extracting gallery yet - for instant opening
+      setArticleData(prev => ({
+        ...prev,
+        processedContent: article.html, // Use original HTML for now
         wordCount,
         readingTime,
-        isValid: true
-      });
+        isValid: true,
+        isGalleryLoading: false,
+        galleryExtracted: false
+      }));
 
       // Cache the article
       cacheArticle(article);
-
-      // Start preloading gallery images
-      if (gallery.length > 0) {
-        preloadImages(gallery.slice(0, 3));
-      }
 
       setIsContentReady(true);
     };
 
     processContentAsync();
-  }, [article?.id, cacheArticle, preloadImages]);
+  }, [article?.id, cacheArticle]);
+
+  // Lazy load gallery images after article opens
+  useEffect(() => {
+    if (!isContentReady || !article?.html || articleData.galleryExtracted) {
+      return;
+    }
+
+    // Extract gallery in the background after a delay
+    const extractGalleryAsync = async () => {
+      // Wait for modal to fully open
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Set loading state
+      setArticleData(prev => ({ ...prev, isGalleryLoading: true }));
+
+      // Extract gallery images in chunks to avoid blocking
+      const { content, galleryImages: gallery } = await new Promise<{ content: string; galleryImages: string[] }>((resolve) => {
+        setTimeout(() => {
+          const result = extractGalleryImages(article.html);
+          resolve(result);
+        }, 0);
+      });
+
+      // Update with extracted content and gallery
+      setArticleData(prev => ({
+        ...prev,
+        processedContent: content,
+        galleryImages: gallery,
+        isGalleryLoading: false,
+        galleryExtracted: true
+      }));
+
+      // Start preloading first few gallery images
+      if (gallery.length > 0) {
+        preloadImages(gallery.slice(0, 6));
+      }
+    };
+
+    extractGalleryAsync();
+  }, [isContentReady, article?.html, articleData.galleryExtracted, preloadImages]);
 
   // Create sections for FlatList
   const sections = useMemo(() => {
@@ -263,32 +332,35 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
       }
     });
 
-    // Add gallery sections if images exist
-    if (articleData.galleryImages.length > 0) {
+    // Add gallery sections if images exist or are being loaded
+    if (articleData.galleryImages.length > 0 || (articleData.isGalleryLoading && !articleData.galleryExtracted)) {
       // Add separator
       items.push({
         id: 'gallery-separator',
         type: 'GALLERY_SEPARATOR',
         data: {
           imageCount: articleData.galleryImages.length,
+          isLoading: articleData.isGalleryLoading && !articleData.galleryExtracted,
         }
       });
 
       // Add gallery images as pairs for 2-column layout
-      for (let i = 0; i < articleData.galleryImages.length; i += GALLERY_COLUMNS) {
-        const imageRow: string[] = [];
-        for (let j = 0; j < GALLERY_COLUMNS && i + j < articleData.galleryImages.length; j++) {
-          imageRow.push(articleData.galleryImages[i + j]);
-        }
-
-        items.push({
-          id: `gallery-row-${i}`,
-          type: 'GALLERY_IMAGE',
-          data: {
-            images: imageRow,
-            startIndex: i,
+      if (articleData.galleryImages.length > 0) {
+        for (let i = 0; i < articleData.galleryImages.length; i += GALLERY_COLUMNS) {
+          const imageRow: string[] = [];
+          for (let j = 0; j < GALLERY_COLUMNS && i + j < articleData.galleryImages.length; j++) {
+            imageRow.push(articleData.galleryImages[i + j]);
           }
-        });
+
+          items.push({
+            id: `gallery-row-${i}`,
+            type: 'GALLERY_IMAGE',
+            data: {
+              images: imageRow,
+              startIndex: i,
+            }
+          });
+        }
       }
     }
 
@@ -378,15 +450,7 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     []
   );
 
-  // Custom handle - simplified and floating
-  const renderHandle = useCallback(
-    () => (
-      <View style={styles.handleContainer}>
-        <View style={styles.handleBar} />
-      </View>
-    ),
-    []
-  );
+  // No handle - image goes to top
 
   // Handle font size changes
   const adjustFontSize = useCallback((delta: number) => {
@@ -444,9 +508,16 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
         return (
           <View style={styles.gallerySeparator}>
             <View style={styles.separatorLine} />
-            <Text style={styles.galleryTitle}>
-              📸 {item.data.imageCount} صور من الحدث
-            </Text>
+            {item.data.isLoading ? (
+              <View style={styles.galleryLoadingContainer}>
+                <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+                <Text style={styles.galleryLoadingText}>جاري البحث عن الصور...</Text>
+              </View>
+            ) : (
+              <Text style={styles.galleryTitle}>
+                📸 {item.data.imageCount} صور من الحدث
+              </Text>
+            )}
             <View style={styles.separatorLine} />
           </View>
         );
@@ -485,6 +556,56 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
 
   // Key extractor
   const keyExtractor = useCallback((item: SectionItem) => item.id, []);
+
+  // Get item layout for better performance with gallery images
+  const getItemLayout = useCallback((data: SectionItem[] | null, index: number) => {
+    // Only use for galleries with many images for optimization
+    if (!data || index < 0 || index >= data.length) {
+      return { length: 0, offset: 0, index };
+    }
+
+    const item = data[index];
+    let length = 0;
+    let offset = 0;
+
+    // Calculate offset by summing heights of previous items
+    for (let i = 0; i < index; i++) {
+      const prevItem = data[i];
+      switch (prevItem.type) {
+        case 'GALLERY_IMAGE':
+          offset += COLUMN_WIDTH + PADDING; // Fixed height for gallery rows
+          break;
+        case 'GALLERY_SEPARATOR':
+          offset += 80; // Approximate height
+          break;
+        case 'BOTTOM_PADDING':
+          offset += 100;
+          break;
+        default:
+          // For dynamic content (header, actions, content), use estimates
+          offset += 400;
+          break;
+      }
+    }
+
+    // Calculate current item height
+    switch (item.type) {
+      case 'GALLERY_IMAGE':
+        length = COLUMN_WIDTH + PADDING;
+        break;
+      case 'GALLERY_SEPARATOR':
+        length = 80;
+        break;
+      case 'BOTTOM_PADDING':
+        length = 100;
+        break;
+      default:
+        length = 400; // Estimate for dynamic content
+        break;
+    }
+
+    return { length, offset, index };
+  }, []);
 
   // Imperative handle for sheet control
   const openSheet = useCallback(() => {
@@ -527,7 +648,11 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
       onChange={handleSheetChange}
       onDismiss={onClose}
       backdropComponent={renderBackdrop}
-      handleComponent={renderHandle}
+      handleComponent={() => (
+        <View style={styles.floatingHandle}>
+          <View style={styles.floatingHandleBar} />
+        </View>
+      )}
       backgroundStyle={[
         styles.sheetBackground,
         isNightMode && styles.sheetBackgroundDark,
@@ -557,6 +682,7 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
           data={sections}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
+          getItemLayout={articleData.galleryImages.length > 20 ? getItemLayout : undefined}
           style={[styles.container, isNightMode && styles.containerDark]}
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
@@ -565,10 +691,15 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
           }}
           scrollEventThrottle={16}
           removeClippedSubviews={true}
-          maxToRenderPerBatch={5}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={3}
-          windowSize={10}
+          maxToRenderPerBatch={articleData.galleryImages.length > 50 ? 2 : 5}
+          updateCellsBatchingPeriod={articleData.galleryImages.length > 50 ? 100 : 50}
+          initialNumToRender={2}
+          windowSize={articleData.galleryImages.length > 50 ? 5 : 10}
+          // Optimize memory for large galleries
+          viewabilityConfig={{
+            minimumViewTime: 100,
+            viewAreaCoveragePercentThreshold: 50,
+          }}
         />
       )}
     </BottomSheetModal>
@@ -592,17 +723,23 @@ const styles = StyleSheet.create({
   sheetBackgroundDark: {
     backgroundColor: '#1a1a1a',
   },
-  handleContainer: {
+  floatingHandle: {
+    position: 'absolute',
+    top: 8,
+    left: 0,
+    right: 0,
     alignItems: 'center',
-    paddingTop: 6,
-    paddingBottom: 4,
-    backgroundColor: 'transparent',
+    zIndex: 10,
   },
-  handleBar: {
-    width: 32,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+  floatingHandleBar: {
+    width: 36,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -636,6 +773,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
+  galleryLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+  },
+  galleryLoadingText: {
+    fontSize: 16,
+    color: tokens.colors.najdi.textMuted,
+  },
   galleryRow: {
     flexDirection: 'row',
     paddingHorizontal: PADDING,
@@ -654,6 +802,11 @@ const styles = StyleSheet.create({
   imageLoadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(255,255,255,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePlaceholder: {
+    backgroundColor: 'rgba(0,0,0,0.05)',
     justifyContent: 'center',
     alignItems: 'center',
   },

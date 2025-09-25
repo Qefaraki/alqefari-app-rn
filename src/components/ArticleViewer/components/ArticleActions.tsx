@@ -8,7 +8,6 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
@@ -49,11 +48,7 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
   };
 
   return (
-    <BlurView
-      intensity={80}
-      tint={isNightMode ? 'dark' : 'light'}
-      style={[styles.container, isNightMode && styles.containerDark]}
-    >
+    <View style={[styles.container, isNightMode && styles.containerDark]}>
       {/* Font Size Controls */}
       <View style={styles.fontSizeControls}>
         <TouchableOpacity
@@ -130,7 +125,7 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
           )}
         </TouchableOpacity>
       </View>
-    </BlurView>
+    </View>
   );
 };
 
@@ -141,12 +136,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
-    overflow: 'hidden',
+    backgroundColor: 'transparent',
   },
   containerDark: {
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'transparent',
   },
   fontSizeControls: {
     flexDirection: 'row',
