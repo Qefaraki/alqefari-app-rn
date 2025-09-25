@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Alert,
   ImageBackground,
+  Image,
   Linking,
   RefreshControl,
   StyleSheet,
@@ -215,7 +216,7 @@ const NewsScreenV3: React.FC = () => {
           glowLayers: [
             {
               colors: [tokens.colors.najdi.primary, tokens.colors.najdi.secondary],
-              opacity: 0.08, // Much more subtle
+              opacity: 0.2, // 20% opacity
               glowSize: 25,
               animationSpeed: 0.2,
             }
@@ -235,13 +236,12 @@ const NewsScreenV3: React.FC = () => {
             <AnimatedGlow
               preset={endIndicatorGlow}
               animateOnMount
-              style={styles.glowContainer}
-              maskChildren // Mask glow to children's actual pixels
+              maskChildren
+              useChildrenAsContent // Use the actual child content for masking
             >
-              <ImageBackground
+              <Image
                 source={require('../../assets/sadu_patterns/png/42.png')}
-                style={styles.endPatternContainer}
-                imageStyle={styles.endPatternImage}
+                style={[styles.endPatternContainer, styles.endPatternImage]}
                 resizeMode="contain"
               />
             </AnimatedGlow>
@@ -366,8 +366,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   endPatternImage: {
-    resizeMode: 'contain',
-    opacity: 0.5,
+    opacity: 0.6,
     tintColor: tokens.colors.najdi.primary, // Najdi Crimson tint
   },
   listContent: {
