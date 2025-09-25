@@ -54,68 +54,49 @@ class ErrorBoundary extends Component {
 
 function TabLayout() {
   const { user, isAdmin, isLoading } = useAuth();
-  const [appState, setAppState] = useState('determining'); // 'determining', 'onboarding', 'authenticated', 'guest'
-  const [hasCheckedLocal, setHasCheckedLocal] = useState(false);
-  const [onboardingCompleted, setOnboardingCompleted] = useState(false); // Track if onboarding was completed
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
-  // INSTANT local check for first-time users (no network calls)
+  // Check onboarding status only
   useEffect(() => {
-    const checkLocalState = async () => {
-      try {
-        // These checks are instant (< 10ms)
-        const [hasCompletedOnboarding, authToken] = await Promise.all([
-          AsyncStorage.getItem('hasCompletedOnboarding'),
-          AsyncStorage.getItem('supabase.auth.token')
-        ]);
-
-        console.log('[DEBUG] Local check - onboarding:', hasCompletedOnboarding, 'token:', !!authToken);
-
-        // Store whether onboarding was completed
-        setOnboardingCompleted(hasCompletedOnboarding === 'true');
-
-        // Instant routing decision based on local data only
-        if (hasCompletedOnboarding === null || hasCompletedOnboarding !== 'true') {
-          // First time user OR didn't complete onboarding
-          setAppState('onboarding');
-        } else if (authToken) {
-          // Has token cached AND completed onboarding
-          setAppState('authenticated');
-        } else {
-          // Has completed onboarding but no token - guest mode
-          setAppState('guest');
-        }
-        setHasCheckedLocal(true);
-      } catch (error) {
-        console.error('[DEBUG] Local check error:', error);
-        // Default to guest mode on error
-        setAppState('guest');
-        setHasCheckedLocal(true);
-      }
-    };
-
-    checkLocalState();
+    AsyncStorage.getItem('hasCompletedOnboarding').then(value => {
+      setOnboardingCompleted(value === 'true');
+      console.log('[DEBUG] Onboarding check:', value === 'true');
+    });
   }, []);
 
-  // Update app state when auth completes (but don't block on it)
-  useEffect(() => {
-    if (!isLoading && hasCheckedLocal) {
-      // Auth has completed loading in background
-      if (user && onboardingCompleted) {
-        // Only switch to authenticated if onboarding was completed
-        setAppState('authenticated');
-      } else if (user && !onboardingCompleted) {
-        // User exists but onboarding not complete - stay in onboarding
-        setAppState('onboarding');
-      } else if (appState === 'determining') {
-        // Only switch to guest if we haven't already made a decision
-        setAppState('guest');
-      }
+  // Determine app state based on AuthContext (single source of truth)
+  const getAppState = () => {
+    // Still loading onboarding status
+    if (onboardingCompleted === null) {
+      return 'loading';
     }
-  }, [isLoading, user, hasCheckedLocal, appState, onboardingCompleted]);
 
-  // Don't wait for auth - make instant decision based on local state
-  if (!hasCheckedLocal) {
-    // This should only show for a few milliseconds while AsyncStorage loads
+    // First time user - show onboarding
+    if (!onboardingCompleted) {
+      return 'onboarding';
+    }
+
+    // Auth is still loading - wait
+    if (isLoading) {
+      return 'loading';
+    }
+
+    // Authenticated user
+    if (user) {
+      console.log('[DEBUG] Showing tabs - authenticated user:', user.email || user.phone);
+      return 'authenticated';
+    }
+
+    // Guest mode
+    console.log('[DEBUG] Showing tabs - guest mode');
+    return 'guest';
+  };
+
+  const appState = getAppState();
+
+  // Show nothing while loading
+  if (appState === 'loading') {
+    console.log('[DEBUG] Waiting for auth/onboarding check...');
     return null;
   }
 
@@ -128,13 +109,14 @@ function TabLayout() {
       <NavigationIndependentTree>
         <NavigationContainer>
           <AuthNavigator
-            setIsGuest={() => {
-              setAppState('guest');
+            setIsGuest={async () => {
+              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              setOnboardingCompleted(true);
             }}
-            setUser={(newUser) => {
+            setUser={async (newUser) => {
               // When user successfully signs in, mark onboarding complete
-              AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-              setAppState('authenticated');
+              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              setOnboardingCompleted(true);
             }}
           />
         </NavigationContainer>
@@ -142,8 +124,8 @@ function TabLayout() {
     );
   }
 
-  // Show tabs immediately - auth loads in background
-  console.log('[DEBUG] Showing tabs - appState:', appState, 'isAdmin:', isAdmin);
+  // Show tabs - user state is managed by AuthContext
+  console.log('[DEBUG] Showing tabs - user:', !!user, 'isAdmin:', isAdmin);
 
   return (
     <NativeTabs

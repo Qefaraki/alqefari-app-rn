@@ -70,11 +70,21 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data: { session }, error } = await supabase.auth.getSession();
 
-      console.log('[DEBUG AuthContext] getSession result:', session ? 'Session found' : 'No session', error ? `Error: ${error.message}` : '');
+      if (error) {
+        console.log('[DEBUG AuthContext] getSession error:', error.message);
+      } else if (session) {
+        console.log('[DEBUG AuthContext] getSession SUCCESS - Session found!');
+        console.log('[DEBUG AuthContext] Session user ID:', session.user?.id);
+        console.log('[DEBUG AuthContext] Session user email:', session.user?.email);
+        console.log('[DEBUG AuthContext] Session user phone:', session.user?.phone);
+        console.log('[DEBUG AuthContext] Session expires at:', new Date(session.expires_at * 1000).toISOString());
+      } else {
+        console.log('[DEBUG AuthContext] getSession returned null - No session');
+      }
 
       if (session?.user) {
         setUser(session.user);
-        console.log('[DEBUG AuthContext] User from session:', session.user.email || session.user.phone);
+        console.log('[DEBUG AuthContext] User set in state');
 
         // Check admin status in background
         checkAdminStatus(session.user).catch(err =>
