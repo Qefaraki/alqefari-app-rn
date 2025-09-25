@@ -44,7 +44,7 @@ const CarouselCard: React.FC<{
   };
 
   return (
-    <Surface style={styles.card} radius={16}>
+    <Surface style={styles.card} radius={12}>
       <Pressable
         style={styles.cardPressable}
         onPress={handlePress}
@@ -86,7 +86,7 @@ const CarouselCard: React.FC<{
 
 // Skeleton loading card
 const SkeletonCard: React.FC = () => (
-  <Surface style={styles.card} radius={16}>
+  <Surface style={styles.card} radius={12}>
     <View style={styles.cardPressable}>
       <View style={[styles.heroImage, styles.skeletonImage]} />
       <View style={styles.cardContent}>
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${tokens.colors.najdi.container}20`,
   },
   cardContent: {
-    padding: 18,
+    padding: 24, // Per design system
     gap: 8,
   },
   cardTitle: {
@@ -292,16 +292,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: tokens.colors.najdi.text,
     lineHeight: 24,
+    fontFamily: 'SF Arabic',
   },
   cardSummary: {
     fontSize: 14,
     color: tokens.colors.najdi.textMuted,
     lineHeight: 20,
+    fontFamily: 'SF Arabic',
   },
   cardDate: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     marginTop: 4,
+    fontFamily: 'SF Arabic',
   },
   loadingMore: {
     marginRight: CARD_SPACING,

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Keyboard,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -86,11 +87,10 @@ export default function InlineSpouseAdder({
         .insert({
           name: spouseName.trim(),
           gender: spouseGender,
-          generation: person?.generation || 0, // Same generation as spouse
+          generation: person?.generation || 1, // Same generation as spouse (min 1)
           family_origin: familyOrigin || null, // Store family origin if found
           hid: null,  // Explicitly NULL for Munasib (married-in spouse)
           status: 'alive',
-          is_root: false,
           sibling_order: 0,
         })
         .select()
@@ -117,6 +117,10 @@ export default function InlineSpouseAdder({
       collapse();
     } catch (error) {
       console.error("Error adding spouse:", error);
+      Alert.alert(
+        "خطأ",
+        error.message || "فشل في إضافة الزوج/الزوجة. تحقق من البيانات وحاول مرة أخرى."
+      );
     } finally {
       setLoading(false);
     }

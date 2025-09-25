@@ -140,7 +140,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
           family_origin: familyOrigin,
           hid: null,  // Explicitly NULL for Munasib (not from Al-Qefari family)
           status: 'alive',
-          is_root: false,
           sibling_order: 0,
           phone: newSpousePhone.trim() || null,
         })

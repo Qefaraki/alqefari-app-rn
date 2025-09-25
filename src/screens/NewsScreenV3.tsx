@@ -18,7 +18,7 @@ import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import EnhancedCarousel from '../components/ui/news/EnhancedCarousel';
-import { EnhancedNewsListItem } from '../components/ui/news/EnhancedNewsListItem';
+import { WorldClassNewsCard } from '../components/ui/news/WorldClassNewsCard';
 import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
 import NetworkError from '../components/NetworkError';
 import tokens from '../components/ui/tokens';
@@ -159,7 +159,7 @@ const NewsScreenV3: React.FC = () => {
           return renderHeader();
         case 'article':
           return (
-            <EnhancedNewsListItem
+            <WorldClassNewsCard
               article={item.data}
               onPress={handleArticlePress}
               index={item.index}
@@ -244,7 +244,7 @@ const NewsScreenV3: React.FC = () => {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         getItemType={getItemType}
-        estimatedItemSize={180} // Updated for enhanced cards with varied heights
+        estimatedItemSize={150} // Updated for clean cards
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onEndReached={handleEndReached}
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   endLine: {
     flex: 1,
     height: 1,
-    backgroundColor: `${tokens.colors.najdi.container}30`,
+    backgroundColor: '#D1BBA31A',
   },
   endDotsContainer: {
     flexDirection: 'row',
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: `${tokens.colors.najdi.textMuted}40`,
+    backgroundColor: '#24212140',
   },
 });
 

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import FocusedTreeView from "./FocusedTreeView";
+import SimplifiedTreeView from "./SimplifiedTreeView";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
@@ -75,9 +75,9 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
           </View>
         </View>
 
-        {/* Focused Tree View */}
+        {/* Simplified Tree View with Glow Effect */}
         <View style={styles.treeContainer}>
-          <FocusedTreeView focusPersonId={profile.id} />
+          <SimplifiedTreeView focusPersonId={profile.id} />
         </View>
 
         {/* Action Buttons */}

@@ -26,7 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CardSurface from "../ios/CardSurface";
 import Button from "../ui/Button";
 import profilesService from "../../services/profiles";
-import { handleSupabaseError } from "../../services/supabase";
+import { supabase, handleSupabaseError } from "../../services/supabase";
 import appConfig from "../../config/appConfig";
 import familyNameService from "../../services/familyNameService";
 
@@ -270,24 +270,26 @@ export default function MarriageEditor({
 
     setSubmitting(true);
     try {
-      // First, create the new person as Munasib (no HID)
-      // Note: Currently the admin_create_profile function auto-generates HID
-      // This will need to be handled differently when the database supports nullable HIDs
       // Extract family origin from the spouse name
       const familyOrigin = familyNameService.extractFamilyName(spouseName.trim());
 
-      const newPersonData = {
-        name: spouseName.trim(),
-        gender: spouseGender,
-        generation: person.generation, // Same generation as spouse
-        is_root: false,
-        family_origin: familyOrigin, // Add family origin for Munasib tracking
-        // TODO: Add is_munasib: true when database supports it
-        // This flag would prevent HID generation for married-in spouses
-      };
+      // Create Munasib spouse profile with NULL HID (direct insert)
+      // This ensures the profile is recognized as Munasib by MunasibManager
+      const { data: newPerson, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          name: spouseName.trim(),
+          gender: spouseGender,
+          generation: person.generation, // Same generation as spouse
+          family_origin: familyOrigin, // Add family origin for Munasib tracking
+          hid: null, // Explicitly NULL for Munasib (married-in spouse)
+          status: 'alive',
+          sibling_order: 0,
+          phone: spousePhone?.trim() || null,
+        })
+        .select()
+        .single();
 
-      const { data: newPerson, error: createError } =
-        await profilesService.createProfile(newPersonData);
       if (createError) throw createError;
 
       // Then create the marriage
