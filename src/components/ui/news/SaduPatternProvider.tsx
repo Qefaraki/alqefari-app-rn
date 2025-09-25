@@ -34,17 +34,17 @@ export const getSaduPattern = (
   if (title) {
     if (title.includes('عيد') || title.includes('احتفال') || title.includes('زواج')) {
       const festivePattern = SADU_PATTERNS.festive[articleId % SADU_PATTERNS.festive.length];
-      return require(`../../../../assets/sadu_patterns/png/${festivePattern}.png`);
+      return getPatternImage(festivePattern);
     }
 
     if (title.includes('وفاة') || title.includes('رحل') || title.includes('عزاء')) {
       const somberPattern = SADU_PATTERNS.somber[articleId % SADU_PATTERNS.somber.length];
-      return require(`../../../../assets/sadu_patterns/png/${somberPattern}.png`);
+      return getPatternImage(somberPattern);
     }
 
     if (title.includes('عاجل') || title.includes('هام')) {
       const breakingPattern = SADU_PATTERNS.breaking[articleId % SADU_PATTERNS.breaking.length];
-      return require(`../../../../assets/sadu_patterns/png/${breakingPattern}.png`);
+      return getPatternImage(breakingPattern);
     }
   }
 
@@ -116,6 +116,7 @@ const getPatternImage = (num: number): ImageSourcePropType => {
     case 54: return require('../../../../assets/sadu_patterns/png/54.png');
     case 55: return require('../../../../assets/sadu_patterns/png/55.png');
     case 56: return require('../../../../assets/sadu_patterns/png/56.png');
+    case 57: return require('../../../../assets/sadu_patterns/png/57.png');
     case 58: return require('../../../../assets/sadu_patterns/png/58.png');
     case 59: return require('../../../../assets/sadu_patterns/png/59.png');
     case 60: return require('../../../../assets/sadu_patterns/png/60.png');
@@ -148,6 +149,7 @@ const getPatternImage = (num: number): ImageSourcePropType => {
     case 87: return require('../../../../assets/sadu_patterns/png/87.png');
     case 88: return require('../../../../assets/sadu_patterns/png/88.png');
     case 89: return require('../../../../assets/sadu_patterns/png/89.png');
+    case 90: return require('../../../../assets/sadu_patterns/png/90.png');
     case 91: return require('../../../../assets/sadu_patterns/png/91.png');
     case 92: return require('../../../../assets/sadu_patterns/png/92.png');
     case 93: return require('../../../../assets/sadu_patterns/png/93.png');
