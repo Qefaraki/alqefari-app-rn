@@ -15,7 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../services/profiles";
-import { familyNameService } from "../services/familyNameService";
+import familyNameService from "../services/familyNameService";
 
 export default function InlineSpouseAdder({
   person,

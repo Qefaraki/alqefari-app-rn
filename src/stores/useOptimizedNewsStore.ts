@@ -21,10 +21,11 @@ interface OptimizedNewsStore {
   hasMoreRecent: boolean;
   hasMoreFeatured: boolean;
 
-  // Loading states
+  // Loading states - SEPARATE FLAGS FOR PARALLEL LOADING
   isInitialLoading: boolean;
   isRefreshing: boolean;
-  isPrefetching: boolean;
+  isPrefetchingRecent: boolean; // Separate flag
+  isPrefetchingFeatured: boolean; // Separate flag
 
   // Scroll position tracking
   lastScrollOffset: number;
@@ -32,17 +33,34 @@ interface OptimizedNewsStore {
 
   // Error handling
   error: string | null;
+  recentFetchErrors: number; // Count consecutive errors
+  featuredFetchErrors: number; // Count consecutive errors
+
+  // Debounce timers
+  recentDebounceTimer?: NodeJS.Timeout;
+  featuredDebounceTimer?: NodeJS.Timeout;
 
   // Actions
   initialize: () => Promise<void>;
   refresh: () => Promise<void>;
-  loadMoreRecent: () => void; // Instant from prefetch
-  loadMoreFeatured: () => void; // Instant from prefetch
-  prefetchNextRecent: () => Promise<void>; // Background fetch
-  prefetchNextFeatured: () => Promise<void>; // Background fetch
+  loadMoreRecent: () => void;
+  loadMoreFeatured: () => void;
+  prefetchNextRecent: () => Promise<void>;
+  prefetchNextFeatured: () => Promise<void>;
   setScrollPosition: (offset: number, index: number) => void;
   clearError: () => void;
+  cleanup: () => void; // Cleanup timers
 }
+
+// Helper to remove duplicate articles
+const removeDuplicates = (articles: NewsArticle[]): NewsArticle[] => {
+  const seen = new Set<number>();
+  return articles.filter(article => {
+    if (seen.has(article.id)) return false;
+    seen.add(article.id);
+    return true;
+  });
+};
 
 export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
   // Initial state
@@ -56,10 +74,15 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
   hasMoreFeatured: true,
   isInitialLoading: false,
   isRefreshing: false,
-  isPrefetching: false,
+  isPrefetchingRecent: false,
+  isPrefetchingFeatured: false,
   lastScrollOffset: 0,
   lastScrollIndex: 0,
   error: null,
+  recentFetchErrors: 0,
+  featuredFetchErrors: 0,
+  recentDebounceTimer: undefined,
+  featuredDebounceTimer: undefined,
 
   // Initialize the feed
   initialize: async () => {
@@ -80,16 +103,18 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
       ]);
 
       set({
-        featured: featuredRes.articles,
-        recent: recentRes.articles,
+        featured: removeDuplicates(featuredRes.articles),
+        recent: removeDuplicates(recentRes.articles),
         featuredPage: 1,
         recentPage: 1,
         hasMoreFeatured: featuredRes.totalPages > 1,
         hasMoreRecent: recentRes.totalPages > 1,
         isInitialLoading: false,
+        recentFetchErrors: 0,
+        featuredFetchErrors: 0,
       });
 
-      // Immediately prefetch next batch in background
+      // Immediately prefetch next batch in background (both can run in parallel)
       const state = get();
       if (state.hasMoreRecent) {
         state.prefetchNextRecent();
@@ -110,6 +135,9 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
     const { isRefreshing } = get();
     if (isRefreshing) return;
 
+    // Cleanup any pending timers
+    get().cleanup();
+
     set({ isRefreshing: true, error: null });
 
     try {
@@ -122,23 +150,28 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
       ]);
 
       set({
-        featured: featuredRes.articles,
-        recent: recentRes.articles,
-        prefetchedFeatured: [], // Clear prefetch
-        prefetchedRecent: [], // Clear prefetch
+        featured: removeDuplicates(featuredRes.articles),
+        recent: removeDuplicates(recentRes.articles),
+        prefetchedFeatured: [],
+        prefetchedRecent: [],
         featuredPage: 1,
         recentPage: 1,
         hasMoreFeatured: featuredRes.totalPages > 1,
         hasMoreRecent: recentRes.totalPages > 1,
         isRefreshing: false,
-        lastScrollOffset: 0, // Reset scroll position
+        lastScrollOffset: 0,
         lastScrollIndex: 0,
+        recentFetchErrors: 0,
+        featuredFetchErrors: 0,
       });
 
       // Prefetch next batch
       const state = get();
       if (state.hasMoreRecent) {
         state.prefetchNextRecent();
+      }
+      if (state.hasMoreFeatured) {
+        state.prefetchNextFeatured();
       }
     } catch (error) {
       set({
@@ -150,91 +183,159 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
 
   // Instantly append prefetched recent articles
   loadMoreRecent: () => {
-    const { prefetchedRecent, recent, hasMoreRecent } = get();
+    const { prefetchedRecent, recent, hasMoreRecent, recentDebounceTimer } = get();
+
+    // Clear any existing debounce timer
+    if (recentDebounceTimer) {
+      clearTimeout(recentDebounceTimer);
+    }
 
     // If we have prefetched data, use it
     if (prefetchedRecent.length > 0) {
+      const combined = [...recent, ...prefetchedRecent];
       set({
-        recent: [...recent, ...prefetchedRecent],
+        recent: removeDuplicates(combined),
         prefetchedRecent: [],
       });
     }
 
-    // Always try to prefetch next batch if there's more
+    // Debounce prefetch to avoid rapid requests (300ms)
     if (hasMoreRecent) {
-      setTimeout(() => get().prefetchNextRecent(), 10);
+      const timer = setTimeout(() => {
+        get().prefetchNextRecent();
+      }, 300);
+      set({ recentDebounceTimer: timer });
     }
   },
 
   // Instantly append prefetched featured articles
   loadMoreFeatured: () => {
-    const { prefetchedFeatured, featured, hasMoreFeatured } = get();
+    const { prefetchedFeatured, featured, hasMoreFeatured, featuredDebounceTimer } = get();
+
+    // Clear any existing debounce timer
+    if (featuredDebounceTimer) {
+      clearTimeout(featuredDebounceTimer);
+    }
 
     // If we have prefetched data, use it
     if (prefetchedFeatured.length > 0) {
+      const combined = [...featured, ...prefetchedFeatured];
       set({
-        featured: [...featured, ...prefetchedFeatured],
+        featured: removeDuplicates(combined),
         prefetchedFeatured: [],
       });
     }
 
-    // Always try to prefetch next batch if there's more
+    // Debounce prefetch to avoid rapid requests (300ms)
     if (hasMoreFeatured) {
-      setTimeout(() => get().prefetchNextFeatured(), 10);
+      const timer = setTimeout(() => {
+        get().prefetchNextFeatured();
+      }, 300);
+      set({ featuredDebounceTimer: timer });
     }
   },
 
   // Background prefetch for recent articles
   prefetchNextRecent: async () => {
-    const { isPrefetching, hasMoreRecent, recentPage } = get();
+    const { isPrefetchingRecent, hasMoreRecent, recentPage, recentFetchErrors } = get();
 
     // Skip if already prefetching or no more data
-    if (isPrefetching || !hasMoreRecent) {
+    if (isPrefetchingRecent || !hasMoreRecent) {
       return;
     }
 
-    set({ isPrefetching: true });
+    // Stop trying after 3 consecutive errors
+    if (recentFetchErrors >= 3) {
+      console.warn('Stopping recent prefetch after 3 errors');
+      return;
+    }
+
+    set({ isPrefetchingRecent: true });
 
     try {
       const nextPage = recentPage + 1;
       const response = await fetchRecentNews(nextPage);
 
+      const uniqueArticles = removeDuplicates(response.articles);
+
       set({
-        prefetchedRecent: response.articles,
+        prefetchedRecent: uniqueArticles,
         recentPage: nextPage,
         hasMoreRecent: nextPage < response.totalPages,
-        isPrefetching: false,
+        isPrefetchingRecent: false,
+        recentFetchErrors: 0, // Reset error count on success
       });
+
+      // Pre-fetch next page if we're running low
+      if (uniqueArticles.length < 3 && get().hasMoreRecent) {
+        setTimeout(() => get().prefetchNextRecent(), 500);
+      }
     } catch (error) {
-      // Silent failure for prefetch - user won't notice
-      set({ isPrefetching: false });
+      console.error('Failed to prefetch recent:', error);
+      set({
+        isPrefetchingRecent: false,
+        recentFetchErrors: get().recentFetchErrors + 1,
+      });
+
+      // Retry after delay with exponential backoff
+      const retryDelay = Math.min(1000 * Math.pow(2, get().recentFetchErrors), 10000);
+      setTimeout(() => {
+        if (get().hasMoreRecent && get().recentFetchErrors < 3) {
+          get().prefetchNextRecent();
+        }
+      }, retryDelay);
     }
   },
 
   // Background prefetch for featured articles
   prefetchNextFeatured: async () => {
-    const { isPrefetching, hasMoreFeatured, featuredPage } = get();
+    const { isPrefetchingFeatured, hasMoreFeatured, featuredPage, featuredFetchErrors } = get();
 
     // Skip if already prefetching or no more data
-    if (isPrefetching || !hasMoreFeatured) {
+    if (isPrefetchingFeatured || !hasMoreFeatured) {
       return;
     }
 
-    set({ isPrefetching: true });
+    // Stop trying after 3 consecutive errors
+    if (featuredFetchErrors >= 3) {
+      console.warn('Stopping featured prefetch after 3 errors');
+      return;
+    }
+
+    set({ isPrefetchingFeatured: true });
 
     try {
       const nextPage = featuredPage + 1;
       const response = await fetchFeaturedNews(nextPage);
 
+      const uniqueArticles = removeDuplicates(response.articles);
+
       set({
-        prefetchedFeatured: response.articles,
+        prefetchedFeatured: uniqueArticles,
         featuredPage: nextPage,
         hasMoreFeatured: nextPage < response.totalPages,
-        isPrefetching: false,
+        isPrefetchingFeatured: false,
+        featuredFetchErrors: 0, // Reset error count on success
       });
+
+      // Pre-fetch next page if we're running low
+      if (uniqueArticles.length < 3 && get().hasMoreFeatured) {
+        setTimeout(() => get().prefetchNextFeatured(), 500);
+      }
     } catch (error) {
-      // Silent failure for prefetch
-      set({ isPrefetching: false });
+      console.error('Failed to prefetch featured:', error);
+      set({
+        isPrefetchingFeatured: false,
+        featuredFetchErrors: get().featuredFetchErrors + 1,
+      });
+
+      // Retry after delay with exponential backoff
+      const retryDelay = Math.min(1000 * Math.pow(2, get().featuredFetchErrors), 10000);
+      setTimeout(() => {
+        if (get().hasMoreFeatured && get().featuredFetchErrors < 3) {
+          get().prefetchNextFeatured();
+        }
+      }, retryDelay);
     }
   },
 
@@ -245,6 +346,14 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
 
   // Clear error
   clearError: () => {
-    set({ error: null });
+    set({ error: null, recentFetchErrors: 0, featuredFetchErrors: 0 });
+  },
+
+  // Cleanup timers
+  cleanup: () => {
+    const { recentDebounceTimer, featuredDebounceTimer } = get();
+    if (recentDebounceTimer) clearTimeout(recentDebounceTimer);
+    if (featuredDebounceTimer) clearTimeout(featuredDebounceTimer);
+    set({ recentDebounceTimer: undefined, featuredDebounceTimer: undefined });
   },
 }));
