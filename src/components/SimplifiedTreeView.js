@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   Text,
+  Animated,
 } from 'react-native';
 import {
   Canvas,
@@ -254,11 +255,82 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // For now, show all nodes (optimize viewport culling later)
   const visibleNodes = layoutNodes;
 
+  // Skeleton animation
+  const skeletonAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    if (loading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(skeletonAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(skeletonAnim, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [loading]);
+
   if (loading) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#A13333" />
+          {/* Tree skeleton loader */}
+          <View style={styles.skeletonTree}>
+            {/* Parent node */}
+            <Animated.View
+              style={[
+                styles.skeletonNode,
+                styles.skeletonRootNode,
+                { opacity: skeletonAnim },
+              ]}
+            />
+            {/* Connection lines */}
+            <View style={styles.skeletonConnector} />
+            {/* Children nodes */}
+            <View style={styles.skeletonRow}>
+              <Animated.View
+                style={[
+                  styles.skeletonNode,
+                  {
+                    opacity: skeletonAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.2, 0.7],
+                    }),
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.skeletonNode,
+                  styles.skeletonCenterNode,
+                  {
+                    opacity: skeletonAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.4, 1],
+                    }),
+                  },
+                ]}
+              />
+              <Animated.View
+                style={[
+                  styles.skeletonNode,
+                  {
+                    opacity: skeletonAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.2, 0.7],
+                    }),
+                  },
+                ]}
+              />
+            </View>
+          </View>
           <Text style={styles.loadingText}>جاري تحميل شجرة العائلة...</Text>
         </View>
       </View>
@@ -368,10 +440,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#242121',
+    marginTop: 24,
+    fontSize: 15,
+    color: '#24212199',
     fontFamily: 'SF Arabic',
+  },
+  skeletonTree: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skeletonNode: {
+    width: 70,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#D1BBA340',
+    marginHorizontal: 8,
+  },
+  skeletonRootNode: {
+    width: 90,
+    height: 45,
+    marginBottom: 16,
+    backgroundColor: '#D1BBA360',
+  },
+  skeletonCenterNode: {
+    width: 85,
+    height: 42,
+    backgroundColor: '#A1333315',
+    borderWidth: 1.5,
+    borderColor: '#A1333330',
+  },
+  skeletonConnector: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#D1BBA330',
+    marginBottom: 12,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
