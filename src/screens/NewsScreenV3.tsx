@@ -10,11 +10,11 @@ import {
   ActivityIndicator,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
+import AnimatedGlow from 'react-native-animated-glow';
 import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
@@ -203,26 +203,25 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Animated glow value for end indicator
-  const glowAnim = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    // Create subtle pulsing glow animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, {
-          toValue: 0.5,
-          duration: 1500,
-          useNativeDriver: false,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: 0.3,
-          duration: 1500,
-          useNativeDriver: false,
-        }),
-      ])
-    ).start();
-  }, [glowAnim]);
+  // Glow preset for end indicator
+  const endIndicatorGlow = {
+    states: [
+      {
+        name: 'default',
+        preset: {
+          cornerRadius: 8,
+          glowLayers: [
+            {
+              colors: [tokens.colors.najdi.primary, tokens.colors.najdi.secondary],
+              opacity: 0.3,
+              glowSize: 15,
+              animationSpeed: 0.5,
+            }
+          ]
+        }
+      }
+    ]
+  };
 
   // Footer component - Sadu pattern end indicator with glow
   const renderFooter = useCallback(() => {
@@ -230,26 +229,23 @@ const NewsScreenV3: React.FC = () => {
       return (
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
-          <Animated.View
-            style={[
-              styles.endPatternWrapper,
-              {
-                shadowOpacity: glowAnim,
-              }
-            ]}
+          <AnimatedGlow
+            preset={endIndicatorGlow}
+            animateOnMount
+            style={styles.endPatternWrapper}
           >
             <ImageBackground
               source={require('../../assets/sadu_patterns/png/42.png')}
               style={styles.endPatternContainer}
               imageStyle={styles.endPatternImage}
             />
-          </Animated.View>
+          </AnimatedGlow>
           <View style={styles.endLine} />
         </View>
       );
     }
     return null;
-  }, [hasMoreRecent, recent.length, glowAnim]);
+  }, [hasMoreRecent, recent.length]);
 
   // Error state
   if (error && featured.length === 0 && recent.length === 0) {
@@ -352,11 +348,6 @@ const styles = StyleSheet.create({
   },
   endPatternWrapper: {
     marginHorizontal: 16,
-    shadowColor: tokens.colors.najdi.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
   },
   endPatternContainer: {
     width: 100,
