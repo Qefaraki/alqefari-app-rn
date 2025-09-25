@@ -15,7 +15,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
-import AnimatedGlow from 'react-native-animated-glow';
 import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
@@ -204,47 +203,18 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Glow preset for end indicator - follows PNG alpha channel
-  const endIndicatorGlow = {
-    states: [
-      {
-        name: 'default',
-        preset: {
-          cornerRadius: 0,
-          maskToComponent: true,
-          useComponentAlpha: true, // Use the PNG's alpha channel for masking
-          glowLayers: [
-            {
-              colors: [tokens.colors.najdi.primary, tokens.colors.najdi.secondary],
-              opacity: 0.2, // 20% opacity
-              glowSize: 25,
-              animationSpeed: 0.2,
-            }
-          ]
-        }
-      }
-    ]
-  };
-
-  // Footer component - Sadu pattern end indicator with glow
+  // Footer component - Sadu pattern end indicator
   const renderFooter = useCallback(() => {
     if (!hasMoreRecent && recent.length > 0) {
       return (
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
           <View style={styles.endPatternWrapper}>
-            <AnimatedGlow
-              preset={endIndicatorGlow}
-              animateOnMount
-              maskChildren
-              useChildrenAsContent // Use the actual child content for masking
-            >
-              <Image
-                source={require('../../assets/sadu_patterns/png/42.png')}
-                style={[styles.endPatternContainer, styles.endPatternImage]}
-                resizeMode="contain"
-              />
-            </AnimatedGlow>
+            <Image
+              source={require('../../assets/sadu_patterns/png/42.png')}
+              style={[styles.endPatternContainer, styles.endPatternImage]}
+              resizeMode="contain"
+            />
           </View>
           <View style={styles.endLine} />
         </View>
@@ -354,10 +324,6 @@ const styles = StyleSheet.create({
   },
   endPatternWrapper: {
     marginHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glowContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
