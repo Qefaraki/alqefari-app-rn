@@ -1,6 +1,6 @@
 import React from 'react';
-import NewsScreen from '../src/screens/NewsScreen';
+import NewsScreenV3 from '../src/screens/NewsScreenV3';
 
 export default function NewsRoute() {
-  return <NewsScreen />;
+  return <NewsScreenV3 />;
 }

@@ -451,6 +451,11 @@ export const profilesService = {
    */
   async createMarriage(marriageData) {
     try {
+      // Ensure required parameters are present
+      if (!marriageData.husband_id || !marriageData.wife_id) {
+        throw new Error("Both husband_id and wife_id are required");
+      }
+
       const { data, error } = await supabase.rpc("admin_create_marriage", {
         p_husband_id: marriageData.husband_id,
         p_wife_id: marriageData.wife_id,
@@ -463,6 +468,7 @@ export const profilesService = {
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
+      console.error("createMarriage error:", error);
       return { data: null, error: handleSupabaseError(error) };
     }
   },
