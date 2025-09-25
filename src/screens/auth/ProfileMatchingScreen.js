@@ -16,6 +16,7 @@ import { phoneAuthService } from "../../services/phoneAuth";
 import { notifyAdminsOfNewRequest } from "../../services/notifications";
 import BranchTreeModal from "../../components/BranchTreeModal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../../contexts/AuthContext";
 
 import * as Haptics from "expo-haptics";
 import { getProfileDisplayName } from "../../utils/nameChainBuilder";
@@ -138,6 +139,7 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
 
 export default function ProfileMatchingScreen({ navigation, route }) {
   const { profiles = [], nameChain, user } = route.params;
+  const { checkProfileStatus } = useAuth();
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showTreeModal, setShowTreeModal] = useState(false);
@@ -167,8 +169,13 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       if (result.temporary) {
         // Profile linked successfully - mark onboarding as complete
         await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+
+        // Trigger profile status refresh in AuthContext
+        await checkProfileStatus(user);
+
+        // The app will automatically navigate when hasLinkedProfile updates
         Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
-          { text: "موافق", onPress: () => navigation.replace("Main") },
+          { text: "موافق" },
         ]);
       } else {
         // Notify admins of new request
@@ -180,8 +187,11 @@ export default function ProfileMatchingScreen({ navigation, route }) {
 
         // Request sent for admin approval - also mark onboarding complete
         await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+
+        // Note: User won't have linked profile until admin approves
+        // They'll stay in guest mode for now
         Alert.alert("تم إرسال الطلب", result.message, [
-          { text: "موافق", onPress: () => navigation.replace("Main") },
+          { text: "موافق" },
         ]);
       }
     } else {
@@ -217,14 +227,21 @@ export default function ProfileMatchingScreen({ navigation, route }) {
         if (result.temporary) {
           // Profile linked successfully - mark onboarding as complete
           await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+
+          // Trigger profile status refresh in AuthContext
+          await checkProfileStatus(user);
+
+          // The app will automatically navigate when hasLinkedProfile updates
           Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
-            { text: "موافق", onPress: () => navigation.replace("Main") },
+            { text: "موافق" },
           ]);
         } else {
           // Request sent for admin approval - also mark onboarding complete
           await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+
+          // Note: User won't have linked profile until admin approves
           Alert.alert("تم إرسال الطلب", result.message, [
-            { text: "موافق", onPress: () => navigation.replace("Main") },
+            { text: "موافق" },
           ]);
         }
       } else {
