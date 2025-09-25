@@ -33,10 +33,12 @@ import ArticleHeader from './components/ArticleHeader';
 import ArticleContent from './components/ArticleContent';
 import ArticleActions from './components/ArticleActions';
 import ArticleSkeletonLoader from './components/ArticleSkeletonLoader';
+import PhotoEventViewer from './components/PhotoEventViewer';
 import { extractGalleryImages } from './utils/galleryExtractor';
 import { useArticleCache } from './hooks/useArticleCache';
 import { useImagePreloader } from './hooks/useImagePreloader';
 import { getWordPressImageSizes } from './utils/imageOptimizer';
+import { analyzeContent, ContentType } from './utils/linkExtractor';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const GALLERY_COLUMNS = 2;
@@ -193,7 +195,9 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     readingTime: 0,
     isValid: false,
     isGalleryLoading: false,
-    galleryExtracted: false
+    galleryExtracted: false,
+    contentType: 'article' as ContentType,
+    isHeavy: false
   });
 
   // Process article content asynchronously (without gallery extraction)
@@ -225,6 +229,9 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
         return;
       }
 
+      // Analyze content to determine type
+      const analysis = analyzeContent(article.html);
+
       // Calculate reading metrics without blocking on gallery extraction
       const wordCount = article.html.replace(/<[^>]*>/g, '').split(/\s+/).length;
       const readingTime = Math.ceil(wordCount / 200);
@@ -237,7 +244,9 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
         readingTime,
         isValid: true,
         isGalleryLoading: false,
-        galleryExtracted: false
+        galleryExtracted: false,
+        contentType: analysis.type,
+        isHeavy: analysis.isHeavy
       }));
 
       // Cache the article
@@ -249,13 +258,13 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     processContentAsync();
   }, [article?.id, cacheArticle]);
 
-  // Lazy load gallery images after article opens
+  // Lazy load gallery images after article opens (only for non-heavy articles)
   useEffect(() => {
-    if (!isContentReady || !article?.html || articleData.galleryExtracted) {
+    if (!isContentReady || !article?.html || articleData.galleryExtracted || articleData.isHeavy) {
       return;
     }
 
-    // Extract gallery in the background after a delay
+    // Only extract gallery for non-heavy articles
     const extractGalleryAsync = async () => {
       // Wait for modal to fully open
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -287,7 +296,7 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     };
 
     extractGalleryAsync();
-  }, [isContentReady, article?.html, articleData.galleryExtracted, preloadImages]);
+  }, [isContentReady, article?.html, articleData.galleryExtracted, articleData.isHeavy, preloadImages]);
 
   // Create sections for FlatList
   const sections = useMemo(() => {
@@ -677,7 +686,14 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
         <View style={styles.loadingContainer}>
           <Text style={styles.errorText}>لا يمكن عرض المحتوى</Text>
         </View>
+      ) : articleData.isHeavy ? (
+        // Render PhotoEventViewer for photo-heavy articles
+        <PhotoEventViewer
+          article={article}
+          isNightMode={isNightMode}
+        />
       ) : (
+        // Normal rendering for regular articles
         <BottomSheetFlatList
           data={sections}
           renderItem={renderItem}
