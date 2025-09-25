@@ -50,9 +50,6 @@ const NewsScreen: React.FC = () => {
     loadInitial();
   }, []);
 
-  // Get formatted date for header
-  const headerDate = useAbsoluteDate(new Date());
-
   // Handle article opening
   const handleOpenArticle = useCallback((article: NewsArticle) => {
     if (article.permalink) {
@@ -128,14 +125,14 @@ const NewsScreen: React.FC = () => {
   const isLoadingInitial = status === 'loading' && recent.length === 0;
   const listData = isLoadingInitial ? Array.from({ length: 6 }) : recent;
 
-  // Render item - calculate date directly here without memoization
-  const renderItem = ({ item }: { item: NewsArticle | any }) => {
-    if (isLoadingInitial) {
+  // Create a component for list items that can use hooks properly
+  const ListItem = ({ item, isLoading }: { item: NewsArticle | any; isLoading: boolean }) => {
+    if (isLoading) {
       return <RecentArticleSkeleton />;
     }
     const article = item as NewsArticle;
 
-    // Calculate subtitle directly - no memoization, always fresh
+    // Now we can use hooks properly inside a component
     const subtitle = useRelativeDate(article.publishedAt);
 
     return (
@@ -145,6 +142,11 @@ const NewsScreen: React.FC = () => {
         onPress={() => handleOpenArticle(article)}
       />
     );
+  };
+
+  // Render item - now just calls our component
+  const renderItem = ({ item }: { item: NewsArticle | any }) => {
+    return <ListItem item={item} isLoading={isLoadingInitial} />;
   };
 
   // Key extractor - simplified since FlatList key handles settings changes

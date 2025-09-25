@@ -116,6 +116,7 @@ export const profilesService = {
         return (marriages || []).map((m) => {
           const spouse = isHusband ? m.wife : m.husband;
           return {
+            id: m.id,  // Use id consistently for key prop
             marriage_id: m.id,
             spouse_id: spouse?.id,
             spouse_name: spouse?.name,
