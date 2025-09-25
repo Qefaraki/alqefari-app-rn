@@ -76,7 +76,7 @@ import ProgressiveImage, {
   ProgressiveThumbnail,
 } from "./ProgressiveImage";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
-import MarriageEditor from "./admin/MarriageEditor";
+import SpouseManager from "./admin/SpouseManager";
 import FatherSelector from "./admin/fields/FatherSelector";
 import MotherSelector from "./admin/fields/MotherSelector";
 import DraggableChildrenList from "./admin/DraggableChildrenList";
@@ -194,7 +194,7 @@ const ProfileSheet = ({ editMode = false }) => {
   const [relationshipChildren, setRelationshipChildren] = useState([]);
   const [loadingRelationshipChildren, setLoadingRelationshipChildren] =
     useState(false);
-  const [showMarriageEditor, setShowMarriageEditor] = useState(false);
+  const [showSpouseManager, setShowSpouseManager] = useState(false);
 
   // Detect if there are unsaved changes
   const hasChanges = useMemo(() => {
@@ -227,6 +227,18 @@ const ProfileSheet = ({ editMode = false }) => {
 
     // Fall back to old method
     return getFather(person.id, dataSource);
+  }, [person, treeData]);
+
+  const mother = useMemo(() => {
+    if (!person) return null;
+    const dataSource = treeData.length > 0 ? treeData : familyData;
+
+    // If using backend data, find by mother_id
+    if (person.mother_id && treeData.length > 0) {
+      return dataSource.find((p) => p.id === person.mother_id);
+    }
+
+    return null;
   }, [person, treeData]);
 
   const children = useMemo(() => {
@@ -1301,7 +1313,7 @@ const ProfileSheet = ({ editMode = false }) => {
                       </Text>
                       <TouchableOpacity
                         style={styles.addButton}
-                        onPress={() => setShowMarriageEditor(true)}
+                        onPress={() => setShowSpouseManager(true)}
                       >
                         <Text style={styles.addButtonText}>+ إضافة</Text>
                       </TouchableOpacity>
@@ -1834,6 +1846,27 @@ const ProfileSheet = ({ editMode = false }) => {
                   </Pressable>
                 </CardSurface>
               )}
+              {mother && (
+                <CardSurface radius={12} style={[styles.familyCard, { marginTop: 12 }]}>
+                  <Pressable
+                    onPress={() => navigateToPerson(mother.id)}
+                    style={[styles.familyRow]}
+                  >
+                    <View style={styles.familyInfo}>
+                      <ProgressiveThumbnail
+                        source={{ uri: mother.photo_url }}
+                        size={48}
+                        style={styles.familyPhoto}
+                      />
+                      <View style={{ alignItems: "flex-end" }}>
+                        <Text style={styles.familyName}>{mother.name}</Text>
+                        <Text style={styles.familyRelation}>الوالدة</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </Pressable>
+                </CardSurface>
+              )}
               {sortedChildren && sortedChildren.length > 0 && (
                 <CardSurface
                   radius={12}
@@ -1903,12 +1936,12 @@ const ProfileSheet = ({ editMode = false }) => {
             />
           )}
           {person && (
-            <MarriageEditor
-              visible={showMarriageEditor}
-              onClose={() => setShowMarriageEditor(false)}
+            <SpouseManager
+              visible={showSpouseManager}
+              onClose={() => setShowSpouseManager(false)}
               person={person}
-              onCreated={() => {
-                setShowMarriageEditor(false);
+              onSpouseAdded={() => {
+                setShowSpouseManager(false);
                 loadMarriages();
               }}
             />
