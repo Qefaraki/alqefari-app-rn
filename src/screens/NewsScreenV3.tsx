@@ -203,19 +203,20 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Glow preset for end indicator
+  // Glow preset for end indicator - mask to shape
   const endIndicatorGlow = {
     states: [
       {
         name: 'default',
         preset: {
-          cornerRadius: 8,
+          cornerRadius: 0, // No corner radius
+          maskToComponent: true, // Key: makes glow follow the shape
           glowLayers: [
             {
               colors: [tokens.colors.najdi.primary, tokens.colors.najdi.secondary],
-              opacity: 0.3,
-              glowSize: 15,
-              animationSpeed: 0.5,
+              opacity: 0.4,
+              glowSize: 20,
+              animationSpeed: 0.3,
             }
           ]
         }
@@ -229,17 +230,19 @@ const NewsScreenV3: React.FC = () => {
       return (
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
-          <AnimatedGlow
-            preset={endIndicatorGlow}
-            animateOnMount
-            style={styles.endPatternWrapper}
-          >
-            <ImageBackground
-              source={require('../../assets/sadu_patterns/png/42.png')}
-              style={styles.endPatternContainer}
-              imageStyle={styles.endPatternImage}
-            />
-          </AnimatedGlow>
+          <View style={styles.endPatternWrapper}>
+            <AnimatedGlow
+              preset={endIndicatorGlow}
+              animateOnMount
+              style={styles.glowContainer}
+            >
+              <ImageBackground
+                source={require('../../assets/sadu_patterns/png/42.png')}
+                style={styles.endPatternContainer}
+                imageStyle={styles.endPatternImage}
+              />
+            </AnimatedGlow>
+          </View>
           <View style={styles.endLine} />
         </View>
       );
@@ -348,6 +351,12 @@ const styles = StyleSheet.create({
   },
   endPatternWrapper: {
     marginHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glowContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   endPatternContainer: {
     width: 100,
