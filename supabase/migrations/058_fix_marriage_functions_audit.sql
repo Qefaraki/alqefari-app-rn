@@ -63,18 +63,14 @@ BEGIN
         munasib,
         start_date,
         end_date,
-        status,
-        created_by,
-        updated_by
+        status
     ) VALUES (
         p_husband_id,
         p_wife_id,
         p_munasib,
         p_start_date,
         p_end_date,
-        p_status,
-        v_actor_id,
-        v_actor_id
+        p_status
     ) RETURNING * INTO v_new_marriage;
     
     -- Attempt audit logging to enhanced table (which accepts auth.uid())
@@ -204,7 +200,6 @@ BEGIN
         start_date = v_start_date,
         end_date = v_end_date,
         status = v_status,
-        updated_by = v_actor_id,
         updated_at = NOW()
     WHERE id = p_id
     RETURNING * INTO v_updated_marriage;
