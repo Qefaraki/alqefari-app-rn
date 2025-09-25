@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -9,18 +9,8 @@ import {
   Text,
   Pressable,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { getAllSwatches } from 'react-native-palette';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
@@ -33,22 +23,18 @@ interface EnhancedCarouselProps {
   onReachEnd?: () => void;
   loading?: boolean;
   loadingMore?: boolean;
-  onColorExtracted?: (colors: { vibrant?: string; muted?: string; dominant?: string }) => void;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.92); // 92% of screen width
-const CARD_SPACING = 12; // Tighter spacing
+const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.85); // 85% of screen width
+const CARD_SPACING = 12;
 const PEEK_WIDTH = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
-// Single carousel card component with animations
+// Single carousel card component
 const CarouselCard: React.FC<{
   article: NewsArticle;
   onPress: () => void;
-  index: number;
-  scrollX: Animated.SharedValue<number>;
-  extractedColor?: string;
-}> = ({ article, onPress, index, scrollX, extractedColor }) => {
+}> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
 
   const handlePress = () => {
@@ -56,62 +42,9 @@ const CarouselCard: React.FC<{
     onPress();
   };
 
-  // Calculate input range for this card
-  const inputRange = [
-    (index - 1) * (CARD_WIDTH + CARD_SPACING),
-    index * (CARD_WIDTH + CARD_SPACING),
-    (index + 1) * (CARD_WIDTH + CARD_SPACING),
-  ];
-
-  // Animated styles for scale and rotation with spring physics
-  const animatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.88, 1, 0.88],
-      Extrapolation.CLAMP
-    );
-
-    const rotateY = interpolate(
-      scrollX.value,
-      inputRange,
-      ['12deg', '0deg', '-12deg'],
-      Extrapolation.CLAMP
-    );
-
-    const opacity = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.6, 1, 0.6],
-      Extrapolation.CLAMP
-    );
-
-    const translateY = interpolate(
-      scrollX.value,
-      inputRange,
-      [10, 0, 10],
-      Extrapolation.CLAMP
-    );
-
-    return {
-      transform: [
-        { scale: withSpring(scale, { damping: 15, stiffness: 150 }) },
-        { perspective: 1000 },
-        { rotateY },
-        { translateY },
-      ],
-      opacity,
-    };
-  });
-
   return (
-    <Animated.View style={animatedStyle}>
-      <Surface style={[styles.card, extractedColor && {
-        borderLeftWidth: 3,
-        borderLeftColor: extractedColor,
-        backgroundColor: `${extractedColor}08` // Very subtle tint
-      }]} radius={8}>
-        <Pressable
+    <Surface style={styles.card} radius={8}>
+      <Pressable
         style={styles.cardPressable}
         onPress={handlePress}
         android_ripple={{ color: 'rgba(0,0,0,0.04)' }}
@@ -145,9 +78,8 @@ const CarouselCard: React.FC<{
           )}
           <Text style={styles.cardDate}>{relativeDate}</Text>
         </View>
-        </Pressable>
-      </Surface>
-    </Animated.View>
+      </Pressable>
+    </Surface>
   );
 };
 
@@ -173,60 +105,9 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
   onReachEnd,
   loading = false,
   loadingMore = false,
-  onColorExtracted,
 }) => {
   const flatListRef = useRef<FlatList<NewsArticle>>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollX = useSharedValue(0);
-  const scrollHintAnim = useSharedValue(0);
-  const [extractedColors, setExtractedColors] = useState<Record<string, any>>({});
-  const [currentColor, setCurrentColor] = useState<string | null>(null);
-
-  // Auto-scroll hint animation on mount and initial color extraction
-  useEffect(() => {
-    if (articles.length > 0 && !loading) {
-      // Extract colors from first article
-      if (articles[0]?.heroImage && onColorExtracted) {
-        const imageUrl = articles[0].heroImage;
-        getAllSwatches({ quality: 'low' }, imageUrl, (err, swatches) => {
-          if (err) {
-            console.log('Initial color extraction failed:', err);
-            onColorExtracted({
-              vibrant: tokens.colors.najdi.primary,
-              muted: tokens.colors.najdi.container,
-              dominant: tokens.colors.najdi.secondary,
-            });
-          } else if (swatches && swatches.length > 0) {
-            // Use the most prominent colors from swatches
-            const dominantColor = swatches[0]?.hex || tokens.colors.najdi.primary;
-            const colors = {
-              dominant: dominantColor,
-              vibrant: swatches[1]?.hex || tokens.colors.najdi.secondary,
-              muted: swatches[2]?.hex || tokens.colors.najdi.container,
-            };
-            setExtractedColors(prev => ({ ...prev, [imageUrl]: dominantColor }));
-            setCurrentColor(dominantColor);
-            onColorExtracted(colors);
-          }
-        });
-      }
-
-      if (articles.length > 1) {
-        // Delay the hint slightly
-        const timer = setTimeout(() => {
-          // Also do actual scroll hint
-          if (flatListRef.current) {
-            flatListRef.current.scrollToOffset({ offset: 50, animated: true });
-            setTimeout(() => {
-              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-            }, 400);
-          }
-        }, 600);
-
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [articles, loading, onColorExtracted]);
 
   // Calculate snap offsets for each card
   const snapOffsets = useMemo(() => {
@@ -238,52 +119,16 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
     return offsets;
   }, [articles.length, loading]);
 
-  // Handle scroll events for infinite loading and animations
+  // Handle scroll events for infinite loading
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = event.nativeEvent.contentOffset.x;
       const index = Math.round(offsetX / (CARD_WIDTH + CARD_SPACING));
 
-      // Update shared value for animations
-      scrollX.value = offsetX;
-
-      // Haptic feedback on card change and color extraction
+      // Haptic feedback on card change
       if (index !== currentIndex) {
         Haptics.selectionAsync();
         setCurrentIndex(index);
-
-        // Extract colors from current article image if available
-        if (!loading && articles[index]?.heroImage && onColorExtracted) {
-          const imageUrl = articles[index].heroImage;
-          if (extractedColors[imageUrl]) {
-            // Use cached colors
-            onColorExtracted(extractedColors[imageUrl]);
-          } else {
-            // Extract new colors
-            getAllSwatches({ quality: 'low' }, imageUrl, (err, swatches) => {
-              if (err) {
-                console.log('Color extraction failed:', err);
-                // Fallback to default colors
-                onColorExtracted({
-                  vibrant: tokens.colors.najdi.primary,
-                  muted: tokens.colors.najdi.container,
-                  dominant: tokens.colors.najdi.secondary,
-                });
-              } else if (swatches && swatches.length > 0) {
-                // Use the most prominent colors from swatches
-                const dominantColor = swatches[0]?.hex || tokens.colors.najdi.primary;
-                const colors = {
-                  dominant: dominantColor,
-                  vibrant: swatches[1]?.hex || tokens.colors.najdi.secondary,
-                  muted: swatches[2]?.hex || tokens.colors.najdi.container,
-                };
-                setExtractedColors(prev => ({ ...prev, [imageUrl]: dominantColor }));
-                setCurrentColor(dominantColor);
-                onColorExtracted(colors);
-              }
-            });
-          }
-        }
       }
 
       // Check if we're near the end (last 3 cards from end)
@@ -294,7 +139,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
         onReachEnd();
       }
     },
-    [currentIndex, onReachEnd, loadingMore, loading, scrollX, articles, onColorExtracted, extractedColors]
+    [currentIndex, onReachEnd, loadingMore, loading]
   );
 
   // Render individual item
@@ -328,9 +173,6 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
           <CarouselCard
             article={item}
             onPress={() => onArticlePress(item)}
-            index={index}
-            scrollX={scrollX}
-            extractedColor={extractedColors[item.heroImage] || null}
           />
         </View>
       );
@@ -364,7 +206,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Carousel */}
+      {/* Carousel - No pattern overlay */}
       <FlatList
         ref={flatListRef}
         horizontal
@@ -375,9 +217,8 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
         showsHorizontalScrollIndicator={false}
         snapToOffsets={snapOffsets}
         snapToAlignment="start"
-        decelerationRate={0.985} // Smoother deceleration
+        decelerationRate="fast"
         pagingEnabled={false}
-        snapToInterval={CARD_WIDTH + CARD_SPACING} // Magnetic snapping
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentContainerStyle={styles.contentContainer}
@@ -389,7 +230,6 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
           ) : null
         }
       />
-
     </View>
   );
 };
@@ -412,17 +252,22 @@ const styles = StyleSheet.create({
     marginRight: PEEK_WIDTH,
   },
   card: {
-    backgroundColor: '#F9F7F3',
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#D1BBA31A',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cardPressable: {
     flex: 1,
   },
   heroImage: {
     width: '100%',
-    height: 220, // Slightly taller for better proportions
+    height: 200,
     backgroundColor: '#D1BBA310',
   },
   heroPlaceholder: {
@@ -431,20 +276,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1BBA320',
   },
   cardContent: {
-    padding: 24,
-    gap: 12,
+    padding: 20,
+    gap: 10,
   },
   cardTitle: {
     fontSize: 19,
     fontWeight: '700',
-    color: '#242121',
+    color: tokens.colors.najdi.text,
     lineHeight: 26,
     letterSpacing: -0.3,
     fontFamily: 'SF Arabic',
   },
   cardSummary: {
     fontSize: 15,
-    color: '#242121B3',
+    color: tokens.colors.najdi.textMuted,
     lineHeight: 22,
     fontFamily: 'SF Arabic',
   },

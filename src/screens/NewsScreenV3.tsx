@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Alert,
   ImageBackground,
@@ -17,14 +17,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  interpolate,
-  interpolateColor,
-  runOnJS,
-} from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
@@ -41,23 +33,9 @@ type ListItem =
   | { type: 'article'; data: NewsArticle; index: number }
   | { type: 'skeleton'; id: number };
 
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
-
 const NewsScreenV3: React.FC = () => {
   const flashListRef = useRef<FlashList<ListItem>>(null);
   const scrollOffsetRef = useRef(0);
-
-  // State for extracted colors
-  const [extractedColors, setExtractedColors] = useState({
-    vibrant: tokens.colors.najdi.primary,
-    muted: tokens.colors.najdi.container,
-    dominant: tokens.colors.najdi.secondary,
-  });
-
-  // Animated values for smooth color transitions
-  const colorTransition = useSharedValue(0);
-  const previousColors = useRef(extractedColors);
-  const targetColors = useRef(extractedColors);
 
   // Store state
   const {
@@ -80,27 +58,6 @@ const NewsScreenV3: React.FC = () => {
 
   // Get current date for header
   const headerDate = useAbsoluteDateNoMemo(new Date());
-
-  // Handle color extraction from carousel with smooth transition
-  const handleColorExtracted = useCallback((colors: any) => {
-    // Update colors with animation
-    setExtractedColors(colors);
-
-    // Animate the transition
-    colorTransition.value = 0;
-    colorTransition.value = withTiming(1, { duration: 800 });
-  }, [colorTransition]);
-
-  // Animated style for smooth color transitions
-  const animatedBackgroundStyle = useAnimatedStyle(() => {
-    return {
-      opacity: interpolate(
-        colorTransition.value,
-        [0, 0.5, 1],
-        [1, 0.8, 1]
-      ),
-    };
-  });
 
   // Initialize on mount and cleanup on unmount
   useEffect(() => {
@@ -187,7 +144,7 @@ const NewsScreenV3: React.FC = () => {
         <View style={styles.carouselSection}>
           {/* Section header */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>السنوية الرئيسية</Text>
+            <Text style={styles.sectionTitle}>المناسبات</Text>
             <View style={styles.sectionAccent} />
           </View>
 
@@ -198,7 +155,6 @@ const NewsScreenV3: React.FC = () => {
             onReachEnd={loadMoreFeatured}
             loading={isInitialLoading && featured.length === 0}
             loadingMore={false}
-            onColorExtracted={handleColorExtracted}
           />
         </View>
 
@@ -209,7 +165,7 @@ const NewsScreenV3: React.FC = () => {
         </View>
       </View>
     );
-  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured, handleColorExtracted, extractedColors, animatedBackgroundStyle]);
+  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured]);
 
   // Render list item
   const renderItem = useCallback(

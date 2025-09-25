@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -19,9 +19,14 @@ import { RecentArticleItem, RecentArticleSkeleton } from '../components/ui/news/
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import tokens from '../components/ui/tokens';
 import NetworkError from '../components/NetworkError';
+import ArticleViewerModal from '../components/ArticleViewer/ArticleViewerModal';
 
 const NewsScreen: React.FC = () => {
   const flatListRef = useRef<FlatList>(null);
+
+  // State for article viewer
+  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
+  const [articleViewerVisible, setArticleViewerVisible] = useState(false);
 
   // Get settings to force re-renders when they change
   const { settings } = useSettings();
@@ -52,13 +57,9 @@ const NewsScreen: React.FC = () => {
 
   // Handle article opening
   const handleOpenArticle = useCallback((article: NewsArticle) => {
-    if (article.permalink) {
-      Linking.openURL(article.permalink).catch(() => {
-        Alert.alert('تعذر فتح الرابط', 'حاول مرة أخرى لاحقاً.');
-      });
-      return;
-    }
-    Alert.alert('لا يوجد رابط', stripHtmlForDisplay(article.summary || ''));
+    // Open in the new article viewer
+    setSelectedArticle(article);
+    setArticleViewerVisible(true);
   }, []);
 
   // Simple onEndReached handler without debouncing
@@ -200,6 +201,16 @@ const NewsScreen: React.FC = () => {
         // Prevent bouncing at bottom when loading
         bounces={!isLoadingMore}
         showsVerticalScrollIndicator={true}
+      />
+
+      {/* Article Viewer Modal */}
+      <ArticleViewerModal
+        article={selectedArticle}
+        visible={articleViewerVisible}
+        onClose={() => {
+          setArticleViewerVisible(false);
+          setSelectedArticle(null);
+        }}
       />
     </SafeAreaView>
   );
