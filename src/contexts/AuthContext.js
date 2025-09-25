@@ -66,9 +66,25 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     console.log('[DEBUG AuthContext] checkAuth starting');
 
-    // Use getSession for instant response (no network call)
+    // Create timeout promise (5 seconds max)
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        console.log('[DEBUG AuthContext] Auth check timeout after 5 seconds - continuing anyway');
+        resolve({ data: { session: null }, error: new Error('Timeout after 5 seconds') });
+      }, 5000);
+    });
+
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Race between getSession and timeout
+      const result = await Promise.race([
+        supabase.auth.getSession().catch(err => {
+          console.error('[DEBUG AuthContext] getSession exception:', err);
+          return { data: { session: null }, error: err };
+        }),
+        timeoutPromise
+      ]);
+
+      const { data: { session }, error } = result;
 
       if (error) {
         console.log('[DEBUG AuthContext] getSession error:', error.message);
@@ -106,11 +122,13 @@ export const AuthProvider = ({ children }) => {
         setIsAdmin(false);
       }
     } catch (error) {
-      console.error('[DEBUG AuthContext] Error getting session:', error);
+      // This should never happen with our Promise.race setup
+      console.error('[DEBUG AuthContext] Unexpected error in checkAuth:', error);
       setUser(null);
       setIsAdmin(false);
     } finally {
-      console.log('[DEBUG AuthContext] Setting isLoading to false');
+      // ALWAYS set isLoading to false - this is critical!
+      console.log('[DEBUG AuthContext] Setting isLoading to false (guaranteed)');
       setIsLoading(false);
     }
   };

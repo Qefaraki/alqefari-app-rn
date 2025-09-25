@@ -64,39 +64,45 @@ function TabLayout() {
     });
   }, []);
 
+  // Emergency timeout - if auth takes too long, show app anyway
+  const [authTimeout, setAuthTimeout] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('[DEBUG] Auth timeout - showing app anyway after 2 seconds');
+      setAuthTimeout(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Determine app state based on AuthContext (single source of truth)
   const getAppState = () => {
-    // Still loading onboarding status
-    if (onboardingCompleted === null) {
+    // Still loading onboarding status - but only wait briefly
+    if (onboardingCompleted === null && !authTimeout) {
       return 'loading';
     }
 
     // First time user - show onboarding
-    if (!onboardingCompleted) {
+    if (onboardingCompleted === false) {
       return 'onboarding';
     }
 
-    // Auth is still loading - wait
-    if (isLoading) {
-      return 'loading';
-    }
-
-    // Authenticated user
+    // Don't wait for auth anymore - show the app!
+    // Auth will update in the background
     if (user) {
       console.log('[DEBUG] Showing tabs - authenticated user:', user.email || user.phone);
       return 'authenticated';
     }
 
-    // Guest mode
-    console.log('[DEBUG] Showing tabs - guest mode');
+    // Guest mode (or still loading auth - doesn't matter, show UI)
+    console.log('[DEBUG] Showing tabs - guest mode (auth loading:', isLoading, ')');
     return 'guest';
   };
 
   const appState = getAppState();
 
-  // Show nothing while loading
+  // Only show loading for a VERY brief moment while checking onboarding
   if (appState === 'loading') {
-    console.log('[DEBUG] Waiting for auth/onboarding check...');
+    console.log('[DEBUG] Brief wait for onboarding check...');
     return null;
   }
 

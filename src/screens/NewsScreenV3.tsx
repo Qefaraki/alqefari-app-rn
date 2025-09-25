@@ -11,10 +11,14 @@ import {
   ActivityIndicator,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
@@ -137,17 +141,52 @@ const NewsScreenV3: React.FC = () => {
           <Text style={styles.subtitle}>{headerDate}</Text>
         </View>
 
-        {/* Featured carousel */}
-        <EnhancedCarousel
-          articles={featured}
-          onArticlePress={handleArticlePress}
-          onReachEnd={loadMoreFeatured}
-          loading={isInitialLoading && featured.length === 0}
-          loadingMore={false}
-        />
+        {/* Glassmorphic carousel container */}
+        <View style={styles.carouselSection}>
+          <BlurView intensity={20} tint="light" style={styles.glassmorphicContainer}>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']}
+              style={styles.gradientOverlay}
+            >
+              {/* Section header */}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>السنوية الرئيسية</Text>
+                <View style={styles.sectionAccent} />
+              </View>
 
-        {/* Section title */}
-        <Text style={styles.sectionTitle}>آخر المقالات</Text>
+              {/* Featured carousel */}
+              <EnhancedCarousel
+                articles={featured}
+                onArticlePress={handleArticlePress}
+                onReachEnd={loadMoreFeatured}
+                loading={isInitialLoading && featured.length === 0}
+                loadingMore={false}
+              />
+            </LinearGradient>
+          </BlurView>
+
+          {/* Edge gradients for depth */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.1)', 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0.1, y: 0 }}
+            style={styles.leftEdgeGradient}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.1)']}
+            start={{ x: 0.9, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.rightEdgeGradient}
+            pointerEvents="none"
+          />
+        </View>
+
+        {/* Section title for vertical list */}
+        <View style={styles.verticalSectionHeader}>
+          <Text style={styles.verticalSectionTitle}>آخر الأخبار</Text>
+          <View style={styles.sectionDivider} />
+        </View>
       </View>
     );
   }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured]);
@@ -278,6 +317,8 @@ const NewsScreenV3: React.FC = () => {
   );
 };
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -290,6 +331,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 24,
+  },
+  carouselSection: {
+    marginBottom: 24,
+    position: 'relative',
+  },
+  glassmorphicContainer: {
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  gradientOverlay: {
+    padding: 16,
+    paddingBottom: 20,
+  },
+  sectionHeader: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
+    marginBottom: 4,
+  },
+  sectionAccent: {
+    width: 40,
+    height: 3,
+    backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: 1.5,
+    opacity: 0.8,
+  },
+  verticalSectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  verticalSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
+    marginBottom: 8,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: tokens.colors.najdi.secondary + '20',
+    marginTop: 4,
+  },
+  leftEdgeGradient: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    zIndex: 10,
+  },
+  rightEdgeGradient: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 40,
+    zIndex: 10,
   },
   title: {
     fontSize: 34,
