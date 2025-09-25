@@ -183,66 +183,22 @@ const NewsScreenV3: React.FC = () => {
           <Text style={styles.subtitle}>{headerDate}</Text>
         </View>
 
-        {/* Color-extracted carousel container */}
+        {/* Carousel section */}
         <View style={styles.carouselSection}>
-          {/* Dynamic gradient background with animated transition */}
-          <Animated.View style={[styles.colorGradientBackground, animatedBackgroundStyle]}>
-            <LinearGradient
-              colors={[
-                extractedColors.dominant ? `${extractedColors.dominant}20` : '#A1333320',
-                extractedColors.muted ? `${extractedColors.muted}50` : '#F9F7F350',
-                'rgba(249, 247, 243, 0)'
-              ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ flex: 1 }}
-            />
-          </Animated.View>
-
-          <View style={styles.frostedContainer}>
-            {/* Semi-transparent overlay for frosted effect */}
-            <LinearGradient
-              colors={[
-                'rgba(249, 247, 243, 0.85)',
-                'rgba(249, 247, 243, 0.7)',
-                'rgba(249, 247, 243, 0.6)'
-              ]}
-              style={styles.frostOverlay}
-            >
-              {/* Section header */}
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>السنوية الرئيسية</Text>
-                <View style={[styles.sectionAccent, {
-                  backgroundColor: extractedColors.vibrant || tokens.colors.najdi.primary
-                }]} />
-              </View>
-
-              {/* Featured carousel */}
-              <EnhancedCarousel
-                articles={featured}
-                onArticlePress={handleArticlePress}
-                onReachEnd={loadMoreFeatured}
-                loading={isInitialLoading && featured.length === 0}
-                loadingMore={false}
-                onColorExtracted={handleColorExtracted}
-              />
-            </LinearGradient>
+          {/* Section header */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>السنوية الرئيسية</Text>
+            <View style={styles.sectionAccent} />
           </View>
 
-          {/* Edge gradients for depth */}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'transparent']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0.1, y: 0 }}
-            style={styles.leftEdgeGradient}
-            pointerEvents="none"
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.1)']}
-            start={{ x: 0.9, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.rightEdgeGradient}
-            pointerEvents="none"
+          {/* Featured carousel */}
+          <EnhancedCarousel
+            articles={featured}
+            onArticlePress={handleArticlePress}
+            onReachEnd={loadMoreFeatured}
+            loading={isInitialLoading && featured.length === 0}
+            loadingMore={false}
+            onColorExtracted={handleColorExtracted}
           />
         </View>
 
@@ -398,33 +354,11 @@ const styles = StyleSheet.create({
   },
   carouselSection: {
     marginBottom: 24,
-    position: 'relative',
-  },
-  colorGradientBackground: {
-    position: 'absolute',
-    top: -100,
-    left: -50,
-    right: -50,
-    bottom: -50,
-  },
-  frostedContainer: {
-    marginHorizontal: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(249, 247, 243, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 24,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(209, 187, 163, 0.2)',
-  },
-  frostOverlay: {
-    padding: 16,
-    paddingBottom: 20,
+    backgroundColor: tokens.colors.najdi.background, // Clean white background
   },
   sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
     marginBottom: 12,
   },
   sectionTitle: {
@@ -439,7 +373,6 @@ const styles = StyleSheet.create({
     height: 3,
     backgroundColor: tokens.colors.najdi.primary,
     borderRadius: 1.5,
-    opacity: 0.8,
   },
   verticalSectionHeader: {
     paddingHorizontal: 16,
@@ -457,22 +390,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: tokens.colors.najdi.secondary + '20',
     marginTop: 4,
-  },
-  leftEdgeGradient: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 40,
-    zIndex: 10,
-  },
-  rightEdgeGradient: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 40,
-    zIndex: 10,
   },
   title: {
     fontSize: 34,

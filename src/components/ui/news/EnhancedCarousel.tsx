@@ -6,7 +6,6 @@ import {
   NativeSyntheticEvent,
   StyleSheet,
   View,
-  ImageBackground,
   Text,
   Pressable,
 } from 'react-native';
@@ -38,8 +37,8 @@ interface EnhancedCarouselProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.88); // 88% of screen width for better focus
-const CARD_SPACING = 16; // Slightly more spacing for depth
+const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.92); // 92% of screen width
+const CARD_SPACING = 12; // Tighter spacing
 const PEEK_WIDTH = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
 // Single carousel card component with animations
@@ -48,7 +47,8 @@ const CarouselCard: React.FC<{
   onPress: () => void;
   index: number;
   scrollX: Animated.SharedValue<number>;
-}> = ({ article, onPress, index, scrollX }) => {
+  extractedColor?: string;
+}> = ({ article, onPress, index, scrollX, extractedColor }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
 
   const handlePress = () => {
@@ -106,7 +106,11 @@ const CarouselCard: React.FC<{
 
   return (
     <Animated.View style={animatedStyle}>
-      <Surface style={styles.card} radius={8}>
+      <Surface style={[styles.card, extractedColor && {
+        borderLeftWidth: 3,
+        borderLeftColor: extractedColor,
+        backgroundColor: `${extractedColor}08` // Very subtle tint
+      }]} radius={8}>
         <Pressable
         style={styles.cardPressable}
         onPress={handlePress}
@@ -176,6 +180,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
   const scrollX = useSharedValue(0);
   const scrollHintAnim = useSharedValue(0);
   const [extractedColors, setExtractedColors] = useState<Record<string, any>>({});
+  const [currentColor, setCurrentColor] = useState<string | null>(null);
 
   // Auto-scroll hint animation on mount and initial color extraction
   useEffect(() => {
@@ -193,12 +198,14 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
             });
           } else if (swatches && swatches.length > 0) {
             // Use the most prominent colors from swatches
+            const dominantColor = swatches[0]?.hex || tokens.colors.najdi.primary;
             const colors = {
-              dominant: swatches[0]?.hex || tokens.colors.najdi.primary,
+              dominant: dominantColor,
               vibrant: swatches[1]?.hex || tokens.colors.najdi.secondary,
               muted: swatches[2]?.hex || tokens.colors.najdi.container,
             };
-            setExtractedColors(prev => ({ ...prev, [imageUrl]: colors }));
+            setExtractedColors(prev => ({ ...prev, [imageUrl]: dominantColor }));
+            setCurrentColor(dominantColor);
             onColorExtracted(colors);
           }
         });
@@ -264,12 +271,14 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
                 });
               } else if (swatches && swatches.length > 0) {
                 // Use the most prominent colors from swatches
+                const dominantColor = swatches[0]?.hex || tokens.colors.najdi.primary;
                 const colors = {
-                  dominant: swatches[0]?.hex || tokens.colors.najdi.primary,
+                  dominant: dominantColor,
                   vibrant: swatches[1]?.hex || tokens.colors.najdi.secondary,
                   muted: swatches[2]?.hex || tokens.colors.najdi.container,
                 };
-                setExtractedColors(prev => ({ ...prev, [imageUrl]: colors }));
+                setExtractedColors(prev => ({ ...prev, [imageUrl]: dominantColor }));
+                setCurrentColor(dominantColor);
                 onColorExtracted(colors);
               }
             });
@@ -321,6 +330,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
             onPress={() => onArticlePress(item)}
             index={index}
             scrollX={scrollX}
+            extractedColor={extractedColors[item.heroImage] || null}
           />
         </View>
       );
@@ -354,13 +364,6 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Background pattern */}
-      <ImageBackground
-        source={require('../../../../assets/sadu_patterns/png/14.png')}
-        style={styles.pattern}
-        imageStyle={styles.patternImage}
-      />
-
       {/* Carousel */}
       <FlatList
         ref={flatListRef}
@@ -393,18 +396,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    position: 'relative',
-    paddingVertical: 12,
-  },
-  pattern: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  patternImage: {
-    opacity: 0.08,
+    paddingVertical: 8,
   },
   contentContainer: {
     paddingVertical: 4,
