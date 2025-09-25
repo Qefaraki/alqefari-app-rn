@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     resizeMode: 'repeat',
   },
   featureOverlayPattern: {
-    opacity: 0.04, // Very subtle overlay on hero images
+    opacity: 0.08, // More visible overlay on hero images
     resizeMode: 'repeat',
   },
   featureGradient: {
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   largeOverlayPattern: {
-    opacity: 0.03, // Subtle overlay on large images
+    opacity: 0.06, // More visible overlay on large images
     resizeMode: 'repeat',
   },
   largePlaceholder: {
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sideOverlayPattern: {
-    opacity: 0.03, // Subtle overlay on side images
+    opacity: 0.06, // More visible overlay on side images
     resizeMode: 'repeat',
   },
   sidePlaceholder: {

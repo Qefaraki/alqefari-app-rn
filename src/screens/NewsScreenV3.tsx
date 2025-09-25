@@ -209,7 +209,7 @@ const NewsScreenV3: React.FC = () => {
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
           <ImageBackground
-            source={require('../../assets/sadu_patterns/png/45.png')}
+            source={require('../../assets/sadu_patterns/png/1.png')}
             style={styles.endPatternContainer}
             imageStyle={styles.endPatternImage}
           >
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
   },
   backgroundPatternImage: {
-    opacity: 0.02, // Very subtle - 2% opacity
+    opacity: 0.08, // More visible - 8% opacity
     resizeMode: 'repeat',
   },
   safeArea: {
@@ -336,17 +336,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1BBA31A',
   },
   endPatternContainer: {
-    width: 60,
-    height: 20,
+    width: 80,
+    height: 30,
     marginHorizontal: 16,
   },
   endPatternImage: {
-    resizeMode: 'cover',
-    opacity: 0.15, // Subtle Sadu pattern
+    resizeMode: 'contain',
+    opacity: 0.3, // More visible Sadu ornament
   },
   endPatternOverlay: {
     flex: 1,
-    backgroundColor: tokens.colors.najdi.primary + '10', // Slight tint
+    backgroundColor: 'transparent', // No overlay needed
   },
   listContent: {
     paddingBottom: 100, // Extra padding to ensure last item is fully visible
