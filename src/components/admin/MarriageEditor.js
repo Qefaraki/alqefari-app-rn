@@ -26,7 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CardSurface from "../ios/CardSurface";
 import Button from "../ui/Button";
 import profilesService from "../../services/profiles";
-import { supabase, handleSupabaseError } from "../../services/supabase";
+import { handleSupabaseError, supabase } from "../../services/supabase";
 import appConfig from "../../config/appConfig";
 import familyNameService from "../../services/familyNameService";
 
@@ -273,22 +273,18 @@ export default function MarriageEditor({
       // Extract family origin from the spouse name
       const familyOrigin = familyNameService.extractFamilyName(spouseName.trim());
 
-      // Create Munasib spouse profile with NULL HID (direct insert)
-      // This ensures the profile is recognized as Munasib by MunasibManager
+      // Create Munasib spouse profile using secure RPC function
+      // This ensures proper permissions and audit logging
       const { data: newPerson, error: createError } = await supabase
-        .from('profiles')
-        .insert({
-          name: spouseName.trim(),
-          gender: spouseGender,
-          generation: person.generation, // Same generation as spouse
-          family_origin: familyOrigin, // Add family origin for Munasib tracking
-          hid: null, // Explicitly NULL for Munasib (married-in spouse)
-          status: 'alive',
-          sibling_order: 0,
-          phone: spousePhone?.trim() || null,
-        })
-        .select()
-        .single();
+        .rpc('admin_create_munasib_profile', {
+          p_name: spouseName.trim(),
+          p_gender: spouseGender,
+          p_generation: person.generation, // Same generation as spouse
+          p_family_origin: familyOrigin, // Add family origin for Munasib tracking
+          p_sibling_order: 0,
+          p_status: 'alive',
+          p_phone: spousePhone?.trim() || null,
+        });
 
       if (createError) throw createError;
 

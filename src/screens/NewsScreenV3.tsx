@@ -237,7 +237,7 @@ const NewsScreenV3: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <FlashList
         ref={flashListRef}
         data={listData}
@@ -258,6 +258,7 @@ const NewsScreenV3: React.FC = () => {
         }
         ListFooterComponent={renderFooter}
         showsVerticalScrollIndicator={true}
+        contentContainerStyle={styles.listContent}
         // Maintain scroll position when adding items
         maintainVisibleContentPosition={{
           minIndexForVisible: 1,
@@ -328,6 +329,9 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: '#24212140',
+  },
+  listContent: {
+    paddingBottom: 100, // Extra padding to ensure last item is fully visible
   },
 });
 

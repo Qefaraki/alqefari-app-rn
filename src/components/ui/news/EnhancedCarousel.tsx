@@ -44,7 +44,7 @@ const CarouselCard: React.FC<{
   };
 
   return (
-    <Surface style={styles.card} radius={12}>
+    <Surface style={styles.card} radius={8}>
       <Pressable
         style={styles.cardPressable}
         onPress={handlePress}
@@ -86,7 +86,7 @@ const CarouselCard: React.FC<{
 
 // Skeleton loading card
 const SkeletonCard: React.FC = () => (
-  <Surface style={styles.card} radius={12}>
+  <Surface style={styles.card} radius={8}>
     <View style={styles.cardPressable}>
       <View style={[styles.heroImage, styles.skeletonImage]} />
       <View style={styles.cardContent}>
@@ -267,43 +267,47 @@ const styles = StyleSheet.create({
     marginRight: PEEK_WIDTH,
   },
   card: {
-    backgroundColor: tokens.colors.najdi.background,
+    backgroundColor: '#F9F7F3',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#D1BBA31A',
   },
   cardPressable: {
     flex: 1,
   },
   heroImage: {
     width: '100%',
-    height: 200, // Bigger for better visual impact (16:9 aspect ratio)
-    backgroundColor: `${tokens.colors.najdi.container}10`,
+    height: 200,
+    backgroundColor: '#D1BBA310',
   },
   heroPlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: `${tokens.colors.najdi.container}20`,
+    backgroundColor: '#D1BBA320',
   },
   cardContent: {
-    padding: 24, // Per design system
-    gap: 8,
+    padding: 20,
+    gap: 10,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '700',
-    color: tokens.colors.najdi.text,
-    lineHeight: 24,
+    color: '#242121',
+    lineHeight: 26,
+    letterSpacing: -0.3,
     fontFamily: 'SF Arabic',
   },
   cardSummary: {
-    fontSize: 14,
-    color: tokens.colors.najdi.textMuted,
-    lineHeight: 20,
+    fontSize: 15,
+    color: '#242121B3',
+    lineHeight: 22,
     fontFamily: 'SF Arabic',
   },
   cardDate: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-    marginTop: 4,
+    fontSize: 12,
+    color: '#24212180',
+    marginTop: 6,
+    fontWeight: '500',
     fontFamily: 'SF Arabic',
   },
   loadingMore: {

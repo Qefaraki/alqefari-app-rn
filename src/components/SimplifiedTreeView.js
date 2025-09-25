@@ -84,8 +84,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     const targetNode = layoutNodes.find(n => n.id === focusPersonId);
     if (targetNode) {
       // Calculate center position
-      const targetX = -targetNode.x + SCREEN_WIDTH / 2;
-      const targetY = -targetNode.y + SCREEN_HEIGHT / 2 - 100; // Offset for modal header
+      const targetX = -targetNode.x * 1.2 + SCREEN_WIDTH / 2;
+      const targetY = -targetNode.y * 1.2 + SCREEN_HEIGHT / 2 - 100; // Offset for modal header
 
       // Animate to center
       translateX.value = withSpring(targetX, {
@@ -100,6 +100,9 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         damping: 20,
         stiffness: 90,
       });
+      savedScale.value = 1.2;
+      savedTranslateX.value = targetX;
+      savedTranslateY.value = targetY;
 
       // Start glow animation
       glowOpacity.value = withRepeat(
@@ -128,22 +131,22 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
   // Pan gesture
   const panGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      translateX.value = e.translationX + savedTranslateX.value;
-      translateY.value = e.translationY + savedTranslateY.value;
-    })
-    .onEnd(() => {
+    .onStart(() => {
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
     });
 
   // Pinch gesture for zoom
   const pinchGesture = Gesture.Pinch()
+    .onStart(() => {
+      savedScale.value = scale.value;
+    })
     .onUpdate((e) => {
       scale.value = clamp(savedScale.value * e.scale, 0.3, 2.5);
-    })
-    .onEnd(() => {
-      savedScale.value = scale.value;
     });
 
   // Composed gesture
@@ -221,15 +224,15 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
           />
         )}
 
-        {/* Name text */}
-        {arabicFont && (
+        {/* Name text - centered below photo or in middle of node */}
+        {arabicFont && node.name && (
           <SkiaText
             x={0}
-            y={hasPhoto ? nodeHeight / 2 - 8 : 0}
-            text={node.name || ''}
+            y={hasPhoto ? nodeHeight / 2 - 8 : 3}
+            text={node.name}
             font={arabicFont}
             color="#242121"
-            textAlign="center"
+            origin={{ x: 0, y: 0 }}
           />
         )}
       </Group>
@@ -299,19 +302,37 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 };
 
 // Component for loading and caching node photos
-const NodePhoto = ({ url, x, y, size }) => {
+const NodePhoto = React.memo(({ url, x, y, size }) => {
   const image = useCachedSkiaImage(url);
 
-  if (!image) return null;
+  if (!image) {
+    // Show placeholder circle while loading
+    return (
+      <Circle
+        cx={x + size / 2}
+        cy={y + size / 2}
+        r={size / 2}
+        color="#D1BBA320"
+      />
+    );
+  }
+
+  // Create circular clip path
+  const clipPath = Skia.Path.Make();
+  clipPath.addCircle(x + size / 2, y + size / 2, size / 2);
 
   return (
     <Group>
-      {/* Circular clip for photo */}
-      <Group
-        clip={Skia.Path.MakeFromSVGString(
-          `M ${x + size / 2} ${y} A ${size / 2} ${size / 2} 0 1 0 ${x + size / 2} ${y + size} A ${size / 2} ${size / 2} 0 1 0 ${x + size / 2} ${y}`
-        )}
-      >
+      {/* Background circle */}
+      <Circle
+        cx={x + size / 2}
+        cy={y + size / 2}
+        r={size / 2}
+        color="white"
+      />
+
+      {/* Clipped image */}
+      <Group clip={clipPath}>
         <SkiaImage
           image={image}
           x={x}
@@ -321,6 +342,7 @@ const NodePhoto = ({ url, x, y, size }) => {
           fit="cover"
         />
       </Group>
+
       {/* Photo border */}
       <Circle
         cx={x + size / 2}
@@ -332,7 +354,7 @@ const NodePhoto = ({ url, x, y, size }) => {
       />
     </Group>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -80,21 +80,17 @@ export default function InlineSpouseAdder({
       // Determine spouse gender (opposite of current person)
       const spouseGender = person?.gender === "male" ? "female" : "male";
 
-      // Step 1: Create Munasib spouse profile with NULL HID (direct insert)
-      // This ensures the profile is recognized as Munasib by MunasibManager
+      // Step 1: Create Munasib spouse profile using secure RPC function
+      // This ensures proper permissions and audit logging
       const { data: newSpouse, error: createError } = await supabase
-        .from('profiles')
-        .insert({
-          name: spouseName.trim(),
-          gender: spouseGender,
-          generation: person?.generation || 1, // Same generation as spouse (min 1)
-          family_origin: familyOrigin || null, // Store family origin if found
-          hid: null,  // Explicitly NULL for Munasib (married-in spouse)
-          status: 'alive',
-          sibling_order: 0,
-        })
-        .select()
-        .single();
+        .rpc('admin_create_munasib_profile', {
+          p_name: spouseName.trim(),
+          p_gender: spouseGender,
+          p_generation: person?.generation || 1, // Same generation as spouse (min 1)
+          p_family_origin: familyOrigin || null, // Store family origin if found
+          p_sibling_order: 0,
+          p_status: 'alive',
+        });
 
       if (createError) throw createError;
       if (!newSpouse?.id) throw new Error("Failed to create spouse profile");
