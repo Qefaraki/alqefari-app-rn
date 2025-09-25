@@ -57,14 +57,33 @@ class ErrorBoundary extends Component {
 function TabLayout() {
   const { user, isAdmin, isLoading } = useAuth();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [isGuestMode, setIsGuestMode] = useState<boolean | null>(null);
 
-  // Check onboarding status only
+  // Check onboarding and guest mode status
   useEffect(() => {
-    AsyncStorage.getItem('hasCompletedOnboarding').then(value => {
-      setOnboardingCompleted(value === 'true');
-      console.log('[DEBUG] Onboarding check:', value === 'true');
+    Promise.all([
+      AsyncStorage.getItem('hasCompletedOnboarding'),
+      AsyncStorage.getItem('isGuestMode')
+    ]).then(([onboardingValue, guestValue]) => {
+      setOnboardingCompleted(onboardingValue === 'true');
+      setIsGuestMode(guestValue === 'true');
+      console.log('[DEBUG] Onboarding check:', onboardingValue === 'true', 'Guest mode:', guestValue === 'true');
+
+      // Fix for stuck state: If onboarding is complete but not in guest mode and not authenticated
+      // after a short delay, clear the flags to force onboarding
+      if (onboardingValue === 'true' && guestValue !== 'true' && !user) {
+        setTimeout(() => {
+          if (!user) {  // Double check user is still not authenticated
+            console.log('[DEBUG] Detected stuck state - clearing flags to show onboarding');
+            AsyncStorage.multiRemove(['hasCompletedOnboarding', 'isGuestMode']).then(() => {
+              setOnboardingCompleted(false);
+              setIsGuestMode(false);
+            });
+          }
+        }, 1000);  // Give auth a chance to load
+      }
     });
-  }, []);
+  }, [user]);
 
   // Emergency timeout - if auth takes too long, show app anyway
   const [authTimeout, setAuthTimeout] = useState(false);
@@ -79,25 +98,26 @@ function TabLayout() {
   // Determine app state based on AuthContext (single source of truth)
   const getAppState = () => {
     // Still loading onboarding status - but only wait briefly
-    if (onboardingCompleted === null && !authTimeout) {
+    if ((onboardingCompleted === null || isGuestMode === null) && !authTimeout) {
       return 'loading';
     }
 
-    // First time user - show onboarding
-    if (onboardingCompleted === false) {
-      return 'onboarding';
-    }
-
-    // Don't wait for auth anymore - show the app!
-    // Auth will update in the background
+    // If user is authenticated, show tabs
     if (user) {
       console.log('[DEBUG] Showing tabs - authenticated user:', user.email || user.phone);
       return 'authenticated';
     }
 
-    // Guest mode (or still loading auth - doesn't matter, show UI)
-    console.log('[DEBUG] Showing tabs - guest mode (auth loading:', isLoading, ')');
-    return 'guest';
+    // If explicitly in guest mode, show tabs
+    if (isGuestMode === true) {
+      console.log('[DEBUG] Showing tabs - explicit guest mode');
+      return 'guest';
+    }
+
+    // Not authenticated and not guest = show onboarding
+    // This includes: first time users, signed out users, etc.
+    console.log('[DEBUG] Not authenticated, not guest - showing onboarding');
+    return 'onboarding';
   };
 
   const appState = getAppState();
@@ -119,12 +139,16 @@ function TabLayout() {
           <AuthNavigator
             setIsGuest={async () => {
               await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              await AsyncStorage.setItem('isGuestMode', 'true');
               setOnboardingCompleted(true);
+              setIsGuestMode(true);
             }}
             setUser={async (newUser) => {
-              // When user successfully signs in, mark onboarding complete
+              // When user successfully signs in, mark onboarding complete and clear guest mode
               await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              await AsyncStorage.removeItem('isGuestMode'); // Clear guest mode on sign in
               setOnboardingCompleted(true);
+              setIsGuestMode(false);
             }}
           />
         </NavigationContainer>

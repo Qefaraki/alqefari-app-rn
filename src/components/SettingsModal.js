@@ -20,6 +20,7 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
 import { accountDeletionService } from "../services/accountDeletion";
+import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useTreeStore } from "../stores/useTreeStore";
 import appConfig from "../config/appConfig";
 import SignInModal from "./SignInModal";
@@ -114,13 +115,14 @@ export default function SettingsModal({ visible, onClose }) {
           style: "destructive",
           onPress: async () => {
             try {
-              await supabase.auth.signOut();
+              await forceCompleteSignOut(); // This will clear onboarding flag too
               // Clear cache on sign out
               profileCache = null;
               cacheTimestamp = null;
               // Clear any local state
               useTreeStore.getState().setSelectedPersonId(null);
               onClose();
+              router.replace("/"); // Navigate to root which will show onboarding
             } catch (error) {
               Alert.alert("خطأ", "فشل تسجيل الخروج");
             }
@@ -208,7 +210,7 @@ export default function SettingsModal({ visible, onClose }) {
 
       // Even on error, sign out for security
       try {
-        await supabase.auth.signOut();
+        await forceCompleteSignOut();
         router.replace("/");
       } catch (signOutError) {
         console.error("Failed to sign out after error:", signOutError);

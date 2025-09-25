@@ -15,12 +15,14 @@ export async function forceCompleteSignOut() {
     await AsyncStorage.clear();
     console.log("✅ AsyncStorage cleared");
 
-    // 3. Clear any session tokens
+    // 3. Clear any session tokens and onboarding flags
     await AsyncStorage.multiRemove([
       "supabase.auth.token",
       "supabase.auth.refreshToken",
       "supabase.auth.user",
       "hasSeenOnboarding",
+      "hasCompletedOnboarding",  // Clear this to force onboarding screen
+      "isGuestMode",  // Clear guest mode flag
       "linkedProfile",
     ]);
 

@@ -18,6 +18,7 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
 import { accountDeletionService } from "../services/accountDeletion";
+import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import appConfig from "../config/appConfig";
 
@@ -116,7 +117,8 @@ export default function SettingsPage({ user }) {
           resetSettings();
           profileCache = null;
           cacheTimestamp = null;
-          await supabase.auth.signOut();
+          await forceCompleteSignOut(); // This will clear onboarding flag too
+          router.replace("/"); // Navigate to root which will show onboarding
         },
       },
     ]);
