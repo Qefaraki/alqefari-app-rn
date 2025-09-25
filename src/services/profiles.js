@@ -138,8 +138,9 @@ export const profilesService = {
       if (data && Array.isArray(data)) {
         return data.map(m => ({
           ...m,
-          // RPC returns these fields
-          id: m.marriage_id,
+          // Handle both old (marriage_id) and new (id) RPC versions
+          id: m.id || m.marriage_id,
+          marriage_id: m.marriage_id || m.id,
           // Add backward compatibility fields for ProfileSheet
           husband_name: m.spouse_name, // Will be fixed in ProfileSheet
           wife_name: m.spouse_name,     // Will be fixed in ProfileSheet
