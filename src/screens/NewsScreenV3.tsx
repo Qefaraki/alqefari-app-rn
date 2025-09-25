@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -202,25 +203,53 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Footer component - Sadu pattern end indicator
+  // Animated glow value for end indicator
+  const glowAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    // Create subtle pulsing glow animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, {
+          toValue: 0.5,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(glowAnim, {
+          toValue: 0.3,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+      ])
+    ).start();
+  }, [glowAnim]);
+
+  // Footer component - Sadu pattern end indicator with glow
   const renderFooter = useCallback(() => {
     if (!hasMoreRecent && recent.length > 0) {
       return (
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
-          <View style={styles.endPatternWrapper}>
+          <Animated.View
+            style={[
+              styles.endPatternWrapper,
+              {
+                shadowOpacity: glowAnim,
+              }
+            ]}
+          >
             <ImageBackground
               source={require('../../assets/sadu_patterns/png/42.png')}
               style={styles.endPatternContainer}
               imageStyle={styles.endPatternImage}
             />
-          </View>
+          </Animated.View>
           <View style={styles.endLine} />
         </View>
       );
     }
     return null;
-  }, [hasMoreRecent, recent.length]);
+  }, [hasMoreRecent, recent.length, glowAnim]);
 
   // Error state
   if (error && featured.length === 0 && recent.length === 0) {
@@ -240,11 +269,6 @@ const NewsScreenV3: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ImageBackground
-        source={require('../../assets/sadu_patterns/png/15.png')}
-        style={styles.bottomPattern}
-        imageStyle={styles.bottomPatternImage}
-      />
       <FlashList
         ref={flashListRef}
         data={listData}
@@ -287,19 +311,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: tokens.colors.najdi.background,
   },
-  bottomPattern: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 200, // Only bottom 200px
-    zIndex: -1,
-  },
-  bottomPatternImage: {
-    opacity: 0.1, // Subtle pattern
-    resizeMode: 'repeat',
-    tintColor: tokens.colors.najdi.secondary, // Desert Ochre tint
-  },
   headerContainer: {
     paddingBottom: 12,
   },
@@ -341,17 +352,19 @@ const styles = StyleSheet.create({
   },
   endPatternWrapper: {
     marginHorizontal: 16,
-    backgroundColor: tokens.colors.najdi.primary + '15', // Light crimson background
-    borderRadius: 8,
-    padding: 4,
+    shadowColor: tokens.colors.najdi.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
   },
   endPatternContainer: {
-    width: 72,
-    height: 24,
+    width: 100,
+    height: 40,
   },
   endPatternImage: {
     resizeMode: 'contain',
-    opacity: 0.6,
+    opacity: 0.5,
     tintColor: tokens.colors.najdi.primary, // Najdi Crimson tint
   },
   listContent: {
