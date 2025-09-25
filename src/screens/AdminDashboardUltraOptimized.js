@@ -14,9 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ValidationDashboard from "./ValidationDashboard";
-import ActivityScreen from "./ActivityScreen";
-import AuditLogViewer from "./AuditLogViewer";
-import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // NEW Premium Dashboard
+import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
 import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
@@ -41,8 +39,8 @@ const AdminDashboardUltraOptimized = ({ user }) => {
 
   // Modal states
   const [showValidationDashboard, setShowValidationDashboard] = useState(false);
-  const [showActivityScreen, setShowActivityScreen] = useState(false);
-  const [showAuditLog, setShowAuditLog] = useState(false);
+  
+  const [showActivityLog, setShowActivityLog] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [showProfileCreationRequests, setShowProfileCreationRequests] =
@@ -180,7 +178,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   const loadActivityFeed = async () => {
     try {
       const { data } = await supabase
-        .from("audit_log")
+        .from("activity_log_detailed")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(5);
@@ -272,7 +270,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
             },
           },
         ],
-        { cancelable: true, onDismiss: () => setExporting(false) }
+        { cancelable: true, onDismiss: () => setExporting(false) },
       );
     } catch (error) {
       Alert.alert("خطأ", "فشل تصدير شجرة العائلة");
@@ -305,11 +303,9 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   };
 
   // Modal renders
-  if (showActivityScreen) {
-    return <ActivityScreen onClose={() => setShowActivityScreen(false)} />;
-  }
-  if (showAuditLog) {
-    return <ActivityLogDashboard onClose={() => setShowAuditLog(false)} />;
+  
+  if (showActivityLog) {
+    return <ActivityLogDashboard onClose={() => setShowActivityLog(false)}  />;
   }
   if (showQuickAdd) {
     return (
@@ -691,7 +687,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
 
               <TouchableOpacity
                 style={styles.viewAllButton}
-                onPress={() => setShowActivityScreen(true)}
+                onPress={() => setShowActivityLog(true)}
               >
                 <Text style={styles.viewAllText}>عرض الكل</Text>
                 <Ionicons name="chevron-back" size={16} color="#6366f1" />
@@ -755,7 +751,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
 
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => setShowAuditLog(true)}
+              onPress={() => setShowActivityLog(true)}
               activeOpacity={0.7}
             >
               <View style={styles.actionContent}>
@@ -854,7 +850,7 @@ const styles = StyleSheet.create({
     color: "#242121", // Sadu Night
     fontFamily: Platform.select({
       ios: "SF Arabic",
-      default: "System"
+      default: "System",
     }),
   },
   closeButton: {
