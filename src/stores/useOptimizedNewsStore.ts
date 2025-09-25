@@ -150,7 +150,13 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
 
   // Instantly append prefetched recent articles
   loadMoreRecent: () => {
-    const { prefetchedRecent, recent, hasMoreRecent } = get();
+    const { prefetchedRecent, recent, hasMoreRecent, isPrefetching } = get();
+
+    // If we don't have prefetched data but can fetch more, do it silently
+    if (hasMoreRecent && prefetchedRecent.length === 0 && !isPrefetching) {
+      get().prefetchNextRecent();
+      return;
+    }
 
     if (!hasMoreRecent || prefetchedRecent.length === 0) {
       return;
@@ -162,8 +168,8 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
       prefetchedRecent: [],
     });
 
-    // Prefetch next batch in background
-    get().prefetchNextRecent();
+    // Immediately prefetch next batch in background
+    setTimeout(() => get().prefetchNextRecent(), 0);
   },
 
   // Instantly append prefetched featured articles

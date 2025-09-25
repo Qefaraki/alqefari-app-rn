@@ -110,22 +110,22 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
     return offsets;
   }, [articles.length, loading]);
 
-  // Handle scroll events for pagination dots
+  // Handle scroll events for infinite loading
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = event.nativeEvent.contentOffset.x;
       const index = Math.round(offsetX / (CARD_WIDTH + CARD_SPACING));
       setCurrentIndex(index);
 
-      // Check if we need to load more
+      // Check if we're near the end (last 2 cards visible)
       const contentWidth = event.nativeEvent.contentSize.width;
-      const scrollPercentage = (offsetX + SCREEN_WIDTH) / contentWidth;
+      const scrolledToEnd = offsetX + SCREEN_WIDTH >= contentWidth - (CARD_WIDTH * 2);
 
-      if (scrollPercentage > 0.7 && onReachEnd && !loadingMore) {
+      if (scrolledToEnd && onReachEnd && !loadingMore && !loading) {
         onReachEnd();
       }
     },
-    [onReachEnd, loadingMore]
+    [onReachEnd, loadingMore, loading]
   );
 
   // Render individual item
@@ -292,23 +292,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     marginTop: 4,
-  },
-  pagination: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 6,
-  },
-  paginationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: `${tokens.colors.najdi.container}40`,
-  },
-  paginationDotActive: {
-    width: 18,
-    backgroundColor: tokens.colors.najdi.primary,
   },
   loadingMore: {
     marginRight: CARD_SPACING,

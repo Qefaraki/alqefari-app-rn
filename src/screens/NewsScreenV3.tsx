@@ -94,20 +94,27 @@ const NewsScreenV3: React.FC = () => {
       const scrollPercentage =
         (contentOffset.y + layoutMeasurement.height) / contentSize.height;
 
-      // Pre-fetch when scrolled 70% down
-      if (scrollPercentage > 0.7 && hasMoreRecent) {
+      // Pre-fetch when scrolled 50% down (more aggressive)
+      if (scrollPercentage > 0.5 && hasMoreRecent) {
         prefetchNextRecent();
       }
+
+      // Load more when scrolled 80% down
+      if (scrollPercentage > 0.8 && hasMoreRecent && !isInitialLoading) {
+        loadMoreRecent();
+      }
     },
-    [hasMoreRecent, prefetchNextRecent]
+    [hasMoreRecent, prefetchNextRecent, loadMoreRecent, isInitialLoading]
   );
 
-  // Handle end reached - instantly append pre-fetched data
+  // Handle end reached - backup trigger
   const handleEndReached = useCallback(() => {
     if (hasMoreRecent && !isInitialLoading) {
       loadMoreRecent();
+      // Immediately start prefetching next batch
+      setTimeout(() => prefetchNextRecent(), 100);
     }
-  }, [hasMoreRecent, isInitialLoading, loadMoreRecent]);
+  }, [hasMoreRecent, isInitialLoading, loadMoreRecent, prefetchNextRecent]);
 
   // Header component
   const renderHeader = useCallback(() => {
@@ -231,7 +238,7 @@ const NewsScreenV3: React.FC = () => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onEndReached={handleEndReached}
-        onEndReachedThreshold={0.3}
+        onEndReachedThreshold={0.5}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
