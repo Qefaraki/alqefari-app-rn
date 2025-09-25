@@ -150,52 +150,46 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
 
   // Instantly append prefetched recent articles
   loadMoreRecent: () => {
-    const { prefetchedRecent, recent, hasMoreRecent, isPrefetching } = get();
+    const { prefetchedRecent, recent, hasMoreRecent } = get();
 
-    // If we don't have prefetched data but can fetch more, do it silently
-    if (hasMoreRecent && prefetchedRecent.length === 0 && !isPrefetching) {
-      get().prefetchNextRecent();
-      return;
+    // If we have prefetched data, use it
+    if (prefetchedRecent.length > 0) {
+      set({
+        recent: [...recent, ...prefetchedRecent],
+        prefetchedRecent: [],
+      });
     }
 
-    if (!hasMoreRecent || prefetchedRecent.length === 0) {
-      return;
+    // Always try to prefetch next batch if there's more
+    if (hasMoreRecent) {
+      setTimeout(() => get().prefetchNextRecent(), 10);
     }
-
-    // Instantly append prefetched data
-    set({
-      recent: [...recent, ...prefetchedRecent],
-      prefetchedRecent: [],
-    });
-
-    // Immediately prefetch next batch in background
-    setTimeout(() => get().prefetchNextRecent(), 0);
   },
 
   // Instantly append prefetched featured articles
   loadMoreFeatured: () => {
     const { prefetchedFeatured, featured, hasMoreFeatured } = get();
 
-    if (!hasMoreFeatured || prefetchedFeatured.length === 0) {
-      return;
+    // If we have prefetched data, use it
+    if (prefetchedFeatured.length > 0) {
+      set({
+        featured: [...featured, ...prefetchedFeatured],
+        prefetchedFeatured: [],
+      });
     }
 
-    // Instantly append prefetched data
-    set({
-      featured: [...featured, ...prefetchedFeatured],
-      prefetchedFeatured: [],
-    });
-
-    // Prefetch next batch in background
-    get().prefetchNextFeatured();
+    // Always try to prefetch next batch if there's more
+    if (hasMoreFeatured) {
+      setTimeout(() => get().prefetchNextFeatured(), 10);
+    }
   },
 
   // Background prefetch for recent articles
   prefetchNextRecent: async () => {
-    const { isPrefetching, hasMoreRecent, recentPage, prefetchedRecent } = get();
+    const { isPrefetching, hasMoreRecent, recentPage } = get();
 
-    // Skip if already prefetching or no more data or already have prefetched data
-    if (isPrefetching || !hasMoreRecent || prefetchedRecent.length > 0) {
+    // Skip if already prefetching or no more data
+    if (isPrefetching || !hasMoreRecent) {
       return;
     }
 
@@ -219,10 +213,10 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
 
   // Background prefetch for featured articles
   prefetchNextFeatured: async () => {
-    const { isPrefetching, hasMoreFeatured, featuredPage, prefetchedFeatured } = get();
+    const { isPrefetching, hasMoreFeatured, featuredPage } = get();
 
-    // Skip if already prefetching or no more data or already have prefetched data
-    if (isPrefetching || !hasMoreFeatured || prefetchedFeatured.length > 0) {
+    // Skip if already prefetching or no more data
+    if (isPrefetching || !hasMoreFeatured) {
       return;
     }
 

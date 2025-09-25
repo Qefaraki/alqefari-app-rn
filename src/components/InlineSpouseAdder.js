@@ -15,6 +15,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../services/profiles";
+import { familyNameService } from "../services/familyNameService";
 
 export default function InlineSpouseAdder({
   person,
@@ -67,14 +68,44 @@ export default function InlineSpouseAdder({
 
     setLoading(true);
     try {
-      const data = {
-        [person?.gender === "male" ? "husband_id" : "wife_id"]: person.id,
-        [person?.gender === "male" ? "wife_name" : "husband_name"]:
-          spouseName.trim(),
-        status: "married",
+      // Extract family origin from spouse name
+      const familyOrigin = familyNameService.extractFamilyName(spouseName.trim());
+      if (!familyOrigin) {
+        console.error("Could not extract family name from:", spouseName);
+        // Continue anyway - not all spouses may have clear family names
+      }
+
+      // Determine spouse gender (opposite of current person)
+      const spouseGender = person?.gender === "male" ? "female" : "male";
+
+      // Step 1: Create the spouse profile
+      const newSpouseData = {
+        name: spouseName.trim(),
+        gender: spouseGender,
+        generation: person?.generation || 0, // Same generation as spouse
+        is_root: false,
+        family_origin: familyOrigin || null, // Store family origin if found
       };
 
-      await profilesService.createMarriage(data);
+      const { data: newSpouse, error: createError } =
+        await profilesService.createProfile(newSpouseData);
+
+      if (createError) throw createError;
+      if (!newSpouse?.id) throw new Error("Failed to create spouse profile");
+
+      // Step 2: Create the marriage with both IDs
+      const husband_id = person?.gender === "male" ? person.id : newSpouse.id;
+      const wife_id = person?.gender === "female" ? person.id : newSpouse.id;
+
+      const { data: marriage, error: marriageError } =
+        await profilesService.createMarriage({
+          husband_id,
+          wife_id,
+          status: "married",
+          munasib: true, // Mark as Munasib since spouse is from another family
+        });
+
+      if (marriageError) throw marriageError;
 
       if (onAdded) onAdded();
       collapse();
