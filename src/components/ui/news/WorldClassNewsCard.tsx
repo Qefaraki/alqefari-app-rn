@@ -364,8 +364,9 @@ const styles = StyleSheet.create({
     resizeMode: 'repeat',
   },
   featureOverlayPattern: {
-    opacity: 0.08, // More visible overlay on hero images
+    opacity: 0.15, // Subtle overlay
     resizeMode: 'repeat',
+    tintColor: '#A13333', // Najdi Crimson tint
   },
   featureGradient: {
     flex: 1,
@@ -445,8 +446,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   largeOverlayPattern: {
-    opacity: 0.06, // More visible overlay on large images
+    opacity: 0.12, // Subtle overlay
     resizeMode: 'repeat',
+    tintColor: '#D58C4A', // Desert Ochre tint
   },
   largePlaceholder: {
     backgroundColor: '#D1BBA310',
@@ -556,8 +558,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sideOverlayPattern: {
-    opacity: 0.06, // More visible overlay on side images
+    opacity: 0.1, // Subtle overlay
     resizeMode: 'repeat',
+    tintColor: '#D1BBA3', // Camel Hair Beige tint
   },
   sidePlaceholder: {
     backgroundColor: '#D1BBA310',

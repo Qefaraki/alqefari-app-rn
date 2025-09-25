@@ -208,13 +208,13 @@ const NewsScreenV3: React.FC = () => {
       return (
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
-          <ImageBackground
-            source={require('../../assets/sadu_patterns/png/1.png')}
-            style={styles.endPatternContainer}
-            imageStyle={styles.endPatternImage}
-          >
-            <View style={styles.endPatternOverlay} />
-          </ImageBackground>
+          <View style={styles.endPatternWrapper}>
+            <ImageBackground
+              source={require('../../assets/sadu_patterns/png/1.png')}
+              style={styles.endPatternContainer}
+              imageStyle={styles.endPatternImage}
+            />
+          </View>
           <View style={styles.endLine} />
         </View>
       );
@@ -239,12 +239,7 @@ const NewsScreenV3: React.FC = () => {
   }
 
   return (
-    <ImageBackground
-      source={require('../../assets/sadu_patterns/png/15.png')}
-      style={styles.backgroundPattern}
-      imageStyle={styles.backgroundPatternImage}
-    >
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
         <FlashList
         ref={flashListRef}
         data={listData}
@@ -279,22 +274,13 @@ const NewsScreenV3: React.FC = () => {
         windowSize={10}
       />
     </SafeAreaView>
-    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  backgroundPattern: {
-    flex: 1,
-    backgroundColor: tokens.colors.najdi.background,
-  },
-  backgroundPatternImage: {
-    opacity: 0.08, // More visible - 8% opacity
-    resizeMode: 'repeat',
-  },
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent', // Changed to transparent
+    backgroundColor: tokens.colors.najdi.background,
   },
   headerContainer: {
     paddingBottom: 12,
@@ -335,18 +321,20 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#D1BBA31A',
   },
-  endPatternContainer: {
-    width: 80,
-    height: 30,
+  endPatternWrapper: {
     marginHorizontal: 16,
+    backgroundColor: tokens.colors.najdi.primary + '15', // Light crimson background
+    borderRadius: 8,
+    padding: 4,
+  },
+  endPatternContainer: {
+    width: 72,
+    height: 24,
   },
   endPatternImage: {
     resizeMode: 'contain',
-    opacity: 0.3, // More visible Sadu ornament
-  },
-  endPatternOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent', // No overlay needed
+    opacity: 0.6,
+    tintColor: tokens.colors.najdi.primary, // Najdi Crimson tint
   },
   listContent: {
     paddingBottom: 100, // Extra padding to ensure last item is fully visible
