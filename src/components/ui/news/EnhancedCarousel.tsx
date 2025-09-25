@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -10,6 +10,15 @@ import {
   Text,
   Pressable,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
@@ -27,15 +36,17 @@ interface EnhancedCarouselProps {
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.85); // 85% of screen width
-const CARD_SPACING = 12;
+const CARD_WIDTH = Math.floor(SCREEN_WIDTH * 0.88); // 88% of screen width for better focus
+const CARD_SPACING = 16; // Slightly more spacing for depth
 const PEEK_WIDTH = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 
-// Single carousel card component
+// Single carousel card component with animations
 const CarouselCard: React.FC<{
   article: NewsArticle;
   onPress: () => void;
-}> = ({ article, onPress }) => {
+  index: number;
+  scrollX: Animated.SharedValue<number>;
+}> = ({ article, onPress, index, scrollX }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
 
   const handlePress = () => {
@@ -43,9 +54,58 @@ const CarouselCard: React.FC<{
     onPress();
   };
 
+  // Calculate input range for this card
+  const inputRange = [
+    (index - 1) * (CARD_WIDTH + CARD_SPACING),
+    index * (CARD_WIDTH + CARD_SPACING),
+    (index + 1) * (CARD_WIDTH + CARD_SPACING),
+  ];
+
+  // Animated styles for scale and rotation with spring physics
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.88, 1, 0.88],
+      Extrapolation.CLAMP
+    );
+
+    const rotateY = interpolate(
+      scrollX.value,
+      inputRange,
+      ['12deg', '0deg', '-12deg'],
+      Extrapolation.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.6, 1, 0.6],
+      Extrapolation.CLAMP
+    );
+
+    const translateY = interpolate(
+      scrollX.value,
+      inputRange,
+      [10, 0, 10],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      transform: [
+        { scale: withSpring(scale, { damping: 15, stiffness: 150 }) },
+        { perspective: 1000 },
+        { rotateY },
+        { translateY },
+      ],
+      opacity,
+    };
+  });
+
   return (
-    <Surface style={styles.card} radius={8}>
-      <Pressable
+    <Animated.View style={animatedStyle}>
+      <Surface style={styles.card} radius={8}>
+        <Pressable
         style={styles.cardPressable}
         onPress={handlePress}
         android_ripple={{ color: 'rgba(0,0,0,0.04)' }}
@@ -79,8 +139,9 @@ const CarouselCard: React.FC<{
           )}
           <Text style={styles.cardDate}>{relativeDate}</Text>
         </View>
-      </Pressable>
-    </Surface>
+        </Pressable>
+      </Surface>
+    </Animated.View>
   );
 };
 
@@ -109,6 +170,26 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
 }) => {
   const flatListRef = useRef<FlatList<NewsArticle>>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const scrollX = useSharedValue(0);
+  const scrollHintAnim = useSharedValue(0);
+
+  // Auto-scroll hint animation on mount
+  useEffect(() => {
+    if (articles.length > 1 && !loading) {
+      // Delay the hint slightly
+      const timer = setTimeout(() => {
+        // Also do actual scroll hint
+        if (flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: 50, animated: true });
+          setTimeout(() => {
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          }, 400);
+        }
+      }, 600);
+
+      return () => clearTimeout(timer);
+    }
+  }, [articles.length, loading]);
 
   // Calculate snap offsets for each card
   const snapOffsets = useMemo(() => {
@@ -120,12 +201,20 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
     return offsets;
   }, [articles.length, loading]);
 
-  // Handle scroll events for infinite loading
+  // Handle scroll events for infinite loading and animations
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = event.nativeEvent.contentOffset.x;
       const index = Math.round(offsetX / (CARD_WIDTH + CARD_SPACING));
-      setCurrentIndex(index);
+
+      // Update shared value for animations
+      scrollX.value = offsetX;
+
+      // Haptic feedback on card change
+      if (index !== currentIndex) {
+        Haptics.selectionAsync();
+        setCurrentIndex(index);
+      }
 
       // Check if we're near the end (last 3 cards from end)
       const contentWidth = event.nativeEvent.contentSize.width;
@@ -135,7 +224,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
         onReachEnd();
       }
     },
-    [onReachEnd, loadingMore, loading]
+    [currentIndex, onReachEnd, loadingMore, loading, scrollX]
   );
 
   // Render individual item
@@ -169,6 +258,8 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
           <CarouselCard
             article={item}
             onPress={() => onArticlePress(item)}
+            index={index}
+            scrollX={scrollX}
           />
         </View>
       );
@@ -220,8 +311,9 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
         showsHorizontalScrollIndicator={false}
         snapToOffsets={snapOffsets}
         snapToAlignment="start"
-        decelerationRate="fast"
+        decelerationRate={0.985} // Smoother deceleration
         pagingEnabled={false}
+        snapToInterval={CARD_WIDTH + CARD_SPACING} // Magnetic snapping
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentContainerStyle={styles.contentContainer}
@@ -277,7 +369,7 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-    height: 200,
+    height: 220, // Slightly taller for better proportions
     backgroundColor: '#D1BBA310',
   },
   heroPlaceholder: {
@@ -286,8 +378,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1BBA320',
   },
   cardContent: {
-    padding: 20,
-    gap: 10,
+    padding: 24,
+    gap: 12,
   },
   cardTitle: {
     fontSize: 19,
