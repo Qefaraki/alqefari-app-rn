@@ -202,17 +202,19 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Footer component - subtle end indicator
+  // Footer component - Sadu pattern end indicator
   const renderFooter = useCallback(() => {
     if (!hasMoreRecent && recent.length > 0) {
       return (
         <View style={styles.endIndicator}>
           <View style={styles.endLine} />
-          <View style={styles.endDotsContainer}>
-            <View style={styles.endDot} />
-            <View style={styles.endDot} />
-            <View style={styles.endDot} />
-          </View>
+          <ImageBackground
+            source={require('../../assets/sadu_patterns/png/45.png')}
+            style={styles.endPatternContainer}
+            imageStyle={styles.endPatternImage}
+          >
+            <View style={styles.endPatternOverlay} />
+          </ImageBackground>
           <View style={styles.endLine} />
         </View>
       );
@@ -237,8 +239,13 @@ const NewsScreenV3: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <FlashList
+    <ImageBackground
+      source={require('../../assets/sadu_patterns/png/15.png')}
+      style={styles.backgroundPattern}
+      imageStyle={styles.backgroundPatternImage}
+    >
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <FlashList
         ref={flashListRef}
         data={listData}
         renderItem={renderItem}
@@ -272,13 +279,22 @@ const NewsScreenV3: React.FC = () => {
         windowSize={10}
       />
     </SafeAreaView>
+    </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  backgroundPattern: {
     flex: 1,
     backgroundColor: tokens.colors.najdi.background,
+  },
+  backgroundPatternImage: {
+    opacity: 0.02, // Very subtle - 2% opacity
+    resizeMode: 'repeat',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent', // Changed to transparent
   },
   headerContainer: {
     paddingBottom: 12,
@@ -319,16 +335,18 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#D1BBA31A',
   },
-  endDotsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 16,
+  endPatternContainer: {
+    width: 60,
+    height: 20,
+    marginHorizontal: 16,
   },
-  endDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#24212140',
+  endPatternImage: {
+    resizeMode: 'cover',
+    opacity: 0.15, // Subtle Sadu pattern
+  },
+  endPatternOverlay: {
+    flex: 1,
+    backgroundColor: tokens.colors.najdi.primary + '10', // Slight tint
   },
   listContent: {
     paddingBottom: 100, // Extra padding to ensure last item is fully visible
