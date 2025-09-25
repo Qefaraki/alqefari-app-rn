@@ -203,20 +203,21 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Glow preset for end indicator - mask to shape
+  // Glow preset for end indicator - follows PNG alpha channel
   const endIndicatorGlow = {
     states: [
       {
         name: 'default',
         preset: {
-          cornerRadius: 0, // No corner radius
-          maskToComponent: true, // Key: makes glow follow the shape
+          cornerRadius: 0,
+          maskToComponent: true,
+          useComponentAlpha: true, // Use the PNG's alpha channel for masking
           glowLayers: [
             {
               colors: [tokens.colors.najdi.primary, tokens.colors.najdi.secondary],
-              opacity: 0.4,
-              glowSize: 20,
-              animationSpeed: 0.3,
+              opacity: 0.08, // Much more subtle
+              glowSize: 25,
+              animationSpeed: 0.2,
             }
           ]
         }
@@ -235,11 +236,13 @@ const NewsScreenV3: React.FC = () => {
               preset={endIndicatorGlow}
               animateOnMount
               style={styles.glowContainer}
+              maskChildren // Mask glow to children's actual pixels
             >
               <ImageBackground
                 source={require('../../assets/sadu_patterns/png/42.png')}
                 style={styles.endPatternContainer}
                 imageStyle={styles.endPatternImage}
+                resizeMode="contain"
               />
             </AnimatedGlow>
           </View>
