@@ -15,6 +15,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
 
@@ -29,9 +30,11 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           setUser(session.user);
           await checkAdminStatus(session.user);
+          await checkProfileStatus(session.user);
         } else {
           setUser(null);
           setIsAdmin(false);
+          setHasLinkedProfile(false);
         }
         console.log('[DEBUG AuthContext] Setting isLoading to false from auth state change');
         setIsLoading(false);
@@ -102,10 +105,15 @@ export const AuthProvider = ({ children }) => {
         setUser(session.user);
         console.log('[DEBUG AuthContext] User set in state');
 
-        // Check admin status in background
-        checkAdminStatus(session.user).catch(err =>
-          console.error('[DEBUG AuthContext] Admin check error:', err)
-        );
+        // Check admin and profile status in parallel
+        Promise.all([
+          checkAdminStatus(session.user).catch(err =>
+            console.error('[DEBUG AuthContext] Admin check error:', err)
+          ),
+          checkProfileStatus(session.user).catch(err =>
+            console.error('[DEBUG AuthContext] Profile check error:', err)
+          )
+        ]);
 
         // Refresh user data in background (don't wait for it)
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -120,6 +128,7 @@ export const AuthProvider = ({ children }) => {
         console.log('[DEBUG AuthContext] No valid session found');
         setUser(null);
         setIsAdmin(false);
+        setHasLinkedProfile(false);
       }
     } catch (error) {
       // This should never happen with our Promise.race setup
@@ -130,6 +139,31 @@ export const AuthProvider = ({ children }) => {
       // ALWAYS set isLoading to false - this is critical!
       console.log('[DEBUG AuthContext] Setting isLoading to false (guaranteed)');
       setIsLoading(false);
+    }
+  };
+
+  const checkProfileStatus = async (user) => {
+    if (!user) {
+      setHasLinkedProfile(false);
+      return false;
+    }
+
+    try {
+      // Check if user has a linked profile
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      const hasProfile = !!profile && !error;
+      console.log('[DEBUG AuthContext] Profile check for user:', user.id, 'Has profile:', hasProfile);
+      setHasLinkedProfile(hasProfile);
+      return hasProfile;
+    } catch (error) {
+      console.log('[DEBUG AuthContext] Profile check error:', error);
+      setHasLinkedProfile(false);
+      return false;
     }
   };
 
@@ -168,9 +202,11 @@ export const AuthProvider = ({ children }) => {
       value={{
         user,
         isAdmin,
+        hasLinkedProfile,
         isLoading,
         checkAuth,
         checkAdminStatus,
+        checkProfileStatus,
       }}
     >
       {children}

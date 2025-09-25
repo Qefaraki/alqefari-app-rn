@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
 import { notifyAdminsOfNewRequest } from "../../services/notifications";
 import BranchTreeModal from "../../components/BranchTreeModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import * as Haptics from "expo-haptics";
 import { getProfileDisplayName } from "../../utils/nameChainBuilder";
@@ -164,6 +165,8 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       if (result.temporary) {
+        // Profile linked successfully - mark onboarding as complete
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
         Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
           { text: "موافق", onPress: () => navigation.replace("Main") },
         ]);
@@ -175,6 +178,8 @@ export default function ProfileMatchingScreen({ navigation, route }) {
           profile_name: selectedProfile.name,
         });
 
+        // Request sent for admin approval - also mark onboarding complete
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
         Alert.alert("تم إرسال الطلب", result.message, [
           { text: "موافق", onPress: () => navigation.replace("Main") },
         ]);
@@ -210,10 +215,14 @@ export default function ProfileMatchingScreen({ navigation, route }) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         if (result.temporary) {
+          // Profile linked successfully - mark onboarding as complete
+          await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
           Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
             { text: "موافق", onPress: () => navigation.replace("Main") },
           ]);
         } else {
+          // Request sent for admin approval - also mark onboarding complete
+          await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
           Alert.alert("تم إرسال الطلب", result.message, [
             { text: "موافق", onPress: () => navigation.replace("Main") },
           ]);

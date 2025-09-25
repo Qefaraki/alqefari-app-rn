@@ -55,7 +55,7 @@ class ErrorBoundary extends Component {
 }
 
 function TabLayout() {
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, isAdmin, hasLinkedProfile, isLoading } = useAuth();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean | null>(null);
 
@@ -68,22 +68,8 @@ function TabLayout() {
       setOnboardingCompleted(onboardingValue === 'true');
       setIsGuestMode(guestValue === 'true');
       console.log('[DEBUG] Onboarding check:', onboardingValue === 'true', 'Guest mode:', guestValue === 'true');
-
-      // Fix for stuck state: If onboarding is complete but not in guest mode and not authenticated
-      // after a short delay, clear the flags to force onboarding
-      if (onboardingValue === 'true' && guestValue !== 'true' && !user) {
-        setTimeout(() => {
-          if (!user) {  // Double check user is still not authenticated
-            console.log('[DEBUG] Detected stuck state - clearing flags to show onboarding');
-            AsyncStorage.multiRemove(['hasCompletedOnboarding', 'isGuestMode']).then(() => {
-              setOnboardingCompleted(false);
-              setIsGuestMode(false);
-            });
-          }
-        }, 1000);  // Give auth a chance to load
-      }
     });
-  }, [user]);
+  }, []);
 
   // Emergency timeout - if auth takes too long, show app anyway
   const [authTimeout, setAuthTimeout] = useState(false);
@@ -102,10 +88,16 @@ function TabLayout() {
       return 'loading';
     }
 
-    // If user is authenticated, show tabs
-    if (user) {
-      console.log('[DEBUG] Showing tabs - authenticated user:', user.email || user.phone);
+    // If user is authenticated AND has linked profile, show tabs
+    if (user && hasLinkedProfile) {
+      console.log('[DEBUG] Showing tabs - authenticated user with profile:', user.email || user.phone);
       return 'authenticated';
+    }
+
+    // If user is authenticated but NO linked profile, continue onboarding
+    if (user && !hasLinkedProfile) {
+      console.log('[DEBUG] Authenticated but no profile - continuing onboarding');
+      return 'onboarding';
     }
 
     // If explicitly in guest mode, show tabs
@@ -144,11 +136,11 @@ function TabLayout() {
               setIsGuestMode(true);
             }}
             setUser={async (newUser) => {
-              // When user successfully signs in, mark onboarding complete and clear guest mode
-              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+              // When user successfully signs in, clear guest mode but DON'T mark onboarding complete yet
+              // Onboarding is only complete after profile linking
               await AsyncStorage.removeItem('isGuestMode'); // Clear guest mode on sign in
-              setOnboardingCompleted(true);
               setIsGuestMode(false);
+              // Do NOT set hasCompletedOnboarding here - wait for profile linking
             }}
           />
         </NavigationContainer>

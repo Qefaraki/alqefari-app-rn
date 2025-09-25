@@ -238,9 +238,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Mark onboarding as complete since auth succeeded
-      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-
+      // Do NOT mark onboarding as complete here - wait until profile is linked
       // Navigate immediately without delay
       navigation.navigate("NameChainEntry", { user: result.user });
     } else {
@@ -677,6 +675,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
+    paddingBottom: "30%", // Push content up by 30% of screen height
   },
   cardWrapper: {
     width: "100%",
