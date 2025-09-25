@@ -13,18 +13,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
+import { Ionicons } from '@expo/vector-icons';
 import { useOptimizedNewsStore } from '../stores/useOptimizedNewsStore';
 import { useAbsoluteDateNoMemo } from '../hooks/useFormattedDateNoMemo';
 import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import EnhancedCarousel from '../components/ui/news/EnhancedCarousel';
-import { NewsListItem, NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
+import { EnhancedNewsListItem } from '../components/ui/news/EnhancedNewsListItem';
+import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
 import NetworkError from '../components/NetworkError';
 import tokens from '../components/ui/tokens';
 
 // Item types for mixed list
 type ListItem =
   | { type: 'header' }
-  | { type: 'article'; data: NewsArticle }
+  | { type: 'article'; data: NewsArticle; index: number }
   | { type: 'skeleton'; id: number };
 
 const NewsScreenV3: React.FC = () => {
@@ -128,18 +130,11 @@ const NewsScreenV3: React.FC = () => {
   const renderHeader = useCallback(() => {
     return (
       <View style={styles.headerContainer}>
-        {/* Title section */}
-        <ImageBackground
-          source={require('../../assets/sadu_patterns/png/18.png')}
-          resizeMode="cover"
-          imageStyle={styles.headerPattern}
-          style={styles.headerPatternWrapper}
-        >
-          <View style={styles.headerContent}>
-            <Text style={styles.screenTitle}>أخبار القفاري</Text>
-            <Text style={styles.screenSubtitle}>{headerDate}</Text>
-          </View>
-        </ImageBackground>
+        {/* Title section - matching Settings page style */}
+        <View style={styles.header}>
+          <Text style={styles.title}>أخبار القفاري</Text>
+          <Text style={styles.subtitle}>{headerDate}</Text>
+        </View>
 
         {/* Featured carousel */}
         <EnhancedCarousel
@@ -164,9 +159,10 @@ const NewsScreenV3: React.FC = () => {
           return renderHeader();
         case 'article':
           return (
-            <NewsListItem
+            <EnhancedNewsListItem
               article={item.data}
               onPress={handleArticlePress}
+              index={item.index}
             />
           );
         case 'skeleton':
@@ -197,7 +193,7 @@ const NewsScreenV3: React.FC = () => {
     { type: 'header' },
     ...(isInitialLoading && recent.length === 0
       ? Array.from({ length: 6 }, (_, i) => ({ type: 'skeleton' as const, id: i }))
-      : recent.map(article => ({ type: 'article' as const, data: article }))
+      : recent.map((article, index) => ({ type: 'article' as const, data: article, index }))
     ),
   ];
 
@@ -206,17 +202,23 @@ const NewsScreenV3: React.FC = () => {
     return item.type;
   }, []);
 
-  // Footer component
+  // Footer component - subtle end indicator
   const renderFooter = useCallback(() => {
-    if (!hasMoreRecent) {
+    if (!hasMoreRecent && recent.length > 0) {
       return (
-        <View style={styles.endMessage}>
-          <Text style={styles.endMessageText}>لا يوجد المزيد من الأخبار</Text>
+        <View style={styles.endIndicator}>
+          <View style={styles.endLine} />
+          <View style={styles.endDotsContainer}>
+            <View style={styles.endDot} />
+            <View style={styles.endDot} />
+            <View style={styles.endDot} />
+          </View>
+          <View style={styles.endLine} />
         </View>
       );
     }
     return null;
-  }, [hasMoreRecent]);
+  }, [hasMoreRecent, recent.length]);
 
   // Error state
   if (error && featured.length === 0 && recent.length === 0) {
@@ -242,7 +244,7 @@ const NewsScreenV3: React.FC = () => {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         getItemType={getItemType}
-        estimatedItemSize={140} // Updated for new card height with Surface wrapper
+        estimatedItemSize={180} // Updated for enhanced cards with varied heights
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onEndReached={handleEndReached}
@@ -279,31 +281,23 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingBottom: 12,
-    paddingTop: 12,
-    gap: 12,
   },
-  headerPatternWrapper: {
-    borderRadius: 16, // Standardized to 16px
-    overflow: 'hidden',
-    marginHorizontal: 16,
-  },
-  headerPattern: {
-    opacity: 0.12,
-  },
-  headerContent: {
-    backgroundColor: `${tokens.colors.najdi.background}EE`,
+  header: {
     paddingHorizontal: 16,
-    paddingVertical: 18,
-    gap: 4,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
-  screenTitle: {
-    fontSize: 28,
+  title: {
+    fontSize: 34,
     fontWeight: '700',
     color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
   },
-  screenSubtitle: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 15,
     color: tokens.colors.najdi.textMuted,
+    fontFamily: 'SF Arabic',
+    marginTop: 4,
   },
   sectionTitle: {
     marginTop: 12,
@@ -312,13 +306,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: tokens.colors.najdi.text,
   },
-  endMessage: {
-    paddingVertical: 40,
+  endIndicator: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 32,
   },
-  endMessageText: {
-    fontSize: 14,
-    color: tokens.colors.najdi.textMuted,
+  endLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: `${tokens.colors.najdi.container}30`,
+  },
+  endDotsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  endDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: `${tokens.colors.najdi.textMuted}40`,
   },
 });
 

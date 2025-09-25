@@ -11,6 +11,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
@@ -37,12 +38,21 @@ const CarouselCard: React.FC<{
 }> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
 
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
   return (
     <Surface style={styles.card} radius={16}>
       <Pressable
         style={styles.cardPressable}
-        onPress={onPress}
+        onPress={handlePress}
         android_ripple={{ color: 'rgba(0,0,0,0.04)' }}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`مقال مميز: ${article.title}`}
+        accessibilityHint={`اضغط لفتح المقال. ${relativeDate}`}
       >
         {/* Hero Image */}
         {article.heroImage ? (

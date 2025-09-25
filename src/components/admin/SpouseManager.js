@@ -129,18 +129,23 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
 
     setSubmitting(true);
     try {
-      // Create new Munasib profile
-      const newProfileData = {
-        name: newSpouseName.trim(),
-        gender: spouseGender,
-        generation: person.generation,
-        is_root: false,
-        family_origin: familyOrigin,
-        phone: newSpousePhone.trim() || null,
-      };
-
-      const { data: newPerson, error: createError } =
-        await profilesService.createProfile(newProfileData);
+      // Create new Munasib profile with NULL HID (direct insert, not RPC)
+      // This ensures the profile is recognized as Munasib by MunasibManager
+      const { data: newPerson, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          name: newSpouseName.trim(),
+          gender: spouseGender,
+          generation: person.generation,
+          family_origin: familyOrigin,
+          hid: null,  // Explicitly NULL for Munasib (not from Al-Qefari family)
+          status: 'alive',
+          is_root: false,
+          sibling_order: 0,
+          phone: newSpousePhone.trim() || null,
+        })
+        .select()
+        .single();
 
       if (createError) throw createError;
 

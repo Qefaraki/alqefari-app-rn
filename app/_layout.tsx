@@ -161,10 +161,7 @@ function TabLayout() {
     >
       <NativeTabs.Trigger name="index">
         <Label>الشجرة</Label>
-        <Icon
-          src={require("../assets/logo/STAR_LOGO.png")}
-          style={{ width: 26, height: 26 }}
-        />
+        <Icon src={require("../assets/AlqefariEmblem-TabIcon.png")} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="news">

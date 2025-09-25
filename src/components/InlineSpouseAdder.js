@@ -14,6 +14,7 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../services/supabase";
 import profilesService from "../services/profiles";
 import familyNameService from "../services/familyNameService";
 
@@ -78,17 +79,22 @@ export default function InlineSpouseAdder({
       // Determine spouse gender (opposite of current person)
       const spouseGender = person?.gender === "male" ? "female" : "male";
 
-      // Step 1: Create the spouse profile
-      const newSpouseData = {
-        name: spouseName.trim(),
-        gender: spouseGender,
-        generation: person?.generation || 0, // Same generation as spouse
-        is_root: false,
-        family_origin: familyOrigin || null, // Store family origin if found
-      };
-
-      const { data: newSpouse, error: createError } =
-        await profilesService.createProfile(newSpouseData);
+      // Step 1: Create Munasib spouse profile with NULL HID (direct insert)
+      // This ensures the profile is recognized as Munasib by MunasibManager
+      const { data: newSpouse, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          name: spouseName.trim(),
+          gender: spouseGender,
+          generation: person?.generation || 0, // Same generation as spouse
+          family_origin: familyOrigin || null, // Store family origin if found
+          hid: null,  // Explicitly NULL for Munasib (married-in spouse)
+          status: 'alive',
+          is_root: false,
+          sibling_order: 0,
+        })
+        .select()
+        .single();
 
       if (createError) throw createError;
       if (!newSpouse?.id) throw new Error("Failed to create spouse profile");
