@@ -117,11 +117,11 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
       const index = Math.round(offsetX / (CARD_WIDTH + CARD_SPACING));
       setCurrentIndex(index);
 
-      // Check if we're near the end (last 2 cards visible)
+      // Check if we're near the end (last 3 cards from end)
       const contentWidth = event.nativeEvent.contentSize.width;
-      const scrolledToEnd = offsetX + SCREEN_WIDTH >= contentWidth - (CARD_WIDTH * 2);
+      const scrolledNearEnd = offsetX + SCREEN_WIDTH >= contentWidth - (CARD_WIDTH * 3);
 
-      if (scrolledToEnd && onReachEnd && !loadingMore && !loading) {
+      if (scrolledNearEnd && onReachEnd && !loadingMore && !loading) {
         onReachEnd();
       }
     },
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
   heroImage: {
     width: '100%',
-    height: 180,
+    height: 200, // Bigger for better visual impact (16:9 aspect ratio)
     backgroundColor: `${tokens.colors.najdi.container}10`,
   },
   heroPlaceholder: {

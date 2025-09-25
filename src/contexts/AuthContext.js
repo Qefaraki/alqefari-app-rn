@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { AppState } from "react-native";
 import { supabase } from "../services/supabase";
 
 const AuthContext = createContext({});
@@ -15,6 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     console.log('[DEBUG AuthContext] Mounting AuthProvider, calling checkAuth');
@@ -31,54 +33,74 @@ export const AuthProvider = ({ children }) => {
           setUser(null);
           setIsAdmin(false);
         }
-        // CRITICAL FIX: Always set isLoading to false when auth state changes
         console.log('[DEBUG AuthContext] Setting isLoading to false from auth state change');
         setIsLoading(false);
       }
     );
 
+    // Handle app state changes to manage auth refresh
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      console.log('[DEBUG AuthContext] App state changed:', appState.current, '->', nextAppState);
+
+      // App has come to the foreground
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('[DEBUG AuthContext] App came to foreground, starting auto refresh');
+        supabase.auth.startAutoRefresh();
+      }
+
+      // App has gone to the background
+      if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+        console.log('[DEBUG AuthContext] App went to background, stopping auto refresh');
+        supabase.auth.stopAutoRefresh();
+      }
+
+      appState.current = nextAppState;
+    });
+
     return () => {
       authListener?.subscription?.unsubscribe();
+      appStateSubscription?.remove();
     };
   }, []);
 
   const checkAuth = async () => {
     console.log('[DEBUG AuthContext] checkAuth starting');
 
-    // Hard 1-second timeout that ALWAYS resolves
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        console.log('[DEBUG AuthContext] Auth check timed out, continuing anyway');
-        resolve({ data: { user: null } });
-      }, 1000);
-    });
-
+    // Use getSession for instant response (no network call)
     try {
-      // Race between actual auth check and timeout
-      const result = await Promise.race([
-        supabase.auth.getUser().catch(err => {
-          console.error('[DEBUG AuthContext] getUser error:', err);
-          return { data: { user: null } };
-        }),
-        timeoutPromise
-      ]);
+      const { data: { session }, error } = await supabase.auth.getSession();
 
-      const user = result?.data?.user;
-      console.log('[DEBUG AuthContext] getUser result:', user ? 'User found' : 'No user');
+      console.log('[DEBUG AuthContext] getSession result:', session ? 'Session found' : 'No session', error ? `Error: ${error.message}` : '');
 
-      if (user) {
-        setUser(user);
-        // Check admin status but don't wait for it
-        checkAdminStatus(user).catch(err =>
+      if (session?.user) {
+        setUser(session.user);
+        console.log('[DEBUG AuthContext] User from session:', session.user.email || session.user.phone);
+
+        // Check admin status in background
+        checkAdminStatus(session.user).catch(err =>
           console.error('[DEBUG AuthContext] Admin check error:', err)
         );
+
+        // Refresh user data in background (don't wait for it)
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            console.log('[DEBUG AuthContext] Fresh user data received');
+            setUser(user);
+          }
+        }).catch(err => {
+          console.error('[DEBUG AuthContext] Background user refresh error:', err);
+        });
+      } else {
+        console.log('[DEBUG AuthContext] No valid session found');
+        setUser(null);
+        setIsAdmin(false);
       }
     } catch (error) {
-      // This should never happen with our setup, but just in case
-      console.error('[DEBUG AuthContext] Unexpected error:', error);
+      console.error('[DEBUG AuthContext] Error getting session:', error);
+      setUser(null);
+      setIsAdmin(false);
     } finally {
-      // ALWAYS set isLoading to false no matter what
-      console.log('[DEBUG AuthContext] Setting isLoading to false (guaranteed)');
+      console.log('[DEBUG AuthContext] Setting isLoading to false');
       setIsLoading(false);
     }
   };

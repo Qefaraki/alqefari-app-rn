@@ -94,13 +94,13 @@ const NewsScreenV3: React.FC = () => {
       const scrollPercentage =
         (contentOffset.y + layoutMeasurement.height) / contentSize.height;
 
-      // Pre-fetch when scrolled 50% down (more aggressive)
-      if (scrollPercentage > 0.5 && hasMoreRecent) {
+      // Pre-fetch when scrolled 40% down (very aggressive)
+      if (scrollPercentage > 0.4 && hasMoreRecent) {
         prefetchNextRecent();
       }
 
-      // Load more when scrolled 80% down
-      if (scrollPercentage > 0.8 && hasMoreRecent && !isInitialLoading) {
+      // Load more when scrolled 70% down
+      if (scrollPercentage > 0.7 && hasMoreRecent && !isInitialLoading) {
         loadMoreRecent();
       }
     },
@@ -234,7 +234,7 @@ const NewsScreenV3: React.FC = () => {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         getItemType={getItemType}
-        estimatedItemSize={120} // Average item height
+        estimatedItemSize={140} // Updated for new card height with Surface wrapper
         onScroll={handleScroll}
         scrollEventThrottle={16}
         onEndReached={handleEndReached}
