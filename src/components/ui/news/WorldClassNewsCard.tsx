@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import CachedImage from '../../CachedImage';
 import { NewsArticle, stripHtmlForDisplay } from '../../../services/news';
 import { useRelativeDateNoMemo } from '../../../hooks/useFormattedDateNoMemo';
+import { getSaduPattern } from './SaduPatternProvider';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,6 +28,7 @@ interface WorldClassNewsCardProps {
 const FeatureCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArticle) => void }> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const saduPattern = getSaduPattern(article.id, 'hero', article.title);
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -94,17 +96,23 @@ const FeatureCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArtic
           </ImageBackground>
         ) : (
           <View style={[styles.featureImage, styles.featurePlaceholder]}>
-            <LinearGradient
-              colors={['#D1BBA310', '#D1BBA330']}
-              style={styles.featureGradient}
+            <ImageBackground
+              source={saduPattern}
+              style={StyleSheet.absoluteFillObject}
+              imageStyle={styles.featurePatternStyle}
             >
-              <View style={styles.featureContent}>
-                <Text style={[styles.featureTitle, { color: '#242121' }]} numberOfLines={3}>
-                  {article.title}
-                </Text>
-                <Text style={[styles.featureDate, { color: '#24212199' }]}>{relativeDate}</Text>
-              </View>
-            </LinearGradient>
+              <LinearGradient
+                colors={['#D1BBA310', '#D1BBA330']}
+                style={styles.featureGradient}
+              >
+                <View style={styles.featureContent}>
+                  <Text style={[styles.featureTitle, { color: '#242121' }]} numberOfLines={3}>
+                    {article.title}
+                  </Text>
+                  <Text style={[styles.featureDate, { color: '#24212199' }]}>{relativeDate}</Text>
+                </View>
+              </LinearGradient>
+            </ImageBackground>
           </View>
         )}
       </Pressable>
@@ -115,6 +123,7 @@ const FeatureCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArtic
 // Large Story Card - Full width with image on top
 const LargeStoryCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArticle) => void }> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
+  const saduPattern = getSaduPattern(article.id, 'large', article.title);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -138,11 +147,19 @@ const LargeStoryCard: React.FC<{ article: NewsArticle; onPress: (article: NewsAr
           />
         ) : (
           <View style={[styles.largeImage, styles.largePlaceholder]}>
-            <Ionicons
-              name="image-outline"
-              size={40}
-              color="#D1BBA360"
-            />
+            <ImageBackground
+              source={saduPattern}
+              style={StyleSheet.absoluteFillObject}
+              imageStyle={styles.largePatternStyle}
+            >
+              <View style={styles.largePlaceholderContent}>
+                <Ionicons
+                  name="image-outline"
+                  size={40}
+                  color="#D1BBA360"
+                />
+              </View>
+            </ImageBackground>
           </View>
         )}
 
@@ -170,6 +187,7 @@ const LargeStoryCard: React.FC<{ article: NewsArticle; onPress: (article: NewsAr
 // Side by Side Card - 50/50 split with larger image
 const SideBySideCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArticle) => void }> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
+  const saduPattern = getSaduPattern(article.id, 'side', article.title);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -206,11 +224,19 @@ const SideBySideCard: React.FC<{ article: NewsArticle; onPress: (article: NewsAr
             />
           ) : (
             <View style={[styles.sideImage, styles.sidePlaceholder]}>
-              <Ionicons
-                name="image-outline"
-                size={32}
-                color="#D1BBA360"
-              />
+              <ImageBackground
+                source={saduPattern}
+                style={StyleSheet.absoluteFillObject}
+                imageStyle={styles.sidePatternStyle}
+              >
+                <View style={styles.sidePlaceholderContent}>
+                  <Ionicons
+                    name="image-outline"
+                    size={32}
+                    color="#D1BBA360"
+                  />
+                </View>
+              </ImageBackground>
             </View>
           )}
         </View>
@@ -222,6 +248,7 @@ const SideBySideCard: React.FC<{ article: NewsArticle; onPress: (article: NewsAr
 // Text Only Card - When no image, focus on typography
 const TextOnlyCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArticle) => void }> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
+  const saduPattern = getSaduPattern(article.id, 'text', article.title);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -230,15 +257,20 @@ const TextOnlyCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArti
 
   return (
     <View style={styles.textContainer}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.textPressable,
-          pressed && styles.pressed
-        ]}
-        onPress={handlePress}
+      <ImageBackground
+        source={saduPattern}
+        style={StyleSheet.absoluteFillObject}
+        imageStyle={styles.textPatternStyle}
       >
-        <View style={styles.textAccent} />
-        <View style={styles.textContent}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.textPressable,
+            pressed && styles.pressed
+          ]}
+          onPress={handlePress}
+        >
+          <View style={styles.textAccent} />
+          <View style={styles.textContent}>
           <Text style={styles.textTitle} numberOfLines={3}>
             {article.title}
           </Text>
@@ -255,6 +287,7 @@ const TextOnlyCard: React.FC<{ article: NewsArticle; onPress: (article: NewsArti
           </View>
         </View>
       </Pressable>
+      </ImageBackground>
     </View>
   );
 };
@@ -305,6 +338,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1BBA310',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  featurePatternStyle: {
+    opacity: 0.08,
+    resizeMode: 'repeat',
   },
   featureGradient: {
     flex: 1,
@@ -384,6 +421,14 @@ const styles = StyleSheet.create({
   },
   largePlaceholder: {
     backgroundColor: '#D1BBA310',
+    overflow: 'hidden',
+  },
+  largePatternStyle: {
+    opacity: 0.08,
+    resizeMode: 'repeat',
+  },
+  largePlaceholderContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -482,6 +527,14 @@ const styles = StyleSheet.create({
   },
   sidePlaceholder: {
     backgroundColor: '#D1BBA310',
+    overflow: 'hidden',
+  },
+  sidePatternStyle: {
+    opacity: 0.08,
+    resizeMode: 'repeat',
+  },
+  sidePlaceholderContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -547,6 +600,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#D58C4A',
     fontFamily: 'SF Arabic',
+  },
+  textPatternStyle: {
+    opacity: 0.06,
+    resizeMode: 'repeat',
   },
 
   // Common Styles
