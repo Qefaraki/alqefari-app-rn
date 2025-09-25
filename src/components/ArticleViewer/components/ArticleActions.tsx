@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
@@ -48,16 +49,11 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
   };
 
   return (
-    <View style={[styles.container, isNightMode && styles.containerDark]}>
-      {/* Reading Progress Indicator */}
-      {readingProgress > 0 && readingProgress < 100 && (
-        <View style={styles.progressIndicator}>
-          <Text style={[styles.progressText, isNightMode && styles.textDark]}>
-            {readingProgress}%
-          </Text>
-        </View>
-      )}
-
+    <BlurView
+      intensity={80}
+      tint={isNightMode ? 'dark' : 'light'}
+      style={[styles.container, isNightMode && styles.containerDark]}
+    >
       {/* Font Size Controls */}
       <View style={styles.fontSizeControls}>
         <TouchableOpacity
@@ -134,7 +130,7 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </BlurView>
   );
 };
 
@@ -145,29 +141,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'rgba(255,255,255,0.95)',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+    overflow: 'hidden',
   },
   containerDark: {
-    backgroundColor: 'rgba(26,26,26,0.95)',
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  progressIndicator: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    backgroundColor: tokens.colors.najdi.primary + '20',
-    borderRadius: 12,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: tokens.colors.najdi.primary,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
   fontSizeControls: {
     flexDirection: 'row',

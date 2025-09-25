@@ -49,6 +49,17 @@ const CLASSES_STYLES = {
   'alignright': {
     alignSelf: 'flex-end',
   },
+  'wp-caption': {
+    marginVertical: 16,
+  },
+  'wp-caption-text': {
+    fontSize: 12,
+    color: 'rgba(0,0,0,0.5)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+    paddingHorizontal: 16,
+  },
 };
 
 // Static renderers props
@@ -160,6 +171,19 @@ const createTagsStyles = (fontSize: number, isNightMode: boolean): Record<string
     marginVertical: 24,
     height: 1,
     backgroundColor: isNightMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+  },
+  figure: {
+    marginVertical: 20,
+    alignItems: 'center',
+  },
+  figcaption: {
+    fontSize: fontSize - 3,
+    color: isNightMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 8,
+    marginHorizontal: 16,
+    lineHeight: (fontSize - 3) * 1.4,
   },
   table: {
     borderWidth: 1,

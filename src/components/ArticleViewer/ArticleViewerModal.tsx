@@ -378,24 +378,14 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
     []
   );
 
-  // Custom handle
+  // Custom handle - simplified and floating
   const renderHandle = useCallback(
     () => (
       <View style={styles.handleContainer}>
         <View style={styles.handleBar} />
-        {readingProgress > 0 && (
-          <View style={styles.progressContainer}>
-            <View
-              style={[
-                styles.progressBar,
-                { width: `${readingProgress}%` }
-              ]}
-            />
-          </View>
-        )}
       </View>
     ),
-    [readingProgress]
+    []
   );
 
   // Handle font size changes
@@ -550,6 +540,8 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
       // Modal-specific optimizations
       enableDismissOnClose={true}
       stackBehavior="push"
+      handleStyle={styles.handleContainer}
+      handleIndicatorStyle={styles.handleBar}
     >
       {!isContentReady ? (
         <ArticleSkeletonLoader
@@ -592,6 +584,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 20,
+    paddingTop: 0,
   },
   sheetBackground: {
     backgroundColor: '#FFFFFF',
@@ -601,26 +594,15 @@ const styles = StyleSheet.create({
   },
   handleContainer: {
     alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 6,
+    paddingTop: 6,
+    paddingBottom: 4,
+    backgroundColor: 'transparent',
   },
   handleBar: {
-    width: 44,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#D1D5DB',
-  },
-  progressContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: tokens.colors.najdi.primary,
+    width: 32,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0,0,0,0.15)',
   },
   loadingContainer: {
     flex: 1,
