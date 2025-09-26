@@ -7,10 +7,14 @@ import {
   Dimensions,
   Linking,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
+import { Galeria } from '@nandorojo/galeria';
 import tokens from '../../ui/tokens';
 import { LinkType } from '../utils/linkExtractor';
 
@@ -42,6 +46,8 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
   isLoadingImages = false,
 }) => {
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Determine remaining count for overlay
   const displayedCount = Math.min(images.length, 8);
@@ -55,6 +61,42 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
       await Linking.openURL(externalLink);
     } catch (error) {
       console.error('Failed to open link:', error);
+    }
+  };
+
+  // Open image viewer at specific index
+  const handleImagePress = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedIndex(index);
+    setViewerVisible(true);
+  };
+
+  // Download image functionality
+  const handleDownloadImage = async (imageUrl: string) => {
+    try {
+      // Request permissions
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('الصلاحية مطلوبة', 'يرجى السماح بالوصول إلى معرض الصور');
+        return;
+      }
+
+      // Download image to cache
+      const filename = imageUrl.split('/').pop() || 'image.jpg';
+      const fileUri = FileSystem.documentDirectory + filename;
+
+      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
+
+      // Save to camera roll
+      const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
+      await MediaLibrary.createAlbumAsync('القفاري', asset, false);
+
+      Alert.alert('تم الحفظ', 'تم حفظ الصورة في معرض الصور');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      Alert.alert('خطأ', 'فشل حفظ الصورة');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
 
@@ -120,7 +162,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
           <View style={styles.gridRow}>
             <TouchableOpacity
               activeOpacity={0.9}
-              onPress={handleExternalLink}
+              onPress={() => handleImagePress(0)}
               style={[styles.imageWrapper, styles.largeImage]}
             >
               <Image
@@ -139,7 +181,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
               <TouchableOpacity
                 key={index + 1}
                 activeOpacity={0.9}
-                onPress={handleExternalLink}
+                onPress={() => handleImagePress(index + 1)}
                 style={[styles.imageWrapper, styles.smallImage]}
               >
                 <Image
@@ -159,7 +201,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
               <TouchableOpacity
                 key={index + 4}
                 activeOpacity={0.9}
-                onPress={handleExternalLink}
+                onPress={() => handleImagePress(index + 4)}
                 style={[styles.imageWrapper, styles.smallImage]}
               >
                 <Image
@@ -178,7 +220,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
             <View style={styles.gridRow}>
               <TouchableOpacity
                 activeOpacity={0.9}
-                onPress={handleExternalLink}
+                onPress={() => handleImagePress(7)}
                 style={[styles.imageWrapper, styles.fullWidthImage]}
               >
                 <Image
@@ -207,7 +249,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
               <TouchableOpacity
                 key={index}
                 activeOpacity={0.9}
-                onPress={handleExternalLink}
+                onPress={() => handleImagePress(index)}
                 style={[styles.imageWrapper, styles.mediumImage]}
               >
                 <Image
@@ -230,7 +272,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
               <TouchableOpacity
                 key={index + 2}
                 activeOpacity={0.9}
-                onPress={handleExternalLink}
+                onPress={() => handleImagePress(index + 2)}
                 style={[styles.imageWrapper, styles.mediumImage]}
               >
                 <Image
@@ -259,7 +301,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
               <TouchableOpacity
                 key={index}
                 activeOpacity={0.9}
-                onPress={handleExternalLink}
+                onPress={() => handleImagePress(index)}
                 style={[
                   styles.imageWrapper,
                   imagesToShow.length === 1 ? styles.fullWidthImage :
@@ -288,57 +330,90 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      {/* Photo Count Badge */}
-      <View style={styles.photoCountContainer}>
-        <View style={[styles.photoCountBadge, isNightMode && styles.photoCountBadgeDark]}>
-          <Ionicons
-            name="images"
-            size={18}
-            color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
-          />
-          <Text style={[styles.photoCountText, isNightMode && styles.photoCountTextDark]}>
-            {totalCount} صورة من الحدث
-          </Text>
+    <>
+      <View style={styles.container}>
+        {/* Photo Count Badge */}
+        <View style={styles.photoCountContainer}>
+          <View style={[styles.photoCountBadge, isNightMode && styles.photoCountBadgeDark]}>
+            <Ionicons
+              name="images"
+              size={18}
+              color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
+            />
+            <Text style={[styles.photoCountText, isNightMode && styles.photoCountTextDark]}>
+              {totalCount} صورة من الحدث
+            </Text>
+          </View>
+        </View>
+
+        {/* Photo Grid */}
+        {renderGrid()}
+
+        {/* External Link Button */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={[styles.externalButton, isNightMode && styles.externalButtonDark]}
+            onPress={handleExternalLink}
+            activeOpacity={0.8}
+          >
+            <View style={styles.buttonContent}>
+              <Ionicons
+                name={getButtonIcon()}
+                size={20}
+                color="#FFFFFF"
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.buttonText}>
+                {getButtonText()}
+              </Text>
+              <Ionicons
+                name="arrow-forward"
+                size={20}
+                color="#FFFFFF"
+              />
+            </View>
+          </TouchableOpacity>
+
+          {/* Helper text */}
+          {linkType === 'drive' && (
+            <Text style={[styles.helperText, isNightMode && styles.helperTextDark]}>
+              الصور متوفرة بالجودة الكاملة على Google Drive
+            </Text>
+          )}
         </View>
       </View>
 
-      {/* Photo Grid */}
-      {renderGrid()}
+      {/* Native Image Viewer */}
+      <Galeria
+        visible={viewerVisible}
+        urls={images}
+        initialIndex={selectedIndex}
+        onRequestClose={() => setViewerVisible(false)}
+        renderHeaderComponent={({ index }: { index: number }) => (
+          <View style={styles.viewerHeader}>
+            <TouchableOpacity
+              onPress={() => setViewerVisible(false)}
+              style={styles.viewerCloseButton}
+            >
+              <View style={styles.viewerCloseCircle}>
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
 
-      {/* External Link Button */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={[styles.externalButton, isNightMode && styles.externalButtonDark]}
-          onPress={handleExternalLink}
-          activeOpacity={0.8}
-        >
-          <View style={styles.buttonContent}>
-            <Ionicons
-              name={getButtonIcon()}
-              size={20}
-              color="#FFFFFF"
-              style={styles.buttonIcon}
-            />
-            <Text style={styles.buttonText}>
-              {getButtonText()}
+            <Text style={styles.viewerCounter}>
+              {index + 1} من {images.length}
             </Text>
-            <Ionicons
-              name="arrow-forward"
-              size={20}
-              color="#FFFFFF"
-            />
-          </View>
-        </TouchableOpacity>
 
-        {/* Helper text */}
-        {linkType === 'drive' && (
-          <Text style={[styles.helperText, isNightMode && styles.helperTextDark]}>
-            الصور متوفرة بالجودة الكاملة على Google Drive
-          </Text>
+            <TouchableOpacity
+              onPress={() => handleDownloadImage(images[index])}
+              style={styles.viewerDownloadButton}
+            >
+              <Ionicons name="download-outline" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         )}
-      </View>
-    </View>
+      />
+    </>
   );
 };
 
@@ -477,6 +552,46 @@ const styles = StyleSheet.create({
   },
   helperTextDark: {
     color: 'rgba(255,255,255,0.5)',
+  },
+  viewerHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 60, // Account for safe area
+    paddingBottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    zIndex: 1000,
+  },
+  viewerCloseButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerCloseCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewerCounter: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'SF Arabic',
+  },
+  viewerDownloadButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

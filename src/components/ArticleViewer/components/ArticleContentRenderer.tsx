@@ -26,8 +26,8 @@ interface ArticleContentRendererProps {
   fontSize: number;
 }
 
-// System fonts with Arabic support - iOS native stack
-const SYSTEM_FONTS = [...defaultSystemFonts, 'SF Arabic Rounded', 'SF Arabic', 'System'];
+// System fonts - let iOS choose the right Arabic font automatically
+const SYSTEM_FONTS = [...defaultSystemFonts, 'System'];
 
 // Ignored tags
 const IGNORED_DOM_TAGS = ['video', 'iframe', 'script', 'audio', 'style'];
@@ -38,17 +38,12 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     color: tokens.colors.najdi.text,
     fontSize: fontSize,
     lineHeight: fontSize * 2.0, // Increased for Arabic diacritics
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     letterSpacing: 0.3,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    direction: 'rtl',
   },
   p: {
     marginBottom: 24,
     color: tokens.colors.najdi.text,
-    textAlign: 'right',
-    writingDirection: 'rtl',
     lineHeight: fontSize * 2.0,
   },
   h1: {
@@ -59,8 +54,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     color: tokens.colors.najdi.text,
     letterSpacing: -0.5,
     lineHeight: (fontSize + 8) * 1.4,
-    fontFamily: 'SF Arabic',
-    textAlign: 'right',
+    fontFamily: 'System',
   },
   h2: {
     fontSize: fontSize + 5,
@@ -69,8 +63,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginBottom: 18,
     color: tokens.colors.najdi.text,
     letterSpacing: -0.3,
-    fontFamily: 'SF Arabic',
-    textAlign: 'right',
+    fontFamily: 'System',
   },
   h3: {
     fontSize: fontSize + 3,
@@ -78,8 +71,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginTop: 24,
     marginBottom: 14,
     color: tokens.colors.najdi.text,
-    fontFamily: 'SF Arabic',
-    textAlign: 'right',
+    fontFamily: 'System',
   },
   h4: {
     fontSize: fontSize + 1,
@@ -87,8 +79,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginTop: 20,
     marginBottom: 12,
     color: tokens.colors.najdi.textMuted,
-    fontFamily: 'SF Arabic',
-    textAlign: 'right',
+    fontFamily: 'System',
   },
   a: {
     color: '#007AFF', // iOS blue
@@ -105,30 +96,24 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
   },
   li: {
     marginBottom: 12,
-    paddingRight: 8,
+    paddingLeft: 8,
     lineHeight: fontSize * 2.0,
-    textAlign: 'right',
     color: tokens.colors.najdi.text,
-    direction: 'rtl',
   },
   ul: {
     marginBottom: 24,
-    paddingRight: 20,
-    direction: 'rtl',
+    paddingLeft: 20,
   },
   ol: {
     marginBottom: 24,
-    paddingRight: 20,
-    direction: 'rtl',
+    paddingLeft: 20,
   },
   blockquote: {
     marginVertical: 28,
     marginHorizontal: 0,
-    paddingRight: 20,
-    paddingLeft: 20,
-    borderRightWidth: 4,
-    borderRightColor: tokens.colors.najdi.primary,
-    borderLeftWidth: 0,
+    paddingHorizontal: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: tokens.colors.najdi.primary,
     fontStyle: 'italic',
     fontSize: fontSize,
     lineHeight: fontSize * 1.8,
@@ -136,7 +121,6 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     backgroundColor: tokens.colors.najdi.container + '08',
     paddingVertical: 16,
     borderRadius: 8,
-    textAlign: 'center',
   },
   code: {
     backgroundColor: tokens.colors.najdi.container + '15',
@@ -172,7 +156,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     fontWeight: '400',
   },
   img: {
@@ -190,13 +174,11 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     backgroundColor: tokens.colors.najdi.container + '10',
     padding: 10,
     fontWeight: '600',
-    textAlign: 'right',
   },
   td: {
     padding: 10,
     borderTopWidth: 0.5,
     borderTopColor: tokens.colors.najdi.container + '20',
-    textAlign: 'right',
   },
 });
 
@@ -208,10 +190,9 @@ const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
   },
   'wp-block-quote': {
     marginVertical: 28,
-    paddingRight: 20,
-    borderRightWidth: 4,
-    borderRightColor: tokens.colors.najdi.primary,
-    borderLeftWidth: 0,
+    paddingLeft: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: tokens.colors.najdi.primary,
   },
   'wp-caption': {
     marginVertical: 24,
@@ -224,6 +205,7 @@ const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
+    fontFamily: 'System',
     fontWeight: '400',
   },
   'aligncenter': {
@@ -322,26 +304,9 @@ const createRenderers = () => ({
     );
   },
 
-  // Smart figcaption - filter out filenames
+  // Render figcaption as-is without filtering
   figcaption: ({ TDefaultRenderer, ...props }: any) => {
-    // Get the text content
-    const text = props.tnode.children?.[0]?.data || '';
-
-    // Skip if it's just a filename
-    if (text.match(/^[^.]+\.(jpg|jpeg|png|gif|webp)$/i)) {
-      return null;
-    }
-
-    // Skip if it's empty or just whitespace
-    if (!text.trim()) {
-      return null;
-    }
-
-    return (
-      <Text style={styles.figcaption}>
-        {text}
-      </Text>
-    );
+    return <TDefaultRenderer {...props} />;
   },
 });
 
@@ -364,18 +329,11 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
   // Clean HTML for better rendering
   const cleanHtml = useMemo(() => {
     // Remove gallery shortcodes and clean up
-    let cleaned = html
+    return html
       .replace(/\[gallery[^\]]*\]/g, '')
       .replace(/\[caption[^\]]*\](.*?)\[\/caption\]/g, '$1')
       .replace(/<!--more-->/g, '')
       .replace(/<!--nextpage-->/g, '');
-
-    // Add RTL direction to root if not present
-    if (!cleaned.includes('dir="rtl"')) {
-      cleaned = `<div dir="rtl">${cleaned}</div>`;
-    }
-
-    return cleaned;
   }, [html]);
 
   return (
@@ -393,19 +351,11 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
         defaultTextProps={{
           allowFontScaling: false,
           selectable: true,
-          style: {
-            textAlign: 'right',
-            writingDirection: 'rtl',
-          }
         }}
         renderersProps={{
           img: {
             enableExperimentalPercentWidth: true,
           },
-        }}
-        baseStyle={{
-          direction: 'rtl',
-          textAlign: 'right',
         }}
       />
     </View>
@@ -418,7 +368,6 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingBottom: 40,
-    direction: 'rtl',
   },
   imageContainer: {
     marginVertical: 24,
@@ -436,7 +385,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     fontWeight: '400',
   },
   link: {
@@ -472,7 +421,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     fontWeight: '400',
   },
 });

@@ -172,7 +172,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       presentationStyle="fullScreen"
       onRequestClose={handleClose}
     >
@@ -477,10 +477,8 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     lineHeight: 38,
     letterSpacing: -0.5,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     marginBottom: 16,
-    textAlign: 'right',
-    writingDirection: 'rtl',
   },
   articleMeta: {
     alignItems: 'flex-end',
@@ -492,7 +490,7 @@ const styles = StyleSheet.create({
   articleDate: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     fontWeight: '500',
   },
   metaSeparator: {
@@ -503,7 +501,7 @@ const styles = StyleSheet.create({
   readingTime: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
     fontWeight: '500',
   },
   loadingContainer: {
@@ -514,7 +512,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 15,
     color: tokens.colors.najdi.textMuted,
-    fontFamily: 'SF Arabic',
+    fontFamily: 'System',
   },
 });
 

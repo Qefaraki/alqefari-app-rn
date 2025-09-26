@@ -374,6 +374,10 @@ const TreeView = ({
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const skeletonFadeAnim = useRef(new Animated.Value(1)).current;
+  const contentFadeAnim = useRef(new Animated.Value(0)).current; // Start with 0 opacity
+  const shimmerAnim = useRef(new Animated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -646,6 +650,8 @@ const TreeView = ({
           console.log("Falling back to local data");
           setTreeData(familyData || []);
         }
+        // Don't trigger fade animation on error
+        setShowSkeleton(false);
         setIsLoading(false);
         return;
       }
@@ -677,6 +683,25 @@ const TreeView = ({
         setNetworkError(null); // Clear any previous errors
       }
 
+      // Start fade transition when data is loaded
+      Animated.parallel([
+        // Fade out skeleton
+        Animated.timing(skeletonFadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        // Fade in content
+        Animated.timing(contentFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          delay: 100, // Slight overlap for smoother transition
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        setShowSkeleton(false); // Remove skeleton from DOM after animation
+      });
+
       setIsLoading(false);
     } catch (err) {
       console.error("Failed to load tree:", err);
@@ -693,6 +718,8 @@ const TreeView = ({
         // Fall back to local data
         setTreeData(familyData || []);
       }
+      // Don't trigger fade animation on error
+      setShowSkeleton(false);
       setIsLoading(false);
     }
   };
@@ -2324,20 +2351,136 @@ const TreeView = ({
     );
   }
 
+  // Start shimmer animation for skeleton
+  useEffect(() => {
+    if (showSkeleton) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(shimmerAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shimmerAnim, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [showSkeleton]);
+
+  // Tree skeleton component
+  const TreeSkeleton = () => (
+    <View style={{
+      flex: 1,
+      backgroundColor: '#F9F7F3',
+      alignItems: 'center',
+      paddingTop: 100,
+    }}>
+      {/* Root node skeleton */}
+      <Animated.View
+        style={{
+          width: 100,
+          height: 60,
+          backgroundColor: '#D1BBA340',
+          borderRadius: 8,
+          marginBottom: 30,
+          opacity: shimmerAnim,
+        }}
+      />
+
+      {/* Connection lines */}
+      <View style={{
+        width: 2,
+        height: 40,
+        backgroundColor: '#D1BBA320',
+        marginVertical: 10,
+      }} />
+
+      {/* Second generation nodes */}
+      <View style={{ flexDirection: 'row', marginVertical: 20 }}>
+        {[...Array(3)].map((_, i) => (
+          <Animated.View
+            key={`gen2-${i}`}
+            style={{
+              width: 80,
+              height: 50,
+              backgroundColor: '#D1BBA330',
+              borderRadius: 8,
+              marginHorizontal: 10,
+              opacity: shimmerAnim,
+            }}
+          />
+        ))}
+      </View>
+
+      {/* Connection lines for third generation */}
+      <View style={{ flexDirection: 'row' }}>
+        {[...Array(3)].map((_, i) => (
+          <View
+            key={`line-${i}`}
+            style={{
+              width: 1,
+              height: 30,
+              backgroundColor: '#D1BBA320',
+              marginHorizontal: 45,
+            }}
+          />
+        ))}
+      </View>
+
+      {/* Third generation nodes */}
+      <View style={{ flexDirection: 'row', marginVertical: 20 }}>
+        {[...Array(5)].map((_, i) => (
+          <Animated.View
+            key={`gen3-${i}`}
+            style={{
+              width: 60,
+              height: 40,
+              backgroundColor: '#D1BBA325',
+              borderRadius: 6,
+              marginHorizontal: 8,
+              opacity: shimmerAnim.interpolate({
+                inputRange: [0.3, 1],
+                outputRange: [0.2, 0.7],
+              }),
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+
   if (isLoading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#F9F7F3",
-        }}
-      >
-        <ActivityIndicator size="large" color="#A13333" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: "#24212199" }}>
-          جاري تحميل الشجرة...
-        </Text>
+      <View style={{ flex: 1 }}>
+        {/* Skeleton with fade out */}
+        {showSkeleton && (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10,
+              opacity: skeletonFadeAnim,
+            }}
+            pointerEvents="none"
+          >
+            <TreeSkeleton />
+          </Animated.View>
+        )}
+
+        {/* Empty placeholder for tree content that will fade in */}
+        <Animated.View
+          style={{
+            flex: 1,
+            opacity: contentFadeAnim,
+          }}
+        />
       </View>
     );
   }
@@ -2374,8 +2517,28 @@ const TreeView = ({
 
   return (
     <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
-      <GestureDetector gesture={composed}>
-        <Canvas style={{ flex: 1 }}>
+      {/* Skeleton overlay with fade out */}
+      {showSkeleton && (
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10,
+            opacity: skeletonFadeAnim,
+          }}
+          pointerEvents="none"
+        >
+          <TreeSkeleton />
+        </Animated.View>
+      )}
+
+      {/* Main tree content with fade in */}
+      <Animated.View style={{ flex: 1, opacity: contentFadeAnim }}>
+        <GestureDetector gesture={composed}>
+          <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
             {/* Render batched edges first */}
             {edgeElements}
@@ -2396,7 +2559,8 @@ const TreeView = ({
             ))}
           </Group>
         </Canvas>
-      </GestureDetector>
+        </GestureDetector>
+      </Animated.View>
 
       {/* Lottie Glow Effect Overlay */}
       {highlightedNodeIdState &&

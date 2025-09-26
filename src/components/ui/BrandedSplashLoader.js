@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     tintColor: '#242121', // Black
   },
 });
