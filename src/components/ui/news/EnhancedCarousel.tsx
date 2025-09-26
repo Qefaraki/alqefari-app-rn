@@ -273,7 +273,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 180,
     backgroundColor: '#F9F7F3',
-    borderRadius: 10, // More curved, iOS-style
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   heroPlaceholder: {
     alignItems: 'center',
