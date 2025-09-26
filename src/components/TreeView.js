@@ -57,6 +57,7 @@ import { useTreeStore } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
 import { useSettings } from "../contexts/SettingsContext";
+import { useAuth } from "../contexts/AuthContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import AdminToggleButton from "./AdminToggleButton";
@@ -371,6 +372,7 @@ const TreeView = ({
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
   const { settings } = useSettings();
+  const { isPreloadingTree } = useAuth();
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
@@ -604,10 +606,13 @@ const TreeView = ({
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
+    const startTime = Date.now();
+
     // Check if we already have preloaded data
     const existingData = useTreeStore.getState().treeData;
     if (existingData && existingData.length > 0) {
-      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes');
+      const loadTime = Date.now() - startTime;
+      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes, instant load in', loadTime, 'ms');
       setTreeData(existingData);
       setIsLoading(false);
       return;
@@ -715,6 +720,8 @@ const TreeView = ({
         setShowSkeleton(false); // Remove skeleton from DOM after animation
       });
 
+      const totalLoadTime = Date.now() - startTime;
+      console.log('[TreeView] Tree loaded successfully in', totalLoadTime, 'ms');
       setIsLoading(false);
     } catch (err) {
       console.error("Failed to load tree:", err);
@@ -742,10 +749,36 @@ const TreeView = ({
     await loadTreeData();
   };
 
-  // Load tree data on mount
+  // Load tree data on mount - wait briefly if preloading is in progress
   useEffect(() => {
-    loadTreeData();
-  }, [setTreeData]);
+    // If preloading is in progress, wait up to 500ms for it to complete
+    if (isPreloadingTree) {
+      console.log('[TreeView] Waiting for tree preload to complete...');
+      const checkInterval = setInterval(() => {
+        const existingData = useTreeStore.getState().treeData;
+        if (existingData && existingData.length > 0) {
+          console.log('[TreeView] Preload completed, using preloaded data');
+          clearInterval(checkInterval);
+          loadTreeData();
+        }
+      }, 100);
+
+      // Timeout after 500ms and load anyway
+      const timeout = setTimeout(() => {
+        clearInterval(checkInterval);
+        console.log('[TreeView] Preload timeout, loading data normally');
+        loadTreeData();
+      }, 500);
+
+      return () => {
+        clearInterval(checkInterval);
+        clearTimeout(timeout);
+      };
+    } else {
+      // No preloading in progress, load immediately
+      loadTreeData();
+    }
+  }, [setTreeData, isPreloadingTree]);
 
   // Real-time subscription for profile updates
   useEffect(() => {

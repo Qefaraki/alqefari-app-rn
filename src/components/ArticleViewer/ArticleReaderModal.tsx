@@ -42,7 +42,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start with false, only set true if needed
   const [fontSize, setFontSize] = useState(17);
   const [showHeader, setShowHeader] = useState(true);
   const [readingProgress, setReadingProgress] = useState(0);
@@ -50,9 +50,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const insets = useSafeAreaInsets();
   const headerAnimY = useRef(new Animated.Value(0)).current;
   const progressWidth = useRef(new Animated.Value(0)).current;
-
-  // Simple cache state
-  const [cachedContent, setCachedContent] = useState<string | null>(null);
 
   // Photo gallery state
   const [isPhotoHeavy, setIsPhotoHeavy] = useState(false);
@@ -64,88 +61,56 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   // Format date
   const formattedDate = useAbsoluteDateNoMemo(article?.publishedAt ? new Date(article.publishedAt) : new Date());
 
-  // Simple caching with AsyncStorage
+  // Load article content and manage caching
   useEffect(() => {
     if (!article) return;
 
-    // Start loading immediately
-    setIsLoading(true);
+    // If article has HTML, use it immediately (no spinner)
+    if (article.html) {
+      // Analyze content for photo galleries
+      const analysis = analyzeContent(article.html);
+      if (analysis.isHeavy) {
+        setIsPhotoHeavy(true);
+        const linkData = extractGalleryLink(article.html, article);
+        setGalleryLink(linkData.url);
+        setGalleryLinkType(linkData.type);
+        const images = extractPreviewImages(article.html, 20);
+        setGalleryImages(images);
+        setTotalImageCount(analysis.imageCount);
+      } else {
+        setIsPhotoHeavy(false);
+        setGalleryImages([]);
+        setTotalImageCount(0);
+      }
 
-    const loadArticle = async () => {
+      // Check for cached version in background (for next time)
       const cacheKey = `article_cache_${article.id}`;
+      AsyncStorage.getItem(cacheKey)
+        .then(cached => {
+          if (cached) {
+            const cachedData = JSON.parse(cached);
+            const cacheAge = Date.now() - cachedData.timestamp;
+            const ONE_DAY = 24 * 60 * 60 * 1000;
 
-      try {
-        // Try to get cached content first
-        const cached = await AsyncStorage.getItem(cacheKey);
-
-        if (cached) {
-          // Parse cached data
-          const cachedData = JSON.parse(cached);
-          const cacheAge = Date.now() - cachedData.timestamp;
-          const ONE_DAY = 24 * 60 * 60 * 1000;
-
-          // Use cache if less than 1 day old
-          if (cacheAge < ONE_DAY && cachedData.html) {
-            setCachedContent(cachedData.html);
-
-            // Analyze content for photo galleries
-            const analysis = analyzeContent(cachedData.html);
-            if (analysis.isHeavy) {
-              setIsPhotoHeavy(true);
-              const linkData = extractGalleryLink(cachedData.html, article);
-              setGalleryLink(linkData.url);
-              setGalleryLinkType(linkData.type);
-              const images = extractPreviewImages(cachedData.html, 20);
-              setGalleryImages(images);
-              setTotalImageCount(analysis.imageCount);
-            } else {
-              setIsPhotoHeavy(false);
-              setGalleryImages([]);
-              setTotalImageCount(0);
+            // If cache is still valid, we're done
+            if (cacheAge < ONE_DAY && cachedData.html) {
+              return;
             }
-
-            setIsLoading(false);
-            return; // Exit early with cached content
           }
-        }
-      } catch (error) {
-        console.log('Cache read error:', error);
-      }
 
-      // No valid cache, load fresh content
-      if (article.html) {
-        // Analyze content
-        const analysis = analyzeContent(article.html);
-
-        if (analysis.isHeavy) {
-          setIsPhotoHeavy(true);
-          const linkData = extractGalleryLink(article.html, article);
-          setGalleryLink(linkData.url);
-          setGalleryLinkType(linkData.type);
-          const images = extractPreviewImages(article.html, 20);
-          setGalleryImages(images);
-          setTotalImageCount(analysis.imageCount);
-        } else {
-          setIsPhotoHeavy(false);
-          setGalleryImages([]);
-          setTotalImageCount(0);
-        }
-
-        // Use fresh content immediately
-        setCachedContent(article.html);
-        setIsLoading(false);
-
-        // Cache the content for next time (async, don't block UI)
-        AsyncStorage.setItem(cacheKey, JSON.stringify({
-          html: article.html,
-          timestamp: Date.now()
-        })).catch(error => {
-          console.log('Cache write error:', error);
+          // Cache is missing or expired, save new cache
+          return AsyncStorage.setItem(cacheKey, JSON.stringify({
+            html: article.html,
+            timestamp: Date.now()
+          }));
+        })
+        .catch(error => {
+          console.log('Cache error:', error);
         });
-      }
-    };
-
-    loadArticle();
+    } else {
+      // No HTML available, show loading
+      setIsLoading(true);
+    }
   }, [article]);
 
   // Animate header show/hide with spring
@@ -289,7 +254,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           ) : (
             <>
               <ArticleContentRenderer
-                html={cachedContent || article.html || ''}
+                html={article.html || ''}
                 fontSize={fontSize}
               />
 

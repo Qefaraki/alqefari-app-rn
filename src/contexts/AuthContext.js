@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [isPreloadingTree, setIsPreloadingTree] = useState(false);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -111,6 +112,9 @@ export const AuthProvider = ({ children }) => {
         console.log('[DEBUG AuthContext] Session found for user:', session.user.email || session.user.phone);
         setUser(session.user);
 
+        // Start preloading tree data immediately (fire and forget)
+        preloadTreeData();
+
         // Load cached state first for faster initial render
         await loadCachedAuthState();
 
@@ -119,9 +123,6 @@ export const AuthProvider = ({ children }) => {
           checkProfileStatus(session.user),
           checkAdminStatus(session.user)
         ]);
-
-        // Preload tree data for faster navigation
-        preloadTreeData(); // Fire and forget - don't wait
       } else {
         console.log('[DEBUG AuthContext] No session found');
         // Clear everything when no session
@@ -353,6 +354,8 @@ export const AuthProvider = ({ children }) => {
   // Preload tree data for faster navigation
   const preloadTreeData = async () => {
     try {
+      setIsPreloadingTree(true);
+      const startTime = Date.now();
       console.log('[DEBUG AuthContext] Starting tree data preload');
 
       // First get the root node (generation 1)
@@ -361,6 +364,7 @@ export const AuthProvider = ({ children }) => {
 
       if (rootError || !rootData || rootData.length === 0) {
         console.log('[DEBUG AuthContext] Failed to preload root node');
+        setIsPreloadingTree(false);
         return;
       }
 
@@ -372,6 +376,7 @@ export const AuthProvider = ({ children }) => {
 
       if (treeError || !treeData) {
         console.log('[DEBUG AuthContext] Failed to preload tree data');
+        setIsPreloadingTree(false);
         return;
       }
 
@@ -379,9 +384,12 @@ export const AuthProvider = ({ children }) => {
       const setTreeData = useTreeStore.getState().setTreeData;
       setTreeData(treeData);
 
-      console.log('[DEBUG AuthContext] Tree data preloaded successfully:', treeData.length, 'nodes');
+      const loadTime = Date.now() - startTime;
+      console.log('[DEBUG AuthContext] Tree data preloaded successfully:', treeData.length, 'nodes in', loadTime, 'ms');
     } catch (error) {
       console.error('[DEBUG AuthContext] Error preloading tree data:', error);
+    } finally {
+      setIsPreloadingTree(false);
     }
   };
 
@@ -399,6 +407,7 @@ export const AuthProvider = ({ children }) => {
         hasLinkedProfile,
         hasPendingRequest,
         isLoading,
+        isPreloadingTree,
         checkAuth,
         checkAdminStatus,
         checkProfileStatus,
