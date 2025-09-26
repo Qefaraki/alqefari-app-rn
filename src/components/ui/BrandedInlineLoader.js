@@ -11,23 +11,16 @@ const BrandedInlineLoader = ({
   color = '#A13333', // Najdi Crimson
   style,
 }) => {
-  const spinAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Continuous spin animation
-    Animated.loop(
-      Animated.timing(spinAnim, {
-        toValue: 1,
-        duration: 1000,
-        useNativeDriver: true,
-      })
-    ).start();
+    // Simple fade in
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
   }, []);
-
-  const spin = spinAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
 
   return (
     <Animated.View
@@ -36,7 +29,7 @@ const BrandedInlineLoader = ({
         {
           width: size,
           height: size,
-          transform: [{ rotate: spin }],
+          opacity: fadeAnim,
         },
         style,
       ]}

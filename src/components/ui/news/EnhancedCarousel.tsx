@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { getAllSwatches, getNamedSwatches } from 'react-native-palette';
-import { Image } from 'expo-image';
+import { getColors } from 'react-native-image-colors';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
@@ -67,89 +66,51 @@ const CarouselCard: React.FC<{
       // Check cache first
       const cached = colorCache.get(article.heroImage);
       if (cached) {
-        console.log('Using cached color:', cached);
         setBgColor(cached);
         return;
       }
 
-      console.log('Extracting color from:', article.heroImage);
-      console.log('Platform:', Platform.OS);
+      // Extract colors using react-native-image-colors
+      getColors(article.heroImage, {
+        fallback: fallbackColors[index % fallbackColors.length],
+        cache: true,
+        key: article.heroImage,
+        quality: Platform.OS === 'ios' ? 'low' : 'low'
+      }).then(colors => {
+        if (colors) {
+          let selectedColor = fallbackColors[index % fallbackColors.length];
 
-      // Try different quality on iOS
-      const quality = Platform.OS === 'ios' ? 'high' : 'low';
+          if (colors.platform === 'ios') {
+            // iOS returns: background, primary, secondary, detail
+            // Try to use primary or secondary color (usually more vibrant)
+            selectedColor = colors.primary || colors.secondary || colors.background || selectedColor;
+          } else if (colors.platform === 'android') {
+            // Android returns: dominant, vibrant, darkVibrant, lightVibrant, muted, darkMuted, lightMuted
+            selectedColor = colors.vibrant || colors.dominant || colors.darkVibrant || selectedColor;
+          } else if (colors.platform === 'web') {
+            // Web returns: dominant, vibrant, darkVibrant, lightVibrant, muted, darkMuted, lightMuted
+            selectedColor = colors.vibrant || colors.dominant || selectedColor;
+          }
 
-      // Extract new color
-      getAllSwatches({ quality, alpha: 1 }, article.heroImage, (err, swatches) => {
-        console.log('Raw error:', err);
-        console.log('Raw swatches:', JSON.stringify(swatches, null, 2));
-        if (err) {
-          console.log('Color extraction error:', err);
-
-          // Try prefetching and extracting from cached version
-          console.log('Trying to prefetch and extract...');
-          Image.prefetch(article.heroImage).then(() => {
-            getAllSwatches({ quality: 'high', alpha: 1 }, article.heroImage, (err2, swatches2) => {
-              if (!err2 && swatches2 && swatches2.length > 1) {
-                console.log('Prefetch extraction worked!', swatches2);
-                processSwatches(swatches2);
-              } else {
-                console.log('Prefetch extraction also failed');
-                useFallback();
-              }
-            });
-          }).catch(() => {
-            console.log('Prefetch failed');
-            useFallback();
-          });
-        } else if (swatches && swatches.length > 0) {
-          processSwatches(swatches);
+          // Ensure we have a valid color
+          if (selectedColor && selectedColor !== '#000000' && selectedColor !== '#FFFFFF') {
+            colorCache.set(article.heroImage, selectedColor);
+            setBgColor(selectedColor);
+          } else {
+            // Use fallback if extracted color is black or white
+            const fallback = fallbackColors[index % fallbackColors.length];
+            setBgColor(fallback);
+          }
         } else {
-          console.log('No swatches found');
-          useFallback();
-        }
-
-        function processSwatches(swatches: any[]) {
-          // Log all swatches to debug
-          console.log('Processing swatches:', swatches.map(s => ({
-            hex: s.hex,
-            population: s.population,
-            color: s.color
-          })));
-
-          // Sort by population to get most dominant colors
-          const sortedSwatches = [...swatches].sort((a, b) =>
-            (parseInt(b.population) || 0) - (parseInt(a.population) || 0)
-          );
-
-          // Find first non-black/non-white color
-          const vibrantColor = sortedSwatches.find(swatch => {
-            const hex = swatch.hex?.toUpperCase();
-            // Skip blacks, whites, and very dark colors
-            return hex &&
-              hex !== '#000000FF' &&
-              hex !== '#FFFFFFFF' &&
-              !hex.startsWith('#000') &&
-              !hex.startsWith('#FFF') &&
-              !hex.startsWith('#0') &&
-              !hex.startsWith('#1') &&
-              !hex.startsWith('#2');
-          });
-
-          // Use vibrant color, or any non-black color, or fallback
-          const selectedColor = vibrantColor?.hex ||
-            sortedSwatches.find(s => s.hex && s.hex.toUpperCase() !== '#000000FF')?.hex ||
-            fallbackColors[index % fallbackColors.length];
-
-          console.log('Selected color:', selectedColor);
-          colorCache.set(article.heroImage, selectedColor);
-          setBgColor(selectedColor);
-        }
-
-        function useFallback() {
+          // No colors extracted, use fallback
           const fallback = fallbackColors[index % fallbackColors.length];
-          console.log('Using fallback:', fallback);
           setBgColor(fallback);
         }
+      }).catch(err => {
+        console.log('Color extraction error:', err);
+        // Use fallback on error
+        const fallback = fallbackColors[index % fallbackColors.length];
+        setBgColor(fallback);
       });
     } else {
       // No image, use fallback color
@@ -168,7 +129,7 @@ const CarouselCard: React.FC<{
       style={[
         styles.card,
         bgColor && {
-          backgroundColor: bgColor.startsWith('#') ? `${bgColor.slice(0, 7)}35` : `${bgColor}35`, // 35% opacity, handle RGBA hex
+          backgroundColor: `${bgColor}35`, // 35% opacity
         }
       ]}
       radius={8}

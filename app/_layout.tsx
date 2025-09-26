@@ -121,10 +121,7 @@ function TabLayout() {
   if (appState === 'loading') {
     console.log('[DEBUG] Loading auth and onboarding status...');
     return (
-      <BrandedSplashLoader
-        text="مرحباً بك في شجرة عائلة القفاري"
-        subtitle="جاري تحضير التطبيق"
-      />
+      <BrandedSplashLoader />
     );
   }
 
