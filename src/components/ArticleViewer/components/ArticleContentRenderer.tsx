@@ -26,6 +26,7 @@ interface ArticleContentRendererProps {
   fontSize: number;
   onImagePress?: (imageUrl: string, index: number) => void;
   onImagesExtracted?: (images: string[]) => void;
+  isHeavyArticle?: boolean;
 }
 
 // System fonts - let iOS choose the right Arabic font automatically
@@ -243,11 +244,9 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, im
 
     const handleImagePress = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Find the index of this image in the array
-      const imageIndex = images ? images.indexOf(src) : -1;
       if (onImagePress) {
-        // Call handler even if image not found in array (use index 0 as fallback)
-        onImagePress(src, imageIndex !== -1 ? imageIndex : 0);
+        // Pass the image URL directly, always use index 0
+        onImagePress(src, 0);
       }
     };
 
@@ -322,34 +321,8 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
   fontSize,
   onImagePress,
   onImagesExtracted,
+  isHeavyArticle = false,
 }) => {
-  // Track all images in the article
-  const [articleImages, setArticleImages] = useState<string[]>([]);
-
-  // Extract images from HTML on mount or when HTML changes
-  useEffect(() => {
-    if (!html) return;
-
-    // Extract all image URLs from HTML
-    const imgRegex = /<img[^>]+src="([^"]+)"/gi;
-    const images: string[] = [];
-    let match;
-
-    while ((match = imgRegex.exec(html)) !== null) {
-      const imageUrl = match[1];
-      // Skip tiny images (likely icons)
-      if (!imageUrl.includes('20x20') && !imageUrl.includes('32x32')) {
-        images.push(imageUrl.replace(/&amp;/g, '&'));
-      }
-    }
-
-    setArticleImages(images);
-
-    // Notify parent component about extracted images
-    if (onImagesExtracted && images.length > 0) {
-      onImagesExtracted(images);
-    }
-  }, [html, onImagesExtracted]);
 
   // Create styles based on font size
   const tagsStyles = useMemo(
@@ -359,19 +332,54 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
 
   // Create renderers with image handling
   const renderers = useMemo(
-    () => createRenderers(onImagePress, articleImages),
-    [onImagePress, articleImages]
+    () => createRenderers(onImagePress, []),
+    [onImagePress]
   );
 
   // Clean HTML for better rendering
   const cleanHtml = useMemo(() => {
-    // Remove gallery shortcodes and clean up
-    return html
+    let processedHtml = html
       .replace(/\[gallery[^\]]*\]/g, '')
       .replace(/\[caption[^\]]*\](.*?)\[\/caption\]/g, '$1')
       .replace(/<!--more-->/g, '')
       .replace(/<!--nextpage-->/g, '');
-  }, [html]);
+
+    // For heavy articles, truncate at gallery boundary
+    if (isHeavyArticle && processedHtml.length > 100000) {
+      // Strategy: Find where gallery starts and cut BEFORE it
+      let cutPoint = 40000; // Fallback if no pattern found
+
+      // Look for just 3 images appearing close together (gallery starting)
+      const imgPattern = /(<img[^>]*>[\s\S]{0,500}){3,}/gi;
+      const galleryMatch = imgPattern.exec(processedHtml);
+
+      if (galleryMatch) {
+        // Gallery found - now find the last paragraph BEFORE it
+        const galleryStart = galleryMatch.index;
+
+        // Search backwards from gallery start to find last </p>
+        const beforeGallery = processedHtml.substring(0, galleryStart);
+        const lastParagraph = beforeGallery.lastIndexOf('</p>');
+
+        if (lastParagraph > 0) {
+          cutPoint = lastParagraph + 4; // Include the </p>
+        } else {
+          // No paragraph found, cut well before gallery
+          cutPoint = Math.max(10000, galleryStart - 1000);
+        }
+      } else {
+        // No gallery pattern found, look for a good paragraph break
+        const lastParagraph = processedHtml.lastIndexOf('</p>', cutPoint);
+        if (lastParagraph > cutPoint * 0.7) {
+          cutPoint = lastParagraph + 4;
+        }
+      }
+
+      processedHtml = processedHtml.substring(0, cutPoint);
+    }
+
+    return processedHtml;
+  }, [html, isHeavyArticle]);
 
   return (
     <View style={styles.container}>

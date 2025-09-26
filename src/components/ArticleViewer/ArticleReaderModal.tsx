@@ -16,19 +16,20 @@ import {
   Image,
   Alert,
 } from 'react-native';
+import { Galeria } from '@nandorojo/galeria';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { NewsArticle } from '../../services/news';
 import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
 import PhotoGalleryGrid from './components/PhotoGalleryGrid';
-import { Galeria } from '@nandorojo/galeria';
-import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
 import tokens from '../ui/tokens';
+import { extractPreviewImages } from './utils/linkExtractor';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -54,13 +55,61 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const headerAnimY = useRef(new Animated.Value(0)).current;
   const progressWidth = useRef(new Animated.Value(0)).current;
 
-  // Inline image viewer state
-  const [inlineImages, setInlineImages] = useState<string[]>([]);
-  const [viewerVisible, setViewerVisible] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  // All images from the article (for unified Galeria viewer)
+  const [allArticleImages, setAllArticleImages] = useState<string[]>([]);
+  const [galeriaIndex, setGaleriaIndex] = useState(0);
+  const [showGaleria, setShowGaleria] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
+
+  // Gallery preview images for PhotoGalleryGrid
+  const [galleryPreviewImages, setGalleryPreviewImages] = useState<string[]>([]);
+  const [galleryImageCount, setGalleryImageCount] = useState(0);
 
   // Format date
   const formattedDate = useAbsoluteDateNoMemo(article?.publishedAt ? new Date(article.publishedAt) : new Date());
+
+  // Extract all images from article
+  useEffect(() => {
+    if (!article || !article.html) {
+      setAllArticleImages([]);
+      setGalleryPreviewImages([]);
+      setGalleryImageCount(0);
+      return;
+    }
+
+    // Extract ALL images from the article
+    const imgRegex = /<img[^>]+src="([^"]+)"/gi;
+    const images: string[] = [];
+    let match;
+
+    while ((match = imgRegex.exec(article.html)) !== null) {
+      const imageUrl = match[1];
+      // Skip tiny images (likely icons)
+      if (!imageUrl.includes('20x20') && !imageUrl.includes('32x32')) {
+        images.push(imageUrl.replace(/&amp;/g, '&'));
+      }
+    }
+
+    setAllArticleImages(images);
+
+    const htmlSize = article.html.length;
+    if (htmlSize > 100000) {
+      // Extract from the last 30KB where gallery typically is
+      const tailHtml = article.html.slice(-30000);
+
+      // Extract preview images for gallery grid
+      const previewImages = extractPreviewImages(tailHtml, 9); // Get 9 images for the grid
+      setGalleryPreviewImages(previewImages);
+
+      // Estimate total count from tail
+      const imageMatches = tailHtml.match(/<img/gi);
+      const estimatedCount = imageMatches ? imageMatches.length * 2 : 0; // Rough estimate
+      setGalleryImageCount(estimatedCount);
+    } else {
+      setGalleryPreviewImages([]);
+      setGalleryImageCount(0);
+    }
+  }, [article]);
 
   // Load article content and manage caching
   useEffect(() => {
@@ -148,52 +197,48 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Handle inline image press
+  // Handle inline image press - open Galeria at the right index
   const handleInlineImagePress = useCallback((imageUrl: string, index: number) => {
-    // If the image wasn't in the extracted array, add it temporarily
-    if (index === 0 && !inlineImages.includes(imageUrl)) {
-      setInlineImages(prev => [imageUrl, ...prev]);
-      setSelectedImageIndex(0);
+    // Find the actual index in our allArticleImages array
+    const actualIndex = allArticleImages.findIndex(img => img === imageUrl);
+    if (actualIndex !== -1) {
+      setGaleriaIndex(actualIndex);
     } else {
-      setSelectedImageIndex(index);
+      // If image not found, add it and set index to 0
+      setAllArticleImages(prev => [imageUrl, ...prev]);
+      setGaleriaIndex(0);
     }
-    setViewerVisible(true);
+    setSelectedImageUrl(imageUrl);
+    setShowGaleria(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [inlineImages]);
+  }, [allArticleImages]);
 
-  // Handle images extracted from article
-  const handleImagesExtracted = useCallback((images: string[]) => {
-    setInlineImages(images);
-  }, []);
-
-  // Download image functionality
-  const handleDownloadImage = async (imageUrl: string) => {
+  // Share image function - download first, then share
+  const handleShareImage = async () => {
     try {
-      // Request permissions
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('الصلاحية مطلوبة', 'يرجى السماح بالوصول إلى معرض الصور');
-        return;
-      }
+      const imageUrl = selectedImageUrl || allArticleImages[galeriaIndex] || allArticleImages[0];
+      if (!imageUrl) return;
 
-      // Download image to cache
+      // Download image to temp directory first
       const filename = imageUrl.split('/').pop() || 'image.jpg';
-      const fileUri = FileSystem.documentDirectory + filename;
+      const fileUri = FileSystem.cacheDirectory + filename;
 
       const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
 
-      // Save to camera roll
-      const asset = await MediaLibrary.createAssetAsync(downloadResult.uri);
-      await MediaLibrary.createAlbumAsync('القفاري', asset, false);
-
-      Alert.alert('تم الحفظ', 'تم حفظ الصورة في معرض الصور');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Now share the downloaded file
+      await Sharing.shareAsync(downloadResult.uri);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (error) {
-      console.error('Failed to download image:', error);
-      Alert.alert('خطأ', 'فشل حفظ الصورة');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('Failed to share image:', error);
+      Alert.alert('خطأ', 'فشل مشاركة الصورة');
     }
   };
+
+  // Handle images extracted from article - no longer needed as we extract all upfront
+  const handleImagesExtracted = useCallback((images: string[]) => {
+    // No-op - we extract all images upfront now
+  }, []);
+
 
 
   // Calculate reading time
@@ -290,15 +335,25 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 fontSize={fontSize}
                 onImagePress={handleInlineImagePress}
                 onImagesExtracted={handleImagesExtracted}
+                isHeavyArticle={(article.html?.length || 0) > 100000}
               />
 
-              {/* Photo Gallery Grid - minimal props for performance */}
+              {/* Photo Gallery Grid - with preview images */}
               <PhotoGalleryGrid
-                articleId={article.id}
+                previewImages={galleryPreviewImages}
+                totalImageCount={galleryImageCount}
                 permalink={article.permalink || ''}
-                htmlSize={article.html?.length || 0}
                 title={article.title}
                 isNightMode={false}
+                onImagePress={(imageUrl) => {
+                  // Open Galeria at the clicked image
+                  const index = allArticleImages.findIndex(img => img === imageUrl);
+                  if (index !== -1) {
+                    setGaleriaIndex(index);
+                    setSelectedImageUrl(imageUrl);
+                    setShowGaleria(true);
+                  }
+                }}
               />
             </>
           )}
@@ -306,6 +361,42 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           {/* Bottom Padding */}
           <View style={{ height: 100 }} />
         </ScrollView>
+
+        {/* Unified Galeria Viewer for All Images */}
+        {showGaleria && allArticleImages.length > 0 && (
+          <Galeria
+            urls={allArticleImages}
+            initialIndex={galeriaIndex}
+            onIndexChange={(index) => {
+              setGaleriaIndex(index);
+              setSelectedImageUrl(allArticleImages[index]);
+            }}
+            onRequestClose={() => setShowGaleria(false)}
+            visible={showGaleria}
+            renderHeaderComponent={() => (
+              <View style={styles.galeriaHeader}>
+                <TouchableOpacity
+                  style={styles.galeriaCloseButton}
+                  onPress={() => setShowGaleria(false)}
+                >
+                  <View style={styles.galeriaCloseCircle}>
+                    <Ionicons name="close" size={20} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+            renderFooterComponent={() => (
+              <View style={styles.galeriaFooter}>
+                <TouchableOpacity
+                  style={styles.galeriaShareButton}
+                  onPress={handleShareImage}
+                >
+                  <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+        )}
 
         {/* Floating Header - iOS Style */}
         <Animated.View
@@ -378,38 +469,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           </BlurView>
         </Animated.View>
 
-        {/* Native Image Viewer for Inline Images */}
-        {inlineImages.length > 0 && (
-          <Galeria
-            visible={viewerVisible}
-            urls={inlineImages}
-            initialIndex={selectedImageIndex}
-            onRequestClose={() => setViewerVisible(false)}
-            renderHeaderComponent={({ index }: { index: number }) => (
-              <View style={styles.viewerHeader}>
-                <TouchableOpacity
-                  onPress={() => setViewerVisible(false)}
-                  style={styles.viewerCloseButton}
-                >
-                  <View style={styles.viewerCloseCircle}>
-                    <Ionicons name="close" size={24} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
-
-                <Text style={styles.viewerCounter}>
-                  {index + 1} من {inlineImages.length}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => handleDownloadImage(inlineImages[index])}
-                  style={styles.viewerDownloadButton}
-                >
-                  <Ionicons name="download-outline" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            )}
-          />
-        )}
       </View>
     </Modal>
   );
@@ -582,43 +641,40 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'System',
   },
-  viewerHeader: {
+  // Galeria viewer styles
+  galeriaHeader: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingHorizontal: 16,
-    paddingTop: 60, // Account for safe area
-    paddingBottom: 16,
-    backgroundColor: 'rgba(0,0,0,0.3)',
     zIndex: 1000,
   },
-  viewerCloseButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
+  galeriaCloseButton: {
+    alignSelf: 'flex-end',
   },
-  viewerCloseCircle: {
+  galeriaCloseCircle: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  viewerCounter: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'System',
+  galeriaFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
+    alignItems: 'center',
   },
-  viewerDownloadButton: {
-    width: 44,
-    height: 44,
+  galeriaShareButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
