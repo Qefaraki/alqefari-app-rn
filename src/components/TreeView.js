@@ -615,9 +615,8 @@ const TreeView = ({
     if (existingData && existingData.length > 0) {
       const loadTime = Date.now() - startTime;
       console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes, instant load in', loadTime, 'ms');
-      setTreeData(existingData);
-
-      // Immediately hide skeleton if we have preloaded data
+      // Don't call setTreeData with the same data - component already subscribes to store
+      // Just update loading state
       setShowSkeleton(false);
       setIsLoading(false);
       return;
@@ -753,6 +752,15 @@ const TreeView = ({
     setIsRetrying(true);
     await loadTreeData();
   };
+
+  // Sync loading state with treeData changes
+  useEffect(() => {
+    if (treeData && treeData.length > 0 && isLoading) {
+      console.log('[TreeView] Tree data updated, hiding loading state');
+      setIsLoading(false);
+      setShowSkeleton(false);
+    }
+  }, [treeData, isLoading]);
 
   // Load tree data on mount
   useEffect(() => {
