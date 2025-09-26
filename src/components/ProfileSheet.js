@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -54,6 +53,8 @@ import GlassMetricPill from "./GlassMetricPill";
 import SectionCard from "./SectionCard";
 import DefinitionList from "./DefinitionList";
 import AchievementsList from "./AchievementsList";
+import BrandedInlineLoader from "./ui/BrandedInlineLoader";
+import BrandedLoader from "./ui/BrandedLoader";
 import { LinearGradient } from "expo-linear-gradient";
 import GlassTag from "./GlassTag";
 import * as Haptics from "expo-haptics";
@@ -711,7 +712,7 @@ const ProfileSheet = ({ editMode = false }) => {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <BrandedInlineLoader size={20} color="#007AFF" />
             ) : (
               <Text
                 style={[
@@ -775,7 +776,7 @@ const ProfileSheet = ({ editMode = false }) => {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#007AFF" />
+                  <BrandedInlineLoader size={20} color="#007AFF" />
                 ) : (
                   <Text
                     style={[
@@ -1452,7 +1453,7 @@ const ProfileSheet = ({ editMode = false }) => {
                       الأبناء
                     </Text>
                     {loadingRelationshipChildren ? (
-                      <ActivityIndicator style={{ padding: 20 }} />
+                      <BrandedLoader size="small" showText={false} style={{ padding: 20 }} />
                     ) : (
                       <DraggableChildrenList
                         initialChildren={relationshipChildren}

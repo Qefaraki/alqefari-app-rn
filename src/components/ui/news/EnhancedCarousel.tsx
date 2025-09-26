@@ -8,18 +8,29 @@ import {
   View,
   Text,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { getAllSwatches } from 'react-native-palette';
+import { getAllSwatches, getNamedSwatches } from 'react-native-palette';
+import { Image } from 'expo-image';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
 import Surface from '../Surface';
 import { useRelativeDateNoMemo } from '../../../hooks/useFormattedDateNoMemo';
 
-// WeakMap cache for extracted colors
-const colorCache = new WeakMap();
+// Map cache for extracted colors (using URL as key)
+const colorCache = new Map<string, string>();
+
+// Fallback colors for cards without images
+const fallbackColors = [
+  '#A13333', // Najdi Crimson
+  '#D58C4A', // Desert Ochre
+  '#8B5A3C', // Brown
+  '#704214', // Dark Bronze
+  '#5C4033', // Coffee
+];
 
 interface EnhancedCarouselProps {
   articles: NewsArticle[];
@@ -38,35 +49,114 @@ const PEEK_WIDTH = (SCREEN_WIDTH - CARD_WIDTH) / 2;
 const CarouselCard: React.FC<{
   article: NewsArticle;
   onPress: () => void;
-}> = ({ article, onPress }) => {
+  index?: number;
+}> = ({ article, onPress, index = 0 }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
   const [bgColor, setBgColor] = useState<string | null>(null);
-  const imageRef = useRef(article.heroImage);
+  const imageRef = useRef<string | null>(null); // Initialize as null
 
   // Extract color from hero image
   useEffect(() => {
-    if (article.heroImage && imageRef.current !== article.heroImage) {
+    if (article.heroImage) {
+      // Check if we've already processed this image
+      if (imageRef.current === article.heroImage) {
+        return;
+      }
       imageRef.current = article.heroImage;
 
       // Check cache first
-      const cached = colorCache.get(article);
+      const cached = colorCache.get(article.heroImage);
       if (cached) {
+        console.log('Using cached color:', cached);
         setBgColor(cached);
         return;
       }
 
+      console.log('Extracting color from:', article.heroImage);
+      console.log('Platform:', Platform.OS);
+
+      // Try different quality on iOS
+      const quality = Platform.OS === 'ios' ? 'high' : 'low';
+
       // Extract new color
-      getAllSwatches({ quality: 'low' }, article.heroImage, (err, swatches) => {
-        if (!err && swatches && swatches.length > 0) {
-          const dominantColor = swatches[0]?.hex;
-          if (dominantColor) {
-            colorCache.set(article, dominantColor);
-            setBgColor(dominantColor);
-          }
+      getAllSwatches({ quality, alpha: 1 }, article.heroImage, (err, swatches) => {
+        console.log('Raw error:', err);
+        console.log('Raw swatches:', JSON.stringify(swatches, null, 2));
+        if (err) {
+          console.log('Color extraction error:', err);
+
+          // Try prefetching and extracting from cached version
+          console.log('Trying to prefetch and extract...');
+          Image.prefetch(article.heroImage).then(() => {
+            getAllSwatches({ quality: 'high', alpha: 1 }, article.heroImage, (err2, swatches2) => {
+              if (!err2 && swatches2 && swatches2.length > 1) {
+                console.log('Prefetch extraction worked!', swatches2);
+                processSwatches(swatches2);
+              } else {
+                console.log('Prefetch extraction also failed');
+                useFallback();
+              }
+            });
+          }).catch(() => {
+            console.log('Prefetch failed');
+            useFallback();
+          });
+        } else if (swatches && swatches.length > 0) {
+          processSwatches(swatches);
+        } else {
+          console.log('No swatches found');
+          useFallback();
+        }
+
+        function processSwatches(swatches: any[]) {
+          // Log all swatches to debug
+          console.log('Processing swatches:', swatches.map(s => ({
+            hex: s.hex,
+            population: s.population,
+            color: s.color
+          })));
+
+          // Sort by population to get most dominant colors
+          const sortedSwatches = [...swatches].sort((a, b) =>
+            (parseInt(b.population) || 0) - (parseInt(a.population) || 0)
+          );
+
+          // Find first non-black/non-white color
+          const vibrantColor = sortedSwatches.find(swatch => {
+            const hex = swatch.hex?.toUpperCase();
+            // Skip blacks, whites, and very dark colors
+            return hex &&
+              hex !== '#000000FF' &&
+              hex !== '#FFFFFFFF' &&
+              !hex.startsWith('#000') &&
+              !hex.startsWith('#FFF') &&
+              !hex.startsWith('#0') &&
+              !hex.startsWith('#1') &&
+              !hex.startsWith('#2');
+          });
+
+          // Use vibrant color, or any non-black color, or fallback
+          const selectedColor = vibrantColor?.hex ||
+            sortedSwatches.find(s => s.hex && s.hex.toUpperCase() !== '#000000FF')?.hex ||
+            fallbackColors[index % fallbackColors.length];
+
+          console.log('Selected color:', selectedColor);
+          colorCache.set(article.heroImage, selectedColor);
+          setBgColor(selectedColor);
+        }
+
+        function useFallback() {
+          const fallback = fallbackColors[index % fallbackColors.length];
+          console.log('Using fallback:', fallback);
+          setBgColor(fallback);
         }
       });
+    } else {
+      // No image, use fallback color
+      const fallback = fallbackColors[index % fallbackColors.length];
+      setBgColor(fallback);
     }
-  }, [article, article.heroImage]);
+  }, [article.heroImage, index]);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -78,9 +168,7 @@ const CarouselCard: React.FC<{
       style={[
         styles.card,
         bgColor && {
-          backgroundColor: `${bgColor}12`, // 12% opacity for subtle tint
-          borderLeftWidth: 3,
-          borderLeftColor: bgColor,
+          backgroundColor: bgColor.startsWith('#') ? `${bgColor.slice(0, 7)}35` : `${bgColor}35`, // 35% opacity, handle RGBA hex
         }
       ]}
       radius={8}
@@ -214,6 +302,7 @@ const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
           <CarouselCard
             article={item}
             onPress={() => onArticlePress(item)}
+            index={index}
           />
         </View>
       );

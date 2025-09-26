@@ -1,7 +1,7 @@
 import "../global.css"; // Import global CSS for NativeWind styles
 import React, { useState, useEffect, Component } from "react";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
-import { DynamicColorIOS, Platform, View, Text, ActivityIndicator, StyleSheet, Button } from "react-native";
+import { DynamicColorIOS, Platform, View, Text, StyleSheet, Button } from "react-native";
 import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
 import { AdminModeProvider } from "../src/contexts/AdminModeContext";
@@ -10,6 +10,7 @@ import AuthNavigator from "../src/navigation/AuthNavigator";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import BrandedSplashLoader from "../src/components/ui/BrandedSplashLoader";
 
 // Error Boundary to catch and display any silent errors
 class ErrorBoundary extends Component {
@@ -120,10 +121,10 @@ function TabLayout() {
   if (appState === 'loading') {
     console.log('[DEBUG] Loading auth and onboarding status...');
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#A13333" />
-        <Text style={styles.loadingText}>جاري التحميل...</Text>
-      </View>
+      <BrandedSplashLoader
+        text="مرحباً بك في شجرة عائلة القفاري"
+        subtitle="جاري تحضير التطبيق"
+      />
     );
   }
 
