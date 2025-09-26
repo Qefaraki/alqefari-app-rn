@@ -16,7 +16,6 @@ import { getColors } from 'react-native-image-colors';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
-import Surface from '../Surface';
 import { useRelativeDateNoMemo } from '../../../hooks/useFormattedDateNoMemo';
 
 // Map cache for extracted colors (using URL as key)
@@ -30,6 +29,27 @@ const fallbackColors = [
   '#704214', // Dark Bronze
   '#5C4033', // Coffee
 ];
+
+// Check if a color is too light (close to white/grey)
+const isColorTooLight = (hex: string): boolean => {
+  if (!hex || hex.length < 7) return true;
+
+  // Remove # and parse RGB
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+
+  // Calculate brightness (0-255)
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+
+  // Calculate saturation to detect greys
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+
+  // Reject if too bright or too grey (low saturation)
+  return brightness > 180 || saturation < 0.2;
+};
 
 interface EnhancedCarouselProps {
   articles: NewsArticle[];
@@ -78,26 +98,44 @@ const CarouselCard: React.FC<{
         quality: Platform.OS === 'ios' ? 'low' : 'low'
       }).then(colors => {
         if (colors) {
-          let selectedColor = fallbackColors[index % fallbackColors.length];
+          let selectedColor = null;
 
           if (colors.platform === 'ios') {
             // iOS returns: background, primary, secondary, detail
-            // Try to use primary or secondary color (usually more vibrant)
-            selectedColor = colors.primary || colors.secondary || colors.background || selectedColor;
+            // Try colors in order of preference, checking darkness
+            const candidates = [colors.primary, colors.secondary, colors.detail, colors.background];
+            for (const color of candidates) {
+              if (color && !isColorTooLight(color) && color !== '#000000') {
+                selectedColor = color;
+                break;
+              }
+            }
           } else if (colors.platform === 'android') {
             // Android returns: dominant, vibrant, darkVibrant, lightVibrant, muted, darkMuted, lightMuted
-            selectedColor = colors.vibrant || colors.dominant || colors.darkVibrant || selectedColor;
+            const candidates = [colors.darkVibrant, colors.vibrant, colors.darkMuted, colors.dominant, colors.muted];
+            for (const color of candidates) {
+              if (color && !isColorTooLight(color) && color !== '#000000') {
+                selectedColor = color;
+                break;
+              }
+            }
           } else if (colors.platform === 'web') {
             // Web returns: dominant, vibrant, darkVibrant, lightVibrant, muted, darkMuted, lightMuted
-            selectedColor = colors.vibrant || colors.dominant || selectedColor;
+            const candidates = [colors.darkVibrant, colors.vibrant, colors.darkMuted, colors.dominant];
+            for (const color of candidates) {
+              if (color && !isColorTooLight(color) && color !== '#000000') {
+                selectedColor = color;
+                break;
+              }
+            }
           }
 
-          // Ensure we have a valid color
-          if (selectedColor && selectedColor !== '#000000' && selectedColor !== '#FFFFFF') {
+          // Use selected color or fallback
+          if (selectedColor) {
             colorCache.set(article.heroImage, selectedColor);
             setBgColor(selectedColor);
           } else {
-            // Use fallback if extracted color is black or white
+            // Use fallback if no suitable color found
             const fallback = fallbackColors[index % fallbackColors.length];
             setBgColor(fallback);
           }
@@ -107,7 +145,6 @@ const CarouselCard: React.FC<{
           setBgColor(fallback);
         }
       }).catch(err => {
-        console.log('Color extraction error:', err);
         // Use fallback on error
         const fallback = fallbackColors[index % fallbackColors.length];
         setBgColor(fallback);
@@ -125,14 +162,13 @@ const CarouselCard: React.FC<{
   };
 
   return (
-    <Surface
+    <View
       style={[
         styles.card,
-        bgColor && {
-          backgroundColor: `${bgColor}35`, // 35% opacity
-        }
+        bgColor ? {
+          backgroundColor: `${bgColor}30`, // 19% opacity for subtle tint with darker colors
+        } : {}
       ]}
-      radius={8}
     >
       <Pressable
         style={styles.cardPressable}
@@ -169,13 +205,13 @@ const CarouselCard: React.FC<{
           <Text style={styles.cardDate}>{relativeDate}</Text>
         </View>
       </Pressable>
-    </Surface>
+    </View>
   );
 };
 
 // Skeleton loading card
 const SkeletonCard: React.FC = () => (
-  <Surface style={styles.card} radius={8}>
+  <View style={styles.card}>
     <View style={styles.cardPressable}>
       <View style={[styles.heroImage, styles.skeletonImage]} />
       <View style={styles.cardContent}>
@@ -186,7 +222,7 @@ const SkeletonCard: React.FC = () => (
         <View style={[styles.skeletonLine, { width: 80, height: 10 }]} />
       </View>
     </View>
-  </Surface>
+  </View>
 );
 
 const EnhancedCarousel: React.FC<EnhancedCarouselProps> = ({
@@ -345,6 +381,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: tokens.colors.najdi.background, // Al-Jass White
     overflow: 'hidden',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D1BBA31A',
     shadowColor: '#000',

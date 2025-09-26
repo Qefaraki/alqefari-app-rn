@@ -8,7 +8,6 @@ import {
 
 const BrandedInlineLoader = ({
   size = 16,
-  color = '#A13333', // Najdi Crimson
   style,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -41,7 +40,7 @@ const BrandedInlineLoader = ({
           {
             width: size,
             height: size,
-            tintColor: color,
+            tintColor: '#242121', // Black
           },
         ]}
         resizeMode="contain"

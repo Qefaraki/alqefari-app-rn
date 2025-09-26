@@ -712,7 +712,7 @@ const ProfileSheet = ({ editMode = false }) => {
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {saving ? (
-              <BrandedInlineLoader size={20} color="#007AFF" />
+              <BrandedInlineLoader size={20} />
             ) : (
               <Text
                 style={[
@@ -776,7 +776,7 @@ const ProfileSheet = ({ editMode = false }) => {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 {saving ? (
-                  <BrandedInlineLoader size={20} color="#007AFF" />
+                  <BrandedInlineLoader size={20} />
                 ) : (
                   <Text
                     style={[
@@ -1453,7 +1453,7 @@ const ProfileSheet = ({ editMode = false }) => {
                       الأبناء
                     </Text>
                     {loadingRelationshipChildren ? (
-                      <BrandedLoader size="small" showText={false} style={{ padding: 20 }} />
+                      <BrandedLoader size="small" style={{ padding: 20 }} />
                     ) : (
                       <DraggableChildrenList
                         initialChildren={relationshipChildren}

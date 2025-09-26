@@ -100,21 +100,23 @@ const ArticleHeader: React.FC<ArticleHeaderProps> = ({
 
   return (
     <View style={styles.headerContainer}>
-      <Animated.View style={[styles.heroContainer, heroAnimatedStyle]}>
-        {isImageLoading && (
-          <View style={styles.imageLoadingContainer}>
-            <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-          </View>
-        )}
-        <Image
-          source={{ uri: imageUrl || article.heroImage }}
-          style={styles.heroImage}
-          contentFit="cover"
-          transition={300}
-          cachePolicy="memory-disk"
-          priority="high"
-        />
-      </Animated.View>
+      <View style={styles.heroWrapper}>
+        <Animated.View style={[styles.heroContainer, heroAnimatedStyle]}>
+          {isImageLoading && (
+            <View style={styles.imageLoadingContainer}>
+              <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+            </View>
+          )}
+          <Image
+            source={{ uri: imageUrl || article.heroImage }}
+            style={styles.heroImage}
+            contentFit="cover"
+            transition={300}
+            cachePolicy="memory-disk"
+            priority="high"
+          />
+        </Animated.View>
+      </View>
 
       <View style={[styles.titleContainer, isNightMode && styles.titleContainerDark]}>
         <Text style={[styles.title, isNightMode && styles.titleDark]}>
@@ -132,10 +134,15 @@ const styles = StyleSheet.create({
   headerContainerDark: {
     backgroundColor: '#1a1a1a',
   },
-  heroContainer: {
+  heroWrapper: {
     width: screenWidth,
     height: HERO_HEIGHT,
     overflow: 'hidden',
+    backgroundColor: '#000', // Black background for edge cases
+  },
+  heroContainer: {
+    width: screenWidth,
+    height: HERO_HEIGHT,
   },
   heroImage: {
     width: '100%',

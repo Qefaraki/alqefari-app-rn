@@ -12,20 +12,17 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const BrandedLoader = ({
   size = 'medium',
-  showText = true,
-  text = 'شجرة القفاري',
-  color = '#A13333', // Najdi Crimson
   style,
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const sizeMap = {
-    small: { logo: 24, fontSize: 12 },
-    medium: { logo: 48, fontSize: 14 },
-    large: { logo: 80, fontSize: 16 },
+    small: 24,
+    medium: 48,
+    large: 80,
   };
 
-  const dimensions = sizeMap[size] || sizeMap.medium;
+  const logoSize = sizeMap[size] || sizeMap.medium;
 
   useEffect(() => {
     // Simple fade in
@@ -38,33 +35,18 @@ const BrandedLoader = ({
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }, style]}>
-      <View style={styles.logoContainer}>
-        <Image
-          source={require('../../../assets/logo/AlqefariEmblem.png')}
-          style={[
-            styles.logo,
-            {
-              width: dimensions.logo,
-              height: dimensions.logo,
-              tintColor: color,
-            },
-          ]}
-          resizeMode="contain"
-        />
-      </View>
-
-      {showText && (
-        <Text
-          style={[
-            styles.text,
-            {
-              fontSize: dimensions.fontSize,
-            },
-          ]}
-        >
-          {text}
-        </Text>
-      )}
+      <Image
+        source={require('../../../assets/logo/AlqefariEmblem.png')}
+        style={[
+          styles.logo,
+          {
+            width: logoSize,
+            height: logoSize,
+            tintColor: '#242121', // Black
+          },
+        ]}
+        resizeMode="contain"
+      />
     </Animated.View>
   );
 };
@@ -75,18 +57,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  logoContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   logo: {
     aspectRatio: 1,
-  },
-  text: {
-    marginTop: 12,
-    fontFamily: 'SF Arabic',
-    color: '#24212199', // Sadu Night 60%
-    textAlign: 'center',
   },
 });
 
