@@ -24,6 +24,12 @@ export async function forceCompleteSignOut() {
       "hasCompletedOnboarding",  // Clear this to force onboarding screen
       "isGuestMode",  // Clear guest mode flag
       "linkedProfile",
+      // Clear auth cache
+      "authCache_userId",
+      "authCache_hasLinkedProfile",
+      "authCache_hasPendingRequest",
+      "authCache_isAdmin",
+      "authCache_lastUpdated",
     ]);
 
     console.log("✅ Complete sign out successful");

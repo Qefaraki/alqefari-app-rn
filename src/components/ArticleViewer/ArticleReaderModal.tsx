@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -21,6 +21,8 @@ import { BlurView } from 'expo-blur';
 import { NewsArticle } from '../../services/news';
 import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
+import PhotoGalleryGrid from './components/PhotoGalleryGrid';
+import { analyzeContent, extractGalleryLink, extractPreviewImages, countImages } from './utils/linkExtractor';
 import tokens from '../ui/tokens';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -45,13 +47,47 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const insets = useSafeAreaInsets();
   const headerAnimY = useRef(new Animated.Value(0)).current;
 
+  // Photo gallery state
+  const [isPhotoHeavy, setIsPhotoHeavy] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryLink, setGalleryLink] = useState('');
+  const [galleryLinkType, setGalleryLinkType] = useState<'drive' | 'photos' | 'article' | 'other'>('article');
+  const [totalImageCount, setTotalImageCount] = useState(0);
+
   // Format date
   const formattedDate = useAbsoluteDateNoMemo(article?.publishedAt ? new Date(article.publishedAt) : new Date());
 
-  // Load content
+  // Analyze content and load gallery data
   useEffect(() => {
-    if (article) {
+    if (article && article.html) {
       setIsLoading(true);
+
+      // Analyze content for photo-heavy detection
+      const analysis = analyzeContent(article.html);
+      console.log('Article analysis:', analysis);
+
+      // If photo-heavy, extract gallery data
+      if (analysis.isHeavy) {
+        setIsPhotoHeavy(true);
+
+        // Extract gallery link
+        const linkData = extractGalleryLink(article.html, article);
+        setGalleryLink(linkData.url);
+        setGalleryLinkType(linkData.type);
+
+        // Extract preview images
+        const images = extractPreviewImages(article.html, 20); // Get up to 20 for better selection
+        setGalleryImages(images);
+
+        // Set total count
+        setTotalImageCount(analysis.imageCount);
+      } else {
+        setIsPhotoHeavy(false);
+        setGalleryImages([]);
+        setTotalImageCount(0);
+      }
+
+      // Simulate content processing
       setTimeout(() => {
         setIsLoading(false);
       }, 300);
@@ -92,11 +128,26 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  if (!article) return null;
+  // Process HTML for photo-heavy articles (remove images to prevent duplication)
+  // MUST be before early return to follow React hooks rules
+  const processedHtml = useMemo(() => {
+    if (!article?.html) return '';
 
-  // Calculate reading time
-  const wordCount = article.html ? article.html.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
+    // For photo-heavy articles, remove all image tags
+    if (isPhotoHeavy) {
+      return article.html
+        .replace(/<img[^>]*>/gi, '') // Remove all img tags
+        .replace(/<figure[^>]*>.*?<\/figure>/gis, ''); // Remove figure elements that contain images
+    }
+
+    return article.html;
+  }, [article?.html, isPhotoHeavy]);
+
+  // Calculate reading time (safe with optional chaining)
+  const wordCount = article?.html ? article.html.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
   const readingTime = Math.ceil(wordCount / 200);
+
+  if (!article) return null;
 
   const headerHeight = 56 + insets.top;
 
@@ -169,10 +220,23 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
             </View>
           ) : (
-            <ArticleContentRenderer
-              html={article.html || ''}
-              fontSize={fontSize}
-            />
+            <>
+              <ArticleContentRenderer
+                html={processedHtml}
+                fontSize={fontSize}
+              />
+
+              {/* Photo Gallery Grid for photo-heavy articles */}
+              {isPhotoHeavy && galleryImages.length > 0 && (
+                <PhotoGalleryGrid
+                  images={galleryImages}
+                  totalCount={totalImageCount}
+                  externalLink={galleryLink}
+                  linkType={galleryLinkType}
+                  isNightMode={false}
+                />
+              )}
+            </>
           )}
 
           {/* Bottom Padding */}

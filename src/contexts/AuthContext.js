@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { AppState } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../services/supabase";
 
 const AuthContext = createContext({});
@@ -95,6 +96,9 @@ export const AuthProvider = ({ children }) => {
         console.log('[DEBUG AuthContext] Session found for user:', session.user.email || session.user.phone);
         setUser(session.user);
 
+        // Load cached profile status immediately for faster UI
+        await loadCachedAuthState();
+
         // Check admin and profile status in background (non-blocking)
         setTimeout(() => {
           checkAdminStatus(session.user);
@@ -102,17 +106,54 @@ export const AuthProvider = ({ children }) => {
         }, 0);
       } else {
         console.log('[DEBUG AuthContext] No session found');
+        // Clear everything when no session
+        setUser(null);
+        setIsAdmin(false);
+        setHasLinkedProfile(false);
+        setHasPendingRequest(false);
+        await clearAuthCache();
+      }
+    } catch (error) {
+      console.error('[DEBUG AuthContext] Error in checkAuth:', error);
+
+      // Try to get the cached Supabase session directly
+      try {
+        const cachedSessionStr = await AsyncStorage.getItem('supabase.auth.token');
+        if (cachedSessionStr) {
+          const cachedSession = JSON.parse(cachedSessionStr);
+          if (cachedSession?.currentSession?.user) {
+            console.log('[DEBUG AuthContext] Found cached Supabase session for offline use');
+            setUser(cachedSession.currentSession.user);
+            // Load cached profile status
+            await loadCachedAuthState();
+          } else {
+            // No cached session, check our auth cache
+            const hasCachedAuth = await loadCachedAuthState();
+            if (!hasCachedAuth) {
+              // Only reset if no cache exists
+              setUser(null);
+              setIsAdmin(false);
+              setHasLinkedProfile(false);
+              setHasPendingRequest(false);
+            }
+          }
+        } else {
+          // No Supabase cache, try our cache
+          const hasCachedAuth = await loadCachedAuthState();
+          if (!hasCachedAuth) {
+            setUser(null);
+            setIsAdmin(false);
+            setHasLinkedProfile(false);
+            setHasPendingRequest(false);
+          }
+        }
+      } catch (cacheError) {
+        console.error('[DEBUG AuthContext] Failed to load cached session:', cacheError);
         setUser(null);
         setIsAdmin(false);
         setHasLinkedProfile(false);
         setHasPendingRequest(false);
       }
-    } catch (error) {
-      console.error('[DEBUG AuthContext] Error in checkAuth:', error);
-      setUser(null);
-      setIsAdmin(false);
-      setHasLinkedProfile(false);
-      setHasPendingRequest(false);
     } finally {
       console.log('[DEBUG AuthContext] Initial auth check complete');
       setIsLoading(false);
@@ -154,11 +195,20 @@ export const AuthProvider = ({ children }) => {
         setHasPendingRequest(false);
       }
 
+      // Cache the profile status for offline use
+      const pendingStatus = !hasProfile ? hasPending : false;
+      await saveAuthCache(user, hasProfile, pendingStatus);
+
       return hasProfile;
     } catch (error) {
-      console.log('[DEBUG AuthContext] Profile check error:', error);
-      setHasLinkedProfile(false);
-      setHasPendingRequest(false);
+      console.log('[DEBUG AuthContext] Profile check error (likely offline):', error);
+      // Don't immediately set to false - check cache first
+      const cached = await loadCachedAuthState();
+      if (!cached) {
+        // Only set to false if no cache exists
+        setHasLinkedProfile(false);
+        setHasPendingRequest(false);
+      }
       return false;
     }
   };
@@ -182,15 +232,107 @@ export const AuthProvider = ({ children }) => {
 
       if (error) {
         console.log("Admin check error:", error);
-        setIsAdmin(false);
+        // Check cache on error
+        const cachedAdmin = await AsyncStorage.getItem('authCache_isAdmin');
+        if (cachedAdmin !== null) {
+          setIsAdmin(JSON.parse(cachedAdmin));
+        } else {
+          setIsAdmin(false);
+        }
       } else {
         console.log("Admin check for user:", user.id, "Result:", data, "Email:", user.email);
         setIsAdmin(data === true);
+        // Cache admin status
+        await AsyncStorage.setItem('authCache_isAdmin', JSON.stringify(data === true));
       }
     } catch (error) {
       console.log("Admin check exception:", error);
-      setIsAdmin(false);
+      // Check cache on exception
+      const cachedAdmin = await AsyncStorage.getItem('authCache_isAdmin');
+      if (cachedAdmin !== null) {
+        setIsAdmin(JSON.parse(cachedAdmin));
+      } else {
+        setIsAdmin(false);
+      }
     }
+  };
+
+  // Helper function to save auth cache
+  const saveAuthCache = async (user, hasProfile, hasPending) => {
+    try {
+      await AsyncStorage.multiSet([
+        ['authCache_userId', user.id],
+        ['authCache_hasLinkedProfile', JSON.stringify(hasProfile)],
+        ['authCache_hasPendingRequest', JSON.stringify(hasPending)],
+        ['authCache_lastUpdated', new Date().toISOString()],
+      ]);
+      console.log('[DEBUG AuthContext] Auth cache saved');
+    } catch (error) {
+      console.error('[DEBUG AuthContext] Failed to save auth cache:', error);
+    }
+  };
+
+  // Helper function to load cached auth state
+  const loadCachedAuthState = async () => {
+    try {
+      const [[, userId], [, hasProfile], [, hasPending], [, isAdminCached], [, lastUpdated]] =
+        await AsyncStorage.multiGet([
+          'authCache_userId',
+          'authCache_hasLinkedProfile',
+          'authCache_hasPendingRequest',
+          'authCache_isAdmin',
+          'authCache_lastUpdated',
+        ]);
+
+      if (userId && lastUpdated) {
+        // Check if cache is recent (within 7 days)
+        const cacheAge = Date.now() - new Date(lastUpdated).getTime();
+        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+        if (cacheAge < sevenDaysInMs) {
+          console.log('[DEBUG AuthContext] Using cached auth state from', lastUpdated);
+
+          if (hasProfile !== null) {
+            setHasLinkedProfile(JSON.parse(hasProfile));
+          }
+          if (hasPending !== null) {
+            setHasPendingRequest(JSON.parse(hasPending));
+          }
+          if (isAdminCached !== null) {
+            setIsAdmin(JSON.parse(isAdminCached));
+          }
+
+          return true; // Cache was loaded
+        } else {
+          console.log('[DEBUG AuthContext] Auth cache expired');
+        }
+      }
+    } catch (error) {
+      console.error('[DEBUG AuthContext] Failed to load auth cache:', error);
+    }
+    return false; // No cache or failed to load
+  };
+
+  // Helper function to clear auth cache
+  const clearAuthCache = async () => {
+    try {
+      await AsyncStorage.multiRemove([
+        'authCache_userId',
+        'authCache_hasLinkedProfile',
+        'authCache_hasPendingRequest',
+        'authCache_isAdmin',
+        'authCache_lastUpdated',
+      ]);
+      console.log('[DEBUG AuthContext] Auth cache cleared');
+    } catch (error) {
+      console.error('[DEBUG AuthContext] Failed to clear auth cache:', error);
+    }
+  };
+
+  // Add sign out function to clear cache
+  const signOut = async () => {
+    await clearAuthCache();
+    await supabase.auth.signOut();
   };
 
   return (
@@ -204,6 +346,7 @@ export const AuthProvider = ({ children }) => {
         checkAuth,
         checkAdminStatus,
         checkProfileStatus,
+        signOut,
       }}
     >
       {children}
