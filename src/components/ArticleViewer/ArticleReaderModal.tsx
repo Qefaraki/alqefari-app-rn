@@ -13,6 +13,7 @@ import {
   Animated,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,9 +44,11 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [fontSize, setFontSize] = useState(17);
   const [showHeader, setShowHeader] = useState(true);
+  const [readingProgress, setReadingProgress] = useState(0);
   const lastScrollY = useRef(0);
   const insets = useSafeAreaInsets();
   const headerAnimY = useRef(new Animated.Value(0)).current;
+  const progressWidth = useRef(new Animated.Value(0)).current;
 
   // Photo gallery state
   const [isPhotoHeavy, setIsPhotoHeavy] = useState(false);
@@ -76,7 +79,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         setGalleryLinkType(linkData.type);
 
         // Extract preview images
-        const images = extractPreviewImages(article.html, 20); // Get up to 20 for better selection
+        const images = extractPreviewImages(article.html, 20);
         setGalleryImages(images);
 
         // Set total count
@@ -94,19 +97,31 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     }
   }, [article]);
 
-  // Animate header show/hide
+  // Animate header show/hide with spring
   useEffect(() => {
-    Animated.timing(headerAnimY, {
+    Animated.spring(headerAnimY, {
       toValue: showHeader ? 0 : -100,
-      duration: 200,
+      damping: 15,
+      stiffness: 150,
       useNativeDriver: true,
     }).start();
   }, [showHeader]);
 
-  // Handle scroll for header show/hide
-  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const currentY = event.nativeEvent.contentOffset.y;
+  // Animate progress bar
+  useEffect(() => {
+    Animated.timing(progressWidth, {
+      toValue: readingProgress,
+      duration: 150,
+      useNativeDriver: false,
+    }).start();
+  }, [readingProgress]);
 
+  // Handle scroll for header show/hide and progress
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const currentY = contentOffset.y;
+
+    // Show/hide header
     if (currentY > lastScrollY.current && currentY > 100) {
       if (showHeader) setShowHeader(false);
     } else if (currentY < lastScrollY.current - 5) {
@@ -114,6 +129,10 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     }
 
     lastScrollY.current = currentY;
+
+    // Calculate reading progress
+    const scrollPercentage = (contentOffset.y / (contentSize.height - layoutMeasurement.height)) * 100;
+    setReadingProgress(Math.min(100, Math.max(0, scrollPercentage)));
   }, [showHeader]);
 
   // Handle close with haptic
@@ -128,22 +147,21 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Process HTML for photo-heavy articles (remove images to prevent duplication)
-  // MUST be before early return to follow React hooks rules
+  // Process HTML for photo-heavy articles
   const processedHtml = useMemo(() => {
     if (!article?.html) return '';
 
     // For photo-heavy articles, remove all image tags
     if (isPhotoHeavy) {
       return article.html
-        .replace(/<img[^>]*>/gi, '') // Remove all img tags
-        .replace(/<figure[^>]*>.*?<\/figure>/gis, ''); // Remove figure elements that contain images
+        .replace(/<img[^>]*>/gi, '')
+        .replace(/<figure[^>]*>.*?<\/figure>/gis, '');
     }
 
     return article.html;
   }, [article?.html, isPhotoHeavy]);
 
-  // Calculate reading time (safe with optional chaining)
+  // Calculate reading time
   const wordCount = article?.html ? article.html.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
   const readingTime = Math.ceil(wordCount / 200);
 
@@ -176,24 +194,32 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           )}
           scrollEventThrottle={16}
         >
-          {/* Hero Image */}
+          {/* Hero Image with Parallax */}
           {article.heroImage && (
-            <Animated.Image
-              source={{ uri: article.heroImage }}
-              style={[
-                styles.heroImage,
-                {
-                  transform: [{
-                    translateY: scrollY.interpolate({
-                      inputRange: [-100, 0, 100],
-                      outputRange: [-50, 0, 50],
-                      extrapolate: 'clamp',
-                    })
-                  }]
-                }
-              ]}
-              resizeMode="cover"
-            />
+            <Animated.View style={styles.heroWrapper}>
+              <Animated.Image
+                source={{ uri: article.heroImage }}
+                style={[
+                  styles.heroImage,
+                  {
+                    transform: [{
+                      translateY: scrollY.interpolate({
+                        inputRange: [-100, 0, 100],
+                        outputRange: [-50, 0, 25],
+                        extrapolate: 'clamp',
+                      })
+                    }, {
+                      scale: scrollY.interpolate({
+                        inputRange: [-100, 0],
+                        outputRange: [1.2, 1],
+                        extrapolate: 'clamp',
+                      })
+                    }]
+                  }
+                ]}
+                resizeMode="cover"
+              />
+            </Animated.View>
           )}
 
           {/* Article Header */}
@@ -204,13 +230,15 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             <Text style={styles.articleTitle}>{article.title}</Text>
 
             <View style={styles.articleMeta}>
-              <Text style={styles.articleDate}>{formattedDate}</Text>
-              {readingTime > 0 && (
-                <>
-                  <Text style={styles.metaSeparator}>·</Text>
-                  <Text style={styles.readingTime}>{readingTime} دقائق قراءة</Text>
-                </>
-              )}
+              <View style={styles.metaRow}>
+                <Text style={styles.articleDate}>{formattedDate}</Text>
+                {readingTime > 0 && (
+                  <>
+                    <Text style={styles.metaSeparator}>·</Text>
+                    <Text style={styles.readingTime}>{readingTime} دقائق قراءة</Text>
+                  </>
+                )}
+              </View>
             </View>
           </View>
 
@@ -218,6 +246,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+              <Text style={styles.loadingText}>جاري التحميل...</Text>
             </View>
           ) : (
             <>
@@ -243,7 +272,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Floating Header - After ScrollView for proper z-index */}
+        {/* Floating Header - iOS Style */}
         <Animated.View
           style={[
             styles.header,
@@ -253,58 +282,65 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             }
           ]}
         >
-          <BlurView intensity={95} tint="light" style={[styles.headerBlur, { paddingTop: insets.top }]}>
+          <BlurView intensity={85} tint="light" style={[styles.headerBlur, { paddingTop: insets.top }]}>
             <View style={styles.headerContent}>
+              {/* Close Button - iOS Style */}
               <TouchableOpacity
                 onPress={handleClose}
                 style={styles.closeButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
+                <View style={styles.closeButtonCircle}>
+                  <Ionicons name="close" size={20} color={tokens.colors.najdi.text} />
+                </View>
               </TouchableOpacity>
 
-              <View style={styles.headerCenter}>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  {article.title}
-                </Text>
-              </View>
-
+              {/* Font Controls - iOS Style */}
               <View style={styles.fontControls}>
                 <TouchableOpacity
                   onPress={() => adjustFontSize(-1)}
-                  style={styles.fontButton}
+                  style={[styles.fontButton, fontSize <= 14 && styles.fontButtonDisabled]}
                   disabled={fontSize <= 14}
                 >
-                  <Text style={[styles.fontButtonText, { fontSize: 12 }, fontSize <= 14 && styles.disabledText]}>
-                    ص-
-                  </Text>
+                  <Text style={[styles.fontButtonText, styles.fontButtonSmall]}>A</Text>
                 </TouchableOpacity>
+
+                <View style={styles.fontDivider} />
+
                 <TouchableOpacity
                   onPress={() => adjustFontSize(1)}
-                  style={styles.fontButton}
+                  style={[styles.fontButton, fontSize >= 24 && styles.fontButtonDisabled]}
                   disabled={fontSize >= 24}
                 >
-                  <Text style={[styles.fontButtonText, { fontSize: 14 }, fontSize >= 24 && styles.disabledText]}>
-                    ص+
-                  </Text>
+                  <Text style={[styles.fontButtonText, styles.fontButtonLarge]}>A</Text>
                 </TouchableOpacity>
               </View>
+
+              {/* Alqefari Emblem - Right Side for L-shape symmetry */}
+              <View style={styles.emblemContainer}>
+                <Image
+                  source={require('../../../assets/logo/AlqefariEmblem.png')}
+                  style={styles.emblem}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            {/* Progress Pill */}
+            <View style={styles.progressPill}>
+              <Animated.View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: progressWidth.interpolate({
+                      inputRange: [0, 100],
+                      outputRange: ['0%', '100%']
+                    })
+                  }
+                ]}
+              />
             </View>
           </BlurView>
-
-          {/* Reading Progress Bar */}
-          <Animated.View
-            style={[
-              styles.progressBar,
-              {
-                width: scrollY.interpolate({
-                  inputRange: [0, 1000],
-                  outputRange: ['0%', '100%'],
-                  extrapolate: 'clamp',
-                })
-              }
-            ]}
-          />
         </Animated.View>
       </View>
     </Modal>
@@ -325,8 +361,6 @@ const styles = StyleSheet.create({
   },
   headerBlur: {
     flex: 1,
-    borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.najdi.container + '30',
   },
   headerContent: {
     flexDirection: 'row',
@@ -336,49 +370,81 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     height: 56,
   },
-  headerCenter: {
-    flex: 1,
-    marginHorizontal: 16,
-  },
-  headerTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
-    textAlign: 'center',
-    fontFamily: 'SF Arabic',
-  },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  closeButtonCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(142, 142, 147, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   fontControls: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 142, 147, 0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    height: 32,
+    flex: 1,
+    maxWidth: 100,
+    marginHorizontal: 16,
   },
   fontButton: {
-    width: 32,
-    height: 32,
+    flex: 1,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: tokens.colors.najdi.container + '20',
-    borderRadius: 8,
+    borderRadius: 6,
   },
-  fontButtonText: {
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
-    fontFamily: 'SF Arabic',
-  },
-  disabledText: {
+  fontButtonDisabled: {
     opacity: 0.3,
   },
-  progressBar: {
+  fontButtonText: {
+    fontWeight: '500',
+    color: tokens.colors.najdi.text,
+  },
+  fontButtonSmall: {
+    fontSize: 13,
+  },
+  fontButtonLarge: {
+    fontSize: 17,
+  },
+  fontDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    marginHorizontal: 2,
+  },
+  emblemContainer: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emblem: {
+    width: 28,
+    height: 28,
+    opacity: 0.7,
+    tintColor: tokens.colors.najdi.primary,
+  },
+  progressPill: {
     position: 'absolute',
     bottom: 0,
     left: 0,
-    height: 2,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  progressFill: {
+    height: '100%',
     backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: 1.5,
   },
   scrollView: {
     flex: 1,
@@ -386,32 +452,40 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  heroImage: {
+  heroWrapper: {
     width: screenWidth,
     height: screenWidth * 0.56,
+    overflow: 'hidden',
     backgroundColor: tokens.colors.najdi.container + '10',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
   articleHeader: {
     paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 20,
+    paddingTop: 28,
+    paddingBottom: 24,
     backgroundColor: tokens.colors.najdi.background,
   },
   articleHeaderNoImage: {
-    paddingTop: 32,
+    paddingTop: 36,
   },
   articleTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     color: tokens.colors.najdi.text,
-    lineHeight: 34,
-    letterSpacing: -0.3,
+    lineHeight: 38,
+    letterSpacing: -0.5,
     fontFamily: 'SF Arabic',
     marginBottom: 16,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   articleMeta: {
+    alignItems: 'flex-end',
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -419,19 +493,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
+    fontWeight: '500',
   },
   metaSeparator: {
     marginHorizontal: 8,
     color: tokens.colors.najdi.textMuted,
+    fontSize: 13,
   },
   readingTime: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
+    fontWeight: '500',
   },
   loadingContainer: {
     paddingVertical: 100,
     alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: tokens.colors.najdi.textMuted,
+    fontFamily: 'SF Arabic',
   },
 });
 

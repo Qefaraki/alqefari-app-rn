@@ -132,6 +132,7 @@
 ---
 L
 
+claude mcp add --transport http context7 https://mcp.context7.com/mcp --header "CONTEXT7_API_KEY: ctx7sk-2ab8ba79-85a0-4b0f-86a1-b78e454acd2a"
 
 مريم محمد السعوي
 ### Phase 5: Enhanced Activity Log ⏰ Day 2 Afternoon

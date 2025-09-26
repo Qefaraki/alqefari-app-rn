@@ -19,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const appState = useRef(AppState.currentState);
 
   useEffect(() => {
@@ -30,28 +31,39 @@ export const AuthProvider = ({ children }) => {
       (event, session) => {
         console.log('[DEBUG AuthContext] Auth state changed:', event, 'session:', !!session);
 
-        // Skip INITIAL_SESSION event as we handle that in checkAuth()
         if (event === 'INITIAL_SESSION') {
-          console.log('[DEBUG AuthContext] Skipping INITIAL_SESSION (handled by checkAuth)');
-          return;
-        }
-
-        // Quick state updates only - no async operations
-        if (session?.user) {
-          setUser(session.user);
-          setIsLoading(false);
-
-          // Defer heavy operations outside the callback per Supabase docs
-          setTimeout(() => {
-            checkAdminStatus(session.user);
-            checkProfileStatus(session.user);
-          }, 0);
-        } else {
-          setUser(null);
-          setIsAdmin(false);
-          setHasLinkedProfile(false);
-          setHasPendingRequest(false);
-          setIsLoading(false);
+          // Handle initial session properly
+          console.log('[DEBUG AuthContext] INITIAL_SESSION received');
+          if (session?.user) {
+            setUser(session.user);
+            // Don't set loading false - wait for profile check in checkAuth
+          } else {
+            setUser(null);
+            setIsAdmin(false);
+            setHasLinkedProfile(false);
+            setHasPendingRequest(false);
+            // No user on initial load, can stop loading
+            if (!initialLoadComplete) {
+              setIsLoading(false);
+              setInitialLoadComplete(true);
+            }
+          }
+        } else if (initialLoadComplete) {
+          // Only handle subsequent auth changes after initial load
+          if (event === 'SIGNED_IN' && session?.user) {
+            setUser(session.user);
+            // Defer profile checks
+            setTimeout(() => {
+              checkAdminStatus(session.user);
+              checkProfileStatus(session.user);
+            }, 0);
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setIsAdmin(false);
+            setHasLinkedProfile(false);
+            setHasPendingRequest(false);
+            clearAuthCache();
+          }
         }
       }
     );
@@ -96,14 +108,14 @@ export const AuthProvider = ({ children }) => {
         console.log('[DEBUG AuthContext] Session found for user:', session.user.email || session.user.phone);
         setUser(session.user);
 
-        // Load cached profile status immediately for faster UI
+        // Load cached state first for faster initial render
         await loadCachedAuthState();
 
-        // Check admin and profile status in background (non-blocking)
-        setTimeout(() => {
-          checkAdminStatus(session.user);
-          checkProfileStatus(session.user);
-        }, 0);
+        // Then fetch fresh data in parallel
+        await Promise.all([
+          checkProfileStatus(session.user),
+          checkAdminStatus(session.user)
+        ]);
       } else {
         console.log('[DEBUG AuthContext] No session found');
         // Clear everything when no session
@@ -157,6 +169,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       console.log('[DEBUG AuthContext] Initial auth check complete');
       setIsLoading(false);
+      setInitialLoadComplete(true);
     }
   };
 
@@ -179,6 +192,9 @@ export const AuthProvider = ({ children }) => {
       console.log('[DEBUG AuthContext] Profile check for user:', user.id, 'Has profile:', hasProfile);
       setHasLinkedProfile(hasProfile);
 
+      // Declare hasPending outside if block to fix scope issue
+      let hasPending = false;
+
       // If no linked profile, check for pending request
       if (!hasProfile) {
         const { data: pendingRequest, error: requestError } = await supabase
@@ -188,7 +204,7 @@ export const AuthProvider = ({ children }) => {
           .eq('status', 'pending')
           .single();
 
-        const hasPending = !!pendingRequest && !requestError;
+        hasPending = !!pendingRequest && !requestError;
         console.log('[DEBUG AuthContext] Pending request check:', hasPending);
         setHasPendingRequest(hasPending);
       } else {
@@ -196,8 +212,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Cache the profile status for offline use
-      const pendingStatus = !hasProfile ? hasPending : false;
-      await saveAuthCache(user, hasProfile, pendingStatus);
+      await saveAuthCache(user, hasProfile, hasPending);
 
       return hasProfile;
     } catch (error) {

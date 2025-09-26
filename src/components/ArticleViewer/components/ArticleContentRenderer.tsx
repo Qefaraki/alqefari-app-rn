@@ -26,75 +26,77 @@ interface ArticleContentRendererProps {
   fontSize: number;
 }
 
-// System fonts with Arabic support
-const SYSTEM_FONTS = [...defaultSystemFonts, 'SF Arabic', 'System'];
+// System fonts with Arabic support - iOS native stack
+const SYSTEM_FONTS = [...defaultSystemFonts, 'SF Arabic Rounded', 'SF Arabic', 'System'];
 
 // Ignored tags
 const IGNORED_DOM_TAGS = ['video', 'iframe', 'script', 'audio', 'style'];
 
-// Create tag styles with Najdi design system
+// Create tag styles with Najdi design system and better Arabic support
 const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaration> => ({
   body: {
     color: tokens.colors.najdi.text,
     fontSize: fontSize,
-    lineHeight: fontSize * 1.8,
-    fontFamily: 'System',
-    letterSpacing: 0.2,
+    lineHeight: fontSize * 2.0, // Increased for Arabic diacritics
+    fontFamily: 'SF Arabic',
+    letterSpacing: 0.3,
     textAlign: 'right',
     writingDirection: 'rtl',
+    direction: 'rtl',
   },
   p: {
-    marginBottom: 20,
+    marginBottom: 24,
     color: tokens.colors.najdi.text,
     textAlign: 'right',
     writingDirection: 'rtl',
+    lineHeight: fontSize * 2.0,
   },
   h1: {
-    fontSize: fontSize + 7,
-    fontWeight: '800',
-    marginTop: 28,
-    marginBottom: 20,
+    fontSize: fontSize + 8,
+    fontWeight: '700',
+    marginTop: 32,
+    marginBottom: 24,
     color: tokens.colors.najdi.text,
-    letterSpacing: -0.3,
-    lineHeight: (fontSize + 7) * 1.3,
+    letterSpacing: -0.5,
+    lineHeight: (fontSize + 8) * 1.4,
     fontFamily: 'SF Arabic',
     textAlign: 'right',
   },
   h2: {
-    fontSize: fontSize + 4,
-    fontWeight: '700',
-    marginTop: 24,
-    marginBottom: 16,
+    fontSize: fontSize + 5,
+    fontWeight: '600',
+    marginTop: 28,
+    marginBottom: 18,
     color: tokens.colors.najdi.text,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
     fontFamily: 'SF Arabic',
     textAlign: 'right',
   },
   h3: {
-    fontSize: fontSize + 2,
+    fontSize: fontSize + 3,
     fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 12,
+    marginTop: 24,
+    marginBottom: 14,
     color: tokens.colors.najdi.text,
     fontFamily: 'SF Arabic',
     textAlign: 'right',
   },
   h4: {
     fontSize: fontSize + 1,
-    fontWeight: '600',
-    marginTop: 18,
-    marginBottom: 10,
+    fontWeight: '500',
+    marginTop: 20,
+    marginBottom: 12,
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
     textAlign: 'right',
   },
   a: {
-    color: tokens.colors.najdi.primary,
+    color: '#007AFF', // iOS blue
     textDecorationLine: 'none',
     fontWeight: '500',
   },
   strong: {
-    fontWeight: '700',
+    fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
   em: {
@@ -102,59 +104,64 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     color: tokens.colors.najdi.text,
   },
   li: {
-    marginBottom: 10,
-    paddingLeft: 8,
-    lineHeight: fontSize * 1.8,
+    marginBottom: 12,
+    paddingRight: 8,
+    lineHeight: fontSize * 2.0,
     textAlign: 'right',
     color: tokens.colors.najdi.text,
+    direction: 'rtl',
   },
   ul: {
-    marginBottom: 20,
-    paddingLeft: 20,
+    marginBottom: 24,
+    paddingRight: 20,
+    direction: 'rtl',
   },
   ol: {
-    marginBottom: 20,
-    paddingLeft: 20,
+    marginBottom: 24,
+    paddingRight: 20,
+    direction: 'rtl',
   },
   blockquote: {
-    marginVertical: 24,
+    marginVertical: 28,
     marginHorizontal: 0,
-    paddingLeft: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: tokens.colors.najdi.primary,
+    paddingRight: 20,
+    paddingLeft: 20,
+    borderRightWidth: 4,
+    borderRightColor: tokens.colors.najdi.primary,
+    borderLeftWidth: 0,
     fontStyle: 'italic',
     fontSize: fontSize,
-    lineHeight: fontSize * 1.7,
+    lineHeight: fontSize * 1.8,
     color: tokens.colors.najdi.textMuted,
-    backgroundColor: tokens.colors.najdi.container + '10',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: tokens.colors.najdi.container + '08',
+    paddingVertical: 16,
     borderRadius: 8,
+    textAlign: 'center',
   },
   code: {
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: tokens.colors.najdi.container + '15',
     paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 4,
-    fontFamily: 'Menlo',
+    fontFamily: 'SF Mono',
     fontSize: fontSize - 2,
     color: tokens.colors.najdi.text,
   },
   pre: {
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: tokens.colors.najdi.container + '15',
     padding: 16,
     borderRadius: 8,
-    marginVertical: 20,
+    marginVertical: 24,
     overflow: 'scroll',
-    fontFamily: 'Menlo',
+    fontFamily: 'SF Mono',
   },
   hr: {
-    marginVertical: 28,
-    height: 1,
-    backgroundColor: tokens.colors.najdi.container + '40',
+    marginVertical: 32,
+    height: 0.5,
+    backgroundColor: tokens.colors.najdi.container + '30',
   },
   figure: {
-    marginVertical: 20,
+    marginVertical: 24,
     marginHorizontal: -20, // Break out to full width
   },
   figcaption: {
@@ -162,40 +169,62 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 8,
+    marginTop: 12,
     paddingHorizontal: 20,
-    lineHeight: 18,
+    lineHeight: 20,
     fontFamily: 'SF Arabic',
+    fontWeight: '400',
   },
   img: {
-    marginVertical: 20,
+    marginVertical: 24,
     borderRadius: 0,
-  }
+  },
+  table: {
+    borderWidth: 0.5,
+    borderColor: tokens.colors.najdi.container + '40',
+    marginVertical: 24,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  th: {
+    backgroundColor: tokens.colors.najdi.container + '10',
+    padding: 10,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  td: {
+    padding: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: tokens.colors.najdi.container + '20',
+    textAlign: 'right',
+  },
 });
 
 // Classes styles for WordPress content
 const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
   'wp-block-image': {
-    marginVertical: 20,
+    marginVertical: 24,
     marginHorizontal: -20, // Break out to full width
   },
   'wp-block-quote': {
-    marginVertical: 24,
-    paddingLeft: 16,
-    borderLeftWidth: 3,
-    borderLeftColor: tokens.colors.najdi.primary,
+    marginVertical: 28,
+    paddingRight: 20,
+    borderRightWidth: 4,
+    borderRightColor: tokens.colors.najdi.primary,
+    borderLeftWidth: 0,
   },
   'wp-caption': {
-    marginVertical: 20,
+    marginVertical: 24,
   },
   'wp-caption-text': {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
     fontStyle: 'italic',
-    marginTop: 8,
+    marginTop: 12,
     paddingHorizontal: 20,
-    lineHeight: 18,
+    lineHeight: 20,
+    fontWeight: '400',
   },
   'aligncenter': {
     alignSelf: 'center',
@@ -208,10 +237,10 @@ const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
   },
 };
 
-// Custom renderers for better image handling
+// Custom renderers for better image and caption handling
 const createRenderers = () => ({
   img: ({ TDefaultRenderer, ...props }: any) => {
-    const { src } = props.tnode.attributes || {};
+    const { src, alt } = props.tnode.attributes || {};
 
     if (!src) return null;
 
@@ -252,6 +281,10 @@ const createRenderers = () => ({
           transition={200}
           cachePolicy="memory-disk"
         />
+        {/* Only show alt text if it's not a filename */}
+        {alt && !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+          <Text style={styles.imageCaption}>{alt}</Text>
+        )}
       </TouchableOpacity>
     );
   },
@@ -281,16 +314,35 @@ const createRenderers = () => ({
   blockquote: ({ TDefaultRenderer, ...props }: any) => {
     return (
       <View style={styles.blockquote}>
-        <View style={styles.blockquoteBorder} />
         <View style={styles.blockquoteContent}>
+          <Text style={styles.quoteIcon}>"</Text>
           <TDefaultRenderer {...props} />
         </View>
       </View>
     );
   },
 
-  // Remove figcaption to prevent filename showing
-  figcaption: () => null,
+  // Smart figcaption - filter out filenames
+  figcaption: ({ TDefaultRenderer, ...props }: any) => {
+    // Get the text content
+    const text = props.tnode.children?.[0]?.data || '';
+
+    // Skip if it's just a filename
+    if (text.match(/^[^.]+\.(jpg|jpeg|png|gif|webp)$/i)) {
+      return null;
+    }
+
+    // Skip if it's empty or just whitespace
+    if (!text.trim()) {
+      return null;
+    }
+
+    return (
+      <Text style={styles.figcaption}>
+        {text}
+      </Text>
+    );
+  },
 });
 
 const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
@@ -311,16 +363,19 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
 
   // Clean HTML for better rendering
   const cleanHtml = useMemo(() => {
-    // Remove gallery shortcodes, captions, and clean up
-    return html
+    // Remove gallery shortcodes and clean up
+    let cleaned = html
       .replace(/\[gallery[^\]]*\]/g, '')
       .replace(/\[caption[^\]]*\](.*?)\[\/caption\]/g, '$1')
       .replace(/<!--more-->/g, '')
-      .replace(/<!--nextpage-->/g, '')
-      // Remove img alt attributes that might be filenames
-      .replace(/<img([^>]*?)alt=["'][^"']*\.(jpg|jpeg|png|gif|webp)["']/gi, '<img$1alt=""')
-      // Remove title attributes that might be filenames
-      .replace(/<img([^>]*?)title=["'][^"']*\.(jpg|jpeg|png|gif|webp)["']/gi, '<img$1');
+      .replace(/<!--nextpage-->/g, '');
+
+    // Add RTL direction to root if not present
+    if (!cleaned.includes('dir="rtl"')) {
+      cleaned = `<div dir="rtl">${cleaned}</div>`;
+    }
+
+    return cleaned;
   }, [html]);
 
   return (
@@ -338,11 +393,19 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
         defaultTextProps={{
           allowFontScaling: false,
           selectable: true,
+          style: {
+            textAlign: 'right',
+            writingDirection: 'rtl',
+          }
         }}
         renderersProps={{
           img: {
             enableExperimentalPercentWidth: true,
           },
+        }}
+        baseStyle={{
+          direction: 'rtl',
+          textAlign: 'right',
         }}
       />
     </View>
@@ -355,36 +418,62 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+    direction: 'rtl',
   },
   imageContainer: {
-    marginVertical: 20,
+    marginVertical: 24,
     alignSelf: 'center',
   },
   inlineImage: {
-    borderRadius: 12,
+    borderRadius: 8, // iOS-style corners
     backgroundColor: tokens.colors.najdi.container + '10',
   },
+  imageCaption: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 12,
+    paddingHorizontal: 20,
+    lineHeight: 20,
+    fontFamily: 'SF Arabic',
+    fontWeight: '400',
+  },
   link: {
-    color: tokens.colors.najdi.primary,
+    color: '#007AFF', // iOS blue
     fontWeight: '500',
   },
   blockquote: {
-    flexDirection: 'row',
-    marginVertical: 24,
+    marginVertical: 28,
     marginHorizontal: 0,
-    backgroundColor: tokens.colors.najdi.container + '10',
+    backgroundColor: tokens.colors.najdi.container + '08',
     borderRadius: 8,
-    padding: 16,
-  },
-  blockquoteBorder: {
-    width: 3,
-    backgroundColor: tokens.colors.najdi.primary,
-    marginRight: 16,
-    borderRadius: 1.5,
+    padding: 20,
+    borderRightWidth: 4,
+    borderRightColor: tokens.colors.najdi.primary,
   },
   blockquoteContent: {
-    flex: 1,
-    paddingRight: 4,
+    position: 'relative',
+  },
+  quoteIcon: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    fontSize: 48,
+    color: tokens.colors.najdi.primary + '20',
+    fontFamily: 'Georgia',
+    fontWeight: '700',
+  },
+  figcaption: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 12,
+    paddingHorizontal: 20,
+    lineHeight: 20,
+    fontFamily: 'SF Arabic',
+    fontWeight: '400',
   },
 });
 
