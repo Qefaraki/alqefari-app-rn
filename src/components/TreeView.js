@@ -15,7 +15,7 @@ import {
   Text,
   Alert,
   PixelRatio,
-  Animated,
+  Animated as RNAnimated,
 } from "react-native";
 import {
   Canvas,
@@ -376,9 +376,9 @@ const TreeView = ({
   const [fontReady, setFontReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showSkeleton, setShowSkeleton] = useState(true);
-  const skeletonFadeAnim = useRef(new Animated.Value(1)).current;
-  const contentFadeAnim = useRef(new Animated.Value(0)).current; // Start with 0 opacity
-  const shimmerAnim = useRef(new Animated.Value(0.3)).current;
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(1)).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(0)).current; // Start with 0 opacity
+  const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -685,15 +685,15 @@ const TreeView = ({
       }
 
       // Start fade transition when data is loaded
-      Animated.parallel([
+      RNAnimated.parallel([
         // Fade out skeleton
-        Animated.timing(skeletonFadeAnim, {
+        RNAnimated.timing(skeletonFadeAnim, {
           toValue: 0,
           duration: 300,
           useNativeDriver: true,
         }),
         // Fade in content
-        Animated.timing(contentFadeAnim, {
+        RNAnimated.timing(contentFadeAnim, {
           toValue: 1,
           duration: 400,
           delay: 100, // Slight overlap for smoother transition
@@ -2355,14 +2355,14 @@ const TreeView = ({
   // Start shimmer animation for skeleton
   useEffect(() => {
     if (showSkeleton) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(shimmerAnim, {
+      RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(shimmerAnim, {
             toValue: 1,
             duration: 1000,
             useNativeDriver: true,
           }),
-          Animated.timing(shimmerAnim, {
+          RNAnimated.timing(shimmerAnim, {
             toValue: 0.3,
             duration: 1000,
             useNativeDriver: true,
@@ -2381,7 +2381,7 @@ const TreeView = ({
       paddingTop: 100,
     }}>
       {/* Root node skeleton */}
-      <Animated.View
+      <RNAnimated.View
         style={{
           width: 100,
           height: 60,
@@ -2403,7 +2403,7 @@ const TreeView = ({
       {/* Second generation nodes */}
       <View style={{ flexDirection: 'row', marginVertical: 20 }}>
         {[...Array(3)].map((_, i) => (
-          <Animated.View
+          <RNAnimated.View
             key={`gen2-${i}`}
             style={{
               width: 80,
@@ -2435,7 +2435,7 @@ const TreeView = ({
       {/* Third generation nodes */}
       <View style={{ flexDirection: 'row', marginVertical: 20 }}>
         {[...Array(5)].map((_, i) => (
-          <Animated.View
+          <RNAnimated.View
             key={`gen3-${i}`}
             style={{
               width: 60,
@@ -2459,7 +2459,7 @@ const TreeView = ({
       <View style={{ flex: 1 }}>
         {/* Skeleton with fade out */}
         {showSkeleton && (
-          <Animated.View
+          <RNAnimated.View
             style={{
               position: 'absolute',
               top: 0,
@@ -2476,7 +2476,7 @@ const TreeView = ({
         )}
 
         {/* Empty placeholder for tree content that will fade in */}
-        <Animated.View
+        <RNAnimated.View
           style={{
             flex: 1,
             opacity: contentFadeAnim,
@@ -2520,7 +2520,7 @@ const TreeView = ({
     <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
       {/* Skeleton overlay with fade out */}
       {showSkeleton && (
-        <Animated.View
+        <RNAnimated.View
           style={{
             position: 'absolute',
             top: 0,
@@ -2537,7 +2537,7 @@ const TreeView = ({
       )}
 
       {/* Main tree content with fade in */}
-      <Animated.View style={{ flex: 1, opacity: contentFadeAnim }}>
+      <RNAnimated.View style={{ flex: 1, opacity: contentFadeAnim }}>
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
