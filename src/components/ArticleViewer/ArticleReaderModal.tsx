@@ -14,7 +14,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
@@ -42,6 +42,8 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const [fontSize, setFontSize] = useState(17);
   const [showHeader, setShowHeader] = useState(true);
   const lastScrollY = useRef(0);
+  const insets = useSafeAreaInsets();
+  const headerAnimY = useRef(new Animated.Value(0)).current;
 
   // Format date
   const formattedDate = useAbsoluteDateNoMemo(article?.publishedAt ? new Date(article.publishedAt) : new Date());
@@ -49,7 +51,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   // Load content
   useEffect(() => {
     if (article) {
-      // Simulate content processing
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
@@ -57,16 +58,22 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     }
   }, [article]);
 
+  // Animate header show/hide
+  useEffect(() => {
+    Animated.timing(headerAnimY, {
+      toValue: showHeader ? 0 : -100,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [showHeader]);
+
   // Handle scroll for header show/hide
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentY = event.nativeEvent.contentOffset.y;
 
-    // Show/hide header based on scroll direction
     if (currentY > lastScrollY.current && currentY > 100) {
-      // Scrolling down, hide header
       if (showHeader) setShowHeader(false);
     } else if (currentY < lastScrollY.current - 5) {
-      // Scrolling up, show header
       if (!showHeader) setShowHeader(true);
     }
 
@@ -91,6 +98,8 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const wordCount = article.html ? article.html.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
   const readingTime = Math.ceil(wordCount / 200);
 
+  const headerHeight = 56 + insets.top;
+
   return (
     <Modal
       visible={visible}
@@ -98,79 +107,14 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
       presentationStyle="fullScreen"
       onRequestClose={handleClose}
     >
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" />
-
-        {/* Floating Header */}
-        <Animated.View
-          style={[
-            styles.header,
-            {
-              transform: [{
-                translateY: showHeader ? 0 : -100
-              }]
-            }
-          ]}
-        >
-          <BlurView intensity={100} tint="light" style={styles.headerBlur}>
-            <View style={styles.headerContent}>
-              <TouchableOpacity
-                onPress={handleClose}
-                style={styles.closeButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={28} color="#1C1C1E" />
-              </TouchableOpacity>
-
-              <View style={styles.headerCenter}>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  {article.title}
-                </Text>
-              </View>
-
-              <View style={styles.fontControls}>
-                <TouchableOpacity
-                  onPress={() => adjustFontSize(-1)}
-                  style={styles.fontButton}
-                  disabled={fontSize <= 14}
-                >
-                  <Text style={[styles.fontButtonText, fontSize <= 14 && styles.disabledText]}>
-                    ص
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => adjustFontSize(1)}
-                  style={styles.fontButton}
-                  disabled={fontSize >= 24}
-                >
-                  <Text style={[styles.fontButtonText, fontSize >= 24 && styles.disabledText]}>
-                    ص
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </BlurView>
-        </Animated.View>
-
-        {/* Reading Progress Bar */}
-        <Animated.View
-          style={[
-            styles.progressBar,
-            {
-              width: scrollY.interpolate({
-                inputRange: [0, 1000],
-                outputRange: ['0%', '100%'],
-                extrapolate: 'clamp',
-              })
-            }
-          ]}
-        />
+      <View style={[styles.container, { backgroundColor: tokens.colors.najdi.background }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={tokens.colors.najdi.background} />
 
         {/* Content */}
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight }]}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -234,7 +178,71 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           {/* Bottom Padding */}
           <View style={{ height: 100 }} />
         </ScrollView>
-      </SafeAreaView>
+
+        {/* Floating Header - After ScrollView for proper z-index */}
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              height: headerHeight,
+              transform: [{ translateY: headerAnimY }]
+            }
+          ]}
+        >
+          <BlurView intensity={95} tint="light" style={[styles.headerBlur, { paddingTop: insets.top }]}>
+            <View style={styles.headerContent}>
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
+              </TouchableOpacity>
+
+              <View style={styles.headerCenter}>
+                <Text style={styles.headerTitle} numberOfLines={1}>
+                  {article.title}
+                </Text>
+              </View>
+
+              <View style={styles.fontControls}>
+                <TouchableOpacity
+                  onPress={() => adjustFontSize(-1)}
+                  style={styles.fontButton}
+                  disabled={fontSize <= 14}
+                >
+                  <Text style={[styles.fontButtonText, { fontSize: 12 }, fontSize <= 14 && styles.disabledText]}>
+                    ص-
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => adjustFontSize(1)}
+                  style={styles.fontButton}
+                  disabled={fontSize >= 24}
+                >
+                  <Text style={[styles.fontButtonText, { fontSize: 14 }, fontSize >= 24 && styles.disabledText]}>
+                    ص+
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </BlurView>
+
+          {/* Reading Progress Bar */}
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: scrollY.interpolate({
+                  inputRange: [0, 1000],
+                  outputRange: ['0%', '100%'],
+                  extrapolate: 'clamp',
+                })
+              }
+            ]}
+          />
+        </Animated.View>
+      </View>
     </Modal>
   );
 };
@@ -242,7 +250,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
     position: 'absolute',
@@ -250,19 +257,19 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    paddingTop: Platform.OS === 'ios' ? 0 : StatusBar.currentHeight,
+    backgroundColor: 'transparent',
   },
   headerBlur: {
-    paddingTop: Platform.OS === 'ios' ? 0 : 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    flex: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.najdi.container + '30',
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     height: 56,
   },
   headerCenter: {
@@ -272,7 +279,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: tokens.colors.najdi.text,
     textAlign: 'center',
     fontFamily: 'SF Arabic',
   },
@@ -291,70 +298,71 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.04)',
+    backgroundColor: tokens.colors.najdi.container + '20',
     borderRadius: 8,
   },
   fontButtonText: {
-    fontSize: 16,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
   },
   disabledText: {
     opacity: 0.3,
   },
   progressBar: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 88 : StatusBar.currentHeight + 56,
+    bottom: 0,
     left: 0,
     height: 2,
     backgroundColor: tokens.colors.najdi.primary,
-    zIndex: 99,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'ios' ? 88 : StatusBar.currentHeight + 56,
+    paddingBottom: 40,
   },
   heroImage: {
     width: screenWidth,
     height: screenWidth * 0.56,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: tokens.colors.najdi.container + '10',
   },
   articleHeader: {
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: tokens.colors.najdi.background,
   },
   articleHeaderNoImage: {
     paddingTop: 32,
   },
   articleTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#1C1C1E',
-    lineHeight: 36,
-    letterSpacing: -0.5,
+    color: tokens.colors.najdi.text,
+    lineHeight: 34,
+    letterSpacing: -0.3,
     fontFamily: 'SF Arabic',
     marginBottom: 16,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   articleMeta: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   articleDate: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
   },
   metaSeparator: {
     marginHorizontal: 8,
-    color: '#C7C7CC',
+    color: tokens.colors.najdi.textMuted,
   },
   readingTime: {
-    fontSize: 14,
-    color: '#8E8E93',
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
   },
   loadingContainer: {
