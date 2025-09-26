@@ -238,6 +238,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+      console.log('[DEBUG OTP] Verification successful, navigating to NameChainEntry');
       // Do NOT mark onboarding as complete here - wait until profile is linked
       // Navigate immediately without delay
       navigation.navigate("NameChainEntry", { user: result.user });

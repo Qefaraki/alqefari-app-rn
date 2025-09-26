@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -11,11 +11,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { getAllSwatches } from 'react-native-palette';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
 import Surface from '../Surface';
 import { useRelativeDateNoMemo } from '../../../hooks/useFormattedDateNoMemo';
+
+// WeakMap cache for extracted colors
+const colorCache = new WeakMap();
 
 interface EnhancedCarouselProps {
   articles: NewsArticle[];
@@ -36,6 +40,33 @@ const CarouselCard: React.FC<{
   onPress: () => void;
 }> = ({ article, onPress }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
+  const [bgColor, setBgColor] = useState<string | null>(null);
+  const imageRef = useRef(article.heroImage);
+
+  // Extract color from hero image
+  useEffect(() => {
+    if (article.heroImage && imageRef.current !== article.heroImage) {
+      imageRef.current = article.heroImage;
+
+      // Check cache first
+      const cached = colorCache.get(article);
+      if (cached) {
+        setBgColor(cached);
+        return;
+      }
+
+      // Extract new color
+      getAllSwatches({ quality: 'low' }, article.heroImage, (err, swatches) => {
+        if (!err && swatches && swatches.length > 0) {
+          const dominantColor = swatches[0]?.hex;
+          if (dominantColor) {
+            colorCache.set(article, dominantColor);
+            setBgColor(dominantColor);
+          }
+        }
+      });
+    }
+  }, [article, article.heroImage]);
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -43,7 +74,17 @@ const CarouselCard: React.FC<{
   };
 
   return (
-    <Surface style={styles.card} radius={8}>
+    <Surface
+      style={[
+        styles.card,
+        bgColor && {
+          backgroundColor: `${bgColor}12`, // 12% opacity for subtle tint
+          borderLeftWidth: 3,
+          borderLeftColor: bgColor,
+        }
+      ]}
+      radius={8}
+    >
       <Pressable
         style={styles.cardPressable}
         onPress={handlePress}

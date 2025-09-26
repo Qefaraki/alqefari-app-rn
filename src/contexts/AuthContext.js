@@ -24,22 +24,34 @@ export const AuthProvider = ({ children }) => {
     console.log('[DEBUG AuthContext] Mounting AuthProvider, calling checkAuth');
     checkAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes - NO async/await per Supabase docs!
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('[DEBUG AuthContext] Auth state changed:', event, 'session:', !!session);
+
+        // Skip INITIAL_SESSION event as we handle that in checkAuth()
+        if (event === 'INITIAL_SESSION') {
+          console.log('[DEBUG AuthContext] Skipping INITIAL_SESSION (handled by checkAuth)');
+          return;
+        }
+
+        // Quick state updates only - no async operations
         if (session?.user) {
           setUser(session.user);
-          await checkAdminStatus(session.user);
-          await checkProfileStatus(session.user);
+          setIsLoading(false);
+
+          // Defer heavy operations outside the callback per Supabase docs
+          setTimeout(() => {
+            checkAdminStatus(session.user);
+            checkProfileStatus(session.user);
+          }, 0);
         } else {
           setUser(null);
           setIsAdmin(false);
           setHasLinkedProfile(false);
           setHasPendingRequest(false);
+          setIsLoading(false);
         }
-        console.log('[DEBUG AuthContext] Setting isLoading to false from auth state change');
-        setIsLoading(false);
       }
     );
 
@@ -71,76 +83,38 @@ export const AuthProvider = ({ children }) => {
   const checkAuth = async () => {
     console.log('[DEBUG AuthContext] checkAuth starting');
 
-    // Create timeout promise (5 seconds max)
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        console.log('[DEBUG AuthContext] Auth check timeout after 5 seconds - continuing anyway');
-        resolve({ data: { session: null }, error: new Error('Timeout after 5 seconds') });
-      }, 5000);
-    });
-
     try {
-      // Race between getSession and timeout
-      const result = await Promise.race([
-        supabase.auth.getSession().catch(err => {
-          console.error('[DEBUG AuthContext] getSession exception:', err);
-          return { data: { session: null }, error: err };
-        }),
-        timeoutPromise
-      ]);
-
-      const { data: { session }, error } = result;
+      // Simple getSession - trust Supabase's built-in handling
+      const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error) {
         console.log('[DEBUG AuthContext] getSession error:', error.message);
-      } else if (session) {
-        console.log('[DEBUG AuthContext] getSession SUCCESS - Session found!');
-        console.log('[DEBUG AuthContext] Session user ID:', session.user?.id);
-        console.log('[DEBUG AuthContext] Session user email:', session.user?.email);
-        console.log('[DEBUG AuthContext] Session user phone:', session.user?.phone);
-        console.log('[DEBUG AuthContext] Session expires at:', new Date(session.expires_at * 1000).toISOString());
-      } else {
-        console.log('[DEBUG AuthContext] getSession returned null - No session');
       }
 
       if (session?.user) {
+        console.log('[DEBUG AuthContext] Session found for user:', session.user.email || session.user.phone);
         setUser(session.user);
-        console.log('[DEBUG AuthContext] User set in state');
 
-        // Check admin and profile status in parallel
-        Promise.all([
-          checkAdminStatus(session.user).catch(err =>
-            console.error('[DEBUG AuthContext] Admin check error:', err)
-          ),
-          checkProfileStatus(session.user).catch(err =>
-            console.error('[DEBUG AuthContext] Profile check error:', err)
-          )
-        ]);
-
-        // Refresh user data in background (don't wait for it)
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            console.log('[DEBUG AuthContext] Fresh user data received');
-            setUser(user);
-          }
-        }).catch(err => {
-          console.error('[DEBUG AuthContext] Background user refresh error:', err);
-        });
+        // Check admin and profile status in background (non-blocking)
+        setTimeout(() => {
+          checkAdminStatus(session.user);
+          checkProfileStatus(session.user);
+        }, 0);
       } else {
-        console.log('[DEBUG AuthContext] No valid session found');
+        console.log('[DEBUG AuthContext] No session found');
         setUser(null);
         setIsAdmin(false);
         setHasLinkedProfile(false);
         setHasPendingRequest(false);
       }
     } catch (error) {
-      // This should never happen with our Promise.race setup
-      console.error('[DEBUG AuthContext] Unexpected error in checkAuth:', error);
+      console.error('[DEBUG AuthContext] Error in checkAuth:', error);
       setUser(null);
       setIsAdmin(false);
+      setHasLinkedProfile(false);
+      setHasPendingRequest(false);
     } finally {
-      // ALWAYS set isLoading to false - this is critical!
-      console.log('[DEBUG AuthContext] Setting isLoading to false (guaranteed)');
+      console.log('[DEBUG AuthContext] Initial auth check complete');
       setIsLoading(false);
     }
   };

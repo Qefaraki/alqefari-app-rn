@@ -71,66 +71,67 @@ function TabLayout() {
     });
   }, []);
 
-  // Emergency timeout - if auth takes too long, show app anyway
-  const [authTimeout, setAuthTimeout] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log('[DEBUG] Auth timeout - showing app anyway after 2 seconds');
-      setAuthTimeout(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+  // No need for emergency timeout - trust Supabase's auth handling
 
   // Determine app state based on AuthContext (single source of truth)
   const getAppState = () => {
-    // Still loading onboarding status - but only wait briefly
-    if ((onboardingCompleted === null || isGuestMode === null) && !authTimeout) {
+    // Still loading - wait for auth
+    if (isLoading) {
+      return 'loading';
+    }
+
+    // Still loading local storage flags
+    if (onboardingCompleted === null || isGuestMode === null) {
       return 'loading';
     }
 
     // If user is authenticated AND has linked profile, show tabs
     if (user && hasLinkedProfile) {
-      console.log('[DEBUG] Showing tabs - authenticated user with profile:', user.email || user.phone);
+      console.log('[DEBUG] Authenticated with profile');
       return 'authenticated';
     }
 
-    // If user is authenticated AND has a pending request, show tabs (limited access)
+    // If user is authenticated AND has a pending request, show tabs (waiting for approval)
     if (user && hasPendingRequest) {
-      console.log('[DEBUG] Showing tabs - authenticated user with pending request');
+      console.log('[DEBUG] Authenticated with pending request');
       return 'authenticated-pending';
     }
 
     // If user is authenticated but NO linked profile AND NO pending request, continue onboarding
     if (user && !hasLinkedProfile && !hasPendingRequest) {
-      console.log('[DEBUG] Authenticated but no profile or pending request - continuing onboarding');
+      console.log('[DEBUG] Authenticated but needs to complete profile setup');
       return 'onboarding';
     }
 
     // If explicitly in guest mode, show tabs
     if (isGuestMode === true) {
-      console.log('[DEBUG] Showing tabs - explicit guest mode');
+      console.log('[DEBUG] Guest mode');
       return 'guest';
     }
 
     // Not authenticated and not guest = show onboarding
-    // This includes: first time users, signed out users, etc.
-    console.log('[DEBUG] Not authenticated, not guest - showing onboarding');
+    console.log('[DEBUG] Not authenticated - show onboarding');
     return 'onboarding';
   };
 
   const appState = getAppState();
 
-  // Only show loading for a VERY brief moment while checking onboarding
+  // Show loading screen while checking auth and onboarding
   if (appState === 'loading') {
-    console.log('[DEBUG] Brief wait for onboarding check...');
-    return null;
+    console.log('[DEBUG] Loading auth and onboarding status...');
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#A13333" />
+        <Text style={styles.loadingText}>جاري التحميل...</Text>
+      </View>
+    );
   }
 
 
 
-  // Show onboarding for first-time users
+  // Show onboarding for first-time users or authenticated users without profiles
   if (appState === 'onboarding') {
-    console.log('[DEBUG] Showing onboarding');
+    console.log('[DEBUG] Showing onboarding - user:', !!user, 'hasProfile:', hasLinkedProfile);
     return (
       <NavigationIndependentTree>
         <NavigationContainer>
