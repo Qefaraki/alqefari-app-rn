@@ -759,8 +759,10 @@ const TreeView = ({
     // Check if we already have data
     const existingData = useTreeStore.getState().treeData;
     if (existingData && existingData.length > 0) {
-      console.log('[TreeView] Found existing data on mount, loading immediately');
-      loadTreeData();
+      console.log('[TreeView] Found existing data on mount, using it directly');
+      // Data is already in treeData from store subscription, just ensure loading is false
+      setIsLoading(false);
+      setShowSkeleton(false);
       return;
     }
 
