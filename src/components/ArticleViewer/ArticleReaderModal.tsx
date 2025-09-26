@@ -25,7 +25,6 @@ import { NewsArticle } from '../../services/news';
 import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
 import PhotoGalleryGrid from './components/PhotoGalleryGrid';
-import { analyzeContent, extractGalleryLink, extractPreviewImages, countImages } from './utils/linkExtractor';
 import { Galeria } from '@nandorojo/galeria';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
@@ -55,12 +54,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const headerAnimY = useRef(new Animated.Value(0)).current;
   const progressWidth = useRef(new Animated.Value(0)).current;
 
-  // Photo gallery state
-  const [isPhotoHeavy, setIsPhotoHeavy] = useState(false);
-  const [galleryLink, setGalleryLink] = useState('');
-  const [galleryLinkType, setGalleryLinkType] = useState<'drive' | 'photos' | 'article' | 'other'>('article');
-  const [totalImageCount, setTotalImageCount] = useState(0);
-
   // Inline image viewer state
   const [inlineImages, setInlineImages] = useState<string[]>([]);
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -75,19 +68,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
     // If article has HTML, use it immediately (no spinner)
     if (article.html) {
-      // Analyze content for photo galleries
-      const analysis = analyzeContent(article.html);
-      if (analysis.isHeavy) {
-        setIsPhotoHeavy(true);
-        const linkData = extractGalleryLink(article.html, article);
-        setGalleryLink(linkData.url);
-        setGalleryLinkType(linkData.type);
-        setTotalImageCount(analysis.imageCount);
-      } else {
-        setIsPhotoHeavy(false);
-        setTotalImageCount(0);
-      }
-
       // Check for cached version in background (for next time)
       const cacheKey = `article_cache_${article.id}`;
       AsyncStorage.getItem(cacheKey)
@@ -306,17 +286,11 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 onImagesExtracted={handleImagesExtracted}
               />
 
-              {/* Photo Gallery Grid for photo-heavy articles */}
-              {isPhotoHeavy && article.html && (
-                <PhotoGalleryGrid
-                  html={article.html}
-                  article={article}
-                  totalCount={totalImageCount}
-                  externalLink={galleryLink}
-                  linkType={galleryLinkType}
-                  isNightMode={false}
-                />
-              )}
+              {/* Photo Gallery Grid - self-manages visibility */}
+              <PhotoGalleryGrid
+                article={article}
+                isNightMode={false}
+              />
             </>
           )}
 
@@ -396,7 +370,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         </Animated.View>
 
         {/* Native Image Viewer for Inline Images */}
-        {!isPhotoHeavy && inlineImages.length > 0 && (
+        {inlineImages.length > 0 && (
           <Galeria
             visible={viewerVisible}
             urls={inlineImages}

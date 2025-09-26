@@ -762,6 +762,15 @@ const TreeView = ({
     }
   }, [treeData, isLoading]);
 
+  // Ensure content is visible when not loading
+  useEffect(() => {
+    if (!isLoading && !showSkeleton) {
+      console.log('[TreeView] Ensuring content is visible');
+      contentFadeAnim.setValue(1);
+      skeletonFadeAnim.setValue(0);
+    }
+  }, [isLoading, showSkeleton, contentFadeAnim, skeletonFadeAnim]);
+
   // Load tree data on mount
   useEffect(() => {
     // Check if we already have data
