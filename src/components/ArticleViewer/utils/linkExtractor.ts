@@ -16,9 +16,17 @@ interface ExtractedLink {
  * Extract external gallery link with smart fallbacks
  */
 export function extractGalleryLink(html: string, article: NewsArticle): ExtractedLink {
+  // For large HTML, focus on the last portion where links are usually placed
+  let searchHtml = html;
+  if (html.length > 100000) {
+    // Search last 50KB for the link (usually placed before the images)
+    const startPoint = Math.max(0, html.length - 50000);
+    searchHtml = html.substring(startPoint);
+  }
+
   // Pattern 1: Google Drive folder links (highest priority)
   const driveFolderRegex = /https?:\/\/drive\.google\.com\/drive\/folders\/[a-zA-Z0-9_-]+(?:\?[^"'\s<>]*)*/gi;
-  const driveFolderMatch = html.match(driveFolderRegex);
+  const driveFolderMatch = searchHtml.match(driveFolderRegex);
   if (driveFolderMatch && driveFolderMatch[0]) {
     return {
       url: driveFolderMatch[0].replace(/&amp;/g, '&'),
@@ -28,7 +36,7 @@ export function extractGalleryLink(html: string, article: NewsArticle): Extracte
 
   // Pattern 2: Google Drive file/open links
   const driveFileRegex = /https?:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)[a-zA-Z0-9_-]+(?:\/[^"'\s<>]*)*/gi;
-  const driveFileMatch = html.match(driveFileRegex);
+  const driveFileMatch = searchHtml.match(driveFileRegex);
   if (driveFileMatch && driveFileMatch[0]) {
     return {
       url: driveFileMatch[0].replace(/&amp;/g, '&'),
@@ -38,7 +46,7 @@ export function extractGalleryLink(html: string, article: NewsArticle): Extracte
 
   // Pattern 3: Google Photos shared albums
   const photosRegex = /https?:\/\/photos\.google\.com\/share\/[^"'\s<>]+/gi;
-  const photosMatch = html.match(photosRegex);
+  const photosMatch = searchHtml.match(photosRegex);
   if (photosMatch && photosMatch[0]) {
     return {
       url: photosMatch[0].replace(/&amp;/g, '&'),
@@ -48,7 +56,7 @@ export function extractGalleryLink(html: string, article: NewsArticle): Extracte
 
   // Pattern 4: Google Photos app links
   const photosAppRegex = /https?:\/\/photos\.app\.goo\.gl\/[^"'\s<>]+/gi;
-  const photosAppMatch = html.match(photosAppRegex);
+  const photosAppMatch = searchHtml.match(photosAppRegex);
   if (photosAppMatch && photosAppMatch[0]) {
     return {
       url: photosAppMatch[0].replace(/&amp;/g, '&'),
@@ -58,7 +66,7 @@ export function extractGalleryLink(html: string, article: NewsArticle): Extracte
 
   // Pattern 5: Other photo services (Flickr, Imgur, etc)
   const otherPhotoServices = /https?:\/\/(www\.)?(flickr\.com|imgur\.com)\/[^"'\s<>]+/gi;
-  const otherMatch = html.match(otherPhotoServices);
+  const otherMatch = searchHtml.match(otherPhotoServices);
   if (otherMatch && otherMatch[0]) {
     return {
       url: otherMatch[0].replace(/&amp;/g, '&'),
@@ -98,14 +106,32 @@ export function getLinkButtonText(type: LinkType, imageCount: number): string {
  */
 export function extractPreviewImages(html: string, limit: number = 6): string[] {
   const images: string[] = [];
+
+  // For very large HTML, limit the search to first portion
+  const searchLimit = Math.min(html.length, 50000); // Only search first 50KB
+  const searchHtml = html.substring(0, searchLimit);
+
   const imgRegex = /<img[^>]+src="([^"]+)"/gi;
   let match;
 
-  while ((match = imgRegex.exec(html)) !== null && images.length < limit) {
+  while ((match = imgRegex.exec(searchHtml)) !== null && images.length < limit) {
     const imageUrl = match[1];
     // Skip tiny images (likely icons)
     if (!imageUrl.includes('20x20') && !imageUrl.includes('32x32')) {
       images.push(imageUrl.replace(/&amp;/g, '&'));
+    }
+  }
+
+  // If we didn't find enough images in the first portion, try a bit more
+  if (images.length < limit && html.length > searchLimit) {
+    const additionalSearch = html.substring(searchLimit, Math.min(html.length, 100000));
+    const additionalRegex = /<img[^>]+src="([^"]+)"/gi;
+
+    while ((match = additionalRegex.exec(additionalSearch)) !== null && images.length < limit) {
+      const imageUrl = match[1];
+      if (!imageUrl.includes('20x20') && !imageUrl.includes('32x32')) {
+        images.push(imageUrl.replace(/&amp;/g, '&'));
+      }
     }
   }
 
@@ -141,6 +167,9 @@ export function analyzeContent(html: string): ContentAnalysis {
   // Determine content type based on thresholds
   let type: ContentType;
   let isHeavy: boolean;
+
+  // Temporarily lower threshold for testing
+  console.log(`Analyzing: ${contentLength} chars, ${imageCount} images`);
 
   if (contentLength > 100000 || imageCount > 30) {
     type = 'photo-event';

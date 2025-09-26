@@ -42,23 +42,44 @@ const PhotoEventViewer: React.FC<PhotoEventViewerProps> = ({
   const [imageCount, setImageCount] = useState(0);
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
 
+  console.log('PhotoEventViewer rendering for:', article?.title);
+
   // Extract data from article
   useEffect(() => {
-    if (!article.html) return;
+    if (!article?.html) {
+      console.log('No HTML content for PhotoEventViewer');
+      return;
+    }
 
-    // Extract link and type
-    const linkData = extractGalleryLink(article.html, article);
-    setExternalLink(linkData.url);
-    setLinkType(linkData.type);
+    try {
+      console.log('Extracting data for PhotoEventViewer, HTML length:', article.html.length);
 
-    // Count total images
-    const count = countImages(article.html);
-    setImageCount(count);
+      // Extract link and type
+      const linkData = extractGalleryLink(article.html, article);
+      setExternalLink(linkData.url);
+      setLinkType(linkData.type);
+      console.log('Extracted link:', linkData.url, 'type:', linkData.type);
 
-    // Extract preview images
-    const previews = extractPreviewImages(article.html, 9); // 3x3 grid
-    setPreviewImages(previews);
-    setIsLoadingPreviews(false);
+      // Count total images
+      const count = countImages(article.html);
+      setImageCount(count);
+      console.log('Image count:', count);
+
+      // Extract preview images
+      const previews = extractPreviewImages(article.html, 9); // 3x3 grid
+      setPreviewImages(previews);
+      console.log('Preview images extracted:', previews.length);
+
+      setIsLoadingPreviews(false);
+    } catch (error) {
+      console.error('Error extracting data for PhotoEventViewer:', error);
+      // Set fallback values
+      setExternalLink(article.permalink || '');
+      setLinkType('article');
+      setImageCount(0);
+      setPreviewImages([]);
+      setIsLoadingPreviews(false);
+    }
   }, [article]);
 
   // Extract clean summary text
