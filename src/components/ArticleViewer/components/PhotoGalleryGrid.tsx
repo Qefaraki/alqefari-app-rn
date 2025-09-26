@@ -16,7 +16,8 @@ import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import { Galeria } from '@nandorojo/galeria';
 import tokens from '../../ui/tokens';
-import { LinkType } from '../utils/linkExtractor';
+import { LinkType, extractPreviewImages } from '../utils/linkExtractor';
+import { NewsArticle } from '../../../services/news';
 
 const { width: screenWidth } = Dimensions.get('window');
 const PADDING = 8;
@@ -29,7 +30,9 @@ const MEDIUM_SIZE = (GRID_WIDTH - PADDING) / 2;
 const LARGE_SIZE = (GRID_WIDTH - PADDING) * 0.66;
 
 interface PhotoGalleryGridProps {
-  images: string[];
+  html?: string;
+  article?: NewsArticle;
+  images?: string[]; // Optional for backwards compatibility
   totalCount: number;
   externalLink: string;
   linkType: LinkType;
@@ -38,16 +41,33 @@ interface PhotoGalleryGridProps {
 }
 
 const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
-  images,
+  html,
+  article,
+  images: propImages,
   totalCount,
   externalLink,
   linkType,
   isNightMode,
   isLoadingImages = false,
 }) => {
+  const [images, setImages] = useState<string[]>(propImages || []);
+  const [isExtracting, setIsExtracting] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Extract images from HTML when component mounts or HTML changes
+  useEffect(() => {
+    if (html && !propImages) {
+      setIsExtracting(true);
+      // Extract images asynchronously to avoid blocking UI
+      setTimeout(() => {
+        const extractedImages = extractPreviewImages(html, 20);
+        setImages(extractedImages);
+        setIsExtracting(false);
+      }, 100);
+    }
+  }, [html, propImages]);
 
   // Determine remaining count for overlay
   const displayedCount = Math.min(images.length, 8);
@@ -132,13 +152,13 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
     }
   };
 
-  if (isLoadingImages) {
+  if (isLoadingImages || isExtracting) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
           <Text style={[styles.loadingText, isNightMode && styles.loadingTextDark]}>
-            جاري تحميل الصور...
+            جاري تحضير معرض الصور...
           </Text>
         </View>
       </View>

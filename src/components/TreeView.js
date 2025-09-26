@@ -864,30 +864,22 @@ const TreeView = ({
     };
   }, [setTreeData]);
 
-  // Calculate layout
+  // Calculate layout - based on treeData only, not loading state
   const { nodes, connections } = useMemo(() => {
-    if (isLoading || !treeData || treeData.length === 0) {
+    if (!treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
     }
     const layout = calculateTreeLayout(treeData);
 
-    // DEBUG: Log canvas coordinates summary (these should NEVER change)
-    // if (__DEV__ && layout.nodes.length > 0) {
-    //   const bounds = layout.nodes.reduce((acc, node) => ({
-    //     minX: Math.min(acc.minX, node.x),
-    //     maxX: Math.max(acc.maxX, node.x),
-    //     minY: Math.min(acc.minY, node.y),
-    //     maxY: Math.max(acc.maxY, node.y)
-    //   }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-    //
-    //   console.log('🎯 LAYOUT CALCULATED:');
-    //   console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
-    //   console.log(`  Bounds: X[${bounds.minX.toFixed(0)}, ${bounds.maxX.toFixed(0)}] Y[${bounds.minY.toFixed(0)}, ${bounds.maxY.toFixed(0)}]`);
-    //   console.log(`  Root: ${layout.nodes[0]?.name} at (${layout.nodes[0]?.x.toFixed(0)}, ${layout.nodes[0]?.y.toFixed(0)})`);
-    // }
+    // DEBUG: Log canvas coordinates summary
+    if (layout.nodes.length > 0) {
+      console.log('🎯 LAYOUT CALCULATED:');
+      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
+      console.log(`  TreeData length: ${treeData.length}`);
+    }
 
     return layout;
-  }, [treeData, isLoading]);
+  }, [treeData]);
 
   // Build indices for LOD system with O(N) complexity
   const indices = useMemo(() => {
