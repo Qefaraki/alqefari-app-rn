@@ -22,8 +22,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system/legacy';
 import { NewsArticle } from '../../services/news';
 import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
@@ -57,9 +55,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   // All images from the article (for unified Galeria viewer)
   const [allArticleImages, setAllArticleImages] = useState<string[]>([]);
-  const [galeriaIndex, setGaleriaIndex] = useState(0);
-  const [showGaleria, setShowGaleria] = useState(false);
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string>('');
 
   // Gallery preview images for PhotoGalleryGrid
   const [galleryPreviewImages, setGalleryPreviewImages] = useState<string[]>([]);
@@ -197,42 +192,13 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Handle inline image press - open Galeria at the right index
+  // Handle inline image press - no longer needed as Galeria handles it
   const handleInlineImagePress = useCallback((imageUrl: string, index: number) => {
-    // Find the actual index in our allArticleImages array
-    const actualIndex = allArticleImages.findIndex(img => img === imageUrl);
-    if (actualIndex !== -1) {
-      setGaleriaIndex(actualIndex);
-    } else {
-      // If image not found, add it and set index to 0
-      setAllArticleImages(prev => [imageUrl, ...prev]);
-      setGaleriaIndex(0);
-    }
-    setSelectedImageUrl(imageUrl);
-    setShowGaleria(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [allArticleImages]);
+    // Galeria handles the click natively
+  }, []);
 
-  // Share image function - download first, then share
-  const handleShareImage = async () => {
-    try {
-      const imageUrl = selectedImageUrl || allArticleImages[galeriaIndex] || allArticleImages[0];
-      if (!imageUrl) return;
-
-      // Download image to temp directory first
-      const filename = imageUrl.split('/').pop() || 'image.jpg';
-      const fileUri = FileSystem.cacheDirectory + filename;
-
-      const downloadResult = await FileSystem.downloadAsync(imageUrl, fileUri);
-
-      // Now share the downloaded file
-      await Sharing.shareAsync(downloadResult.uri);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (error) {
-      console.error('Failed to share image:', error);
-      Alert.alert('خطأ', 'فشل مشاركة الصورة');
-    }
-  };
+  // Note: Share functionality would need to be implemented differently with native Galeria
+  // as we can't overlay buttons on the native viewer
 
   // Handle images extracted from article - no longer needed as we extract all upfront
   const handleImagesExtracted = useCallback((images: string[]) => {
@@ -330,30 +296,26 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             </View>
           ) : (
             <>
-              <ArticleContentRenderer
-                html={article.html || ''}
-                fontSize={fontSize}
-                onImagePress={handleInlineImagePress}
-                onImagesExtracted={handleImagesExtracted}
-                isHeavyArticle={(article.html?.length || 0) > 100000}
-              />
+              {/* Wrap content in Galeria for inline images */}
+              <Galeria urls={allArticleImages}>
+                <ArticleContentRenderer
+                  html={article.html || ''}
+                  fontSize={fontSize}
+                  onImagePress={handleInlineImagePress}
+                  onImagesExtracted={handleImagesExtracted}
+                  isHeavyArticle={(article.html?.length || 0) > 100000}
+                  allImages={allArticleImages}
+                />
+              </Galeria>
 
-              {/* Photo Gallery Grid - with preview images */}
+              {/* Photo Gallery Grid - already has its own Galeria */}
               <PhotoGalleryGrid
                 previewImages={galleryPreviewImages}
                 totalImageCount={galleryImageCount}
                 permalink={article.permalink || ''}
                 title={article.title}
                 isNightMode={false}
-                onImagePress={(imageUrl) => {
-                  // Open Galeria at the clicked image
-                  const index = allArticleImages.findIndex(img => img === imageUrl);
-                  if (index !== -1) {
-                    setGaleriaIndex(index);
-                    setSelectedImageUrl(imageUrl);
-                    setShowGaleria(true);
-                  }
-                }}
+                allImages={allArticleImages}
               />
             </>
           )}
@@ -362,41 +324,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Unified Galeria Viewer for All Images */}
-        {showGaleria && allArticleImages.length > 0 && (
-          <Galeria
-            urls={allArticleImages}
-            initialIndex={galeriaIndex}
-            onIndexChange={(index) => {
-              setGaleriaIndex(index);
-              setSelectedImageUrl(allArticleImages[index]);
-            }}
-            onRequestClose={() => setShowGaleria(false)}
-            visible={showGaleria}
-            renderHeaderComponent={() => (
-              <View style={styles.galeriaHeader}>
-                <TouchableOpacity
-                  style={styles.galeriaCloseButton}
-                  onPress={() => setShowGaleria(false)}
-                >
-                  <View style={styles.galeriaCloseCircle}>
-                    <Ionicons name="close" size={20} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            )}
-            renderFooterComponent={() => (
-              <View style={styles.galeriaFooter}>
-                <TouchableOpacity
-                  style={styles.galeriaShareButton}
-                  onPress={handleShareImage}
-                >
-                  <Ionicons name="share-outline" size={24} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            )}
-          />
-        )}
 
         {/* Floating Header - iOS Style */}
         <Animated.View
@@ -640,43 +567,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'System',
-  },
-  // Galeria viewer styles
-  galeriaHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    paddingHorizontal: 16,
-    zIndex: 1000,
-  },
-  galeriaCloseButton: {
-    alignSelf: 'flex-end',
-  },
-  galeriaCloseCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  galeriaFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
-    alignItems: 'center',
-  },
-  galeriaShareButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 

@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Galeria } from '@nandorojo/galeria';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
@@ -25,6 +26,7 @@ interface PhotoGalleryGridProps {
   title: string;
   isNightMode: boolean;
   onImagePress?: (imageUrl: string) => void;
+  allImages?: string[];
 }
 
 const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
@@ -34,6 +36,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
   title,
   isNightMode,
   onImagePress,
+  allImages = [],
 }) => {
   // Don't show if no preview images
   if (previewImages.length === 0) {
@@ -52,92 +55,107 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Image Grid - now without Galeria wrapper */}
-      <View style={styles.gridContainer}>
+      {/* Image Grid with Galeria wrapper */}
+      <Galeria urls={allImages.length > 0 ? allImages : previewImages}>
+        <View style={styles.gridContainer}>
 
-        {/* Row 1: Two images (60% + 40%) */}
-        <View style={styles.row}>
-          {previewImages[0] && (
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onImagePress?.(previewImages[0]);
-              }}
-              activeOpacity={0.95}
-            >
-              <Image
-                source={{ uri: previewImages[0] }}
-                style={[styles.image, { width: GRID_WIDTH * 0.6 - GAP/2, height: 200 }]}
-              />
-            </TouchableOpacity>
-          )}
-          {previewImages[1] && (
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onImagePress?.(previewImages[1]);
-              }}
-              activeOpacity={0.95}
-            >
-              <Image
-                source={{ uri: previewImages[1] }}
-                style={[styles.image, { width: GRID_WIDTH * 0.4 - GAP/2, height: 200 }]}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Row 2: Three images (equal width) */}
-        <View style={styles.row}>
-          {[2, 3, 4].map(index => previewImages[index] && (
-            <TouchableOpacity
-              key={index}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                onImagePress?.(previewImages[index]);
-              }}
-              activeOpacity={0.95}
-            >
-              <Image
-                source={{ uri: previewImages[index] }}
-                style={[styles.image, styles.threeColumnImage]}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Row 3: Show max 3 images with count overlay on last */}
-        <View style={styles.row}>
-          {[5, 6, 7].map(index => {
-            if (!previewImages[index]) return null;
-
-            const isLast = index === 7 || !previewImages[index + 1];
-            const showOverlay = isLast && (remainingCount > 0 || previewImages[8]);
-
-            return (
-              <TouchableOpacity
-                key={index}
-                style={styles.imageContainer}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onImagePress?.(previewImages[index]);
-                }}
-                activeOpacity={0.95}
-              >
+          {/* Row 1: Two images (60% + 40%) */}
+          <View style={styles.row}>
+            {previewImages[0] && (() => {
+              const index = allImages.findIndex(img => img === previewImages[0]);
+              return index !== -1 ? (
+                <Galeria.Image index={index}>
+                  <Image
+                    source={{ uri: previewImages[0] }}
+                    style={[styles.image, { width: GRID_WIDTH * 0.6 - GAP/2, height: 200 }]}
+                  />
+                </Galeria.Image>
+              ) : (
                 <Image
-                  source={{ uri: previewImages[index] }}
+                  source={{ uri: previewImages[0] }}
+                  style={[styles.image, { width: GRID_WIDTH * 0.6 - GAP/2, height: 200 }]}
+                />
+              );
+            })()}
+            {previewImages[1] && (() => {
+              const index = allImages.findIndex(img => img === previewImages[1]);
+              return index !== -1 ? (
+                <Galeria.Image index={index}>
+                  <Image
+                    source={{ uri: previewImages[1] }}
+                    style={[styles.image, { width: GRID_WIDTH * 0.4 - GAP/2, height: 200 }]}
+                  />
+                </Galeria.Image>
+              ) : (
+                <Image
+                  source={{ uri: previewImages[1] }}
+                  style={[styles.image, { width: GRID_WIDTH * 0.4 - GAP/2, height: 200 }]}
+                />
+              );
+            })()}
+          </View>
+
+          {/* Row 2: Three images (equal width) */}
+          <View style={styles.row}>
+            {[2, 3, 4].map(i => previewImages[i] && (() => {
+              const imageIndex = allImages.findIndex(img => img === previewImages[i]);
+              return imageIndex !== -1 ? (
+                <Galeria.Image key={i} index={imageIndex}>
+                  <Image
+                    source={{ uri: previewImages[i] }}
+                    style={[styles.image, styles.threeColumnImage]}
+                  />
+                </Galeria.Image>
+              ) : (
+                <Image
+                  key={i}
+                  source={{ uri: previewImages[i] }}
                   style={[styles.image, styles.threeColumnImage]}
                 />
-                {showOverlay && (
-                  <View style={styles.countOverlay} pointerEvents="none">
-                    <Text style={styles.countText}>+{remainingCount + (previewImages[8] ? 1 : 0)}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+              );
+            })())}
+          </View>
+
+          {/* Row 3: Show max 3 images with count overlay on last */}
+          <View style={styles.row}>
+            {[5, 6, 7].map(i => {
+              if (!previewImages[i]) return null;
+
+              const isLast = i === 7 || !previewImages[i + 1];
+              const showOverlay = isLast && (remainingCount > 0 || previewImages[8]);
+              const imageIndex = allImages.findIndex(img => img === previewImages[i]);
+
+              return imageIndex !== -1 ? (
+                <View key={i} style={styles.imageContainer}>
+                  <Galeria.Image index={imageIndex}>
+                    <Image
+                      source={{ uri: previewImages[i] }}
+                      style={[styles.image, styles.threeColumnImage]}
+                    />
+                  </Galeria.Image>
+                  {showOverlay && (
+                    <View style={styles.countOverlay} pointerEvents="none">
+                      <Text style={styles.countText}>+{remainingCount + (previewImages[8] ? 1 : 0)}</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View key={i} style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: previewImages[i] }}
+                    style={[styles.image, styles.threeColumnImage]}
+                  />
+                  {showOverlay && (
+                    <View style={styles.countOverlay} pointerEvents="none">
+                      <Text style={styles.countText}>+{remainingCount + (previewImages[8] ? 1 : 0)}</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         </View>
-      </View
+      </Galeria
 
       {/* Gallery Link Button */}
       <TouchableOpacity

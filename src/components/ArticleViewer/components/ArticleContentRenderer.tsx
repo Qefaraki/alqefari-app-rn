@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
+  Image as RNImage,
 } from 'react-native';
 import RenderHtml, {
   HTMLContentModel,
@@ -15,6 +16,7 @@ import RenderHtml, {
   MixedStyleDeclaration,
 } from 'react-native-render-html';
 import { Image } from 'expo-image';
+import { Galeria } from '@nandorojo/galeria';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
@@ -27,6 +29,7 @@ interface ArticleContentRendererProps {
   onImagePress?: (imageUrl: string, index: number) => void;
   onImagesExtracted?: (images: string[]) => void;
   isHeavyArticle?: boolean;
+  allImages?: string[];
 }
 
 // System fonts - let iOS choose the right Arabic font automatically
@@ -223,7 +226,7 @@ const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
 };
 
 // Custom renderers for better image and caption handling
-const createRenderers = (onImagePress?: (url: string, index: number) => void, images?: string[]) => ({
+const createRenderers = (onImagePress?: (url: string, index: number) => void, allImages?: string[]) => ({
   img: ({ TDefaultRenderer, ...props }: any) => {
     const { src, alt } = props.tnode.attributes || {};
 
@@ -242,20 +245,37 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, im
       imageHeight = imageWidth * aspectRatio;
     }
 
-    const handleImagePress = () => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      if (onImagePress) {
-        // Pass the image URL directly, always use index 0
-        onImagePress(src, 0);
-      }
-    };
+    // Find the index of this image in the allImages array
+    const imageIndex = allImages ? allImages.findIndex(img => img === src) : -1;
 
+    // If we have the image in our gallery, make it clickable with Galeria
+    if (imageIndex !== -1) {
+      return (
+        <View style={styles.imageContainer}>
+          <Galeria.Image index={imageIndex}>
+            <RNImage
+              source={{ uri: src }}
+              style={[
+                styles.inlineImage,
+                {
+                  width: imageWidth,
+                  height: imageHeight
+                }
+              ]}
+              resizeMode="cover"
+            />
+          </Galeria.Image>
+          {/* Only show alt text if it's not a filename */}
+          {alt && !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+            <Text style={styles.imageCaption}>{alt}</Text>
+          )}
+        </View>
+      );
+    }
+
+    // Fallback for images not in gallery
     return (
-      <TouchableOpacity
-        activeOpacity={0.95}
-        onPress={handleImagePress}
-        style={styles.imageContainer}
-      >
+      <View style={styles.imageContainer}>
         <Image
           source={{ uri: src }}
           style={[
@@ -273,7 +293,7 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, im
         {alt && !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
           <Text style={styles.imageCaption}>{alt}</Text>
         )}
-      </TouchableOpacity>
+      </View>
     );
   },
 
@@ -322,6 +342,7 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
   onImagePress,
   onImagesExtracted,
   isHeavyArticle = false,
+  allImages = [],
 }) => {
 
   // Create styles based on font size
@@ -332,8 +353,8 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
 
   // Create renderers with image handling
   const renderers = useMemo(
-    () => createRenderers(onImagePress, []),
-    [onImagePress]
+    () => createRenderers(onImagePress, allImages),
+    [onImagePress, allImages]
   );
 
   // Clean HTML for better rendering
