@@ -212,47 +212,75 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
 
     // Process content asynchronously
     const processContentAsync = async () => {
-      // Small delay to ensure smooth opening animation
-      await new Promise(resolve => setTimeout(resolve, 100));
+      try {
+        // Small delay to ensure smooth opening animation
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-      if (!article.html || article.html.length === 0) {
-        setArticleData({
+        if (!article.html || article.html.length === 0) {
+          setArticleData({
+            processedContent: '',
+            galleryImages: [],
+            wordCount: 0,
+            readingTime: 0,
+            isValid: false,
+            isGalleryLoading: false,
+            galleryExtracted: false,
+            contentType: 'article',
+            isHeavy: false
+          });
+          setIsContentReady(true);
+          return;
+        }
+
+        // Analyze content to determine type
+        const analysis = analyzeContent(article.html);
+
+        // Debug logging
+        console.log('Article analysis:', {
+          title: article.title,
+          htmlLength: article.html.length,
+          imageCount: analysis.imageCount,
+          type: analysis.type,
+          isHeavy: analysis.isHeavy
+        });
+
+        // Calculate reading metrics without blocking on gallery extraction
+        const wordCount = article.html.replace(/<[^>]*>/g, '').split(/\s+/).length;
+        const readingTime = Math.ceil(wordCount / 200);
+
+        // Set content WITHOUT extracting gallery yet - for instant opening
+        setArticleData(prev => ({
+          ...prev,
+          processedContent: article.html, // Use original HTML for now
+          wordCount,
+          readingTime,
+          isValid: true,
+          isGalleryLoading: false,
+          galleryExtracted: false,
+          contentType: analysis.type,
+          isHeavy: analysis.isHeavy
+        }));
+
+        // Cache the article
+        cacheArticle(article);
+
+        setIsContentReady(true);
+      } catch (error) {
+        console.error('Error processing article:', error);
+        // Set as heavy article if processing fails
+        setArticleData(prev => ({
+          ...prev,
           processedContent: '',
-          galleryImages: [],
           wordCount: 0,
           readingTime: 0,
-          isValid: false,
+          isValid: true,
           isGalleryLoading: false,
-          galleryExtracted: false
-        });
+          galleryExtracted: false,
+          contentType: 'photo-event',
+          isHeavy: true
+        }));
         setIsContentReady(true);
-        return;
       }
-
-      // Analyze content to determine type
-      const analysis = analyzeContent(article.html);
-
-      // Calculate reading metrics without blocking on gallery extraction
-      const wordCount = article.html.replace(/<[^>]*>/g, '').split(/\s+/).length;
-      const readingTime = Math.ceil(wordCount / 200);
-
-      // Set content WITHOUT extracting gallery yet - for instant opening
-      setArticleData(prev => ({
-        ...prev,
-        processedContent: article.html, // Use original HTML for now
-        wordCount,
-        readingTime,
-        isValid: true,
-        isGalleryLoading: false,
-        galleryExtracted: false,
-        contentType: analysis.type,
-        isHeavy: analysis.isHeavy
-      }));
-
-      // Cache the article
-      cacheArticle(article);
-
-      setIsContentReady(true);
     };
 
     processContentAsync();
@@ -618,6 +646,7 @@ const ArticleViewerModal: React.FC<ArticleViewerModalProps> = ({
 
   // Imperative handle for sheet control
   const openSheet = useCallback(() => {
+    console.log('Opening sheet for article:', article?.title, 'visible:', visible);
     if (article && visible) {
       // Open immediately without waiting for content
       bottomSheetRef.current?.present();
