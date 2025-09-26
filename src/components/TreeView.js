@@ -773,49 +773,20 @@ const TreeView = ({
 
   // Load tree data on mount
   useEffect(() => {
-    // Check if we already have data
-    const existingData = useTreeStore.getState().treeData;
-    if (existingData && existingData.length > 0) {
-      console.log('[TreeView] Found existing data on mount, using it directly');
-      // Data is already in treeData from store subscription, just ensure loading is false
+    // If we already have data, skip everything - instant render
+    if (treeData && treeData.length > 0) {
+      console.log('[TreeView] Preloaded data available, skipping skeleton entirely');
       setIsLoading(false);
       setShowSkeleton(false);
+      contentFadeAnim.setValue(1);
+      skeletonFadeAnim.setValue(0);
       return;
     }
 
-    // If preloading is in progress, wait briefly for it to complete
-    if (isPreloadingTree) {
-      console.log('[TreeView] Waiting for tree preload to complete...');
-      let checkInterval;
-      let timeout;
-
-      checkInterval = setInterval(() => {
-        const data = useTreeStore.getState().treeData;
-        if (data && data.length > 0) {
-          console.log('[TreeView] Preload completed, using preloaded data');
-          clearInterval(checkInterval);
-          clearTimeout(timeout);
-          loadTreeData();
-        }
-      }, 100);
-
-      // Timeout after 500ms and load anyway
-      timeout = setTimeout(() => {
-        clearInterval(checkInterval);
-        console.log('[TreeView] Preload timeout, loading data normally');
-        loadTreeData();
-      }, 500);
-
-      return () => {
-        if (checkInterval) clearInterval(checkInterval);
-        if (timeout) clearTimeout(timeout);
-      };
-    } else {
-      // No preloading and no existing data, load immediately
-      console.log('[TreeView] No preloading detected, loading data now');
-      loadTreeData();
-    }
-  }, [setTreeData]);
+    // No data exists, load it
+    console.log('[TreeView] No preloaded data, loading now');
+    loadTreeData();
+  }, []); // Run only once on mount
 
   // Real-time subscription for profile updates
   useEffect(() => {

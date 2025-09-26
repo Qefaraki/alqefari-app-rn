@@ -30,44 +30,71 @@ const MEDIUM_SIZE = (GRID_WIDTH - PADDING) / 2;
 const LARGE_SIZE = (GRID_WIDTH - PADDING) * 0.66;
 
 interface PhotoGalleryGridProps {
-  html?: string;
-  article?: NewsArticle;
-  images?: string[]; // Optional for backwards compatibility
-  totalCount: number;
-  externalLink: string;
-  linkType: LinkType;
+  article: NewsArticle;
   isNightMode: boolean;
-  isLoadingImages?: boolean;
 }
 
 const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
-  html,
   article,
-  images: propImages,
-  totalCount,
-  externalLink,
-  linkType,
   isNightMode,
-  isLoadingImages = false,
 }) => {
-  const [images, setImages] = useState<string[]>(propImages || []);
+  const [images, setImages] = useState<string[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [shouldShow, setShouldShow] = useState(false);
+  const [externalLink, setExternalLink] = useState('');
+  const [linkType, setLinkType] = useState<LinkType>('article');
+  const [totalCount, setTotalCount] = useState(0);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
   const [viewerVisible, setViewerVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  // Extract images from HTML when component mounts or HTML changes
+  // Self-detect if gallery should show and extract images
   useEffect(() => {
-    if (html && !propImages) {
-      setIsExtracting(true);
-      // Extract images asynchronously to avoid blocking UI
-      setTimeout(() => {
-        const extractedImages = extractPreviewImages(html, 20);
-        setImages(extractedImages);
-        setIsExtracting(false);
-      }, 100);
+    if (!article || !article.html) {
+      setShouldShow(false);
+      return;
     }
-  }, [html, propImages]);
+
+    // Quick size check - only process large articles
+    const htmlSize = article.html.length;
+    if (htmlSize < 100000) {
+      setShouldShow(false);
+      return;
+    }
+
+    // Large article detected, show gallery and extract data lazily
+    setShouldShow(true);
+    setIsExtracting(true);
+
+    // Extract images and link asynchronously after short delay
+    setTimeout(() => {
+      // Only search last 30KB for efficiency
+      const tailHtml = article.html.slice(-30000);
+
+      // Extract preview images (only from tail for speed)
+      const extractedImages = extractPreviewImages(tailHtml, 20);
+      setImages(extractedImages);
+
+      // Count total images (quick check in tail)
+      const imageMatches = tailHtml.match(/<img/gi);
+      const estimatedCount = imageMatches ? imageMatches.length * 2 : 0; // Estimate full count
+      setTotalCount(estimatedCount);
+
+      // Extract Google Drive link if present
+      if (tailHtml.includes('drive.google.com')) {
+        const driveMatch = tailHtml.match(/https?:\/\/drive\.google\.com\/drive\/folders\/[a-zA-Z0-9_-]+/);
+        if (driveMatch) {
+          setExternalLink(driveMatch[0]);
+          setLinkType('drive');
+        }
+      } else {
+        setExternalLink(article.permalink || '');
+        setLinkType('article');
+      }
+
+      setIsExtracting(false);
+    }, 200); // Small delay to not block UI
+  }, [article]);
 
   // Determine remaining count for overlay
   const displayedCount = Math.min(images.length, 8);
@@ -152,7 +179,13 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
     }
   };
 
-  if (isLoadingImages || isExtracting) {
+  // Don't show anything if article is too small
+  if (!shouldShow) {
+    return null;
+  }
+
+  // Show loading while extracting
+  if (isExtracting) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -165,6 +198,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
     );
   }
 
+  // Don't show if no images found
   if (images.length === 0) {
     return null;
   }
