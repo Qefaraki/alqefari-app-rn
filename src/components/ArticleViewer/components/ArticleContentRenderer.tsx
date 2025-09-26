@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ const CONTENT_WIDTH = screenWidth - 40; // 20px padding on each side
 interface ArticleContentRendererProps {
   html: string;
   fontSize: number;
+  onImagePress?: (imageUrl: string, index: number) => void;
+  onImagesExtracted?: (images: string[]) => void;
 }
 
 // System fonts - let iOS choose the right Arabic font automatically
@@ -220,7 +222,7 @@ const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
 };
 
 // Custom renderers for better image and caption handling
-const createRenderers = () => ({
+const createRenderers = (onImagePress?: (url: string, index: number) => void, images?: string[]) => ({
   img: ({ TDefaultRenderer, ...props }: any) => {
     const { src, alt } = props.tnode.attributes || {};
 
@@ -241,7 +243,11 @@ const createRenderers = () => ({
 
     const handleImagePress = () => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Could implement full-screen image viewer here
+      // Find the index of this image in the array
+      const imageIndex = images ? images.indexOf(src) : -1;
+      if (onImagePress && imageIndex !== -1) {
+        onImagePress(src, imageIndex);
+      }
     };
 
     return (
@@ -313,17 +319,47 @@ const createRenderers = () => ({
 const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
   html,
   fontSize,
+  onImagePress,
+  onImagesExtracted,
 }) => {
+  // Track all images in the article
+  const [articleImages, setArticleImages] = useState<string[]>([]);
+
+  // Extract images from HTML on mount or when HTML changes
+  useEffect(() => {
+    if (!html) return;
+
+    // Extract all image URLs from HTML
+    const imgRegex = /<img[^>]+src="([^"]+)"/gi;
+    const images: string[] = [];
+    let match;
+
+    while ((match = imgRegex.exec(html)) !== null) {
+      const imageUrl = match[1];
+      // Skip tiny images (likely icons)
+      if (!imageUrl.includes('20x20') && !imageUrl.includes('32x32')) {
+        images.push(imageUrl.replace(/&amp;/g, '&'));
+      }
+    }
+
+    setArticleImages(images);
+
+    // Notify parent component about extracted images
+    if (onImagesExtracted && images.length > 0) {
+      onImagesExtracted(images);
+    }
+  }, [html, onImagesExtracted]);
+
   // Create styles based on font size
   const tagsStyles = useMemo(
     () => createTagsStyles(fontSize),
     [fontSize]
   );
 
-  // Create renderers once
+  // Create renderers with image handling
   const renderers = useMemo(
-    () => createRenderers(),
-    []
+    () => createRenderers(onImagePress, articleImages),
+    [onImagePress, articleImages]
   );
 
   // Clean HTML for better rendering

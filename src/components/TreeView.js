@@ -376,13 +376,12 @@ const TreeView = ({
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
-  // Check for preloaded data
-  const hasPreloadedData = useTreeStore.getState().treeData?.length > 0;
 
-  const [isLoading, setIsLoading] = useState(!hasPreloadedData);
-  const [showSkeleton, setShowSkeleton] = useState(!hasPreloadedData);
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(!hasPreloadedData ? 1 : 0)).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 1 : 0)).current; // Start with 0 opacity unless preloaded
+  // Initialize loading state based on whether we have data
+  const [isLoading, setIsLoading] = useState(true);
+  const [showSkeleton, setShowSkeleton] = useState(true);
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(1)).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(0)).current;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
@@ -614,6 +613,9 @@ const TreeView = ({
       const loadTime = Date.now() - startTime;
       console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes, instant load in', loadTime, 'ms');
       setTreeData(existingData);
+
+      // Immediately hide skeleton if we have preloaded data
+      setShowSkeleton(false);
       setIsLoading(false);
       return;
     }
@@ -749,36 +751,49 @@ const TreeView = ({
     await loadTreeData();
   };
 
-  // Load tree data on mount - wait briefly if preloading is in progress
+  // Load tree data on mount
   useEffect(() => {
-    // If preloading is in progress, wait up to 500ms for it to complete
+    // Check if we already have data
+    const existingData = useTreeStore.getState().treeData;
+    if (existingData && existingData.length > 0) {
+      console.log('[TreeView] Found existing data on mount, loading immediately');
+      loadTreeData();
+      return;
+    }
+
+    // If preloading is in progress, wait briefly for it to complete
     if (isPreloadingTree) {
       console.log('[TreeView] Waiting for tree preload to complete...');
-      const checkInterval = setInterval(() => {
-        const existingData = useTreeStore.getState().treeData;
-        if (existingData && existingData.length > 0) {
+      let checkInterval;
+      let timeout;
+
+      checkInterval = setInterval(() => {
+        const data = useTreeStore.getState().treeData;
+        if (data && data.length > 0) {
           console.log('[TreeView] Preload completed, using preloaded data');
           clearInterval(checkInterval);
+          clearTimeout(timeout);
           loadTreeData();
         }
       }, 100);
 
       // Timeout after 500ms and load anyway
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         clearInterval(checkInterval);
         console.log('[TreeView] Preload timeout, loading data normally');
         loadTreeData();
       }, 500);
 
       return () => {
-        clearInterval(checkInterval);
-        clearTimeout(timeout);
+        if (checkInterval) clearInterval(checkInterval);
+        if (timeout) clearTimeout(timeout);
       };
     } else {
-      // No preloading in progress, load immediately
+      // No preloading and no existing data, load immediately
+      console.log('[TreeView] No preloading detected, loading data now');
       loadTreeData();
     }
-  }, [setTreeData, isPreloadingTree]);
+  }, [setTreeData]);
 
   // Real-time subscription for profile updates
   useEffect(() => {

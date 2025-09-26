@@ -25,6 +25,9 @@ import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
 import PhotoGalleryGrid from './components/PhotoGalleryGrid';
 import { analyzeContent, extractGalleryLink, extractPreviewImages, countImages } from './utils/linkExtractor';
+import { Galeria } from '@nandorojo/galeria';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 import tokens from '../ui/tokens';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
