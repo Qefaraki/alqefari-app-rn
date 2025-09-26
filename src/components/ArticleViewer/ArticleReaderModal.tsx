@@ -19,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NewsArticle } from '../../services/news';
 import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
@@ -50,6 +51,9 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const headerAnimY = useRef(new Animated.Value(0)).current;
   const progressWidth = useRef(new Animated.Value(0)).current;
 
+  // Simple cache state
+  const [cachedContent, setCachedContent] = useState<string | null>(null);
+
   // Photo gallery state
   const [isPhotoHeavy, setIsPhotoHeavy] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -60,41 +64,88 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   // Format date
   const formattedDate = useAbsoluteDateNoMemo(article?.publishedAt ? new Date(article.publishedAt) : new Date());
 
-  // Analyze content and load gallery data
+  // Simple caching with AsyncStorage
   useEffect(() => {
-    if (article && article.html) {
-      setIsLoading(true);
+    if (!article) return;
 
-      // Analyze content for photo-heavy detection
-      const analysis = analyzeContent(article.html);
-      console.log('Article analysis:', analysis);
+    // Start loading immediately
+    setIsLoading(true);
 
-      // If photo-heavy, extract gallery data
-      if (analysis.isHeavy) {
-        setIsPhotoHeavy(true);
+    const loadArticle = async () => {
+      const cacheKey = `article_cache_${article.id}`;
 
-        // Extract gallery link
-        const linkData = extractGalleryLink(article.html, article);
-        setGalleryLink(linkData.url);
-        setGalleryLinkType(linkData.type);
+      try {
+        // Try to get cached content first
+        const cached = await AsyncStorage.getItem(cacheKey);
 
-        // Extract preview images
-        const images = extractPreviewImages(article.html, 20);
-        setGalleryImages(images);
+        if (cached) {
+          // Parse cached data
+          const cachedData = JSON.parse(cached);
+          const cacheAge = Date.now() - cachedData.timestamp;
+          const ONE_DAY = 24 * 60 * 60 * 1000;
 
-        // Set total count
-        setTotalImageCount(analysis.imageCount);
-      } else {
-        setIsPhotoHeavy(false);
-        setGalleryImages([]);
-        setTotalImageCount(0);
+          // Use cache if less than 1 day old
+          if (cacheAge < ONE_DAY && cachedData.html) {
+            setCachedContent(cachedData.html);
+
+            // Analyze content for photo galleries
+            const analysis = analyzeContent(cachedData.html);
+            if (analysis.isHeavy) {
+              setIsPhotoHeavy(true);
+              const linkData = extractGalleryLink(cachedData.html, article);
+              setGalleryLink(linkData.url);
+              setGalleryLinkType(linkData.type);
+              const images = extractPreviewImages(cachedData.html, 20);
+              setGalleryImages(images);
+              setTotalImageCount(analysis.imageCount);
+            } else {
+              setIsPhotoHeavy(false);
+              setGalleryImages([]);
+              setTotalImageCount(0);
+            }
+
+            setIsLoading(false);
+            return; // Exit early with cached content
+          }
+        }
+      } catch (error) {
+        console.log('Cache read error:', error);
       }
 
-      // Simulate content processing
-      setTimeout(() => {
+      // No valid cache, load fresh content
+      if (article.html) {
+        // Analyze content
+        const analysis = analyzeContent(article.html);
+
+        if (analysis.isHeavy) {
+          setIsPhotoHeavy(true);
+          const linkData = extractGalleryLink(article.html, article);
+          setGalleryLink(linkData.url);
+          setGalleryLinkType(linkData.type);
+          const images = extractPreviewImages(article.html, 20);
+          setGalleryImages(images);
+          setTotalImageCount(analysis.imageCount);
+        } else {
+          setIsPhotoHeavy(false);
+          setGalleryImages([]);
+          setTotalImageCount(0);
+        }
+
+        // Use fresh content immediately
+        setCachedContent(article.html);
         setIsLoading(false);
-      }, 300);
-    }
+
+        // Cache the content for next time (async, don't block UI)
+        AsyncStorage.setItem(cacheKey, JSON.stringify({
+          html: article.html,
+          timestamp: Date.now()
+        })).catch(error => {
+          console.log('Cache write error:', error);
+        });
+      }
+    };
+
+    loadArticle();
   }, [article]);
 
   // Animate header show/hide with spring
@@ -147,19 +198,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Process HTML for photo-heavy articles
-  const processedHtml = useMemo(() => {
-    if (!article?.html) return '';
-
-    // For photo-heavy articles, remove all image tags
-    if (isPhotoHeavy) {
-      return article.html
-        .replace(/<img[^>]*>/gi, '')
-        .replace(/<figure[^>]*>.*?<\/figure>/gis, '');
-    }
-
-    return article.html;
-  }, [article?.html, isPhotoHeavy]);
 
   // Calculate reading time
   const wordCount = article?.html ? article.html.replace(/<[^>]*>/g, '').split(/\s+/).length : 0;
@@ -251,7 +289,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           ) : (
             <>
               <ArticleContentRenderer
-                html={processedHtml}
+                html={cachedContent || article.html || ''}
                 fontSize={fontSize}
               />
 

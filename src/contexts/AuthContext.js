@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef } from "r
 import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../services/supabase";
+import profilesService from "../services/profiles";
+import { useTreeStore } from "../stores/useTreeStore";
 
 const AuthContext = createContext({});
 
@@ -52,10 +54,11 @@ export const AuthProvider = ({ children }) => {
           // Only handle subsequent auth changes after initial load
           if (event === 'SIGNED_IN' && session?.user) {
             setUser(session.user);
-            // Defer profile checks
+            // Defer profile checks and tree preloading
             setTimeout(() => {
               checkAdminStatus(session.user);
               checkProfileStatus(session.user);
+              preloadTreeData(); // Preload tree data on sign in
             }, 0);
           } else if (event === 'SIGNED_OUT') {
             setUser(null);
@@ -116,6 +119,9 @@ export const AuthProvider = ({ children }) => {
           checkProfileStatus(session.user),
           checkAdminStatus(session.user)
         ]);
+
+        // Preload tree data for faster navigation
+        preloadTreeData(); // Fire and forget - don't wait
       } else {
         console.log('[DEBUG AuthContext] No session found');
         // Clear everything when no session
@@ -341,6 +347,41 @@ export const AuthProvider = ({ children }) => {
       console.log('[DEBUG AuthContext] Auth cache cleared');
     } catch (error) {
       console.error('[DEBUG AuthContext] Failed to clear auth cache:', error);
+    }
+  };
+
+  // Preload tree data for faster navigation
+  const preloadTreeData = async () => {
+    try {
+      console.log('[DEBUG AuthContext] Starting tree data preload');
+
+      // First get the root node (generation 1)
+      const { data: rootData, error: rootError } =
+        await profilesService.getBranchData(null, 1, 1);
+
+      if (rootError || !rootData || rootData.length === 0) {
+        console.log('[DEBUG AuthContext] Failed to preload root node');
+        return;
+      }
+
+      const rootNode = rootData[0];
+
+      // Load descendants with more depth for initial view
+      const { data: treeData, error: treeError } =
+        await profilesService.getBranchData(rootNode.hid, 5, 300);
+
+      if (treeError || !treeData) {
+        console.log('[DEBUG AuthContext] Failed to preload tree data');
+        return;
+      }
+
+      // Store in tree store for instant access
+      const setTreeData = useTreeStore.getState().setTreeData;
+      setTreeData(treeData);
+
+      console.log('[DEBUG AuthContext] Tree data preloaded successfully:', treeData.length, 'nodes');
+    } catch (error) {
+      console.error('[DEBUG AuthContext] Error preloading tree data:', error);
     }
   };
 

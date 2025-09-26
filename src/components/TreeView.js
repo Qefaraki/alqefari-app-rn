@@ -374,10 +374,13 @@ const TreeView = ({
 
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(1)).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(0)).current; // Start with 0 opacity
+  // Check for preloaded data
+  const hasPreloadedData = useTreeStore.getState().treeData?.length > 0;
+
+  const [isLoading, setIsLoading] = useState(!hasPreloadedData);
+  const [showSkeleton, setShowSkeleton] = useState(!hasPreloadedData);
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(!hasPreloadedData ? 1 : 0)).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 1 : 0)).current; // Start with 0 opacity unless preloaded
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
@@ -601,6 +604,15 @@ const TreeView = ({
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
+    // Check if we already have preloaded data
+    const existingData = useTreeStore.getState().treeData;
+    if (existingData && existingData.length > 0) {
+      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes');
+      setTreeData(existingData);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setNetworkError(null);
     setIsRetrying(false);
@@ -2372,84 +2384,185 @@ const TreeView = ({
     }
   }, [showSkeleton]);
 
-  // Tree skeleton component
+  // Tree skeleton component - better resembles actual tree
   const TreeSkeleton = () => (
     <View style={{
       flex: 1,
       backgroundColor: '#F9F7F3',
       alignItems: 'center',
-      paddingTop: 100,
+      justifyContent: 'center',
+      paddingHorizontal: 20,
     }}>
-      {/* Root node skeleton */}
-      <RNAnimated.View
-        style={{
-          width: 100,
-          height: 60,
-          backgroundColor: '#D1BBA340',
-          borderRadius: 8,
-          marginBottom: 30,
-          opacity: shimmerAnim,
-        }}
-      />
+      {/* Root node at center top */}
+      <View style={{ alignItems: 'center', marginTop: -100 }}>
+        <RNAnimated.View
+          style={{
+            width: 120,
+            height: 70,
+            backgroundColor: '#D1BBA340',
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: '#D1BBA330',
+            opacity: shimmerAnim,
+          }}
+        />
 
-      {/* Connection lines */}
-      <View style={{
-        width: 2,
-        height: 40,
-        backgroundColor: '#D1BBA320',
-        marginVertical: 10,
-      }} />
-
-      {/* Second generation nodes */}
-      <View style={{ flexDirection: 'row', marginVertical: 20 }}>
-        {[...Array(3)].map((_, i) => (
-          <RNAnimated.View
-            key={`gen2-${i}`}
-            style={{
-              width: 80,
-              height: 50,
-              backgroundColor: '#D1BBA330',
-              borderRadius: 8,
-              marginHorizontal: 10,
-              opacity: shimmerAnim,
-            }}
-          />
-        ))}
+        {/* Main vertical line from root */}
+        <View style={{
+          width: 2,
+          height: 50,
+          backgroundColor: '#D1BBA325',
+          marginTop: -2,
+        }} />
       </View>
 
-      {/* Connection lines for third generation */}
-      <View style={{ flexDirection: 'row' }}>
-        {[...Array(3)].map((_, i) => (
-          <View
-            key={`line-${i}`}
-            style={{
-              width: 1,
-              height: 30,
+      {/* Second generation with horizontal connector */}
+      <View style={{ alignItems: 'center', marginTop: -2 }}>
+        {/* Horizontal connector line */}
+        <View style={{
+          width: 300,
+          height: 2,
+          backgroundColor: '#D1BBA325',
+          position: 'absolute',
+          top: 0,
+        }} />
+
+        {/* Second gen nodes */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          width: 320,
+          marginTop: -1,
+        }}>
+          {[...Array(4)].map((_, i) => (
+            <View key={`gen2-wrapper-${i}`} style={{ alignItems: 'center' }}>
+              {/* Small vertical line to node */}
+              <View style={{
+                width: 2,
+                height: 20,
+                backgroundColor: '#D1BBA325',
+              }} />
+              <RNAnimated.View
+                style={{
+                  width: 70,
+                  height: 50,
+                  backgroundColor: '#D1BBA335',
+                  borderRadius: 8,
+                  borderWidth: 1.5,
+                  borderColor: '#D1BBA325',
+                  opacity: shimmerAnim,
+                }}
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Third generation with multiple branches */}
+      <View style={{ marginTop: 30, width: '100%' }}>
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          paddingHorizontal: 10,
+        }}>
+          {/* Left branch */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{
+              width: 100,
+              height: 2,
               backgroundColor: '#D1BBA320',
-              marginHorizontal: 45,
-            }}
-          />
-        ))}
+              marginBottom: 10,
+            }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[...Array(2)].map((_, i) => (
+                <RNAnimated.View
+                  key={`gen3-left-${i}`}
+                  style={{
+                    width: 45,
+                    height: 35,
+                    backgroundColor: '#D1BBA330',
+                    borderRadius: 6,
+                    opacity: shimmerAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.3, 0.8],
+                    }),
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Center branch */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{
+              width: 80,
+              height: 2,
+              backgroundColor: '#D1BBA320',
+              marginBottom: 10,
+            }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[...Array(3)].map((_, i) => (
+                <RNAnimated.View
+                  key={`gen3-center-${i}`}
+                  style={{
+                    width: 45,
+                    height: 35,
+                    backgroundColor: '#D1BBA330',
+                    borderRadius: 6,
+                    opacity: shimmerAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.3, 0.8],
+                    }),
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Right branch */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{
+              width: 100,
+              height: 2,
+              backgroundColor: '#D1BBA320',
+              marginBottom: 10,
+            }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[...Array(2)].map((_, i) => (
+                <RNAnimated.View
+                  key={`gen3-right-${i}`}
+                  style={{
+                    width: 45,
+                    height: 35,
+                    backgroundColor: '#D1BBA330',
+                    borderRadius: 6,
+                    opacity: shimmerAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.3, 0.8],
+                    }),
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
       </View>
 
-      {/* Third generation nodes */}
-      <View style={{ flexDirection: 'row', marginVertical: 20 }}>
-        {[...Array(5)].map((_, i) => (
-          <RNAnimated.View
-            key={`gen3-${i}`}
-            style={{
-              width: 60,
-              height: 40,
-              backgroundColor: '#D1BBA325',
-              borderRadius: 6,
-              marginHorizontal: 8,
-              opacity: shimmerAnim.interpolate({
-                inputRange: [0.3, 1],
-                outputRange: [0.2, 0.7],
-              }),
-            }}
-          />
-        ))}
+      {/* Fourth generation hint (faded) */}
+      <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.3 }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          {[...Array(8)].map((_, i) => (
+            <View
+              key={`gen4-${i}`}
+              style={{
+                width: 30,
+                height: 25,
+                backgroundColor: '#D1BBA320',
+                borderRadius: 4,
+              }}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -2472,7 +2585,7 @@ const TreeView = ({
             pointerEvents="none"
           >
             <TreeSkeleton />
-          </Animated.View>
+          </RNAnimated.View>
         )}
 
         {/* Empty placeholder for tree content that will fade in */}
@@ -2533,7 +2646,7 @@ const TreeView = ({
           pointerEvents="none"
         >
           <TreeSkeleton />
-        </Animated.View>
+        </RNAnimated.View>
       )}
 
       {/* Main tree content with fade in */}
@@ -2561,7 +2674,7 @@ const TreeView = ({
           </Group>
         </Canvas>
         </GestureDetector>
-      </Animated.View>
+      </RNAnimated.View>
 
       {/* Lottie Glow Effect Overlay */}
       {highlightedNodeIdState &&
