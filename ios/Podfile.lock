@@ -317,6 +317,10 @@ PODS:
   - EXUpdatesInterface (2.0.0):
     - ExpoModulesCore
   - FBLazyVector (0.81.4)
+  - Galeria (1.2.0):
+    - ExpoModulesCore
+    - ImageViewer.swift (~> 3.0)
+    - ImageViewer.swift/Fetcher (~> 3.0)
   - hermes-engine (0.81.4):
     - hermes-engine/Pre-built (= 0.81.4)
   - hermes-engine/Pre-built (0.81.4)
@@ -344,6 +348,9 @@ PODS:
     - Yoga
   - ImageColors (2.5.0):
     - ExpoModulesCore
+  - ImageViewer.swift (3.3.8)
+  - ImageViewer.swift/Fetcher (3.3.8):
+    - SDWebImage
   - libavif/core (0.11.1)
   - libavif/libdav1d (0.11.1):
     - libavif/core
@@ -2466,6 +2473,7 @@ DEPENDENCIES:
   - EXUpdates (from `../node_modules/expo-updates/ios`)
   - EXUpdatesInterface (from `../node_modules/expo-updates-interface/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
+  - "Galeria (from `../node_modules/@nandorojo/galeria/ios`)"
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
   - HtmlToPdf (from `../node_modules/react-native-html-to-pdf`)
   - ImageColors (from `../node_modules/react-native-image-colors/ios`)
@@ -2549,6 +2557,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
+    - ImageViewer.swift
     - libavif
     - libdav1d
     - libwebp
@@ -2638,6 +2647,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-updates-interface/ios"
   FBLazyVector:
     :path: "../node_modules/react-native/Libraries/FBLazyVector"
+  Galeria:
+    :path: "../node_modules/@nandorojo/galeria/ios"
   hermes-engine:
     :podspec: "../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec"
     :tag: hermes-2025-07-07-RNv0.81.0-e0fc67142ec0763c6b6153ca2bf96df815539782
@@ -2838,9 +2849,11 @@ SPEC CHECKSUMS:
   EXUpdates: 93a641218866ba3f8404851d63b3ca8bd72842be
   EXUpdatesInterface: 5adf50cb41e079c861da6d9b4b954c3db9a50734
   FBLazyVector: 9e0cd874afd81d9a4d36679daca991b58b260d42
+  Galeria: 9ef47ebe9c86c4f633bcbfc81e9e59cc2d6e2ab9
   hermes-engine: 35c763d57c9832d0eef764316ca1c4d043581394
   HtmlToPdf: 9721ff8ee35b34262c801bfd04b7c0d877d589e6
   ImageColors: 51cd79f7a9d2524b7a681c660b0a50574085563b
+  ImageViewer.swift: 284cd8127d31af8e5938674fb9f8e695a4cdf6c6
   libavif: 84bbb62fb232c3018d6f1bab79beea87e35de7b7
   libdav1d: 23581a4d8ec811ff171ed5e2e05cd27bad64c39f
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8

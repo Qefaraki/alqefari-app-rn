@@ -15,6 +15,7 @@ import {
   Text,
   Alert,
   PixelRatio,
+  Animated,
 } from "react-native";
 import {
   Canvas,
