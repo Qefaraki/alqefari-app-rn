@@ -377,11 +377,14 @@ const TreeView = ({
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
 
-  // Initialize loading state based on whether we have data
-  const [isLoading, setIsLoading] = useState(true);
-  const [showSkeleton, setShowSkeleton] = useState(true);
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(1)).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(0)).current;
+  // Check if we already have preloaded data
+  const hasPreloadedData = treeData && treeData.length > 0;
+
+  // Initialize loading state - skip if we have preloaded data
+  const [isLoading, setIsLoading] = useState(!hasPreloadedData);
+  const [showSkeleton, setShowSkeleton] = useState(!hasPreloadedData);
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 0 : 1)).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 1 : 0)).current;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
