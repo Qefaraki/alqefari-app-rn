@@ -30,7 +30,10 @@ const MEDIUM_SIZE = (GRID_WIDTH - PADDING) / 2;
 const LARGE_SIZE = (GRID_WIDTH - PADDING) * 0.66;
 
 interface PhotoGalleryGridProps {
-  article: NewsArticle;
+  articleId: number;
+  permalink: string;
+  htmlSize: number;
+  title: string;
   isNightMode: boolean;
 }
 

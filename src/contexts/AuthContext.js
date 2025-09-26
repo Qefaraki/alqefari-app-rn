@@ -370,9 +370,9 @@ export const AuthProvider = ({ children }) => {
 
       const rootNode = rootData[0];
 
-      // Load descendants with more depth for initial view
+      // Load same data that TreeView would load (8 depth, 500 nodes)
       const { data: treeData, error: treeError } =
-        await profilesService.getBranchData(rootNode.hid, 5, 300);
+        await profilesService.getBranchData(rootNode.hid, 8, 500);
 
       if (treeError || !treeData) {
         console.log('[DEBUG AuthContext] Failed to preload tree data');

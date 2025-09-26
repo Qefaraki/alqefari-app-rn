@@ -150,10 +150,16 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   // Handle inline image press
   const handleInlineImagePress = useCallback((imageUrl: string, index: number) => {
-    setSelectedImageIndex(index);
+    // If the image wasn't in the extracted array, add it temporarily
+    if (index === 0 && !inlineImages.includes(imageUrl)) {
+      setInlineImages(prev => [imageUrl, ...prev]);
+      setSelectedImageIndex(0);
+    } else {
+      setSelectedImageIndex(index);
+    }
     setViewerVisible(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, []);
+  }, [inlineImages]);
 
   // Handle images extracted from article
   const handleImagesExtracted = useCallback((images: string[]) => {
@@ -286,9 +292,12 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 onImagesExtracted={handleImagesExtracted}
               />
 
-              {/* Photo Gallery Grid - self-manages visibility */}
+              {/* Photo Gallery Grid - minimal props for performance */}
               <PhotoGalleryGrid
-                article={article}
+                articleId={article.id}
+                permalink={article.permalink || ''}
+                htmlSize={article.html?.length || 0}
+                title={article.title}
                 isNightMode={false}
               />
             </>

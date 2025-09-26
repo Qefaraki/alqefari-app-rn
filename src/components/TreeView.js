@@ -610,16 +610,17 @@ const TreeView = ({
   const loadTreeData = async () => {
     const startTime = Date.now();
 
-    // Check if we already have preloaded data
+    // Check if we already have adequate data (at least 400 nodes means we have the full tree)
     const existingData = useTreeStore.getState().treeData;
-    if (existingData && existingData.length > 0) {
+    if (existingData && existingData.length >= 400) {
       const loadTime = Date.now() - startTime;
-      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes, instant load in', loadTime, 'ms');
-      // Don't call setTreeData with the same data - component already subscribes to store
-      // Just update loading state
+      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (adequate), instant load in', loadTime, 'ms');
+      // Don't reload - we have enough data
       setShowSkeleton(false);
       setIsLoading(false);
       return;
+    } else if (existingData && existingData.length > 0) {
+      console.log('⚠️ Partial tree data exists:', existingData.length, 'nodes, loading full tree...');
     }
 
     setIsLoading(true);
@@ -773,9 +774,9 @@ const TreeView = ({
 
   // Load tree data on mount
   useEffect(() => {
-    // If we already have data, skip everything - instant render
-    if (treeData && treeData.length > 0) {
-      console.log('[TreeView] Preloaded data available, skipping skeleton entirely');
+    // If we already have adequate data, skip everything - instant render
+    if (treeData && treeData.length >= 400) {
+      console.log('[TreeView] Full tree data available (', treeData.length, 'nodes), skipping skeleton entirely');
       setIsLoading(false);
       setShowSkeleton(false);
       contentFadeAnim.setValue(1);
@@ -783,8 +784,12 @@ const TreeView = ({
       return;
     }
 
-    // No data exists, load it
-    console.log('[TreeView] No preloaded data, loading now');
+    // No adequate data exists, load it
+    if (treeData && treeData.length > 0) {
+      console.log('[TreeView] Partial data exists (', treeData.length, 'nodes), loading full tree');
+    } else {
+      console.log('[TreeView] No preloaded data, loading now');
+    }
     loadTreeData();
   }, []); // Run only once on mount
 

@@ -245,8 +245,9 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, im
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Find the index of this image in the array
       const imageIndex = images ? images.indexOf(src) : -1;
-      if (onImagePress && imageIndex !== -1) {
-        onImagePress(src, imageIndex);
+      if (onImagePress) {
+        // Call handler even if image not found in array (use index 0 as fallback)
+        onImagePress(src, imageIndex !== -1 ? imageIndex : 0);
       }
     };
 
