@@ -25,7 +25,7 @@ import EnhancedCarousel from '../components/ui/news/EnhancedCarousel';
 import { WorldClassNewsCard } from '../components/ui/news/WorldClassNewsCard';
 import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
 import NetworkError from '../components/NetworkError';
-import ArticleViewerModal from '../components/ArticleViewer/ArticleViewerModal';
+import ArticleReaderModal from '../components/ArticleViewer/ArticleReaderModal';
 import tokens from '../components/ui/tokens';
 
 // Item types for mixed list
@@ -289,8 +289,8 @@ const NewsScreenV3: React.FC = () => {
         windowSize={10}
       />
 
-      {/* Article Viewer Modal */}
-      <ArticleViewerModal
+      {/* Article Reader Modal */}
+      <ArticleReaderModal
         article={selectedArticle}
         visible={articleViewerVisible}
         onClose={() => {

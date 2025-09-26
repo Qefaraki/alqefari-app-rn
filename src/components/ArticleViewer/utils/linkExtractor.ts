@@ -16,58 +16,98 @@ interface ExtractedLink {
  * Extract external gallery link with smart fallbacks
  */
 export function extractGalleryLink(html: string, article: NewsArticle): ExtractedLink {
-  // For large HTML, focus on the last portion where links are usually placed
-  let searchHtml = html;
-  if (html.length > 100000) {
-    // Search last 50KB for the link (usually placed before the images)
-    const startPoint = Math.max(0, html.length - 50000);
-    searchHtml = html.substring(startPoint);
+  console.log('Starting link extraction, HTML length:', html.length);
+
+  // Strategy: First search for "drive" keyword, then extract URL around it
+  const driveIndex = html.toLowerCase().lastIndexOf('drive.google.com');
+
+  if (driveIndex !== -1) {
+    console.log('Found "drive.google.com" at index:', driveIndex);
+
+    // Extract a window around the drive mention (2KB before and after)
+    const windowStart = Math.max(0, driveIndex - 2000);
+    const windowEnd = Math.min(html.length, driveIndex + 2000);
+    const searchWindow = html.substring(windowStart, windowEnd);
+
+    // Pattern 1: Google Drive folder links (highest priority)
+    const driveFolderRegex = /https?:\/\/drive\.google\.com\/drive\/folders\/[a-zA-Z0-9_-]+(?:\?[^"'\s<>]*)*/gi;
+    const driveFolderMatch = searchWindow.match(driveFolderRegex);
+    if (driveFolderMatch && driveFolderMatch[0]) {
+      console.log('Found Drive folder link:', driveFolderMatch[0]);
+      return {
+        url: driveFolderMatch[0].replace(/&amp;/g, '&'),
+        type: 'drive'
+      };
+    }
+
+    // Pattern 2: Google Drive file/open links
+    const driveFileRegex = /https?:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)[a-zA-Z0-9_-]+(?:\/[^"'\s<>]*)*/gi;
+    const driveFileMatch = searchWindow.match(driveFileRegex);
+    if (driveFileMatch && driveFileMatch[0]) {
+      console.log('Found Drive file link:', driveFileMatch[0]);
+      return {
+        url: driveFileMatch[0].replace(/&amp;/g, '&'),
+        type: 'drive'
+      };
+    }
+
+    // Pattern 3: Any other drive.google.com link format
+    const anyDriveRegex = /https?:\/\/drive\.google\.com\/[^"'\s<>]+/gi;
+    const anyDriveMatch = searchWindow.match(anyDriveRegex);
+    if (anyDriveMatch && anyDriveMatch[0]) {
+      console.log('Found generic Drive link:', anyDriveMatch[0]);
+      return {
+        url: anyDriveMatch[0].replace(/&amp;/g, '&'),
+        type: 'drive'
+      };
+    }
   }
 
-  // Pattern 1: Google Drive folder links (highest priority)
-  const driveFolderRegex = /https?:\/\/drive\.google\.com\/drive\/folders\/[a-zA-Z0-9_-]+(?:\?[^"'\s<>]*)*/gi;
-  const driveFolderMatch = searchHtml.match(driveFolderRegex);
-  if (driveFolderMatch && driveFolderMatch[0]) {
-    return {
-      url: driveFolderMatch[0].replace(/&amp;/g, '&'),
-      type: 'drive'
-    };
+  // Search for Google Photos links
+  const photosIndex = html.toLowerCase().indexOf('photos.google.com');
+  if (photosIndex !== -1) {
+    console.log('Found "photos.google.com" at index:', photosIndex);
+
+    const windowStart = Math.max(0, photosIndex - 1000);
+    const windowEnd = Math.min(html.length, photosIndex + 1000);
+    const searchWindow = html.substring(windowStart, windowEnd);
+
+    const photosRegex = /https?:\/\/photos\.google\.com\/share\/[^"'\s<>]+/gi;
+    const photosMatch = searchWindow.match(photosRegex);
+    if (photosMatch && photosMatch[0]) {
+      console.log('Found Photos link:', photosMatch[0]);
+      return {
+        url: photosMatch[0].replace(/&amp;/g, '&'),
+        type: 'photos'
+      };
+    }
   }
 
-  // Pattern 2: Google Drive file/open links
-  const driveFileRegex = /https?:\/\/drive\.google\.com\/(?:file\/d\/|open\?id=)[a-zA-Z0-9_-]+(?:\/[^"'\s<>]*)*/gi;
-  const driveFileMatch = searchHtml.match(driveFileRegex);
-  if (driveFileMatch && driveFileMatch[0]) {
-    return {
-      url: driveFileMatch[0].replace(/&amp;/g, '&'),
-      type: 'drive'
-    };
+  // Search for photos.app.goo.gl links
+  const photosAppIndex = html.toLowerCase().indexOf('photos.app.goo.gl');
+  if (photosAppIndex !== -1) {
+    console.log('Found "photos.app.goo.gl" at index:', photosAppIndex);
+
+    const windowStart = Math.max(0, photosAppIndex - 500);
+    const windowEnd = Math.min(html.length, photosAppIndex + 500);
+    const searchWindow = html.substring(windowStart, windowEnd);
+
+    const photosAppRegex = /https?:\/\/photos\.app\.goo\.gl\/[^"'\s<>]+/gi;
+    const photosAppMatch = searchWindow.match(photosAppRegex);
+    if (photosAppMatch && photosAppMatch[0]) {
+      console.log('Found Photos app link:', photosAppMatch[0]);
+      return {
+        url: photosAppMatch[0].replace(/&amp;/g, '&'),
+        type: 'photos'
+      };
+    }
   }
 
-  // Pattern 3: Google Photos shared albums
-  const photosRegex = /https?:\/\/photos\.google\.com\/share\/[^"'\s<>]+/gi;
-  const photosMatch = searchHtml.match(photosRegex);
-  if (photosMatch && photosMatch[0]) {
-    return {
-      url: photosMatch[0].replace(/&amp;/g, '&'),
-      type: 'photos'
-    };
-  }
-
-  // Pattern 4: Google Photos app links
-  const photosAppRegex = /https?:\/\/photos\.app\.goo\.gl\/[^"'\s<>]+/gi;
-  const photosAppMatch = searchHtml.match(photosAppRegex);
-  if (photosAppMatch && photosAppMatch[0]) {
-    return {
-      url: photosAppMatch[0].replace(/&amp;/g, '&'),
-      type: 'photos'
-    };
-  }
-
-  // Pattern 5: Other photo services (Flickr, Imgur, etc)
+  // Other photo services
   const otherPhotoServices = /https?:\/\/(www\.)?(flickr\.com|imgur\.com)\/[^"'\s<>]+/gi;
-  const otherMatch = searchHtml.match(otherPhotoServices);
+  const otherMatch = html.match(otherPhotoServices);
   if (otherMatch && otherMatch[0]) {
+    console.log('Found other photo service:', otherMatch[0]);
     return {
       url: otherMatch[0].replace(/&amp;/g, '&'),
       type: 'other'
@@ -76,6 +116,7 @@ export function extractGalleryLink(html: string, article: NewsArticle): Extracte
 
   // Fallback: Link to original WordPress article
   const fallbackUrl = article.permalink || `https://alqefari.com/?p=${article.id}`;
+  console.log('No external gallery found, using article URL:', fallbackUrl);
   return {
     url: fallbackUrl,
     type: 'article'
