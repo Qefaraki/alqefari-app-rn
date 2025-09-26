@@ -146,7 +146,6 @@ const NewsScreenV3: React.FC = () => {
           {/* Section header */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>المناسبات</Text>
-            <View style={styles.sectionAccent} />
           </View>
 
           {/* Featured carousel */}
@@ -162,7 +161,6 @@ const NewsScreenV3: React.FC = () => {
         {/* Section title for vertical list */}
         <View style={styles.verticalSectionHeader}>
           <Text style={styles.verticalSectionTitle}>آخر الأخبار</Text>
-          <View style={styles.sectionDivider} />
         </View>
       </View>
     );
@@ -326,20 +324,13 @@ const styles = StyleSheet.create({
   sectionHeader: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+    color: '#242121',
     fontFamily: 'SF Arabic',
-    marginBottom: 4,
-  },
-  sectionAccent: {
-    width: 40,
-    height: 3,
-    backgroundColor: tokens.colors.najdi.primary,
-    borderRadius: 1.5,
   },
   verticalSectionHeader: {
     paddingHorizontal: 16,
@@ -348,15 +339,9 @@ const styles = StyleSheet.create({
   },
   verticalSectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+    color: '#242121',
     fontFamily: 'SF Arabic',
-    marginBottom: 8,
-  },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: tokens.colors.najdi.secondary + '20',
-    marginTop: 4,
   },
   title: {
     fontSize: 34,

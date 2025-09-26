@@ -12,44 +12,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { getColors } from 'react-native-image-colors';
 import { NewsArticle } from '../../../services/news';
 import CachedImage from '../../CachedImage';
 import tokens from '../tokens';
 import { useRelativeDateNoMemo } from '../../../hooks/useFormattedDateNoMemo';
 
-// Map cache for extracted colors (using URL as key)
-const colorCache = new Map<string, string>();
-
-// Fallback colors for cards without images
-const fallbackColors = [
-  '#A13333', // Najdi Crimson
-  '#D58C4A', // Desert Ochre
-  '#8B5A3C', // Brown
-  '#704214', // Dark Bronze
-  '#5C4033', // Coffee
-];
-
-// Check if a color is too light (close to white/grey)
-const isColorTooLight = (hex: string): boolean => {
-  if (!hex || hex.length < 7) return true;
-
-  // Remove # and parse RGB
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-
-  // Calculate brightness (0-255)
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-
-  // Calculate saturation to detect greys
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const saturation = max === 0 ? 0 : (max - min) / max;
-
-  // Reject if too bright or too grey (low saturation)
-  return brightness > 180 || saturation < 0.2;
-};
 
 interface EnhancedCarouselProps {
   articles: NewsArticle[];
@@ -71,90 +38,8 @@ const CarouselCard: React.FC<{
   index?: number;
 }> = ({ article, onPress, index = 0 }) => {
   const relativeDate = useRelativeDateNoMemo(article.publishedAt);
-  const [bgColor, setBgColor] = useState<string | null>(null);
-  const imageRef = useRef<string | null>(null); // Initialize as null
 
-  // Extract color from hero image
-  useEffect(() => {
-    if (article.heroImage) {
-      // Check if we've already processed this image
-      if (imageRef.current === article.heroImage) {
-        return;
-      }
-      imageRef.current = article.heroImage;
-
-      // Check cache first
-      const cached = colorCache.get(article.heroImage);
-      if (cached) {
-        setBgColor(cached);
-        return;
-      }
-
-      // Extract colors using react-native-image-colors
-      getColors(article.heroImage, {
-        fallback: fallbackColors[index % fallbackColors.length],
-        cache: true,
-        key: article.heroImage,
-        quality: Platform.OS === 'ios' ? 'low' : 'low'
-      }).then(colors => {
-        if (colors) {
-          let selectedColor = null;
-
-          if (colors.platform === 'ios') {
-            // iOS returns: background, primary, secondary, detail
-            // Try colors in order of preference, checking darkness
-            const candidates = [colors.primary, colors.secondary, colors.detail, colors.background];
-            for (const color of candidates) {
-              if (color && !isColorTooLight(color) && color !== '#000000') {
-                selectedColor = color;
-                break;
-              }
-            }
-          } else if (colors.platform === 'android') {
-            // Android returns: dominant, vibrant, darkVibrant, lightVibrant, muted, darkMuted, lightMuted
-            const candidates = [colors.darkVibrant, colors.vibrant, colors.darkMuted, colors.dominant, colors.muted];
-            for (const color of candidates) {
-              if (color && !isColorTooLight(color) && color !== '#000000') {
-                selectedColor = color;
-                break;
-              }
-            }
-          } else if (colors.platform === 'web') {
-            // Web returns: dominant, vibrant, darkVibrant, lightVibrant, muted, darkMuted, lightMuted
-            const candidates = [colors.darkVibrant, colors.vibrant, colors.darkMuted, colors.dominant];
-            for (const color of candidates) {
-              if (color && !isColorTooLight(color) && color !== '#000000') {
-                selectedColor = color;
-                break;
-              }
-            }
-          }
-
-          // Use selected color or fallback
-          if (selectedColor) {
-            colorCache.set(article.heroImage, selectedColor);
-            setBgColor(selectedColor);
-          } else {
-            // Use fallback if no suitable color found
-            const fallback = fallbackColors[index % fallbackColors.length];
-            setBgColor(fallback);
-          }
-        } else {
-          // No colors extracted, use fallback
-          const fallback = fallbackColors[index % fallbackColors.length];
-          setBgColor(fallback);
-        }
-      }).catch(err => {
-        // Use fallback on error
-        const fallback = fallbackColors[index % fallbackColors.length];
-        setBgColor(fallback);
-      });
-    } else {
-      // No image, use fallback color
-      const fallback = fallbackColors[index % fallbackColors.length];
-      setBgColor(fallback);
-    }
-  }, [article.heroImage, index]);
+  // No color extraction - clean design
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -162,14 +47,7 @@ const CarouselCard: React.FC<{
   };
 
   return (
-    <View
-      style={[
-        styles.card,
-        bgColor ? {
-          backgroundColor: `${bgColor}30`, // 19% opacity for subtle tint with darker colors
-        } : {}
-      ]}
-    >
+    <View style={styles.card}>
       <Pressable
         style={styles.cardPressable}
         onPress={handlePress}
@@ -197,11 +75,9 @@ const CarouselCard: React.FC<{
           <Text style={styles.cardTitle} numberOfLines={2}>
             {article.title}
           </Text>
-          {article.summary && (
-            <Text style={styles.cardSummary} numberOfLines={2}>
-              {article.summary}
-            </Text>
-          )}
+          <Text style={styles.cardSummary} numberOfLines={2}>
+            {article.summary || ' '}
+          </Text>
           <Text style={styles.cardDate}>{relativeDate}</Text>
         </View>
       </Pressable>
@@ -379,24 +255,25 @@ const styles = StyleSheet.create({
     marginRight: PEEK_WIDTH,
   },
   card: {
-    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
+    backgroundColor: '#FFFFFF', // Pure white (stands out from warm background)
     overflow: 'hidden',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D1BBA31A',
+    borderColor: '#D1BBA310', // 6% Camel Hair Beige border
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 3,
   },
   cardPressable: {
     flex: 1,
   },
   heroImage: {
     width: '100%',
-    height: 200,
-    backgroundColor: '#D1BBA310',
+    height: 180,
+    backgroundColor: '#F9F7F3',
+    borderRadius: 10, // More curved, iOS-style
   },
   heroPlaceholder: {
     alignItems: 'center',
@@ -404,28 +281,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1BBA320',
   },
   cardContent: {
-    padding: 20,
-    gap: 10,
+    padding: 16,
   },
   cardTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: tokens.colors.najdi.text,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#242121',
     lineHeight: 26,
     letterSpacing: -0.3,
     fontFamily: 'SF Arabic',
   },
   cardSummary: {
-    fontSize: 15,
-    color: tokens.colors.najdi.textMuted,
-    lineHeight: 22,
+    fontSize: 14,
+    fontWeight: '400',
+    color: '#24212180',
+    lineHeight: 20,
     fontFamily: 'SF Arabic',
+    minHeight: 40,
+    marginTop: 4,
   },
   cardDate: {
-    fontSize: 12,
-    color: '#24212180',
-    marginTop: 6,
-    fontWeight: '500',
+    fontSize: 11,
+    color: '#A13333',
+    marginTop: 8,
+    fontWeight: '600',
+    letterSpacing: 0.2,
     fontFamily: 'SF Arabic',
   },
   loadingMore: {
