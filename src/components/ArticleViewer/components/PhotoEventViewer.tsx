@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -111,7 +111,7 @@ const PhotoEventViewer: React.FC<PhotoEventViewerProps> = ({
   };
 
   return (
-    <ScrollView
+    <BottomSheetScrollView
       style={[styles.container, isNightMode && styles.containerDark]}
       showsVerticalScrollIndicator={false}
     >
@@ -217,7 +217,7 @@ const PhotoEventViewer: React.FC<PhotoEventViewerProps> = ({
 
       {/* Spacer at bottom */}
       <View style={{ height: 100 }} />
-    </ScrollView>
+    </BottomSheetScrollView>
   );
 };
 
