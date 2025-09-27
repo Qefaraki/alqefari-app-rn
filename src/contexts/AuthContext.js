@@ -202,8 +202,15 @@ export const AuthProvider = ({ children }) => {
       // Declare hasPending outside if block to fix scope issue
       let hasPending = false;
 
-      // If no linked profile, check for pending request
-      if (!hasProfile) {
+      // If user has a linked profile, ensure onboarding is marked as complete
+      if (hasProfile) {
+        console.log('[DEBUG AuthContext] User has linked profile, marking onboarding complete');
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+        // Clear guest mode if it was set
+        await AsyncStorage.removeItem('isGuestMode');
+        setHasPendingRequest(false);
+      } else {
+        // If no linked profile, check for pending request
         const { data: pendingRequest, error: requestError } = await supabase
           .from('profile_link_requests')
           .select('id, status')
@@ -214,8 +221,6 @@ export const AuthProvider = ({ children }) => {
         hasPending = !!pendingRequest && !requestError;
         console.log('[DEBUG AuthContext] Pending request check:', hasPending);
         setHasPendingRequest(hasPending);
-      } else {
-        setHasPendingRequest(false);
       }
 
       // Cache the profile status for offline use

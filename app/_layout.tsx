@@ -65,6 +65,19 @@ function TabLayout() {
     });
   }, []);
 
+  // Auto-complete onboarding if user has linked profile
+  useEffect(() => {
+    if (user && hasLinkedProfile && !onboardingCompleted) {
+      console.log('[DEBUG] User has linked profile, auto-completing onboarding');
+      AsyncStorage.setItem('hasCompletedOnboarding', 'true').then(() => {
+        setOnboardingCompleted(true);
+      });
+      AsyncStorage.removeItem('isGuestMode').then(() => {
+        setIsGuestMode(false);
+      });
+    }
+  }, [user, hasLinkedProfile, onboardingCompleted]);
+
   // No need for emergency timeout - trust Supabase's auth handling
 
   // Determine app state based on AuthContext (single source of truth)
