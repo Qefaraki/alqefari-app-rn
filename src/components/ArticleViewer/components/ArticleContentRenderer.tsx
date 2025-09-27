@@ -16,6 +16,7 @@ import RenderHtml, {
 } from 'react-native-render-html';
 import { Image } from 'expo-image';
 import { VideoPlayer } from 'expo-video';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
@@ -37,6 +38,20 @@ const SYSTEM_FONTS = [...defaultSystemFonts, 'System'];
 
 // Ignored tags - removed video and iframe to support them
 const IGNORED_DOM_TAGS = ['script', 'audio', 'style'];
+
+// Helper function to extract YouTube video ID
+const extractYouTubeId = (url: string): string | null => {
+  const patterns = [
+    /(?:youtube\.com\/embed\/|youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
+    /^([^&\n?#]+)$/ // Just the ID
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+};
 
 // Create tag styles with Najdi design system and better Arabic support
 const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaration> => ({
@@ -319,17 +334,78 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
     return <TDefaultRenderer {...props} />;
   },
 
+  // Figure renderer for WordPress video blocks
+  figure: ({ tnode, TDefaultRenderer, ...props }: any) => {
+    const className = tnode.attributes?.class || '';
+
+    // Check if it's a WordPress video block
+    if (className.includes('wp-block-video')) {
+      const videoNode = tnode.children?.find((child: any) => child.tagName === 'video');
+      if (videoNode) {
+        // Try to get src from video tag or source child
+        let videoSrc = videoNode.attributes?.src;
+        if (!videoSrc) {
+          const sourceNode = videoNode.children?.find((c: any) => c.tagName === 'source');
+          videoSrc = sourceNode?.attributes?.src;
+        }
+
+        if (videoSrc) {
+          return (
+            <View style={styles.videoContainer}>
+              <VideoPlayer
+                source={{ uri: videoSrc }}
+                style={styles.videoPlayer}
+                showsControls={true}
+              />
+            </View>
+          );
+        }
+      }
+    }
+
+    // Check if it's a WordPress YouTube embed block
+    if (className.includes('wp-block-embed-youtube') || className.includes('wp-block-embed is-type-video')) {
+      // Look for the embed wrapper div
+      const wrapperNode = tnode.children?.find((child: any) =>
+        child.attributes?.class?.includes('wp-block-embed__wrapper')
+      );
+
+      if (wrapperNode && wrapperNode.children?.[0]) {
+        // The YouTube URL is usually in the text content
+        const youtubeUrl = wrapperNode.children[0].data;
+        if (youtubeUrl) {
+          const videoId = extractYouTubeId(youtubeUrl);
+          if (videoId) {
+            return (
+              <View style={styles.youtubeContainer}>
+                <YoutubePlayer
+                  height={200}
+                  videoId={videoId}
+                  play={false}
+                />
+              </View>
+            );
+          }
+        }
+      }
+    }
+
+    // For other figure types, use default renderer
+    return <TDefaultRenderer {...props} />;
+  },
+
   // Video renderer for direct video files
   video: ({ tnode, ...props }: any) => {
-    const { src } = tnode.attributes || {};
+    // Check direct src attribute
+    let videoSrc = tnode.attributes?.src;
 
-    if (!src) {
-      // Check for source tags inside video
+    // If no src, check for source tags inside video
+    if (!videoSrc) {
       const sourceNode = tnode.children?.find((child: any) => child.tagName === 'source');
-      const videoSrc = sourceNode?.attributes?.src;
+      videoSrc = sourceNode?.attributes?.src;
+    }
 
-      if (!videoSrc) return null;
-
+    if (videoSrc) {
       return (
         <View style={styles.videoContainer}>
           <VideoPlayer
@@ -341,15 +417,7 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
       );
     }
 
-    return (
-      <View style={styles.videoContainer}>
-        <VideoPlayer
-          source={{ uri: src }}
-          style={styles.videoPlayer}
-          showsControls={true}
-        />
-      </View>
-    );
+    return null;
   },
 
   // iframe renderer for embedded videos (YouTube, Vimeo, etc.)
@@ -358,13 +426,24 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
 
     if (!src) return null;
 
-    // Check if it's a YouTube or Vimeo embed
+    // Check if it's a YouTube embed
     const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
     const isVimeo = src.includes('vimeo.com');
 
-    if (isYouTube || isVimeo) {
-      const platform = isYouTube ? 'YouTube' : 'Vimeo';
-
+    if (isYouTube) {
+      const videoId = extractYouTubeId(src);
+      if (videoId) {
+        return (
+          <View style={styles.youtubeContainer}>
+            <YoutubePlayer
+              height={200}
+              videoId={videoId}
+              play={false}
+            />
+          </View>
+        );
+      }
+      // Fallback if ID extraction fails
       return (
         <TouchableOpacity
           style={styles.videoEmbed}
@@ -377,7 +456,25 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
           activeOpacity={0.9}
         >
           <Ionicons name="play-circle" size={60} color={tokens.colors.najdi.primary} />
-          <Text style={styles.videoEmbedText}>فتح فيديو {platform}</Text>
+          <Text style={styles.videoEmbedText}>فتح فيديو YouTube</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (isVimeo) {
+      return (
+        <TouchableOpacity
+          style={styles.videoEmbed}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            Linking.openURL(src).catch(() => {
+              Alert.alert('خطأ', 'لا يمكن فتح الفيديو');
+            });
+          }}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="play-circle" size={60} color={tokens.colors.najdi.primary} />
+          <Text style={styles.videoEmbedText}>فتح فيديو Vimeo</Text>
         </TouchableOpacity>
       );
     }
@@ -408,7 +505,7 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
     [onImagePress, allImages]
   );
 
-  // Custom HTML element models for video and iframe
+  // Custom HTML element models for video, iframe, and figure
   const customHTMLElementModels = useMemo(
     () => ({
       video: HTMLElementModel.fromCustomModel({
@@ -417,6 +514,10 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
       }),
       iframe: HTMLElementModel.fromCustomModel({
         tagName: 'iframe',
+        contentModel: HTMLContentModel.block,
+      }),
+      figure: HTMLElementModel.fromCustomModel({
+        tagName: 'figure',
         contentModel: HTMLContentModel.block,
       }),
     }),
@@ -587,6 +688,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: tokens.colors.najdi.text,
     fontFamily: 'System',
+  },
+  youtubeContainer: {
+    marginVertical: 24,
+    width: '100%',
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: tokens.colors.najdi.container + '10',
   },
 });
 
