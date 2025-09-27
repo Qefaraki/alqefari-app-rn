@@ -243,11 +243,8 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
         console.log('[DEBUG OTP] User has existing profile, completing onboarding');
         // User already has a profile, mark onboarding as complete
         await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-        // Navigate to main app
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        });
+        // The AuthContext will automatically handle navigation to tabs
+        // No need to manually reset navigation
       } else {
         console.log('[DEBUG OTP] New user, navigating to ProfileLinking');
         // New user needs to link their profile

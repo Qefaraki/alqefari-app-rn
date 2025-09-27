@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Animated } from "react-native";
+import { View, Text, StyleSheet, Animated, Easing } from "react-native";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -15,48 +15,59 @@ const colors = {
 const DuolingoProgressBar = ({
   currentStep = 0,
   totalSteps = 5,
+  initialStep = 0, // New prop to set starting position
   showStepCount = true,
   style,
 }) => {
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  // Initialize with the initial step value to avoid starting from 0
+  const progressAnim = useRef(new Animated.Value(initialStep / totalSteps)).current;
+  const opacityAnim = useRef(new Animated.Value(initialStep > 0 ? 1 : 0)).current;
+  const [trackWidth, setTrackWidth] = React.useState(0);
 
   useEffect(() => {
-    // Animate progress on step change
+    // Use timing with native driver for smoother animation
     Animated.parallel([
-      Animated.spring(progressAnim, {
+      Animated.timing(progressAnim, {
         toValue: currentStep / totalSteps,
-        tension: 50,
-        friction: 10,
-        useNativeDriver: false, // Can't use native driver for width
+        duration: 300, // Reduced for snappier feel
+        easing: Easing.out(Easing.cubic), // Smoother cubic easing
+        useNativeDriver: true, // Using native driver with translateX
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
-        duration: 300,
+        duration: 200,
         useNativeDriver: true,
       }),
     ]).start();
-  }, [currentStep]);
+  }, [currentStep, totalSteps]);
 
   return (
     <Animated.View style={[styles.container, style, { opacity: opacityAnim }]}>
       {/* Main progress bar container */}
       <View style={styles.progressWrapper}>
         {/* Background track */}
-        <View style={styles.track}>
-          {/* Filled progress - positioned absolute with left:0 (becomes right:0 in RTL) */}
+        <View
+          style={styles.track}
+          onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+        >
+          {/* Filled progress - using translateX for smooth native animation */}
           <Animated.View
             style={[
               styles.fill,
               {
                 position: "absolute",
-                right: 0, // In native RTL, this becomes left: 0 (fills from right-to-left)
                 top: 0,
                 bottom: 0,
-                width: progressAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["0%", "100%"],
-                }),
+                width: trackWidth, // Full width of track
+                right: 0, // Start from right in RTL (becomes left visually)
+                transform: [
+                  {
+                    translateX: progressAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [-trackWidth, 0], // Negative to positive for RTL
+                    }),
+                  },
+                ],
               },
             ]}
           >
