@@ -70,7 +70,7 @@ const PermissionManager = ({ visible, onClose }) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc(
-        "search_profiles_by_name_chain",
+        "super_admin_search_by_name_chain",
         { p_search_text: searchText }
       );
 

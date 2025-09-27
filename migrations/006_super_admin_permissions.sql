@@ -50,7 +50,7 @@ $$;
 -- PART 3: SEARCH BY NAME CHAIN
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION search_profiles_by_name_chain(
+CREATE OR REPLACE FUNCTION super_admin_search_by_name_chain(
   p_search_text TEXT
 )
 RETURNS TABLE (
@@ -577,7 +577,7 @@ CREATE POLICY "Admins manage blocks" ON suggestion_blocks
 -- Grant execute permissions on new functions
 GRANT EXECUTE ON FUNCTION is_super_admin(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION can_manage_permissions(UUID) TO authenticated;
-GRANT EXECUTE ON FUNCTION search_profiles_by_name_chain(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION super_admin_search_by_name_chain(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION super_admin_set_user_role(UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION super_admin_assign_branch_moderator(UUID, UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION super_admin_remove_branch_moderator(UUID, UUID) TO authenticated;
