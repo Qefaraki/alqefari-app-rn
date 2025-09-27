@@ -66,7 +66,8 @@
           "color": "#A13333",
           "sounds": []
         }
-      ]
+      ],
+      "expo-video"
     ],
     "notification": {
       "icon": "./assets/icon.png",

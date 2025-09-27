@@ -15,6 +15,8 @@ import RenderHtml, {
   MixedStyleDeclaration,
 } from 'react-native-render-html';
 import { Image } from 'expo-image';
+import { VideoPlayer } from 'expo-video';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
@@ -33,8 +35,8 @@ interface ArticleContentRendererProps {
 // System fonts - let iOS choose the right Arabic font automatically
 const SYSTEM_FONTS = [...defaultSystemFonts, 'System'];
 
-// Ignored tags
-const IGNORED_DOM_TAGS = ['video', 'iframe', 'script', 'audio', 'style'];
+// Ignored tags - removed video and iframe to support them
+const IGNORED_DOM_TAGS = ['script', 'audio', 'style'];
 
 // Create tag styles with Najdi design system and better Arabic support
 const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaration> => ({
@@ -316,6 +318,73 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
   figcaption: ({ TDefaultRenderer, ...props }: any) => {
     return <TDefaultRenderer {...props} />;
   },
+
+  // Video renderer for direct video files
+  video: ({ tnode, ...props }: any) => {
+    const { src } = tnode.attributes || {};
+
+    if (!src) {
+      // Check for source tags inside video
+      const sourceNode = tnode.children?.find((child: any) => child.tagName === 'source');
+      const videoSrc = sourceNode?.attributes?.src;
+
+      if (!videoSrc) return null;
+
+      return (
+        <View style={styles.videoContainer}>
+          <VideoPlayer
+            source={{ uri: videoSrc }}
+            style={styles.videoPlayer}
+            showsControls={true}
+          />
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.videoContainer}>
+        <VideoPlayer
+          source={{ uri: src }}
+          style={styles.videoPlayer}
+          showsControls={true}
+        />
+      </View>
+    );
+  },
+
+  // iframe renderer for embedded videos (YouTube, Vimeo, etc.)
+  iframe: ({ tnode, ...props }: any) => {
+    const { src, width, height } = tnode.attributes || {};
+
+    if (!src) return null;
+
+    // Check if it's a YouTube or Vimeo embed
+    const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
+    const isVimeo = src.includes('vimeo.com');
+
+    if (isYouTube || isVimeo) {
+      const platform = isYouTube ? 'YouTube' : 'Vimeo';
+
+      return (
+        <TouchableOpacity
+          style={styles.videoEmbed}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            Linking.openURL(src).catch(() => {
+              Alert.alert('خطأ', 'لا يمكن فتح الفيديو');
+            });
+          }}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="play-circle" size={60} color={tokens.colors.najdi.primary} />
+          <Text style={styles.videoEmbedText}>فتح فيديو {platform}</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // For other iframes, ignore them
+    return null;
+  },
 });
 
 const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
@@ -471,6 +540,37 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontFamily: 'System',
     fontWeight: '400',
+  },
+  videoContainer: {
+    marginVertical: 24,
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: tokens.colors.najdi.container + '10',
+  },
+  videoPlayer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+  videoEmbed: {
+    marginVertical: 24,
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    backgroundColor: tokens.colors.najdi.container + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '30',
+  },
+  videoEmbedText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'System',
   },
 });
 
