@@ -390,8 +390,13 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
       }
     }
 
-    // For other figure types, use default renderer
-    return <TDefaultRenderer {...props} />;
+    // For other figure types, render the children normally
+    if (TDefaultRenderer) {
+      return <TDefaultRenderer {...props} tnode={tnode} />;
+    }
+
+    // If no default renderer, just render as a view with children
+    return <View />;
   },
 
   // Video renderer for direct video files
