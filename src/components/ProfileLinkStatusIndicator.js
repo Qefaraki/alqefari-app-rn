@@ -18,6 +18,8 @@ import { useRouter } from "expo-router";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getProfileDisplayName } from "../utils/nameChainBuilder";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -42,6 +44,7 @@ export default function ProfileLinkStatusIndicator() {
   const [linkRequest, setLinkRequest] = useState(null);
   const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [shouldHideLinked, setShouldHideLinked] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -109,13 +112,41 @@ export default function ProfileLinkStatusIndicator() {
       // Check if user has a linked profile
       const { data: linkedProfile } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, name, name_chain, father_id, generation")
         .eq("user_id", user.id)
         .single();
 
       if (linkedProfile) {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
+
+        // Check if we should show the success message
+        const lastSeenLinkedProfile = await AsyncStorage.getItem("lastSeenLinkedProfile");
+        if (lastSeenLinkedProfile !== linkedProfile.id) {
+          // New linked profile - show success and auto-dismiss
+          await AsyncStorage.setItem("lastSeenLinkedProfile", linkedProfile.id);
+
+          // Auto-dismiss after 7 seconds
+          setTimeout(() => {
+            Animated.parallel([
+              Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 500,
+                useNativeDriver: true,
+              }),
+              Animated.timing(slideAnim, {
+                toValue: -100,
+                duration: 500,
+                useNativeDriver: true,
+              }),
+            ]).start(() => {
+              setShouldHideLinked(true);
+            });
+          }, 7000);
+        } else {
+          // Already seen - hide immediately
+          setShouldHideLinked(true);
+        }
       } else {
         // Check for pending link requests
         const { data: requests, error: reqError } = await supabase
@@ -212,8 +243,11 @@ export default function ProfileLinkStatusIndicator() {
     return null;
   }
 
-  // Linked Profile State - Minimal success indicator
-  if (hasLinkedProfile && profile) {
+  // Linked Profile State - Success message with auto-dismiss
+  if (hasLinkedProfile && profile && !shouldHideLinked) {
+    const fullName = profile.name_chain || getProfileDisplayName(profile);
+    const displayName = fullName.includes("القفاري") ? fullName : `${fullName} القفاري`;
+
     return (
       <Animated.View
         style={[
@@ -224,14 +258,22 @@ export default function ProfileLinkStatusIndicator() {
           },
         ]}
       >
-        <View style={styles.linkedContent}>
-          <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-          <Text style={styles.linkedText}>
-            {getFullNameWithSurname(profile.name)}
+        <View style={styles.linkedSuccessContent}>
+          <View style={styles.successHeader}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+            <Text style={styles.successMessage}>تهانينا! تم ربط حسابك</Text>
+          </View>
+          <Text style={styles.linkedFullName}>
+            {displayName}
           </Text>
         </View>
       </Animated.View>
     );
+  }
+
+  // Hide indicator if already seen
+  if (hasLinkedProfile && shouldHideLinked) {
+    return null;
   }
 
   // Pending Request State - Progress strip
@@ -379,25 +421,35 @@ export default function ProfileLinkStatusIndicator() {
 const styles = StyleSheet.create({
   // Linked state
   linkedIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
     backgroundColor: colors.success + "15",
-    borderRadius: 20,
-    alignSelf: "flex-start",
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.success + "30",
   },
-  linkedContent: {
+  linkedSuccessContent: {
+    alignItems: "center",
+  },
+  successHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
+    marginBottom: 8,
   },
-  linkedText: {
-    fontSize: 14,
+  successMessage: {
+    fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.text,
+  },
+  linkedFullName: {
+    fontSize: 15,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: colors.text + "CC",
+    textAlign: "center",
+    lineHeight: 22,
   },
 
   // Pending state
