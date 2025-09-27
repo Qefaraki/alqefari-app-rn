@@ -22,6 +22,8 @@ import SuggestionReviewManager from "../components/admin/SuggestionReviewManager
 import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
 import PermissionManager from "../components/admin/PermissionManager";
 import ActivityLogView from "../components/admin/ActivityLogView";
+import QuickAddOverlay from "../components/admin/QuickAddOverlay";
+import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 
 const AdminDashboardRedesigned = ({ user, onClose }) => {
   const [loading, setLoading] = useState(true);
@@ -43,6 +45,8 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
   const [showConnections, setShowConnections] = useState(false);
   const [showPermissions, setShowPermissions] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showMessages, setShowMessages] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -137,6 +141,12 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
       case "activity":
         setShowActivityLog(true);
         break;
+      case "quickAdd":
+        setShowQuickAdd(true);
+        break;
+      case "messages":
+        setShowMessages(true);
+        break;
       default:
         Alert.alert("قيد التطوير", "هذه الميزة قيد التطوير حالياً");
     }
@@ -164,13 +174,28 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Alerts Bar */}
-      {alerts.length > 0 && (
-        <View style={styles.alertBar}>
-          <Ionicons name="warning-outline" size={20} color="#D58C4A" />
-          <Text style={styles.alertText}>{alerts[0].message}</Text>
+      {/* Quick Actions Bar */}
+      <View style={styles.quickActionsSection}>
+        <View style={styles.quickActionsGrid}>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => handleActionPress("quickAdd")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-circle" size={28} color="#FFFFFF" />
+            <Text style={styles.quickActionText}>إضافة شخص سريع</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickActionButtonSecondary}
+            onPress={() => handleActionPress("messages")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="mail-outline" size={24} color="#A13333" />
+            <Text style={styles.quickActionTextSecondary}>الرسائل والطلبات</Text>
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -208,35 +233,6 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
               </View>
             </View>
 
-            {/* Data Issues Card */}
-            <View style={styles.overviewCard}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="warning-outline" size={24} color={stats.dataIssues > 0 ? "#A13333" : "#4CAF50"} />
-                <Text style={styles.cardTitle}>مشاكل البيانات</Text>
-              </View>
-              <View style={styles.issuesContainer}>
-                <View style={styles.issueRow}>
-                  <Text style={styles.issueLabel}>ملفات بدون أسماء:</Text>
-                  <Text style={[styles.issueCount, stats.dataIssues > 0 && styles.issueCountError]}>
-                    {stats.totalProfiles - stats.activeProfiles}
-                  </Text>
-                </View>
-                <View style={styles.issueRow}>
-                  <Text style={styles.issueLabel}>مراجع والدين خاطئة:</Text>
-                  <Text style={[styles.issueCount, stats.orphanedProfiles > 0 && styles.issueCountError]}>
-                    {stats.orphanedProfiles}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.fixButton}
-                  onPress={() => handleActionPress('validation')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.fixButtonText}>عرض جميع المشاكل</Text>
-                  <Ionicons name="arrow-forward" size={16} color="#A13333" />
-                </TouchableOpacity>
-              </View>
-            </View>
           </View>
         </View>
 
@@ -331,6 +327,30 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
           </View>
         </View>
 
+        {/* System Status Bar - Minimal at bottom */}
+        <TouchableOpacity
+          style={styles.systemStatusBar}
+          onPress={() => stats.dataIssues > 0 && handleActionPress('validation')}
+          activeOpacity={stats.dataIssues > 0 ? 0.7 : 1}
+          disabled={stats.dataIssues === 0}
+        >
+          <View style={styles.statusContent}>
+            <Ionicons
+              name={stats.dataIssues > 0 ? "warning" : "checkmark-circle"}
+              size={20}
+              color={stats.dataIssues > 0 ? "#A13333" : "#4CAF50"}
+            />
+            <Text style={[styles.statusText, stats.dataIssues > 0 && styles.statusTextError]}>
+              {stats.dataIssues > 0
+                ? `النظام: ${stats.dataIssues} مشاكل تحتاج إصلاح`
+                : "النظام: ✓ جميع البيانات سليمة"}
+            </Text>
+          </View>
+          {stats.dataIssues > 0 && (
+            <Ionicons name="chevron-forward" size={16} color="#A13333" />
+          )}
+        </TouchableOpacity>
+
       </ScrollView>
 
       {/* Modals for actual screens */}
@@ -401,6 +421,30 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
           <ActivityLogView onClose={() => setShowActivityLog(false)} />
         </Modal>
       )}
+
+      {/* Quick Add Overlay */}
+      {showQuickAdd && (
+        <QuickAddOverlay
+          visible={showQuickAdd}
+          onClose={() => {
+            setShowQuickAdd(false);
+            loadDashboardData(); // Refresh stats
+          }}
+          parentNode={null}
+        />
+      )}
+
+      {/* Messages Manager */}
+      {showMessages && (
+        <Modal
+          animationType="slide"
+          presentationStyle="pageSheet"
+          visible={showMessages}
+          onRequestClose={() => setShowMessages(false)}
+        >
+          <AdminMessagesManager onClose={() => setShowMessages(false)} />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -448,23 +492,49 @@ const styles = StyleSheet.create({
     width: 40,
   },
 
-  // Alert Bar
-  alertBar: {
+  // Quick Actions
+  quickActionsSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  quickActionsGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    backgroundColor: "#A13333",
+    borderRadius: 12,
+    paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#D58C4A20",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 8,
+    justifyContent: "center",
+    gap: 10,
   },
-  alertText: {
-    marginLeft: 8,
-    fontSize: 14,
-    color: "#D58C4A",
+  quickActionText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#FFFFFF",
     fontFamily: "SF Arabic",
-    fontWeight: "500",
+  },
+  quickActionButtonSecondary: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  quickActionTextSecondary: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#A13333",
+    fontFamily: "SF Arabic",
   },
 
   // ScrollView
@@ -540,49 +610,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1BBA340",
   },
 
-  // Issues Card
-  issuesContainer: {
-    marginTop: 8,
-  },
-  issueRow: {
+  // System Status Bar
+  systemStatusBar: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  issueLabel: {
-    fontSize: 14,
-    color: "#24212199",
-    fontFamily: "SF Arabic",
-    flex: 1,
-  },
-  issueCount: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#4CAF50",
-    fontFamily: "SF Arabic",
-    minWidth: 40,
-    textAlign: "center",
-  },
-  issueCountError: {
-    color: "#A13333",
-  },
-  fixButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#A1333310",
-    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 24,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
   },
-  fixButtonText: {
+  statusContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statusText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#A13333",
+    fontWeight: "500",
+    color: "#4CAF50",
     fontFamily: "SF Arabic",
-    marginRight: 8,
+  },
+  statusTextError: {
+    color: "#A13333",
   },
 
   // Action Cards

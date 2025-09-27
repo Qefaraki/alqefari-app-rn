@@ -10,8 +10,11 @@ import AuthNavigator from "../src/navigation/AuthNavigator";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import BrandedSplashLoader from "../src/components/ui/BrandedSplashLoader";
+import * as SplashScreen from 'expo-splash-screen';
 import BrandedErrorScreen from "../src/components/ui/BrandedErrorScreen";
+
+// Keep the splash screen visible while we determine auth state
+SplashScreen.preventAutoHideAsync();
 
 // Error Boundary to catch and display any silent errors
 class ErrorBoundary extends Component {
@@ -52,6 +55,7 @@ function TabLayout() {
   const { user, isAdmin, hasLinkedProfile, hasPendingRequest, isLoading } = useAuth();
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const [isGuestMode, setIsGuestMode] = useState<boolean | null>(null);
+  const [appIsReady, setAppIsReady] = useState(false);
 
   // Check onboarding and guest mode status
   useEffect(() => {
@@ -62,6 +66,7 @@ function TabLayout() {
       setOnboardingCompleted(onboardingValue === 'true');
       setIsGuestMode(guestValue === 'true');
       console.log('[DEBUG] Onboarding check:', onboardingValue === 'true', 'Guest mode:', guestValue === 'true');
+      setAppIsReady(true);
     });
   }, []);
 
@@ -112,6 +117,13 @@ function TabLayout() {
       });
     }
   }, [user, hasLinkedProfile, hasPendingRequest, onboardingCompleted]);
+
+  // Hide the splash screen when the app is ready
+  useEffect(() => {
+    if (appIsReady && !isLoading) {
+      SplashScreen.hideAsync();
+    }
+  }, [appIsReady, isLoading]);
 
   // No need for emergency timeout - trust Supabase's auth handling
 
@@ -192,9 +204,8 @@ function TabLayout() {
   // Show loading screen while checking auth and onboarding
   if (appState === 'loading') {
     console.log('[DEBUG] Loading auth and onboarding status...');
-    return (
-      <BrandedSplashLoader />
-    );
+    // Return null to keep the native splash screen visible
+    return null;
   }
 
 

@@ -66,8 +66,7 @@ import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
 // Profile editing components removed for simplified view
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
-// Haptics removed - no interaction in simplified view
-import LottieGlow from "./LottieGlow";
+// Haptics and LottieGlow removed - no interaction in simplified view
 import NetworkErrorView from "./NetworkErrorView";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
@@ -378,34 +377,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
   // Initialize loading state - skip if we have preloaded data
   const [isLoading, setIsLoading] = useState(!hasPreloadedData);
-  const [showSkeleton, setShowSkeleton] = useState(!hasPreloadedData);
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 0 : 1)).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 1 : 0)).current;
-  const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
+  // Skeleton animation removed for simplified view
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  // Admin mode state
-  const isAdminMode = false; // Always false in simplified view
-  const [showMultiAddModal, setShowMultiAddModal] = useState(false);
-  const [multiAddParent, setMultiAddParent] = useState(null);
-  const [showContextMenu, setShowContextMenu] = useState(false);
-  const [contextMenuNode, setContextMenuNode] = useState(null);
-  const [contextMenuPosition, setContextMenuPosition] = useState({
-    x: 0,
-    y: 0,
-  });
-  const [editingProfile, setEditingProfile] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showMarriageModal, setShowMarriageModal] = useState(false);
-  const [marriagePerson, setMarriagePerson] = useState(null);
-
-  // Quick Add Overlay state
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickAddParent, setQuickAddParent] = useState(null);
-  const [quickAddPosition, setQuickAddPosition] = useState({ x: 0, y: 0 });
-  const longPressTimer = useRef(null);
+  // Simplified view - no admin or modal state needed
+  const isAdminMode = false;
 
   // Search modal state
 
@@ -424,10 +402,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     initializeProfileSheetProgress(profileSheetProgress);
   }, []); // Empty deps = run once on mount
 
-  // State for triggering re-renders
-  const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
-  const [glowOpacityState, setGlowOpacityState] = useState(0);
-  const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
+  // Simple highlight state for focused node
+  const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(focusPersonId);
 
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
@@ -437,7 +413,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     }),
     (current) => {
       runOnJS(setHighlightedNodeIdState)(current.nodeId);
-      runOnJS(setGlowOpacityState)(current.opacity);
+      // Glow opacity removed - using simple highlight
     },
   );
 
@@ -1365,42 +1341,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       savedTranslateY.value = targetY;
       savedScale.value = targetScale;
 
-      // Start highlight animation immediately (will reach full brightness as navigation completes)
-      highlightNode(nodeId);
+      // Highlight is now handled by simple state
+      setHighlightedNodeIdState(nodeId);
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
 
-  // Highlight node with elegant golden effect using Reanimated
-  const highlightNode = useCallback((nodeId) => {
-    // Force re-trigger by incrementing trigger counter
-    setGlowTrigger((prev) => prev + 1);
-
-    // Set the highlighted node
-    highlightedNodeId.value = nodeId;
-
-    // Elegant animation: quick burst, gentle hold, smooth fade
-    glowOpacity.value = withSequence(
-      // Quick initial flash
-      withTiming(1, { duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
-      // Brief peak hold
-      withTiming(0.95, { duration: 200, easing: Easing.linear }),
-      // Gentle pulse at peak
-      withTiming(1, { duration: 400, easing: Easing.inOut(Easing.ease) }),
-      // Hold at high intensity
-      withTiming(0.9, { duration: 600, easing: Easing.linear }),
-      // Smooth fade out
-      withTiming(0, { duration: 800, easing: Easing.bezier(0.6, 0, 0.8, 1) }),
-    );
-
-    // Clear highlight after animation completes
-    setTimeout(() => {
-      highlightedNodeId.value = null;
-    }, 2500);
-
-    // Haptic feedback with impact
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
+  // Highlight animation removed - using simple state for focused node
 
   // Handle highlight from navigation params - DISABLED for simplified view
   // The initial centering is now handled in the initialization effect above
@@ -1573,7 +1520,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
             e.y >= screenY - chipHeight / 2 &&
             e.y <= screenY + chipHeight / 2
           ) {
-            handleChipTap(hero);
+            // Chip tap removed
             return;
           }
         }
@@ -1619,134 +1566,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
   // No long press gesture in simplified view
 
-  // Handle chip tap in T3 - zoom to branch
-  const handleChipTap = useCallback(
-    (hero) => {
-      // Calculate bounds of hero's subtree
-      const descendantIds = new Set();
-      const stack = [hero.id];
-
-      while (stack.length > 0) {
-        const nodeId = stack.pop();
-        descendantIds.add(nodeId);
-        const children = indices.parentToChildren.get(nodeId) || [];
-        children.forEach((child) => stack.push(child.id));
-      }
-
-      // Find bounds of all descendants
-      let minX = Infinity,
-        maxX = -Infinity,
-        minY = Infinity,
-        maxY = -Infinity;
-      descendantIds.forEach((id) => {
-        const node = indices.idToNode.get(id);
-        if (node) {
-          minX = Math.min(minX, node.x);
-          maxX = Math.max(maxX, node.x);
-          minY = Math.min(minY, node.y);
-          maxY = Math.max(maxY, node.y);
-        }
-      });
-
-      if (minX === Infinity) return; // No descendants found
-
-      // Add padding
-      const padding = 100;
-      minX -= padding;
-      maxX += padding;
-      minY -= padding;
-      maxY += padding;
-
-      // Calculate target scale to fit bounds
-      const boundsWidth = maxX - minX;
-      const boundsHeight = maxY - minY;
-      const targetScaleX = dimensions.width / boundsWidth;
-      const targetScaleY = dimensions.height / boundsHeight;
-      let targetScale = Math.min(targetScaleX, targetScaleY);
-
-      // Ensure we reach at least T2 threshold
-      const minScaleForT2 =
-        T2_BASE / (NODE_WIDTH_WITH_PHOTO * PixelRatio.get());
-      targetScale = Math.max(targetScale, minScaleForT2 * 1.2); // 20% above threshold
-      targetScale = clamp(targetScale, minZoom, maxZoom);
-
-      // Calculate center and target position
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-      const targetX = dimensions.width / 2 - centerX * targetScale;
-      const targetY = dimensions.height / 2 - centerY * targetScale;
-
-      // Animate to target
-      scale.value = withTiming(targetScale, { duration: 500 });
-      translateX.value = withTiming(targetX, { duration: 500 });
-      translateY.value = withTiming(targetY, { duration: 500 });
-
-      // Update saved values after animation
-      setTimeout(() => {
-        savedScale.value = targetScale;
-        savedTranslateX.value = targetX;
-        savedTranslateY.value = targetY;
-      }, 500);
-    },
-    [indices, dimensions, minZoom, maxZoom],
-  );
-
-  // Handle context menu actions
-  const handleContextMenuAction = useCallback(
-    (action) => {
-      if (!contextMenuNode) return;
-
-      switch (action) {
-        case "addChildren":
-          setMultiAddParent({
-            id: contextMenuNode.id,
-            name: contextMenuNode.name,
-          });
-          setShowMultiAddModal(true);
-          break;
-        case "addMarriage":
-          setMarriagePerson(contextMenuNode);
-          setShowMarriageModal(true);
-          break;
-        case "edit":
-          setEditingProfile(contextMenuNode);
-          setShowEditModal(true);
-          break;
-        case "viewDetails":
-          setSelectedPersonId(contextMenuNode.id);
-          break;
-        case "delete":
-          Alert.alert(
-            "تأكيد الحذف",
-            `هل أنت متأكد من حذف ${contextMenuNode.name}؟`,
-            [
-              { text: "إلغاء", style: "cancel" },
-              {
-                text: "حذف",
-                style: "destructive",
-                onPress: async () => {
-                  try {
-                    // Use admin RPC for profile deletion instead of direct table write
-                    const { error } = await profilesService.deleteProfile(
-                      contextMenuNode.id,
-                    );
-
-                    if (error) throw error;
-                    Alert.alert("نجح", "تم حذف الملف الشخصي");
-                    await loadTreeData();
-                  } catch (error) {
-                    // console.error('Error deleting profile:', error);
-                    Alert.alert("خطأ", "فشل حذف الملف الشخصي");
-                  }
-                },
-              },
-            ],
-          );
-          break;
-      }
-    },
-    [contextMenuNode, setSelectedPersonId],
-  );
+  // Chip tap and context menu removed - no interaction in simplified view
 
   // Compose gestures - allow simultaneous but with guards in each gesture
   const composed = Gesture.Simultaneous(
@@ -2304,7 +2124,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         </Group>
       );
     },
-    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
+    [selectedPersonId, highlightedNodeIdState, focusPersonId],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
@@ -2729,61 +2549,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         </GestureDetector>
       </RNAnimated.View>
 
-      {/* Lottie Glow Effect Overlay */}
-      {highlightedNodeIdState &&
-        glowOpacityState > 0 &&
-        (() => {
-          const highlightedNode = nodes.find(
-            (n) => n.id === highlightedNodeIdState,
-          );
-          if (!highlightedNode) return null;
-
-          // Determine node tier and get appropriate border radius
-          const isT1 = indices?.heroNodes?.some(
-            (hero) => hero.id === highlightedNode.id,
-          );
-          const isT2 = indices?.searchTiers?.[highlightedNode.id] === 2;
-
-          let borderRadius;
-          if (isT1) {
-            borderRadius = 16; // T1 hero nodes
-          } else if (isT2) {
-            borderRadius = 13; // T2 text-only nodes
-          } else {
-            borderRadius = CORNER_RADIUS; // Regular nodes (8)
-          }
-
-          // Get actual node dimensions based on whether it has a photo
-          const nodeWidth = highlightedNode.profile_photo_url
-            ? NODE_WIDTH_WITH_PHOTO
-            : NODE_WIDTH_TEXT_ONLY;
-          const nodeHeight = highlightedNode.profile_photo_url
-            ? NODE_HEIGHT_WITH_PHOTO
-            : NODE_HEIGHT_TEXT_ONLY;
-
-          // Use current transform state instead of accessing shared values directly
-          const screenX =
-            highlightedNode.x * currentTransform.scale + currentTransform.x;
-          const screenY =
-            highlightedNode.y * currentTransform.scale + currentTransform.y;
-
-          return (
-            <LottieGlow
-              key={`glow-${glowTrigger}`} // Force re-mount on same node
-              visible={true}
-              x={screenX}
-              y={screenY}
-              width={nodeWidth * currentTransform.scale}
-              height={nodeHeight * currentTransform.scale}
-              borderRadius={borderRadius * currentTransform.scale}
-              onAnimationFinish={() => {
-                // Clear highlight after fade-out completes
-                setHighlightedNodeIdState(null);
-                setGlowOpacityState(0);
-              }}
-            />
-          );
-        })()}
+      {/* LottieGlow removed - using simple red border for focused node */}
       {/* Search bar and navigation button remain */}
       <SearchBar onSelectResult={handleSearchResultSelect} />
 
