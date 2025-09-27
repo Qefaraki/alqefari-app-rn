@@ -21,6 +21,7 @@ import ValidationDashboard from "./ValidationDashboard";
 import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
+import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
@@ -43,6 +44,7 @@ const AdminDashboard = ({ onClose, user }) => {
   const [showActivityScreen, setShowActivityScreen] = useState(false);
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dataHealth, setDataHealth] = useState(100);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -979,6 +981,23 @@ const AdminDashboard = ({ onClose, user }) => {
 
             <TouchableOpacity
               style={styles.actionItem}
+              onPress={() => setShowMessagesManager(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>📨</Text>
+                <Text style={styles.actionText}>رسائل المستخدمين</Text>
+              </View>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color="#24212199"
+                style={styles.actionArrow}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={handleRecalculateLayouts}
               activeOpacity={0.7}
             >
@@ -1193,6 +1212,81 @@ const AdminDashboard = ({ onClose, user }) => {
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Validation Dashboard Modal */}
+      {showValidationDashboard && (
+        <ValidationDashboard
+          onClose={() => setShowValidationDashboard(false)}
+        />
+      )}
+
+      {/* Activity Screen Modal */}
+      {showActivityScreen && (
+        <ActivityScreen
+          onClose={() => setShowActivityScreen(false)}
+        />
+      )}
+
+      {/* Audit Log Modal */}
+      {showAuditLog && (
+        <AuditLogViewer
+          onClose={() => setShowAuditLog(false)}
+        />
+      )}
+
+      {/* Quick Add Modal */}
+      {showQuickAdd && (
+        <QuickAddOverlay
+          onClose={() => setShowQuickAdd(false)}
+          onSuccess={() => {
+            setShowQuickAdd(false);
+            loadDashboardData();
+          }}
+        />
+      )}
+
+      {/* Admin Messages Manager Modal */}
+      {showMessagesManager && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#F9F7F3',
+          zIndex: 1000
+        }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: '#D1BBA340',
+              backgroundColor: '#FFFFFF'
+            }}>
+              <TouchableOpacity
+                onPress={() => setShowMessagesManager(false)}
+                style={{ padding: 8 }}
+              >
+                <Ionicons name="close" size={28} color="#242121" />
+              </TouchableOpacity>
+              <Text style={{
+                flex: 1,
+                fontSize: 20,
+                fontWeight: '700',
+                fontFamily: 'SF Arabic',
+                color: '#242121',
+                textAlign: 'center',
+                marginRight: 36
+              }}>
+                رسائل المستخدمين
+              </Text>
+            </View>
+            <AdminMessagesManager />
+          </SafeAreaView>
+        </View>
+      )}
     </SafeAreaView>
   );
 };

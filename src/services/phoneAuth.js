@@ -698,6 +698,162 @@ export const phoneAuthService = {
   },
 
   /**
+   * Admin: Approve a profile link request
+   */
+  async approveProfileLink(requestId, adminNotes = null) {
+    try {
+      const { data, error } = await supabase.rpc('approve_profile_link_request', {
+        p_request_id: requestId,
+        p_admin_notes: adminNotes
+      });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        message: "تمت الموافقة على الطلب بنجاح"
+      };
+    } catch (error) {
+      console.error("Error approving profile link:", error);
+      return {
+        success: false,
+        error: error.message || "فشلت الموافقة على الطلب"
+      };
+    }
+  },
+
+  /**
+   * Admin: Reject a profile link request
+   */
+  async rejectProfileLink(requestId, adminNotes = null) {
+    try {
+      const { data, error } = await supabase.rpc('reject_profile_link_request', {
+        p_request_id: requestId,
+        p_admin_notes: adminNotes
+      });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        message: "تم رفض الطلب"
+      };
+    } catch (error) {
+      console.error("Error rejecting profile link:", error);
+      return {
+        success: false,
+        error: error.message || "فشل رفض الطلب"
+      };
+    }
+  },
+
+  /**
+   * Admin: Force unlink a profile from a user
+   */
+  async adminForceUnlinkProfile(profileId, adminNotes = null) {
+    try {
+      const { data, error } = await supabase.rpc('admin_force_unlink_profile', {
+        p_profile_id: profileId,
+        p_admin_notes: adminNotes
+      });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        message: "تم إلغاء الربط بنجاح"
+      };
+    } catch (error) {
+      console.error("Error force unlinking profile:", error);
+      return {
+        success: false,
+        error: error.message || "فشل إلغاء الربط"
+      };
+    }
+  },
+
+  /**
+   * Admin: Get all pending profile link requests
+   */
+  async getPendingLinkRequests() {
+    try {
+      const { data, error } = await supabase
+        .from('profile_link_requests')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        data: data || []
+      };
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
+      return {
+        success: false,
+        error: error.message || "فشل جلب الطلبات",
+        data: []
+      };
+    }
+  },
+
+  /**
+   * Admin: Get all admin messages
+   */
+  async getAdminMessages(type = null) {
+    try {
+      let query = supabase
+        .from('admin_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (type) {
+        query = query.eq('type', type);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        data: data || []
+      };
+    } catch (error) {
+      console.error("Error fetching admin messages:", error);
+      return {
+        success: false,
+        error: error.message || "فشل جلب الرسائل",
+        data: []
+      };
+    }
+  },
+
+  /**
+   * Admin: Mark message as read
+   */
+  async markMessageAsRead(messageId) {
+    try {
+      const { error } = await supabase
+        .from('admin_messages')
+        .update({ status: 'read' })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      return {
+        success: false,
+        error: error.message || "فشل تحديث الرسالة"
+      };
+    }
+  },
+
+  /**
    * Sign out
    */
   async signOut() {

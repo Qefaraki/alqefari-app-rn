@@ -17,7 +17,7 @@ import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
-import ProfileCreationRequests from "../components/admin/ProfileCreationRequests";
+import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
@@ -43,8 +43,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showLinkRequests, setShowLinkRequests] = useState(false);
-  const [showProfileCreationRequests, setShowProfileCreationRequests] =
-    useState(false);
+  const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [showMunasibManager, setShowMunasibManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
@@ -328,11 +327,11 @@ const AdminDashboardUltraOptimized = ({ user }) => {
       />
     );
   }
-  if (showProfileCreationRequests) {
+  if (showMessagesManager) {
     return (
-      <ProfileCreationRequests
+      <AdminMessagesManager
         onClose={() => {
-          setShowProfileCreationRequests(false);
+          setShowMessagesManager(false);
         }}
       />
     );

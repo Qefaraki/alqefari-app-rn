@@ -231,21 +231,18 @@ export default function ProfileMatchingScreen({ navigation, route }) {
           "تم إرسال الطلب ✅",
           "تم إرسال طلبك للمراجعة. سيتم إشعارك عند الموافقة على الطلب.",
           [
-            { text: "موافق",
-          ]);
-        } else {
-          // Request sent for admin approval - also mark onboarding complete
-          await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-
-          // Trigger profile status refresh to detect pending request
-          await checkProfileStatus(user);
-
-          // Note: User won't have linked profile until admin approves
-          // But they have a pending request now, so can use app in limited mode
-          Alert.alert("تم إرسال الطلب", result.message, [
-            { text: "موافق" },
-          ]);
-        }
+            {
+              text: "موافق",
+              onPress: () => {
+                // Navigate to main app - user will see pending status
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "Main" }],
+                });
+              },
+            },
+          ],
+        );
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         Alert.alert("خطأ", result.error);
