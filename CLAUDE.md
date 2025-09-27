@@ -13,6 +13,29 @@
 
 **Simply write layouts as if for LTR, and React Native flips them for RTL.**
 
+## 🔑 Quick Permission Reference
+
+### Who Can Edit What?
+
+| User Type | Can Edit Directly | Can Suggest Edits | Special Powers |
+|-----------|------------------|-------------------|----------------|
+| **Super Admin** | Everyone | N/A (direct edit) | Manage roles, assign moderators |
+| **Admin** | Everyone | N/A (direct edit) | Approve suggestions, block users |
+| **Branch Moderator** | Their branch + descendants | Other profiles | Manage assigned subtree |
+| **Regular User** | Self, spouse, parents, siblings, all descendants | Everyone else | Create suggestions |
+
+### Family Edit Rules for Regular Users
+- ✅ **Direct Edit**: You, spouse, parents, siblings, children, grandchildren
+- 💡 **Suggest Only**: Aunts, uncles, cousins, extended family
+- 🚫 **Blocked**: No suggestions allowed if admin blocked you
+
+### Finding the Features
+- **Review Suggestions**: Admin Dashboard → Quick Actions → "مراجعة الاقتراحات"
+- **Manage Permissions**: Admin Dashboard → Administrators → "إدارة الصلاحيات" (super admin only)
+- **Suggest Edit**: Profile Sheet → Three dots menu (when not in admin mode)
+
+_See full documentation in [Permission System & User Roles](#-permission-system--user-roles) section below._
+
 ## 🎨 Design Language: "Najdi Sadu"
 
 A culturally authentic design system inspired by Najdi Sadu weaving traditions, creating a warm, sophisticated, and uniquely Saudi family tree experience.
@@ -522,6 +545,246 @@ Example:
 - Use RPC functions for admin operations
 - Implement row-level security (RLS)
 - Validate all inputs
+
+## 👥 Permission System & User Roles
+
+### Role Hierarchy
+
+The app implements a sophisticated permission system with four distinct user roles:
+
+1. **Super Admin** (`super_admin`)
+   - Can manage all other users' roles
+   - Can assign/remove branch moderators
+   - Can block users from making suggestions
+   - Has all admin privileges
+   - Only super admins can create other super admins
+
+2. **Admin** (`admin`)
+   - Can edit any profile directly
+   - Can approve/reject edit suggestions
+   - Can block users from suggestions
+   - Can access all admin dashboard features
+   - Cannot change user roles
+
+3. **Moderator** (`moderator`)
+   - Limited administrative privileges
+   - Can be assigned as branch moderator for specific family branches
+
+4. **User** (`user` or `null`)
+   - Default role for all family members
+   - Can edit based on family relationships (see below)
+   - Can suggest edits for any profile
+
+### Family-Based Edit Permissions
+
+Regular users have automatic edit permissions based on their family relationships:
+
+#### Full Edit Rights (Direct Modification)
+Users can directly edit profiles of:
+- **Themselves** - Own profile
+- **Spouse** - Husband/wife without approval needed
+- **Parents** - Father and mother
+- **Children** - All direct children
+- **All Descendants** - Grandchildren and all descendants
+- **Siblings** - Brothers and sisters
+
+#### Suggestion Only Rights
+For all other relationships, users can only suggest edits that require admin approval:
+- Aunts/Uncles
+- Cousins
+- Nephews/Nieces
+- Extended family members
+- Any non-direct relatives
+
+### Branch Moderator System
+
+Branch moderators are users assigned to manage specific subtrees of the family:
+
+```sql
+-- A branch moderator for "محمد's branch" can edit:
+-- محمد and all his descendants (children, grandchildren, etc.)
+```
+
+Features:
+- Only super admins can assign branch moderators
+- One user can moderate multiple branches
+- Moderators have full edit rights for their assigned branches
+- Assignment tracked in audit log
+
+### Edit Suggestion Workflow
+
+When users don't have direct edit rights, they use the suggestion system:
+
+1. **User Creates Suggestion**
+   - Opens profile they want to edit
+   - Clicks three-dots menu (non-admin mode)
+   - Selects field to change
+   - Enters new value and optional reason
+   - Submits suggestion
+
+2. **Admin Reviews Suggestion**
+   - Admins see pending suggestions in dashboard
+   - Can view old value vs new value
+   - Can see who suggested and why
+   - Can approve or reject with reason
+
+3. **Automatic Application**
+   - Approved suggestions automatically update the profile
+   - All changes logged in audit system
+   - Suggester notified of decision
+
+### Admin Dashboard Features
+
+The admin dashboard shows different options based on role:
+
+#### Quick Actions Section
+- **إضافة ملف جديد** (Add New Profile) - All admins
+- **رسائل المستخدمين** (User Messages) - All admins
+- **مراجعة الاقتراحات** (Review Suggestions) - All admins
+- **إعادة حساب التخطيط** (Recalculate Layout) - All admins
+- **تصدير التقرير** (Export Report) - All admins
+- **سجل التدقيق** (Audit Log) - All admins
+- **إصلاح تلقائي** (Auto Fix) - All admins
+
+#### Administrators Section
+- **إدارة الصلاحيات** (Manage Permissions) - Super admins only
+- Shows as **طلب صلاحية** (Request Permission) for regular admins
+
+### Database Tables
+
+The permission system uses these tables:
+
+1. **profile_edit_suggestions**
+   - Stores all pending/approved/rejected suggestions
+   - Tracks suggester, reviewer, timestamps
+   - Links old and new values as JSONB
+
+2. **branch_moderators**
+   - Maps users to branches they moderate
+   - Tracks who assigned them and when
+   - Can be activated/deactivated
+
+3. **suggestion_blocks**
+   - List of users blocked from making suggestions
+   - Includes blocker and reason
+   - Prevents spam or misuse
+
+### Key Functions
+
+#### Permission Check
+```sql
+can_user_edit_profile(user_id, target_id)
+-- Returns: 'full', 'suggest', or 'blocked'
+```
+
+#### Role Management (Super Admin Only)
+```sql
+super_admin_set_user_role(target_user_id, new_role)
+super_admin_assign_branch_moderator(user_id, branch_root_id, notes)
+super_admin_remove_branch_moderator(user_id, branch_root_id)
+```
+
+#### Suggestion Management (Admin)
+```sql
+admin_approve_suggestion(suggestion_id)
+admin_reject_suggestion(suggestion_id, reason)
+admin_toggle_suggestion_block(user_id, block, reason)
+```
+
+#### Search Functions
+```sql
+super_admin_search_by_name_chain(search_text)
+-- Returns profiles with full ancestry chains
+-- Shows role, branch moderator status, block status
+```
+
+### Setting Up Permissions
+
+1. **Deploy Migrations**
+   ```bash
+   # Migration 005: Creates tables and base functions
+   # Migration 006: Adds super admin role and functions
+   node scripts/execute-sql.js migrations/006_super_admin_permissions.sql
+   ```
+
+2. **Create First Super Admin**
+   ```bash
+   node scripts/make-super-admin.js user@example.com
+   # Interactive script to set first super admin
+   ```
+
+3. **Manage Through UI**
+   - Super admins use Permission Manager in admin dashboard
+   - Search users by name chain (ancestry)
+   - Change roles, assign moderators, block users
+
+### Security Considerations
+
+- **No Self-Demotion**: Super admins cannot demote themselves
+- **Audit Trail**: All permission changes logged
+- **RLS Policies**: Database enforces permissions at row level
+- **Blocked Users**: Cannot make any suggestions
+- **Version Control**: All edits tracked with versions for rollback
+
+### UI Components
+
+1. **PermissionManager** (`src/components/admin/PermissionManager.js`)
+   - Super admin interface for role management
+   - Name chain search
+   - Branch moderator assignment
+
+2. **SuggestionModal** (`src/components/SuggestionModal.js`)
+   - Used by regular users to suggest edits
+   - Shows current vs new values
+   - Optional reason field
+
+3. **SuggestionReviewManager** (`src/components/admin/SuggestionReviewManager.js`)
+   - Admin interface for reviewing suggestions
+   - Tabbed view (pending/approved/rejected)
+   - Bulk actions support
+
+### Common Workflows
+
+#### Making Someone an Admin
+1. Super admin opens Permission Manager
+2. Searches for user by name
+3. Selects user and changes role to "admin"
+4. Change logged in audit trail
+
+#### Assigning a Branch Moderator
+1. Super admin identifies family branch head
+2. Assigns user as moderator for that branch
+3. User can now edit entire subtree
+4. Assignment visible in their permissions summary
+
+#### Handling Edit Suggestions
+1. User suggests edit through profile sheet
+2. Admin sees notification in dashboard
+3. Reviews change (old vs new value)
+4. Approves or rejects with reason
+5. System applies change if approved
+6. Audit log tracks entire flow
+
+### Troubleshooting
+
+**"I don't see admin buttons"**
+- Check your role: Must be admin or super_admin
+- Migration 006 must be deployed
+- Try refreshing the app
+
+**"Permission Manager won't open"**
+- Only super admins can access this
+- Check `SELECT role FROM profiles WHERE id = auth.uid()`
+
+**"Can't edit a profile"**
+- Check relationship with `can_user_edit_profile()`
+- May need to suggest instead of direct edit
+- Check if you're blocked from suggestions
+
+**"Suggestions not appearing"**
+- Check suggestion_blocks table
+- Ensure profile_edit_suggestions table exists
+- Verify RLS policies are active
 
 ## 📚 Reference
 

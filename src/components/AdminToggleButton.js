@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Pressable, StyleSheet, Text } from "react-native";
+import { View, Pressable, StyleSheet, Text, Modal } from "react-native";
 import * as Haptics from "expo-haptics";
 import Animated, {
   useSharedValue,
@@ -10,10 +10,13 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import { useAdminMode } from "../contexts/AdminModeContext";
+import AdminDashboard from "../screens/AdminDashboard";
+import AdminDashboardV3 from "../screens/AdminDashboardV3";
 
 const AdminToggleButton = ({ user }) => {
   const { isAdminMode, toggleAdminMode } = useAdminMode();
-  // Removed tooltip state - no longer needed
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [useV3Dashboard, setUseV3Dashboard] = useState(true); // Default to new version
 
   const iconScale = useSharedValue(1);
   const iconRotate = useSharedValue(0);
@@ -41,68 +44,100 @@ const AdminToggleButton = ({ user }) => {
       }),
     );
 
-    toggleAdminMode();
+    // Open dashboard instead of just toggling admin mode
+    setShowDashboard(true);
+  };
 
-    // Tooltip disabled - no longer showing text on press
+  const handleCloseDashboard = () => {
+    setShowDashboard(false);
+  };
+
+  const handleToggleVersion = () => {
+    setUseV3Dashboard(!useV3Dashboard);
   };
 
 
   return (
-    <View style={styles.container}>
-      {/* Button with shadow wrapper like NavigateToRootButton */}
-      <View
-        style={[
-          styles.shadowWrapper,
-          isAdminMode && styles.shadowWrapperActive,
-        ]}
-      >
-        <Pressable
-          onPress={handlePress}
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.buttonPressed,
+    <>
+      <View style={styles.container}>
+        {/* Button with shadow wrapper like NavigateToRootButton */}
+        <View
+          style={[
+            styles.shadowWrapper,
+            isAdminMode && styles.shadowWrapperActive,
           ]}
         >
-          {/* Car Fan icon */}
-          <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
-            <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M12 12v-9l4.912 1.914a1.7 1.7 0 0 1 .428 2.925z"
-                stroke={isAdminMode ? "#A13333" : "#5F6368"}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-              <Path
-                d="M12 12h9l-1.914 4.912a1.7 1.7 0 0 1 -2.925 .428z"
-                stroke={isAdminMode ? "#A13333" : "#5F6368"}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-              <Path
-                d="M12 12h-9l1.914 -4.912a1.7 1.7 0 0 1 2.925 -.428z"
-                stroke={isAdminMode ? "#A13333" : "#5F6368"}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-              <Path
-                d="M12 12v9l-4.912 -1.914a1.7 1.7 0 0 1 -.428 -2.925z"
-                stroke={isAdminMode ? "#A13333" : "#5F6368"}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </Svg>
-          </Animated.View>
-        </Pressable>
+          <Pressable
+            onPress={handlePress}
+            style={({ pressed }) => [
+              styles.button,
+              pressed && styles.buttonPressed,
+            ]}
+          >
+            {/* Car Fan icon */}
+            <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
+              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M12 12v-9l4.912 1.914a1.7 1.7 0 0 1 .428 2.925z"
+                  stroke={isAdminMode ? "#A13333" : "#5F6368"}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <Path
+                  d="M12 12h9l-1.914 4.912a1.7 1.7 0 0 1 -2.925 .428z"
+                  stroke={isAdminMode ? "#A13333" : "#5F6368"}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <Path
+                  d="M12 12h-9l1.914 -4.912a1.7 1.7 0 0 1 2.925 -.428z"
+                  stroke={isAdminMode ? "#A13333" : "#5F6368"}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <Path
+                  d="M12 12v9l-4.912 -1.914a1.7 1.7 0 0 1 -.428 -2.925z"
+                  stroke={isAdminMode ? "#A13333" : "#5F6368"}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </Svg>
+            </Animated.View>
+          </Pressable>
+        </View>
       </View>
-    </View>
+
+      {/* Admin Dashboard Modal */}
+      {showDashboard && (
+        <Modal
+          animationType="slide"
+          presentationStyle="fullScreen"
+          visible={showDashboard}
+          onRequestClose={handleCloseDashboard}
+        >
+          {useV3Dashboard ? (
+            <AdminDashboardV3
+              onClose={handleCloseDashboard}
+              user={user}
+              onToggleVersion={handleToggleVersion}
+            />
+          ) : (
+            <AdminDashboard
+              onClose={handleCloseDashboard}
+              user={user}
+            />
+          )}
+        </Modal>
+      )}
+    </>
   );
 };
 

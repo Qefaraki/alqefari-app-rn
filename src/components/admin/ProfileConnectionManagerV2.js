@@ -415,7 +415,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                       ) : (
                         <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
                           <Text style={styles.avatarText}>
-                            {getInitials(profile?.name || request.name_chain || displayName)}
+                            {getInitials(profile?.name || request.name_chain || "غير معروف")}
                           </Text>
                         </View>
                       )}
