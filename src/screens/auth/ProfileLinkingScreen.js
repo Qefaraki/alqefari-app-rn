@@ -145,12 +145,12 @@ export default function ProfileLinkingScreen({ navigation, route }) {
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showTreeModal, setShowTreeModal] = useState(false);
   const [searchTimer, setSearchTimer] = useState(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false); // Track if search has run
 
   const inputRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -202,13 +202,12 @@ export default function ProfileLinkingScreen({ navigation, route }) {
       return;
     }
 
-    setSearching(true);
-
     try {
       const result = await phoneAuthService.searchProfilesByNameChain(cleanedName);
 
       if (result.success) {
         setResults(result.profiles || []);
+        setHasSearched(true); // Mark that we've searched
         // Animate results in
         Animated.timing(resultsOpacity, {
           toValue: 1,
@@ -217,13 +216,13 @@ export default function ProfileLinkingScreen({ navigation, route }) {
         }).start();
       } else {
         setResults([]);
+        setHasSearched(true); // Mark that we've searched even if no results
       }
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
+      setHasSearched(true);
     }
-
-    setSearching(false);
   }, [resultsOpacity]);
 
   // Handle text change with debounce
@@ -243,6 +242,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     // If text is cleared, reset
     if (!text) {
       setResults([]);
+      setHasSearched(false); // Reset search flag
       Animated.timing(resultsOpacity, {
         toValue: 0,
         duration: 200,
@@ -322,6 +322,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setQuery("");
     setResults([]);
+    setHasSearched(false);
     setSelectedProfile(null);
     inputRef.current?.focus();
   };
@@ -386,8 +387,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               اكتب اسمك الثلاثي عشان نربطك في الشجرة
             </Text>
 
-            {/* Example - only show when no results */}
-            {results.length === 0 && !searching && (
+            {/* Example - only show when no results and haven't searched yet */}
+            {results.length === 0 && !hasSearched && (
               <View style={styles.exampleContainer}>
                 <View style={styles.exampleCard}>
                   <View style={styles.exampleBadge}>
@@ -453,8 +454,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               </Animated.View>
             )}
 
-            {/* Empty state - only show after typing at least 2 words */}
-            {results.length === 0 && query.trim().split(/\s+/).filter(w => w.length > 0).length >= 2 && !searching && (
+            {/* Empty state - only show after typing at least 3 words and search has run */}
+            {results.length === 0 && hasSearched && query.trim().split(/\s+/).filter(w => w.length > 0).length >= 3 && (
               <View style={styles.emptyContainer}>
                 <Ionicons name="search-outline" size={48} color="#24212199" />
                 <Text style={styles.emptyText}>
