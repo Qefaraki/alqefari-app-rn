@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Animated,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../../services/phoneAuth";
@@ -38,6 +39,9 @@ const colors = {
 
 // Family names to remove - constant
 const FAMILY_NAMES = ["القفاري", "الدوسري", "العتيبي", "الشمري", "العنزي"];
+
+// Family Logo
+const AlqefariLogo = require("../../../assets/logo/Alqefari Emblem (Transparent).png");
 
 // Helper function to clean name
 const cleanName = (text) => {
@@ -69,32 +73,34 @@ export default function ProfileLinkingScreen({ navigation, route }) {
   const abortControllerRef = useRef(null);
 
   // Animation values - stable refs
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(1)).current; // Start at 1 to avoid animation
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
+  const animationsRef = useRef([]);
 
   // Auto-focus input on mount
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(() => {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    });
+    // Skip the fade-in animation to save memory
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
 
     // Cleanup on unmount
     return () => {
+      // Stop all animations
+      animationsRef.current.forEach(anim => anim?.stop?.());
+      animationsRef.current = [];
+
       if (searchTimerRef.current) {
         clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = null;
       }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     };
-  }, [fadeAnim]);
+  }, []);
 
   // Get dynamic placeholder - memoized
   const placeholder = useMemo(() => {
@@ -117,11 +123,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     if (!cleanedName || cleanedName.length < 1) {
       setResults([]);
       setIsSearching(false);
-      Animated.timing(resultsOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      // Skip animation to save memory
+      resultsOpacity.setValue(0);
       return;
     }
 
@@ -133,14 +136,11 @@ export default function ProfileLinkingScreen({ navigation, route }) {
 
       if (result.success) {
         // Limit results to prevent memory issues
-        const limitedResults = (result.profiles || []).slice(0, 50);
+        const limitedResults = (result.profiles || []).slice(0, 30); // Further reduce to 30
         setResults(limitedResults);
 
-        Animated.timing(resultsOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
+        // Simple opacity change without animation
+        resultsOpacity.setValue(1);
       } else {
         setResults([]);
       }
@@ -158,27 +158,20 @@ export default function ProfileLinkingScreen({ navigation, route }) {
   const handleChangeText = useCallback((text) => {
     setQuery(text);
 
-    // Animate clear button
-    Animated.timing(clearButtonOpacity, {
-      toValue: text.length > 0 ? 1 : 0,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
+    // Set clear button opacity directly without animation
+    clearButtonOpacity.setValue(text.length > 0 ? 1 : 0);
 
     // Clear previous timer
     if (searchTimerRef.current) {
       clearTimeout(searchTimerRef.current);
+      searchTimerRef.current = null;
     }
 
     // If text is cleared, reset
     if (!text) {
       setResults([]);
       setIsSearching(false);
-      Animated.timing(resultsOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
+      resultsOpacity.setValue(0);
       return;
     }
 
@@ -291,10 +284,13 @@ export default function ProfileLinkingScreen({ navigation, route }) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
-        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+        <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
-            {/* Progress bar - same as NajdiPhoneAuthScreen */}
+            {/* Family emblem first (appears on right in RTL) */}
+            <Image source={AlqefariLogo} style={styles.emblem} resizeMode="contain" />
+
+            {/* Progress bar in middle */}
             <View style={styles.progressBarContainer}>
               <DuolingoProgressBar
                 currentStep={3}
@@ -304,7 +300,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               />
             </View>
 
-            {/* Back button */}
+            {/* Back button last (appears on left in RTL) */}
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
@@ -315,7 +311,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
 
           {/* Main content */}
           <View style={styles.mainContent}>
-            <Text style={styles.title}>ابحث عن مكانك في الشجرة</Text>
+            <Text style={styles.title}>اربط حسابك في الشجرة</Text>
             <Text style={styles.subtitle}>
               اكتب اسمك الثلاثي عشان نربطك في الشجرة
             </Text>
@@ -355,18 +351,16 @@ export default function ProfileLinkingScreen({ navigation, route }) {
                 />
 
                 {query.length > 0 && (
-                  <Animated.View style={{ opacity: clearButtonOpacity }}>
-                    <Pressable onPress={handleClear} style={styles.clearButton}>
-                      <Ionicons name="close-circle" size={20} color="#24212199" />
-                    </Pressable>
-                  </Animated.View>
+                  <Pressable onPress={handleClear} style={styles.clearButton}>
+                    <Ionicons name="close-circle" size={20} color="#24212199" />
+                  </Pressable>
                 )}
               </View>
             </View>
 
             {/* Results */}
             {results.length > 0 && (
-              <Animated.View style={[styles.resultsSection, { opacity: resultsOpacity }]}>
+              <View style={styles.resultsSection}>
                 <Text style={styles.resultsCountCompact}>
                   {results.length} نتيجة
                 </Text>
@@ -380,12 +374,13 @@ export default function ProfileLinkingScreen({ navigation, route }) {
                   keyboardShouldPersistTaps="handled"
                   onScrollBeginDrag={() => Keyboard.dismiss()}
                   getItemLayout={getItemLayout}
-                  windowSize={10}
-                  initialNumToRender={10}
-                  maxToRenderPerBatch={10}
+                  windowSize={5}
+                  initialNumToRender={5}
+                  maxToRenderPerBatch={5}
                   removeClippedSubviews={true}
+                  updateCellsBatchingPeriod={100}
                 />
-              </Animated.View>
+              </View>
             )}
 
             {/* Empty state */}
@@ -421,7 +416,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               isLoading={submitting}
             />
           )}
-        </Animated.View>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -455,6 +450,15 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  emblem: {
+    width: 52,
+    height: 52,
+    opacity: 1,
+    tintColor: "#242121", // Sadu Night black like NewsScreen
+    marginTop: -2, // Push down a bit (was -5)
+    marginStart: -8, // Negative margin on the left (appears right in RTL)
+    marginEnd: 4, // Small positive margin on the right (appears left in RTL)
+  },
 
   // Main content
   mainContent: {
@@ -468,6 +472,7 @@ const styles = StyleSheet.create({
     textAlign: "left",
     marginHorizontal: 16,
     marginBottom: 8,
+    marginTop: -4, // Push up a few pixels
   },
   subtitle: {
     fontSize: 15,

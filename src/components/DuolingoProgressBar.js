@@ -23,23 +23,41 @@ const DuolingoProgressBar = ({
   const progressAnim = useRef(new Animated.Value(initialStep / totalSteps)).current;
   const opacityAnim = useRef(new Animated.Value(initialStep > 0 ? 1 : 0)).current;
   const [trackWidth, setTrackWidth] = React.useState(0);
+  const animationRef = useRef(null);
 
   useEffect(() => {
-    // Use timing with native driver for smoother animation
-    Animated.parallel([
-      Animated.timing(progressAnim, {
-        toValue: currentStep / totalSteps,
-        duration: 300, // Reduced for snappier feel
-        easing: Easing.out(Easing.cubic), // Smoother cubic easing
-        useNativeDriver: true, // Using native driver with translateX
-      }),
-      Animated.timing(opacityAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [currentStep, totalSteps]);
+    // Cancel any existing animation
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
+
+    // Only animate if we have a valid track width
+    if (trackWidth > 0) {
+      // Use timing with native driver for smoother animation
+      animationRef.current = Animated.parallel([
+        Animated.timing(progressAnim, {
+          toValue: currentStep / totalSteps,
+          duration: 300, // Reduced for snappier feel
+          easing: Easing.out(Easing.cubic), // Smoother cubic easing
+          useNativeDriver: true, // Using native driver with translateX
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]);
+
+      animationRef.current.start();
+    }
+
+    // Cleanup function to stop animation on unmount
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.stop();
+      }
+    };
+  }, [currentStep, totalSteps, trackWidth]);
 
   return (
     <Animated.View style={[styles.container, style, { opacity: opacityAnim }]}>
@@ -51,29 +69,32 @@ const DuolingoProgressBar = ({
           onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
         >
           {/* Filled progress - using translateX for smooth native animation */}
-          <Animated.View
-            style={[
-              styles.fill,
-              {
-                position: "absolute",
-                top: 0,
-                bottom: 0,
-                width: trackWidth, // Full width of track
-                right: 0, // Start from right in RTL (becomes left visually)
-                transform: [
-                  {
-                    translateX: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [-trackWidth, 0], // Negative to positive for RTL
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            {/* Gradient shine effect on the fill */}
-            <View style={styles.shine} />
-          </Animated.View>
+          {trackWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.fill,
+                {
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  width: trackWidth, // Full width of track
+                  right: 0, // Start from right in RTL (becomes left visually)
+                  transform: [
+                    {
+                      translateX: progressAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-trackWidth, 0], // Negative to positive for RTL
+                        extrapolate: 'clamp',
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            >
+              {/* Gradient shine effect on the fill */}
+              <View style={styles.shine} />
+            </Animated.View>
+          )}
         </View>
 
         {/* Step count display */}
@@ -100,17 +121,17 @@ const styles = StyleSheet.create({
   },
   track: {
     flex: 1,
-    height: 12, // Thicker like Duolingo
+    height: 16, // Made thicker
     backgroundColor: colors.inactive,
-    borderRadius: 6, // Half of height for perfect rounding
+    borderRadius: 8, // Half of height for perfect rounding
     overflow: "hidden",
-    // Add subtle inner shadow for depth
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.05)",
+    // Thicker border for better visibility
+    borderWidth: 2,
+    borderColor: "rgba(0, 0, 0, 0.08)",
   },
   fill: {
     backgroundColor: colors.primary,
-    borderRadius: 6,
+    borderRadius: 8, // Match the track radius
     // Add subtle shadow for depth
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 1 },
@@ -125,8 +146,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: "40%",
     backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderTopLeftRadius: 6,
-    borderTopRightRadius: 6,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
   },
   stepCountContainer: {
     backgroundColor: "rgba(0, 0, 0, 0.3)",

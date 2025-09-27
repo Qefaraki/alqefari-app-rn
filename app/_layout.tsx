@@ -59,16 +59,26 @@ function TabLayout() {
 
   // Check onboarding and guest mode status
   useEffect(() => {
-    Promise.all([
-      AsyncStorage.getItem('hasCompletedOnboarding'),
-      AsyncStorage.getItem('isGuestMode')
-    ]).then(([onboardingValue, guestValue]) => {
-      setOnboardingCompleted(onboardingValue === 'true');
-      setIsGuestMode(guestValue === 'true');
-      console.log('[DEBUG] Onboarding check:', onboardingValue === 'true', 'Guest mode:', guestValue === 'true');
-      setAppIsReady(true);
-    });
-  }, []);
+    const checkOnboardingStatus = () => {
+      Promise.all([
+        AsyncStorage.getItem('hasCompletedOnboarding'),
+        AsyncStorage.getItem('isGuestMode')
+      ]).then(([onboardingValue, guestValue]) => {
+        setOnboardingCompleted(onboardingValue === 'true');
+        setIsGuestMode(guestValue === 'true');
+        console.log('[DEBUG] Onboarding check:', onboardingValue === 'true', 'Guest mode:', guestValue === 'true');
+        setAppIsReady(true);
+      });
+    };
+
+    checkOnboardingStatus();
+
+    // Re-check when user or profile status changes
+    // This handles the case where user signs in with existing profile
+    if (user && (hasLinkedProfile || hasPendingRequest)) {
+      checkOnboardingStatus();
+    }
+  }, [user, hasLinkedProfile, hasPendingRequest]);
 
   // Reset onboarding state when user signs out
   useEffect(() => {
