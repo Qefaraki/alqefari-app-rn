@@ -408,6 +408,21 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
     [onImagePress, allImages]
   );
 
+  // Custom HTML element models for video and iframe
+  const customHTMLElementModels = useMemo(
+    () => ({
+      video: HTMLElementModel.fromCustomModel({
+        tagName: 'video',
+        contentModel: HTMLContentModel.block,
+      }),
+      iframe: HTMLElementModel.fromCustomModel({
+        tagName: 'iframe',
+        contentModel: HTMLContentModel.block,
+      }),
+    }),
+    []
+  );
+
   // Clean HTML for better rendering
   const cleanHtml = useMemo(() => {
     let processedHtml = html
@@ -463,6 +478,7 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
         classesStyles={CLASSES_STYLES}
         systemFonts={SYSTEM_FONTS}
         ignoredDomTags={IGNORED_DOM_TAGS}
+        customHTMLElementModels={customHTMLElementModels}
         enableExperimentalMarginCollapsing={true}
         enableExperimentalBRCollapsing={true}
         defaultTextProps={{
