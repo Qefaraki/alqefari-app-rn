@@ -8,48 +8,48 @@ import {
   ScrollView,
   Dimensions,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from './tokens';
+import appConfig from '../../config/app.config';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BrandedErrorScreen = ({ error, errorInfo, onReset }) => {
+  const handleReportError = () => {
+    const errorDetails = error ? error.toString() : 'Unknown error';
+    const subject = encodeURIComponent(appConfig.support.subject);
+    const body = encodeURIComponent(`\n\n---\nتفاصيل الخطأ:\n${errorDetails}\n`);
+    const mailtoUrl = `mailto:${appConfig.support.email}?subject=${subject}&body=${body}`;
+
+    Linking.openURL(mailtoUrl).catch((err) => {
+      console.error('Failed to open email client:', err);
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Sadu Pattern Decoration - Top */}
-      <View style={styles.patternTop}>
-        <Image
-          source={require('../../../assets/sadu_patterns/png/42.png')}
-          style={styles.patternImage}
-          resizeMode="contain"
-        />
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo Section */}
-        <View style={styles.logoSection}>
-          <View style={styles.logoContainer}>
+        {/* Compact Error Header with Small Logo */}
+        <View style={styles.errorHeader}>
+          <View style={styles.headerRow}>
             <Image
               source={require('../../../assets/logo/AlqefariEmblem.png')}
-              style={styles.logo}
+              style={styles.smallLogo}
               resizeMode="contain"
             />
-          </View>
-        </View>
-
-        {/* Error Icon and Title */}
-        <View style={styles.errorHeader}>
-          <View style={styles.errorIconContainer}>
-            <Ionicons
-              name="warning"
-              size={32}
-              color={tokens.colors.najdi.primary}
-            />
+            <View style={styles.errorIconContainer}>
+              <Ionicons
+                name="warning"
+                size={32}
+                color={tokens.colors.najdi.primary}
+              />
+            </View>
           </View>
 
           <Text style={styles.title}>حدث خطأ</Text>
@@ -105,10 +105,7 @@ const BrandedErrorScreen = ({ error, errorInfo, onReset }) => {
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => {
-              // Could implement report functionality
-              onReset();
-            }}
+            onPress={handleReportError}
             activeOpacity={0.8}
           >
             <Text style={styles.secondaryButtonText}>الإبلاغ عن المشكلة</Text>
@@ -121,19 +118,10 @@ const BrandedErrorScreen = ({ error, errorInfo, onReset }) => {
             إذا استمرت المشكلة، يرجى التواصل مع الدعم الفني
           </Text>
           <Text style={styles.helpSubtext}>
-            support@alqefari.com
+            {appConfig.support.email}
           </Text>
         </View>
       </ScrollView>
-
-      {/* Sadu Pattern Decoration - Bottom */}
-      <View style={styles.patternBottom}>
-        <Image
-          source={require('../../../assets/sadu_patterns/png/42.png')}
-          style={[styles.patternImage, styles.patternImageBottom]}
-          resizeMode="contain"
-        />
-      </View>
     </SafeAreaView>
   );
 };
@@ -146,59 +134,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-  patternTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    zIndex: 1,
-    opacity: 0.1,
-    overflow: 'hidden',
-  },
-  patternBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-    opacity: 0.1,
-    overflow: 'hidden',
-  },
-  patternImage: {
-    width: '100%',
-    height: 60,
-    tintColor: tokens.colors.najdi.primary,
-  },
-  patternImageBottom: {
-    transform: [{ scaleY: -1 }],
-  },
-  logoSection: {
-    alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 24,
-  },
-  logoContainer: {
-    width: 100,
-    height: 100,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  logo: {
-    width: '100%',
-    height: '100%',
+    paddingTop: 20,
+    paddingBottom: 20,
   },
   errorHeader: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+    marginTop: 20,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  smallLogo: {
+    width: 32,
+    height: 32,
+    tintColor: tokens.colors.najdi.text,
+    marginRight: 12,
   },
   errorIconContainer: {
     width: 56,
@@ -207,7 +160,6 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.primary + '15',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
   title: {
     fontSize: 28,

@@ -362,6 +362,8 @@ const TreeView = ({
   isAdmin,
   onAdminDashboard,
   onSettingsOpen,
+  highlightProfileId,
+  focusOnProfile,
 }) => {
   const stage = useTreeStore((s) => s.stage);
   const setStage = useTreeStore((s) => s.setStage);
@@ -1365,6 +1367,16 @@ const TreeView = ({
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
+
+  // Handle highlight from navigation params
+  useEffect(() => {
+    if (highlightProfileId && focusOnProfile && nodes.length > 0) {
+      // Small delay to ensure tree is fully rendered
+      setTimeout(() => {
+        navigateToNode(highlightProfileId);
+      }, 500);
+    }
+  }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(

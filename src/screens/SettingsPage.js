@@ -21,7 +21,7 @@ import { accountDeletionService } from "../services/accountDeletion";
 import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import appConfig from "../config/appConfig";
-import ProfileLinkStatusCard from "../components/ProfileLinkStatusCard";
+import ProfileLinkStatusIndicator from "../components/ProfileLinkStatusIndicator";
 
 // Native SwiftUI settings temporarily disabled due to missing Expo UI native module
 const NativeSettingsView = null;
@@ -169,12 +169,12 @@ export default function SettingsPage({ user }) {
           </View>
         </View>
 
-        {/* Profile Link Status Card */}
-        {currentUser && <ProfileLinkStatusCard />}
-
         {/* Profile Section */}
         {currentUser && (
           <View style={styles.profileSection}>
+            {/* Profile Link Status Indicator - Integrated */}
+            <ProfileLinkStatusIndicator />
+
             <View style={styles.profileCard}>
               <View style={styles.profileImageContainer}>
                 {userProfile?.profile_photo_url ? (

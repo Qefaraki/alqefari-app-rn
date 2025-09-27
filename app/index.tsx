@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useLocalSearchParams } from "expo-router";
 import TreeView from "../src/components/TreeView";
 import ProfileSheetWrapper from "../src/components/ProfileSheetWrapper";
 import PendingApprovalBanner from "../src/components/PendingApprovalBanner";
@@ -10,6 +11,7 @@ import { useAuth } from "../src/contexts/AuthContext";
 
 export default function TreeScreen() {
   const { user, isAdmin, isLoading } = useAuth();
+  const params = useLocalSearchParams();
   const [isGuest, setIsGuest] = useState(false);
   const [linkStatus, setLinkStatus] = useState(null);
 
@@ -69,6 +71,8 @@ export default function TreeScreen() {
           <TreeView
             user={user}
             isAdmin={isAdmin}
+            highlightProfileId={params.highlightProfileId as string}
+            focusOnProfile={params.focusOnProfile === 'true'}
             onAdminDashboard={() => {}}
             onSettingsOpen={() => {}}
             setProfileEditMode={() => {}}

@@ -17,8 +17,7 @@ async function findAllRequests() {
       *,
       profiles!profile_link_requests_profile_id_fkey(
         id,
-        name,
-        name_ar
+        name
       )
     `)
     .order('created_at', { ascending: false });
@@ -55,7 +54,7 @@ async function findAllRequests() {
       console.log(`\n📋 Request:`);
       console.log(`   ID: ${req.id}`);
       console.log(`   User ID: ${req.user_id}`);
-      console.log(`   Profile: ${req.profiles?.name || req.profiles?.name_ar || 'N/A'}`);
+      console.log(`   Profile: ${req.profiles?.name || 'N/A'}`);
       console.log(`   Name Chain: ${req.name_chain}`);
       console.log(`   Phone: ${req.phone}`);
       console.log(`   Status: ${req.status}`);
