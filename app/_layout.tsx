@@ -76,7 +76,17 @@ function TabLayout() {
         setIsGuestMode(false);
       });
     }
-  }, [user, hasLinkedProfile, onboardingCompleted]);
+    // Also handle the case where user has pending request
+    if (user && hasPendingRequest && !onboardingCompleted) {
+      console.log('[DEBUG] User has pending request, marking onboarding complete');
+      AsyncStorage.setItem('hasCompletedOnboarding', 'true').then(() => {
+        setOnboardingCompleted(true);
+      });
+      AsyncStorage.removeItem('isGuestMode').then(() => {
+        setIsGuestMode(false);
+      });
+    }
+  }, [user, hasLinkedProfile, hasPendingRequest, onboardingCompleted]);
 
   // No need for emergency timeout - trust Supabase's auth handling
 
@@ -91,6 +101,37 @@ function TabLayout() {
     if (onboardingCompleted === null || isGuestMode === null) {
       return 'loading';
     }
+
+    // If onboarding is already completed, never show it again
+    if (onboardingCompleted === true) {
+      // Check what type of user this is
+      if (user && hasLinkedProfile) {
+        console.log('[DEBUG] Authenticated with profile');
+        return 'authenticated';
+      }
+
+      if (user && hasPendingRequest) {
+        console.log('[DEBUG] Authenticated with pending request');
+        return 'authenticated-pending';
+      }
+
+      if (isGuestMode === true) {
+        console.log('[DEBUG] Guest mode');
+        return 'guest';
+      }
+
+      // Onboarding completed but waiting for auth to load
+      if (!user) {
+        console.log('[DEBUG] Onboarding completed, waiting for auth');
+        return 'loading'; // Keep loading until auth resolves
+      }
+
+      // User signed in but no profile yet (shouldn't happen if onboarding completed properly)
+      console.log('[DEBUG] Onboarding completed but no profile - showing tabs anyway');
+      return 'authenticated';
+    }
+
+    // Onboarding not completed - decide based on auth state
 
     // If user is authenticated AND has linked profile, show tabs
     if (user && hasLinkedProfile) {
