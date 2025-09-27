@@ -45,6 +45,8 @@ export default function ProfileLinkStatusIndicator() {
   const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [shouldHideLinked, setShouldHideLinked] = useState(false);
+  const [profileChain, setProfileChain] = useState("");
+  const [allProfiles, setAllProfiles] = useState([]);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -120,6 +122,18 @@ export default function ProfileLinkStatusIndicator() {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
 
+        // Load all profiles to build name chain
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, name, father_id");
+
+        if (profiles) {
+          setAllProfiles(profiles);
+          // Build the name chain
+          const chain = buildNameChain(linkedProfile, profiles);
+          setProfileChain(chain);
+        }
+
         // Check if we've already shown the success message for this profile
         const lastSeenLinkedProfile = await AsyncStorage.getItem("lastSeenLinkedProfile");
 
@@ -191,6 +205,16 @@ export default function ProfileLinkStatusIndicator() {
 
   const getFullNameWithSurname = (name) => {
     if (!name) return "غير محدد";
+    // Try to build name chain if we have the profile
+    if (linkRequest?.profile_id && allProfiles.length > 0) {
+      const fullProfile = allProfiles.find(p => p.id === linkRequest.profile_id);
+      if (fullProfile) {
+        const chain = buildNameChain(fullProfile, allProfiles);
+        if (chain && chain !== name) {
+          return chain.includes("القفاري") ? chain : `${chain} القفاري`;
+        }
+      }
+    }
     if (name.includes("القفاري")) return name;
     return `${name} القفاري`;
   };
@@ -247,21 +271,8 @@ export default function ProfileLinkStatusIndicator() {
 
   // Linked Profile State - Success message with auto-dismiss
   if (hasLinkedProfile && profile && !shouldHideLinked) {
-    // Get all profiles for building name chain
-    const [allProfiles, setAllProfiles] = React.useState([]);
-
-    React.useEffect(() => {
-      // Load all profiles to build proper chain
-      supabase
-        .from("profiles")
-        .select("id, name, father_id")
-        .then(({ data }) => {
-          if (data) setAllProfiles(data);
-        });
-    }, []);
-
-    // Build full name chain using the utility function
-    const fullName = buildNameChain(profile, allProfiles);
+    // Use the pre-built name chain
+    const fullName = profileChain || profile.name;
     const displayName = fullName.includes("القفاري") ? fullName : `${fullName} القفاري`;
 
     return (
