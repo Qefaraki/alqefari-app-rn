@@ -120,7 +120,10 @@ export default function SettingsPage({ user }) {
           profileCache = null;
           cacheTimestamp = null;
           await forceCompleteSignOut(); // This will clear onboarding flag too
-          router.replace("/"); // Navigate to root which will show onboarding
+          // Small delay to ensure state updates propagate
+          setTimeout(() => {
+            router.replace("/"); // Navigate to root which will show onboarding
+          }, 100);
         },
       },
     ]);
@@ -417,13 +420,17 @@ export default function SettingsPage({ user }) {
                             profileCache = null;
                             cacheTimestamp = null;
 
-                            // Navigate to onboarding
-                            router.replace("/");
+                            // Navigate to onboarding with delay to ensure state updates
+                            setTimeout(() => {
+                              router.replace("/");
+                            }, 100);
                           } catch (error) {
                             Alert.alert("خطأ", "فشل حذف الحساب");
                             // Sign out anyway for security
                             await supabase.auth.signOut();
-                            router.replace("/");
+                            setTimeout(() => {
+                              router.replace("/");
+                            }, 100);
                           }
                         },
                       },

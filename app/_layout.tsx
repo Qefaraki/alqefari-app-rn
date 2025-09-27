@@ -65,6 +65,22 @@ function TabLayout() {
     });
   }, []);
 
+  // Reset onboarding state when user signs out
+  useEffect(() => {
+    if (!user && !isLoading) {
+      console.log('[DEBUG] User signed out - resetting onboarding state');
+      // Re-check AsyncStorage values since they may have been cleared
+      Promise.all([
+        AsyncStorage.getItem('hasCompletedOnboarding'),
+        AsyncStorage.getItem('isGuestMode')
+      ]).then(([onboardingValue, guestValue]) => {
+        setOnboardingCompleted(onboardingValue === 'true');
+        setIsGuestMode(guestValue === 'true');
+        console.log('[DEBUG] After sign out - Onboarding:', onboardingValue, 'Guest mode:', guestValue);
+      });
+    }
+  }, [user, isLoading]);
+
   // Auto-complete onboarding if user has linked profile
   useEffect(() => {
     if (user && hasLinkedProfile && !onboardingCompleted) {

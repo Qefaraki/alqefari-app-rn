@@ -255,6 +255,14 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // For now, show all nodes (optimize viewport culling later)
   const visibleNodes = layoutNodes;
 
+  // Use derived values for Skia transforms
+  // Must be declared before any conditional returns to follow React hooks rules
+  const transform = useDerivedValue(() => [
+    { translateX: translateX.value },
+    { translateY: translateY.value },
+    { scale: scale.value },
+  ]);
+
   // Skeleton animation
   const skeletonAnim = useRef(new Animated.Value(0.3)).current;
 
@@ -346,13 +354,6 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       </View>
     );
   }
-
-  // Use derived values for Skia transforms
-  const transform = useDerivedValue(() => [
-    { translateX: translateX.value },
-    { translateY: translateY.value },
-    { scale: scale.value },
-  ]);
 
   return (
     <GestureDetector gesture={composedGesture}>

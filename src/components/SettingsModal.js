@@ -123,7 +123,10 @@ export default function SettingsModal({ visible, onClose }) {
               // Clear any local state
               useTreeStore.getState().setSelectedPersonId(null);
               onClose();
-              router.replace("/"); // Navigate to root which will show onboarding
+              // Small delay to ensure state updates propagate
+              setTimeout(() => {
+                router.replace("/"); // Navigate to root which will show onboarding
+              }, 100);
             } catch (error) {
               Alert.alert("خطأ", "فشل تسجيل الخروج");
             }

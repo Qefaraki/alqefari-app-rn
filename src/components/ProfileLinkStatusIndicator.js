@@ -134,15 +134,16 @@ export default function ProfileLinkStatusIndicator() {
           setProfileChain(chain);
         }
 
-        // Check if we've already shown the success message for this profile
-        const lastSeenLinkedProfile = await AsyncStorage.getItem("lastSeenLinkedProfile");
+        // Check if we've already shown the congratulations for this specific profile
+        const congratsKey = `congratulationsShown_${linkedProfile.id}`;
+        const congratsShown = await AsyncStorage.getItem(congratsKey);
 
-        // Only show success message once per profile
-        if (lastSeenLinkedProfile !== linkedProfile.id) {
-          // First time seeing this linked profile - show success
-          await AsyncStorage.setItem("lastSeenLinkedProfile", linkedProfile.id);
+        // Only show success message ONCE when first approved
+        if (congratsShown !== "true") {
+          // First time after approval - show success and mark as shown
+          await AsyncStorage.setItem(congratsKey, "true");
 
-          // Auto-dismiss after 7 seconds
+          // Auto-dismiss after 5 seconds
           setTimeout(() => {
             Animated.parallel([
               Animated.timing(fadeAnim, {
@@ -158,9 +159,9 @@ export default function ProfileLinkStatusIndicator() {
             ]).start(() => {
               setShouldHideLinked(true);
             });
-          }, 7000);
+          }, 5000);
         } else {
-          // Already shown before - hide immediately
+          // Congratulations already shown for this profile - hide immediately
           setShouldHideLinked(true);
         }
       } else {
@@ -271,10 +272,6 @@ export default function ProfileLinkStatusIndicator() {
 
   // Linked Profile State - Success message with auto-dismiss
   if (hasLinkedProfile && profile && !shouldHideLinked) {
-    // Use the pre-built name chain
-    const fullName = profileChain || profile.name;
-    const displayName = fullName.includes("القفاري") ? fullName : `${fullName} القفاري`;
-
     return (
       <Animated.View
         style={[
@@ -290,9 +287,6 @@ export default function ProfileLinkStatusIndicator() {
             <Ionicons name="checkmark-circle" size={24} color={colors.success} />
             <Text style={styles.successMessage}>تهانينا! تم ربط حسابك</Text>
           </View>
-          <Text style={styles.linkedFullName}>
-            {displayName}
-          </Text>
         </View>
       </Animated.View>
     );
@@ -469,14 +463,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.text,
-  },
-  linkedFullName: {
-    fontSize: 15,
-    fontWeight: "500",
-    fontFamily: "SF Arabic",
-    color: colors.text + "CC",
-    textAlign: "center",
-    lineHeight: 22,
   },
 
   // Pending state
