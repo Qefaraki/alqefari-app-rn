@@ -16,7 +16,6 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { Galeria } from '@nandorojo/galeria';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -55,6 +54,8 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   // All images from the article (for unified Galeria viewer)
   const [allArticleImages, setAllArticleImages] = useState<string[]>([]);
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   // Gallery preview images for PhotoGalleryGrid
   const [galleryPreviewImages, setGalleryPreviewImages] = useState<string[]>([]);
@@ -192,10 +193,23 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []);
 
-  // Handle inline image press - no longer needed as Galeria handles it
+  // Handle inline image press - show in viewer
   const handleInlineImagePress = useCallback((imageUrl: string, index: number) => {
-    // Galeria handles the click natively
-  }, []);
+    if (index !== -1) {
+      setSelectedImageIndex(index);
+    } else {
+      // Find or add the image
+      const foundIndex = allArticleImages.findIndex(img => img === imageUrl);
+      if (foundIndex !== -1) {
+        setSelectedImageIndex(foundIndex);
+      } else {
+        setAllArticleImages(prev => [...prev, imageUrl]);
+        setSelectedImageIndex(allArticleImages.length);
+      }
+    }
+    setShowImageViewer(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [allArticleImages]);
 
   // Note: Share functionality would need to be implemented differently with native Galeria
   // as we can't overlay buttons on the native viewer
@@ -296,19 +310,17 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             </View>
           ) : (
             <>
-              {/* Wrap content in Galeria for inline images */}
-              <Galeria urls={allArticleImages}>
-                <ArticleContentRenderer
-                  html={article.html || ''}
-                  fontSize={fontSize}
-                  onImagePress={handleInlineImagePress}
-                  onImagesExtracted={handleImagesExtracted}
-                  isHeavyArticle={(article.html?.length || 0) > 100000}
-                  allImages={allArticleImages}
-                />
-              </Galeria>
+              {/* Article content with clickable images */}
+              <ArticleContentRenderer
+                html={article.html || ''}
+                fontSize={fontSize}
+                onImagePress={handleInlineImagePress}
+                onImagesExtracted={handleImagesExtracted}
+                isHeavyArticle={(article.html?.length || 0) > 100000}
+                allImages={allArticleImages}
+              />
 
-              {/* Photo Gallery Grid - already has its own Galeria */}
+              {/* Photo Gallery Grid with Galeria */}
               <PhotoGalleryGrid
                 previewImages={galleryPreviewImages}
                 totalImageCount={galleryImageCount}
@@ -323,6 +335,38 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           {/* Bottom Padding */}
           <View style={{ height: 100 }} />
         </ScrollView>
+
+        {/* Simple modal viewer for inline images */}
+        {showImageViewer && allArticleImages[selectedImageIndex] && (
+          <Modal
+            visible={showImageViewer}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setShowImageViewer(false)}
+          >
+            <TouchableOpacity
+              style={styles.imageViewerOverlay}
+              activeOpacity={1}
+              onPress={() => setShowImageViewer(false)}
+            >
+              <View style={styles.imageViewerContent}>
+                <Image
+                  source={{ uri: allArticleImages[selectedImageIndex] }}
+                  style={styles.fullScreenImage}
+                  resizeMode="contain"
+                />
+                <TouchableOpacity
+                  style={styles.imageViewerClose}
+                  onPress={() => setShowImageViewer(false)}
+                >
+                  <View style={styles.closeButton}>
+                    <Ionicons name="close" size={24} color="#FFFFFF" />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+        )}
 
 
         {/* Floating Header - iOS Style */}
@@ -567,6 +611,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'System',
+  },
+  // Simple image viewer styles
+  imageViewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerContent: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: screenWidth,
+    height: screenHeight * 0.8,
+  },
+  imageViewerClose: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 50 : 30,
+    right: 20,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

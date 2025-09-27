@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   Linking,
-  Image as RNImage,
 } from 'react-native';
 import RenderHtml, {
   HTMLContentModel,
@@ -16,7 +15,6 @@ import RenderHtml, {
   MixedStyleDeclaration,
 } from 'react-native-render-html';
 import { Image } from 'expo-image';
-import { Galeria } from '@nandorojo/galeria';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
@@ -245,37 +243,21 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
       imageHeight = imageWidth * aspectRatio;
     }
 
-    // Find the index of this image in the allImages array
-    const imageIndex = allImages ? allImages.findIndex(img => img === src) : -1;
+    const handleImagePress = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (onImagePress) {
+        // Find the index of this image in the allImages array
+        const imageIndex = allImages ? allImages.findIndex(img => img === src) : -1;
+        onImagePress(src, imageIndex);
+      }
+    };
 
-    // If we have the image in our gallery, make it clickable with Galeria
-    if (imageIndex !== -1) {
-      return (
-        <View style={styles.imageContainer}>
-          <Galeria.Image index={imageIndex}>
-            <RNImage
-              source={{ uri: src }}
-              style={[
-                styles.inlineImage,
-                {
-                  width: imageWidth,
-                  height: imageHeight
-                }
-              ]}
-              resizeMode="cover"
-            />
-          </Galeria.Image>
-          {/* Only show alt text if it's not a filename */}
-          {alt && !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
-            <Text style={styles.imageCaption}>{alt}</Text>
-          )}
-        </View>
-      );
-    }
-
-    // Fallback for images not in gallery
     return (
-      <View style={styles.imageContainer}>
+      <TouchableOpacity
+        activeOpacity={0.95}
+        onPress={handleImagePress}
+        style={styles.imageContainer}
+      >
         <Image
           source={{ uri: src }}
           style={[
@@ -293,7 +275,7 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
         {alt && !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
           <Text style={styles.imageCaption}>{alt}</Text>
         )}
-      </View>
+      </TouchableOpacity>
     );
   },
 
