@@ -205,9 +205,15 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     try {
       const result = await phoneAuthService.searchProfilesByNameChain(cleanedName);
 
+      // Only mark as searched if we have meaningful input (2+ words)
+      const wordCount = cleanedName.split(/\s+/).filter(w => w.length > 0).length;
+      const shouldMarkSearched = wordCount >= 2;
+
       if (result.success) {
         setResults(result.profiles || []);
-        setHasSearched(true); // Mark that we've searched
+        if (shouldMarkSearched) {
+          setHasSearched(true); // Only mark for meaningful searches
+        }
         // Animate results in
         Animated.timing(resultsOpacity, {
           toValue: 1,
@@ -216,12 +222,14 @@ export default function ProfileLinkingScreen({ navigation, route }) {
         }).start();
       } else {
         setResults([]);
-        setHasSearched(true); // Mark that we've searched even if no results
+        if (shouldMarkSearched) {
+          setHasSearched(true); // Only mark for meaningful searches
+        }
       }
     } catch (error) {
       console.error("Search error:", error);
       setResults([]);
-      setHasSearched(true);
+      // Don't mark as searched on error for single letters
     }
   }, [resultsOpacity]);
 
@@ -454,8 +462,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               </Animated.View>
             )}
 
-            {/* Empty state - only show after typing at least 3 words and search has run */}
-            {results.length === 0 && hasSearched && query.trim().split(/\s+/).filter(w => w.length > 0).length >= 3 && (
+            {/* Empty state - only show after a meaningful search with no results */}
+            {results.length === 0 && hasSearched && (
               <View style={styles.emptyContainer}>
                 <Ionicons name="search-outline" size={48} color="#24212199" />
                 <Text style={styles.emptyText}>
