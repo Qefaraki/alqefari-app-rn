@@ -166,37 +166,30 @@ export default function ProfileMatchingScreen({ navigation, route }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      if (result.temporary) {
-        // Profile linked successfully - mark onboarding as complete
-        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+      // Request sent for admin approval - mark onboarding complete
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
 
-        // Trigger profile status refresh in AuthContext
-        await checkProfileStatus(user);
+      // Trigger profile status refresh to detect pending request
+      await checkProfileStatus(user);
 
-        // The app will automatically navigate when hasLinkedProfile updates
-        Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
-          { text: "موافق" },
-        ]);
-      } else {
-        // Notify admins of new request
-        await notifyAdminsOfNewRequest({
-          id: result.requestId,
-          name_chain: nameChain,
-          profile_name: selectedProfile.name,
-        });
-
-        // Request sent for admin approval - also mark onboarding complete
-        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-
-        // Trigger profile status refresh to detect pending request
-        await checkProfileStatus(user);
-
-        // Note: User won't have linked profile until admin approves
-        // But they have a pending request now, so can use app in limited mode
-        Alert.alert("تم إرسال الطلب", result.message, [
-          { text: "موافق" },
-        ]);
-      }
+      // User won't have linked profile until admin approves
+      // But they have a pending request now, so can use app in limited mode
+      Alert.alert(
+        "تم إرسال الطلب ✅",
+        "تم إرسال طلبك للمراجعة. سيتم إشعارك عند الموافقة على الطلب.",
+        [
+          {
+            text: "موافق",
+            onPress: () => {
+              // Navigate to main app - user will see pending status
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Main" }],
+              });
+            },
+          },
+        ],
+      );
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert("خطأ", result.error);
@@ -227,16 +220,18 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        if (result.temporary) {
-          // Profile linked successfully - mark onboarding as complete
-          await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+        // Request sent for admin approval - mark onboarding complete
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
 
-          // Trigger profile status refresh in AuthContext
-          await checkProfileStatus(user);
+        // Trigger profile status refresh to detect pending request
+        await checkProfileStatus(user);
 
-          // The app will automatically navigate when hasLinkedProfile updates
-          Alert.alert("تم الربط", "تم ربط ملفك الشخصي بنجاح!", [
-            { text: "موافق" },
+        // Show success message
+        Alert.alert(
+          "تم إرسال الطلب ✅",
+          "تم إرسال طلبك للمراجعة. سيتم إشعارك عند الموافقة على الطلب.",
+          [
+            { text: "موافق",
           ]);
         } else {
           // Request sent for admin approval - also mark onboarding complete

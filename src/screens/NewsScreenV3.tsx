@@ -137,8 +137,16 @@ const NewsScreenV3: React.FC = () => {
       <View style={styles.headerContainer}>
         {/* Title section - matching Settings page style */}
         <View style={styles.header}>
-          <Text style={styles.title}>أخبار القفاري</Text>
-          <Text style={styles.subtitle}>{headerDate}</Text>
+          <View style={styles.titleRow}>
+            <Image
+              source={require('../../assets/logo/AlqefariEmblem.png')}
+              style={styles.emblem}
+              resizeMode="contain"
+            />
+            <View style={styles.titleContent}>
+              <Text style={styles.title}>أخبار القفاري</Text>
+            </View>
+          </View>
         </View>
 
         {/* Carousel section */}
@@ -310,20 +318,37 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
   },
   headerContainer: {
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start', // Align to top instead of center
+    justifyContent: 'flex-start',
+  },
+  titleContent: {
+    flex: 1,
+  },
+  emblem: {
+    width: 52,
+    height: 52,
+    opacity: 1,
+    tintColor: '#242121', // Back to black
+    marginRight: 3, // 3px spacing towards title
+    marginTop: -5, // Move up by 5px
+    marginLeft: -5, // Negative margin to align with sections below
   },
   carouselSection: {
-    marginBottom: 24,
+    marginBottom: 16,
     backgroundColor: tokens.colors.najdi.background, // Clean white background
   },
   sectionHeader: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
     marginBottom: 16,
   },
   sectionTitle: {
@@ -354,13 +379,6 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.textMuted,
     fontFamily: 'SF Arabic',
     marginTop: 4,
-  },
-  sectionTitle: {
-    marginTop: 12,
-    marginHorizontal: 16,
-    fontSize: 18,
-    fontWeight: '700',
-    color: tokens.colors.najdi.text,
   },
   endIndicator: {
     flexDirection: 'row',

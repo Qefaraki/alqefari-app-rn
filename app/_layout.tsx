@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import BrandedSplashLoader from "../src/components/ui/BrandedSplashLoader";
+import BrandedErrorScreen from "../src/components/ui/BrandedErrorScreen";
 
 // Error Boundary to catch and display any silent errors
 class ErrorBoundary extends Component {
@@ -35,19 +36,11 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>⚠️ Error Detected!</Text>
-          <Text style={styles.errorMessage}>
-            {this.state.error && this.state.error.toString()}
-          </Text>
-          <Text style={styles.errorStack}>
-            {this.state.errorInfo && this.state.errorInfo.componentStack}
-          </Text>
-          <Button
-            title="Reset App"
-            onPress={() => this.setState({ hasError: false, error: null, errorInfo: null })}
-          />
-        </View>
+        <BrandedErrorScreen
+          error={this.state.error}
+          errorInfo={this.state.errorInfo}
+          onReset={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+        />
       );
     }
 
@@ -246,32 +239,6 @@ const styles = StyleSheet.create({
     color: '#cc0000',
     fontWeight: 'bold',
     textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff5f5',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#cc0000',
-    marginBottom: 20,
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  errorStack: {
-    fontSize: 10,
-    color: '#666',
-    fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
-    marginBottom: 30,
-    maxHeight: 200,
   },
 });
 

@@ -21,6 +21,7 @@ import { accountDeletionService } from "../services/accountDeletion";
 import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import appConfig from "../config/appConfig";
+import ProfileLinkStatusCard from "../components/ProfileLinkStatusCard";
 
 // Native SwiftUI settings temporarily disabled due to missing Expo UI native module
 const NativeSettingsView = null;
@@ -156,8 +157,20 @@ export default function SettingsPage({ user }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>الإعدادات</Text>
+          <View style={styles.headerRow}>
+            <Image
+              source={require('../../assets/logo/AlqefariEmblem.png')}
+              style={styles.emblem}
+              resizeMode="contain"
+            />
+            <View style={styles.titleContent}>
+              <Text style={styles.title}>الإعدادات</Text>
+            </View>
+          </View>
         </View>
+
+        {/* Profile Link Status Card */}
+        {currentUser && <ProfileLinkStatusCard />}
 
         {/* Profile Section */}
         {currentUser && (
@@ -425,8 +438,8 @@ export default function SettingsPage({ user }) {
             <View style={styles.logoContainer}>
               <Image source={AlqefariLogo} style={styles.logo} />
             </View>
-            <Text style={styles.appVersion}>الإصدار {appConfig.version}</Text>
-            <Text style={styles.buildInfo}>Build {appConfig.buildNumber}</Text>
+            <Text style={styles.appVersion}>الإصدار 2.0.0</Text>
+            <Text style={styles.developerCredit}>بتصميم وبرمجة: محمد عبدالله سليمان القفاري</Text>
           </View>
         </View>
       </ScrollView>
@@ -447,8 +460,25 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  emblem: {
+    width: 52,
+    height: 52,
+    opacity: 1,
+    tintColor: '#242121',
+    marginRight: 3,
+    marginTop: -5,
+    marginLeft: -5,
+  },
+  titleContent: {
+    flex: 1,
   },
   title: {
     fontSize: 34,
@@ -709,5 +739,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#73637280",
     fontFamily: "SF Arabic",
+  },
+  developerCredit: {
+    fontSize: 13,
+    color: "#A13333",
+    fontFamily: "SF Arabic",
+    marginTop: 12,
+    textAlign: "center",
   },
 });

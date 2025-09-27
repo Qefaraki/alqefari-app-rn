@@ -11,7 +11,7 @@ import {
   I18nManager,
   Dimensions,
   Animated,
-
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -513,21 +513,26 @@ const AdminDashboard = ({ onClose, user }) => {
           },
         ]}
       >
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={28} color="#242121" />
-        </TouchableOpacity>
-        <View
-          style={{
-            flex: 1,
-            alignItems: "flex-start",
-            marginRight: 12,
-            marginLeft: 0,
-            writingDirection: "rtl",
-          }}
-        >
-          <Text style={styles.title}>لوحة التحكم</Text>
-          <Text style={styles.subtitle}>Admin Dashboard</Text>
-          {user?.email && <Text style={styles.userEmail}>{user.email}</Text>}
+        <View style={styles.headerRow}>
+          <Image
+            source={require('../../assets/logo/AlqefariEmblem.png')}
+            style={styles.emblem}
+            resizeMode="contain"
+          />
+          <View
+            style={{
+              flex: 1,
+              alignItems: "flex-start",
+              writingDirection: "rtl",
+            }}
+          >
+            <Text style={styles.title}>لوحة التحكم</Text>
+            <Text style={styles.subtitle}>Admin Dashboard</Text>
+            {user?.email && <Text style={styles.userEmail}>{user.email}</Text>}
+          </View>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Ionicons name="close" size={28} color="#242121" />
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -1205,14 +1210,26 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
-    flexDirection: "row-reverse", // Always use RTL layout
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
     backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: 1,
     borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  emblem: {
+    width: 52,
+    height: 52,
+    opacity: 1,
+    tintColor: '#242121', // Sadu Night black
+    marginRight: 3,
+    marginTop: -5,
+    marginLeft: -5,
   },
   title: {
     fontSize: 22,

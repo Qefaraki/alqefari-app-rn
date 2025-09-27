@@ -17,6 +17,7 @@ import RenderHtml, {
 import { Image } from 'expo-image';
 import { VideoPlayer } from 'expo-video';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
@@ -33,8 +34,8 @@ interface ArticleContentRendererProps {
   allImages?: string[];
 }
 
-// System fonts - let iOS choose the right Arabic font automatically
-const SYSTEM_FONTS = [...defaultSystemFonts, 'System'];
+// System fonts - use SF Arabic for proper Arabic rendering
+const SYSTEM_FONTS = [...defaultSystemFonts, 'SF Arabic', 'SF Pro Display', 'System'];
 
 // Ignored tags - removed video and iframe to support them
 const IGNORED_DOM_TAGS = ['script', 'audio', 'style'];
@@ -58,14 +59,18 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
   body: {
     color: tokens.colors.najdi.text,
     fontSize: fontSize,
-    lineHeight: fontSize * 2.0, // Increased for Arabic diacritics
-    fontFamily: 'System',
-    letterSpacing: 0.3,
+    lineHeight: fontSize * 2.2, // Extra space for Arabic diacritics
+    fontFamily: 'SF Arabic',
+    letterSpacing: 0,
+    textAlign: 'auto',
+    writingDirection: 'auto',
   },
   p: {
     marginBottom: 24,
     color: tokens.colors.najdi.text,
-    lineHeight: fontSize * 2.0,
+    lineHeight: fontSize * 2.2,
+    fontFamily: 'SF Arabic',
+    textAlign: 'auto',
   },
   h1: {
     fontSize: fontSize + 8,
@@ -75,7 +80,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     color: tokens.colors.najdi.text,
     letterSpacing: -0.5,
     lineHeight: (fontSize + 8) * 1.4,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
   },
   h2: {
     fontSize: fontSize + 5,
@@ -84,7 +89,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginBottom: 18,
     color: tokens.colors.najdi.text,
     letterSpacing: -0.3,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
   },
   h3: {
     fontSize: fontSize + 3,
@@ -92,7 +97,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginTop: 24,
     marginBottom: 14,
     color: tokens.colors.najdi.text,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
   },
   h4: {
     fontSize: fontSize + 1,
@@ -100,7 +105,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginTop: 20,
     marginBottom: 12,
     color: tokens.colors.najdi.textMuted,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
   },
   a: {
     color: '#007AFF', // iOS blue
@@ -177,7 +182,7 @@ const createTagsStyles = (fontSize: number): Record<string, MixedStyleDeclaratio
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
     fontWeight: '400',
   },
   img: {
@@ -226,7 +231,7 @@ const CLASSES_STYLES: Record<string, MixedStyleDeclaration> = {
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
     fontWeight: '400',
   },
   'aligncenter': {
@@ -288,8 +293,11 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
           transition={200}
           cachePolicy="memory-disk"
         />
-        {/* Only show alt text if it's not a filename */}
-        {alt && !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+        {/* Only show alt text if it's not a filename, doesn't have a year, and is 4+ chars */}
+        {alt &&
+         !alt.match(/\.(jpg|jpeg|png|gif|webp)$/i) &&
+         !alt.match(/\d{4,}/) &&
+         alt.length >= 4 && (
           <Text style={styles.imageCaption}>{alt}</Text>
         )}
       </TouchableOpacity>
@@ -338,40 +346,64 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
   figure: ({ tnode, TDefaultRenderer, ...props }: any) => {
     const className = tnode.attributes?.class || '';
 
-    // Check if it's a WordPress video block
-    if (className.includes('wp-block-video')) {
-      // Search recursively for video node
-      const findVideoNode = (node: any): any => {
-        if (node.tagName === 'video') return node;
+    // Check if it's a WordPress video block (including VideoPress)
+    if (className.includes('wp-block-video') || className.includes('wp-block-jetpack-videopress')) {
+      // Search recursively for video node or iframe (VideoPress uses iframe)
+      const findMediaNode = (node: any): any => {
+        if (node.tagName === 'video' || node.tagName === 'iframe') return node;
         if (node.children) {
           for (const child of node.children) {
-            const found = findVideoNode(child);
+            const found = findMediaNode(child);
             if (found) return found;
           }
         }
         return null;
       };
 
-      const videoNode = findVideoNode(tnode);
-      if (videoNode) {
-        // Try to get src from video tag or source child
-        let videoSrc = videoNode.attributes?.src;
-        if (!videoSrc && videoNode.children) {
-          const sourceNode = videoNode.children.find((c: any) => c.tagName === 'source');
-          videoSrc = sourceNode?.attributes?.src;
+      const mediaNode = findMediaNode(tnode);
+      if (mediaNode) {
+        // Handle iframe (VideoPress)
+        if (mediaNode.tagName === 'iframe') {
+          const iframeSrc = mediaNode.attributes?.src;
+          if (iframeSrc) {
+            console.log('Found VideoPress iframe:', iframeSrc);
+
+            // VideoPress uses iframe embeds, need WebView to display them
+            return (
+              <View style={styles.videoContainer}>
+                <WebView
+                  source={{ uri: iframeSrc }}
+                  style={styles.videoPlayer}
+                  allowsFullscreenVideo={true}
+                  mediaPlaybackRequiresUserAction={false}
+                  javaScriptEnabled={true}
+                />
+              </View>
+            );
+          }
         }
 
-        if (videoSrc) {
-          console.log('Found WordPress video:', videoSrc);
-          return (
-            <View style={styles.videoContainer}>
-              <VideoPlayer
-                source={{ uri: videoSrc }}
-                style={styles.videoPlayer}
-                showsControls={true}
-              />
-            </View>
-          );
+        // Handle regular video tag
+        if (mediaNode.tagName === 'video') {
+          // Try to get src from video tag or source child
+          let videoSrc = mediaNode.attributes?.src;
+          if (!videoSrc && mediaNode.children) {
+            const sourceNode = mediaNode.children.find((c: any) => c.tagName === 'source');
+            videoSrc = sourceNode?.attributes?.src;
+          }
+
+          if (videoSrc) {
+            console.log('Found WordPress video:', videoSrc);
+            return (
+              <View style={styles.videoContainer}>
+                <VideoPlayer
+                  source={{ uri: videoSrc }}
+                  style={styles.videoPlayer}
+                  showsControls={true}
+                />
+              </View>
+            );
+          }
         }
       }
     }
@@ -438,11 +470,29 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
     return null;
   },
 
-  // iframe renderer for embedded videos (YouTube, Vimeo, etc.)
+  // iframe renderer for embedded videos (YouTube, Vimeo, VideoPress, etc.)
   iframe: ({ tnode, ...props }: any) => {
     const { src, width, height } = tnode.attributes || {};
 
     if (!src) return null;
+
+    // Check if it's a VideoPress embed
+    const isVideoPress = src.includes('videopress.com') || src.includes('wordpress.com/embed');
+
+    if (isVideoPress) {
+      console.log('Found VideoPress iframe in iframe renderer:', src);
+      return (
+        <View style={styles.videoContainer}>
+          <WebView
+            source={{ uri: src }}
+            style={styles.videoPlayer}
+            allowsFullscreenVideo={true}
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled={true}
+          />
+        </View>
+      );
+    }
 
     // Check if it's a YouTube embed
     const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
@@ -637,7 +687,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
     fontWeight: '400',
   },
   link: {
@@ -673,7 +723,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 20,
     lineHeight: 20,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
     fontWeight: '400',
   },
   videoContainer: {
@@ -705,7 +755,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
-    fontFamily: 'System',
+    fontFamily: 'SF Arabic',
   },
   youtubeContainer: {
     marginVertical: 24,

@@ -271,7 +271,8 @@ export const phoneAuthService = {
         );
       }
 
-      // Filter out already claimed profiles
+      // CRITICAL: Filter out already linked profiles
+      // This ensures users can only see and claim unclaimed profiles
       query = query.is("user_id", null);
 
       // Limit results
@@ -467,7 +468,6 @@ export const phoneAuthService = {
    */
   async submitProfileLinkRequest(profileId, nameChain) {
     try {
-      // For now, directly link the profile to the user (temporary solution)
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -493,22 +493,61 @@ export const phoneAuthService = {
         };
       }
 
-      // Temporarily link the profile directly (remove this when backend is ready)
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({
-          user_id: user.id,
-          phone: user.phone,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profileId);
+      // Check if user already has a pending request
+      const { data: existingRequest } = await supabase
+        .from("profile_link_requests")
+        .select("id, status")
+        .eq("user_id", user.id)
+        .eq("status", "pending")
+        .single();
 
-      if (updateError) throw updateError;
+      if (existingRequest) {
+        return {
+          success: false,
+          error: "لديك طلب قيد المراجعة بالفعل",
+          existingRequest: true,
+        };
+      }
+
+      // Create or update link request (proper flow through admin approval)
+      const { data: request, error: requestError } = await supabase
+        .from("profile_link_requests")
+        .upsert(
+          {
+            user_id: user.id,
+            profile_id: profileId,
+            name_chain: nameChain,
+            phone: user.phone,
+            status: "pending",
+            created_at: new Date().toISOString(),
+          },
+          {
+            onConflict: "user_id,profile_id",
+            ignoreDuplicates: false,
+          }
+        )
+        .select()
+        .single();
+
+      if (requestError) throw requestError;
+
+      // Notify admins of new request
+      try {
+        const { notifyAdminsOfNewRequest } = await import("./notifications");
+        await notifyAdminsOfNewRequest({
+          id: request.id,
+          name_chain: nameChain,
+          profile_id: profileId,
+        });
+      } catch (notifError) {
+        console.log("Notification error (non-critical):", notifError);
+      }
 
       return {
         success: true,
-        message: "تم ربط الملف بنجاح",
-        temporary: true, // Flag to indicate this is temporary
+        message: "تم إرسال طلب الربط للمراجعة",
+        requestId: request.id,
+        needsApproval: true,
       };
     } catch (error) {
       console.error("Error submitting link request:", error);
@@ -549,6 +588,111 @@ export const phoneAuthService = {
         success: false,
         error: error.message,
         requests: [],
+      };
+    }
+  },
+
+  /**
+   * Withdraw a pending link request
+   */
+  async withdrawLinkRequest(requestId) {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          success: false,
+          error: "يجب تسجيل الدخول أولاً",
+        };
+      }
+
+      // Delete the request (only if it's pending and belongs to the user)
+      const { error } = await supabase
+        .from("profile_link_requests")
+        .delete()
+        .eq("id", requestId)
+        .eq("user_id", user.id)
+        .eq("status", "pending");
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        message: "تم سحب الطلب بنجاح",
+      };
+    } catch (error) {
+      console.error("Error withdrawing link request:", error);
+      return {
+        success: false,
+        error: error.message || "فشل سحب الطلب",
+      };
+    }
+  },
+
+  /**
+   * Request to unlink profile (for already linked users)
+   */
+  async requestUnlinkProfile() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          success: false,
+          error: "يجب تسجيل الدخول أولاً",
+        };
+      }
+
+      // Find user's linked profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile) {
+        return {
+          success: false,
+          error: "لا يوجد ملف مرتبط",
+        };
+      }
+
+      // Create an admin message requesting unlink
+      const { error } = await supabase
+        .from("admin_messages")
+        .insert({
+          user_id: user.id,
+          type: "unlink_request",
+          message: `طلب إلغاء ربط الملف: ${profile.name}`,
+          profile_id: profile.id,
+          status: "pending",
+        });
+
+      if (error) throw error;
+
+      // Notify admins
+      try {
+        const { notifyAdminsOfNewRequest } = await import("./notifications");
+        await notifyAdminsOfNewRequest({
+          type: "unlink_request",
+          name_chain: profile.name,
+          profile_id: profile.id,
+        });
+      } catch (notifError) {
+        console.log("Notification error (non-critical):", notifError);
+      }
+
+      return {
+        success: true,
+        message: "تم إرسال طلب إلغاء الربط للمشرف",
+      };
+    } catch (error) {
+      console.error("Error requesting unlink:", error);
+      return {
+        success: false,
+        error: error.message || "فشل إرسال الطلب",
       };
     }
   },

@@ -10,7 +10,7 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
-  Animated,
+  Animated as RNAnimated,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Image,
@@ -21,6 +21,18 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  GestureDetector,
+  Gesture,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { NewsArticle } from '../../services/news';
 import { useAbsoluteDateNoMemo } from '../../hooks/useFormattedDateNoMemo';
 import ArticleContentRenderer from './components/ArticleContentRenderer';
@@ -29,6 +41,119 @@ import tokens from '../ui/tokens';
 import { extractPreviewImages } from './utils/linkExtractor';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Zoomable Image Viewer Component
+interface ZoomableImageViewerProps {
+  imageUrl: string;
+  onClose: () => void;
+}
+
+const ZoomableImageViewer: React.FC<ZoomableImageViewerProps> = ({ imageUrl, onClose }) => {
+  const scale = useSharedValue(1);
+  const focalX = useSharedValue(0);
+  const focalY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+
+  const handleClose = () => {
+    'worklet';
+    runOnJS(onClose)();
+  };
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = e.scale;
+      focalX.value = e.focalX;
+      focalY.value = e.focalY;
+    })
+    .onEnd(() => {
+      if (scale.value < 1) {
+        scale.value = withSpring(1);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+      } else if (scale.value > 5) {
+        scale.value = withSpring(5);
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (scale.value > 1) {
+        translateX.value = e.translationX;
+        translateY.value = e.translationY;
+      }
+    })
+    .onEnd(() => {
+      // Apply boundaries based on scale
+      const maxTranslateX = (screenWidth * (scale.value - 1)) / 2;
+      const maxTranslateY = (screenHeight * (scale.value - 1)) / 2;
+
+      if (Math.abs(translateX.value) > maxTranslateX) {
+        translateX.value = withSpring(Math.sign(translateX.value) * maxTranslateX);
+      }
+      if (Math.abs(translateY.value) > maxTranslateY) {
+        translateY.value = withSpring(Math.sign(translateY.value) * maxTranslateY);
+      }
+    });
+
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1) {
+        scale.value = withSpring(1);
+        translateX.value = withSpring(0);
+        translateY.value = withSpring(0);
+      } else {
+        scale.value = withSpring(2.5);
+      }
+    });
+
+  const singleTapGesture = Gesture.Tap()
+    .numberOfTaps(1)
+    .onEnd(() => {
+      if (scale.value === 1) {
+        handleClose();
+      }
+    });
+
+  const composedGesture = Gesture.Race(
+    doubleTapGesture,
+    Gesture.Simultaneous(pinchGesture, panGesture),
+    singleTapGesture
+  );
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: translateX.value },
+        { translateY: translateY.value },
+        { scale: scale.value },
+      ],
+    };
+  });
+
+  return (
+    <View style={styles.imageViewerOverlay}>
+      <GestureDetector gesture={composedGesture}>
+        <Animated.View style={[styles.imageViewerContent, animatedStyle]}>
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.fullScreenImage}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </GestureDetector>
+      <TouchableOpacity
+        style={styles.imageViewerClose}
+        onPress={onClose}
+      >
+        <View style={styles.closeButtonZoom}>
+          <Ionicons name="close" size={24} color="#FFFFFF" />
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 interface ArticleReaderModalProps {
   article: NewsArticle | null;
@@ -42,15 +167,15 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   onClose,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new RNAnimated.Value(0)).current;
   const [isLoading, setIsLoading] = useState(false); // Start with false, only set true if needed
   const [fontSize, setFontSize] = useState(17);
   const [showHeader, setShowHeader] = useState(true);
   const [readingProgress, setReadingProgress] = useState(0);
   const lastScrollY = useRef(0);
   const insets = useSafeAreaInsets();
-  const headerAnimY = useRef(new Animated.Value(0)).current;
-  const progressWidth = useRef(new Animated.Value(0)).current;
+  const headerAnimY = useRef(new RNAnimated.Value(0)).current;
+  const progressWidth = useRef(new RNAnimated.Value(0)).current;
 
   // All images from the article (for unified Galeria viewer)
   const [allArticleImages, setAllArticleImages] = useState<string[]>([]);
@@ -145,7 +270,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   // Animate header show/hide with spring
   useEffect(() => {
-    Animated.spring(headerAnimY, {
+    RNAnimated.spring(headerAnimY, {
       toValue: showHeader ? 0 : -100,
       damping: 15,
       stiffness: 150,
@@ -155,7 +280,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
 
   // Animate progress bar
   useEffect(() => {
-    Animated.timing(progressWidth, {
+    RNAnimated.timing(progressWidth, {
       toValue: readingProgress,
       duration: 150,
       useNativeDriver: false,
@@ -245,7 +370,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, { paddingTop: headerHeight }]}
           showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
+          onScroll={RNAnimated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
             {
               useNativeDriver: false,
@@ -256,8 +381,8 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         >
           {/* Hero Image with Parallax */}
           {article.heroImage && (
-            <Animated.View style={styles.heroWrapper}>
-              <Animated.Image
+            <RNAnimated.View style={styles.heroWrapper}>
+              <RNAnimated.Image
                 source={{ uri: article.heroImage }}
                 style={[
                   styles.heroImage,
@@ -279,7 +404,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 ]}
                 resizeMode="cover"
               />
-            </Animated.View>
+            </RNAnimated.View>
           )}
 
           {/* Article Header */}
@@ -336,7 +461,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
           <View style={{ height: 100 }} />
         </ScrollView>
 
-        {/* Simple modal viewer for inline images */}
+        {/* Enhanced modal viewer for inline images with zoom/pan */}
         {showImageViewer && allArticleImages[selectedImageIndex] && (
           <Modal
             visible={showImageViewer}
@@ -344,33 +469,18 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             animationType="fade"
             onRequestClose={() => setShowImageViewer(false)}
           >
-            <TouchableOpacity
-              style={styles.imageViewerOverlay}
-              activeOpacity={1}
-              onPress={() => setShowImageViewer(false)}
-            >
-              <View style={styles.imageViewerContent}>
-                <Image
-                  source={{ uri: allArticleImages[selectedImageIndex] }}
-                  style={styles.fullScreenImage}
-                  resizeMode="contain"
-                />
-                <TouchableOpacity
-                  style={styles.imageViewerClose}
-                  onPress={() => setShowImageViewer(false)}
-                >
-                  <View style={styles.closeButton}>
-                    <Ionicons name="close" size={24} color="#FFFFFF" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <ZoomableImageViewer
+                imageUrl={allArticleImages[selectedImageIndex]}
+                onClose={() => setShowImageViewer(false)}
+              />
+            </GestureHandlerRootView>
           </Modal>
         )}
 
 
         {/* Floating Header - iOS Style */}
-        <Animated.View
+        <RNAnimated.View
           style={[
             styles.header,
             {
@@ -381,15 +491,17 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         >
           <BlurView intensity={85} tint="light" style={[styles.headerBlur, { paddingTop: insets.top }]}>
             <View style={styles.headerContent}>
-              {/* Close Button - iOS Style */}
+              {/* Alqefari Emblem - Left Side (acts as close button) */}
               <TouchableOpacity
                 onPress={handleClose}
-                style={styles.closeButton}
+                style={styles.emblemContainer}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <View style={styles.closeButtonCircle}>
-                  <Ionicons name="close" size={20} color={tokens.colors.najdi.text} />
-                </View>
+                <Image
+                  source={require('../../../assets/logo/AlqefariEmblem.png')}
+                  style={styles.emblem}
+                  resizeMode="contain"
+                />
               </TouchableOpacity>
 
               {/* Font Controls - iOS Style */}
@@ -413,19 +525,19 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              {/* Alqefari Emblem - Right Side for L-shape symmetry */}
-              <View style={styles.emblemContainer}>
-                <Image
-                  source={require('../../../assets/logo/AlqefariEmblem.png')}
-                  style={styles.emblem}
-                  resizeMode="contain"
-                />
-              </View>
+              {/* Close Button - Right Side (no background) */}
+              <TouchableOpacity
+                onPress={handleClose}
+                style={styles.closeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color={tokens.colors.najdi.text} />
+              </TouchableOpacity>
             </View>
 
             {/* Progress Pill */}
             <View style={styles.progressPill}>
-              <Animated.View
+              <RNAnimated.View
                 style={[
                   styles.progressFill,
                   {
@@ -438,7 +550,7 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
               />
             </View>
           </BlurView>
-        </Animated.View>
+        </RNAnimated.View>
 
       </View>
     </Modal>
@@ -474,18 +586,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  closeButtonCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(142, 142, 147, 0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   fontControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(142, 142, 147, 0.12)',
     borderRadius: 8,
     paddingHorizontal: 4,
     height: 32,
@@ -526,10 +629,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emblem: {
-    width: 28,
-    height: 28,
-    opacity: 0.7,
-    tintColor: tokens.colors.najdi.primary,
+    width: 40,
+    height: 40,
+    opacity: 0.9,
+    tintColor: '#242121', // Sadu Night black
   },
   progressPill: {
     position: 'absolute',
@@ -633,12 +736,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Platform.OS === 'ios' ? 50 : 30,
     right: 20,
+    zIndex: 1000,
+  },
+  closeButtonZoom: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
