@@ -112,19 +112,58 @@ export default function ProfileLinkStatusIndicator() {
       // Check if user has a linked profile
       const { data: linkedProfile } = await supabase
         .from("profiles")
-        .select("id, name, name_chain, father_id, generation")
+        .select("id, name, father_id, generation")
         .eq("user_id", user.id)
         .single();
 
       if (linkedProfile) {
-        setProfile(linkedProfile);
+        // Build full name chain by fetching ancestors
+        let fullProfile = { ...linkedProfile };
+        let nameChain = linkedProfile.name;
+
+        // Get father's name
+        if (linkedProfile.father_id) {
+          const { data: father } = await supabase
+            .from("profiles")
+            .select("id, name, father_id")
+            .eq("id", linkedProfile.father_id)
+            .single();
+
+          if (father) {
+            nameChain = `${linkedProfile.name} بن ${father.name}`;
+
+            // Get grandfather's name
+            if (father.father_id) {
+              const { data: grandfather } = await supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", father.father_id)
+                .single();
+
+              if (grandfather) {
+                nameChain = `${linkedProfile.name} بن ${father.name} بن ${grandfather.name}`;
+              }
+            }
+          }
+        }
+
+        fullProfile.full_chain = nameChain;
+        setProfile(fullProfile);
         setHasLinkedProfile(true);
 
         // Check if we should show the success message
         const lastSeenLinkedProfile = await AsyncStorage.getItem("lastSeenLinkedProfile");
-        if (lastSeenLinkedProfile !== linkedProfile.id) {
-          // New linked profile - show success and auto-dismiss
+        const lastSeenTime = await AsyncStorage.getItem("lastSeenLinkedTime");
+        const now = Date.now();
+        const oneHourAgo = now - (60 * 60 * 1000); // 1 hour in milliseconds
+
+        // Show if never seen OR if last seen more than 1 hour ago
+        if (lastSeenLinkedProfile !== linkedProfile.id ||
+            !lastSeenTime ||
+            parseInt(lastSeenTime) < oneHourAgo) {
+          // New or old enough to show again
           await AsyncStorage.setItem("lastSeenLinkedProfile", linkedProfile.id);
+          await AsyncStorage.setItem("lastSeenLinkedTime", now.toString());
 
           // Auto-dismiss after 7 seconds
           setTimeout(() => {
@@ -144,7 +183,7 @@ export default function ProfileLinkStatusIndicator() {
             });
           }, 7000);
         } else {
-          // Already seen - hide immediately
+          // Recently seen - hide immediately
           setShouldHideLinked(true);
         }
       } else {
@@ -245,7 +284,7 @@ export default function ProfileLinkStatusIndicator() {
 
   // Linked Profile State - Success message with auto-dismiss
   if (hasLinkedProfile && profile && !shouldHideLinked) {
-    const fullName = profile.name_chain || getProfileDisplayName(profile);
+    const fullName = profile.full_chain || profile.name;
     const displayName = fullName.includes("القفاري") ? fullName : `${fullName} القفاري`;
 
     return (
