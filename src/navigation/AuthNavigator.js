@@ -3,8 +3,7 @@ import { View, StyleSheet, Dimensions } from "react-native";
 import { createStackNavigator } from "@react-navigation/stack";
 import OnboardingScreen from "../screens/onboarding/OnboardingScreen";
 import NajdiPhoneAuthScreen from "../screens/auth/NajdiPhoneAuthScreen";
-import NameChainEntryScreen from "../screens/auth/NameChainEntryScreen";
-import ProfileMatchingScreen from "../screens/auth/ProfileMatchingScreen";
+import ProfileLinkingScreen from "../screens/auth/ProfileLinkingScreen";
 import ContactAdminScreen from "../screens/auth/ContactAdminScreen";
 import EnhancedSaduBackdrop from "../components/ui/EnhancedSaduBackdrop";
 
@@ -74,25 +73,17 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
             />
           )}
         </Stack.Screen>
-        <Stack.Screen name="NameChainEntry">
+        <Stack.Screen name="ProfileLinking">
           {(props) => (
-            <NameChainEntryScreen
+            <ProfileLinkingScreen
               {...props}
-              onSearchSuccess={() => {
+              onProfileLinked={() => {
                 setCurrentStep(4);
                 backdropRef.current?.triggerShootingStar(3);
               }}
             />
           )}
         </Stack.Screen>
-        <Stack.Screen
-          name="ProfileMatching"
-          component={ProfileMatchingScreen}
-          options={{
-            gestureEnabled: true,
-            gestureDirection: "horizontal",
-          }}
-        />
         <Stack.Screen
           name="ContactAdmin"
           component={ContactAdminScreen}

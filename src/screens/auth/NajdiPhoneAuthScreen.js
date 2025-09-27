@@ -238,10 +238,21 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      console.log('[DEBUG OTP] Verification successful, navigating to NameChainEntry');
-      // Do NOT mark onboarding as complete here - wait until profile is linked
-      // Navigate immediately without delay
-      navigation.navigate("NameChainEntry", { user: result.user });
+      // Check if user already has a linked profile
+      if (result.hasProfile) {
+        console.log('[DEBUG OTP] User has existing profile, completing onboarding');
+        // User already has a profile, mark onboarding as complete
+        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+        // Navigate to main app
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        console.log('[DEBUG OTP] New user, navigating to ProfileLinking');
+        // New user needs to link their profile
+        navigation.navigate("ProfileLinking", { user: result.user });
+      }
     } else {
       // Better error messages
       let errorMessage = "رمز التحقق غير صحيح";

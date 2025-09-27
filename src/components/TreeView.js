@@ -61,6 +61,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 import AdminToggleButton from "./AdminToggleButton";
+import AdminDashboardButton from "./AdminDashboardButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -2795,6 +2796,9 @@ const TreeView = ({
 
       {/* Admin Toggle Button - Only for admins */}
       {isAdmin && user && !user.is_anonymous ? <AdminToggleButton user={user} /> : null}
+
+      {/* Admin Dashboard Button - Shows when admin mode is active */}
+      {isAdmin && isAdminMode && user && !user.is_anonymous ? <AdminDashboardButton user={user} /> : null}
 
       {/* Admin components */}
       {isAdminMode && (

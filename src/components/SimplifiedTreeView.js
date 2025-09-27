@@ -1,497 +1,2805 @@
-import React, { useEffect, useRef, useMemo, useCallback } from 'react';
+import React, {
+  useMemo,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Dimensions,
+  useWindowDimensions,
+  Platform,
+  I18nManager,
   ActivityIndicator,
-  StyleSheet,
   Text,
-  Animated,
-} from 'react-native';
+  Alert,
+  PixelRatio,
+  Animated as RNAnimated,
+} from "react-native";
 import {
   Canvas,
   Group,
+  Rect,
   Line,
-  RoundedRect,
-  Image as SkiaImage,
   Circle,
   vec,
-  Blur,
+  RoundedRect,
+  useImage,
+  Image as SkiaImage,
+  Skia,
+  Mask,
+  Paragraph,
+  listFontFamilies,
   Text as SkiaText,
   useFont,
-  Skia,
-} from '@shopify/react-native-skia';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import {
+  Path,
+} from "@shopify/react-native-skia";
+import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import Animated, {
+  useAnimatedStyle,
   useSharedValue,
-  useDerivedValue,
   withSpring,
+  withDecay,
   withTiming,
   withSequence,
-  withRepeat,
+  Easing,
+  runOnJS,
   clamp,
-} from 'react-native-reanimated';
-import { useFocusedTreeData } from '../hooks/useFocusedTreeData';
-import { calculateTreeLayout } from '../utils/treeLayout';
-import { useCachedSkiaImage } from '../hooks/useCachedSkiaImage';
+  useAnimatedReaction,
+  cancelAnimation,
+  useDerivedValue,
+} from "react-native-reanimated";
+import { familyData } from "../data/family-data";
+import { Asset } from "expo-asset";
+import { calculateTreeLayout } from "../utils/treeLayout";
+import { useTreeStore } from "../stores/useTreeStore";
+import profilesService from "../services/profiles";
+import { formatDateDisplay } from "../services/migrationHelpers";
+import { useSettings } from "../contexts/SettingsContext";
+import { useAuth } from "../contexts/AuthContext";
+import { formatDateByPreference } from "../utils/dateDisplay";
+import NavigateToRootButton from "./NavigateToRootButton";
+// Admin components removed for simplified view
+import skiaImageCache from "../services/skiaImageCache";
+import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
+// Profile editing components removed for simplified view
+import SearchBar from "./SearchBar";
+import { supabase } from "../services/supabase";
+// Haptics removed - no interaction in simplified view
+import LottieGlow from "./LottieGlow";
+import NetworkErrorView from "./NetworkErrorView";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const VIEWPORT_MARGIN = 500;
-const NODE_WIDTH = 50;
-const NODE_HEIGHT = 60;
-const PHOTO_SIZE = 36;
-const LINE_COLOR = '#D1BBA340';
+const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
+const NODE_WIDTH_WITH_PHOTO = 85;
+const NODE_WIDTH_TEXT_ONLY = 60;
+const NODE_HEIGHT_WITH_PHOTO = 90;
+const NODE_HEIGHT_TEXT_ONLY = 35;
+const PHOTO_SIZE = 60;
+const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
-const CORNER_RADIUS = 6;
+const CORNER_RADIUS = 8;
 
-// Glow effect colors
-const GLOW_COLOR = '#A13333';
-const GLOW_INTENSITY = 0.8;
-const GLOW_RADIUS = 15;
+// LOD Constants
+const SCALE_QUANTUM = 0.05; // 5% quantization steps
+const HYSTERESIS = 0.15; // ±15% hysteresis
+const T1_BASE = 48; // Full card threshold (px)
+const T2_BASE = 24; // Text pill threshold (px)
+const MAX_VISIBLE_NODES = 350; // Hard cap per frame
+const MAX_VISIBLE_EDGES = 300; // Hard cap per frame
+const LOD_ENABLED = true; // Kill switch
+const AGGREGATION_ENABLED = true; // T3 chips toggle
 
-// Arabic font setup
-const SF_ARABIC_ASSET = require('../../assets/fonts/SF Arabic Regular.ttf');
+// Image bucket hysteresis constants
+const BUCKET_HYSTERESIS = 0.15; // ±15% hysteresis
+const BUCKET_DEBOUNCE_MS = 150; // ms
+
+// Create font manager/provider once
+let fontMgr = null;
+let arabicFontProvider = null;
+let arabicTypeface = null;
+let arabicFont = null;
+let arabicFontBold = null;
+let sfArabicRegistered = false;
+
+const SF_ARABIC_ALIAS = "SF Arabic";
+const SF_ARABIC_ASSET = require("../../assets/fonts/SF Arabic Regular.ttf");
+
+try {
+  fontMgr = Skia.FontMgr.System();
+  arabicFontProvider = Skia.TypefaceFontProvider.Make();
+
+  // List all available fonts to find Arabic fonts
+  const availableFonts = listFontFamilies();
+  // Try to match Arabic fonts - prioritize SF Arabic
+  const arabicFontNames = [
+    "SF Arabic", // Prefer SF Arabic explicitly
+    ".SF Arabic", // Alternate internal name variants
+    ".SF NS Arabic",
+    ".SFNSArabic",
+    "Geeza Pro",
+    "GeezaPro",
+    "Damascus",
+    "Al Nile",
+    "Baghdad",
+    ".SF NS Display",
+    ".SF NS Text",
+    ".SF NS",
+    ".SFNS-Regular",
+  ];
+
+  for (const fontName of arabicFontNames) {
+    try {
+      arabicTypeface = fontMgr.matchFamilyStyle(fontName, {
+        weight: 400,
+        width: 5,
+        slant: 0,
+      });
+      if (arabicTypeface) {
+        // Create Font objects from typeface
+        arabicFont = Skia.Font(arabicTypeface, 11);
+        const boldTypeface = fontMgr.matchFamilyStyle(fontName, {
+          weight: 700,
+          width: 5,
+          slant: 0,
+        });
+        arabicFontBold = boldTypeface
+          ? Skia.Font(boldTypeface, 11)
+          : arabicFont;
+        break;
+      }
+    } catch (e) {
+      // Continue trying other fonts
+    }
+  }
+} catch (e) {
+  // Font collection creation failed
+}
+
+// Helper function to create Arabic text paragraphs with proper shaping
+const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
+  if (!text || !Skia.ParagraphBuilder) return null;
+
+  try {
+    const paragraphStyle = {
+      textAlign: 2, // Center align (0=left, 1=right, 2=center)
+      textDirection: 1, // RTL direction (0=LTR, 1=RTL)
+      maxLines: 1,
+      ellipsis: "...",
+    };
+
+    // If we have a matched Arabic typeface, ensure it's registered on the provider
+    if (arabicTypeface && arabicFontProvider) {
+      try {
+        arabicFontProvider.registerFont(arabicTypeface, SF_ARABIC_ALIAS);
+      } catch (e) {}
+    }
+
+    const textStyle = {
+      color: Skia.Color(color),
+      fontSize: fontSize,
+      fontFamilies: arabicTypeface
+        ? [SF_ARABIC_ALIAS]
+        : [
+            SF_ARABIC_ALIAS,
+            ".SF Arabic",
+            ".SF NS Arabic",
+            ".SFNSArabic",
+            "Geeza Pro",
+            "GeezaPro",
+            "Damascus",
+            "Al Nile",
+            "Baghdad",
+            "System",
+          ],
+      fontStyle: {
+        weight: fontWeight === "bold" ? 700 : 400,
+      },
+    };
+
+    // Create paragraph builder
+    const builder = arabicFontProvider
+      ? Skia.ParagraphBuilder.Make(paragraphStyle, arabicFontProvider)
+      : Skia.ParagraphBuilder.Make(paragraphStyle);
+
+    if (!builder) return null;
+
+    builder.pushStyle(textStyle);
+    builder.addText(text);
+
+    const paragraph = builder.build();
+    if (!paragraph) return null;
+
+    paragraph.layout(maxWidth);
+
+    return paragraph;
+  } catch (error) {
+    console.error("Error creating paragraph:", error);
+    return null;
+  }
+};
+
+// Image buckets for LOD
+const IMAGE_BUCKETS = [64, 128, 256, 512];
+const selectBucket = (pixelSize) => {
+  return IMAGE_BUCKETS.find((b) => b >= pixelSize) || 512;
+};
+
+// Image component for photos with skeleton loader
+const ImageNode = ({
+  url,
+  x,
+  y,
+  width,
+  height,
+  radius,
+  tier,
+  scale,
+  nodeId,
+  selectBucket,
+}) => {
+  // Only load images in Tier 1
+  const shouldLoad = tier === 1 && url;
+  const pixelSize = width * PixelRatio.get() * scale;
+
+  // Use hysteresis bucket selection if provided, otherwise use simple selection
+  const bucket = shouldLoad
+    ? selectBucket && nodeId
+      ? selectBucket(nodeId, pixelSize * 2)
+      : IMAGE_BUCKETS.find((b) => b >= pixelSize * 2) || 512
+    : null;
+
+  const image = shouldLoad ? useCachedSkiaImage(url, bucket) : null;
+
+  // If no image yet, show simple skeleton placeholder
+  if (!image) {
+    return (
+      <Group>
+        {/* Base circle background */}
+        <Circle cx={x + radius} cy={y + radius} r={radius} color="#D1BBA320" />
+        {/* Lighter inner circle for depth */}
+        <Circle
+          cx={x + radius}
+          cy={y + radius}
+          r={radius - 1}
+          color="#D1BBA310"
+          style="stroke"
+          strokeWidth={0.5}
+        />
+      </Group>
+    );
+  }
+
+  // Image loaded - show it with the mask
+  return (
+    <Group>
+      <Mask
+        mode="alpha"
+        mask={
+          <Circle cx={x + radius} cy={y + radius} r={radius} color="white" />
+        }
+      >
+        <SkiaImage
+          image={image}
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fit="cover"
+        />
+      </Mask>
+    </Group>
+  );
+};
+
+// Spatial grid for efficient culling
+const GRID_CELL_SIZE = 512;
+
+class SpatialGrid {
+  constructor(nodes, cellSize = GRID_CELL_SIZE) {
+    this.cellSize = cellSize;
+    this.grid = new Map(); // "x,y" -> Set<nodeId>
+
+    // Build grid
+    nodes.forEach((node) => {
+      const cellX = Math.floor(node.x / cellSize);
+      const cellY = Math.floor(node.y / cellSize);
+      const key = `${cellX},${cellY}`;
+
+      if (!this.grid.has(key)) {
+        this.grid.set(key, new Set());
+      }
+      this.grid.get(key).add(node.id);
+    });
+  }
+
+  getVisibleNodes({ x, y, width, height }, scale, idToNode) {
+    // Transform viewport to world space
+    const worldMinX = -x / scale;
+    const worldMaxX = (-x + width) / scale;
+    const worldMinY = -y / scale;
+    const worldMaxY = (-y + height) / scale;
+
+    // Get intersecting cells
+    const minCellX = Math.floor(worldMinX / this.cellSize);
+    const maxCellX = Math.floor(worldMaxX / this.cellSize);
+    const minCellY = Math.floor(worldMinY / this.cellSize);
+    const maxCellY = Math.floor(worldMaxY / this.cellSize);
+
+    // Collect nodes from cells
+    const visibleIds = new Set();
+    for (let cx = minCellX; cx <= maxCellX; cx++) {
+      for (let cy = minCellY; cy <= maxCellY; cy++) {
+        const cellNodes = this.grid.get(`${cx},${cy}`);
+        if (cellNodes) {
+          cellNodes.forEach((id) => visibleIds.add(id));
+        }
+      }
+    }
+
+    // Convert to nodes and apply hard cap
+    const visibleNodes = [];
+    for (const id of visibleIds) {
+      if (visibleNodes.length >= MAX_VISIBLE_NODES) break;
+      const node = idToNode.get(id);
+      if (node) visibleNodes.push(node);
+    }
+
+    return visibleNodes;
+  }
+}
 
 const SimplifiedTreeView = ({ focusPersonId }) => {
-  const { nodes, loading, error, centerNode } = useFocusedTreeData(focusPersonId, 4);
+  // Simplified tree view - no profile editing or admin features
+  const setProfileEditMode = () => {};
+  const onNetworkStatusChange = () => {};
+  const user = null;
+  const isAdmin = false;
+  const onAdminDashboard = () => {};
+  const onSettingsOpen = () => {};
+  const highlightProfileId = focusPersonId; // Use the passed prop
+  const focusOnProfile = true; // Enable focus navigation in simplified view
+  const stage = useTreeStore((s) => s.stage);
+  const setStage = useTreeStore((s) => s.setStage);
+  const minZoom = useTreeStore((s) => s.minZoom);
+  const maxZoom = useTreeStore((s) => s.maxZoom);
+  const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
+  const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
+  const treeData = useTreeStore((s) => s.treeData);
+  const setTreeData = useTreeStore((s) => s.setTreeData);
+  const { settings } = useSettings();
+  const { isPreloadingTree } = useAuth();
 
-  // Camera state
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
+  const dimensions = useWindowDimensions();
+  const [fontReady, setFontReady] = useState(false);
 
-  // Animation state for glow
-  const glowOpacity = useSharedValue(0.5);
-  const glowScale = useSharedValue(1);
+  // Check if we already have preloaded data
+  const hasPreloadedData = treeData && treeData.length > 0;
 
-  // Arabic font
-  const arabicFont = useFont(SF_ARABIC_ASSET, 10);
+  // Initialize loading state - skip if we have preloaded data
+  const [isLoading, setIsLoading] = useState(!hasPreloadedData);
+  const [showSkeleton, setShowSkeleton] = useState(!hasPreloadedData);
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 0 : 1)).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 1 : 0)).current;
+  const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
+  const [currentScale, setCurrentScale] = useState(1);
+  const [networkError, setNetworkError] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
-  // Calculate tree layout
-  const { layoutNodes, connections } = useMemo(() => {
-    if (nodes.length === 0) return { layoutNodes: [], connections: [] };
+  // Admin mode state
+  const isAdminMode = false; // Always false in simplified view
+  const [showMultiAddModal, setShowMultiAddModal] = useState(false);
+  const [multiAddParent, setMultiAddParent] = useState(null);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuNode, setContextMenuNode] = useState(null);
+  const [contextMenuPosition, setContextMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [editingProfile, setEditingProfile] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showMarriageModal, setShowMarriageModal] = useState(false);
+  const [marriagePerson, setMarriagePerson] = useState(null);
 
-    const layout = calculateTreeLayout(nodes);
+  // Quick Add Overlay state
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [quickAddParent, setQuickAddParent] = useState(null);
+  const [quickAddPosition, setQuickAddPosition] = useState({ x: 0, y: 0 });
+  const longPressTimer = useRef(null);
+
+  // Search modal state
+
+  // Highlight state with Reanimated shared values
+  const highlightedNodeId = useSharedValue(null);
+  const glowOpacity = useSharedValue(0);
+
+  // Initialize profile sheet progress shared value for SearchBar coordination
+  const profileSheetProgress = useSharedValue(0);
+  const initializeProfileSheetProgress = useTreeStore(
+    (s) => s.initializeProfileSheetProgress,
+  );
+
+  // Initialize profile sheet progress after mount to avoid setState during render
+  useEffect(() => {
+    initializeProfileSheetProgress(profileSheetProgress);
+  }, []); // Empty deps = run once on mount
+
+  // State for triggering re-renders
+  const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
+  const [glowOpacityState, setGlowOpacityState] = useState(0);
+  const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
+
+  // Sync shared values to state for Skia re-renders
+  useAnimatedReaction(
+    () => ({
+      nodeId: highlightedNodeId.value,
+      opacity: glowOpacity.value,
+    }),
+    (current) => {
+      runOnJS(setHighlightedNodeIdState)(current.nodeId);
+      runOnJS(setGlowOpacityState)(current.opacity);
+    },
+  );
+
+  // LOD tier state with hysteresis
+  const tierState = useRef({ current: 1, lastQuantizedScale: 1 });
+
+  // Image bucket tracking for hysteresis
+  const nodeBucketsRef = useRef(new Map());
+  const bucketTimersRef = useRef(new Map());
+
+  // Cleanup bucket timers on unmount
+  useEffect(() => {
+    return () => {
+      bucketTimersRef.current.forEach(clearTimeout);
+      bucketTimersRef.current.clear();
+    };
+  }, []);
+
+  const selectBucketWithHysteresis = useCallback((nodeId, pixelSize) => {
+    const nodeBuckets = nodeBucketsRef.current;
+    const bucketTimers = bucketTimersRef.current;
+
+    const current = nodeBuckets.get(nodeId) || 256;
+    const target = IMAGE_BUCKETS.find((b) => b >= pixelSize) || 512;
+
+    // Apply hysteresis
+    if (target > current && pixelSize < current * (1 + BUCKET_HYSTERESIS)) {
+      return current; // Stay at current
+    }
+    if (target < current && pixelSize > current * (1 - BUCKET_HYSTERESIS)) {
+      return current; // Stay at current
+    }
+
+    // Debounce upgrades
+    if (target > current) {
+      clearTimeout(bucketTimers.get(nodeId));
+      bucketTimers.set(
+        nodeId,
+        setTimeout(() => {
+          nodeBuckets.set(nodeId, target);
+        }, BUCKET_DEBOUNCE_MS),
+      );
+      return current;
+    }
+
+    // Immediate downgrade
+    nodeBuckets.set(nodeId, target);
+    return target;
+  }, []);
+
+  const calculateLODTier = useCallback((scale) => {
+    if (!LOD_ENABLED) return 1; // Always use full detail if disabled
+
+    const quantizedScale = Math.round(scale / SCALE_QUANTUM) * SCALE_QUANTUM;
+    const state = tierState.current;
+
+    // Only recalculate if scale changed significantly
+    if (Math.abs(quantizedScale - state.lastQuantizedScale) < SCALE_QUANTUM) {
+      return state.current;
+    }
+
+    const nodePx = NODE_WIDTH_WITH_PHOTO * PixelRatio.get() * scale;
+    let newTier = state.current;
+
+    // Apply hysteresis boundaries
+    if (state.current === 1) {
+      if (nodePx < T1_BASE * (1 - HYSTERESIS)) newTier = 2;
+    } else if (state.current === 2) {
+      if (nodePx >= T1_BASE * (1 + HYSTERESIS)) newTier = 1;
+      else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
+    } else {
+      // tier 3
+      if (nodePx >= T2_BASE * (1 + HYSTERESIS)) newTier = 2;
+    }
+
+    if (newTier !== state.current) {
+      tierState.current = {
+        current: newTier,
+        lastQuantizedScale: quantizedScale,
+      };
+    }
+
+    return newTier;
+  }, []);
+
+  // Performance telemetry
+  const frameStatsRef = useRef({
+    tier: 1,
+    nodesDrawn: 0,
+    edgesDrawn: 0,
+    lastLogTime: Date.now(),
+  });
+
+  // Setup telemetry interval with cleanup
+  useEffect(() => {
+    // Telemetry disabled to reduce console spam
+    return;
+  }, []);
+
+  // Force RTL for Arabic text
+  useEffect(() => {
+    I18nManager.forceRTL(true);
+  }, []);
+
+  // Notify parent component when network error status changes
+  useEffect(() => {
+    if (onNetworkStatusChange) {
+      onNetworkStatusChange(!!networkError);
+    }
+  }, [networkError, onNetworkStatusChange]);
+
+  // Create ref to hold current values for gestures
+  const gestureStateRef = useRef({
+    transform: { x: 0, y: 0, scale: 1 },
+    tier: 1,
+    indices: null,
+    visibleNodes: [],
+  });
+
+  // Load SF Arabic asset font and register with Paragraph font collection
+  useEffect(() => {
+    if (!arabicFontProvider || sfArabicRegistered) return;
+    (async () => {
+      try {
+        const asset = Asset.fromModule(SF_ARABIC_ASSET);
+        if (!asset.downloaded) {
+          await asset.downloadAsync();
+        }
+        const uri = asset.localUri || asset.uri;
+        if (!uri) return;
+        const data = await Skia.Data.fromURI(uri);
+        if (!data) return;
+        const tf = Skia.Typeface.MakeFreeTypeFaceFromData(data);
+        if (!tf) return;
+        arabicFontProvider.registerFont(tf, SF_ARABIC_ALIAS);
+        arabicTypeface = tf;
+        sfArabicRegistered = true;
+        setFontReady((v) => !v);
+      } catch (e) {
+        // Ignore loading errors; fall back to system fonts
+      }
+    })();
+  }, []);
+
+  // Calculate initial position for focused node BEFORE creating shared values
+  const getInitialPosition = () => {
+    if (focusPersonId && nodes.length > 0) {
+      const targetNode = nodes.find(n => n.id === focusPersonId);
+      if (targetNode) {
+        const initialScale = 1.5;
+        const offsetX = dimensions.width / 2 - targetNode.x * initialScale;
+        const offsetY = dimensions.height / 2 - targetNode.y * initialScale;
+        return { x: offsetX, y: offsetY, scale: initialScale };
+      }
+    }
+    // Fallback to stage values or defaults
+    return { x: stage.x, y: stage.y, scale: stage.scale };
+  };
+
+  const initialPos = getInitialPosition();
+
+  // Gesture shared values - start with calculated position for focused node
+  const scale = useSharedValue(initialPos.scale);
+  const translateX = useSharedValue(initialPos.x);
+  const translateY = useSharedValue(initialPos.y);
+  const savedScale = useSharedValue(initialPos.scale);
+  const savedTranslateX = useSharedValue(initialPos.x);
+  const savedTranslateY = useSharedValue(initialPos.y);
+  const isPinching = useSharedValue(false);
+  // Initial focal point tracking for proper zoom+pan on physical devices
+  const initialFocalX = useSharedValue(0);
+  const initialFocalY = useSharedValue(0);
+
+  // Sync scale value to React state for use in render
+  useAnimatedReaction(
+    () => scale.value,
+    (current) => {
+      runOnJS(setCurrentScale)(current);
+    },
+  );
+
+  // Load tree data using branch loading
+  const loadTreeData = async () => {
+    const startTime = Date.now();
+
+    // Check if we already have adequate data (at least 400 nodes means we have the full tree)
+    const existingData = useTreeStore.getState().treeData;
+    if (existingData && existingData.length >= 400) {
+      const loadTime = Date.now() - startTime;
+      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (adequate), instant load in', loadTime, 'ms');
+      // Don't reload - we have enough data
+      setShowSkeleton(false);
+      setIsLoading(false);
+      return;
+    } else if (existingData && existingData.length > 0) {
+      console.log('⚠️ Partial tree data exists:', existingData.length, 'nodes, loading full tree...');
+    }
+
+    setIsLoading(true);
+    setNetworkError(null);
+    setIsRetrying(false);
+
+    try {
+      // First get the root node
+      const { data: rootData, error: rootError } =
+        await profilesService.getBranchData(null, 1, 1);
+      if (
+        rootError ||
+        !rootData ||
+        !Array.isArray(rootData) ||
+        rootData.length === 0
+      ) {
+        console.error("Error loading root node:", rootError);
+        console.log("rootError type:", typeof rootError);
+        console.log("rootError object:", JSON.stringify(rootError, null, 2));
+
+        // Check if it's a network error - handle both Error objects and plain objects
+        const errorString =
+          rootError?.toString?.() || JSON.stringify(rootError) || "";
+        const errorMsg = (
+          rootError?.message ||
+          errorString ||
+          ""
+        ).toLowerCase();
+
+        console.log("Error message check:", errorMsg);
+        console.log("Has 'network'?", errorMsg.includes("network"));
+        console.log("Has 'fetch'?", errorMsg.includes("fetch"));
+
+        // For TypeError objects, check the name as well
+        const isNetworkError =
+          errorMsg.includes("fetch") ||
+          errorMsg.includes("network") ||
+          rootError?.name === "TypeError" ||
+          rootError?.code === "PGRST301";
+
+        if (isNetworkError) {
+          console.log("Setting network error state");
+          setNetworkError("network");
+          setTreeData([]);
+        } else if (rootData?.length === 0) {
+          setNetworkError("empty");
+          setTreeData([]);
+        } else {
+          // Fall back to local data
+          console.log("Falling back to local data");
+          setTreeData(familyData || []);
+        }
+        // Don't trigger fade animation on error
+        setShowSkeleton(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Then load the tree starting from the root HID
+      const rootHid = rootData[0].hid;
+      const { data, error } = await profilesService.getBranchData(
+        rootHid,
+        8,
+        500,
+      );
+      if (error) {
+        console.error("Error loading tree data:", error);
+        // Check if it's a network error (case insensitive)
+        const errorMsg = error?.message?.toLowerCase() || "";
+        if (
+          errorMsg.includes("fetch") ||
+          errorMsg.includes("network") ||
+          error?.code === "PGRST301"
+        ) {
+          setNetworkError("network");
+          setTreeData([]);
+        } else {
+          // Fall back to local data if backend fails
+          setTreeData(familyData || []);
+        }
+      } else {
+        setTreeData(data || []);
+        setNetworkError(null); // Clear any previous errors
+      }
+
+      // Start fade transition when data is loaded
+      RNAnimated.parallel([
+        // Fade out skeleton
+        RNAnimated.timing(skeletonFadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        // Fade in content
+        RNAnimated.timing(contentFadeAnim, {
+          toValue: 1,
+          duration: 400,
+          delay: 100, // Slight overlap for smoother transition
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        setShowSkeleton(false); // Remove skeleton from DOM after animation
+      });
+
+      const totalLoadTime = Date.now() - startTime;
+      console.log('[TreeView] Tree loaded successfully in', totalLoadTime, 'ms');
+      setIsLoading(false);
+    } catch (err) {
+      console.error("Failed to load tree:", err);
+      // Check if it's a network error (case insensitive)
+      const errorMsg = err?.message?.toLowerCase() || "";
+      if (
+        errorMsg.includes("fetch") ||
+        errorMsg.includes("network") ||
+        err?.code === "PGRST301"
+      ) {
+        setNetworkError("network");
+        setTreeData([]);
+      } else {
+        // Fall back to local data
+        setTreeData(familyData || []);
+      }
+      // Don't trigger fade animation on error
+      setShowSkeleton(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleRetry = async () => {
+    setIsRetrying(true);
+    await loadTreeData();
+  };
+
+  // Sync loading state with treeData changes
+  useEffect(() => {
+    if (treeData && treeData.length > 0 && isLoading) {
+      console.log('[TreeView] Tree data updated, hiding loading state');
+      setIsLoading(false);
+      setShowSkeleton(false);
+    }
+  }, [treeData, isLoading]);
+
+  // Ensure content is visible when not loading
+  useEffect(() => {
+    if (!isLoading && !showSkeleton) {
+      console.log('[TreeView] Ensuring content is visible');
+      contentFadeAnim.setValue(1);
+      skeletonFadeAnim.setValue(0);
+    }
+  }, [isLoading, showSkeleton, contentFadeAnim, skeletonFadeAnim]);
+
+  // Load tree data on mount
+  useEffect(() => {
+    // If we already have adequate data, skip everything - instant render
+    if (treeData && treeData.length >= 400) {
+      console.log('[TreeView] Full tree data available (', treeData.length, 'nodes), skipping skeleton entirely');
+      setIsLoading(false);
+      setShowSkeleton(false);
+      contentFadeAnim.setValue(1);
+      skeletonFadeAnim.setValue(0);
+      return;
+    }
+
+    // No adequate data exists, load it
+    if (treeData && treeData.length > 0) {
+      console.log('[TreeView] Partial data exists (', treeData.length, 'nodes), loading full tree');
+    } else {
+      console.log('[TreeView] No preloaded data, loading now');
+    }
+    loadTreeData();
+  }, []); // Run only once on mount
+
+  // Real-time subscription for profile updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("profiles_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profiles",
+        },
+        async (payload) => {
+          // console.log('Profile change:', payload);
+
+          // Handle different event types
+          if (payload.eventType === "UPDATE" && payload.new) {
+            // Update just the affected node
+            const updatedNode = {
+              ...payload.new,
+              name: payload.new.name || "بدون اسم",
+              marriages:
+                payload.new.marriages?.map((marriage) => ({
+                  ...marriage,
+                  marriage_date: marriage.marriage_date
+                    ? formatDateByPreference(
+                        marriage.marriage_date,
+                        settings.defaultCalendar,
+                      )
+                    : null,
+                })) || [],
+            };
+
+            // Update in Zustand store
+            useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
+          } else if (payload.eventType === "INSERT" && payload.new) {
+            // Add new node
+            const newNode = {
+              ...payload.new,
+              name: payload.new.name || "بدون اسم",
+              marriages:
+                payload.new.marriages?.map((marriage) => ({
+                  ...marriage,
+                  marriage_date: marriage.marriage_date
+                    ? formatDateByPreference(
+                        marriage.marriage_date,
+                        settings.defaultCalendar,
+                      )
+                    : null,
+                })) || [],
+            };
+
+            // Add to Zustand store
+            useTreeStore.getState().addNode(newNode);
+          } else if (payload.eventType === "DELETE" && payload.old) {
+            // Remove node
+            const nodeId = payload.old.id;
+
+            // Remove from Zustand store
+            useTreeStore.getState().removeNode(nodeId);
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [setTreeData]);
+
+  // Calculate layout - based on treeData only, not loading state
+  const { nodes, connections } = useMemo(() => {
+    if (!treeData || treeData.length === 0) {
+      return { nodes: [], connections: [] };
+    }
+    const layout = calculateTreeLayout(treeData);
+
+    // DEBUG: Log canvas coordinates summary
+    if (layout.nodes.length > 0) {
+      console.log('🎯 LAYOUT CALCULATED:');
+      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
+      console.log(`  TreeData length: ${treeData.length}`);
+    }
+
+    return layout;
+  }, [treeData]);
+
+  // Build indices for LOD system with O(N) complexity
+  const indices = useMemo(() => {
+    if (nodes.length === 0) {
+      return {
+        idToNode: new Map(),
+        parentToChildren: new Map(),
+        depths: {},
+        subtreeSizes: {},
+        centroids: {},
+        heroes: new Set(),
+        heroNodes: [],
+      };
+    }
+
+    const idToNode = new Map();
+    const parentToChildren = new Map();
+    const depths = {};
+    const subtreeSizes = {};
+    const sumX = {};
+    const sumY = {};
+    const centroids = {};
+
+    // Build maps - only truthy father_id
+    nodes.forEach((node) => {
+      idToNode.set(node.id, node);
+      if (node.father_id) {
+        if (!parentToChildren.has(node.father_id)) {
+          parentToChildren.set(node.father_id, []);
+        }
+        parentToChildren.get(node.father_id).push(node);
+      }
+    });
+
+    // BFS for depths
+    const root = nodes.find((n) => !n.father_id);
+    if (!root) {
+      console.error("No root node found!");
+      return {
+        idToNode,
+        parentToChildren,
+        depths: {},
+        subtreeSizes: {},
+        centroids: {},
+        heroes: new Set(),
+        heroNodes: [],
+      };
+    }
+
+    const queue = [{ id: root.id, depth: 0 }];
+    while (queue.length > 0) {
+      const { id, depth } = queue.shift();
+      depths[id] = depth;
+      const children = parentToChildren.get(id) || [];
+      children.forEach((child) =>
+        queue.push({ id: child.id, depth: depth + 1 }),
+      );
+    }
+
+    // Iterative post-order for subtree sizes and centroids
+    const stack = [root.id];
+    const visited = new Set();
+    const postOrder = [];
+
+    while (stack.length > 0) {
+      const nodeId = stack[stack.length - 1];
+      if (!visited.has(nodeId)) {
+        visited.add(nodeId);
+        const children = parentToChildren.get(nodeId) || [];
+        children.forEach((child) => stack.push(child.id));
+      } else {
+        stack.pop();
+        postOrder.push(nodeId);
+      }
+    }
+
+    // Calculate sizes and centroids (no reverse - already in correct order)
+    postOrder.forEach((nodeId) => {
+      const node = idToNode.get(nodeId);
+      const children = parentToChildren.get(nodeId) || [];
+
+      // Subtree sizes
+      subtreeSizes[nodeId] =
+        1 + children.reduce((sum, child) => sum + subtreeSizes[child.id], 0);
+
+      // Sum positions for centroid
+      sumX[nodeId] =
+        node.x + children.reduce((sum, child) => sum + sumX[child.id], 0);
+      sumY[nodeId] =
+        node.y + children.reduce((sum, child) => sum + sumY[child.id], 0);
+
+      // Compute centroid
+      centroids[nodeId] = {
+        x: sumX[nodeId] / subtreeSizes[nodeId],
+        y: sumY[nodeId] / subtreeSizes[nodeId],
+      };
+    });
+
+    // Select heroes: root + top 2 gen-2 with children (depth === 1)
+    const gen2Nodes = nodes.filter((n) => depths[n.id] === 1);
+    const gen2WithKids = gen2Nodes.filter(
+      (n) => (parentToChildren.get(n.id) || []).length > 0,
+    );
+    const heroGen2 = gen2WithKids
+      .sort((a, b) => subtreeSizes[b.id] - subtreeSizes[a.id])
+      .slice(0, 2);
+
     return {
-      layoutNodes: layout.nodes,
-      connections: layout.connections,
+      idToNode,
+      parentToChildren,
+      depths,
+      subtreeSizes,
+      centroids,
+      heroes: new Set([root.id, ...heroGen2.map((n) => n.id)]),
+      heroNodes: [root, ...heroGen2],
     };
   }, [nodes]);
 
-  // Center on the focused person when data loads
+  // Create spatial grid for efficient culling
+  const spatialGrid = useMemo(() => {
+    if (nodes.length === 0) return null;
+    return new SpatialGrid(nodes);
+  }, [nodes]);
+
+  // Calculate tree bounds
+  const treeBounds = useMemo(() => {
+    if (nodes.length === 0)
+      return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
+
+    const xs = nodes.map((n) => n.x);
+    const ys = nodes.map((n) => n.y);
+
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    return {
+      minX,
+      maxX,
+      minY,
+      maxY,
+      width: maxX - minX,
+      height: maxY - minY,
+    };
+  }, [nodes]);
+
+  // Visible bounds for culling
+  const [visibleBounds, setVisibleBounds] = useState({
+    minX: -VIEWPORT_MARGIN,
+    maxX: dimensions.width + VIEWPORT_MARGIN,
+    minY: -VIEWPORT_MARGIN,
+    maxY: dimensions.height + VIEWPORT_MARGIN,
+  });
+
+  // Track last stable scale to detect significant changes
+  const lastStableScale = useRef(1);
+
+  // Update visible bounds when transform changes
+  useAnimatedReaction(
+    () => ({
+      x: translateX.value,
+      y: translateY.value,
+      scale: scale.value,
+    }),
+    (current) => {
+      // Scale-dependent margin: larger margin when zoomed out
+      const dynamicMargin = VIEWPORT_MARGIN / current.scale;
+
+      const newBounds = {
+        minX: (-current.x - dynamicMargin) / current.scale,
+        maxX: (-current.x + dimensions.width + dynamicMargin) / current.scale,
+        minY: (-current.y - dynamicMargin) / current.scale,
+        maxY: (-current.y + dimensions.height + dynamicMargin) / current.scale,
+      };
+
+      runOnJS(setVisibleBounds)(newBounds);
+    },
+  );
+
+  // Load more nodes when viewport changes (for future viewport-based loading)
   useEffect(() => {
-    if (!centerNode || layoutNodes.length === 0) return;
+    // TODO: Implement viewport-based loading when backend supports it
+    // This would call profilesService.getVisibleNodes(visibleBounds, scale.value)
+  }, [visibleBounds]);
 
-    const targetNode = layoutNodes.find(n => n.id === focusPersonId);
-    if (targetNode) {
-      // Calculate center position
-      const targetX = -targetNode.x * 1.2 + SCREEN_WIDTH / 2;
-      const targetY = -targetNode.y * 1.2 + SCREEN_HEIGHT / 2 - 100; // Offset for modal header
+  // Track previous visible nodes for debugging
+  const prevVisibleNodesRef = useRef(new Set());
 
-      // Animate to center
+  // Filter visible nodes for performance
+  const visibleNodes = useMemo(() => {
+    const startTime = performance.now();
+
+    // Only update visibility if scale changed significantly (>5%)
+    const scaleChanged =
+      Math.abs(currentScale - lastStableScale.current) /
+        lastStableScale.current >
+      0.05;
+    if (scaleChanged) {
+      lastStableScale.current = currentScale;
+    }
+
+    const visible = nodes.filter(
+      (node) =>
+        node.x >= visibleBounds.minX &&
+        node.x <= visibleBounds.maxX &&
+        node.y >= visibleBounds.minY &&
+        node.y <= visibleBounds.maxY,
+    );
+
+    // DEBUG: Track visibility changes
+    if (__DEV__) {
+      const currentVisibleIds = new Set(visible.map((n) => n.id));
+      const prevVisibleIds = prevVisibleNodesRef.current;
+
+      // Find nodes that entered/exited view
+      const entered = [];
+      const exited = [];
+
+      currentVisibleIds.forEach((id) => {
+        if (!prevVisibleIds.has(id)) {
+          const node = visible.find((n) => n.id === id);
+          entered.push(node);
+        }
+      });
+
+      prevVisibleIds.forEach((id) => {
+        if (!currentVisibleIds.has(id)) {
+          const node = nodes.find((n) => n.id === id);
+          if (node) exited.push(node);
+        }
+      });
+
+      // if (entered.length > 0 || exited.length > 0) {
+      //   console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
+      //
+      //   // Warn about large visibility changes that might cause jumping
+      //   if (entered.length + exited.length > 20) {
+      //     console.log(`  ⚠️ LARGE CHANGE: ${entered.length + exited.length} nodes changed visibility!`);
+      //     console.log(`  Viewport: X[${visibleBounds.minX.toFixed(0)}, ${visibleBounds.maxX.toFixed(0)}] Y[${visibleBounds.minY.toFixed(0)}, ${visibleBounds.maxY.toFixed(0)}]`);
+      //   }
+      //
+      //   // Only log details if few changes
+      //   if (entered.length > 0 && entered.length <= 5) {
+      //     console.log(`  Entered: ${entered.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
+      //   }
+      //   if (exited.length > 0 && exited.length <= 5) {
+      //     console.log(`  Exited: ${exited.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
+      //   }
+      // }
+
+      prevVisibleNodesRef.current = currentVisibleIds;
+    }
+
+    return visible;
+  }, [nodes, visibleBounds, currentScale]);
+
+  // Prefetch neighbor nodes for better performance
+  useEffect(() => {
+    if (!visibleNodes.length) return;
+
+    // Create a set of visible node IDs for O(1) lookup
+    const visibleIds = new Set(visibleNodes.map((n) => n.id));
+    const neighborUrls = new Set();
+
+    // Find neighbors (parents and children of visible nodes)
+    for (const node of visibleNodes) {
+      // Add parent
+      if (node.father_id) {
+        const parent = nodes.find((n) => n.id === node.father_id);
+        if (parent && !visibleIds.has(parent.id) && parent.photo_url) {
+          neighborUrls.add(parent.photo_url);
+        }
+      }
+
+      // Add children
+      const children = nodes.filter((n) => n.father_id === node.id);
+      for (const child of children) {
+        if (!visibleIds.has(child.id) && child.photo_url) {
+          neighborUrls.add(child.photo_url);
+        }
+      }
+    }
+
+    // Prefetch up to 6 unique URLs
+    const urlsToPreload = Array.from(neighborUrls).slice(0, 6);
+    urlsToPreload.forEach((url) => {
+      skiaImageCache.prefetch(url, 256).catch(() => {
+        // Prefetch errors are non-fatal, ignore
+      });
+    });
+  }, [visibleNodes, nodes]);
+
+  // Track previous visible connections for debugging
+  const prevVisibleConnectionsRef = useRef(0);
+
+  // Filter visible connections
+  const visibleConnections = useMemo(() => {
+    const visibleNodeIds = new Set(visibleNodes.map((n) => n.id));
+    const visible = connections.filter((conn) => {
+      return (
+        visibleNodeIds.has(conn.parent.id) ||
+        conn.children.some((child) => visibleNodeIds.has(child.id))
+      );
+    });
+
+    // DEBUG: Track connection visibility changes
+    // if (__DEV__ && visible.length !== prevVisibleConnectionsRef.current) {
+    //   console.log(`🔗 CONNECTIONS: ${prevVisibleConnectionsRef.current}→${visible.length}`);
+    //   prevVisibleConnectionsRef.current = visible.length;
+    // }
+
+    return visible;
+  }, [connections, visibleNodes]);
+
+  // Pass 3: Invisible bridge check - horizontal sibling lines intersecting viewport
+  const bridgeSegments = useMemo(() => {
+    const result = [];
+    if (!connections || !Array.isArray(connections)) {
+      return result;
+    }
+    for (const conn of connections) {
+      if (
+        !conn ||
+        !conn.children ||
+        !Array.isArray(conn.children) ||
+        conn.children.length === 0
+      )
+        continue;
+
+      const parentX = conn.parent.x;
+      const parentY = conn.parent.y;
+      const childXs = conn.children.map((c) => c.x);
+      const childYs = conn.children.map((c) => c.y);
+      const minChildX = Math.min(...childXs);
+      const maxChildX = Math.max(...childXs);
+      const busY = parentY + (Math.min(...childYs) - parentY) / 2;
+
+      // Only draw a bus line if there are multiple children or an offset
+      const shouldHaveBus =
+        conn.children.length > 1 || Math.abs(parentX - conn.children[0].x) > 5;
+      if (!shouldHaveBus) continue;
+
+      // Intersection test with viewport in canvas coords
+      const intersects =
+        busY >= visibleBounds.minY &&
+        busY <= visibleBounds.maxY &&
+        maxChildX >= visibleBounds.minX &&
+        minChildX <= visibleBounds.maxX;
+
+      if (intersects) {
+        result.push({
+          id: `bridge-${conn.parent.id}-${busY}`,
+          y: busY,
+          x1: minChildX,
+          x2: maxChildX,
+        });
+      }
+    }
+    return result;
+  }, [connections, visibleBounds]);
+
+  // Initialize position on first load - center on focused node if provided
+  useEffect(() => {
+    if (
+      nodes.length > 0 &&
+      stage.x === 0 &&
+      stage.y === 0 &&
+      stage.scale === 1
+    ) {
+      let offsetX, offsetY, initialScale;
+
+      // If we have a focused node, center on it immediately
+      if (focusPersonId) {
+        const targetNode = nodes.find(n => n.id === focusPersonId);
+        if (targetNode) {
+          // Start with a good zoom level for visibility
+          initialScale = 1.5;
+          // Center the focused node on screen
+          offsetX = dimensions.width / 2 - targetNode.x * initialScale;
+          offsetY = dimensions.height / 2 - targetNode.y * initialScale;
+        } else {
+          // Fallback to default centering if node not found
+          offsetX = dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
+          offsetY = 80;
+          initialScale = 1;
+        }
+      } else {
+        // No focused node, use default centering
+        offsetX = dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
+        offsetY = 80;
+        initialScale = 1;
+      }
+
+      // Set initial values directly without animation
+      translateX.value = offsetX;
+      translateY.value = offsetY;
+      scale.value = initialScale;
+      savedTranslateX.value = offsetX;
+      savedTranslateY.value = offsetY;
+      savedScale.value = initialScale;
+
+      setStage({ x: offsetX, y: offsetY, scale: initialScale });
+    }
+  }, [nodes, dimensions, treeBounds, focusPersonId]);
+
+  // Navigate to a specific node with animation
+  const navigateToNode = useCallback(
+    (nodeId) => {
+      console.log("Attempting to navigate to node:", nodeId);
+
+      // Find the node in the current nodes array (not indices)
+      // This ensures we always use fresh coordinates
+      const targetNode = nodes.find((n) => n.id === nodeId);
+
+      if (!targetNode) {
+        console.warn("Node not found in current nodes:", nodeId);
+        console.log("Total nodes in tree:", nodes.length);
+        // Show alert if node is not loaded
+        Alert.alert(
+          "العقدة غير موجودة",
+          "هذا الشخص غير محمّل في الشجرة الحالية. قد تحتاج إلى التنقل إلى فرع آخر.",
+          [{ text: "حسناً" }],
+        );
+        return;
+      }
+
+      console.log("Found node at coordinates:", targetNode.x, targetNode.y);
+
+      // Calculate the target scale (zoom level)
+      // Use current scale if reasonable, otherwise zoom to readable level
+      const currentScale = scale.value;
+      const targetScale =
+        currentScale < 0.8 || currentScale > 3 ? 1.5 : currentScale;
+
+      // CORRECT FORMULA: To center a node on screen
+      // We want: node canvas position * scale + translate = screen center
+      // So: targetNode.x * targetScale + translateX = width/2
+      // Therefore: translateX = width/2 - targetNode.x * targetScale
+      const targetX = dimensions.width / 2 - targetNode.x * targetScale;
+      const targetY = dimensions.height / 2 - targetNode.y * targetScale;
+
+      console.log("Current scale:", currentScale, "Target scale:", targetScale);
+      console.log("Navigating to:", { targetX, targetY, targetScale });
+
+      // Cancel any ongoing animations
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
+      cancelAnimation(scale);
+
+      // Use spring animation for more natural movement
+      // Spring provides smoother deceleration than timing
       translateX.value = withSpring(targetX, {
         damping: 20,
         stiffness: 90,
+        mass: 1,
       });
       translateY.value = withSpring(targetY, {
         damping: 20,
         stiffness: 90,
+        mass: 1,
       });
-      scale.value = withSpring(1.2, {
-        damping: 20,
-        stiffness: 90,
+
+      // Scale uses timing for more predictable zoom
+      scale.value = withTiming(targetScale, {
+        duration: 600,
+        easing: Easing.inOut(Easing.cubic),
       });
-      savedScale.value = 1.2;
+
+      // Update saved values
       savedTranslateX.value = targetX;
       savedTranslateY.value = targetY;
+      savedScale.value = targetScale;
 
-      // Start glow animation
-      glowOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.8, { duration: 1000 }),
-          withTiming(0.3, { duration: 1000 })
-        ),
-        -1,
-        true
-      );
+      // Start highlight animation immediately (will reach full brightness as navigation completes)
+      highlightNode(nodeId);
+    },
+    [nodes, dimensions, translateX, translateY, scale],
+  );
 
-      glowScale.value = withRepeat(
-        withSequence(
-          withTiming(1.05, { duration: 1000 }),
-          withTiming(1, { duration: 1000 })
-        ),
-        -1,
-        true
-      );
-    }
-  }, [centerNode, layoutNodes, focusPersonId]);
+  // Highlight node with elegant golden effect using Reanimated
+  const highlightNode = useCallback((nodeId) => {
+    // Force re-trigger by incrementing trigger counter
+    setGlowTrigger((prev) => prev + 1);
 
-  // Pan gesture
+    // Set the highlighted node
+    highlightedNodeId.value = nodeId;
+
+    // Elegant animation: quick burst, gentle hold, smooth fade
+    glowOpacity.value = withSequence(
+      // Quick initial flash
+      withTiming(1, { duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+      // Brief peak hold
+      withTiming(0.95, { duration: 200, easing: Easing.linear }),
+      // Gentle pulse at peak
+      withTiming(1, { duration: 400, easing: Easing.inOut(Easing.ease) }),
+      // Hold at high intensity
+      withTiming(0.9, { duration: 600, easing: Easing.linear }),
+      // Smooth fade out
+      withTiming(0, { duration: 800, easing: Easing.bezier(0.6, 0, 0.8, 1) }),
+    );
+
+    // Clear highlight after animation completes
+    setTimeout(() => {
+      highlightedNodeId.value = null;
+    }, 2500);
+
+    // Haptic feedback with impact
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  // Handle highlight from navigation params - DISABLED for simplified view
+  // The initial centering is now handled in the initialization effect above
+  useEffect(() => {
+    // Disabled - we don't want animation, just immediate centering
+    // if (highlightProfileId && focusOnProfile && nodes.length > 0) {
+    //   setTimeout(() => {
+    //     navigateToNode(highlightProfileId);
+    //   }, 500);
+    // }
+  }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
+
+  // Handle search result selection
+  const handleSearchResultSelect = useCallback(
+    (result) => {
+      console.log("Search result selected:", result);
+
+      // Check if the node is in the current nodes array
+      const nodeExists = nodes.some((n) => n.id === result.id);
+
+      if (nodeExists) {
+        console.log("Node found in tree, navigating");
+        navigateToNode(result.id);
+      } else {
+        console.log("Node not in current tree view");
+        Alert.alert(
+          "العقدة غير محملة",
+          "هذه العقدة غير موجودة في العرض الحالي. قم بتحميل المزيد من الشجرة لرؤيتها.",
+          [{ text: "حسناً", style: "default" }],
+        );
+      }
+    },
+    [navigateToNode, nodes],
+  );
+
+  // Pan gesture with momentum
   const panGesture = Gesture.Pan()
     .onStart(() => {
+      "worklet";
+      // Don't start pan if we're pinching
+      if (isPinching.value) {
+        return;
+      }
+      cancelAnimation(translateX);
+      cancelAnimation(translateY);
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     })
     .onUpdate((e) => {
+      "worklet";
+      // Don't update during pinch
+      if (isPinching.value) {
+        return;
+      }
       translateX.value = savedTranslateX.value + e.translationX;
       translateY.value = savedTranslateY.value + e.translationY;
+    })
+    .onEnd((e) => {
+      "worklet";
+      // Don't apply momentum if we were pinching
+      if (isPinching.value) {
+        return;
+      }
+
+      translateX.value = withDecay({
+        velocity: e.velocityX,
+        deceleration: 0.995,
+      });
+      translateY.value = withDecay({
+        velocity: e.velocityY,
+        deceleration: 0.995,
+      });
+
+      // Save current values (before decay animation modifies them)
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
     });
 
-  // Pinch gesture for zoom
+  // Pinch gesture for zoom with combined pan handling for physical iOS devices
   const pinchGesture = Gesture.Pinch()
-    .onStart(() => {
-      savedScale.value = scale.value;
+    .onStart((e) => {
+      "worklet";
+      // Only process with two fingers
+      if (e.numberOfPointers === 2) {
+        isPinching.value = true;
+        // CRITICAL: Cancel any running animations to prevent value drift
+        cancelAnimation(translateX);
+        cancelAnimation(translateY);
+        cancelAnimation(scale);
+
+        // Save the current stable values
+        savedScale.value = scale.value;
+        savedTranslateX.value = translateX.value;
+        savedTranslateY.value = translateY.value;
+
+        // Store INITIAL focal point for anchoring zoom
+        initialFocalX.value = e.focalX;
+        initialFocalY.value = e.focalY;
+      }
     })
     .onUpdate((e) => {
-      scale.value = clamp(savedScale.value * e.scale, 0.3, 2.5);
+      "worklet";
+
+      // Only process updates with two fingers
+      if (e.numberOfPointers !== 2) {
+        return;
+      }
+
+      // Calculate new scale
+      const newScale = clamp(savedScale.value * e.scale, minZoom, maxZoom);
+
+      // CRITICAL FIX: Track how much the focal point has moved (pan component)
+      const focalDeltaX = e.focalX - initialFocalX.value;
+      const focalDeltaY = e.focalY - initialFocalY.value;
+
+      // Convert INITIAL focal point to world coordinates (not the moving one!)
+      const worldX =
+        (initialFocalX.value - savedTranslateX.value) / savedScale.value;
+      const worldY =
+        (initialFocalY.value - savedTranslateY.value) / savedScale.value;
+
+      // Apply zoom around initial focal point, then add the pan from finger movement
+      translateX.value = initialFocalX.value - worldX * newScale + focalDeltaX;
+      translateY.value = initialFocalY.value - worldY * newScale + focalDeltaY;
+      scale.value = newScale;
+    })
+    .onEnd(() => {
+      "worklet";
+      // Save final values
+      savedScale.value = scale.value;
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+      isPinching.value = false;
     });
 
-  // Composed gesture
-  const composedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
+  // No node tap handler in simplified view - profiles cannot be opened
 
-  // Render a single node
-  const renderNode = useCallback((node) => {
-    const isSelected = node.id === focusPersonId;
-    const hasPhoto = !!node.photo_url;
-    const nodeWidth = hasPhoto ? NODE_WIDTH : 40;
-    const nodeHeight = hasPhoto ? NODE_HEIGHT : 35;
+  // Tap gesture disabled in simplified view
+  const tapGesture = Gesture.Tap()
+    .maxDistance(10)
+    .maxDuration(250)
+    .runOnJS(true)
+    .onEnd((e) => {
+      // Do nothing - no profile opening in simplified view
+      return;
+      const state = gestureStateRef.current;
 
-    return (
-      <Group key={node.id} transform={[{ translateX: node.x }, { translateY: node.y }]}>
-        {/* Glow effect for selected node */}
-        {isSelected && (
-          <>
-            {/* Outer glow shadow */}
-            <RoundedRect
-              x={-nodeWidth / 2 - 3}
-              y={-nodeHeight / 2 - 3}
-              width={nodeWidth + 6}
-              height={nodeHeight + 6}
-              r={CORNER_RADIUS + 2}
-              color={GLOW_COLOR}
-              opacity={0.5}
-            >
-              <Blur blur={8} />
-            </RoundedRect>
+      // Check if we're in T3 mode first
+      if (state.tier === 3 && AGGREGATION_ENABLED && state.indices?.heroNodes) {
+        // Check for chip taps
+        for (const hero of state.indices.heroNodes) {
+          const centroid = state.indices.centroids[hero.id];
+          if (!centroid) continue;
 
-            {/* Inner glow border */}
-            <RoundedRect
-              x={-nodeWidth / 2 - 2}
-              y={-nodeHeight / 2 - 2}
-              width={nodeWidth + 4}
-              height={nodeHeight + 4}
-              r={CORNER_RADIUS + 1}
-              color={GLOW_COLOR}
-              style="stroke"
-              strokeWidth={3}
-              opacity={0.9}
-            />
-          </>
-        )}
+          // Transform centroid to screen space
+          const screenX =
+            centroid.x * state.transform.scale + state.transform.x;
+          const screenY =
+            centroid.y * state.transform.scale + state.transform.y;
 
-        {/* Node background */}
-        <RoundedRect
-          x={-nodeWidth / 2}
-          y={-nodeHeight / 2}
-          width={nodeWidth}
-          height={nodeHeight}
-          r={CORNER_RADIUS}
-          color="#F9F7F3"
-        />
+          const isRoot = !hero.father_id;
+          const chipScale = isRoot ? 1.3 : 1.0;
+          const chipWidth = 100 * chipScale;
+          const chipHeight = 36 * chipScale;
 
-        {/* Node border */}
-        <RoundedRect
-          x={-nodeWidth / 2}
-          y={-nodeHeight / 2}
-          width={nodeWidth}
-          height={nodeHeight}
-          r={CORNER_RADIUS}
+          // Check if tap is within chip bounds
+          if (
+            e.x >= screenX - chipWidth / 2 &&
+            e.x <= screenX + chipWidth / 2 &&
+            e.y >= screenY - chipHeight / 2 &&
+            e.y <= screenY + chipHeight / 2
+          ) {
+            handleChipTap(hero);
+            return;
+          }
+        }
+        return; // No chip tapped and we're in T3, so ignore
+      }
+
+      // Original node tap logic for T1/T2
+      const canvasX = (e.x - state.transform.x) / state.transform.scale;
+      const canvasY = (e.y - state.transform.y) / state.transform.scale;
+
+      // DEBUG: Log tap coordinates
+      // if (__DEV__) {
+      //   console.log(`👆 TAP: Screen(${e.x.toFixed(0)},${e.y.toFixed(0)}) → Canvas(${canvasX.toFixed(0)},${canvasY.toFixed(0)}) @ Scale:${scale.value.toFixed(2)}`);
+      // }
+
+      let tappedNodeId = null;
+      for (const node of state.visibleNodes) {
+        const nodeWidth = node.photo_url
+          ? NODE_WIDTH_WITH_PHOTO
+          : NODE_WIDTH_TEXT_ONLY;
+        const nodeHeight = node.photo_url
+          ? NODE_HEIGHT_WITH_PHOTO
+          : NODE_HEIGHT_TEXT_ONLY;
+
+        if (
+          canvasX >= node.x - nodeWidth / 2 &&
+          canvasX <= node.x + nodeWidth / 2 &&
+          canvasY >= node.y - nodeHeight / 2 &&
+          canvasY <= node.y + nodeHeight / 2
+        ) {
+          tappedNodeId = node.id;
+
+          // DEBUG: Log tapped node
+          // if (__DEV__) {
+          //   console.log(`  → Hit: ${node.name} at (${node.x.toFixed(0)},${node.y.toFixed(0)})`);
+          // }
+
+          break;
+        }
+      }
+
+    });
+
+  // No long press gesture in simplified view
+
+  // Handle chip tap in T3 - zoom to branch
+  const handleChipTap = useCallback(
+    (hero) => {
+      // Calculate bounds of hero's subtree
+      const descendantIds = new Set();
+      const stack = [hero.id];
+
+      while (stack.length > 0) {
+        const nodeId = stack.pop();
+        descendantIds.add(nodeId);
+        const children = indices.parentToChildren.get(nodeId) || [];
+        children.forEach((child) => stack.push(child.id));
+      }
+
+      // Find bounds of all descendants
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+      descendantIds.forEach((id) => {
+        const node = indices.idToNode.get(id);
+        if (node) {
+          minX = Math.min(minX, node.x);
+          maxX = Math.max(maxX, node.x);
+          minY = Math.min(minY, node.y);
+          maxY = Math.max(maxY, node.y);
+        }
+      });
+
+      if (minX === Infinity) return; // No descendants found
+
+      // Add padding
+      const padding = 100;
+      minX -= padding;
+      maxX += padding;
+      minY -= padding;
+      maxY += padding;
+
+      // Calculate target scale to fit bounds
+      const boundsWidth = maxX - minX;
+      const boundsHeight = maxY - minY;
+      const targetScaleX = dimensions.width / boundsWidth;
+      const targetScaleY = dimensions.height / boundsHeight;
+      let targetScale = Math.min(targetScaleX, targetScaleY);
+
+      // Ensure we reach at least T2 threshold
+      const minScaleForT2 =
+        T2_BASE / (NODE_WIDTH_WITH_PHOTO * PixelRatio.get());
+      targetScale = Math.max(targetScale, minScaleForT2 * 1.2); // 20% above threshold
+      targetScale = clamp(targetScale, minZoom, maxZoom);
+
+      // Calculate center and target position
+      const centerX = (minX + maxX) / 2;
+      const centerY = (minY + maxY) / 2;
+      const targetX = dimensions.width / 2 - centerX * targetScale;
+      const targetY = dimensions.height / 2 - centerY * targetScale;
+
+      // Animate to target
+      scale.value = withTiming(targetScale, { duration: 500 });
+      translateX.value = withTiming(targetX, { duration: 500 });
+      translateY.value = withTiming(targetY, { duration: 500 });
+
+      // Update saved values after animation
+      setTimeout(() => {
+        savedScale.value = targetScale;
+        savedTranslateX.value = targetX;
+        savedTranslateY.value = targetY;
+      }, 500);
+    },
+    [indices, dimensions, minZoom, maxZoom],
+  );
+
+  // Handle context menu actions
+  const handleContextMenuAction = useCallback(
+    (action) => {
+      if (!contextMenuNode) return;
+
+      switch (action) {
+        case "addChildren":
+          setMultiAddParent({
+            id: contextMenuNode.id,
+            name: contextMenuNode.name,
+          });
+          setShowMultiAddModal(true);
+          break;
+        case "addMarriage":
+          setMarriagePerson(contextMenuNode);
+          setShowMarriageModal(true);
+          break;
+        case "edit":
+          setEditingProfile(contextMenuNode);
+          setShowEditModal(true);
+          break;
+        case "viewDetails":
+          setSelectedPersonId(contextMenuNode.id);
+          break;
+        case "delete":
+          Alert.alert(
+            "تأكيد الحذف",
+            `هل أنت متأكد من حذف ${contextMenuNode.name}؟`,
+            [
+              { text: "إلغاء", style: "cancel" },
+              {
+                text: "حذف",
+                style: "destructive",
+                onPress: async () => {
+                  try {
+                    // Use admin RPC for profile deletion instead of direct table write
+                    const { error } = await profilesService.deleteProfile(
+                      contextMenuNode.id,
+                    );
+
+                    if (error) throw error;
+                    Alert.alert("نجح", "تم حذف الملف الشخصي");
+                    await loadTreeData();
+                  } catch (error) {
+                    // console.error('Error deleting profile:', error);
+                    Alert.alert("خطأ", "فشل حذف الملف الشخصي");
+                  }
+                },
+              },
+            ],
+          );
+          break;
+      }
+    },
+    [contextMenuNode, setSelectedPersonId],
+  );
+
+  // Compose gestures - allow simultaneous but with guards in each gesture
+  const composed = Gesture.Simultaneous(
+    panGesture,
+    pinchGesture,
+    tapGesture, // Tap gesture does nothing in simplified view
+  );
+
+  // Render connection lines with proper elbow style
+  const renderConnection = useCallback(
+    (connection) => {
+      const parent = nodes.find((n) => n.id === connection.parent.id);
+      if (!parent) return null;
+
+      // Calculate bus line position
+      const childYs = connection.children.map((child) => child.y);
+      const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
+
+      // Calculate horizontal span
+      const childXs = connection.children.map((child) => child.x);
+      const minChildX = Math.min(...childXs);
+      const maxChildX = Math.max(...childXs);
+
+      const lines = [];
+
+      // Vertical line from parent
+      const parentHeight = parent.photo_url
+        ? NODE_HEIGHT_WITH_PHOTO
+        : NODE_HEIGHT_TEXT_ONLY;
+      lines.push(
+        <Line
+          key={`parent-down-${parent.id}`}
+          p1={vec(parent.x, parent.y + parentHeight / 2)}
+          p2={vec(parent.x, busY)}
+          color={LINE_COLOR}
           style="stroke"
-          strokeWidth={isSelected ? 2 : 1}
-          color={isSelected ? GLOW_COLOR : '#D1BBA340'}
-        />
+          strokeWidth={LINE_WIDTH}
+        />,
+      );
 
-        {/* Photo if available */}
-        {hasPhoto && node.photo_url && (
-          <NodePhoto
-            url={node.photo_url}
-            x={-PHOTO_SIZE / 2}
-            y={-nodeHeight / 2 + 4}
-            size={PHOTO_SIZE}
-          />
-        )}
+      // Horizontal bus line (only if multiple children or offset)
+      if (
+        connection.children.length > 1 ||
+        Math.abs(parent.x - connection.children[0].x) > 5
+      ) {
+        lines.push(
+          <Line
+            key={`bus-${parent.id}`}
+            p1={vec(minChildX, busY)}
+            p2={vec(maxChildX, busY)}
+            color={LINE_COLOR}
+            style="stroke"
+            strokeWidth={LINE_WIDTH}
+          />,
+        );
+      }
 
-        {/* Name text - centered below photo or in middle of node */}
-        {arabicFont && node.name && (
-          <SkiaText
-            x={0}
-            y={hasPhoto ? nodeHeight / 2 - 8 : 3}
-            text={node.name}
-            font={arabicFont}
-            color="#242121"
-            origin={{ x: 0, y: 0 }}
+      // Vertical lines to children
+      connection.children.forEach((child) => {
+        const childNode = nodes.find((n) => n.id === child.id);
+        if (!childNode) return;
+
+        const childHeight = childNode.photo_url
+          ? NODE_HEIGHT_WITH_PHOTO
+          : NODE_HEIGHT_TEXT_ONLY;
+
+        lines.push(
+          <Line
+            key={`child-up-${child.id}`}
+            p1={vec(childNode.x, busY)}
+            p2={vec(childNode.x, childNode.y - childHeight / 2)}
+            color={LINE_COLOR}
+            style="stroke"
+            strokeWidth={LINE_WIDTH}
+          />,
+        );
+      });
+
+      return lines;
+    },
+    [nodes],
+  );
+
+  // Render edges with batching and capping
+  const renderEdgesBatched = useCallback(
+    (connections, visibleNodeIds, tier) => {
+      if (tier === 3) return { elements: null, count: 0 };
+
+      let edgeCount = 0;
+      const paths = [];
+      let pathBuilder = Skia.Path.Make();
+      let currentBatch = 0;
+
+      for (const conn of connections) {
+        if (edgeCount >= MAX_VISIBLE_EDGES) break;
+
+        // Only render if parent or any child is visible
+        if (
+          !visibleNodeIds.has(conn.parent.id) &&
+          !conn.children.some((c) => visibleNodeIds.has(c.id))
+        ) {
+          continue;
+        }
+
+        const parent = nodes.find((n) => n.id === conn.parent.id);
+        if (!parent) continue;
+
+        // Calculate positions
+        const childYs = conn.children.map((child) => child.y);
+        const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
+        const parentHeight = parent.photo_url
+          ? NODE_HEIGHT_WITH_PHOTO
+          : NODE_HEIGHT_TEXT_ONLY;
+
+        // Add parent vertical line
+        pathBuilder.moveTo(parent.x, parent.y + parentHeight / 2);
+        pathBuilder.lineTo(parent.x, busY);
+
+        // Add horizontal bus line if needed
+        if (
+          conn.children.length > 1 ||
+          Math.abs(parent.x - conn.children[0].x) > 5
+        ) {
+          const childXs = conn.children.map((child) => child.x);
+          const minChildX = Math.min(...childXs);
+          const maxChildX = Math.max(...childXs);
+
+          pathBuilder.moveTo(minChildX, busY);
+          pathBuilder.lineTo(maxChildX, busY);
+        }
+
+        // Add child vertical lines
+        conn.children.forEach((child) => {
+          const childNode = nodes.find((n) => n.id === child.id);
+          if (childNode) {
+            const childHeight = childNode.photo_url
+              ? NODE_HEIGHT_WITH_PHOTO
+              : NODE_HEIGHT_TEXT_ONLY;
+            pathBuilder.moveTo(childNode.x, busY);
+            pathBuilder.lineTo(childNode.x, childNode.y - childHeight / 2);
+          }
+        });
+
+        edgeCount += conn.children.length + 1;
+        currentBatch += conn.children.length + 1;
+
+        // Flush batch every 50 edges
+        if (currentBatch >= 50) {
+          // Clone path before pushing
+          const flushed = Skia.Path.Make();
+          flushed.addPath(pathBuilder);
+          paths.push(
+            <Path
+              key={`edges-${paths.length}`}
+              path={flushed}
+              color={LINE_COLOR}
+              style="stroke"
+              strokeWidth={LINE_WIDTH}
+            />,
+          );
+          pathBuilder.reset();
+          currentBatch = 0;
+        }
+      }
+
+      // Final batch
+      if (currentBatch > 0) {
+        const flushed = Skia.Path.Make();
+        flushed.addPath(pathBuilder);
+        paths.push(
+          <Path
+            key={`edges-${paths.length}`}
+            path={flushed}
+            color={LINE_COLOR}
+            style="stroke"
+            strokeWidth={LINE_WIDTH}
+          />,
+        );
+      }
+
+      return { elements: paths, count: edgeCount };
+    },
+    [nodes],
+  );
+
+  // Render T3 aggregation chips (only 3 chips for hero branches)
+  const renderTier3 = useCallback(
+    (heroNodes, indices, scale, translateX, translateY) => {
+      if (!AGGREGATION_ENABLED) return null;
+
+      const chips = [];
+
+      heroNodes.forEach((hero, index) => {
+        // Use precomputed centroid
+        const centroid = indices.centroids[hero.id];
+        if (!centroid) return;
+
+        // Transform world to screen
+        const screenX = centroid.x * scale + translateX;
+        const screenY = centroid.y * scale + translateY;
+
+        const isRoot = !hero.father_id;
+        const chipScale = isRoot ? 1.3 : 1.0;
+        const chipWidth = 100 * chipScale;
+        const chipHeight = 36 * chipScale;
+
+        chips.push(
+          <Group key={`chip-${hero.id}`}>
+            <RoundedRect
+              x={screenX - chipWidth / 2}
+              y={screenY - chipHeight / 2}
+              width={chipWidth}
+              height={chipHeight}
+              r={16}
+              color="#FFFFFF"
+            />
+            <RoundedRect
+              x={screenX - chipWidth / 2}
+              y={screenY - chipHeight / 2}
+              width={chipWidth}
+              height={chipHeight}
+              r={16}
+              color="#D1BBA340"
+              style="stroke"
+              strokeWidth={0.5}
+            />
+            {/* Hero name + count */}
+            {arabicFont && (
+              <SkiaText
+                x={screenX}
+                y={screenY + 4}
+                text={`${hero.name} (${indices.subtreeSizes[hero.id]})`}
+                font={arabicFont}
+                textAlign="center"
+                fontSize={12 * chipScale}
+                color="#242121"
+              />
+            )}
+          </Group>,
+        );
+      });
+
+      return chips;
+    },
+    [],
+  );
+
+  // Render T2 text pill (simplified, no images)
+  const renderTier2Node = useCallback(
+    (node) => {
+      const nodeWidth = 60;
+      const nodeHeight = 26;
+      const x = node.x - nodeWidth / 2;
+      const y = node.y - nodeHeight / 2;
+      const isSelected = selectedPersonId === node.id;
+      const isFocused = focusPersonId === node.id; // Check if this is the focused node
+
+      return (
+        <Group key={node.id}>
+          {/* Red glow effect for focused node */}
+          {isFocused && (
+            <>
+              {/* Outer glow */}
+              <RoundedRect
+                x={x - 3}
+                y={y - 3}
+                width={nodeWidth + 6}
+                height={nodeHeight + 6}
+                r={16}
+                color="#A13333"
+                opacity={0.3}
+              />
+              {/* Inner glow */}
+              <RoundedRect
+                x={x - 1.5}
+                y={y - 1.5}
+                width={nodeWidth + 3}
+                height={nodeHeight + 3}
+                r={14.5}
+                color="#A13333"
+                opacity={0.5}
+              />
+            </>
+          )}
+
+          {/* Shadow (lighter for T2) */}
+          <RoundedRect
+            x={x + 0.5}
+            y={y + 0.5}
+            width={nodeWidth}
+            height={nodeHeight}
+            r={13}
+            color="#00000008"
           />
-        )}
-      </Group>
+
+          {/* Main pill background */}
+          <RoundedRect
+            x={x}
+            y={y}
+            width={nodeWidth}
+            height={nodeHeight}
+            r={13}
+            color="#FFFFFF"
+          />
+
+          {/* Border - red for focused node */}
+          <RoundedRect
+            x={x}
+            y={y}
+            width={nodeWidth}
+            height={nodeHeight}
+            r={13}
+            color={isFocused ? "#A13333" : (isSelected ? "#A13333" : "#D1BBA360")}
+            style="stroke"
+            strokeWidth={isFocused ? 2 : (isSelected ? 1.5 : 1)}
+          />
+
+          {/* First name only */}
+          {(() => {
+            const firstName = node.name.split(" ")[0];
+            const nameParagraph = createArabicParagraph(
+              firstName,
+              "regular",
+              10,
+              "#242121",
+              nodeWidth,
+            );
+
+            if (!nameParagraph) return null;
+
+            return (
+              <Paragraph
+                paragraph={nameParagraph}
+                x={x}
+                y={y + 7}
+                width={nodeWidth}
+              />
+            );
+          })()}
+        </Group>
+      );
+    },
+    [selectedPersonId],
+  );
+
+  // Render node component (T1 - full detail)
+  const renderNode = useCallback(
+    (node) => {
+      const hasPhoto = !!node.photo_url;
+      // Respect the node's custom width if it has one (for text sizing)
+      const nodeWidth =
+        node.nodeWidth ||
+        (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
+      const nodeHeight = hasPhoto
+        ? NODE_HEIGHT_WITH_PHOTO
+        : NODE_HEIGHT_TEXT_ONLY;
+      const isSelected = selectedPersonId === node.id;
+      const isFocused = focusPersonId === node.id; // Check if this is the focused node
+
+      const x = node.x - nodeWidth / 2;
+      const y = node.y - nodeHeight / 2;
+
+      const isHighlighted = highlightedNodeIdState === node.id;
+
+      return (
+        <Group key={node.id}>
+          {/* Red glow effect for focused node */}
+          {isFocused && (
+            <>
+              {/* Outer glow */}
+              <RoundedRect
+                x={x - 4}
+                y={y - 4}
+                width={nodeWidth + 8}
+                height={nodeHeight + 8}
+                r={CORNER_RADIUS + 2}
+                color="#A13333"
+                opacity={0.3}
+              />
+              {/* Inner glow */}
+              <RoundedRect
+                x={x - 2}
+                y={y - 2}
+                width={nodeWidth + 4}
+                height={nodeHeight + 4}
+                r={CORNER_RADIUS + 1}
+                color="#A13333"
+                opacity={0.5}
+              />
+            </>
+          )}
+
+          {/* Shadow */}
+          <RoundedRect
+            x={x + 1}
+            y={y + 1}
+            width={nodeWidth}
+            height={nodeHeight}
+            r={CORNER_RADIUS}
+            color="#00000015"
+          />
+
+          {/* Main card background */}
+          <RoundedRect
+            x={x}
+            y={y}
+            width={nodeWidth}
+            height={nodeHeight}
+            r={CORNER_RADIUS}
+            color="#FFFFFF"
+          />
+
+          {/* Border - red for focused node */}
+          <RoundedRect
+            x={x}
+            y={y}
+            width={nodeWidth}
+            height={nodeHeight}
+            r={CORNER_RADIUS}
+            color={isFocused ? "#A13333" : (isSelected ? "#A13333" : "#D1BBA360")}
+            style="stroke"
+            strokeWidth={isFocused ? 3 : (isSelected ? 2.5 : 1.2)}
+          />
+
+          {hasPhoto ? (
+            <>
+              {/* Photo placeholder */}
+              <Circle
+                cx={node.x}
+                cy={node.y - 10}
+                r={PHOTO_SIZE / 2}
+                color="#D1BBA320"
+              />
+              <Circle
+                cx={node.x}
+                cy={node.y - 10}
+                r={PHOTO_SIZE / 2}
+                color="#D1BBA340"
+                style="stroke"
+                strokeWidth={1}
+              />
+              {/* Load and display image if available */}
+              {node.photo_url && (
+                <ImageNode
+                  url={node.photo_url}
+                  x={node.x - PHOTO_SIZE / 2}
+                  y={node.y - 10 - PHOTO_SIZE / 2}
+                  width={PHOTO_SIZE}
+                  height={PHOTO_SIZE}
+                  radius={PHOTO_SIZE / 2}
+                  tier={node._tier || 1}
+                  scale={node._scale || 1}
+                  nodeId={node.id}
+                  selectBucket={node._selectBucket}
+                />
+              )}
+
+              {/* Generation badge - positioned in top-right corner for photo nodes */}
+              {(() => {
+                const genParagraph = createArabicParagraph(
+                  String(node.generation),
+                  "regular",
+                  7, // Reduced from 9 to 7 (about 25% smaller)
+                  "#24212140", // Sadu Night with 25% opacity
+                  15,
+                );
+
+                if (!genParagraph) return null;
+
+                return (
+                  <Paragraph
+                    paragraph={genParagraph}
+                    x={x + nodeWidth - 15}
+                    y={y + 4}
+                    width={15}
+                  />
+                );
+              })()}
+
+              {/* Name text - centered across full width (on top) */}
+              {(() => {
+                const nameParagraph = createArabicParagraph(
+                  node.name,
+                  "bold",
+                  11,
+                  "#242121",
+                  nodeWidth,
+                );
+
+                if (!nameParagraph) return null;
+
+                const textX = x; // Full width centering
+                const textY = y + 68; // Positioned below photo (moved down a bit)
+
+                return (
+                  <Paragraph
+                    paragraph={nameParagraph}
+                    x={textX}
+                    y={textY}
+                    width={nodeWidth}
+                  />
+                );
+              })()}
+            </>
+          ) : (
+            <>
+              {/* Generation badge - centered horizontally at top */}
+              {(() => {
+                const genParagraph = createArabicParagraph(
+                  String(node.generation),
+                  "regular",
+                  7, // Reduced from 9 to 7 (about 25% smaller)
+                  "#24212140", // Sadu Night with 25% opacity
+                  nodeWidth,
+                );
+
+                if (!genParagraph) return null;
+
+                return (
+                  <Paragraph
+                    paragraph={genParagraph}
+                    x={x}
+                    y={y + 4} // Near top of node
+                    width={nodeWidth}
+                  />
+                );
+              })()}
+
+              {/* Text-only name - centered across full width (on top) */}
+              {(() => {
+                const nameParagraph = createArabicParagraph(
+                  node.name,
+                  "bold",
+                  11,
+                  "#242121",
+                  nodeWidth,
+                );
+
+                if (!nameParagraph) return null;
+
+                const textX = x; // Full width centering
+                const textY = y + (nodeHeight - nameParagraph.getHeight()) / 2; // Vertical center
+
+                return (
+                  <Paragraph
+                    paragraph={nameParagraph}
+                    x={textX}
+                    y={textY}
+                    width={nodeWidth}
+                  />
+                );
+              })()}
+            </>
+          )}
+        </Group>
+      );
+    },
+    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
+  );
+
+  // Create a derived value for the transform to avoid Reanimated warnings
+  const transform = useDerivedValue(() => {
+    return [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ];
+  });
+
+  // Store current transform values to avoid accessing .value during render
+  const [currentTransform, setCurrentTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
+
+  // Update transform values when they change
+  useAnimatedReaction(
+    () => ({
+      x: translateX.value,
+      y: translateY.value,
+      scale: scale.value,
+    }),
+    (current) => {
+      runOnJS(setCurrentTransform)(current);
+    },
+  );
+
+  // Calculate current LOD tier using the state instead of accessing .value directly
+  const tier = calculateLODTier(currentTransform.scale);
+  frameStatsRef.current.tier = tier;
+
+  // Calculate culled nodes (with loading fallback)
+  const culledNodes = useMemo(() => {
+    if (isLoading) return [];
+    if (tier === 3) return [];
+    if (!spatialGrid) return visibleNodes;
+    return spatialGrid.getVisibleNodes(
+      {
+        x: currentTransform.x,
+        y: currentTransform.y,
+        width: dimensions.width,
+        height: dimensions.height,
+      },
+      currentTransform.scale,
+      indices.idToNode,
     );
-  }, [focusPersonId, arabicFont]);
-
-  // Render connections
-  const renderConnections = useCallback(() => {
-    return connections.map((conn, index) => (
-      <Line
-        key={`conn-${index}`}
-        p1={vec(conn.from.x, conn.from.y)}
-        p2={vec(conn.to.x, conn.to.y)}
-        color={LINE_COLOR}
-        style="stroke"
-        strokeWidth={LINE_WIDTH}
-      />
-    ));
-  }, [connections]);
-
-  // For now, show all nodes (optimize viewport culling later)
-  const visibleNodes = layoutNodes;
-
-  // Use derived values for Skia transforms
-  // Must be declared before any conditional returns to follow React hooks rules
-  const transform = useDerivedValue(() => [
-    { translateX: translateX.value },
-    { translateY: translateY.value },
-    { scale: scale.value },
+  }, [
+    isLoading,
+    tier,
+    spatialGrid,
+    currentTransform,
+    dimensions,
+    indices.idToNode,
+    visibleNodes,
   ]);
 
-  // Skeleton animation
-  const skeletonAnim = useRef(new Animated.Value(0.3)).current;
+  // Update render callbacks to pass tier and scale
+  const renderNodeWithTier = useCallback(
+    (node) => {
+      if (!node) return null;
+      if (tier === 2) {
+        return renderTier2Node(node);
+      }
+      // Tier 1 - full node with tier info for image loading
+      const modifiedNode = {
+        ...node,
+        _tier: tier,
+        _scale: currentTransform.scale,
+        _selectBucket: selectBucketWithHysteresis,
+      };
+      return renderNode(modifiedNode);
+    },
+    [
+      tier,
+      currentTransform.scale,
+      renderNode,
+      renderTier2Node,
+      selectBucketWithHysteresis,
+    ],
+  );
 
+  // Create visible node ID set for edge rendering
+  const visibleNodeIds = useMemo(
+    () => new Set(culledNodes.map((n) => n.id)),
+    [culledNodes],
+  );
+
+  // Keep gestureStateRef in sync for tap gesture
   useEffect(() => {
-    if (loading) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(skeletonAnim, {
+    gestureStateRef.current = {
+      transform: currentTransform,
+      tier,
+      indices,
+      visibleNodes: culledNodes,
+    };
+  }, [currentTransform, tier, indices, culledNodes]);
+
+  // Show loading state
+  // Show network error state if there's an error
+  if (networkError) {
+    return (
+      <NetworkErrorView
+        errorType={networkError}
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+      />
+    );
+  }
+
+  // Start shimmer animation for skeleton
+  useEffect(() => {
+    if (showSkeleton) {
+      RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(shimmerAnim, {
             toValue: 1,
-            duration: 800,
+            duration: 1000,
             useNativeDriver: true,
           }),
-          Animated.timing(skeletonAnim, {
+          RNAnimated.timing(shimmerAnim, {
             toValue: 0.3,
-            duration: 800,
+            duration: 1000,
             useNativeDriver: true,
           }),
         ])
       ).start();
     }
-  }, [loading]);
+  }, [showSkeleton]);
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          {/* Tree skeleton loader */}
-          <View style={styles.skeletonTree}>
-            {/* Parent node */}
-            <Animated.View
-              style={[
-                styles.skeletonNode,
-                styles.skeletonRootNode,
-                { opacity: skeletonAnim },
-              ]}
-            />
-            {/* Connection lines */}
-            <View style={styles.skeletonConnector} />
-            {/* Children nodes */}
-            <View style={styles.skeletonRow}>
-              <Animated.View
-                style={[
-                  styles.skeletonNode,
-                  {
-                    opacity: skeletonAnim.interpolate({
-                      inputRange: [0.3, 1],
-                      outputRange: [0.2, 0.7],
-                    }),
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.skeletonNode,
-                  styles.skeletonCenterNode,
-                  {
-                    opacity: skeletonAnim.interpolate({
-                      inputRange: [0.3, 1],
-                      outputRange: [0.4, 1],
-                    }),
-                  },
-                ]}
-              />
-              <Animated.View
-                style={[
-                  styles.skeletonNode,
-                  {
-                    opacity: skeletonAnim.interpolate({
-                      inputRange: [0.3, 1],
-                      outputRange: [0.2, 0.7],
-                    }),
-                  },
-                ]}
+  // Tree skeleton component - better resembles actual tree
+  const TreeSkeleton = () => (
+    <View style={{
+      flex: 1,
+      backgroundColor: '#F9F7F3',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+    }}>
+      {/* Root node at center top */}
+      <View style={{ alignItems: 'center', marginTop: -100 }}>
+        <RNAnimated.View
+          style={{
+            width: 120,
+            height: 70,
+            backgroundColor: '#D1BBA340',
+            borderRadius: 10,
+            borderWidth: 2,
+            borderColor: '#D1BBA330',
+            opacity: shimmerAnim,
+          }}
+        />
+
+        {/* Main vertical line from root */}
+        <View style={{
+          width: 2,
+          height: 50,
+          backgroundColor: '#D1BBA325',
+          marginTop: -2,
+        }} />
+      </View>
+
+      {/* Second generation with horizontal connector */}
+      <View style={{ alignItems: 'center', marginTop: -2 }}>
+        {/* Horizontal connector line */}
+        <View style={{
+          width: 300,
+          height: 2,
+          backgroundColor: '#D1BBA325',
+          position: 'absolute',
+          top: 0,
+        }} />
+
+        {/* Second gen nodes */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          width: 320,
+          marginTop: -1,
+        }}>
+          {[...Array(4)].map((_, i) => (
+            <View key={`gen2-wrapper-${i}`} style={{ alignItems: 'center' }}>
+              {/* Small vertical line to node */}
+              <View style={{
+                width: 2,
+                height: 20,
+                backgroundColor: '#D1BBA325',
+              }} />
+              <RNAnimated.View
+                style={{
+                  width: 70,
+                  height: 50,
+                  backgroundColor: '#D1BBA335',
+                  borderRadius: 8,
+                  borderWidth: 1.5,
+                  borderColor: '#D1BBA325',
+                  opacity: shimmerAnim,
+                }}
               />
             </View>
-          </View>
-          <Text style={styles.loadingText}>جاري تحميل شجرة العائلة...</Text>
+          ))}
         </View>
+      </View>
+
+      {/* Third generation with multiple branches */}
+      <View style={{ marginTop: 30, width: '100%' }}>
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          paddingHorizontal: 10,
+        }}>
+          {/* Left branch */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{
+              width: 100,
+              height: 2,
+              backgroundColor: '#D1BBA320',
+              marginBottom: 10,
+            }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[...Array(2)].map((_, i) => (
+                <RNAnimated.View
+                  key={`gen3-left-${i}`}
+                  style={{
+                    width: 45,
+                    height: 35,
+                    backgroundColor: '#D1BBA330',
+                    borderRadius: 6,
+                    opacity: shimmerAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.3, 0.8],
+                    }),
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Center branch */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{
+              width: 80,
+              height: 2,
+              backgroundColor: '#D1BBA320',
+              marginBottom: 10,
+            }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[...Array(3)].map((_, i) => (
+                <RNAnimated.View
+                  key={`gen3-center-${i}`}
+                  style={{
+                    width: 45,
+                    height: 35,
+                    backgroundColor: '#D1BBA330',
+                    borderRadius: 6,
+                    opacity: shimmerAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.3, 0.8],
+                    }),
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Right branch */}
+          <View style={{ alignItems: 'center' }}>
+            <View style={{
+              width: 100,
+              height: 2,
+              backgroundColor: '#D1BBA320',
+              marginBottom: 10,
+            }} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[...Array(2)].map((_, i) => (
+                <RNAnimated.View
+                  key={`gen3-right-${i}`}
+                  style={{
+                    width: 45,
+                    height: 35,
+                    backgroundColor: '#D1BBA330',
+                    borderRadius: 6,
+                    opacity: shimmerAnim.interpolate({
+                      inputRange: [0.3, 1],
+                      outputRange: [0.3, 0.8],
+                    }),
+                  }}
+                />
+              ))}
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Fourth generation hint (faded) */}
+      <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.3 }}>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          {[...Array(8)].map((_, i) => (
+            <View
+              key={`gen4-${i}`}
+              style={{
+                width: 30,
+                height: 25,
+                backgroundColor: '#D1BBA320',
+                borderRadius: 4,
+              }}
+            />
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1 }}>
+        {/* Skeleton with fade out */}
+        {showSkeleton && (
+          <RNAnimated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 10,
+              opacity: skeletonFadeAnim,
+            }}
+            pointerEvents="none"
+          >
+            <TreeSkeleton />
+          </RNAnimated.View>
+        )}
+
+        {/* Empty placeholder for tree content that will fade in */}
+        <RNAnimated.View
+          style={{
+            flex: 1,
+            opacity: contentFadeAnim,
+          }}
+        />
       </View>
     );
   }
 
-  if (error || layoutNodes.length === 0) {
+  // Render edges with batching
+  const { elements: edgeElements, count: edgesDrawn } = renderEdgesBatched(
+    connections,
+    visibleNodeIds,
+    tier,
+  );
+
+  // Update frame stats
+  frameStatsRef.current.nodesDrawn = tier === 3 ? 3 : culledNodes.length;
+  frameStatsRef.current.edgesDrawn = tier === 3 ? 0 : edgesDrawn;
+
+  // TIER 3: Only render hero chips
+  if (tier === 3 && AGGREGATION_ENABLED) {
     return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>حدث خطأ في تحميل البيانات</Text>
-        </View>
+      <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
+        <GestureDetector gesture={composed}>
+          <Canvas style={{ flex: 1 }}>
+            {renderTier3(
+              indices.heroNodes,
+              indices,
+              currentTransform.scale,
+              currentTransform.x,
+              currentTransform.y,
+            )}
+          </Canvas>
+        </GestureDetector>
       </View>
     );
   }
 
   return (
-    <GestureDetector gesture={composedGesture}>
-      <View style={styles.container}>
-        <Canvas style={styles.canvas}>
-          <Group transform={transform}>
-            {/* Render connections first (behind nodes) */}
-            {renderConnections()}
+    <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
+      {/* Skeleton overlay with fade out */}
+      {showSkeleton && (
+        <RNAnimated.View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 10,
+            opacity: skeletonFadeAnim,
+          }}
+          pointerEvents="none"
+        >
+          <TreeSkeleton />
+        </RNAnimated.View>
+      )}
 
-            {/* Render nodes */}
-            {visibleNodes.map(renderNode)}
+      {/* Main tree content with fade in */}
+      <RNAnimated.View style={{ flex: 1, opacity: contentFadeAnim }}>
+        <GestureDetector gesture={composed}>
+          <Canvas style={{ flex: 1 }}>
+          <Group transform={transform}>
+            {/* Render batched edges first */}
+            {edgeElements}
+
+            {/* Render visible nodes */}
+            {culledNodes.map(renderNodeWithTier)}
+
+            {/* Pass 3: Invisible bridge lines intersecting viewport */}
+            {bridgeSegments.map((seg) => (
+              <Line
+                key={seg.id}
+                p1={vec(seg.x1, seg.y)}
+                p2={vec(seg.x2, seg.y)}
+                color={LINE_COLOR}
+                style="stroke"
+                strokeWidth={LINE_WIDTH}
+              />
+            ))}
           </Group>
         </Canvas>
-      </View>
-    </GestureDetector>
+        </GestureDetector>
+      </RNAnimated.View>
+
+      {/* Lottie Glow Effect Overlay */}
+      {highlightedNodeIdState &&
+        glowOpacityState > 0 &&
+        (() => {
+          const highlightedNode = nodes.find(
+            (n) => n.id === highlightedNodeIdState,
+          );
+          if (!highlightedNode) return null;
+
+          // Determine node tier and get appropriate border radius
+          const isT1 = indices?.heroNodes?.some(
+            (hero) => hero.id === highlightedNode.id,
+          );
+          const isT2 = indices?.searchTiers?.[highlightedNode.id] === 2;
+
+          let borderRadius;
+          if (isT1) {
+            borderRadius = 16; // T1 hero nodes
+          } else if (isT2) {
+            borderRadius = 13; // T2 text-only nodes
+          } else {
+            borderRadius = CORNER_RADIUS; // Regular nodes (8)
+          }
+
+          // Get actual node dimensions based on whether it has a photo
+          const nodeWidth = highlightedNode.profile_photo_url
+            ? NODE_WIDTH_WITH_PHOTO
+            : NODE_WIDTH_TEXT_ONLY;
+          const nodeHeight = highlightedNode.profile_photo_url
+            ? NODE_HEIGHT_WITH_PHOTO
+            : NODE_HEIGHT_TEXT_ONLY;
+
+          // Use current transform state instead of accessing shared values directly
+          const screenX =
+            highlightedNode.x * currentTransform.scale + currentTransform.x;
+          const screenY =
+            highlightedNode.y * currentTransform.scale + currentTransform.y;
+
+          return (
+            <LottieGlow
+              key={`glow-${glowTrigger}`} // Force re-mount on same node
+              visible={true}
+              x={screenX}
+              y={screenY}
+              width={nodeWidth * currentTransform.scale}
+              height={nodeHeight * currentTransform.scale}
+              borderRadius={borderRadius * currentTransform.scale}
+              onAnimationFinish={() => {
+                // Clear highlight after fade-out completes
+                setHighlightedNodeIdState(null);
+                setGlowOpacityState(0);
+              }}
+            />
+          );
+        })()}
+      {/* Search bar and navigation button remain */}
+      <SearchBar onSelectResult={handleSearchResultSelect} />
+
+      <NavigateToRootButton
+        nodes={nodes}
+        viewport={dimensions}
+        sharedValues={{
+          translateX: translateX,
+          translateY: translateY,
+          scale: scale,
+        }}
+      />
+
+      {/* All admin components and modals removed for simplified view */}
+    </View>
   );
 };
-
-// Component for loading and caching node photos
-const NodePhoto = React.memo(({ url, x, y, size }) => {
-  const image = useCachedSkiaImage(url);
-
-  if (!image) {
-    // Show placeholder circle while loading
-    return (
-      <Circle
-        cx={x + size / 2}
-        cy={y + size / 2}
-        r={size / 2}
-        color="#D1BBA320"
-      />
-    );
-  }
-
-  // Create circular clip path
-  const clipPath = Skia.Path.Make();
-  clipPath.addCircle(x + size / 2, y + size / 2, size / 2);
-
-  return (
-    <Group>
-      {/* Background circle */}
-      <Circle
-        cx={x + size / 2}
-        cy={y + size / 2}
-        r={size / 2}
-        color="white"
-      />
-
-      {/* Clipped image */}
-      <Group clip={clipPath}>
-        <SkiaImage
-          image={image}
-          x={x}
-          y={y}
-          width={size}
-          height={size}
-          fit="cover"
-        />
-      </Group>
-
-      {/* Photo border */}
-      <Circle
-        cx={x + size / 2}
-        cy={y + size / 2}
-        r={size / 2}
-        style="stroke"
-        strokeWidth={1}
-        color="#D1BBA340"
-      />
-    </Group>
-  );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9F7F3',
-  },
-  canvas: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 24,
-    fontSize: 15,
-    color: '#24212199',
-    fontFamily: 'SF Arabic',
-  },
-  skeletonTree: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  skeletonNode: {
-    width: 70,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#D1BBA340',
-    marginHorizontal: 8,
-  },
-  skeletonRootNode: {
-    width: 90,
-    height: 45,
-    marginBottom: 16,
-    backgroundColor: '#D1BBA360',
-  },
-  skeletonCenterNode: {
-    width: 85,
-    height: 42,
-    backgroundColor: '#A1333315',
-    borderWidth: 1.5,
-    borderColor: '#A1333330',
-  },
-  skeletonConnector: {
-    width: 1,
-    height: 20,
-    backgroundColor: '#D1BBA330',
-    marginBottom: 12,
-  },
-  skeletonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#A13333',
-    fontFamily: 'SF Arabic',
-    textAlign: 'center',
-  },
-});
 
 export default SimplifiedTreeView;
