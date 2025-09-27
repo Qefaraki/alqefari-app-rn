@@ -485,6 +485,37 @@ node scripts/direct-deploy.js
 4. Commit the migration file
 5. Never ask user to run SQL manually
 
+## 🛠️ Tool Usage Constraints
+
+### CRITICAL: MCP and CLI Only
+
+**I MUST only use MCP servers and CLI tools. If they fail:**
+
+- ✅ Use Supabase MCP for database queries
+- ✅ Use CLI commands (npm, git, etc.) for development tasks
+- ❌ DO NOT look for alternative methods or workarounds
+- ❌ DO NOT try to access Supabase through other means
+- ❌ DO NOT attempt to create custom scripts to bypass limitations
+
+### When Tools Fail
+
+If MCP or CLI tools don't work:
+
+1. **Tell the user exactly what needs to be done**
+2. **Wait for their response**
+3. **Do not attempt alternatives**
+
+Example:
+- "The Supabase MCP isn't connecting. You need to create a Personal Access Token in your Supabase dashboard."
+- "The npm command failed. Please run `npm install` manually and let me know when it's complete."
+
+### No Fallback Strategies
+
+- If database queries fail → Tell user what SQL to run
+- If file operations fail → Tell user what to check
+- If deployments fail → Tell user what to deploy
+- Never attempt to work around tool limitations
+
 ## 🔒 Security
 
 - Never expose service role keys

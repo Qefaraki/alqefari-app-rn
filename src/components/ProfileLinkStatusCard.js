@@ -102,6 +102,17 @@ export default function ProfileLinkStatusCard() {
     setLoading(false);
   };
 
+  // Helper function to add surname to name if not present
+  const getFullNameWithSurname = (name) => {
+    if (!name) return "غير محدد";
+    // Check if القفاري is already in the name
+    if (name.includes("القفاري")) {
+      return name;
+    }
+    // Add القفاري at the end
+    return `${name} القفاري`;
+  };
+
   const handleWithdraw = () => {
     Alert.alert(
       "سحب الطلب",
@@ -164,9 +175,14 @@ export default function ProfileLinkStatusCard() {
   const handleContactAdmin = () => {
     // Open WhatsApp with admin number
     const adminPhone = "+966501234567"; // Replace with actual admin number
+    const displayName = linkRequest?.name_chain ||
+                       linkRequest?.profile?.name ||
+                       linkRequest?.profile?.name_ar ||
+                       "غير محدد";
+
     const message = encodeURIComponent(`مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي
 
-الملف المطلوب: ${linkRequest?.profile?.name || linkRequest?.profile?.name_ar || "غير محدد"}
+الملف المطلوب: ${getFullNameWithSurname(displayName)}
 رقم الهاتف: ${user?.phone || ""}`);
 
     const url = `whatsapp://send?phone=${adminPhone}&text=${message}`;
@@ -224,6 +240,8 @@ export default function ProfileLinkStatusCard() {
 
   // Linked Profile State
   if (hasLinkedProfile && profile) {
+    const fullName = profile.name || profile.name_ar || "غير محدد";
+
     return (
       <View style={[styles.container, styles.successContainer]}>
         <View style={styles.statusBadge}>
@@ -232,7 +250,7 @@ export default function ProfileLinkStatusCard() {
         </View>
 
         <Text style={styles.profileName} numberOfLines={2}>
-          {profile.name || profile.name_ar || "غير محدد"}
+          {getFullNameWithSurname(fullName)}
         </Text>
 
         <View style={styles.buttonRow}>
@@ -282,7 +300,7 @@ export default function ProfileLinkStatusCard() {
           <View style={styles.requestedProfileSection}>
             <Text style={styles.requestedLabel}>الملف المطلوب:</Text>
             <Text style={styles.profileName} numberOfLines={2}>
-              {displayName}
+              {getFullNameWithSurname(displayName)}
             </Text>
           </View>
         )}
@@ -299,20 +317,20 @@ export default function ProfileLinkStatusCard() {
           )}
 
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.whatsappButton}
             onPress={handleContactAdmin}
             activeOpacity={0.8}
           >
-            <Ionicons name="logo-whatsapp" size={22} color={colors.success} />
+            <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={styles.textButton}
+          style={styles.withdrawButton}
           onPress={handleWithdraw}
           activeOpacity={0.8}
         >
-          <Text style={styles.dangerText}>سحب الطلب</Text>
+          <Text style={styles.withdrawButtonText}>سحب الطلب</Text>
         </TouchableOpacity>
       </View>
     );
@@ -340,7 +358,7 @@ export default function ProfileLinkStatusCard() {
 
         {linkRequest.profile && (
           <Text style={styles.profileName} numberOfLines={2}>
-            {displayName}
+            {getFullNameWithSurname(displayName)}
           </Text>
         )}
 
@@ -354,11 +372,11 @@ export default function ProfileLinkStatusCard() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.whatsappButton}
             onPress={handleContactAdmin}
             activeOpacity={0.8}
           >
-            <Ionicons name="logo-whatsapp" size={22} color={colors.success} />
+            <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -510,22 +528,24 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
   },
-  iconButton: {
+  whatsappButton: {
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: colors.container,
+    backgroundColor: colors.primary, // Najdi Crimson
     alignItems: "center",
     justifyContent: "center",
   },
-  textButton: {
+  withdrawButton: {
     alignSelf: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: colors.error + "15",
+    borderWidth: 1,
+    borderColor: colors.error + "30",
   },
-  dangerText: {
+  withdrawButtonText: {
     color: colors.error,
     fontSize: 14,
     fontWeight: "600",
