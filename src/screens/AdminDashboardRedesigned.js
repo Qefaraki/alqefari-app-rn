@@ -9,10 +9,19 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
+
+// Import actual admin screens
+import ValidationDashboard from "./ValidationDashboard";
+import MunasibManager from "../components/admin/MunasibManager";
+import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
+import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
+import PermissionManager from "../components/admin/PermissionManager";
+import ActivityLogView from "../components/admin/ActivityLogView";
 
 const AdminDashboardRedesigned = ({ user, onClose }) => {
   const [loading, setLoading] = useState(true);
@@ -21,11 +30,19 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
     totalProfiles: 0,
     activeProfiles: 0,
     totalMunasib: 0,
-    dataHealth: 100,
-    pendingSuggestions: 0,
-    recentActivity: 0,
+    dataIssues: 0,
+    missingHID: 0,
+    orphanedProfiles: 0,
   });
   const [alerts, setAlerts] = useState([]);
+
+  // Modal states for actual screens
+  const [showValidation, setShowValidation] = useState(false);
+  const [showMunasib, setShowMunasib] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showConnections, setShowConnections] = useState(false);
+  const [showPermissions, setShowPermissions] = useState(false);
+  const [showActivityLog, setShowActivityLog] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -35,36 +52,50 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
     try {
       setLoading(true);
 
-      // Load family statistics
+      // Load real statistics from database
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, hid, name", { count: "exact" });
+        .select("id, hid, name, father_id, mother_id", { count: "exact" });
 
       if (!profilesError && profiles) {
         const totalProfiles = profiles.length;
-        // Since is_active doesn't exist, count profiles with names as active
         const activeProfiles = profiles.filter(p => p.name).length;
         const totalMunasib = profiles.filter(p => !p.hid).length;
 
-        // Calculate data health percentage
-        const completeProfiles = profiles.filter(p => p.hid && p.name).length;
-        const dataHealth = totalProfiles > 0 ? Math.round((completeProfiles / totalProfiles) * 100) : 0;
+        // Calculate real data issues
+        const missingHID = profiles.filter(p => !p.hid).length;
+        const missingNames = profiles.filter(p => !p.name).length;
+
+        // Check for orphaned profiles (invalid parent references)
+        const profileIds = new Set(profiles.map(p => p.id));
+        const orphanedProfiles = profiles.filter(p =>
+          (p.father_id && !profileIds.has(p.father_id)) ||
+          (p.mother_id && !profileIds.has(p.mother_id))
+        ).length;
+
+        const totalIssues = missingNames + orphanedProfiles;
 
         setStats({
           totalProfiles,
           activeProfiles,
           totalMunasib,
-          dataHealth,
-          pendingSuggestions: 0, // TODO: Connect to suggestions table
-          recentActivity: 0, // TODO: Connect to activity logs
+          dataIssues: totalIssues,
+          missingHID,
+          orphanedProfiles,
         });
 
-        // Check for critical alerts after stats are set
+        // Set alerts based on real issues
         const currentAlerts = [];
-        if (dataHealth < 80) {
+        if (orphanedProfiles > 0) {
+          currentAlerts.push({
+            type: "error",
+            message: `${orphanedProfiles} ملفات بمراجع والدين غير صحيحة`,
+          });
+        }
+        if (missingNames > 0) {
           currentAlerts.push({
             type: "warning",
-            message: "البيانات تحتاج إلى مراجعة",
+            message: `${missingNames} ملفات بدون أسماء`,
           });
         }
         setAlerts(currentAlerts);
@@ -86,22 +117,28 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
   const handleActionPress = (action) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // TODO: Navigate to appropriate screens
+    // Open actual screens
     switch (action) {
-      case "profiles":
-        Alert.alert("إدارة الملفات", "سيتم فتح إدارة الملفات الشخصية");
+      case "validation":
+        setShowValidation(true);
         break;
       case "munasib":
-        Alert.alert("إدارة المناسيب", "سيتم فتح إدارة المناسيب");
+        setShowMunasib(true);
         break;
       case "suggestions":
-        Alert.alert("المقترحات", "سيتم فتح صفحة المقترحات");
+        setShowSuggestions(true);
         break;
       case "connections":
-        Alert.alert("الروابط", "سيتم فتح إدارة الروابط العائلية");
+        setShowConnections(true);
+        break;
+      case "permissions":
+        setShowPermissions(true);
+        break;
+      case "activity":
+        setShowActivityLog(true);
         break;
       default:
-        Alert.alert("قريباً", "هذه الميزة قيد التطوير");
+        Alert.alert("قيد التطوير", "هذه الميزة قيد التطوير حالياً");
     }
   };
 
@@ -171,32 +208,34 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
               </View>
             </View>
 
-            {/* Data Health Card */}
+            {/* Data Issues Card */}
             <View style={styles.overviewCard}>
               <View style={styles.cardHeader}>
-                <Ionicons name="pulse-outline" size={24} color="#D58C4A" />
-                <Text style={styles.cardTitle}>صحة البيانات</Text>
+                <Ionicons name="warning-outline" size={24} color={stats.dataIssues > 0 ? "#A13333" : "#4CAF50"} />
+                <Text style={styles.cardTitle}>مشاكل البيانات</Text>
               </View>
-              <View style={styles.healthContainer}>
-                <View style={styles.healthBar}>
-                  <View
-                    style={[
-                      styles.healthBarFill,
-                      {
-                        width: `${stats.dataHealth}%`,
-                        backgroundColor: stats.dataHealth > 80 ? "#4CAF50" :
-                                       stats.dataHealth > 60 ? "#D58C4A" : "#A13333"
-                      }
-                    ]}
-                  />
+              <View style={styles.issuesContainer}>
+                <View style={styles.issueRow}>
+                  <Text style={styles.issueLabel}>ملفات بدون أسماء:</Text>
+                  <Text style={[styles.issueCount, stats.dataIssues > 0 && styles.issueCountError]}>
+                    {stats.totalProfiles - stats.activeProfiles}
+                  </Text>
                 </View>
-                <Text style={styles.healthPercentage}>{stats.dataHealth}%</Text>
+                <View style={styles.issueRow}>
+                  <Text style={styles.issueLabel}>مراجع والدين خاطئة:</Text>
+                  <Text style={[styles.issueCount, stats.orphanedProfiles > 0 && styles.issueCountError]}>
+                    {stats.orphanedProfiles}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.fixButton}
+                  onPress={() => handleActionPress('validation')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.fixButtonText}>عرض جميع المشاكل</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#A13333" />
+                </TouchableOpacity>
               </View>
-              <Text style={styles.healthLabel}>
-                {stats.dataHealth > 80 ? "البيانات في حالة ممتازة" :
-                 stats.dataHealth > 60 ? "تحتاج إلى بعض التحسينات" :
-                 "تحتاج إلى مراجعة عاجلة"}
-              </Text>
             </View>
           </View>
         </View>
@@ -207,14 +246,14 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
           <View style={styles.actionGrid}>
             <TouchableOpacity
               style={styles.actionCard}
-              onPress={() => handleActionPress("profiles")}
+              onPress={() => handleActionPress("validation")}
               activeOpacity={0.8}
             >
               <View style={styles.actionIconContainer}>
-                <Ionicons name="person-circle-outline" size={32} color="#A13333" />
+                <Ionicons name="checkmark-circle-outline" size={32} color="#A13333" />
               </View>
-              <Text style={styles.actionTitle}>إدارة الملفات</Text>
-              <Text style={styles.actionDescription}>تعديل وإضافة الملفات الشخصية</Text>
+              <Text style={styles.actionTitle}>فحص البيانات</Text>
+              <Text style={styles.actionDescription}>التحقق من سلامة البيانات</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -247,10 +286,10 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
               activeOpacity={0.8}
             >
               <View style={styles.actionIconContainer}>
-                <Ionicons name="git-network-outline" size={32} color="#A13333" />
+                <Ionicons name="link-outline" size={32} color="#A13333" />
               </View>
-              <Text style={styles.actionTitle}>الروابط العائلية</Text>
-              <Text style={styles.actionDescription}>إدارة العلاقات والروابط</Text>
+              <Text style={styles.actionTitle}>ربط الملفات</Text>
+              <Text style={styles.actionDescription}>إدارة روابط الحسابات</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -259,7 +298,11 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>أدوات الإدارة</Text>
           <View style={styles.managementList}>
-            <TouchableOpacity style={styles.managementItem} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.managementItem}
+              activeOpacity={0.7}
+              onPress={() => handleActionPress("permissions")}
+            >
               <View style={styles.managementIcon}>
                 <Ionicons name="shield-checkmark-outline" size={24} color="#242121" />
               </View>
@@ -270,18 +313,12 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
               <Ionicons name="chevron-forward" size={20} color="#24212199" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.managementItem} activeOpacity={0.7}>
-              <View style={styles.managementIcon}>
-                <Ionicons name="document-text-outline" size={24} color="#242121" />
-              </View>
-              <View style={styles.managementContent}>
-                <Text style={styles.managementTitle}>التقارير</Text>
-                <Text style={styles.managementDescription}>إنشاء وتصدير التقارير</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#24212199" />
-            </TouchableOpacity>
 
-            <TouchableOpacity style={styles.managementItem} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.managementItem}
+              activeOpacity={0.7}
+              onPress={() => handleActionPress("activity")}
+            >
               <View style={styles.managementIcon}>
                 <Ionicons name="time-outline" size={24} color="#242121" />
               </View>
@@ -294,32 +331,76 @@ const AdminDashboardRedesigned = ({ user, onClose }) => {
           </View>
         </View>
 
-        {/* System Tools */}
-        <View style={[styles.section, styles.lastSection]}>
-          <Text style={styles.sectionTitle}>أدوات النظام</Text>
-          <View style={styles.systemGrid}>
-            <TouchableOpacity style={styles.systemCard} activeOpacity={0.7}>
-              <Ionicons name="sync-outline" size={24} color="#5F6368" />
-              <Text style={styles.systemLabel}>مزامنة البيانات</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.systemCard} activeOpacity={0.7}>
-              <Ionicons name="bug-outline" size={24} color="#5F6368" />
-              <Text style={styles.systemLabel}>إصلاح الأخطاء</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.systemCard} activeOpacity={0.7}>
-              <Ionicons name="download-outline" size={24} color="#5F6368" />
-              <Text style={styles.systemLabel}>النسخ الاحتياطي</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.systemCard} activeOpacity={0.7}>
-              <Ionicons name="settings-outline" size={24} color="#5F6368" />
-              <Text style={styles.systemLabel}>الإعدادات</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </ScrollView>
+
+      {/* Modals for actual screens */}
+      {showValidation && (
+        <Modal
+          animationType="slide"
+          presentationStyle="fullScreen"
+          visible={showValidation}
+          onRequestClose={() => setShowValidation(false)}
+        >
+          <ValidationDashboard
+            navigation={{ goBack: () => setShowValidation(false) }}
+          />
+        </Modal>
+      )}
+
+      {showMunasib && (
+        <Modal
+          animationType="slide"
+          presentationStyle="pageSheet"
+          visible={showMunasib}
+          onRequestClose={() => setShowMunasib(false)}
+        >
+          <MunasibManager onClose={() => setShowMunasib(false)} />
+        </Modal>
+      )}
+
+      {showSuggestions && (
+        <Modal
+          animationType="slide"
+          presentationStyle="pageSheet"
+          visible={showSuggestions}
+          onRequestClose={() => setShowSuggestions(false)}
+        >
+          <SuggestionReviewManager onClose={() => setShowSuggestions(false)} />
+        </Modal>
+      )}
+
+      {showConnections && (
+        <Modal
+          animationType="slide"
+          presentationStyle="pageSheet"
+          visible={showConnections}
+          onRequestClose={() => setShowConnections(false)}
+        >
+          <ProfileConnectionManager onClose={() => setShowConnections(false)} />
+        </Modal>
+      )}
+
+      {showPermissions && (
+        <Modal
+          animationType="slide"
+          presentationStyle="pageSheet"
+          visible={showPermissions}
+          onRequestClose={() => setShowPermissions(false)}
+        >
+          <PermissionManager onClose={() => setShowPermissions(false)} />
+        </Modal>
+      )}
+
+      {showActivityLog && (
+        <Modal
+          animationType="slide"
+          presentationStyle="pageSheet"
+          visible={showActivityLog}
+          onRequestClose={() => setShowActivityLog(false)}
+        >
+          <ActivityLogView onClose={() => setShowActivityLog(false)} />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 };
@@ -398,9 +479,6 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 32,
   },
-  lastSection: {
-    marginBottom: 24,
-  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
@@ -462,37 +540,49 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1BBA340",
   },
 
-  // Health Bar
-  healthContainer: {
+  // Issues Card
+  issuesContainer: {
+    marginTop: 8,
+  },
+  issueRow: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  healthBar: {
-    flex: 1,
-    height: 8,
-    backgroundColor: "#D1BBA320",
-    borderRadius: 4,
-    overflow: "hidden",
-    marginRight: 12,
-  },
-  healthBarFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  healthPercentage: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#242121",
-    fontFamily: "SF Arabic",
-    minWidth: 50,
-    textAlign: "right",
-  },
-  healthLabel: {
-    fontSize: 13,
+  issueLabel: {
+    fontSize: 14,
     color: "#24212199",
     fontFamily: "SF Arabic",
-    marginTop: 4,
+    flex: 1,
+  },
+  issueCount: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#4CAF50",
+    fontFamily: "SF Arabic",
+    minWidth: 40,
+    textAlign: "center",
+  },
+  issueCountError: {
+    color: "#A13333",
+  },
+  fixButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#A1333310",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  fixButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#A13333",
+    fontFamily: "SF Arabic",
+    marginRight: 8,
   },
 
   // Action Cards
@@ -574,31 +664,6 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
   },
 
-  // System Tools
-  systemGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-  systemCard: {
-    width: "47%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#D1BBA340",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  systemLabel: {
-    fontSize: 14,
-    color: "#242121",
-    fontFamily: "SF Arabic",
-    fontWeight: "500",
-    marginLeft: 8,
-    flex: 1,
-  },
 });
 
 export default AdminDashboardRedesigned;

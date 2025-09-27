@@ -180,7 +180,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     return "اكتب اسمك الثلاثي هنا...";
   };
 
-  // Perform search with debounce
+  // Perform search with debounce - LIKE MAIN SEARCH, works with 1+ characters
   const performSearch = useCallback(async (searchText) => {
     const trimmed = searchText.trim();
 
@@ -191,7 +191,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
       cleanedName = cleanedName.replace(family, "").trim();
     });
 
-    if (!cleanedName || cleanedName.split(/\s+/).length < 2) {
+    // Search with ANY input (even 1 letter), like main search
+    if (!cleanedName || cleanedName.length < 1) {
       setResults([]);
       Animated.timing(resultsOpacity, {
         toValue: 0,
@@ -257,8 +258,9 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     setSearchTimer(timer);
   }, [searchTimer, performSearch, clearButtonOpacity, resultsOpacity]);
 
-  // Handle profile selection - EXACT same as ProfileMatchingScreen
+  // Handle profile selection - DIRECTLY open modal (no tick)
   const handleSelectProfile = useCallback((profile) => {
+    // Don't show tick, directly open modal like original behavior
     setSelectedProfile(profile);
     setShowTreeModal(true);
   }, []);
@@ -344,7 +346,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
   const renderProfile = ({ item, index }) => (
     <ProfileMatchCard
       profile={item}
-      isSelected={selectedProfile?.id === item.id}
+      isSelected={false} // Never show selection tick
       onPress={() => handleSelectProfile(item)}
       index={index}
     />
@@ -429,23 +431,18 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Loading indicator */}
+            {/* Subtle loading - no obnoxious spinner */}
             {searching && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>جاري البحث...</Text>
-              </View>
+              <Text style={styles.searchingText}>جاري البحث...</Text>
             )}
 
-            {/* Results - Using EXACT same styling as ProfileMatchingScreen */}
+            {/* Results - More compact without unnecessary labels */}
             {results.length > 0 && (
               <Animated.View style={[styles.resultsSection, { opacity: resultsOpacity }]}>
-                <View style={styles.searchDisplay}>
-                  <Text style={styles.searchLabel}>نتائج البحث</Text>
-                  <Text style={styles.resultsCount}>
-                    {results.length} نتيجة
-                  </Text>
-                </View>
+                {/* Small result count inline */}
+                <Text style={styles.resultsCountCompact}>
+                  {results.length} نتيجة
+                </Text>
 
                 <FlatList
                   data={results}
@@ -511,14 +508,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Header - EXACT from ProfileMatchingScreen
+  // Header - Reduced padding
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 60 : 40,
+    paddingTop: Platform.OS === "ios" ? 50 : 30, // Reduced
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 8, // Reduced
   },
   backButton: {
     padding: 8,
@@ -541,19 +538,19 @@ const styles = StyleSheet.create({
     width: 24,
   },
 
-  // Main content - EXACT from ProfileMatchingScreen
+  // Main content - Reduced top padding
   mainContent: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 24,
+    paddingTop: 12, // Reduced from 24
   },
   title: {
-    fontSize: 28,
+    fontSize: 26, // Slightly smaller
     fontWeight: "700",
     fontFamily: "SF Arabic",
     color: colors.text,
     textAlign: "left",
-    marginBottom: 12,
+    marginBottom: 6, // Reduced
   },
   subtitle: {
     fontSize: 15,
@@ -561,12 +558,12 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: colors.textSecondary,
     textAlign: "left",
-    marginBottom: 24,
+    marginBottom: 16, // Reduced from 24
   },
 
   // Example - from NameChainEntryScreen
   exampleContainer: {
-    marginBottom: 24,
+    marginBottom: 16, // Reduced for more compact layout
   },
   exampleCard: {
     backgroundColor: colors.inputBg,
@@ -612,7 +609,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    borderRadius: 12, // Match example card radius
     paddingHorizontal: 16,
     height: 48,
     borderWidth: 1,
@@ -635,18 +632,14 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Loading
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 14,
+  // Subtle searching text
+  searchingText: {
+    fontSize: 13,
     fontFamily: "SF Arabic",
     color: colors.textSecondary,
+    textAlign: "center",
+    paddingVertical: 4,
+    opacity: 0.6,
   },
 
   // Results section
@@ -654,31 +647,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Search display - EXACT from ProfileMatchingScreen
-  searchDisplay: {
-    backgroundColor: colors.inputBg,
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.inputBorder,
-  },
-  searchLabel: {
+  // Compact results count
+  resultsCountCompact: {
     fontSize: 12,
     fontWeight: "500",
     fontFamily: "SF Arabic",
     color: "#24212199",
-    marginBottom: 4,
-  },
-  resultsCount: {
-    fontSize: 13,
-    fontWeight: "400",
-    fontFamily: "SF Arabic",
-    color: "#24212199",
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
 
   listContent: {
     paddingBottom: 20,
+    paddingTop: 4, // Small top padding
   },
 
   // Result card styles - EXACT from ProfileMatchingScreen
