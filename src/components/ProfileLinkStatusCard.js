@@ -75,12 +75,18 @@ export default function ProfileLinkStatusCard() {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
       } else {
-        // Check for pending link requests
+        // Check for pending link requests with full profile data
         const { data: requests } = await supabase
           .from("profile_link_requests")
           .select(`
             *,
-            profile:profiles!profile_link_requests_profile_id_fkey(*)
+            profile:profiles!profile_link_requests_profile_id_fkey(
+              id,
+              name,
+              name_ar,
+              father_id,
+              mother_id
+            )
           `)
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
@@ -158,7 +164,11 @@ export default function ProfileLinkStatusCard() {
   const handleContactAdmin = () => {
     // Open WhatsApp with admin number
     const adminPhone = "+966501234567"; // Replace with actual admin number
-    const message = encodeURIComponent("مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي");
+    const message = encodeURIComponent(`مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي
+
+الملف المطلوب: ${linkRequest?.profile?.name || linkRequest?.profile?.name_ar || "غير محدد"}
+رقم الهاتف: ${user?.phone || ""}`);
+
     const url = `whatsapp://send?phone=${adminPhone}&text=${message}`;
 
     Linking.canOpenURL(url).then((supported) => {
@@ -216,32 +226,30 @@ export default function ProfileLinkStatusCard() {
   if (hasLinkedProfile && profile) {
     return (
       <View style={[styles.container, styles.successContainer]}>
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="checkmark-circle" size={28} color={colors.success} />
-          </View>
-          <View style={styles.headerContent}>
-            <Text style={styles.statusTitle}>الملف الشخصي مرتبط</Text>
-            <Text style={styles.profileName}>{profile.name || profile.name_ar || "غير محدد"}</Text>
-          </View>
+        <View style={styles.statusBadge}>
+          <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+          <Text style={styles.statusText}>الملف الشخصي مرتبط</Text>
         </View>
 
-        <View style={styles.actions}>
+        <Text style={styles.profileName} numberOfLines={2}>
+          {profile.name || profile.name_ar || "غير محدد"}
+        </Text>
+
+        <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.button, styles.primaryButton]}
             onPress={handleViewProfile}
             activeOpacity={0.8}
           >
-            <Ionicons name="eye" size={20} color="#F9F7F3" />
             <Text style={styles.primaryButtonText}>عرض في الشجرة</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={[styles.button, styles.outlineButton]}
             onPress={handleUnlinkRequest}
             activeOpacity={0.8}
           >
-            <Text style={styles.secondaryButtonText}>إلغاء الربط</Text>
+            <Text style={styles.outlineButtonText}>إلغاء الربط</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -255,91 +263,102 @@ export default function ProfileLinkStatusCard() {
       locale: ar,
     });
 
+    // Get the full name chain or construct from profile data
+    const displayName = linkRequest.name_chain ||
+                       linkRequest.profile?.name ||
+                       linkRequest.profile?.name_ar ||
+                       "غير محدد";
+
     return (
       <View style={[styles.container, styles.pendingContainer]}>
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="time" size={28} color={colors.warning} />
-          </View>
-          <View style={styles.headerContent}>
-            <Text style={styles.statusTitle}>طلب قيد المراجعة</Text>
-            <Text style={styles.subtitle}>تم الإرسال {timeAgo}</Text>
-          </View>
+        <View style={styles.statusBadge}>
+          <Ionicons name="time" size={20} color={colors.warning} />
+          <Text style={styles.statusText}>طلب قيد المراجعة</Text>
         </View>
 
+        <Text style={styles.timeAgo}>تم الإرسال {timeAgo}</Text>
+
         {linkRequest.profile && (
-          <View style={styles.requestedProfileCard}>
-            <Text style={styles.requestedProfileLabel}>الملف المطلوب:</Text>
-            <Text style={styles.requestedProfileName}>{linkRequest.profile.name || linkRequest.profile.name_ar}</Text>
+          <View style={styles.requestedProfileSection}>
+            <Text style={styles.requestedLabel}>الملف المطلوب:</Text>
+            <Text style={styles.profileName} numberOfLines={2}>
+              {displayName}
+            </Text>
           </View>
         )}
 
-        <View style={styles.actions}>
+        <View style={styles.buttonRow}>
           {linkRequest.profile && (
             <TouchableOpacity
-              style={styles.primaryButton}
+              style={[styles.button, styles.primaryButton]}
               onPress={handleViewInTree}
               activeOpacity={0.8}
             >
-              <Ionicons name="git-branch" size={20} color="#F9F7F3" />
               <Text style={styles.primaryButtonText}>عرض في الشجرة</Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.iconButton}
             onPress={handleContactAdmin}
             activeOpacity={0.8}
           >
-            <Ionicons name="logo-whatsapp" size={20} color={colors.primary} />
-            <Text style={styles.secondaryButtonText}>تواصل</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.dangerButton}
-            onPress={handleWithdraw}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.dangerButtonText}>سحب الطلب</Text>
+            <Ionicons name="logo-whatsapp" size={22} color={colors.success} />
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={styles.textButton}
+          onPress={handleWithdraw}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.dangerText}>سحب الطلب</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   // Rejected Request State
   if (linkRequest?.status === "rejected") {
+    const displayName = linkRequest.name_chain ||
+                       linkRequest.profile?.name ||
+                       linkRequest.profile?.name_ar ||
+                       "غير محدد";
+
     return (
       <View style={[styles.container, styles.errorContainer]}>
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="close-circle" size={28} color={colors.error} />
-          </View>
-          <View style={styles.headerContent}>
-            <Text style={styles.statusTitle}>تم رفض الطلب</Text>
-            {linkRequest.review_notes && (
-              <Text style={styles.rejectionReason}>السبب: {linkRequest.review_notes}</Text>
-            )}
-          </View>
+        <View style={styles.statusBadge}>
+          <Ionicons name="close-circle" size={20} color={colors.error} />
+          <Text style={styles.statusText}>تم رفض الطلب</Text>
         </View>
 
-        <View style={styles.actions}>
+        {linkRequest.review_notes && (
+          <View style={styles.rejectionSection}>
+            <Text style={styles.rejectionReason}>{linkRequest.review_notes}</Text>
+          </View>
+        )}
+
+        {linkRequest.profile && (
+          <Text style={styles.profileName} numberOfLines={2}>
+            {displayName}
+          </Text>
+        )}
+
+        <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.button, styles.primaryButton]}
             onPress={handleRetry}
             activeOpacity={0.8}
           >
-            <Ionicons name="refresh" size={20} color="#F9F7F3" />
             <Text style={styles.primaryButtonText}>إعادة المحاولة</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.iconButton}
             onPress={handleContactAdmin}
             activeOpacity={0.8}
           >
-            <Ionicons name="logo-whatsapp" size={20} color={colors.primary} />
-            <Text style={styles.secondaryButtonText}>تواصل</Text>
+            <Ionicons name="logo-whatsapp" size={22} color={colors.success} />
           </TouchableOpacity>
         </View>
       </View>
@@ -349,22 +368,20 @@ export default function ProfileLinkStatusCard() {
   // No Profile Linked State
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="person-add" size={28} color={colors.muted} />
-        </View>
-        <View style={styles.headerContent}>
-          <Text style={styles.statusTitle}>لا يوجد ملف مرتبط</Text>
-          <Text style={styles.subtitle}>اربط ملفك الشخصي لتتمكن من تعديل معلوماتك</Text>
-        </View>
+      <View style={styles.statusBadge}>
+        <Ionicons name="person-add-outline" size={20} color={colors.muted} />
+        <Text style={styles.statusText}>لا يوجد ملف مرتبط</Text>
       </View>
 
+      <Text style={styles.subtitle}>
+        اربط ملفك الشخصي لتتمكن من تعديل معلوماتك
+      </Text>
+
       <TouchableOpacity
-        style={styles.primaryButton}
+        style={[styles.button, styles.primaryButton, styles.fullWidth]}
         onPress={() => router.push("/auth/NameChainEntry")}
         activeOpacity={0.8}
       >
-        <Ionicons name="search" size={20} color="#F9F7F3" />
         <Text style={styles.primaryButtonText}>البحث عن ملفي</Text>
       </TouchableOpacity>
     </View>
@@ -374,107 +391,107 @@ export default function ProfileLinkStatusCard() {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginTop: 12,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: colors.container + "40",
+    borderColor: colors.container + "30",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
   },
   successContainer: {
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: colors.success,
   },
   pendingContainer: {
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: colors.warning,
   },
   errorContainer: {
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: colors.error,
   },
-  header: {
+  statusBadge: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.background,
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    gap: 8,
+    marginBottom: 12,
   },
-  headerContent: {
-    flex: 1,
-  },
-  statusTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: colors.text,
-    marginBottom: 4,
-  },
-  profileName: {
+  statusText: {
     fontSize: 15,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.text,
+  },
+  profileName: {
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  timeAgo: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: colors.muted,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
     fontFamily: "SF Arabic",
     color: colors.muted,
+    marginBottom: 12,
+    lineHeight: 20,
   },
-  requestedProfileCard: {
+  requestedProfileSection: {
     backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.container + "20",
   },
-  requestedProfileLabel: {
+  requestedLabel: {
     fontSize: 12,
     fontFamily: "SF Arabic",
     color: colors.muted,
     marginBottom: 4,
   },
-  requestedProfileName: {
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.text,
+  rejectionSection: {
+    backgroundColor: colors.error + "10",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.error + "20",
   },
   rejectionReason: {
     fontSize: 14,
     fontFamily: "SF Arabic",
     color: colors.error,
-    marginTop: 4,
+    lineHeight: 20,
   },
-  actions: {
+  buttonRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 8,
+    marginBottom: 8,
   },
-  primaryButton: {
+  button: {
     flex: 1,
-    minWidth: 140,
-    backgroundColor: colors.primary,
+    height: 44,
     borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    paddingHorizontal: 16,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
   },
   primaryButtonText: {
     color: "#F9F7F3",
@@ -482,41 +499,39 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
   },
-  secondaryButton: {
-    flex: 1,
-    minWidth: 100,
+  outlineButton: {
     backgroundColor: "transparent",
     borderWidth: 1.5,
     borderColor: colors.container,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
   },
-  secondaryButtonText: {
+  outlineButtonText: {
     color: colors.text,
     fontSize: 15,
     fontWeight: "600",
     fontFamily: "SF Arabic",
   },
-  dangerButton: {
-    minWidth: 100,
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     backgroundColor: "transparent",
     borderWidth: 1.5,
-    borderColor: colors.error + "40",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderColor: colors.container,
     alignItems: "center",
     justifyContent: "center",
   },
-  dangerButtonText: {
+  textButton: {
+    alignSelf: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  dangerText: {
     color: colors.error,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     fontFamily: "SF Arabic",
+  },
+  fullWidth: {
+    width: "100%",
   },
 });
