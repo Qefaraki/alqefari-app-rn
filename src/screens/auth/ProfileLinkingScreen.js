@@ -431,10 +431,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               </View>
             </View>
 
-            {/* Subtle loading - no obnoxious spinner */}
-            {searching && (
-              <Text style={styles.searchingText}>جاري البحث...</Text>
-            )}
+            {/* No loading indicator - seamless experience */}
 
             {/* Results - More compact without unnecessary labels */}
             {results.length > 0 && (
@@ -456,8 +453,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               </Animated.View>
             )}
 
-            {/* Empty state */}
-            {results.length === 0 && query.length > 0 && !searching && (
+            {/* Empty state - only show after typing at least 2 words */}
+            {results.length === 0 && query.trim().split(/\s+/).filter(w => w.length > 0).length >= 2 && !searching && (
               <View style={styles.emptyContainer}>
                 <Ionicons name="search-outline" size={48} color="#24212199" />
                 <Text style={styles.emptyText}>
@@ -632,15 +629,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Subtle searching text
-  searchingText: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: colors.textSecondary,
-    textAlign: "center",
-    paddingVertical: 4,
-    opacity: 0.6,
-  },
 
   // Results section
   resultsSection: {
