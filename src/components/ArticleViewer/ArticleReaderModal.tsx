@@ -417,14 +417,6 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             <View style={styles.articleMeta}>
               <View style={styles.metaRow}>
                 <Text style={styles.articleDate}>{formattedDate}</Text>
-                {readingTime > 0 && (
-                  <>
-                    <Text style={styles.metaSeparator}>·</Text>
-                    <Text style={styles.readingTime}>
-                      {readingTime === 1 ? 'دقيقة واحدة' : `${readingTime} دقائق`}
-                    </Text>
-                  </>
-                )}
               </View>
             </View>
           </View>
