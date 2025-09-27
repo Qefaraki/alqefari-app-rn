@@ -155,7 +155,7 @@ const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
             })}
           </View>
         </View>
-      </Galeria
+      </Galeria>
 
       {/* Gallery Link Button */}
       <TouchableOpacity
