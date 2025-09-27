@@ -51,6 +51,15 @@ export const AuthProvider = ({ children }) => {
               setInitialLoadComplete(true);
             }
           }
+        } else if (event === 'SIGNED_OUT') {
+          // Handle sign out immediately regardless of initial load status
+          console.log('[DEBUG AuthContext] Handling SIGNED_OUT event');
+          setUser(null);
+          setIsAdmin(false);
+          setHasLinkedProfile(false);
+          setHasPendingRequest(false);
+          setIsLoading(false); // Ensure loading is false
+          clearAuthCache();
         } else if (initialLoadComplete) {
           // Only handle subsequent auth changes after initial load
           if (event === 'SIGNED_IN' && session?.user) {
@@ -61,12 +70,6 @@ export const AuthProvider = ({ children }) => {
               checkProfileStatus(session.user);
               preloadTreeData(); // Preload tree data on sign in
             }, 0);
-          } else if (event === 'SIGNED_OUT') {
-            setUser(null);
-            setIsAdmin(false);
-            setHasLinkedProfile(false);
-            setHasPendingRequest(false);
-            clearAuthCache();
           }
         }
       }

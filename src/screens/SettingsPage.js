@@ -119,6 +119,17 @@ export default function SettingsPage({ user }) {
           resetSettings();
           profileCache = null;
           cacheTimestamp = null;
+
+          // Clear any other component-level caches
+          try {
+            // Clear tree store directly if available
+            const { useTreeStore } = require('../stores/useTreeStore');
+            useTreeStore.getState().setNodes([]);
+            useTreeStore.getState().setSelectedPersonId(null);
+          } catch (e) {
+            console.log('Could not clear tree store:', e);
+          }
+
           await forceCompleteSignOut(); // This will clear onboarding flag too
           // Small delay to ensure state updates propagate
           setTimeout(() => {

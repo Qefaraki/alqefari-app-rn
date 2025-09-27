@@ -116,12 +116,19 @@ export default function SettingsModal({ visible, onClose }) {
           style: "destructive",
           onPress: async () => {
             try {
-              await forceCompleteSignOut(); // This will clear onboarding flag too
-              // Clear cache on sign out
+              // Clear all caches and state before sign out
               profileCache = null;
               cacheTimestamp = null;
-              // Clear any local state
-              useTreeStore.getState().setSelectedPersonId(null);
+
+              // Clear tree store state
+              const treeState = useTreeStore.getState();
+              treeState.setNodes([]);
+              treeState.setSelectedPersonId(null);
+              treeState.setExpandedBranches(new Set());
+              treeState.setLayoutCache({});
+              treeState.setProfileData({});
+
+              await forceCompleteSignOut(); // This will clear onboarding flag too
               onClose();
               // Small delay to ensure state updates propagate
               setTimeout(() => {

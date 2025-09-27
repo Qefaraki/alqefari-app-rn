@@ -654,69 +654,141 @@ The admin dashboard shows different options based on role:
 
 The permission system uses these tables:
 
-1. **profile_edit_suggestions**
-   - Stores all pending/approved/rejected suggestions
-   - Tracks suggester, reviewer, timestamps
-   - Links old and new values as JSONB
+1. **profiles** (updated)
+   - `role` column: 'super_admin', 'admin', 'moderator', 'user', or NULL
+   - `can_edit`: BOOLEAN - deprecated, use role-based permissions
+   - `is_moderator`: BOOLEAN - indicates branch moderator status
+   - `moderated_branch`: TEXT - HID of branch they moderate
 
-2. **branch_moderators**
-   - Maps users to branches they moderate
-   - Tracks who assigned them and when
-   - Can be activated/deactivated
+2. **profile_suggestions**
+   - Stores all edit suggestions from non-admin users
+   - Fields: `id`, `profile_id`, `submitter_id`, `field_name`, `old_value`, `new_value`
+   - `status`: 'pending', 'approved', 'rejected'
+   - `reviewed_by`: Admin who reviewed
+   - `reviewed_at`: Review timestamp
+   - `notes`: Optional review notes
 
-3. **suggestion_blocks**
-   - List of users blocked from making suggestions
-   - Includes blocker and reason
-   - Prevents spam or misuse
+3. **profile_link_requests**
+   - Requests to link unregistered family members
+   - Fields: `id`, `requester_id`, `target_phone`, `target_name`, `relationship_type`
+   - `status`: 'pending', 'approved', 'rejected'
+   - `reviewed_by`, `reviewed_at`, `notes`
+
+4. **audit_log**
+   - Comprehensive audit trail for all changes
+   - Note: `action` field currently only accepts limited values
+   - Does not accept 'ROLE_CHANGE' - constraint needs updating
 
 ### Key Functions
 
-#### Permission Check
+#### Deployed Functions (Available Now)
+
+##### Suggestion Management
 ```sql
-can_user_edit_profile(user_id, target_id)
--- Returns: 'full', 'suggest', or 'blocked'
+-- Get all pending suggestions (admin/super_admin only)
+get_pending_suggestions()
+-- Returns: id, profile_id, profile_name, submitter_name, field_name, old_value, new_value, created_at
+
+-- Approve a suggestion and apply changes
+approve_suggestion(p_suggestion_id UUID)
+-- Returns: BOOLEAN - success status
+
+-- Reject a suggestion with optional notes
+reject_suggestion(p_suggestion_id UUID, p_notes TEXT)
+-- Returns: BOOLEAN - success status
 ```
 
-#### Role Management (Super Admin Only)
+##### Link Request Management
 ```sql
-super_admin_set_user_role(target_user_id, new_role)
-super_admin_assign_branch_moderator(user_id, branch_root_id, notes)
-super_admin_remove_branch_moderator(user_id, branch_root_id)
+-- Get all pending link requests (admin/super_admin only)
+get_pending_link_requests()
+-- Returns: id, requester_name, target_phone, target_name, relationship_type, created_at
+
+-- Approve a link request
+approve_link_request(p_request_id UUID)
+-- Returns: BOOLEAN - success status
+
+-- Reject a link request with optional notes
+reject_link_request(p_request_id UUID, p_notes TEXT)
+-- Returns: BOOLEAN - success status
 ```
 
-#### Suggestion Management (Admin)
+##### Role Management (Super Admin Only)
 ```sql
-admin_approve_suggestion(suggestion_id)
-admin_reject_suggestion(suggestion_id, reason)
-admin_toggle_suggestion_block(user_id, block, reason)
+-- Grant admin role to a user
+grant_admin_role(p_profile_id UUID)
+-- Returns: BOOLEAN - success status
+
+-- Revoke admin role from a user
+revoke_admin_role(p_profile_id UUID)
+-- Returns: BOOLEAN - sets role to 'user'
+
+-- Assign a user as branch moderator
+grant_moderator_role(p_profile_id UUID, p_branch_hid TEXT)
+-- Returns: BOOLEAN - success status
+
+-- Remove branch moderator privileges
+revoke_moderator_role(p_profile_id UUID)
+-- Returns: BOOLEAN - success status
 ```
 
-#### Search Functions
+##### Search Functions
 ```sql
-super_admin_search_by_name_chain(search_text)
--- Returns profiles with full ancestry chains
--- Shows role, branch moderator status, block status
+-- Search profiles by name with full ancestry chain
+super_admin_search_by_name_chain(p_search_text TEXT)
+-- Returns: Profiles with complete ancestry paths
+-- Note: Renamed from 'search_profiles_by_name_chain' to avoid collision
 ```
 
 ### Setting Up Permissions
 
 1. **Deploy Migrations**
    ```bash
-   # Migration 005: Creates tables and base functions
-   # Migration 006: Adds super admin role and functions
-   node scripts/execute-sql.js migrations/006_super_admin_permissions.sql
+   # Migration 005: Family edit permissions system
+   # Creates profile_suggestions and profile_link_requests tables
+   # Adds suggestion workflow functions
+
+   # Migration 006: Super admin permissions
+   # Adds role management functions
+   # Creates super_admin_search_by_name_chain
+
+   # Deploy both migrations together:
+   node scripts/execute-sql.js scripts/deploy-missing-admin-migrations.sql
    ```
 
-2. **Create First Super Admin**
-   ```bash
-   node scripts/make-super-admin.js user@example.com
-   # Interactive script to set first super admin
+2. **Fix Role Constraints (if needed)**
+   ```sql
+   -- If you get "check_profile_role" constraint error:
+   -- Drop the old constraint that only allows 'admin' and 'user'
+   ALTER TABLE profiles
+   DROP CONSTRAINT IF EXISTS check_profile_role;
+
+   -- The new constraint 'check_valid_role' allows all roles
    ```
 
-3. **Manage Through UI**
-   - Super admins use Permission Manager in admin dashboard
+3. **Create First Super Admin**
+   ```sql
+   -- Update a specific user to super_admin by their profile ID
+   UPDATE profiles
+   SET role = 'super_admin',
+       updated_at = NOW()
+   WHERE id = 'your-profile-uuid-here';
+
+   -- Or find by phone number (example for 966501669043)
+   UPDATE profiles
+   SET role = 'super_admin'
+   WHERE id = (
+     SELECT p.id FROM profiles p
+     JOIN auth.users au ON au.id = p.user_id
+     WHERE au.phone = '966501669043'
+   );
+   ```
+
+4. **Manage Through UI**
+   - Super admins access "إدارة الصلاحيات" in admin dashboard
    - Search users by name chain (ancestry)
    - Change roles, assign moderators, block users
+   - Review suggestions through "مراجعة الاقتراحات"
 
 ### Security Considerations
 
@@ -767,24 +839,118 @@ super_admin_search_by_name_chain(search_text)
 
 ### Troubleshooting
 
+**"ERROR: 23514: new row violates check constraint 'check_profile_role'"**
+```sql
+-- Two conflicting constraints exist, drop the old one:
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS check_profile_role;
+-- Keep only 'check_valid_role' which allows super_admin
+```
+
+**"ERROR: 23514: audit_log violates check constraint 'audit_log_action_check'"**
+```sql
+-- The audit_log doesn't accept 'ROLE_CHANGE' action
+-- Skip audit logging when changing roles for now
+-- TODO: Update audit_log_action_check constraint
+```
+
 **"I don't see admin buttons"**
-- Check your role: Must be admin or super_admin
-- Migration 006 must be deployed
-- Try refreshing the app
+- Check your role: `SELECT role FROM profiles WHERE user_id = auth.uid()`
+- Must be 'admin' or 'super_admin'
+- Ensure migrations 005 and 006 are deployed
+- Check if functions exist: `SELECT proname FROM pg_proc WHERE proname LIKE '%suggestion%'`
 
 **"Permission Manager won't open"**
-- Only super admins can access this
-- Check `SELECT role FROM profiles WHERE id = auth.uid()`
+- Only super_admin role can access this feature
+- Regular admins see "طلب صلاحية" instead
+- Verify: `SELECT role FROM profiles WHERE id = 'your-profile-id'`
 
-**"Can't edit a profile"**
-- Check relationship with `can_user_edit_profile()`
-- May need to suggest instead of direct edit
-- Check if you're blocked from suggestions
+**"Functions missing after deployment"**
+```sql
+-- Check what functions exist:
+SELECT proname FROM pg_proc
+WHERE proname IN ('get_pending_suggestions', 'approve_suggestion',
+                  'grant_admin_role', 'super_admin_search_by_name_chain');
 
-**"Suggestions not appearing"**
-- Check suggestion_blocks table
-- Ensure profile_edit_suggestions table exists
-- Verify RLS policies are active
+-- If missing, redeploy migrations 005 and 006
+```
+
+**"MCP in read-only mode"**
+- MCP server configured with `--read-only` flag
+- Cannot use `apply_migration` function
+- Solution: Copy SQL to clipboard and run manually in Supabase Dashboard
+
+**"Can't find user by phone number"**
+- Phone authentication stored in auth.users.phone
+- Profile phone field may be NULL
+- Use join: `profiles p JOIN auth.users au ON au.id = p.user_id`
+
+## 🗄️ Database Migrations
+
+### Critical Migrations for Permission System
+
+#### Migration 005: Family Edit Permissions System
+**File**: `migrations/005_family_edit_permissions_system.sql`
+
+Creates the foundation for granular edit permissions:
+- **Tables Created**:
+  - `profile_suggestions` - Edit suggestions from non-admins
+  - `profile_link_requests` - Requests to link new family members
+- **Functions Created**:
+  - `get_pending_suggestions()` - View pending edits
+  - `approve_suggestion()` - Approve and apply edits
+  - `reject_suggestion()` - Reject with notes
+  - `get_pending_link_requests()` - View link requests
+  - `approve_link_request()` - Approve connections
+  - `reject_link_request()` - Reject with reason
+- **Columns Added to profiles**:
+  - `can_edit` - BOOLEAN (deprecated)
+  - `is_moderator` - BOOLEAN
+  - `moderated_branch` - TEXT (HID of branch)
+
+#### Migration 006: Super Admin Permissions
+**File**: `migrations/006_super_admin_permissions.sql`
+
+Adds super admin role and management functions:
+- **Functions Created**:
+  - `grant_admin_role()` - Promote user to admin
+  - `revoke_admin_role()` - Demote admin to user
+  - `grant_moderator_role()` - Assign branch moderator
+  - `revoke_moderator_role()` - Remove moderator
+  - `super_admin_search_by_name_chain()` - Search with ancestry
+- **Important Notes**:
+  - Renamed search function to avoid collision
+  - Only super_admin can call role management functions
+  - All functions include authorization checks
+
+### Deployment Order
+
+Always deploy migrations in sequence:
+```bash
+# Check deployed migrations
+SELECT version, name FROM migrations ORDER BY version;
+
+# Deploy missing migrations
+node scripts/execute-sql.js migrations/005_family_edit_permissions_system.sql
+node scripts/execute-sql.js migrations/006_super_admin_permissions.sql
+
+# Or use combined script
+node scripts/execute-sql.js scripts/deploy-missing-admin-migrations.sql
+```
+
+### Known Issues
+
+1. **Constraint Conflicts**: Old `check_profile_role` vs new `check_valid_role`
+2. **Audit Log**: `audit_log_action_check` doesn't accept 'ROLE_CHANGE'
+3. **MCP Read-Only**: Cannot deploy via MCP, must use clipboard method
+4. **Search Function Collision**: Fixed by renaming to `super_admin_search_by_name_chain`
+
+### Current System Status (January 2025)
+
+- **Super Admin**: علي (phone: 966501669043, ID: ff239ed7-24d5-4298-a135-79dc0f70e5b8)
+- **Authentication**: Phone-based only (no email logins)
+- **Migrations Deployed**: 005 and 006 (permission system)
+- **Admin Functions**: All 10 core functions deployed and operational
+- **Constraint Status**: Fixed - only `check_valid_role` active
 
 ## 📚 Reference
 

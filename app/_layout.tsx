@@ -68,15 +68,24 @@ function TabLayout() {
   // Reset onboarding state when user signs out
   useEffect(() => {
     if (!user && !isLoading) {
-      console.log('[DEBUG] User signed out - resetting onboarding state');
-      // Re-check AsyncStorage values since they may have been cleared
+      console.log('[DEBUG] User signed out - immediately resetting onboarding state');
+      // Immediately reset state since user just signed out
+      setOnboardingCompleted(false);
+      setIsGuestMode(false);
+
+      // Also verify AsyncStorage was cleared
       Promise.all([
         AsyncStorage.getItem('hasCompletedOnboarding'),
         AsyncStorage.getItem('isGuestMode')
       ]).then(([onboardingValue, guestValue]) => {
-        setOnboardingCompleted(onboardingValue === 'true');
-        setIsGuestMode(guestValue === 'true');
-        console.log('[DEBUG] After sign out - Onboarding:', onboardingValue, 'Guest mode:', guestValue);
+        console.log('[DEBUG] After sign out - AsyncStorage check - Onboarding:', onboardingValue, 'Guest mode:', guestValue);
+        // If for some reason AsyncStorage wasn't cleared, ensure state matches
+        if (onboardingValue !== 'true') {
+          setOnboardingCompleted(false);
+        }
+        if (guestValue !== 'true') {
+          setIsGuestMode(false);
+        }
       });
     }
   }, [user, isLoading]);
@@ -136,10 +145,10 @@ function TabLayout() {
         return 'guest';
       }
 
-      // Onboarding completed but waiting for auth to load
+      // Onboarding completed but no user - this is likely a sign out scenario
       if (!user) {
-        console.log('[DEBUG] Onboarding completed, waiting for auth');
-        return 'loading'; // Keep loading until auth resolves
+        console.log('[DEBUG] Onboarding was completed but no user - showing onboarding');
+        return 'onboarding'; // Show onboarding after sign out
       }
 
       // User signed in but no profile yet (shouldn't happen if onboarding completed properly)
