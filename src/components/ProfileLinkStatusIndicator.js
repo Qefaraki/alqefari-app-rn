@@ -19,7 +19,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getProfileDisplayName } from "../utils/nameChainBuilder";
+import { buildNameChain } from "../utils/nameChainBuilder";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -112,58 +112,21 @@ export default function ProfileLinkStatusIndicator() {
       // Check if user has a linked profile
       const { data: linkedProfile } = await supabase
         .from("profiles")
-        .select("id, name, father_id, generation")
+        .select("*")
         .eq("user_id", user.id)
         .single();
 
       if (linkedProfile) {
-        // Build full name chain by fetching ancestors
-        let fullProfile = { ...linkedProfile };
-        let nameChain = linkedProfile.name;
-
-        // Get father's name
-        if (linkedProfile.father_id) {
-          const { data: father } = await supabase
-            .from("profiles")
-            .select("id, name, father_id")
-            .eq("id", linkedProfile.father_id)
-            .single();
-
-          if (father) {
-            nameChain = `${linkedProfile.name} بن ${father.name}`;
-
-            // Get grandfather's name
-            if (father.father_id) {
-              const { data: grandfather } = await supabase
-                .from("profiles")
-                .select("name")
-                .eq("id", father.father_id)
-                .single();
-
-              if (grandfather) {
-                nameChain = `${linkedProfile.name} بن ${father.name} بن ${grandfather.name}`;
-              }
-            }
-          }
-        }
-
-        fullProfile.full_chain = nameChain;
-        setProfile(fullProfile);
+        setProfile(linkedProfile);
         setHasLinkedProfile(true);
 
-        // Check if we should show the success message
+        // Check if we've already shown the success message for this profile
         const lastSeenLinkedProfile = await AsyncStorage.getItem("lastSeenLinkedProfile");
-        const lastSeenTime = await AsyncStorage.getItem("lastSeenLinkedTime");
-        const now = Date.now();
-        const oneHourAgo = now - (60 * 60 * 1000); // 1 hour in milliseconds
 
-        // Show if never seen OR if last seen more than 1 hour ago
-        if (lastSeenLinkedProfile !== linkedProfile.id ||
-            !lastSeenTime ||
-            parseInt(lastSeenTime) < oneHourAgo) {
-          // New or old enough to show again
+        // Only show success message once per profile
+        if (lastSeenLinkedProfile !== linkedProfile.id) {
+          // First time seeing this linked profile - show success
           await AsyncStorage.setItem("lastSeenLinkedProfile", linkedProfile.id);
-          await AsyncStorage.setItem("lastSeenLinkedTime", now.toString());
 
           // Auto-dismiss after 7 seconds
           setTimeout(() => {
@@ -183,7 +146,7 @@ export default function ProfileLinkStatusIndicator() {
             });
           }, 7000);
         } else {
-          // Recently seen - hide immediately
+          // Already shown before - hide immediately
           setShouldHideLinked(true);
         }
       } else {
@@ -284,7 +247,21 @@ export default function ProfileLinkStatusIndicator() {
 
   // Linked Profile State - Success message with auto-dismiss
   if (hasLinkedProfile && profile && !shouldHideLinked) {
-    const fullName = profile.full_chain || profile.name;
+    // Get all profiles for building name chain
+    const [allProfiles, setAllProfiles] = React.useState([]);
+
+    React.useEffect(() => {
+      // Load all profiles to build proper chain
+      supabase
+        .from("profiles")
+        .select("id, name, father_id")
+        .then(({ data }) => {
+          if (data) setAllProfiles(data);
+        });
+    }, []);
+
+    // Build full name chain using the utility function
+    const fullName = buildNameChain(profile, allProfiles);
     const displayName = fullName.includes("القفاري") ? fullName : `${fullName} القفاري`;
 
     return (
