@@ -22,6 +22,8 @@ import ActivityScreen from "./ActivityScreen";
 import AuditLogViewer from "./AuditLogViewer";
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
+import PermissionManager from "../components/admin/PermissionManager";
+import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../services/supabase";
@@ -45,10 +47,13 @@ const AdminDashboard = ({ onClose, user }) => {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showMessagesManager, setShowMessagesManager] = useState(false);
+  const [showPermissionManager, setShowPermissionManager] = useState(false);
+  const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dataHealth, setDataHealth] = useState(100);
   const [recentActivity, setRecentActivity] = useState([]);
   const [admins, setAdmins] = useState([]);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -90,6 +95,18 @@ const AdminDashboard = ({ onClose, user }) => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+
+      // Load current user's role
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        setCurrentUserRole(profile?.role);
+      }
 
       // Try to load enhanced statistics first
       try {
@@ -340,14 +357,16 @@ const AdminDashboard = ({ onClose, user }) => {
     }
   };
 
-  const handleMakeAdmin = async () => {
-    Alert.alert("إضافة مشرف", "أدخل معرف المستخدم", [
-      { text: "إلغاء", style: "cancel" },
-      {
-        text: "إضافة",
-        onPress: () => Alert.alert("نجح", "تم إضافة المشرف"),
-      },
-    ]);
+  const handleManagePermissions = () => {
+    if (currentUserRole === 'super_admin') {
+      setShowPermissionManager(true);
+    } else {
+      Alert.alert(
+        "غير مصرح",
+        "إدارة الصلاحيات متاحة للمشرفين العامين فقط",
+        [{ text: "حسناً" }]
+      );
+    }
   };
 
   const handleExportDatabase = () => {
@@ -998,6 +1017,23 @@ const AdminDashboard = ({ onClose, user }) => {
 
             <TouchableOpacity
               style={styles.actionItem}
+              onPress={() => setShowSuggestionReview(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.actionContent}>
+                <Text style={styles.actionIcon}>💡</Text>
+                <Text style={styles.actionText}>مراجعة الاقتراحات</Text>
+              </View>
+              <Ionicons
+                name="chevron-back"
+                size={20}
+                color="#24212199"
+                style={styles.actionArrow}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionItem}
               onPress={handleRecalculateLayouts}
               activeOpacity={0.7}
             >
@@ -1204,10 +1240,12 @@ const AdminDashboard = ({ onClose, user }) => {
             </View>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={handleMakeAdmin}
+              onPress={handleManagePermissions}
               activeOpacity={0.8}
             >
-              <Text style={styles.primaryButtonText}>إضافة مشرف</Text>
+              <Text style={styles.primaryButtonText}>
+                {currentUserRole === 'super_admin' ? 'إدارة الصلاحيات' : 'طلب صلاحية'}
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -1284,6 +1322,92 @@ const AdminDashboard = ({ onClose, user }) => {
               </Text>
             </View>
             <AdminMessagesManager />
+          </SafeAreaView>
+        </View>
+      )}
+
+      {/* Permission Manager Modal */}
+      {showPermissionManager && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#F9F7F3',
+          zIndex: 1000
+        }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: '#D1BBA340',
+              backgroundColor: '#FFFFFF'
+            }}>
+              <TouchableOpacity
+                onPress={() => setShowPermissionManager(false)}
+                style={{ padding: 8 }}
+              >
+                <Ionicons name="close" size={28} color="#242121" />
+              </TouchableOpacity>
+              <Text style={{
+                flex: 1,
+                fontSize: 20,
+                fontWeight: '700',
+                fontFamily: 'SF Arabic',
+                color: '#242121',
+                textAlign: 'center',
+                marginRight: 36
+              }}>
+                إدارة الصلاحيات
+              </Text>
+            </View>
+            <PermissionManager />
+          </SafeAreaView>
+        </View>
+      )}
+
+      {/* Suggestion Review Modal */}
+      {showSuggestionReview && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#F9F7F3',
+          zIndex: 1000
+        }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: '#D1BBA340',
+              backgroundColor: '#FFFFFF'
+            }}>
+              <TouchableOpacity
+                onPress={() => setShowSuggestionReview(false)}
+                style={{ padding: 8 }}
+              >
+                <Ionicons name="close" size={28} color="#242121" />
+              </TouchableOpacity>
+              <Text style={{
+                flex: 1,
+                fontSize: 20,
+                fontWeight: '700',
+                fontFamily: 'SF Arabic',
+                color: '#242121',
+                textAlign: 'center',
+                marginRight: 36
+              }}>
+                مراجعة الاقتراحات
+              </Text>
+            </View>
+            <SuggestionReviewManager />
           </SafeAreaView>
         </View>
       )}

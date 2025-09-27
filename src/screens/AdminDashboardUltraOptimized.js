@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
 import QuickAddOverlay from "../components/admin/QuickAddOverlay";
-import ProfileConnectionManager from "../components/admin/ProfileConnectionManager";
+import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
 import pdfExportService from "../services/pdfExport";
@@ -319,7 +319,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   }
   if (showLinkRequests) {
     return (
-      <ProfileConnectionManager
+      <ProfileConnectionManagerV2
         onBack={() => {
           setShowLinkRequests(false);
           loadPendingRequestsCount(); // Refresh count when returning

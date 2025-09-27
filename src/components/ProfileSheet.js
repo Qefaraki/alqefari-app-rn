@@ -83,6 +83,7 @@ import MotherSelector from "./admin/fields/MotherSelector";
 import DraggableChildrenList from "./admin/DraggableChildrenList";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
+import SuggestionModal from "./SuggestionModal";
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -148,6 +149,8 @@ const ProfileSheet = ({ editMode = false }) => {
   const [loadingMarriages, setLoadingMarriages] = useState(false);
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [permissionLevel, setPermissionLevel] = useState(null);
 
   // Get the global profileSheetProgress from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -430,9 +433,12 @@ const ProfileSheet = ({ editMode = false }) => {
       bottomSheetRef.current?.expand();
       // Try to load marriages - will handle errors gracefully
       loadMarriages();
+      // Check permissions for this profile
+      checkPermission();
     } else {
       bottomSheetRef.current?.close();
       setMarriages([]);
+      setPermissionLevel(null);
     }
   }, [selectedPersonId]);
 
@@ -616,6 +622,85 @@ const ProfileSheet = ({ editMode = false }) => {
   };
 
   // Handle cancel
+  // Check user's permission level for this profile
+  const checkPermission = async () => {
+    if (!person?.id) return;
+
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user?.id) return;
+
+      const { data, error } = await supabase.rpc('can_user_edit_profile', {
+        p_user_id: user.user.id,
+        p_target_id: person.id
+      });
+
+      if (!error && data) {
+        setPermissionLevel(data);
+      }
+    } catch (error) {
+      console.error('Error checking permissions:', error);
+    }
+  };
+
+  // Show action menu based on permissions
+  const showProfileActions = () => {
+    const options = [];
+    const destructiveIndex = -1;
+    const actions = [];
+
+    if (permissionLevel === 'full' || isAdminMode) {
+      options.push('تعديل الملف');
+      actions.push(() => {
+        // For admins, use existing edit mode
+        if (isAdminMode) {
+          setEditedData({
+            name: person.name || "",
+            // ... rest of the data
+          });
+          setOriginalData({
+            name: person.name || "",
+            // ... rest of the data
+          });
+        } else {
+          // For regular users with full permission, open edit modal
+          // TODO: Create simplified edit modal
+          setShowSuggestionModal(true);
+        }
+      });
+
+      if (isAdminMode) {
+        if (person.gender === 'male') {
+          options.push('إضافة أطفال');
+          actions.push(() => setShowChildrenModal(true));
+        }
+
+        options.push('إدارة الزواج');
+        actions.push(() => setShowMarriageModal(true));
+      }
+    } else if (permissionLevel === 'suggest') {
+      options.push('اقتراح تعديل');
+      actions.push(() => setShowSuggestionModal(true));
+    }
+
+    // Always available options
+    options.push('نسخ المعلومات');
+    actions.push(() => handleCopyName());
+
+    options.push('إلغاء');
+    actions.push(() => {});
+
+    Alert.alert(
+      'خيارات',
+      null,
+      options.map((text, index) => ({
+        text,
+        onPress: actions[index],
+        style: index === options.length - 1 ? 'cancel' : 'default'
+      }))
+    );
+  };
+
   const handleCancel = () => {
     if (hasChanges) {
       Alert.alert(
@@ -834,17 +919,34 @@ const ProfileSheet = ({ editMode = false }) => {
             ) : null}
 
             <View style={styles.descSection}>
-              {isEditing ? (
-                <NameEditor
-                  value={editedData?.name || ""}
-                  onChange={(text) =>
-                    setEditedData({ ...editedData, name: text })
-                  }
-                  placeholder={person.name}
-                />
-              ) : (
-                <Text style={styles.nameText}>{person.name}</Text>
-              )}
+              <View style={styles.nameHeader}>
+                {isEditing ? (
+                  <NameEditor
+                    value={editedData?.name || ""}
+                    onChange={(text) =>
+                      setEditedData({ ...editedData, name: text })
+                    }
+                    placeholder={person.name}
+                  />
+                ) : (
+                  <View style={styles.nameContainer}>
+                    <Text style={styles.nameText}>{person.name}</Text>
+                    {!isAdminMode && (
+                      <TouchableOpacity
+                        style={styles.moreButton}
+                        onPress={() => showProfileActions()}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      >
+                        <Ionicons
+                          name="ellipsis-horizontal"
+                          size={24}
+                          color="#736372"
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
               <Pressable
                 onPress={handleCopyName}
                 style={{ width: "100%" }}
@@ -1947,6 +2049,35 @@ const ProfileSheet = ({ editMode = false }) => {
               }}
             />
           )}
+
+          {/* Suggestion/Edit Modal */}
+          <SuggestionModal
+            visible={showSuggestionModal}
+            onClose={() => setShowSuggestionModal(false)}
+            profile={person}
+            permissionLevel={permissionLevel}
+            onSuccess={() => {
+              setShowSuggestionModal(false);
+              // Reload profile data
+              const refreshData = async () => {
+                try {
+                  const { data } = await supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq("id", person.id)
+                    .single();
+
+                  if (data) {
+                    // Update the store with new data
+                    useTreeStore.getState().updateNode(data);
+                  }
+                } catch (error) {
+                  console.error("Error refreshing profile:", error);
+                }
+              };
+              refreshData();
+            }}
+          />
         </>
       )}
     </BottomSheet>
@@ -2011,6 +2142,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
+  nameHeader: {
+    width: "100%",
+  },
+  nameContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   nameText: {
     fontSize: 36,
     fontWeight: "bold",
@@ -2018,6 +2157,11 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: "right",
     writingDirection: "rtl",
+    flex: 1,
+  },
+  moreButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   fullName: {
     fontSize: 17,
