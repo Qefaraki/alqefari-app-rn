@@ -340,16 +340,29 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
 
     // Check if it's a WordPress video block
     if (className.includes('wp-block-video')) {
-      const videoNode = tnode.children?.find((child: any) => child.tagName === 'video');
+      // Search recursively for video node
+      const findVideoNode = (node: any): any => {
+        if (node.tagName === 'video') return node;
+        if (node.children) {
+          for (const child of node.children) {
+            const found = findVideoNode(child);
+            if (found) return found;
+          }
+        }
+        return null;
+      };
+
+      const videoNode = findVideoNode(tnode);
       if (videoNode) {
         // Try to get src from video tag or source child
         let videoSrc = videoNode.attributes?.src;
-        if (!videoSrc) {
-          const sourceNode = videoNode.children?.find((c: any) => c.tagName === 'source');
+        if (!videoSrc && videoNode.children) {
+          const sourceNode = videoNode.children.find((c: any) => c.tagName === 'source');
           videoSrc = sourceNode?.attributes?.src;
         }
 
         if (videoSrc) {
+          console.log('Found WordPress video:', videoSrc);
           return (
             <View style={styles.videoContainer}>
               <VideoPlayer
@@ -379,7 +392,7 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
             return (
               <View style={styles.youtubeContainer}>
                 <YoutubePlayer
-                  height={200}
+                  height={screenWidth * 9 / 16} // Proper 16:9 aspect ratio
                   videoId={videoId}
                   play={false}
                 />
@@ -441,7 +454,7 @@ const createRenderers = (onImagePress?: (url: string, index: number) => void, al
         return (
           <View style={styles.youtubeContainer}>
             <YoutubePlayer
-              height={200}
+              height={screenWidth * 9 / 16} // Proper 16:9 aspect ratio
               videoId={videoId}
               play={false}
             />
@@ -498,16 +511,16 @@ const ArticleContentRenderer: React.FC<ArticleContentRendererProps> = memo(({
   allImages = [],
 }) => {
 
-  // Create styles based on font size
+  // Create styles based on font size - memoized to prevent rerenders
   const tagsStyles = useMemo(
     () => createTagsStyles(fontSize),
     [fontSize]
   );
 
-  // Create renderers with image handling
+  // Create renderers with image handling - memoized to prevent rerenders
   const renderers = useMemo(
     () => createRenderers(onImagePress, allImages),
-    [onImagePress, allImages]
+    [] // Remove dependencies to prevent frequent updates
   );
 
   // Custom HTML element models for video, iframe, and figure
@@ -667,7 +680,7 @@ const styles = StyleSheet.create({
     marginVertical: 24,
     width: '100%',
     aspectRatio: 16 / 9,
-    borderRadius: 12,
+    borderRadius: 6, // Reduced corner radius
     overflow: 'hidden',
     backgroundColor: tokens.colors.najdi.container + '10',
   },
@@ -680,7 +693,7 @@ const styles = StyleSheet.create({
     marginVertical: 24,
     width: '100%',
     aspectRatio: 16 / 9,
-    borderRadius: 12,
+    borderRadius: 6, // Reduced corner radius
     backgroundColor: tokens.colors.najdi.container + '15',
     justifyContent: 'center',
     alignItems: 'center',
@@ -697,7 +710,7 @@ const styles = StyleSheet.create({
   youtubeContainer: {
     marginVertical: 24,
     width: '100%',
-    borderRadius: 12,
+    borderRadius: 6, // Reduced corner radius
     overflow: 'hidden',
     backgroundColor: tokens.colors.najdi.container + '10',
   },
