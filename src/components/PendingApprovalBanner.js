@@ -11,6 +11,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { phoneAuthService } from "../services/phoneAuth";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getProfileDisplayName } from "../utils/nameChainBuilder";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -28,8 +30,11 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
   const [linkRequest, setLinkRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [shouldDismiss, setShouldDismiss] = useState(false);
   const fadeAnim = new Animated.Value(0);
   const pulseAnim = new Animated.Value(1);
+  const slideAnim = new Animated.Value(0);
 
   useEffect(() => {
     checkLinkStatus();
@@ -75,9 +80,48 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
 
         setLinkRequest(latestRequest);
 
-        // If approved, notify parent
-        if (latestRequest.status === "approved" && onStatusChange) {
-          onStatusChange("approved", latestRequest);
+        // Fetch full profile details if approved
+        if (latestRequest.status === "approved" && latestRequest.profile_id) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", latestRequest.profile_id)
+            .single();
+
+          if (profileData) {
+            setProfile(profileData);
+          }
+
+          // Check if we've already shown this approval
+          const lastSeenApproval = await AsyncStorage.getItem("lastSeenApproval");
+          if (lastSeenApproval !== latestRequest.id) {
+            // New approval - show it and auto-dismiss
+            await AsyncStorage.setItem("lastSeenApproval", latestRequest.id);
+
+            // Auto-dismiss after 10 seconds
+            setTimeout(() => {
+              Animated.parallel([
+                Animated.timing(fadeAnim, {
+                  toValue: 0,
+                  duration: 500,
+                  useNativeDriver: true,
+                }),
+                Animated.timing(slideAnim, {
+                  toValue: -100,
+                  duration: 500,
+                  useNativeDriver: true,
+                }),
+              ]).start(() => {
+                setShouldDismiss(true);
+                if (onStatusChange) {
+                  onStatusChange("approved", latestRequest);
+                }
+              });
+            }, 10000);
+          } else {
+            // Already seen - don't show
+            setShouldDismiss(true);
+          }
         }
       }
     } catch (error) {
@@ -179,7 +223,7 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
     );
   }
 
-  if (!linkRequest) {
+  if (!linkRequest || shouldDismiss) {
     return null;
   }
 
@@ -191,7 +235,10 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
     <Animated.View
       style={[
         styles.container,
-        { opacity: fadeAnim },
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        },
         isPending && styles.pendingContainer,
         isRejected && styles.rejectedContainer,
         isApproved && styles.approvedContainer,
@@ -227,13 +274,22 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
           <Text style={styles.title}>
             {isPending && "في انتظار الموافقة"}
             {isRejected && "تم رفض الطلب"}
-            {isApproved && "تمت الموافقة"}
+            {isApproved && "تم ربط ملفك الشخصي بنجاح"}
           </Text>
           <Text style={styles.subtitle}>
-            {isPending && `طلب ربط "${linkRequest.profile_name}" قيد المراجعة`}
+            {isPending && `طلب ربط "${linkRequest.name_chain || linkRequest.profile_name || "الملف الشخصي"}" قيد المراجعة`}
             {isRejected &&
               (linkRequest.review_notes || "يرجى التواصل مع المشرف")}
-            {isApproved && "ملفك الشخصي مرتبط بحسابك"}
+            {isApproved && profile && (
+              <>
+                <Text style={styles.profileNameText}>
+                  {getProfileDisplayName(profile).includes("القفاري") ?
+                    getProfileDisplayName(profile) :
+                    `${getProfileDisplayName(profile)} القفاري`}
+                </Text>
+                {"\n"}يمكنك الآن استخدام جميع المزايا
+              </>
+            )}
           </Text>
           <Text style={styles.timestamp}>
             {formatTimeAgo(linkRequest.created_at)}
@@ -351,6 +407,13 @@ const styles = StyleSheet.create({
     color: colors.text + "CC",
     fontFamily: "SF Arabic",
     lineHeight: 20,
+  },
+  profileNameText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    marginBottom: 4,
   },
   timestamp: {
     fontSize: 12,

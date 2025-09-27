@@ -24,6 +24,7 @@ import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useTreeStore } from "../stores/useTreeStore";
 import appConfig from "../config/appConfig";
 import SignInModal from "./SignInModal";
+import { getProfileDisplayName } from "../utils/nameChainBuilder";
 
 // Family Logo
 const AlqefariLogo = require("../../assets/logo/Alqefari Emblem (Transparent).png");
@@ -81,11 +82,11 @@ export default function SettingsModal({ visible, onClose }) {
       setCurrentUser(user);
 
       if (user) {
-        // Try to find matching profile
+        // Find profile linked to this user
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
-          .or(`email.eq.${user.email},phone.eq.${user.phone}`)
+          .eq('user_id', user.id)
           .single();
 
         setUserProfile(profile);
@@ -318,7 +319,11 @@ export default function SettingsModal({ visible, onClose }) {
 
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>
-                    {userProfile?.name || "مستخدم جديد"}
+                    {userProfile ?
+                      (getProfileDisplayName(userProfile).includes("القفاري") ?
+                        getProfileDisplayName(userProfile) :
+                        `${getProfileDisplayName(userProfile)} القفاري`)
+                      : "مستخدم جديد"}
                   </Text>
                   <Text style={styles.profileDetail}>
                     {currentUser.phone

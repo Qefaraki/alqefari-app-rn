@@ -22,6 +22,7 @@ import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import appConfig from "../config/appConfig";
 import ProfileLinkStatusIndicator from "../components/ProfileLinkStatusIndicator";
+import { getProfileDisplayName } from "../utils/nameChainBuilder";
 
 // Native SwiftUI settings temporarily disabled due to missing Expo UI native module
 const NativeSettingsView = null;
@@ -88,11 +89,11 @@ export default function SettingsPage({ user }) {
       setCurrentUser(user);
 
       if (user) {
-        // Try to find matching profile
+        // Find profile linked to this user
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
-          .or(`email.eq.${user.email},phone.eq.${user.phone}`)
+          .eq('user_id', user.id)
           .single();
 
         setUserProfile(profile);
@@ -199,7 +200,11 @@ export default function SettingsPage({ user }) {
                 ) : (
                   <>
                     <Text style={styles.profileName}>
-                      {userProfile?.name || "مستخدم جديد"}
+                      {userProfile ?
+                        (getProfileDisplayName(userProfile).includes("القفاري") ?
+                          getProfileDisplayName(userProfile) :
+                          `${getProfileDisplayName(userProfile)} القفاري`)
+                        : "مستخدم جديد"}
                     </Text>
                     <Text style={styles.profilePhone}>
                       {currentUser?.phone || currentUser?.email || ""}

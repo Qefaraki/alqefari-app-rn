@@ -61,7 +61,7 @@ export default function TreeScreen() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <BottomSheetModalProvider>
         <View style={{ flex: 1 }}>
-          {user && linkStatus === "pending" && (
+          {user && (linkStatus === "pending" || linkStatus === "rejected") && (
             <PendingApprovalBanner
               user={user}
               onStatusChange={setLinkStatus}
