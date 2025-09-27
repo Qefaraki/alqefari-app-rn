@@ -199,7 +199,7 @@ export default function SettingsPage({ user }) {
                 ) : (
                   <>
                     <Text style={styles.profileName}>
-                      {userProfile?.name_ar || "مستخدم جديد"}
+                      {userProfile?.name || "مستخدم جديد"}
                     </Text>
                     <Text style={styles.profilePhone}>
                       {currentUser?.phone || currentUser?.email || ""}

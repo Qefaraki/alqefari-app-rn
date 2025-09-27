@@ -75,25 +75,33 @@ export default function ProfileLinkStatusCard() {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
       } else {
-        // Check for pending link requests with full profile data
-        const { data: requests } = await supabase
+        // Check for pending link requests - simplified query
+        const { data: requests, error: reqError } = await supabase
           .from("profile_link_requests")
-          .select(`
-            *,
-            profile:profiles!profile_link_requests_profile_id_fkey(
-              id,
-              name,
-              name_ar,
-              father_id,
-              mother_id
-            )
-          `)
+          .select("*")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(1);
 
-        if (requests && requests.length > 0) {
-          setLinkRequest(requests[0]);
+        if (reqError) {
+          console.error("Error fetching link requests:", reqError);
+        } else if (requests && requests.length > 0) {
+          const request = requests[0];
+
+          // Fetch the profile separately if we have a profile_id
+          if (request.profile_id) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id, name")
+              .eq("id", request.profile_id)
+              .single();
+
+            if (profile) {
+              request.profile = profile;
+            }
+          }
+
+          setLinkRequest(request);
         }
       }
     } catch (error) {
@@ -177,7 +185,6 @@ export default function ProfileLinkStatusCard() {
     const adminPhone = "+966501234567"; // Replace with actual admin number
     const displayName = linkRequest?.name_chain ||
                        linkRequest?.profile?.name ||
-                       linkRequest?.profile?.name_ar ||
                        "غير محدد";
 
     const message = encodeURIComponent(`مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي
@@ -240,7 +247,7 @@ export default function ProfileLinkStatusCard() {
 
   // Linked Profile State
   if (hasLinkedProfile && profile) {
-    const fullName = profile.name || profile.name_ar || "غير محدد";
+    const fullName = profile.name || "غير محدد";
 
     return (
       <View style={[styles.container, styles.successContainer]}>
@@ -284,7 +291,6 @@ export default function ProfileLinkStatusCard() {
     // Get the full name chain or construct from profile data
     const displayName = linkRequest.name_chain ||
                        linkRequest.profile?.name ||
-                       linkRequest.profile?.name_ar ||
                        "غير محدد";
 
     return (
@@ -340,7 +346,6 @@ export default function ProfileLinkStatusCard() {
   if (linkRequest?.status === "rejected") {
     const displayName = linkRequest.name_chain ||
                        linkRequest.profile?.name ||
-                       linkRequest.profile?.name_ar ||
                        "غير محدد";
 
     return (
