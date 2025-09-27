@@ -420,7 +420,9 @@ const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
                 {readingTime > 0 && (
                   <>
                     <Text style={styles.metaSeparator}>·</Text>
-                    <Text style={styles.readingTime}>{readingTime} دقائق قراءة</Text>
+                    <Text style={styles.readingTime}>
+                      {readingTime === 1 ? 'دقيقة واحدة' : `${readingTime} دقائق`}
+                    </Text>
                   </>
                 )}
               </View>
@@ -682,7 +684,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   articleMeta: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-start', // Changed for RTL - React Native will flip this
   },
   metaRow: {
     flexDirection: 'row',
