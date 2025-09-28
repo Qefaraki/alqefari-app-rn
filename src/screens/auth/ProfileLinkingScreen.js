@@ -56,8 +56,15 @@ const cleanName = (text) => {
 const ITEM_HEIGHT = 88 + 12; // card height + margin
 
 export default function ProfileLinkingScreen({ navigation, route }) {
-  const { user } = route.params;
-  const { checkProfileStatus } = useAuth();
+  // Get user from route params OR from auth context as fallback
+  const { user: contextUser, authStateData } = useAuth();
+  const user = route?.params?.user || contextUser || authStateData?.user;
+
+  // Log for debugging
+  console.log('[ProfileLinkingScreen] User from params:', route?.params?.user ? 'Yes' : 'No');
+  console.log('[ProfileLinkingScreen] User from context:', contextUser ? 'Yes' : 'No');
+  console.log('[ProfileLinkingScreen] User from authStateData:', authStateData?.user ? 'Yes' : 'No');
+  console.log('[ProfileLinkingScreen] Final user:', user?.id);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -77,6 +84,19 @@ export default function ProfileLinkingScreen({ navigation, route }) {
   const resultsOpacity = useRef(new Animated.Value(0)).current;
   const clearButtonOpacity = useRef(new Animated.Value(0)).current;
   const animationsRef = useRef([]);
+
+  // Handle missing user
+  useEffect(() => {
+    if (!user) {
+      console.error('[ProfileLinkingScreen] No user found! This should not happen.');
+      // The NavigationController should handle this, but add safety
+      Alert.alert(
+        'خطأ',
+        'حدث خطأ في النظام. يرجى إعادة تسجيل الدخول.',
+        [{ text: 'حسناً', onPress: () => navigation.navigate('Onboarding') }]
+      );
+    }
+  }, [user, navigation]);
 
   // Auto-focus input on mount
   useEffect(() => {

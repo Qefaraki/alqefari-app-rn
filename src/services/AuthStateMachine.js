@@ -20,7 +20,9 @@ export const AuthStates = {
   OTP_VERIFICATION: 'OTP_VERIFICATION',   // Entering OTP code
 
   // Authenticated states
-  AUTHENTICATED: 'AUTHENTICATED',         // User signed in, checking profile
+  AUTHENTICATED: 'AUTHENTICATED',         // User signed in, checking profile (deprecated - use specific states)
+  AUTHENTICATED_NO_PROFILE: 'AUTHENTICATED_NO_PROFILE', // User signed in but has no profile at all
+  AUTHENTICATED_WITH_PROFILE: 'AUTHENTICATED_WITH_PROFILE', // User signed in and has profile
   PROFILE_LINKING: 'PROFILE_LINKING',     // Selecting/creating profile
   PENDING_APPROVAL: 'PENDING_APPROVAL',   // Waiting for admin approval
   PROFILE_LINKED: 'PROFILE_LINKED',       // Has complete profile
@@ -44,6 +46,8 @@ const StateTransitions = {
     AuthStates.ONBOARDING,
     AuthStates.PHONE_AUTH,  // Allow direct phone auth
     AuthStates.AUTHENTICATED,  // Allow for direct sign in
+    AuthStates.AUTHENTICATED_NO_PROFILE,  // New user signed in
+    AuthStates.AUTHENTICATED_WITH_PROFILE,  // Existing user signed in
     AuthStates.PROFILE_LINKED,  // Allow for existing sessions
     AuthStates.PROFILE_LINKING,  // Allow for users needing to link
     AuthStates.PENDING_APPROVAL,  // Allow for pending users
@@ -65,6 +69,8 @@ const StateTransitions = {
 
   [AuthStates.OTP_VERIFICATION]: [
     AuthStates.AUTHENTICATED,
+    AuthStates.AUTHENTICATED_NO_PROFILE,
+    AuthStates.AUTHENTICATED_WITH_PROFILE,
     AuthStates.PROFILE_LINKED,
     AuthStates.PROFILE_LINKING,
     AuthStates.PENDING_APPROVAL,
@@ -77,6 +83,22 @@ const StateTransitions = {
     AuthStates.PROFILE_LINKING,
     AuthStates.PENDING_APPROVAL,
     AuthStates.AUTHENTICATED,  // Allow self-transition for retries
+    AuthStates.AUTHENTICATED_NO_PROFILE,
+    AuthStates.AUTHENTICATED_WITH_PROFILE,
+    AuthStates.UNAUTHENTICATED,
+    AuthStates.SESSION_EXPIRED,
+  ],
+
+  [AuthStates.AUTHENTICATED_NO_PROFILE]: [
+    AuthStates.PROFILE_LINKING,
+    AuthStates.PENDING_APPROVAL,
+    AuthStates.UNAUTHENTICATED,
+    AuthStates.SESSION_EXPIRED,
+  ],
+
+  [AuthStates.AUTHENTICATED_WITH_PROFILE]: [
+    AuthStates.PROFILE_LINKED,
+    AuthStates.PENDING_APPROVAL,
     AuthStates.UNAUTHENTICATED,
     AuthStates.SESSION_EXPIRED,
   ],
@@ -273,14 +295,14 @@ class AuthStateMachine {
           targetData = { user: session.user, profile };
         } else if (profile?.status === 'pending') {
           targetState = AuthStates.PENDING_APPROVAL;
-          targetData = { user: session.user };
+          targetData = { user: session.user, profile };
         } else if (profile) {
           // Has profile but not linked to family tree
           targetState = AuthStates.PROFILE_LINKING;
           targetData = { user: session.user, profile };
         } else {
-          // No profile at all
-          targetState = AuthStates.AUTHENTICATED;
+          // No profile at all - use specific state
+          targetState = AuthStates.AUTHENTICATED_NO_PROFILE;
           targetData = { user: session.user };
         }
 
@@ -504,14 +526,16 @@ class AuthStateMachine {
         return 'PhoneAuth';
       case AuthStates.OTP_VERIFICATION:
         return 'OTPVerification';
+      case AuthStates.AUTHENTICATED: // Deprecated - but fallback to ProfileLinking
+      case AuthStates.AUTHENTICATED_NO_PROFILE:
       case AuthStates.PROFILE_LINKING:
         return 'ProfileLinking';
-      case AuthStates.AUTHENTICATED:
-      case AuthStates.PENDING_APPROVAL:
-        return 'ProfileLinking';
+      case AuthStates.AUTHENTICATED_WITH_PROFILE:
       case AuthStates.PROFILE_LINKED:
       case AuthStates.GUEST_MODE:
         return 'MainApp';
+      case AuthStates.PENDING_APPROVAL:
+        return 'ContactAdmin';
       case AuthStates.ERROR:
         return 'Error';
       case AuthStates.SESSION_EXPIRED:

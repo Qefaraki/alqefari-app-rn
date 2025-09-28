@@ -95,8 +95,8 @@ export const AuthProvider = ({ children }) => {
                     profile
                   });
                 } else {
-                  console.log('[DEBUG AuthContext] User has no profile, transitioning to AUTHENTICATED');
-                  await AuthStateMachine.transition(AuthStates.AUTHENTICATED, {
+                  console.log('[DEBUG AuthContext] User has no profile, transitioning to AUTHENTICATED_NO_PROFILE');
+                  await AuthStateMachine.transition(AuthStates.AUTHENTICATED_NO_PROFILE, {
                     user: session.user
                   });
                 }

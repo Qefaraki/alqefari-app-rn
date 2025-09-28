@@ -154,6 +154,7 @@ function TabLayout() {
     return [
       AuthStates.PROFILE_LINKED,
       AuthStates.GUEST_MODE,
+      AuthStates.AUTHENTICATED_WITH_PROFILE, // User has profile, should see main app
     ].includes(authState);
   };
 
@@ -164,9 +165,11 @@ function TabLayout() {
       AuthStates.PHONE_AUTH,
       AuthStates.OTP_VERIFICATION,
       AuthStates.PROFILE_LINKING,
-      AuthStates.AUTHENTICATED,
+      AuthStates.AUTHENTICATED, // Deprecated but kept for compatibility
+      AuthStates.AUTHENTICATED_NO_PROFILE,
+      AuthStates.AUTHENTICATED_WITH_PROFILE, // This shouldn't show auth, but handled separately
       AuthStates.PENDING_APPROVAL,
-    ].includes(authState);
+    ].includes(authState) && authState !== AuthStates.AUTHENTICATED_WITH_PROFILE;
   };
 
   // Show loading while initializing

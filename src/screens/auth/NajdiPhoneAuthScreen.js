@@ -238,15 +238,15 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // The AuthContext and state machine will handle all navigation
+      // The AuthContext and NavigationController will handle all navigation
       // DO NOT manually navigate - let the state machine control the flow
       console.log('[DEBUG OTP] OTP verification successful');
-      console.log('[DEBUG OTP] Has profile:', result.hasProfile);
-      console.log('[DEBUG OTP] State machine will handle navigation');
+      console.log('[DEBUG OTP] State machine and NavigationController will handle navigation');
+      console.log('[DEBUG OTP] User will be automatically navigated to the correct screen');
 
       // Just set loading to false and let the auth state machine handle the rest
       setLoading(false);
-      // Navigation will happen automatically via state machine
+      // Navigation happens automatically via NavigationController based on auth state
     } else {
       // Better error messages
       let errorMessage = "رمز التحقق غير صحيح";
