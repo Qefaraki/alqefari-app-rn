@@ -61,7 +61,7 @@ function TabLayout() {
   // Initialize notifications when user is authenticated
   useEffect(() => {
     const initializeNotifications = async () => {
-      if (user && !isGuestMode && !notificationInitialized) {
+      if (user && authState === AuthStates.PROFILE_LINKED && !notificationInitialized) {
         console.log('[DEBUG] Initializing notification service for user');
 
         try {
@@ -169,110 +169,24 @@ function TabLayout() {
     ].includes(authState);
   };
 
-  // No need for emergency timeout - trust Supabase's auth handling
-
-  // Determine app state based on AuthContext (single source of truth)
-  const getAppState = () => {
-    // Still loading - wait for auth
-    if (isLoading) {
-      return 'loading';
-    }
-
-    // Still loading local storage flags
-    if (onboardingCompleted === null || isGuestMode === null) {
-      return 'loading';
-    }
-
-    // If onboarding is already completed, never show it again
-    if (onboardingCompleted === true) {
-      // Check what type of user this is
-      if (user && hasLinkedProfile) {
-        console.log('[DEBUG] Authenticated with profile');
-        return 'authenticated';
-      }
-
-      if (user && hasPendingRequest) {
-        console.log('[DEBUG] Authenticated with pending request');
-        return 'authenticated-pending';
-      }
-
-      if (isGuestMode === true) {
-        console.log('[DEBUG] Guest mode');
-        return 'guest';
-      }
-
-      // Onboarding completed but no user - this is likely a sign out scenario
-      if (!user) {
-        console.log('[DEBUG] Onboarding was completed but no user - showing onboarding');
-        return 'onboarding'; // Show onboarding after sign out
-      }
-
-      // User signed in but no profile yet (shouldn't happen if onboarding completed properly)
-      console.log('[DEBUG] Onboarding completed but no profile - showing tabs anyway');
-      return 'authenticated';
-    }
-
-    // Onboarding not completed - decide based on auth state
-
-    // If user is authenticated AND has linked profile, show tabs
-    if (user && hasLinkedProfile) {
-      console.log('[DEBUG] Authenticated with profile');
-      return 'authenticated';
-    }
-
-    // If user is authenticated AND has a pending request, show tabs (waiting for approval)
-    if (user && hasPendingRequest) {
-      console.log('[DEBUG] Authenticated with pending request');
-      return 'authenticated-pending';
-    }
-
-    // If user is authenticated but NO linked profile AND NO pending request, continue onboarding
-    if (user && !hasLinkedProfile && !hasPendingRequest) {
-      console.log('[DEBUG] Authenticated but needs to complete profile setup');
-      return 'onboarding';
-    }
-
-    // If explicitly in guest mode, show tabs
-    if (isGuestMode === true) {
-      console.log('[DEBUG] Guest mode');
-      return 'guest';
-    }
-
-    // Not authenticated and not guest = show onboarding
-    console.log('[DEBUG] Not authenticated - show onboarding');
-    return 'onboarding';
-  };
-
-  const appState = getAppState();
-
-  // Show loading screen while checking auth and onboarding
-  if (appState === 'loading') {
-    console.log('[DEBUG] Loading auth and onboarding status...');
-    // Return null to keep the native splash screen visible
-    return null;
+  // Show loading while initializing
+  if (isLoading || authState === AuthStates.INITIALIZING) {
+    console.log('[DEBUG] Loading auth state...');
+    return null; // Keep splash screen visible
   }
 
-
-
-  // Show onboarding for first-time users or authenticated users without profiles
-  if (appState === 'onboarding') {
-    console.log('[DEBUG] Showing onboarding - user:', !!user, 'hasProfile:', hasLinkedProfile);
+  // Show auth flow for unauthenticated or onboarding states
+  if (shouldShowAuth()) {
+    console.log('[DEBUG] Showing auth flow - state:', authState);
     return (
       <NavigationIndependentTree>
         <NavigationContainer>
           <AuthNavigator
             setIsGuest={async () => {
-              await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-              await AsyncStorage.setItem('isGuestMode', 'true');
-              setOnboardingCompleted(true);
-              setIsGuestMode(true);
+              await stateMachine.enterGuestMode();
             }}
             setUser={async (newUser) => {
-              // When user successfully signs in, clear guest mode but DON'T mark onboarding complete yet
-              // Onboarding is only complete after profile linking
-              await AsyncStorage.removeItem('isGuestMode'); // Clear guest mode on sign in
-              setIsGuestMode(false);
-              // Do NOT set hasCompletedOnboarding here - wait for profile linking
+              // Handled by state machine
             }}
           />
         </NavigationContainer>
@@ -280,11 +194,12 @@ function TabLayout() {
     );
   }
 
-  // Show tabs - user state is managed by AuthContext
-  console.log('[DEBUG] Showing tabs - user:', !!user, 'isAdmin:', isAdmin, 'hasPendingRequest:', hasPendingRequest);
+  // Show main app tabs for authenticated users with profiles or guest mode
+  if (shouldShowTabs()) {
+    console.log('[DEBUG] Showing main app - state:', authState);
 
-  return (
-    <NativeTabs
+    return (
+      <NativeTabs
       minimizeBehavior="onScrollDown"
       labelStyle={{
         color: DynamicColorIOS({

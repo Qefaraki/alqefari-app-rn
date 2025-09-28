@@ -26,6 +26,8 @@ import ProfileLinkStatusIndicator from "../components/ProfileLinkStatusIndicator
 import { getProfileDisplayName, buildNameChain } from "../utils/nameChainBuilder";
 import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
+import notificationService from "../services/notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -133,9 +135,12 @@ export default function SettingsPageModern({ user }) {
 
   // New settings states
   const [notifications, setNotifications] = useState({
+    pushEnabled: true,
+    profileRequests: true,
     familyUpdates: true,
     adminMessages: true,
   });
+  const [notificationPermissionGranted, setNotificationPermissionGranted] = useState(false);
   const [treeView, setTreeView] = useState({
     showPhotos: true,
     highlightMyLine: true,
@@ -149,9 +154,11 @@ export default function SettingsPageModern({ user }) {
     hijri: sampleHijri || { day: 5, month: 9, year: 1445 },
   };
 
-  // Load user profile
+  // Load user profile and notification settings
   useEffect(() => {
     loadUserProfile();
+    loadNotificationSettings();
+    checkNotificationPermission();
   }, []);
 
   const loadUserProfile = async () => {
@@ -301,6 +308,46 @@ export default function SettingsPageModern({ user }) {
 
   const handleFeedback = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const loadNotificationSettings = async () => {
+    try {
+      const savedNotifications = await AsyncStorage.getItem('notificationSettings');
+      if (savedNotifications) {
+        setNotifications(JSON.parse(savedNotifications));
+      }
+    } catch (error) {
+      console.error("Error loading notification settings:", error);
+    }
+  };
+
+  const checkNotificationPermission = async () => {
+    const isEnabled = await notificationService.areNotificationsEnabled();
+    setNotificationPermissionGranted(isEnabled);
+  };
+
+  const handleNotificationToggle = async (key, value) => {
+    handleFeedback();
+
+    // If enabling push notifications, request permission first
+    if (key === 'pushEnabled' && value && !notificationPermissionGranted) {
+      const granted = await notificationService.requestPermissions();
+      if (!granted) {
+        Alert.alert(
+          "الإشعارات مطلوبة",
+          "يرجى تفعيل الإشعارات من إعدادات الجهاز للحصول على التنبيهات",
+          [{ text: "حسناً" }]
+        );
+        return;
+      }
+      setNotificationPermissionGranted(true);
+    }
+
+    const newNotifications = { ...notifications, [key]: value };
+    setNotifications(newNotifications);
+
+    // Save to AsyncStorage
+    await AsyncStorage.setItem('notificationSettings', JSON.stringify(newNotifications));
   };
 
   return (
@@ -492,44 +539,76 @@ export default function SettingsPageModern({ user }) {
           </View>
         )}
 
-        {/* Notifications - Admin Only (Not Implemented) */}
-        {isAdmin && (
-          <View style={styles.settingsCard}>
-            <Text style={styles.sectionTitle}>الإشعارات (قيد التطوير)</Text>
+        {/* Notifications Settings - Available to all users */}
+        <View style={styles.settingsCard}>
+          <Text style={styles.sectionTitle}>الإشعارات</Text>
 
-            <View style={styles.settingRow}>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>تحديثات العائلة</Text>
-                <Text style={styles.settingDescription}>أخبار ومناسبات العائلة</Text>
-              </View>
-              <Switch
-                value={notifications.familyUpdates}
-                onValueChange={(value) => {
-                  handleFeedback();
-                  setNotifications({ ...notifications, familyUpdates: value });
-                }}
-                trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                thumbColor={colors.white}
-              />
+          {/* Push Notifications Master Toggle */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>تفعيل الإشعارات</Text>
+              <Text style={styles.settingDescription}>
+                {notificationPermissionGranted
+                  ? "تلقي الإشعارات الفورية"
+                  : "يتطلب إذن من الجهاز"}
+              </Text>
             </View>
-
-            <View style={[styles.settingRow, styles.lastRow]}>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>رسائل الإدارة</Text>
-                <Text style={styles.settingDescription}>إشعارات من مدير التطبيق</Text>
-              </View>
-              <Switch
-                value={notifications.adminMessages}
-                onValueChange={(value) => {
-                  handleFeedback();
-                  setNotifications({ ...notifications, adminMessages: value });
-                }}
-                trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
+            <Switch
+              value={notifications.pushEnabled}
+              onValueChange={(value) => handleNotificationToggle('pushEnabled', value)}
+              trackColor={{ false: "#E5E5EA", true: colors.primary }}
+              thumbColor={colors.white}
+            />
           </View>
-        )}
+
+          {/* Profile Link Requests */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>طلبات ربط الملف</Text>
+              <Text style={styles.settingDescription}>الموافقة أو الرفض على طلبك</Text>
+            </View>
+            <Switch
+              value={notifications.profileRequests}
+              disabled={!notifications.pushEnabled}
+              onValueChange={(value) => handleNotificationToggle('profileRequests', value)}
+              trackColor={{ false: "#E5E5EA", true: colors.primary }}
+              thumbColor={colors.white}
+              style={{ opacity: notifications.pushEnabled ? 1 : 0.5 }}
+            />
+          </View>
+
+          {/* Family Updates */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>تحديثات العائلة</Text>
+              <Text style={styles.settingDescription}>أخبار ومناسبات العائلة</Text>
+            </View>
+            <Switch
+              value={notifications.familyUpdates}
+              disabled={!notifications.pushEnabled}
+              onValueChange={(value) => handleNotificationToggle('familyUpdates', value)}
+              trackColor={{ false: "#E5E5EA", true: colors.primary }}
+              thumbColor={colors.white}
+              style={{ opacity: notifications.pushEnabled ? 1 : 0.5 }}
+            />
+          </View>
+
+          {/* Admin Messages */}
+          <View style={[styles.settingRow, styles.lastRow]}>
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>رسائل الإدارة</Text>
+              <Text style={styles.settingDescription}>إشعارات مهمة من مدير التطبيق</Text>
+            </View>
+            <Switch
+              value={notifications.adminMessages}
+              disabled={!notifications.pushEnabled}
+              onValueChange={(value) => handleNotificationToggle('adminMessages', value)}
+              trackColor={{ false: "#E5E5EA", true: colors.primary }}
+              thumbColor={colors.white}
+              style={{ opacity: notifications.pushEnabled ? 1 : 0.5 }}
+            />
+          </View>
+        </View>
 
         {/* Actions */}
         <View style={styles.actionsContainer}>
