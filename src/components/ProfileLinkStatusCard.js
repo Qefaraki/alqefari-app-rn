@@ -40,33 +40,34 @@ export default function ProfileLinkStatusCard() {
 
   useEffect(() => {
     loadProfileStatus();
+  }, []);
 
-    // Subscribe to real-time updates
+  useEffect(() => {
+    if (!user) return;
+
+    // Subscribe to real-time updates for THIS USER's requests only
+    const channelName = `profile-card-${user.id}`;
     const subscription = supabase
-      .channel('profile-status')
+      .channel(channelName)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'profile_link_requests'
-      }, loadProfileStatus)
+        table: 'profile_link_requests',
+        filter: `user_id=eq.${user.id}` // Only this user's requests
+      }, (payload) => {
+        // Only reload if this is actually our request
+        if (payload.new?.user_id === user.id) {
+          loadProfileStatus();
+        }
+      })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [user]);
 
-  // Force re-render when allProfiles is populated to update name chains
-  useEffect(() => {
-    // This effect will trigger a re-render when allProfiles changes
-    // ensuring getFullNameChain has the data it needs
-    console.log("[ProfileLinkStatusCard] allProfiles updated, count:", allProfiles.length);
-    if (profile) {
-      console.log("[ProfileLinkStatusCard] Re-building chain for linked profile:", profile.name);
-      const chain = buildNameChain(profile, allProfiles);
-      console.log("[ProfileLinkStatusCard] Updated chain:", chain);
-    }
-  }, [allProfiles, profile]);
+  // Removed effect for allProfiles as we're not using it anymore
 
   const loadProfileStatus = async () => {
     setLoading(true);
@@ -85,25 +86,13 @@ export default function ProfileLinkStatusCard() {
         .eq("user_id", user.id)
         .single();
 
-      console.log("[ProfileLinkStatusCard] Linked profile loaded:", linkedProfile?.name);
-
-      // Load all profiles for name chain building - include all necessary fields
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, name, father_id, father_name, grandfather_name, full_chain");
-
-      console.log("[ProfileLinkStatusCard] Loaded profiles count:", profiles?.length || 0);
-
-      if (profiles) {
-        setAllProfiles(profiles);
-        console.log("[ProfileLinkStatusCard] Sample profiles with father_id:",
-                    profiles.filter(p => p.father_id).slice(0, 3));
-      }
+      // Don't load ALL profiles - it's not scalable
+      // Instead, rely on the profile's existing full_chain or computed fields
+      setAllProfiles([]); // Clear this as we're not using it anymore
 
       if (linkedProfile) {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
-        console.log("[ProfileLinkStatusCard] Profile set with father_id:", linkedProfile.father_id);
       } else {
         // Check for pending link requests - simplified query
         const { data: requests, error: reqError } = await supabase
@@ -141,26 +130,32 @@ export default function ProfileLinkStatusCard() {
   };
 
   // Helper function to get full name chain
-  const getFullNameChain = (profileOrName, profiles = allProfiles) => {
+  const getFullNameChain = (profileOrName) => {
     if (!profileOrName) return "غير محدد";
 
-    // If it's an object (profile), build the chain
+    // If it's an object (profile), use its fields
     if (typeof profileOrName === 'object') {
-      const chain = buildNameChain(profileOrName, profiles);
-      if (chain) {
+      // Use pre-computed full_chain if available
+      if (profileOrName.full_chain) {
+        const chain = profileOrName.full_chain;
         return chain.includes("القفاري") ? chain : `${chain} القفاري`;
       }
-      const name = profileOrName.name || "غير محدد";
-      return name.includes("القفاري") ? name : `${name} القفاري`;
+
+      // Build basic chain from available fields
+      let chain = profileOrName.name;
+      if (profileOrName.father_name) {
+        chain = `${profileOrName.name} بن ${profileOrName.father_name}`;
+        if (profileOrName.grandfather_name) {
+          chain += ` ${profileOrName.grandfather_name}`;
+        }
+      }
+
+      return chain.includes("القفاري") ? chain : `${chain} القفاري`;
     }
 
     // If it's just a string name
     const name = profileOrName;
-    if (name.includes("القفاري")) {
-      return name;
-    }
-    // Add القفاري at the end
-    return `${name} القفاري`;
+    return name.includes("القفاري") ? name : `${name} القفاري`;
   };
 
   const handleWithdraw = () => {
@@ -290,11 +285,6 @@ export default function ProfileLinkStatusCard() {
   // Linked Profile State
   if (hasLinkedProfile && profile) {
     const nameChain = getFullNameChain(profile);
-    console.log("[ProfileLinkStatusCard] Rendering linked profile:");
-    console.log("  - Profile name:", profile.name);
-    console.log("  - Profile father_id:", profile.father_id);
-    console.log("  - allProfiles count:", allProfiles.length);
-    console.log("  - Display chain:", nameChain);
 
     return (
       <View style={[styles.container, styles.successContainer]}>

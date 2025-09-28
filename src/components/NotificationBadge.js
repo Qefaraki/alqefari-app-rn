@@ -22,22 +22,59 @@ export default function NotificationBadge({ onPress }) {
 
     loadUnreadCount();
 
-    // Subscribe to real-time updates
-    const subscription = supabase
-      .channel("notification-badge")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "profile_link_requests",
-        },
-        loadUnreadCount
-      )
-      .subscribe();
+    // Different subscription strategy for admins vs regular users
+    const channelName = isAdmin
+      ? `admin-notification-badge-${user.id}`
+      : `user-notification-badge-${user.id}`;
+
+    let subscription;
+
+    if (isAdmin) {
+      // Admins need to see ALL pending requests
+      subscription = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "profile_link_requests",
+            filter: `status=eq.pending` // Only care about pending for badge count
+          },
+          (payload) => {
+            // Only reload if it's actually a pending request change
+            if (payload.new?.status === 'pending' || payload.old?.status === 'pending') {
+              loadUnreadCount();
+            }
+          }
+        )
+        .subscribe();
+    } else {
+      // Regular users only see their own request changes
+      subscription = supabase
+        .channel(channelName)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE", // Users only care about status updates
+            schema: "public",
+            table: "profile_link_requests",
+            filter: `user_id=eq.${user.id}` // Only this user's requests
+          },
+          (payload) => {
+            // Only reload if status changed to approved/rejected
+            const newStatus = payload.new?.status;
+            const oldStatus = payload.old?.status;
+            if (oldStatus === 'pending' && (newStatus === 'approved' || newStatus === 'rejected')) {
+              loadUnreadCount();
+            }
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [user, isAdmin]);
 

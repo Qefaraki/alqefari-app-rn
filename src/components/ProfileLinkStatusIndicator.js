@@ -56,16 +56,35 @@ export default function ProfileLinkStatusIndicator() {
 
   useEffect(() => {
     loadProfileStatus();
+  }, []);
 
-    // Subscribe to real-time updates for profile_link_requests
+  useEffect(() => {
+    // Don't set up subscriptions until we have a user
+    if (!user) return;
+
+    // Debounced loader to prevent rapid successive reloads
+    const debouncedLoad = () => {
+      const now = Date.now();
+      // Prevent reloading more than once per second
+      if (now - lastLoadTime > 1000) {
+        setLastLoadTime(now);
+        loadProfileStatus();
+      }
+    };
+
+    // Subscribe to real-time updates for THIS USER's profile_link_requests only
+    const channelName = `profile-status-${user.id}`;
     const subscription = supabase
-      .channel('profile-status')
+      .channel(channelName)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'profile_link_requests'
+        table: 'profile_link_requests',
+        filter: `user_id=eq.${user.id}` // CRITICAL: Only this user's requests
       }, (payload) => {
-        // console.log('[ProfileLinkStatusIndicator] Real-time update:', payload);
+        // Only process if this is actually a relevant change
+        if (!payload.new || payload.new.user_id !== user.id) return;
+
         // Add haptic feedback for status changes
         if (payload.eventType === 'UPDATE' && payload.new) {
           const oldStatus = payload.old?.status;
@@ -79,25 +98,32 @@ export default function ProfileLinkStatusIndicator() {
                 : Haptics.NotificationFeedbackType.Warning
             );
           }
+
+          // Only reload if status actually changed
+          if (oldStatus !== newStatus) {
+            debouncedLoad();
+          }
+        } else if (payload.eventType === 'INSERT') {
+          // New request created
+          debouncedLoad();
         }
-        loadProfileStatus();
       })
       .subscribe();
 
-    // Also subscribe to profile updates (for when user gets linked)
+    // Subscribe to profile updates for this specific user
+    const profileChannelName = `profile-updates-${user.id}`;
     const profileSubscription = supabase
-      .channel('profile-updates')
+      .channel(profileChannelName)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'profiles',
-        filter: user ? `user_id=eq.${user.id}` : undefined
+        filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        // console.log('[ProfileLinkStatusIndicator] Profile updated:', payload);
-        if (payload.new?.user_id) {
+        if (payload.new?.user_id === user.id) {
           // Profile just got linked!
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          loadProfileStatus();
+          debouncedLoad();
         }
       })
       .subscribe();
@@ -106,7 +132,7 @@ export default function ProfileLinkStatusIndicator() {
       subscription.unsubscribe();
       profileSubscription.unsubscribe();
     };
-  }, [user]);
+  }, [user, lastLoadTime]);
 
   useEffect(() => {
     // Animate entrance
@@ -169,35 +195,41 @@ export default function ProfileLinkStatusIndicator() {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
 
-        // Load all profiles to build name chain - include all necessary fields
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, name, father_id, father_name, grandfather_name, full_chain");
-
-        // console.log("[ProfileLinkStatusIndicator] Loaded profiles:", profiles?.length || 0);
-        // console.log("[ProfileLinkStatusIndicator] Linked profile:", linkedProfile.name, "father_id:", linkedProfile.father_id);
-
-        if (profiles && profiles.length > 0) {
-          setAllProfiles(profiles);
-          // Build the name chain
-          const chain = buildNameChain(linkedProfile, profiles);
-          // console.log("[ProfileLinkStatusIndicator] Built chain:", chain);
-
-          // Ensure we have القفاري at the end
+        // Use pre-computed chain or build from available data
+        // First, check if we have a full_chain already
+        if (linkedProfile.full_chain) {
+          const chain = linkedProfile.full_chain;
           const finalChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
           setProfileChain(finalChain);
         } else {
-          // Fallback to using existing fields if profiles couldn't be loaded
-          let fallbackChain = linkedProfile.full_chain || linkedProfile.name;
+          // Build basic chain from available fields without loading all profiles
+          let basicChain = linkedProfile.name;
+
           if (linkedProfile.father_name) {
-            fallbackChain = `${linkedProfile.name} بن ${linkedProfile.father_name}`;
+            basicChain = `${linkedProfile.name} بن ${linkedProfile.father_name}`;
             if (linkedProfile.grandfather_name) {
-              fallbackChain += ` ${linkedProfile.grandfather_name}`;
+              basicChain += ` ${linkedProfile.grandfather_name}`;
             }
           }
-          const finalChain = fallbackChain.includes("القفاري") ? fallbackChain : `${fallbackChain} القفاري`;
-          // console.log("[ProfileLinkStatusIndicator] Using fallback chain:", finalChain);
+
+          const finalChain = basicChain.includes("القفاري") ? basicChain : `${basicChain} القفاري`;
           setProfileChain(finalChain);
+
+          // Optionally: Load only necessary profiles for chain building (not ALL profiles)
+          // This should be done server-side via RPC function for efficiency
+          if (linkedProfile.father_id) {
+            // Load only direct ancestors for chain building (much more efficient)
+            const { data: ancestors } = await supabase
+              .rpc('get_ancestors_chain', { profile_id: linkedProfile.id })
+              .single();
+
+            if (ancestors?.chain) {
+              const finalChain = ancestors.chain.includes("القفاري")
+                ? ancestors.chain
+                : `${ancestors.chain} القفاري`;
+              setProfileChain(finalChain);
+            }
+          }
         }
 
         // Check if we've already shown the congratulations for this specific profile
