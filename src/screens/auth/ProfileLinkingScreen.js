@@ -189,8 +189,10 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     console.log('[DEBUG] Profile selected:', profile.name, profile.id);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedProfile(profile);
-    setShowTreeModal(true);
-    console.log('[DEBUG] showTreeModal will be set to true');
+    setTimeout(() => {
+      setShowTreeModal(true);
+      console.log('[DEBUG] showTreeModal set to true');
+    }, 100);
   };
 
   // Handle confirmation from modal
@@ -403,25 +405,28 @@ export default function ProfileLinkingScreen({ navigation, route }) {
               </View>
             )}
           </View>
-
-          {/* Tree Modal */}
-          {selectedProfile && (
-            <BranchTreeModal
-              visible={showTreeModal}
-              onClose={() => {
-                console.log('[DEBUG] Closing tree modal');
-                setShowTreeModal(false);
-                setSelectedProfile(null);
-              }}
-              profileId={selectedProfile.id}
-              profileName={selectedProfile.name}
-              onConfirm={() => handleConfirmFromModal(selectedProfile)}
-              confirmText="تأكيد اختيار هذا الملف"
-              isLoading={submitting}
-            />
-          )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Tree Modal - moved outside main content */}
+      {selectedProfile && showTreeModal && (
+        <>
+          {console.log('[DEBUG] Rendering BranchTreeModal with:', {
+            profile: selectedProfile,
+            visible: showTreeModal
+          })}
+          <BranchTreeModal
+            visible={true}
+            onClose={() => {
+              console.log('[DEBUG] Closing tree modal');
+              setShowTreeModal(false);
+              setSelectedProfile(null);
+            }}
+            profile={selectedProfile}
+            onConfirm={() => handleConfirmFromModal(selectedProfile)}
+          />
+        </>
+      )}
     </View>
   );
 }
