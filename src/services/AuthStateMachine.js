@@ -85,10 +85,12 @@ const StateTransitions = {
 
   [AuthStates.PENDING_APPROVAL]: [
     AuthStates.PROFILE_LINKED,
+    AuthStates.PENDING_APPROVAL,  // Allow self-transition for refresh
     AuthStates.UNAUTHENTICATED,
   ],
 
   [AuthStates.PROFILE_LINKED]: [
+    AuthStates.PROFILE_LINKED,  // Allow self-transition for refresh
     AuthStates.UNAUTHENTICATED,
     AuthStates.SESSION_EXPIRED,
   ],
@@ -150,7 +152,16 @@ class AuthStateMachine {
 
   // Transition to new state
   async transition(toState, data = {}) {
-    console.log(`[AuthStateMachine] Transitioning from ${this.currentState} to ${toState}`, data);
+    console.log(`[AuthStateMachine] Transition request from ${this.currentState} to ${toState}`, data);
+
+    // If already in the target state, just update the data
+    if (this.currentState === toState) {
+      console.log(`[AuthStateMachine] Already in state ${toState}, updating data only`);
+      this.stateData = { ...this.stateData, ...data };
+      await this.persistState();
+      this.notifyListeners();
+      return true;
+    }
 
     if (!this.canTransition(toState)) {
       console.error(`[AuthStateMachine] Invalid transition from ${this.currentState} to ${toState}`);
@@ -230,43 +241,47 @@ class AuthStateMachine {
       ]);
 
       // Restore from stored state if exists
+      let restoredState = null;
       if (storedAuthState) {
         try {
           const stored = JSON.parse(storedAuthState);
           if (Date.now() - stored.timestamp < 24 * 60 * 60 * 1000) { // 24 hours
             this.currentState = stored.state;
             this.stateData = stored.data;
+            restoredState = stored.state;
+            console.log('[AuthStateMachine] Restored state:', restoredState);
           }
         } catch (e) {
           console.error('[AuthStateMachine] Failed to restore state:', e);
         }
       }
 
-      // Determine initial state
+      // Determine target state based on session
       if (session) {
         // User is authenticated
         const profile = await this.checkUserProfile(session.user.id);
+        let targetState = null;
+        let targetData = {};
 
         if (profile?.linked_profile_id) {
-          return this.transition(AuthStates.PROFILE_LINKED, {
-            user: session.user,
-            profile
-          });
+          targetState = AuthStates.PROFILE_LINKED;
+          targetData = { user: session.user, profile };
         } else if (profile?.status === 'pending') {
-          return this.transition(AuthStates.PENDING_APPROVAL, {
-            user: session.user
-          });
+          targetState = AuthStates.PENDING_APPROVAL;
+          targetData = { user: session.user };
         } else if (profile) {
           // Has profile but not linked to family tree
-          return this.transition(AuthStates.PROFILE_LINKING, {
-            user: session.user,
-            profile
-          });
+          targetState = AuthStates.PROFILE_LINKING;
+          targetData = { user: session.user, profile };
         } else {
           // No profile at all
-          return this.transition(AuthStates.AUTHENTICATED, {
-            user: session.user
-          });
+          targetState = AuthStates.AUTHENTICATED;
+          targetData = { user: session.user };
+        }
+
+        // Only transition if needed
+        if (targetState) {
+          return this.transition(targetState, targetData);
         }
       } else if (isGuestMode === 'true') {
         return this.transition(AuthStates.GUEST_MODE);

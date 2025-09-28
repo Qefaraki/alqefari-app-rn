@@ -42,9 +42,15 @@ export const AuthProvider = ({ children }) => {
       authListenerRef.current = supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('[DEBUG AuthContext] Auth state change:', event, 'Current state:', AuthStateMachine.currentState);
 
+        // Skip INITIAL_SESSION as it's handled by initialize()
+        if (event === 'INITIAL_SESSION') {
+          console.log('[DEBUG AuthContext] Skipping INITIAL_SESSION (handled by initialize)');
+          return;
+        }
+
         switch (event) {
           case 'SIGNED_IN':
-            // Handle sign in from any state, not just OTP_VERIFICATION
+            // Handle sign in from any state
             if (session?.user) {
               console.log('[DEBUG AuthContext] User signed in, checking profile...');
               const profile = await AuthStateMachine.checkUserProfile(session.user.id);
