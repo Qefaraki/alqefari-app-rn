@@ -455,8 +455,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   emblem: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     opacity: 1,
     tintColor: "#242121", // Sadu Night black like NewsScreen
     marginTop: -2, // Push down a bit (was -5)
