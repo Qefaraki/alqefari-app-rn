@@ -111,8 +111,8 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     return "اكتب اسمك الثلاثي هنا...";
   }, [query]);
 
-  // Perform search - no animation refs in deps
-  const performSearch = useCallback(async (searchText) => {
+  // Perform search
+  const performSearch = async (searchText) => {
     // Cancel previous request if exists
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -152,10 +152,10 @@ export default function ProfileLinkingScreen({ navigation, route }) {
         setIsSearching(false);
       }
     }
-  }, []); // No dependencies needed
+  };
 
-  // Handle text change - simplified without circular deps
-  const handleChangeText = useCallback((text) => {
+  // Handle text change
+  const handleChangeText = (text) => {
     setQuery(text);
 
     // Set clear button opacity directly without animation
@@ -182,16 +182,19 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     searchTimerRef.current = setTimeout(() => {
       performSearch(text);
     }, 300);
-  }, [performSearch]);
+  };
 
   // Handle profile selection
-  const handleSelectProfile = useCallback((profile) => {
+  const handleSelectProfile = (profile) => {
+    console.log('[DEBUG] Profile selected:', profile.name, profile.id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedProfile(profile);
     setShowTreeModal(true);
-  }, []);
+    console.log('[DEBUG] showTreeModal will be set to true');
+  };
 
   // Handle confirmation from modal
-  const handleConfirmFromModal = useCallback(async (profile) => {
+  const handleConfirmFromModal = async (profile) => {
     setShowTreeModal(false);
     setSelectedProfile(profile);
     setSubmitting(true);
@@ -228,20 +231,20 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     }
 
     setSubmitting(false);
-  }, [query, user, checkProfileStatus, navigation]);
+  };
 
   // Handle clear button
-  const handleClear = useCallback(() => {
+  const handleClear = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setQuery("");
     setResults([]);
     setSelectedProfile(null);
     setIsSearching(false);
     inputRef.current?.focus();
-  }, []);
+  };
 
   // Handle contact admin
-  const handleContactAdmin = useCallback(() => {
+  const handleContactAdmin = () => {
     Alert.alert(
       "هل تحتاج مساعدة؟",
       "تواصل مع المشرف لإضافة ملفك الشخصي إلى الشجرة",
@@ -255,27 +258,27 @@ export default function ProfileLinkingScreen({ navigation, route }) {
         },
       ],
     );
-  }, []);
+  };
 
   // Render item for FlatList
-  const renderProfile = useCallback(({ item, index }) => (
+  const renderProfile = ({ item, index }) => (
     <ProfileMatchCard
       profile={item}
       isSelected={false}
       onPress={() => handleSelectProfile(item)}
       index={index}
     />
-  ), [handleSelectProfile]);
+  );
 
   // Extract key for FlatList
-  const keyExtractor = useCallback((item) => item.id, []);
+  const keyExtractor = (item) => item.id;
 
   // Get item layout for optimization
-  const getItemLayout = useCallback((data, index) => ({
+  const getItemLayout = (data, index) => ({
     length: ITEM_HEIGHT,
     offset: ITEM_HEIGHT * index,
     index,
-  }), []);
+  });
 
   return (
     <View style={styles.container}>
@@ -402,10 +405,11 @@ export default function ProfileLinkingScreen({ navigation, route }) {
           </View>
 
           {/* Tree Modal */}
-          {showTreeModal && selectedProfile && (
+          {selectedProfile && (
             <BranchTreeModal
               visible={showTreeModal}
               onClose={() => {
+                console.log('[DEBUG] Closing tree modal');
                 setShowTreeModal(false);
                 setSelectedProfile(null);
               }}
@@ -466,8 +470,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   title: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: "700",
+    fontFamily: "SF Arabic",
     color: colors.text,
     textAlign: "left",
     marginHorizontal: 16,
@@ -484,7 +489,8 @@ const styles = StyleSheet.create({
 
   // Example
   exampleContainer: {
-    alignItems: "center",
+    alignItems: "flex-start",
+    marginHorizontal: 16,
     marginBottom: 24,
   },
   exampleCard: {
