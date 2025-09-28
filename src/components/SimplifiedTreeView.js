@@ -375,6 +375,15 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // Check if we already have preloaded data
   const hasPreloadedData = treeData && treeData.length > 0;
 
+  // Calculate layout early so nodes are available for initial positioning
+  const { nodes, connections } = useMemo(() => {
+    if (!treeData || treeData.length === 0) {
+      return { nodes: [], connections: [] };
+    }
+    const layout = calculateTreeLayout(treeData);
+    return layout;
+  }, [treeData]);
+
   // Initialize loading state - skip if we have preloaded data
   const [isLoading, setIsLoading] = useState(!hasPreloadedData);
   // Skeleton animation removed for simplified view
@@ -560,7 +569,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
   // Calculate initial position for focused node BEFORE creating shared values
   const getInitialPosition = () => {
-    if (focusPersonId && nodes.length > 0) {
+    // Safety check: ensure nodes is an array before accessing
+    if (focusPersonId && nodes && Array.isArray(nodes) && nodes.length > 0) {
       const targetNode = nodes.find(n => n.id === focusPersonId);
       if (targetNode) {
         const initialScale = 1.5;
@@ -851,22 +861,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     };
   }, [setTreeData]);
 
-  // Calculate layout - based on treeData only, not loading state
-  const { nodes, connections } = useMemo(() => {
-    if (!treeData || treeData.length === 0) {
-      return { nodes: [], connections: [] };
-    }
-    const layout = calculateTreeLayout(treeData);
-
-    // DEBUG: Log canvas coordinates summary
-    if (layout.nodes.length > 0) {
-      console.log('🎯 LAYOUT CALCULATED:');
-      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
-      console.log(`  TreeData length: ${treeData.length}`);
-    }
-
-    return layout;
-  }, [treeData]);
+  // Layout already calculated earlier in the component
 
   // Build indices for LOD system with O(N) complexity
   const indices = useMemo(() => {
