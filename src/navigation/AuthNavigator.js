@@ -6,8 +6,6 @@ import NajdiPhoneAuthScreen from "../screens/auth/NajdiPhoneAuthScreen";
 import ProfileLinkingScreen from "../screens/auth/ProfileLinkingScreen";
 import ContactAdminScreen from "../screens/auth/ContactAdminScreen";
 import EnhancedSaduBackdrop from "../components/ui/EnhancedSaduBackdrop";
-import NavigationController from "../components/NavigationController";
-
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 const Stack = createStackNavigator();
@@ -43,9 +41,6 @@ export default function AuthNavigator({ setIsGuest, setUser }) {
         onboardingStep={currentStep}
         style={StyleSheet.absoluteFillObject}
       />
-
-      {/* NavigationController for state-driven navigation */}
-      <NavigationController />
 
       {/* Navigation with transparent cards */}
       <Stack.Navigator

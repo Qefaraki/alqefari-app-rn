@@ -3,8 +3,8 @@ import React, { useState, useEffect, Component } from "react";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { DynamicColorIOS, Platform, View, Text, StyleSheet, Button, AppState } from "react-native";
 import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
-import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
-import { AuthStates } from "../src/services/AuthStateMachine";
+import { AuthProvider, useAuth } from "../src/contexts/AuthContextSimple";
+import { AuthStates } from "../src/services/AuthStateMachineSimple";
 import { AdminModeProvider } from "../src/contexts/AdminModeContext";
 import { SettingsProvider } from "../src/contexts/SettingsContext";
 import AuthNavigator from "../src/navigation/AuthNavigator";
@@ -55,13 +55,22 @@ class ErrorBoundary extends Component {
 }
 
 function TabLayout() {
-  const { authState, user, isAdmin, isGuestMode, isLoading, stateMachine } = useAuth();
+  const { user, isAdmin, isGuestMode, isLoading, isAuthenticated, enterGuestMode } = useAuth();
   const [notificationInitialized, setNotificationInitialized] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState<boolean | null>(null);
+
+  // Check onboarding completion status
+  useEffect(() => {
+    AsyncStorage.getItem('hasCompletedOnboarding').then(value => {
+      setHasCompletedOnboarding(value === 'true');
+      console.log('[DEBUG] hasCompletedOnboarding:', value === 'true');
+    });
+  }, []);
 
   // Initialize notifications when user is authenticated
   useEffect(() => {
     const initializeNotifications = async () => {
-      if (user && authState === AuthStates.PROFILE_LINKED && !notificationInitialized) {
+      if (user && isAuthenticated && hasCompletedOnboarding && !notificationInitialized) {
         console.log('[DEBUG] Initializing notification service for user');
 
         try {
@@ -109,7 +118,7 @@ function TabLayout() {
     };
 
     initializeNotifications();
-  }, [user, isGuestMode, isAdmin, notificationInitialized]);
+  }, [user, isGuestMode, isAdmin, notificationInitialized, isAuthenticated, hasCompletedOnboarding]);
 
   // Handle app state changes for badge updates
   useEffect(() => {
@@ -136,51 +145,28 @@ function TabLayout() {
     };
   }, [notificationInitialized]);
 
-  // Hide splash screen when auth state is determined
+  // Hide splash screen when auth state and onboarding status are determined
   useEffect(() => {
-    if (!isLoading && authState !== AuthStates.INITIALIZING) {
+    if (!isLoading && hasCompletedOnboarding !== null) {
       SplashScreen.hideAsync();
     }
-  }, [isLoading, authState]);
+  }, [isLoading, hasCompletedOnboarding]);
 
   // Log auth state changes for debugging
   useEffect(() => {
-    console.log('[DEBUG] Auth state changed:', authState);
-    console.log('[DEBUG] User:', !!user, 'Admin:', isAdmin);
-  }, [authState, user, isAdmin]);
-
-  // Handle navigation based on auth state
-  const shouldShowTabs = () => {
-    return [
-      AuthStates.PROFILE_LINKED,
-      AuthStates.GUEST_MODE,
-      AuthStates.AUTHENTICATED_WITH_PROFILE, // User has profile, should see main app
-    ].includes(authState);
-  };
-
-  const shouldShowAuth = () => {
-    return [
-      AuthStates.UNAUTHENTICATED,
-      AuthStates.ONBOARDING,
-      AuthStates.PHONE_AUTH,
-      AuthStates.OTP_VERIFICATION,
-      AuthStates.PROFILE_LINKING,
-      AuthStates.AUTHENTICATED, // Deprecated but kept for compatibility
-      AuthStates.AUTHENTICATED_NO_PROFILE,
-      AuthStates.AUTHENTICATED_WITH_PROFILE, // This shouldn't show auth, but handled separately
-      AuthStates.PENDING_APPROVAL,
-    ].includes(authState) && authState !== AuthStates.AUTHENTICATED_WITH_PROFILE;
-  };
+    console.log('[DEBUG] Auth state - User:', !!user, 'Admin:', isAdmin, 'Onboarding:', hasCompletedOnboarding);
+  }, [user, isAdmin, hasCompletedOnboarding]);
 
   // Show loading while initializing
-  if (isLoading || authState === AuthStates.INITIALIZING) {
-    console.log('[DEBUG] Loading auth state...');
+  if (isLoading || hasCompletedOnboarding === null) {
+    console.log('[DEBUG] Loading auth state or onboarding status...');
     return null; // Keep splash screen visible
   }
 
-  // Show auth flow for unauthenticated or onboarding states
-  if (shouldShowAuth()) {
-    console.log('[DEBUG] Showing auth flow - state:', authState);
+  // CRITICAL: Check onboarding completion FIRST
+  // If onboarding is not complete, always show auth flow from beginning
+  if (!hasCompletedOnboarding && !isGuestMode) {
+    console.log('[DEBUG] Onboarding not complete, showing auth flow from beginning');
     return (
       <NavigationIndependentTree>
         <NavigationContainer>
@@ -197,9 +183,11 @@ function TabLayout() {
     );
   }
 
-  // Show main app tabs for authenticated users with profiles or guest mode
-  if (shouldShowTabs()) {
-    console.log('[DEBUG] Showing main app - state:', authState);
+  // Show main app tabs for:
+  // 1. Users who completed onboarding AND are authenticated
+  // 2. Guest mode users
+  if ((hasCompletedOnboarding && user) || isGuestMode) {
+    console.log('[DEBUG] Showing main app - onboarding complete or guest mode');
 
     return (
       <NativeTabs
@@ -246,20 +234,23 @@ function TabLayout() {
     );
   }
 
-  // Handle error state
-  if (authState === AuthStates.ERROR) {
-    console.log('[DEBUG] Auth error state');
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>حدث خطأ في المصادقة</Text>
-        <Button title="إعادة المحاولة" onPress={() => stateMachine.recoverFromError()} />
-      </View>
-    );
-  }
-
-  // Fallback - shouldn't reach here
-  console.warn('[DEBUG] Unexpected auth state:', authState);
-  return null;
+  // If we reach here, user needs to sign in
+  // (hasCompletedOnboarding is true but no user session)
+  console.log('[DEBUG] User needs to sign in - showing auth flow');
+  return (
+    <NavigationIndependentTree>
+      <NavigationContainer>
+        <AuthNavigator
+          setIsGuest={async () => {
+            await enterGuestMode();
+          }}
+          setUser={async (newUser) => {
+            // Handled by auth context
+          }}
+        />
+      </NavigationContainer>
+    </NavigationIndependentTree>
+  );
 }
 
 function AppWithProviders() {
