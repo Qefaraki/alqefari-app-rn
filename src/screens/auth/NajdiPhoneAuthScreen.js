@@ -238,17 +238,13 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Check if user already has a linked profile
+      // The AuthContext and state machine will handle navigation
+      // based on whether the user has a profile or not
       if (result.hasProfile) {
-        console.log('[DEBUG OTP] User has existing profile');
-        // The AuthContext and _layout.tsx will automatically:
-        // 1. Detect the user has a linked profile
-        // 2. Mark onboarding as complete
-        // 3. Navigate to the main tabs
-        // We don't need to do anything here
+        console.log('[DEBUG OTP] User has existing profile - auth flow complete');
       } else {
-        console.log('[DEBUG OTP] New user, navigating to ProfileLinking');
-        // New user needs to link their profile
+        console.log('[DEBUG OTP] New user needs profile linking');
+        // Navigate to profile linking screen
         navigation.navigate("ProfileLinking", { user: result.user });
       }
     } else {

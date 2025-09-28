@@ -55,7 +55,7 @@ class ErrorBoundary extends Component {
 }
 
 function TabLayout() {
-  const { authState, user, isAdmin, isLoading, stateMachine } = useAuth();
+  const { authState, user, isAdmin, isGuestMode, isLoading, stateMachine } = useAuth();
   const [notificationInitialized, setNotificationInitialized] = useState(false);
 
   // Initialize notifications when user is authenticated
@@ -240,7 +240,23 @@ function TabLayout() {
         </NativeTabs.Trigger>
       )}
     </NativeTabs>
-  );
+    );
+  }
+
+  // Handle error state
+  if (authState === AuthStates.ERROR) {
+    console.log('[DEBUG] Auth error state');
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>حدث خطأ في المصادقة</Text>
+        <Button title="إعادة المحاولة" onPress={() => stateMachine.recoverFromError()} />
+      </View>
+    );
+  }
+
+  // Fallback - shouldn't reach here
+  console.warn('[DEBUG] Unexpected auth state:', authState);
+  return null;
 }
 
 function AppWithProviders() {
@@ -263,6 +279,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F9F7F3',
     padding: 20,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9F7F3',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#242121',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   loadingText: {
     marginTop: 20,

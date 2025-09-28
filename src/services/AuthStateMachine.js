@@ -68,6 +68,7 @@ const StateTransitions = {
     AuthStates.PROFILE_LINKED,
     AuthStates.PROFILE_LINKING,
     AuthStates.PENDING_APPROVAL,
+    AuthStates.AUTHENTICATED,  // Allow self-transition for retries
     AuthStates.UNAUTHENTICATED,
     AuthStates.SESSION_EXPIRED,
   ],
@@ -252,7 +253,14 @@ class AuthStateMachine {
           return this.transition(AuthStates.PENDING_APPROVAL, {
             user: session.user
           });
+        } else if (profile) {
+          // Has profile but not linked to family tree
+          return this.transition(AuthStates.PROFILE_LINKING, {
+            user: session.user,
+            profile
+          });
         } else {
+          // No profile at all
           return this.transition(AuthStates.AUTHENTICATED, {
             user: session.user
           });
@@ -275,12 +283,29 @@ class AuthStateMachine {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, linked_profile_id, status, name')
+        .select('id, user_id, name, role, hid')
         .eq('user_id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
         console.error('[AuthStateMachine] Profile check error:', error);
+      }
+
+      // Check for pending link requests
+      if (data) {
+        const { data: linkRequest } = await supabase
+          .from('profile_link_requests')
+          .select('status')
+          .eq('user_id', userId)
+          .eq('status', 'pending')
+          .single();
+
+        if (linkRequest) {
+          data.status = 'pending';
+        }
+
+        // Consider profile linked if they have an HID
+        data.linked_profile_id = data.hid ? data.id : null;
       }
 
       return data;
