@@ -236,8 +236,8 @@ function TabLayout() {
           <Label>الإدارة</Label>
           <Icon
             sf={{
-              default: "shield",
-              selected: "shield.fill",
+              default: "star",
+              selected: "star.fill",
             }}
           />
         </NativeTabs.Trigger>

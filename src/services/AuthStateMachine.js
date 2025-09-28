@@ -63,6 +63,7 @@ const StateTransitions = {
 
   [AuthStates.PHONE_AUTH]: [
     AuthStates.OTP_VERIFICATION,
+    AuthStates.AUTHENTICATED_NO_PROFILE,  // When OTP completes and user has no profile
     AuthStates.ONBOARDING,
     AuthStates.ERROR,
   ],
@@ -283,9 +284,19 @@ class AuthStateMachine {
         }
       }
 
-      // Determine target state based on session
+      // CRITICAL: Check onboarding completion FIRST, before anything else
+      // If onboarding is not complete and not in guest mode, force onboarding
+      if (hasCompletedOnboarding !== 'true' && isGuestMode !== 'true') {
+        console.log('[AuthStateMachine] Onboarding not complete, forcing onboarding flow');
+        // Clear any stored auth state to ensure fresh start
+        this.currentState = AuthStates.ONBOARDING;
+        this.stateData = {};
+        return this.transition(AuthStates.ONBOARDING);
+      }
+
+      // Only check session AFTER confirming onboarding is complete
       if (session) {
-        // User is authenticated
+        // User is authenticated AND has completed onboarding
         const profile = await this.checkUserProfile(session.user.id);
         let targetState = null;
         let targetData = {};
@@ -312,9 +323,8 @@ class AuthStateMachine {
         }
       } else if (isGuestMode === 'true') {
         return this.transition(AuthStates.GUEST_MODE);
-      } else if (hasCompletedOnboarding === 'true') {
-        return this.transition(AuthStates.UNAUTHENTICATED);
       } else {
+        // No session, onboarding complete or not specified
         return this.transition(AuthStates.UNAUTHENTICATED);
       }
     } catch (error) {

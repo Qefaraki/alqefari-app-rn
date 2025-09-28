@@ -7,19 +7,19 @@ import {
 } from 'react-native';
 import { NavigationContainer, NavigationIndependentTree } from '@react-navigation/native';
 import AuthNavigator from '../navigation/AuthNavigator';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignInModal({ visible, onClose, onAuthSuccess }) {
   const handleSetUser = async (user) => {
-    // Mark onboarding as complete when auth succeeds
-    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    // DO NOT mark onboarding as complete here!
+    // It should only be marked complete after successful profile linking
+    // The AuthStateMachine will handle this when transitioning to PROFILE_LINKED
     onAuthSuccess?.(user);
     onClose();
   };
 
   const handleSetGuest = async () => {
-    // Mark onboarding as complete for guest mode
-    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    // Guest mode is handled by the state machine
+    // It will set hasCompletedOnboarding when transitioning to GUEST_MODE
     onClose();
   };
 

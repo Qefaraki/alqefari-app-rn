@@ -183,8 +183,8 @@ export default function ProfileMatchingScreen({ navigation, route }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Request sent for admin approval - mark onboarding complete
-      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+      // Request sent for admin approval
+      // DO NOT mark onboarding complete - user is still pending approval!
 
       // Trigger profile status refresh to detect pending request
       await checkProfileStatus(user);
@@ -237,8 +237,8 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        // Request sent for admin approval - mark onboarding complete
-        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+        // Request sent for admin approval
+        // DO NOT mark onboarding complete - user is still pending approval!
 
         // Trigger profile status refresh to detect pending request
         await checkProfileStatus(user);

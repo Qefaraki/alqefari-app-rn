@@ -6,8 +6,9 @@
  * navigation decisions, eliminating race conditions and stuck states.
  */
 
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigation, CommonActions } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthStates } from '../services/AuthStateMachine';
 
@@ -40,8 +41,16 @@ const RESET_STACK_STATES = [
 export default function NavigationController() {
   const navigation = useNavigation();
   const { authState, authStateData, user } = useAuth();
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(null);
   const lastNavigatedStateRef = useRef(null);
   const isNavigatingRef = useRef(false);
+
+  // Check onboarding status on mount
+  useEffect(() => {
+    AsyncStorage.getItem('hasCompletedOnboarding').then(value => {
+      setHasCompletedOnboarding(value === 'true');
+    });
+  }, []);
 
   // Get the current route name
   const getCurrentRouteName = useCallback(() => {
@@ -97,10 +106,26 @@ export default function NavigationController() {
 
   // Main effect: Handle state-based navigation
   useEffect(() => {
-    // Skip if still initializing
-    if (authState === AuthStates.INITIALIZING) {
-      console.log('[NavigationController] Still initializing, skipping');
+    // Skip if still initializing or onboarding status unknown
+    if (authState === AuthStates.INITIALIZING || hasCompletedOnboarding === null) {
+      console.log('[NavigationController] Still initializing or checking onboarding, skipping');
       return;
+    }
+
+    // CRITICAL: Force onboarding if not complete, regardless of auth state
+    if (!hasCompletedOnboarding && authState !== AuthStates.GUEST_MODE) {
+      console.log('[NavigationController] Onboarding not complete, forcing to onboarding page 1');
+      // Even if we have auth or profile data, go to onboarding
+      if (authState !== AuthStates.ONBOARDING && authState !== AuthStates.UNAUTHENTICATED) {
+        console.log('[NavigationController] Overriding state', authState, 'to force onboarding');
+      }
+
+      // Navigate to onboarding page 1
+      const navigationTimer = setTimeout(() => {
+        navigateToScreen('Onboarding', {});
+        lastNavigatedStateRef.current = 'FORCED_ONBOARDING';
+      }, 100);
+      return () => clearTimeout(navigationTimer);
     }
 
     // Skip if we've already handled this state
@@ -148,7 +173,7 @@ export default function NavigationController() {
     }, 100);
 
     return () => clearTimeout(navigationTimer);
-  }, [authState, authStateData, user, navigateToScreen]);
+  }, [authState, authStateData, user, navigateToScreen, hasCompletedOnboarding]);
 
   // Handle special cases: Back navigation prevention
   useEffect(() => {
