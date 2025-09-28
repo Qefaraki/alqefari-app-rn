@@ -426,10 +426,10 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Compact Statistics Grid - 2x2 Layout */}
+        {/* iOS Widget Style Statistics Card */}
         <Animated.View
           style={[
-            styles.statsContainer,
+            styles.statsWidget,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
@@ -437,43 +437,51 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           ]}
         >
           {statsLoading ? (
-            <View style={styles.statsGrid}>
-              {[...Array(4)].map((_, i) => (
-                <View key={i} style={styles.statCard}>
-                  <SkeletonLoader width={50} height={28} style={{ marginBottom: 4 }} />
-                  <SkeletonLoader width="60%" height={12} />
-                </View>
-              ))}
+            <View style={styles.statsWidgetContent}>
+              <View style={styles.statsRow}>
+                <SkeletonLoader width={80} height={32} />
+                <SkeletonLoader width={80} height={32} />
+              </View>
+              <View style={styles.statsDivider} />
+              <View style={styles.statsRow}>
+                <SkeletonLoader width={80} height={32} />
+                <SkeletonLoader width={80} height={32} />
+              </View>
             </View>
           ) : (
-            <View style={styles.statsGrid}>
-              <View style={[styles.statCard, styles.statCardTopLeft]}>
-                <Ionicons name="time-outline" size={16} color="#A13333" style={styles.statIcon} />
-                <Text style={[styles.statNumber, { color: "#A13333" }]}>
-                  {stats?.total_profiles || 0}
-                </Text>
-                <Text style={styles.statLabel}>تاريخي</Text>
+            <View style={styles.statsWidgetContent}>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumberLarge, { color: "#A13333" }]}>
+                    {stats?.total_profiles || 0}
+                  </Text>
+                  <Text style={styles.statLabelSmall}>تاريخي</Text>
+                </View>
+                <View style={styles.statVerticalDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumberLarge, { color: "#242121" }]}>
+                    {stats?.alive_count || 0}
+                  </Text>
+                  <Text style={styles.statLabelSmall}>حالي</Text>
+                </View>
               </View>
-              <View style={[styles.statCard, styles.statCardTopRight]}>
-                <Ionicons name="people-outline" size={16} color="#D58C4A" style={styles.statIcon} />
-                <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
-                  {stats?.alive_count || 0}
-                </Text>
-                <Text style={styles.statLabel}>حالي</Text>
-              </View>
-              <View style={[styles.statCard, styles.statCardBottomLeft]}>
-                <Ionicons name="male-outline" size={16} color="#A13333" style={styles.statIcon} />
-                <Text style={[styles.statNumber, { color: "#A13333" }]}>
-                  {stats?.male_count || 0}
-                </Text>
-                <Text style={styles.statLabel}>ذكور</Text>
-              </View>
-              <View style={[styles.statCard, styles.statCardBottomRight]}>
-                <Ionicons name="female-outline" size={16} color="#D58C4A" style={styles.statIcon} />
-                <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
-                  {stats?.female_count || 0}
-                </Text>
-                <Text style={styles.statLabel}>إناث</Text>
+
+              <View style={styles.statsDivider} />
+
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumberLarge, { color: "#242121" }]}>
+                    {stats?.male_count || 0}
+                  </Text>
+                  <Text style={styles.statLabelSmall}>ذكور</Text>
+                </View>
+                <View style={styles.statVerticalDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumberLarge, { color: "#D58C4A" }]}>
+                    {stats?.female_count || 0}
+                  </Text>
+                  <Text style={styles.statLabelSmall}>إناث</Text>
+                </View>
               </View>
             </View>
           )}

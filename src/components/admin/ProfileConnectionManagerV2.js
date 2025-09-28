@@ -101,6 +101,7 @@ const getFullNameChain = (profile, allProfiles = []) => {
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function ProfileConnectionManagerV2({ onBack }) {
+  console.log("🚀 ProfileConnectionManagerV2 MOUNTED");
   const router = useRouter();
   const [requests, setRequests] = useState({
     pending: [],
@@ -116,12 +117,14 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const tabKeys = ["pending", "approved", "rejected"];
 
   useEffect(() => {
+    console.log("🚀 ProfileConnectionManagerV2 useEffect running");
     loadPendingRequests();
     const subscription = subscribeToRequests();
     return () => subscription?.unsubscribe();
   }, []);
 
   const loadPendingRequests = async () => {
+    console.log("🔍 DEBUG: Starting loadPendingRequests...");
     try {
       // Load all profiles for name chain building
       const { data: profiles } = await supabase
@@ -129,9 +132,11 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         .select("id, name, father_id");
 
       if (profiles) {
+        console.log(`🔍 DEBUG: Loaded ${profiles.length} profiles for name chains`);
         setAllProfiles(profiles);
       }
 
+      console.log("🔍 DEBUG: Fetching profile_link_requests...");
       const { data, error } = await supabase
         .from("profile_link_requests")
         .select(
@@ -151,9 +156,17 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         .in("status", ["pending", "approved", "rejected"])
         .order("created_at", { ascending: false });
 
+      console.log("🔍 DEBUG: Query response:", { data, error });
+
       if (error) {
-        console.error("Error loading profile link requests:", error);
+        console.error("❌ Error loading profile link requests:", error);
+        console.error("❌ Error details:", JSON.stringify(error, null, 2));
         throw error;
+      }
+
+      console.log(`🔍 DEBUG: Received ${data?.length || 0} requests`);
+      if (data && data.length > 0) {
+        console.log("🔍 DEBUG: First request:", JSON.stringify(data[0], null, 2));
       }
 
       // Group by status
@@ -167,9 +180,16 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         grouped[request.status].push(request);
       });
 
+      console.log("🔍 DEBUG: Grouped requests:", {
+        pending: grouped.pending.length,
+        approved: grouped.approved.length,
+        rejected: grouped.rejected.length
+      });
+
       setRequests(grouped);
     } catch (error) {
-      console.error("Error loading requests:", error);
+      console.error("❌ Error in loadPendingRequests:", error);
+      console.error("❌ Stack trace:", error.stack);
       Alert.alert("خطأ", "فشل تحميل الطلبات");
     } finally {
       setLoading(false);
