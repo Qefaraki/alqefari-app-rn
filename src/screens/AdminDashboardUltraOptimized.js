@@ -544,79 +544,123 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           </Animated.View>
         ) : null}
 
-        {/* Quick Actions Grid - Compact 2x3 Layout */}
-        <Animated.View
-          style={[
-            styles.actionsContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#A1333310" }]}
-              onPress={() => setShowLinkRequests(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.actionIconContainer}>
-                <Ionicons name="link-outline" size={28} color="#A13333" />
-                {pendingRequestsCount > 0 && (
-                  <View style={styles.actionBadge}>
-                    <Text style={styles.actionBadgeText}>{pendingRequestsCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.actionCardText}>ربط الملفات</Text>
-            </TouchableOpacity>
+        {/* iOS-Style Grouped List Sections */}
+        <View style={styles.listSectionsContainer}>
+          {/* Primary Actions Section */}
+          <Animated.View
+            style={[
+              styles.listSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionHeader}>الإدارة الأساسية</Text>
+            <View style={styles.listGroup}>
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemFirst]}
+                onPress={() => setShowLinkRequests(true)}
+                activeOpacity={0.5}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="link-outline" size={22} color="#A13333" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>ربط الملفات</Text>
+                </View>
+                <View style={styles.listItemRight}>
+                  {pendingRequestsCount > 0 && (
+                    <View style={styles.listBadge}>
+                      <Text style={styles.listBadgeText}>{pendingRequestsCount}</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+                </View>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#D58C4A10" }]}
-              onPress={() => setShowMunasibManager(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="people-outline" size={28} color="#D58C4A" />
-              <Text style={styles.actionCardText}>المنتسبين</Text>
-            </TouchableOpacity>
+              <View style={styles.separator} />
 
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#A1333310" }]}
-              onPress={() => setShowQuickAdd(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add-circle-outline" size={28} color="#A13333" />
-              <Text style={styles.actionCardText}>إضافة جديد</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.listItem}
+                onPress={() => setShowMunasibManager(true)}
+                activeOpacity={0.5}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="people-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>المنتسبين</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#24212110" }]}
-              onPress={() => setShowActivityLog(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="document-text-outline" size={28} color="#242121" />
-              <Text style={styles.actionCardText}>سجل النشاط</Text>
-            </TouchableOpacity>
+              <View style={styles.separator} />
 
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#D58C4A10" }]}
-              onPress={handleAutoFix}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="construct-outline" size={28} color="#D58C4A" />
-              <Text style={styles.actionCardText}>إصلاح تلقائي</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemLast]}
+                onPress={() => setShowQuickAdd(true)}
+                activeOpacity={0.5}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="add-circle-outline" size={22} color="#A13333" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>إضافة جديد</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
 
-            <TouchableOpacity
-              style={[styles.actionCard, { backgroundColor: "#24212110" }]}
-              onPress={handleRecalculateLayouts}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="refresh-outline" size={28} color="#242121" />
-              <Text style={styles.actionCardText}>إعادة حساب</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+          {/* System Tools Section */}
+          <Animated.View
+            style={[
+              styles.listSection,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionHeader}>أدوات النظام</Text>
+            <View style={styles.listGroup}>
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemFirst]}
+                onPress={() => setShowActivityLog(true)}
+                activeOpacity={0.5}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>سجل النشاط</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </TouchableOpacity>
+
+              <View style={styles.separator} />
+
+              <TouchableOpacity
+                style={styles.listItem}
+                onPress={handleAutoFix}
+                activeOpacity={0.5}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="construct-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>إصلاح تلقائي</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </TouchableOpacity>
+
+              <View style={styles.separator} />
+
+              <TouchableOpacity
+                style={[styles.listItem, styles.listItemLast]}
+                onPress={handleRecalculateLayouts}
+                activeOpacity={0.5}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="refresh-outline" size={22} color="#242121" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>إعادة حساب</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
 
         {/* Munasib families - Shows after enhanced stats load */}
         {!enhancedLoading &&
@@ -714,100 +758,146 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  statsContainer: {
+  // iOS Widget Style Stats
+  statsWidget: {
+    backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  statCard: {
-    backgroundColor: "#F9F7F3", // Al-Jass White
-    width: "48.5%",
-    padding: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#D1BBA320", // Camel Hair Beige 20%
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 13,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 2,
-    position: "relative",
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  statCardTopLeft: {
-    borderTopRightRadius: 4,
+  statsWidgetContent: {
+    padding: 16,
   },
-  statCardTopRight: {
-    borderTopLeftRadius: 4,
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingVertical: 12,
   },
-  statCardBottomLeft: {
-    borderBottomRightRadius: 4,
+  statItem: {
+    flex: 1,
+    alignItems: "center",
   },
-  statCardBottomRight: {
-    borderBottomLeftRadius: 4,
-  },
-  statIcon: {
-    position: "absolute",
-    top: 8,
-    right: 8,
+  statVerticalDivider: {
+    width: 0.5,
+    height: 40,
+    backgroundColor: "#C7C7CC",
     opacity: 0.3,
   },
-  actionsContainer: {
+  statsDivider: {
+    height: 0.5,
+    backgroundColor: "#C7C7CC",
+    opacity: 0.3,
     marginHorizontal: 16,
-    marginBottom: 16,
   },
-  actionsGrid: {
+  statNumberLarge: {
+    fontSize: 32,
+    fontWeight: "300",
+    fontFamily: Platform.select({
+      ios: "SF Pro Display",
+      default: "System",
+    }),
+  },
+  statLabelSmall: {
+    fontSize: 13,
+    color: "#8E8E93",
+    marginTop: 2,
+    fontWeight: "400",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+  },
+  // iOS List Sections
+  listSectionsContainer: {
+    marginTop: 20,
+  },
+  listSection: {
+    marginBottom: 35,
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: "#6C6C70",
+    textTransform: "uppercase",
+    marginHorizontal: 32,
+    marginBottom: 8,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+  },
+  listGroup: {
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  listItem: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
+    alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minHeight: 52,
+    backgroundColor: "#FFFFFF",
   },
-  actionCard: {
-    width: "31%",
-    aspectRatio: 1,
-    padding: 12,
+  listItemFirst: {
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  listItemLast: {
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  listItemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  listItemIcon: {
+    marginRight: 12,
+    width: 24,
+  },
+  listItemText: {
+    fontSize: 17,
+    color: "#242121",
+    fontWeight: "400",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+  },
+  listItemRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  listBadge: {
+    backgroundColor: "#FF3B30",
     borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#00000008",
   },
-  actionIconContainer: {
-    position: "relative",
-  },
-  actionBadge: {
-    position: "absolute",
-    top: -4,
-    right: -8,
-    backgroundColor: "#A13333",
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    minWidth: 20,
-    alignItems: "center",
-  },
-  actionBadgeText: {
+  listBadgeText: {
     color: "#FFFFFF",
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: "600",
   },
-  actionCardText: {
-    color: "#242121",
-    fontSize: 11,
-    fontWeight: "500",
-    marginTop: 6,
-    textAlign: "center",
+  separator: {
+    height: 0.5,
+    backgroundColor: "#C7C7CC",
+    marginLeft: 52,
+    opacity: 0.4,
   },
   statsCard: {
     marginTop: 16,
@@ -819,18 +909,6 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     marginBottom: 16,
     textAlign: "right",
-  },
-  statNumber: {
-    fontSize: 28,
-    fontWeight: "700",
-    marginTop: 4,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "#24212199", // Sadu Night 60%
-    marginTop: 2,
-    textAlign: "center",
-    fontWeight: "500",
   },
   completenessGrid: {
     flexDirection: "row-reverse",
