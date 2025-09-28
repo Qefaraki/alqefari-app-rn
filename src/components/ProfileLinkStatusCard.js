@@ -79,10 +79,18 @@ export default function ProfileLinkStatusCard() {
         .select("id, name, father_id");
 
       if (profiles) {
+        console.log("🔍 DEBUG ProfileLinkStatusCard: All profiles count:", profiles.length);
+        console.log("🔍 DEBUG ProfileLinkStatusCard: Sample profiles:", profiles.slice(0, 3));
         setAllProfiles(profiles);
       }
 
       if (linkedProfile) {
+        console.log("🔍 DEBUG ProfileLinkStatusCard: Linked profile:", {
+          id: linkedProfile.id,
+          name: linkedProfile.name,
+          father_id: linkedProfile.father_id,
+          user_id: linkedProfile.user_id
+        });
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
       } else {
@@ -127,7 +135,13 @@ export default function ProfileLinkStatusCard() {
 
     // If it's an object (profile), build the chain
     if (typeof profileOrName === 'object') {
+      console.log("🔍 DEBUG getFullNameChain: Building chain for:", profileOrName.name);
+      console.log("🔍 DEBUG getFullNameChain: Profile father_id:", profileOrName.father_id);
+      console.log("🔍 DEBUG getFullNameChain: Available profiles for lookup:", profiles?.length || 0);
+
       const chain = buildNameChain(profileOrName, profiles);
+      console.log("🔍 DEBUG getFullNameChain: Built chain result:", chain);
+
       if (chain) {
         return chain.includes("القفاري") ? chain : `${chain} القفاري`;
       }

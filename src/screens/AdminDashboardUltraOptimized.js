@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Animated,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,9 +20,54 @@ import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
+
+// Animated TouchableOpacity for iOS-like press feedback
+const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
+  const scaleValue = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scaleValue, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 10,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleValue, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 40,
+      friction: 7,
+    }).start();
+  };
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={onPress}
+      {...props}
+    >
+      <Animated.View
+        style={[
+          style,
+          {
+            transform: [{ scale: scaleValue }]
+          }
+        ]}
+      >
+        {children}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
 
 const AdminDashboardUltraOptimized = ({ user }) => {
   // Loading states for each section
@@ -301,55 +347,91 @@ const AdminDashboardUltraOptimized = ({ user }) => {
     );
   };
 
-  // Modal renders
-  
-  if (showActivityLog) {
-    return <ActivityLogDashboard onClose={() => setShowActivityLog(false)}  />;
-  }
-  if (showQuickAdd) {
-    return (
-      <QuickAddOverlay
-        onClose={() => setShowQuickAdd(false)}
-        onComplete={() => {
-          setShowQuickAdd(false);
-          handleRefresh();
-        }}
-      />
+  // Create refs at component level for modals
+  const modalTranslateX = useRef(new Animated.Value(0)).current;
+  const modalGestureHandler = useRef(null);
+
+  // Modal renders with iOS-style full-screen presentation
+  const renderIOSModal = (visible, onClose, title, Component, props = {}) => {
+    if (!visible) return null;
+
+    const onGestureEvent = Animated.event(
+      [{ nativeEvent: { translationX: modalTranslateX } }],
+      { useNativeDriver: true }
     );
-  }
-  if (showLinkRequests) {
+
+    const onHandlerStateChange = (event) => {
+      if (event.nativeEvent.state === State.END) {
+        const { translationX, velocityX } = event.nativeEvent;
+
+        // Swipe right to dismiss (for RTL)
+        if (translationX > 120 || velocityX > 800) {
+          Animated.timing(modalTranslateX, {
+            toValue: 400,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            modalTranslateX.setValue(0);
+            onClose();
+          });
+        } else {
+          // Snap back
+          Animated.spring(modalTranslateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 40,
+            friction: 8,
+          }).start();
+        }
+      }
+    };
+
     return (
-      <ProfileConnectionManagerV2
-        onBack={() => {
-          setShowLinkRequests(false);
-          loadPendingRequestsCount(); // Refresh count when returning
-        }}
-      />
+      <Modal
+        animationType="slide"
+        presentationStyle="fullScreen"
+        visible={visible}
+        onRequestClose={onClose}
+      >
+        <PanGestureHandler
+          ref={gestureHandler}
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+          activeOffsetX={10}
+          failOffsetY={[-5, 5]}
+        >
+          <Animated.View
+            style={[
+              { flex: 1, backgroundColor: '#F9F7F3' },
+              { transform: [{ translateX: modalTranslateX }] }
+            ]}
+          >
+            <SafeAreaView style={{ flex: 1 }}>
+              {/* iOS Navigation Header */}
+              <View style={styles.iosModalHeader}>
+                <TouchableOpacity
+                  style={styles.iosBackButton}
+                  onPress={onClose}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="chevron-back" size={28} color="#A13333" />
+                </TouchableOpacity>
+                <Text style={styles.iosModalTitle}>{title}</Text>
+                <View style={{ width: 44 }} />
+              </View>
+
+              <Component
+                {...props}
+                onClose={onClose}
+                onBack={onClose}
+                navigation={{ goBack: onClose }}
+              />
+            </SafeAreaView>
+          </Animated.View>
+        </PanGestureHandler>
+      </Modal>
     );
-  }
-  if (showMessagesManager) {
-    return (
-      <AdminMessagesManager
-        onClose={() => {
-          setShowMessagesManager(false);
-        }}
-      />
-    );
-  }
-  // Render MunasibManager as a modal
-  const renderMunasibManager = () => (
-    <MunasibManager
-      visible={showMunasibManager}
-      onClose={() => setShowMunasibManager(false)}
-    />
-  );
-  if (showValidationDashboard) {
-    return (
-      <ValidationDashboard
-        navigation={{ goBack: () => setShowValidationDashboard(false) }}
-      />
-    );
-  }
+  };
 
   // Skeleton components
   const StatsGridSkeleton = () => (
@@ -558,10 +640,9 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           >
             <Text style={styles.sectionHeader}>الإدارة الأساسية</Text>
             <View style={styles.listGroup}>
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={[styles.listItem, styles.listItemFirst]}
                 onPress={() => setShowLinkRequests(true)}
-                activeOpacity={0.5}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="link-outline" size={22} color="#A13333" style={styles.listItemIcon} />
@@ -575,35 +656,33 @@ const AdminDashboardUltraOptimized = ({ user }) => {
                   )}
                   <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
                 </View>
-              </TouchableOpacity>
+              </AnimatedTouchable>
 
               <View style={styles.separator} />
 
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={styles.listItem}
                 onPress={() => setShowMunasibManager(true)}
-                activeOpacity={0.5}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="people-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>المنتسبين</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </TouchableOpacity>
+              </AnimatedTouchable>
 
               <View style={styles.separator} />
 
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={[styles.listItem, styles.listItemLast]}
                 onPress={() => setShowQuickAdd(true)}
-                activeOpacity={0.5}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="add-circle-outline" size={22} color="#A13333" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>إضافة جديد</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </TouchableOpacity>
+              </AnimatedTouchable>
             </View>
           </Animated.View>
 
@@ -619,45 +698,42 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           >
             <Text style={styles.sectionHeader}>أدوات النظام</Text>
             <View style={styles.listGroup}>
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={[styles.listItem, styles.listItemFirst]}
                 onPress={() => setShowActivityLog(true)}
-                activeOpacity={0.5}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>سجل النشاط</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </TouchableOpacity>
+              </AnimatedTouchable>
 
               <View style={styles.separator} />
 
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={styles.listItem}
                 onPress={handleAutoFix}
-                activeOpacity={0.5}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="construct-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>إصلاح تلقائي</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </TouchableOpacity>
+              </AnimatedTouchable>
 
               <View style={styles.separator} />
 
-              <TouchableOpacity
+              <AnimatedTouchable
                 style={[styles.listItem, styles.listItemLast]}
                 onPress={handleRecalculateLayouts}
-                activeOpacity={0.5}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="refresh-outline" size={22} color="#242121" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>إعادة حساب</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </TouchableOpacity>
+              </AnimatedTouchable>
             </View>
           </Animated.View>
         </View>
@@ -714,8 +790,57 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           )}
       </ScrollView>
 
-      {/* MunasibManager Modal */}
-      {renderMunasibManager()}
+      {/* Full-Screen iOS Modals */}
+      {renderIOSModal(
+        showActivityLog,
+        () => setShowActivityLog(false),
+        "سجل النشاط",
+        ActivityLogDashboard
+      )}
+
+      {renderIOSModal(
+        showQuickAdd,
+        () => setShowQuickAdd(false),
+        "إضافة سريعة",
+        QuickAddOverlay,
+        {
+          onComplete: () => {
+            setShowQuickAdd(false);
+            handleRefresh();
+          }
+        }
+      )}
+
+      {renderIOSModal(
+        showLinkRequests,
+        () => {
+          setShowLinkRequests(false);
+          loadPendingRequestsCount();
+        },
+        "ربط الملفات",
+        ProfileConnectionManagerV2
+      )}
+
+      {renderIOSModal(
+        showMessagesManager,
+        () => setShowMessagesManager(false),
+        "الرسائل",
+        AdminMessagesManager
+      )}
+
+      {renderIOSModal(
+        showMunasibManager,
+        () => setShowMunasibManager(false),
+        "المنتسبين",
+        MunasibManager
+      )}
+
+      {renderIOSModal(
+        showValidationDashboard,
+        () => setShowValidationDashboard(false),
+        "التحقق من البيانات",
+        ValidationDashboard
+      )}
     </SafeAreaView>
   );
 };
@@ -798,9 +923,9 @@ const styles = StyleSheet.create({
   },
   statNumberLarge: {
     fontSize: 32,
-    fontWeight: "300",
+    fontWeight: "700",
     fontFamily: Platform.select({
-      ios: "SF Pro Display",
+      ios: "SF Arabic",
       default: "System",
     }),
   },
@@ -898,6 +1023,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#C7C7CC",
     marginLeft: 52,
     opacity: 0.4,
+  },
+  // iOS Modal Header Styles
+  iosModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#F9F7F3",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#C7C7CC",
+  },
+  iosBackButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
+  },
+  iosModalTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#242121",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
   statsCard: {
     marginTop: 16,

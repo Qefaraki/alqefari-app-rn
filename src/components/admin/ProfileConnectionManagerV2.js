@@ -40,10 +40,10 @@ const colors = {
   primary: "#A13333",         // Najdi Crimson
   secondary: "#D58C4A",       // Desert Ochre
 
-  // Status colors (from ProfileLinkStatusIndicator)
-  success: "#22C55E",         // Softer green
+  // Status colors (keeping brand palette)
+  success: "#D58C4A",         // Desert Ochre for approve
   warning: "#D58C4A",         // Desert Ochre for pending
-  error: "#EF4444",           // Softer red
+  error: "#A13333",           // Najdi Crimson for reject
 
   // System colors
   white: "#FFFFFF",
@@ -344,7 +344,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
             resizeMode="contain"
           />
           <View style={styles.titleContent}>
-            <Text style={styles.title}>طلبات ربط الملفات</Text>
+            <Text style={styles.title}>الربط</Text>
           </View>
           {onBack && (
             <TouchableOpacity
@@ -408,7 +408,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
       {/* List */}
       <ScrollView
-        style={styles.scrollView}
+        style={[styles.scrollView, { backgroundColor: colors.background }]}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -440,9 +440,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                   activeOpacity={0.7}
                 >
                 <Animated.View
-                  entering={FadeInDown.delay(index * 50).springify()}
+                  entering={FadeInDown.delay(index * 30).springify().damping(15)}
                   layout={Layout.springify()}
-                  style={styles.requestCard}
+                  style={[styles.requestCard, { transform: [{ scale: 1 }] }]}
                 >
                   {/* Status indicator line */}
                   <View style={[styles.statusIndicatorLine, { backgroundColor: statusColor }]} />
@@ -468,15 +468,12 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                     {/* Name and details */}
                     <View style={styles.profileInfo}>
                       <Text style={styles.profileName}>{displayName}</Text>
-                      <View style={styles.metaRow}>
-                        <Text style={styles.profileMeta}>
-                          {request.phone || "لا يوجد رقم"}
-                        </Text>
-                        <Text style={styles.metaSeparator}>•</Text>
-                        <Text style={styles.profileMeta}>
-                          {getGenerationName(profile?.generation)}
-                        </Text>
-                      </View>
+                      <Text style={styles.profileMeta}>
+                        {getGenerationName(profile?.generation)}
+                      </Text>
+                      <Text style={[styles.profileMeta, { fontSize: 13, color: colors.textMuted + "99" }]}>
+                        {request.phone || "لا يوجد رقم"}
+                      </Text>
                     </View>
 
                     {/* Actions for pending */}
@@ -501,7 +498,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                             onPress={() => handleWhatsApp(request.phone)}
                             style={[styles.actionButton, styles.whatsappButton]}
                             icon="logo-whatsapp"
-                            color="#FFFFFF"
+                            color={colors.text}
                             size={18}
                           />
                         )}
@@ -523,7 +520,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                             onPress={() => handleWhatsApp(request.phone)}
                             style={[styles.actionButton, styles.whatsappButton]}
                             icon="logo-whatsapp"
-                            color="#FFFFFF"
+                            color={colors.text}
                             size={18}
                           />
                         )}
@@ -549,7 +546,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                             onPress={() => handleWhatsApp(request.phone)}
                             style={[styles.actionButton, styles.whatsappButton]}
                             icon="logo-whatsapp"
-                            color="#FFFFFF"
+                            color={colors.text}
                             size={18}
                           />
                         )}
@@ -595,20 +592,21 @@ const AnimatedActionButton = ({ onPress, style, icon, color, size = 20 }) => {
   const scaleAnim = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(scaleAnim.value) }],
+    transform: [{ scale: withSpring(scaleAnim.value, { damping: 15, stiffness: 300 }) }],
   }));
 
   return (
     <AnimatedTouchable
       style={[style, animatedStyle]}
       onPressIn={() => {
-        scaleAnim.value = 0.92;
+        scaleAnim.value = 0.88;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }}
       onPressOut={() => {
         scaleAnim.value = 1;
       }}
       onPress={onPress}
-      activeOpacity={0.8}
+      activeOpacity={0.9}
     >
       <Ionicons name={icon} size={size} color={color} />
     </AnimatedTouchable>
@@ -715,35 +713,41 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 40,
   },
 
   // List
   listContainer: {
-    backgroundColor: colors.white,
-    marginTop: 20,
+    paddingTop: 16,
   },
 
-  // Card
+  // Card - Modern floating style
   requestCard: {
     backgroundColor: colors.white,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.separator,
-    minHeight: 72,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    minHeight: 92,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statusIndicatorLine: {
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    width: 3,
+    width: 4,
   },
   cardContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 20,
     paddingHorizontal: 16,
+    paddingLeft: 20,
   },
 
   // Photo
@@ -751,15 +755,15 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   profilePhoto: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.background,
   },
   avatarPlaceholder: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -771,11 +775,11 @@ const styles = StyleSheet.create({
   },
   photoBorder: {
     position: "absolute",
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-    borderColor: colors.container + "40",
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 1.5,
+    borderColor: colors.container + "30",
     top: -1,
     left: -1,
   },
@@ -783,23 +787,26 @@ const styles = StyleSheet.create({
   // Info
   profileInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
+    justifyContent: "center",
   },
   profileName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
     color: colors.text,
     fontFamily: "SF Arabic",
-    marginBottom: 2,
+    marginBottom: 3,
+    letterSpacing: -0.3,
   },
   metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    marginBottom: 2,
   },
   profileMeta: {
     fontSize: 14,
     color: colors.textMuted,
     fontFamily: "SF Arabic",
+    fontWeight: "500",
+    marginBottom: 2,
   },
   metaSeparator: {
     fontSize: 14,
