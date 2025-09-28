@@ -56,6 +56,18 @@ export default function ProfileLinkStatusCard() {
     };
   }, []);
 
+  // Force re-render when allProfiles is populated to update name chains
+  useEffect(() => {
+    // This effect will trigger a re-render when allProfiles changes
+    // ensuring getFullNameChain has the data it needs
+    console.log("[ProfileLinkStatusCard] allProfiles updated, count:", allProfiles.length);
+    if (profile) {
+      console.log("[ProfileLinkStatusCard] Re-building chain for linked profile:", profile.name);
+      const chain = buildNameChain(profile, allProfiles);
+      console.log("[ProfileLinkStatusCard] Updated chain:", chain);
+    }
+  }, [allProfiles, profile]);
+
   const loadProfileStatus = async () => {
     setLoading(true);
     try {
@@ -66,33 +78,32 @@ export default function ProfileLinkStatusCard() {
       }
       setUser(user);
 
-      // Check if user has a linked profile - include father_id for name chain
+      // Check if user has a linked profile - include all fields needed for name chain
       const { data: linkedProfile } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
-      // Load all profiles for name chain building
+      console.log("[ProfileLinkStatusCard] Linked profile loaded:", linkedProfile?.name);
+
+      // Load all profiles for name chain building - include all necessary fields
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, name, father_id");
+        .select("id, name, father_id, father_name, grandfather_name, full_chain");
+
+      console.log("[ProfileLinkStatusCard] Loaded profiles count:", profiles?.length || 0);
 
       if (profiles) {
-        console.log("🔍 DEBUG ProfileLinkStatusCard: All profiles count:", profiles.length);
-        console.log("🔍 DEBUG ProfileLinkStatusCard: Sample profiles:", profiles.slice(0, 3));
         setAllProfiles(profiles);
+        console.log("[ProfileLinkStatusCard] Sample profiles with father_id:",
+                    profiles.filter(p => p.father_id).slice(0, 3));
       }
 
       if (linkedProfile) {
-        console.log("🔍 DEBUG ProfileLinkStatusCard: Linked profile:", {
-          id: linkedProfile.id,
-          name: linkedProfile.name,
-          father_id: linkedProfile.father_id,
-          user_id: linkedProfile.user_id
-        });
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
+        console.log("[ProfileLinkStatusCard] Profile set with father_id:", linkedProfile.father_id);
       } else {
         // Check for pending link requests - simplified query
         const { data: requests, error: reqError } = await supabase
@@ -135,13 +146,7 @@ export default function ProfileLinkStatusCard() {
 
     // If it's an object (profile), build the chain
     if (typeof profileOrName === 'object') {
-      console.log("🔍 DEBUG getFullNameChain: Building chain for:", profileOrName.name);
-      console.log("🔍 DEBUG getFullNameChain: Profile father_id:", profileOrName.father_id);
-      console.log("🔍 DEBUG getFullNameChain: Available profiles for lookup:", profiles?.length || 0);
-
       const chain = buildNameChain(profileOrName, profiles);
-      console.log("🔍 DEBUG getFullNameChain: Built chain result:", chain);
-
       if (chain) {
         return chain.includes("القفاري") ? chain : `${chain} القفاري`;
       }
@@ -284,6 +289,13 @@ export default function ProfileLinkStatusCard() {
 
   // Linked Profile State
   if (hasLinkedProfile && profile) {
+    const nameChain = getFullNameChain(profile);
+    console.log("[ProfileLinkStatusCard] Rendering linked profile:");
+    console.log("  - Profile name:", profile.name);
+    console.log("  - Profile father_id:", profile.father_id);
+    console.log("  - allProfiles count:", allProfiles.length);
+    console.log("  - Display chain:", nameChain);
+
     return (
       <View style={[styles.container, styles.successContainer]}>
         <View style={styles.statusBadge}>
@@ -292,7 +304,7 @@ export default function ProfileLinkStatusCard() {
         </View>
 
         <Text style={styles.profileName} numberOfLines={2}>
-          {getFullNameChain(profile)}
+          {nameChain}
         </Text>
 
         <View style={styles.buttonRow}>

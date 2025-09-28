@@ -95,9 +95,20 @@ const SuggestionModal = ({
         // Create a suggestion
         const { data: user } = await supabase.auth.getUser();
 
+        // Get the profile ID for the current user
+        const { data: userProfile, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", user.user?.id)
+          .single();
+
+        if (profileError || !userProfile) {
+          throw new Error("لا يمكن العثور على ملفك الشخصي");
+        }
+
         const suggestion = {
           profile_id: profile.id,
-          suggested_by: user.user?.id,
+          suggested_by: userProfile.id, // Use profile ID, not auth user ID
           field_name: selectedField,
           old_value: currentValue ? { value: currentValue } : null,
           new_value: { value: newValue },

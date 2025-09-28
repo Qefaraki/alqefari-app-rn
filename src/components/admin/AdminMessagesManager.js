@@ -9,11 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import phoneAuthService from '../../services/phoneAuth';
 
-const AdminMessagesManager = () => {
+const AdminMessagesManager = ({ onClose }) => {
   const [messages, setMessages] = useState([]);
   const [linkRequests, setLinkRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,7 +151,7 @@ const AdminMessagesManager = () => {
           onPress={() => handleApprove(request)}
         >
           <Ionicons name="checkmark" size={20} color="#F9F7F3" />
-          <Text style={styles.buttonText}>موافقة</Text>
+          <Text style={[styles.buttonText, styles.approveButtonText]}>موافقة</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -157,7 +159,7 @@ const AdminMessagesManager = () => {
           onPress={() => handleReject(request)}
         >
           <Ionicons name="close" size={20} color="#F9F7F3" />
-          <Text style={styles.buttonText}>رفض</Text>
+          <Text style={[styles.buttonText, styles.rejectButtonText]}>رفض</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -209,7 +211,16 @@ const AdminMessagesManager = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Ionicons name="chevron-back" size={28} color="#242121" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>الرسائل</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'requests' && styles.activeTab]}
@@ -261,7 +272,7 @@ const AdminMessagesManager = () => {
           )
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -274,6 +285,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8E3DC',
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#242121',
   },
   tabs: {
     flexDirection: 'row',
@@ -304,14 +335,14 @@ const styles = StyleSheet.create({
     margin: 16,
     marginBottom: 8,
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D1BBA3' + '40',
+    borderRadius: 13,
+    borderWidth: 0.5,
+    borderColor: '#D1BBA320', // Camel Hair Beige 20%
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 2,
   },
   unreadCard: {
     borderLeftWidth: 4,
@@ -396,16 +427,23 @@ const styles = StyleSheet.create({
     flex: 0.48,
   },
   approveButton: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#A13333', // Najdi Crimson
   },
   rejectButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#D1BBA360', // Camel Hair Beige 40%
   },
   buttonText: {
-    color: '#F9F7F3',
     fontSize: 15,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  approveButtonText: {
+    color: '#F9F7F3', // Al-Jass White
+  },
+  rejectButtonText: {
+    color: '#242121', // Sadu Night
   },
   messageContent: {
     fontSize: 15,

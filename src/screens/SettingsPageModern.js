@@ -13,17 +13,19 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
+import { useAuth } from "../contexts/AuthContext";
 import { accountDeletionService } from "../services/accountDeletion";
 import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import ProfileLinkStatusIndicator from "../components/ProfileLinkStatusIndicator";
 import { getProfileDisplayName, buildNameChain } from "../utils/nameChainBuilder";
+import NotificationCenter from "../components/NotificationCenter";
+import NotificationBadge from "../components/NotificationBadge";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -121,29 +123,22 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export default function SettingsPageModern({ user }) {
   const router = useRouter();
   const { settings, updateSetting, resetSettings } = useSettings();
+  const { isAdmin } = useAuth();
 
   const [currentUser, setCurrentUser] = useState(user);
   const [userProfile, setUserProfile] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
   // New settings states
-  const [fontSize, setFontSize] = useState(0.5); // 0-1 range for slider
   const [notifications, setNotifications] = useState({
-    newMembers: true,
     familyUpdates: true,
     adminMessages: true,
-  });
-  const [privacy, setPrivacy] = useState({
-    showPhone: true,
-    showLocation: false,
-    profileVisibility: 1, // 0=Nobody, 1=Family, 2=Everyone
   });
   const [treeView, setTreeView] = useState({
     showPhotos: true,
     highlightMyLine: true,
-    animationSpeed: 1, // 0=Slow, 1=Normal, 2=Fast
-    defaultZoom: 1, // 0=Close, 1=Medium, 2=Far
   });
 
   // Sample date for preview
@@ -185,8 +180,19 @@ export default function SettingsPageModern({ user }) {
 
         setUserProfile(profile);
 
+        // Build full name chain for linked profile
+        if (profile) {
+          const { data: allProfiles } = await supabase
+            .from("profiles")
+            .select("id, name, father_id");
+
+          if (allProfiles) {
+            const fullChain = buildNameChain(profile, allProfiles);
+            profile.fullNameChain = fullChain;
+          }
+        }
         // If no linked profile, check for pending request
-        if (!profile) {
+        else {
           const { data: requests } = await supabase
             .from("profile_link_requests")
             .select(`
@@ -306,13 +312,24 @@ export default function SettingsPageModern({ user }) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Image
-            source={require('../../assets/logo/AlqefariEmblem.png')}
-            style={styles.emblem}
-            resizeMode="contain"
+          <View style={styles.headerLeft}>
+            <Image
+              source={require('../../assets/logo/AlqefariEmblem.png')}
+              style={styles.emblem}
+              resizeMode="contain"
+            />
+            <Text style={styles.title}>الإعدادات</Text>
+          </View>
+          <NotificationBadge
+            onPress={() => setShowNotificationCenter(true)}
           />
-          <Text style={styles.title}>الإعدادات</Text>
         </View>
+
+        {/* Notification Center */}
+        <NotificationCenter
+          visible={showNotificationCenter}
+          onClose={() => setShowNotificationCenter(false)}
+        />
 
         {/* Profile Section */}
         {currentUser && (
@@ -338,7 +355,11 @@ export default function SettingsPageModern({ user }) {
                 ) : (
                   <>
                     <Text style={styles.profileName}>
-                      {userProfile ?
+                      {userProfile?.fullNameChain ?
+                        (userProfile.fullNameChain.includes("القفاري") ?
+                          userProfile.fullNameChain :
+                          `${userProfile.fullNameChain} القفاري`)
+                        : userProfile ?
                         (getProfileDisplayName(userProfile).includes("القفاري") ?
                           getProfileDisplayName(userProfile) :
                           `${getProfileDisplayName(userProfile)} القفاري`)
@@ -371,6 +392,19 @@ export default function SettingsPageModern({ user }) {
         <View style={styles.settingsCard}>
           <Text style={styles.sectionTitle}>العرض والمظهر</Text>
 
+          {/* Date Preview */}
+          <View style={styles.datePreviewContainer}>
+            <Text style={styles.datePreviewLabel}>مثال على التاريخ:</Text>
+            <Text style={styles.datePreviewText}>
+              {formatDateByPreference(sampleDate, {
+                defaultCalendar: settings.dateDisplay === 'both' ? settings.defaultCalendar : settings.dateDisplay,
+                showBothCalendars: settings.dateDisplay === 'both',
+                dateFormat: settings.dateFormat,
+                arabicNumerals: settings.arabicNumerals
+              })}
+            </Text>
+          </View>
+
           {/* Calendar Type */}
           <View style={styles.settingRow}>
             <Text style={styles.settingLabel}>التقويم</Text>
@@ -390,9 +424,6 @@ export default function SettingsPageModern({ user }) {
           <View style={styles.settingRow}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>استخدام الكلمات</Text>
-              <Text style={styles.settingDescription}>
-                {settings.dateFormat === "words" ? "١٥ رمضان ١٤٤٥" : "15/09/1445"}
-              </Text>
             </View>
             <Switch
               value={settings.dateFormat === "words"}
@@ -406,12 +437,9 @@ export default function SettingsPageModern({ user }) {
           </View>
 
           {/* Arabic Numerals */}
-          <View style={styles.settingRow}>
+          <View style={[styles.settingRow, styles.lastRow]}>
             <View style={styles.settingTextContainer}>
               <Text style={styles.settingLabel}>الأرقام العربية</Text>
-              <Text style={styles.settingDescription}>
-                {settings.arabicNumerals ? "١٥/٩/١٤٤٥" : "15/9/1445"}
-              </Text>
             </View>
             <Switch
               value={settings.arabicNumerals}
@@ -423,210 +451,85 @@ export default function SettingsPageModern({ user }) {
               thumbColor={colors.white}
             />
           </View>
+        </View>
 
-          {/* English Names */}
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>إظهار الأسماء الإنجليزية</Text>
-              <Text style={styles.settingDescription}>في عرض الشجرة</Text>
-            </View>
-            <Switch
-              value={settings.showEnglishNames}
-              onValueChange={(value) => {
-                handleFeedback();
-                updateSetting("showEnglishNames", value);
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
+        {/* Tree View Settings - Admin Only (Not Implemented) */}
+        {isAdmin && (
+          <View style={styles.settingsCard}>
+            <Text style={styles.sectionTitle}>عرض الشجرة (قيد التطوير)</Text>
 
-          {/* Font Size */}
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <Text style={styles.settingLabel}>حجم الخط</Text>
-            <View style={styles.sliderContainer}>
-              <Text style={styles.sliderLabel}>صغير</Text>
-              <Slider
-                style={styles.slider}
-                minimumValue={0}
-                maximumValue={1}
-                value={fontSize}
-                onValueChange={setFontSize}
-                onSlidingComplete={handleFeedback}
-                minimumTrackTintColor={colors.primary}
-                maximumTrackTintColor={colors.border}
-                thumbTintColor={colors.primary}
+            <View style={styles.settingRow}>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>إظهار الصور</Text>
+                <Text style={styles.settingDescription}>عرض صور الأعضاء في الشجرة</Text>
+              </View>
+              <Switch
+                value={treeView.showPhotos}
+                onValueChange={(value) => {
+                  handleFeedback();
+                  setTreeView({ ...treeView, showPhotos: value });
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
               />
-              <Text style={styles.sliderLabel}>كبير</Text>
+            </View>
+
+            <View style={[styles.settingRow, styles.lastRow]}>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>تمييز خطي المباشر</Text>
+                <Text style={styles.settingDescription}>إبراز سلسلة النسب الخاصة بي</Text>
+              </View>
+              <Switch
+                value={treeView.highlightMyLine}
+                onValueChange={(value) => {
+                  handleFeedback();
+                  setTreeView({ ...treeView, highlightMyLine: value });
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
             </View>
           </View>
-        </View>
+        )}
 
-        {/* Tree View Settings */}
-        <View style={styles.settingsCard}>
-          <Text style={styles.sectionTitle}>عرض الشجرة</Text>
+        {/* Notifications - Admin Only (Not Implemented) */}
+        {isAdmin && (
+          <View style={styles.settingsCard}>
+            <Text style={styles.sectionTitle}>الإشعارات (قيد التطوير)</Text>
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>إظهار الصور</Text>
-              <Text style={styles.settingDescription}>عرض صور الأعضاء في الشجرة</Text>
+            <View style={styles.settingRow}>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>تحديثات العائلة</Text>
+                <Text style={styles.settingDescription}>أخبار ومناسبات العائلة</Text>
+              </View>
+              <Switch
+                value={notifications.familyUpdates}
+                onValueChange={(value) => {
+                  handleFeedback();
+                  setNotifications({ ...notifications, familyUpdates: value });
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
             </View>
-            <Switch
-              value={treeView.showPhotos}
-              onValueChange={(value) => {
-                handleFeedback();
-                setTreeView({ ...treeView, showPhotos: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
 
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>تمييز خطي المباشر</Text>
-              <Text style={styles.settingDescription}>إبراز سلسلة النسب الخاصة بي</Text>
+            <View style={[styles.settingRow, styles.lastRow]}>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>رسائل الإدارة</Text>
+                <Text style={styles.settingDescription}>إشعارات من مدير التطبيق</Text>
+              </View>
+              <Switch
+                value={notifications.adminMessages}
+                onValueChange={(value) => {
+                  handleFeedback();
+                  setNotifications({ ...notifications, adminMessages: value });
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
             </View>
-            <Switch
-              value={treeView.highlightMyLine}
-              onValueChange={(value) => {
-                handleFeedback();
-                setTreeView({ ...treeView, highlightMyLine: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
           </View>
-
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>سرعة الحركة</Text>
-            <SegmentedControl
-              values={['بطيء', 'عادي', 'سريع']}
-              selectedIndex={treeView.animationSpeed}
-              onChange={(event) => {
-                handleFeedback();
-                setTreeView({ ...treeView, animationSpeed: event.nativeEvent.selectedSegmentIndex });
-              }}
-              style={styles.segmentedControl}
-            />
-          </View>
-
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <Text style={styles.settingLabel}>التكبير الافتراضي</Text>
-            <SegmentedControl
-              values={['قريب', 'متوسط', 'بعيد']}
-              selectedIndex={treeView.defaultZoom}
-              onChange={(event) => {
-                handleFeedback();
-                setTreeView({ ...treeView, defaultZoom: event.nativeEvent.selectedSegmentIndex });
-              }}
-              style={styles.segmentedControl}
-            />
-          </View>
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.settingsCard}>
-          <Text style={styles.sectionTitle}>الإشعارات</Text>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>أعضاء جدد</Text>
-              <Text style={styles.settingDescription}>إشعارات عند انضمام أعضاء جدد</Text>
-            </View>
-            <Switch
-              value={notifications.newMembers}
-              onValueChange={(value) => {
-                handleFeedback();
-                setNotifications({ ...notifications, newMembers: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>تحديثات العائلة</Text>
-              <Text style={styles.settingDescription}>أخبار ومناسبات العائلة</Text>
-            </View>
-            <Switch
-              value={notifications.familyUpdates}
-              onValueChange={(value) => {
-                handleFeedback();
-                setNotifications({ ...notifications, familyUpdates: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>رسائل الإدارة</Text>
-              <Text style={styles.settingDescription}>إشعارات من مدير التطبيق</Text>
-            </View>
-            <Switch
-              value={notifications.adminMessages}
-              onValueChange={(value) => {
-                handleFeedback();
-                setNotifications({ ...notifications, adminMessages: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-        </View>
-
-        {/* Privacy Settings */}
-        <View style={styles.settingsCard}>
-          <Text style={styles.sectionTitle}>الخصوصية</Text>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>إظهار رقم الهاتف</Text>
-              <Text style={styles.settingDescription}>السماح للأعضاء برؤية رقمي</Text>
-            </View>
-            <Switch
-              value={privacy.showPhone}
-              onValueChange={(value) => {
-                handleFeedback();
-                setPrivacy({ ...privacy, showPhone: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>إظهار الموقع</Text>
-              <Text style={styles.settingDescription}>مشاركة موقعي مع العائلة</Text>
-            </View>
-            <Switch
-              value={privacy.showLocation}
-              onValueChange={(value) => {
-                handleFeedback();
-                setPrivacy({ ...privacy, showLocation: value });
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <Text style={styles.settingLabel}>من يمكنه رؤية ملفي</Text>
-            <SegmentedControl
-              values={['لا أحد', 'العائلة', 'الجميع']}
-              selectedIndex={privacy.profileVisibility}
-              onChange={(event) => {
-                handleFeedback();
-                setPrivacy({ ...privacy, profileVisibility: event.nativeEvent.selectedSegmentIndex });
-              }}
-              style={styles.segmentedControl}
-            />
-          </View>
-        </View>
+        )}
 
         {/* Actions */}
         <View style={styles.actionsContainer}>
@@ -692,9 +595,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 8,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   emblem: {
     width: 44,
@@ -832,20 +740,6 @@ const styles = StyleSheet.create({
     width: 180,
     height: 32,
   },
-  sliderContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  slider: {
-    width: 120,
-    height: 40,
-  },
-  sliderLabel: {
-    fontSize: 12,
-    color: colors.muted,
-    fontFamily: "SF Arabic",
-  },
 
   // Actions
   actionsContainer: {
@@ -911,5 +805,26 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     marginTop: 8,
     textAlign: "center",
+  },
+
+  // Date Preview
+  datePreviewContainer: {
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  datePreviewLabel: {
+    fontSize: 13,
+    color: colors.muted,
+    fontFamily: "SF Arabic",
+    marginBottom: 4,
+  },
+  datePreviewText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
   },
 });

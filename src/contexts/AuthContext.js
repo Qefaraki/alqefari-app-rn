@@ -1,428 +1,171 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
-import { AppState } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { supabase } from "../services/supabase";
-import profilesService from "../services/profiles";
-import { useTreeStore } from "../stores/useTreeStore";
+import AuthStateMachine, { AuthStates } from "../services/AuthStateMachine";
+import * as SplashScreen from 'expo-splash-screen';
 
 const AuthContext = createContext({});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
-  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [authState, setAuthState] = useState(AuthStateMachine.getState());
   const [isLoading, setIsLoading] = useState(true);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  const [isPreloadingTree, setIsPreloadingTree] = useState(false);
-  const appState = useRef(AppState.currentState);
+  const unsubscribeRef = useRef(null);
+  const authListenerRef = useRef(null);
 
   useEffect(() => {
-    console.log('[DEBUG AuthContext] Mounting AuthProvider, calling checkAuth');
-    checkAuth();
+    console.log('[DEBUG AuthContext] Mounting AuthProvider');
 
-    // Listen for auth changes - NO async/await per Supabase docs!
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log('[DEBUG AuthContext] Auth state changed:', event, 'session:', !!session);
+    // Subscribe to state machine changes
+    unsubscribeRef.current = AuthStateMachine.subscribe((newState) => {
+      console.log('[DEBUG AuthContext] State machine changed:', newState);
+      setAuthState(newState);
 
-        if (event === 'INITIAL_SESSION') {
-          // Handle initial session properly
-          console.log('[DEBUG AuthContext] INITIAL_SESSION received');
-          if (session?.user) {
-            setUser(session.user);
-            // Don't set loading false - wait for profile check in checkAuth
-          } else {
-            setUser(null);
-            setIsAdmin(false);
-            setHasLinkedProfile(false);
-            setHasPendingRequest(false);
-            // No user on initial load, can stop loading
-            if (!initialLoadComplete) {
-              setIsLoading(false);
-              setInitialLoadComplete(true);
-            }
-          }
-        } else if (event === 'SIGNED_OUT') {
-          // Handle sign out immediately regardless of initial load status
-          console.log('[DEBUG AuthContext] Handling SIGNED_OUT event');
-          setUser(null);
-          setIsAdmin(false);
-          setHasLinkedProfile(false);
-          setHasPendingRequest(false);
-          setIsLoading(false); // Ensure loading is false
-          clearAuthCache();
-        } else if (initialLoadComplete) {
-          // Only handle subsequent auth changes after initial load
-          if (event === 'SIGNED_IN' && session?.user) {
-            setUser(session.user);
-            // Defer profile checks and tree preloading
-            setTimeout(() => {
-              checkAdminStatus(session.user);
-              checkProfileStatus(session.user);
-              preloadTreeData(); // Preload tree data on sign in
-            }, 0);
-          }
-        }
+      // Hide splash when ready
+      if (newState.current !== AuthStates.INITIALIZING) {
+        setIsLoading(false);
+        SplashScreen.hideAsync();
       }
-    );
-
-    // Handle app state changes to manage auth refresh
-    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
-      console.log('[DEBUG AuthContext] App state changed:', appState.current, '->', nextAppState);
-
-      // App has come to the foreground
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('[DEBUG AuthContext] App came to foreground, starting auto refresh');
-        supabase.auth.startAutoRefresh();
-      }
-
-      // App has gone to the background
-      if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
-        console.log('[DEBUG AuthContext] App went to background, stopping auto refresh');
-        supabase.auth.stopAutoRefresh();
-      }
-
-      appState.current = nextAppState;
     });
 
+    // Initialize the state machine
+    const initializeAuth = async () => {
+      await AuthStateMachine.initialize();
+
+      // Setup Supabase auth listener
+      authListenerRef.current = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('[DEBUG AuthContext] Auth state change:', event);
+
+        switch (event) {
+          case 'SIGNED_IN':
+            if (AuthStateMachine.currentState === AuthStates.OTP_VERIFICATION) {
+              // OTP verification successful
+              const profile = await AuthStateMachine.checkUserProfile(session.user.id);
+
+              if (profile?.linked_profile_id) {
+                await AuthStateMachine.transition(AuthStates.PROFILE_LINKED, {
+                  user: session.user,
+                  profile
+                });
+              } else if (profile?.status === 'pending') {
+                await AuthStateMachine.transition(AuthStates.PENDING_APPROVAL, {
+                  user: session.user
+                });
+              } else {
+                await AuthStateMachine.transition(AuthStates.PROFILE_LINKING, {
+                  user: session.user
+                });
+              }
+            }
+            break;
+
+          case 'SIGNED_OUT':
+            await AuthStateMachine.transition(AuthStates.UNAUTHENTICATED);
+            break;
+
+          case 'TOKEN_REFRESHED':
+            // Token refreshed successfully
+            console.log('[DEBUG AuthContext] Token refreshed');
+            break;
+
+          case 'USER_UPDATED':
+            // User data updated
+            const currentState = AuthStateMachine.getState();
+            if (currentState.data.user) {
+              currentState.data.user = session.user;
+            }
+            break;
+        }
+      });
+    };
+
+    initializeAuth();
+
+    // Cleanup
     return () => {
-      authListener?.subscription?.unsubscribe();
-      appStateSubscription?.remove();
+      console.log('[DEBUG AuthContext] Unmounting AuthProvider');
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+      if (authListenerRef.current) {
+        authListenerRef.current.data.subscription.unsubscribe();
+      }
     };
   }, []);
 
-  const checkAuth = async () => {
-    console.log('[DEBUG AuthContext] checkAuth starting');
+  // Computed values based on state
+  const user = authState.data?.user || null;
+  const profile = authState.data?.profile || null;
 
-    try {
-      // Simple getSession - trust Supabase's built-in handling
-      const { data: { session }, error } = await supabase.auth.getSession();
+  const hasLinkedProfile = authState.current === AuthStates.PROFILE_LINKED;
+  const hasPendingRequest = authState.current === AuthStates.PENDING_APPROVAL;
+  const isGuestMode = authState.current === AuthStates.GUEST_MODE;
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isSuperAdmin = profile?.role === 'super_admin';
 
-      if (error) {
-        console.log('[DEBUG AuthContext] getSession error:', error.message);
-      }
-
-      if (session?.user) {
-        console.log('[DEBUG AuthContext] Session found for user:', session.user.email || session.user.phone);
-        setUser(session.user);
-
-        // Start preloading tree data immediately (fire and forget)
-        preloadTreeData();
-
-        // Load cached state first for faster initial render
-        await loadCachedAuthState();
-
-        // Then fetch fresh data in parallel
-        await Promise.all([
-          checkProfileStatus(session.user),
-          checkAdminStatus(session.user)
-        ]);
-      } else {
-        console.log('[DEBUG AuthContext] No session found');
-        // Clear everything when no session
-        setUser(null);
-        setIsAdmin(false);
-        setHasLinkedProfile(false);
-        setHasPendingRequest(false);
-        await clearAuthCache();
-      }
-    } catch (error) {
-      console.error('[DEBUG AuthContext] Error in checkAuth:', error);
-
-      // Try to get the cached Supabase session directly
-      try {
-        const cachedSessionStr = await AsyncStorage.getItem('supabase.auth.token');
-        if (cachedSessionStr) {
-          const cachedSession = JSON.parse(cachedSessionStr);
-          if (cachedSession?.currentSession?.user) {
-            console.log('[DEBUG AuthContext] Found cached Supabase session for offline use');
-            setUser(cachedSession.currentSession.user);
-            // Load cached profile status
-            await loadCachedAuthState();
-          } else {
-            // No cached session, check our auth cache
-            const hasCachedAuth = await loadCachedAuthState();
-            if (!hasCachedAuth) {
-              // Only reset if no cache exists
-              setUser(null);
-              setIsAdmin(false);
-              setHasLinkedProfile(false);
-              setHasPendingRequest(false);
-            }
-          }
-        } else {
-          // No Supabase cache, try our cache
-          const hasCachedAuth = await loadCachedAuthState();
-          if (!hasCachedAuth) {
-            setUser(null);
-            setIsAdmin(false);
-            setHasLinkedProfile(false);
-            setHasPendingRequest(false);
-          }
-        }
-      } catch (cacheError) {
-        console.error('[DEBUG AuthContext] Failed to load cached session:', cacheError);
-        setUser(null);
-        setIsAdmin(false);
-        setHasLinkedProfile(false);
-        setHasPendingRequest(false);
-      }
-    } finally {
-      console.log('[DEBUG AuthContext] Initial auth check complete');
-      setIsLoading(false);
-      setInitialLoadComplete(true);
-    }
+  // Auth actions
+  const signInWithPhone = async (phone) => {
+    await AuthStateMachine.navigateToPhoneAuth();
+    return AuthStateMachine.signInWithPhone(phone);
   };
 
-  const checkProfileStatus = async (user) => {
-    if (!user) {
-      setHasLinkedProfile(false);
-      setHasPendingRequest(false);
-      return false;
-    }
-
-    try {
-      // Check if user has a linked profile
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .single();
-
-      const hasProfile = !!profile && !error;
-      console.log('[DEBUG AuthContext] Profile check for user:', user.id, 'Has profile:', hasProfile);
-      setHasLinkedProfile(hasProfile);
-
-      // Declare hasPending outside if block to fix scope issue
-      let hasPending = false;
-
-      // If user has a linked profile, ensure onboarding is marked as complete
-      if (hasProfile) {
-        console.log('[DEBUG AuthContext] User has linked profile, marking onboarding complete');
-        await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-        // Clear guest mode if it was set
-        await AsyncStorage.removeItem('isGuestMode');
-        setHasPendingRequest(false);
-      } else {
-        // If no linked profile, check for pending request
-        const { data: pendingRequest, error: requestError } = await supabase
-          .from('profile_link_requests')
-          .select('id, status')
-          .eq('user_id', user.id)
-          .eq('status', 'pending')
-          .single();
-
-        hasPending = !!pendingRequest && !requestError;
-        console.log('[DEBUG AuthContext] Pending request check:', hasPending);
-        setHasPendingRequest(hasPending);
-      }
-
-      // Cache the profile status for offline use
-      await saveAuthCache(user, hasProfile, hasPending);
-
-      return hasProfile;
-    } catch (error) {
-      console.log('[DEBUG AuthContext] Profile check error (likely offline):', error);
-      // Don't immediately set to false - check cache first
-      const cached = await loadCachedAuthState();
-      if (!cached) {
-        // Only set to false if no cache exists
-        setHasLinkedProfile(false);
-        setHasPendingRequest(false);
-      }
-      return false;
-    }
+  const verifyOTP = async (phone, otp) => {
+    return AuthStateMachine.verifyOTP(phone, otp);
   };
 
-  const checkAdminStatus = async (user) => {
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-
-    // Never show admin for anonymous users
-    if (user.is_anonymous) {
-      setIsAdmin(false);
-      return;
-    }
-
-    try {
-      // Use RPC function to bypass RLS issues
-      const { data, error } = await supabase
-        .rpc('is_admin');
-
-      if (error) {
-        console.log("Admin check error:", error);
-        // Check cache on error
-        const cachedAdmin = await AsyncStorage.getItem('authCache_isAdmin');
-        if (cachedAdmin !== null) {
-          setIsAdmin(JSON.parse(cachedAdmin));
-        } else {
-          setIsAdmin(false);
-        }
-      } else {
-        console.log("Admin check for user:", user.id, "Result:", data, "Email:", user.email);
-        setIsAdmin(data === true);
-        // Cache admin status
-        await AsyncStorage.setItem('authCache_isAdmin', JSON.stringify(data === true));
-      }
-    } catch (error) {
-      console.log("Admin check exception:", error);
-      // Check cache on exception
-      const cachedAdmin = await AsyncStorage.getItem('authCache_isAdmin');
-      if (cachedAdmin !== null) {
-        setIsAdmin(JSON.parse(cachedAdmin));
-      } else {
-        setIsAdmin(false);
-      }
-    }
-  };
-
-  // Helper function to save auth cache
-  const saveAuthCache = async (user, hasProfile, hasPending) => {
-    try {
-      await AsyncStorage.multiSet([
-        ['authCache_userId', user.id],
-        ['authCache_hasLinkedProfile', JSON.stringify(hasProfile)],
-        ['authCache_hasPendingRequest', JSON.stringify(hasPending)],
-        ['authCache_lastUpdated', new Date().toISOString()],
-      ]);
-      console.log('[DEBUG AuthContext] Auth cache saved');
-    } catch (error) {
-      console.error('[DEBUG AuthContext] Failed to save auth cache:', error);
-    }
-  };
-
-  // Helper function to load cached auth state
-  const loadCachedAuthState = async () => {
-    try {
-      const [[, userId], [, hasProfile], [, hasPending], [, isAdminCached], [, lastUpdated]] =
-        await AsyncStorage.multiGet([
-          'authCache_userId',
-          'authCache_hasLinkedProfile',
-          'authCache_hasPendingRequest',
-          'authCache_isAdmin',
-          'authCache_lastUpdated',
-        ]);
-
-      if (userId && lastUpdated) {
-        // Check if cache is recent (within 7 days)
-        const cacheAge = Date.now() - new Date(lastUpdated).getTime();
-        const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
-
-        if (cacheAge < sevenDaysInMs) {
-          console.log('[DEBUG AuthContext] Using cached auth state from', lastUpdated);
-
-          if (hasProfile !== null) {
-            setHasLinkedProfile(JSON.parse(hasProfile));
-          }
-          if (hasPending !== null) {
-            setHasPendingRequest(JSON.parse(hasPending));
-          }
-          if (isAdminCached !== null) {
-            setIsAdmin(JSON.parse(isAdminCached));
-          }
-
-          return true; // Cache was loaded
-        } else {
-          console.log('[DEBUG AuthContext] Auth cache expired');
-        }
-      }
-    } catch (error) {
-      console.error('[DEBUG AuthContext] Failed to load auth cache:', error);
-    }
-    return false; // No cache or failed to load
-  };
-
-  // Helper function to clear auth cache
-  const clearAuthCache = async () => {
-    try {
-      await AsyncStorage.multiRemove([
-        'authCache_userId',
-        'authCache_hasLinkedProfile',
-        'authCache_hasPendingRequest',
-        'authCache_isAdmin',
-        'authCache_lastUpdated',
-      ]);
-      console.log('[DEBUG AuthContext] Auth cache cleared');
-    } catch (error) {
-      console.error('[DEBUG AuthContext] Failed to clear auth cache:', error);
-    }
-  };
-
-  // Preload tree data for faster navigation
-  const preloadTreeData = async () => {
-    try {
-      setIsPreloadingTree(true);
-      const startTime = Date.now();
-      console.log('[DEBUG AuthContext] Starting tree data preload');
-
-      // First get the root node (generation 1)
-      const { data: rootData, error: rootError } =
-        await profilesService.getBranchData(null, 1, 1);
-
-      if (rootError || !rootData || rootData.length === 0) {
-        console.log('[DEBUG AuthContext] Failed to preload root node');
-        setIsPreloadingTree(false);
-        return;
-      }
-
-      const rootNode = rootData[0];
-
-      // Load same data that TreeView would load (8 depth, 500 nodes)
-      const { data: treeData, error: treeError } =
-        await profilesService.getBranchData(rootNode.hid, 8, 500);
-
-      if (treeError || !treeData) {
-        console.log('[DEBUG AuthContext] Failed to preload tree data');
-        setIsPreloadingTree(false);
-        return;
-      }
-
-      // Store in tree store for instant access
-      const setTreeData = useTreeStore.getState().setTreeData;
-      setTreeData(treeData);
-
-      const loadTime = Date.now() - startTime;
-      console.log('[DEBUG AuthContext] Tree data preloaded successfully:', treeData.length, 'nodes in', loadTime, 'ms');
-    } catch (error) {
-      console.error('[DEBUG AuthContext] Error preloading tree data:', error);
-    } finally {
-      setIsPreloadingTree(false);
-    }
-  };
-
-  // Add sign out function to clear cache
   const signOut = async () => {
-    await clearAuthCache();
-    await supabase.auth.signOut();
+    return AuthStateMachine.signOut();
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAdmin,
-        hasLinkedProfile,
-        hasPendingRequest,
-        isLoading,
-        isPreloadingTree,
-        checkAuth,
-        checkAdminStatus,
-        checkProfileStatus,
-        signOut,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const enterGuestMode = async () => {
+    return AuthStateMachine.enterGuestMode();
+  };
+
+  const exitGuestMode = async () => {
+    return AuthStateMachine.exitGuestMode();
+  };
+
+  const linkProfile = async (profileId) => {
+    return AuthStateMachine.linkProfile(profileId);
+  };
+
+  const startOnboarding = async () => {
+    return AuthStateMachine.startOnboarding();
+  };
+
+  const value = {
+    // State
+    authState: authState.current,
+    authStateData: authState.data,
+    isLoading,
+
+    // User data
+    user,
+    profile,
+    hasLinkedProfile,
+    hasPendingRequest,
+    isGuestMode,
+    isAdmin,
+    isSuperAdmin,
+
+    // Actions
+    signInWithPhone,
+    verifyOTP,
+    signOut,
+    enterGuestMode,
+    exitGuestMode,
+    linkProfile,
+    startOnboarding,
+
+    // State machine access (for advanced usage)
+    stateMachine: AuthStateMachine,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

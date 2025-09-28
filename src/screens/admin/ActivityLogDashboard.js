@@ -571,7 +571,7 @@ export default function ActivityLogDashboard({ onClose }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={colors.text} />
+            <Ionicons name="chevron-back" size={28} color="#242121" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>سجل النشاط المفصل</Text>
           <View style={{ width: 40 }} />
@@ -718,10 +718,10 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: colors.text,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#242121",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   loadingContainer: {
     flex: 1,

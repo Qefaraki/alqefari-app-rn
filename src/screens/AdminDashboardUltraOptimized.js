@@ -16,7 +16,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
-import QuickAddOverlay from "../components/admin/QuickAddOverlay";
 import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
@@ -24,6 +23,8 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
+import NotificationCenter from "../components/NotificationCenter";
+import NotificationBadge from "../components/NotificationBadge";
 
 // Animated TouchableOpacity for iOS-like press feedback
 const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
@@ -87,12 +88,12 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   const [showValidationDashboard, setShowValidationDashboard] = useState(false);
   
   const [showActivityLog, setShowActivityLog] = useState(false);
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [showMunasibManager, setShowMunasibManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -351,8 +352,8 @@ const AdminDashboardUltraOptimized = ({ user }) => {
   const modalTranslateX = useRef(new Animated.Value(0)).current;
   const modalGestureHandler = useRef(null);
 
-  // Modal renders with iOS-style full-screen presentation
-  const renderIOSModal = (visible, onClose, title, Component, props = {}) => {
+  // Modal renders - components handle their own headers
+  const renderIOSModal = (visible, onClose, Component, props = {}) => {
     if (!visible) return null;
 
     const onGestureEvent = Animated.event(
@@ -394,7 +395,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
         onRequestClose={onClose}
       >
         <PanGestureHandler
-          ref={gestureHandler}
+          ref={modalGestureHandler}
           onGestureEvent={onGestureEvent}
           onHandlerStateChange={onHandlerStateChange}
           activeOffsetX={10}
@@ -406,20 +407,7 @@ const AdminDashboardUltraOptimized = ({ user }) => {
               { transform: [{ translateX: modalTranslateX }] }
             ]}
           >
-            <SafeAreaView style={{ flex: 1 }}>
-              {/* iOS Navigation Header */}
-              <View style={styles.iosModalHeader}>
-                <TouchableOpacity
-                  style={styles.iosBackButton}
-                  onPress={onClose}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="chevron-back" size={28} color="#A13333" />
-                </TouchableOpacity>
-                <Text style={styles.iosModalTitle}>{title}</Text>
-                <View style={{ width: 44 }} />
-              </View>
-
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#F9F7F3' }}>
               <Component
                 {...props}
                 onClose={onClose}
@@ -500,7 +488,18 @@ const AdminDashboardUltraOptimized = ({ user }) => {
         ]}
       >
         <Text style={styles.title}>الإدارة</Text>
+        <View style={styles.headerActions}>
+          <NotificationBadge
+            onPress={() => setShowNotificationCenter(true)}
+          />
+        </View>
       </Animated.View>
+
+      {/* Notification Center */}
+      <NotificationCenter
+        visible={showNotificationCenter}
+        onClose={() => setShowNotificationCenter(false)}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -661,28 +660,16 @@ const AdminDashboardUltraOptimized = ({ user }) => {
               <View style={styles.separator} />
 
               <AnimatedTouchable
-                style={styles.listItem}
+                style={[styles.listItem, styles.listItemLast]}
                 onPress={() => setShowMunasibManager(true)}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="people-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>المنتسبين</Text>
+                  <Text style={styles.listItemText}>المناسبين</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>
 
-              <View style={styles.separator} />
-
-              <AnimatedTouchable
-                style={[styles.listItem, styles.listItemLast]}
-                onPress={() => setShowQuickAdd(true)}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="add-circle-outline" size={22} color="#A13333" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>إضافة جديد</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
             </View>
           </Animated.View>
 
@@ -790,25 +777,11 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           )}
       </ScrollView>
 
-      {/* Full-Screen iOS Modals */}
+      {/* Full-Screen Modals - each component handles its own header */}
       {renderIOSModal(
         showActivityLog,
         () => setShowActivityLog(false),
-        "سجل النشاط",
         ActivityLogDashboard
-      )}
-
-      {renderIOSModal(
-        showQuickAdd,
-        () => setShowQuickAdd(false),
-        "إضافة سريعة",
-        QuickAddOverlay,
-        {
-          onComplete: () => {
-            setShowQuickAdd(false);
-            handleRefresh();
-          }
-        }
       )}
 
       {renderIOSModal(
@@ -817,28 +790,24 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           setShowLinkRequests(false);
           loadPendingRequestsCount();
         },
-        "ربط الملفات",
         ProfileConnectionManagerV2
       )}
 
       {renderIOSModal(
         showMessagesManager,
         () => setShowMessagesManager(false),
-        "الرسائل",
         AdminMessagesManager
       )}
 
       {renderIOSModal(
         showMunasibManager,
         () => setShowMunasibManager(false),
-        "المنتسبين",
         MunasibManager
       )}
 
       {renderIOSModal(
         showValidationDashboard,
         () => setShowValidationDashboard(false),
-        "التحقق من البيانات",
         ValidationDashboard
       )}
     </SafeAreaView>
@@ -851,10 +820,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
     backgroundColor: "#F9F7F3", // Al-Jass White
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   title: {
     fontSize: 34,
@@ -948,11 +925,22 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 13,
-    fontWeight: "400",
-    color: "#6C6C70",
+    fontWeight: "500",
+    color: "#24212180", // Sadu Night 50%
     textTransform: "uppercase",
     marginHorizontal: 32,
     marginBottom: 8,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#242121", // Sadu Night
+    marginHorizontal: 16,
+    marginBottom: 12,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",

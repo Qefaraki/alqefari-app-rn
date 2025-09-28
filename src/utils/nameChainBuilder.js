@@ -12,12 +12,8 @@
 export function buildNameChain(profile, allProfiles = []) {
   if (!profile) return "";
 
-  console.log("🔍 DEBUG buildNameChain: Starting with profile:", profile.name, "father_id:", profile.father_id);
-  console.log("🔍 DEBUG buildNameChain: allProfiles count:", allProfiles.length);
-
   // If full_chain already exists, use it
   if (profile.full_chain) {
-    console.log("🔍 DEBUG buildNameChain: Using existing full_chain:", profile.full_chain);
     return profile.full_chain;
   }
 
@@ -31,18 +27,15 @@ export function buildNameChain(profile, allProfiles = []) {
     if (profile.grandfather_name) {
       chain += ` ${profile.grandfather_name}`;
     }
-    console.log("🔍 DEBUG buildNameChain: Built from father_name/grandfather_name:", chain);
   } else if (profile.father_id && allProfiles.length > 0) {
     // Try to find father in profiles array
     const father = allProfiles.find((p) => p.id === profile.father_id);
-    console.log("🔍 DEBUG buildNameChain: Found father?", father ? father.name : "NOT FOUND");
     if (father) {
       chain = `${profile.name} بن ${father.name}`;
 
       // Try to find grandfather
       if (father.father_id) {
         const grandfather = allProfiles.find((p) => p.id === father.father_id);
-        console.log("🔍 DEBUG buildNameChain: Found grandfather?", grandfather ? grandfather.name : "NOT FOUND");
         if (grandfather) {
           chain += ` ${grandfather.name}`;
 
@@ -55,20 +48,15 @@ export function buildNameChain(profile, allProfiles = []) {
               chain += ` ${nextAncestor.name}`;
               currentAncestor = nextAncestor;
               ancestorCount++;
-              console.log("🔍 DEBUG buildNameChain: Added ancestor:", nextAncestor.name);
             } else {
-              console.log("🔍 DEBUG buildNameChain: Could not find ancestor with id:", currentAncestor.father_id);
               break;
             }
           }
         }
       }
     }
-  } else {
-    console.log("🔍 DEBUG buildNameChain: No father_id or allProfiles empty");
   }
 
-  console.log("🔍 DEBUG buildNameChain: Final chain:", chain);
   return chain;
 }
 

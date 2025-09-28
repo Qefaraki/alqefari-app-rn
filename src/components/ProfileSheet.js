@@ -186,7 +186,7 @@ const ProfileSheet = ({ editMode = false }) => {
 
   // Admin mode
   const { isAdminMode } = useAdminMode();
-  const isEditing = editMode;
+  const isEditing = editMode || !!editedData;
 
   // Edit mode state
   const [saving, setSaving] = useState(false);
@@ -470,6 +470,13 @@ const ProfileSheet = ({ editMode = false }) => {
     }
   };
 
+  // Check permissions when person changes
+  useEffect(() => {
+    if (person?.id) {
+      checkPermission();
+    }
+  }, [person?.id]);
+
   // Initialize edit data when entering edit mode
   useEffect(() => {
     if (isEditing && person && !editedData) {
@@ -592,14 +599,20 @@ const ProfileSheet = ({ editMode = false }) => {
         role: editedData.role,
       };
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(cleanedData)
-        .eq("id", person.id)
-        .select()
-        .single();
+      // Use RPC function for proper audit logging and version control
+      const { data, error } = await profilesService.updateProfile(
+        person.id,
+        person.version || 1, // Use current version for optimistic locking
+        cleanedData
+      );
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error messages
+        if (typeof error === 'string') {
+          throw new Error(error);
+        }
+        throw error;
+      }
 
       // Update the node in the tree immediately
       if (data) {
@@ -649,24 +662,72 @@ const ProfileSheet = ({ editMode = false }) => {
     const destructiveIndex = -1;
     const actions = [];
 
+    // Show permission feedback to user
+    if (permissionLevel === 'blocked') {
+      Alert.alert(
+        'محظور',
+        'عذراً، لقد تم حظرك من تقديم الاقتراحات. تواصل مع المشرف إذا كنت تعتقد أن هذا خطأ.',
+        [{ text: 'حسناً' }]
+      );
+      return;
+    }
+
     if (permissionLevel === 'full' || isAdminMode) {
       options.push('تعديل الملف');
       actions.push(() => {
-        // For admins, use existing edit mode
-        if (isAdminMode) {
-          setEditedData({
-            name: person.name || "",
-            // ... rest of the data
-          });
-          setOriginalData({
-            name: person.name || "",
-            // ... rest of the data
-          });
-        } else {
-          // For regular users with full permission, open edit modal
-          // TODO: Create simplified edit modal
-          setShowSuggestionModal(true);
-        }
+        // Enable editing for both admins and users with full permission
+        setEditedData({
+          name: person.name || "",
+          kunya: person.kunya || "",
+          nickname: person.nickname || "",
+          bio: person.bio || "",
+          birth_place: person.birth_place || "",
+          current_residence: person.current_residence || "",
+          occupation: person.occupation || "",
+          education: person.education || "",
+          phone: person.phone || "",
+          email: person.email || "",
+          // Keep complex fields
+          gender: person.gender,
+          status: person.status,
+          sibling_order: person.sibling_order || 0,
+          social_media_links: person.social_media_links || {},
+          achievements: person.achievements || [],
+          timeline: person.timeline || [],
+          dob_data: person.dob_data,
+          dod_data: person.dod_data,
+          dob_is_public: person.dob_is_public !== false,
+          profile_visibility: person.profile_visibility || "public",
+          father_id: person.father_id,
+          mother_id: person.mother_id,
+          role: person.role,
+        });
+        setOriginalData({
+          name: person.name || "",
+          kunya: person.kunya || "",
+          nickname: person.nickname || "",
+          bio: person.bio || "",
+          birth_place: person.birth_place || "",
+          current_residence: person.current_residence || "",
+          occupation: person.occupation || "",
+          education: person.education || "",
+          phone: person.phone || "",
+          email: person.email || "",
+          // Keep complex fields
+          gender: person.gender,
+          status: person.status,
+          sibling_order: person.sibling_order || 0,
+          social_media_links: person.social_media_links || {},
+          achievements: person.achievements || [],
+          timeline: person.timeline || [],
+          dob_data: person.dob_data,
+          dod_data: person.dod_data,
+          dob_is_public: person.dob_is_public !== false,
+          profile_visibility: person.profile_visibility || "public",
+          father_id: person.father_id,
+          mother_id: person.mother_id,
+          role: person.role,
+        });
       });
 
       if (isAdminMode) {
@@ -772,7 +833,7 @@ const ProfileSheet = ({ editMode = false }) => {
       animateOnMount
     >
       {/* Edit mode header with save/cancel - always at top */}
-      {isAdminMode && (
+      {(isAdminMode || editedData) && (
         <Animated.View
           style={[styles.editHeader, { marginTop: animatedMargin }]}
         >
@@ -931,19 +992,54 @@ const ProfileSheet = ({ editMode = false }) => {
                 ) : (
                   <View style={styles.nameContainer}>
                     <Text style={styles.nameText}>{person.name}</Text>
-                    {!isAdminMode && (
-                      <TouchableOpacity
-                        style={styles.moreButton}
-                        onPress={() => showProfileActions()}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons
-                          name="ellipsis-horizontal"
-                          size={24}
-                          color="#736372"
-                        />
-                      </TouchableOpacity>
-                    )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {/* Permission indicator */}
+                      {permissionLevel === 'full' && !isAdminMode && (
+                        <View style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          backgroundColor: '#22C55E20',
+                          borderRadius: 12,
+                        }}>
+                          <Text style={{
+                            fontSize: 11,
+                            color: '#22C55E',
+                            fontWeight: '600'
+                          }}>
+                            يمكنك التعديل
+                          </Text>
+                        </View>
+                      )}
+                      {permissionLevel === 'suggest' && !isAdminMode && (
+                        <View style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          backgroundColor: '#F59E0B20',
+                          borderRadius: 12,
+                        }}>
+                          <Text style={{
+                            fontSize: 11,
+                            color: '#F59E0B',
+                            fontWeight: '600'
+                          }}>
+                            اقتراح فقط
+                          </Text>
+                        </View>
+                      )}
+                      {!isAdminMode && (
+                        <TouchableOpacity
+                          style={styles.moreButton}
+                          onPress={() => showProfileActions()}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                          <Ionicons
+                            name="ellipsis-horizontal"
+                            size={24}
+                            color="#736372"
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 )}
               </View>
@@ -1570,6 +1666,12 @@ const ProfileSheet = ({ editMode = false }) => {
             ) : (
               <DefinitionList
                 items={[
+                  ...(person.kunya
+                    ? [{ label: "الكنية", value: person.kunya }]
+                    : []),
+                  ...(person.nickname
+                    ? [{ label: "اللقب", value: person.nickname }]
+                    : []),
                   {
                     label: "تاريخ الميلاد",
                     value:
@@ -1597,8 +1699,20 @@ const ProfileSheet = ({ editMode = false }) => {
                         },
                       ]
                     : []),
+                  ...(person.occupation
+                    ? [{ label: "المهنة", value: person.occupation }]
+                    : []),
                   ...(person.education
                     ? [{ label: "التعليم", value: person.education }]
+                    : []),
+                  ...(person.phone
+                    ? [{ label: "رقم الهاتف", value: person.phone }]
+                    : []),
+                  ...(person.email
+                    ? [{ label: "البريد الإلكتروني", value: person.email }]
+                    : []),
+                  ...(person.family_origin && !person.hid
+                    ? [{ label: "العائلة الأصلية", value: person.family_origin }]
                     : []),
                   ...(marriages.some((m) => m.status === "married")
                     ? [

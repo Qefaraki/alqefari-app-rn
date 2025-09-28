@@ -1,9 +1,10 @@
 import "../global.css"; // Import global CSS for NativeWind styles
 import React, { useState, useEffect, Component } from "react";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
-import { DynamicColorIOS, Platform, View, Text, StyleSheet, Button } from "react-native";
+import { DynamicColorIOS, Platform, View, Text, StyleSheet, Button, AppState } from "react-native";
 import { NavigationContainer, NavigationIndependentTree } from "@react-navigation/native";
 import { AuthProvider, useAuth } from "../src/contexts/AuthContext";
+import { AuthStates } from "../src/services/AuthStateMachine";
 import { AdminModeProvider } from "../src/contexts/AdminModeContext";
 import { SettingsProvider } from "../src/contexts/SettingsContext";
 import AuthNavigator from "../src/navigation/AuthNavigator";
@@ -12,6 +13,8 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import BrandedErrorScreen from "../src/components/ui/BrandedErrorScreen";
+import notificationService from "../src/services/notifications";
+import { router } from "expo-router";
 
 // Keep the splash screen visible while we determine auth state
 SplashScreen.preventAutoHideAsync();
@@ -52,88 +55,119 @@ class ErrorBoundary extends Component {
 }
 
 function TabLayout() {
-  const { user, isAdmin, hasLinkedProfile, hasPendingRequest, isLoading } = useAuth();
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
-  const [isGuestMode, setIsGuestMode] = useState<boolean | null>(null);
-  const [appIsReady, setAppIsReady] = useState(false);
+  const { authState, user, isAdmin, isLoading, stateMachine } = useAuth();
+  const [notificationInitialized, setNotificationInitialized] = useState(false);
 
-  // Check onboarding and guest mode status
+  // Initialize notifications when user is authenticated
   useEffect(() => {
-    const checkOnboardingStatus = () => {
-      Promise.all([
-        AsyncStorage.getItem('hasCompletedOnboarding'),
-        AsyncStorage.getItem('isGuestMode')
-      ]).then(([onboardingValue, guestValue]) => {
-        setOnboardingCompleted(onboardingValue === 'true');
-        setIsGuestMode(guestValue === 'true');
-        console.log('[DEBUG] Onboarding check:', onboardingValue === 'true', 'Guest mode:', guestValue === 'true');
-        setAppIsReady(true);
-      });
+    const initializeNotifications = async () => {
+      if (user && !isGuestMode && !notificationInitialized) {
+        console.log('[DEBUG] Initializing notification service for user');
+
+        try {
+          // Initialize the notification service
+          await notificationService.initialize();
+
+          // Set up navigation callbacks
+          notificationService.setNavigationCallbacks({
+            navigateToProfile: (profileId) => {
+              console.log('[DEBUG] Navigate to profile:', profileId);
+              // Navigate to settings/profile tab
+              router.replace("/settings");
+            },
+            navigateToAdminRequests: () => {
+              console.log('[DEBUG] Navigate to admin requests');
+              // Navigate to admin tab if admin
+              if (isAdmin) {
+                router.replace("/admin");
+              }
+            },
+          });
+
+          // Set up event callbacks
+          notificationService.setEventCallbacks({
+            onApprovalReceived: (data) => {
+              console.log('[DEBUG] Approval notification received:', data);
+              // Refresh profile data (handled by AuthContext)
+            },
+            onRejectionReceived: (data) => {
+              console.log('[DEBUG] Rejection notification received:', data);
+              // Could show alert or update UI
+            },
+            onNewRequestReceived: (data) => {
+              console.log('[DEBUG] New request notification received:', data);
+              // Update badge count (handled by NotificationBadge component)
+            },
+          });
+
+          setNotificationInitialized(true);
+          console.log('[DEBUG] Notification service initialized successfully');
+        } catch (error) {
+          console.error('[DEBUG] Error initializing notifications:', error);
+        }
+      }
     };
 
-    checkOnboardingStatus();
+    initializeNotifications();
+  }, [user, isGuestMode, isAdmin, notificationInitialized]);
 
-    // Re-check when user or profile status changes
-    // This handles the case where user signs in with existing profile
-    if (user && (hasLinkedProfile || hasPendingRequest)) {
-      checkOnboardingStatus();
-    }
-  }, [user, hasLinkedProfile, hasPendingRequest]);
-
-  // Reset onboarding state when user signs out
+  // Handle app state changes for badge updates
   useEffect(() => {
-    if (!user && !isLoading) {
-      console.log('[DEBUG] User signed out - immediately resetting onboarding state');
-      // Immediately reset state since user just signed out
-      setOnboardingCompleted(false);
-      setIsGuestMode(false);
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active' && user) {
+        // Clear badge when app comes to foreground
+        notificationService.clearBadge();
+      }
+    };
 
-      // Also verify AsyncStorage was cleared
-      Promise.all([
-        AsyncStorage.getItem('hasCompletedOnboarding'),
-        AsyncStorage.getItem('isGuestMode')
-      ]).then(([onboardingValue, guestValue]) => {
-        console.log('[DEBUG] After sign out - AsyncStorage check - Onboarding:', onboardingValue, 'Guest mode:', guestValue);
-        // If for some reason AsyncStorage wasn't cleared, ensure state matches
-        if (onboardingValue !== 'true') {
-          setOnboardingCompleted(false);
-        }
-        if (guestValue !== 'true') {
-          setIsGuestMode(false);
-        }
-      });
-    }
-  }, [user, isLoading]);
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-  // Auto-complete onboarding if user has linked profile
+    return () => {
+      subscription?.remove();
+    };
+  }, [user]);
+
+  // Cleanup notification listeners on unmount
   useEffect(() => {
-    if (user && hasLinkedProfile && !onboardingCompleted) {
-      console.log('[DEBUG] User has linked profile, auto-completing onboarding');
-      AsyncStorage.setItem('hasCompletedOnboarding', 'true').then(() => {
-        setOnboardingCompleted(true);
-      });
-      AsyncStorage.removeItem('isGuestMode').then(() => {
-        setIsGuestMode(false);
-      });
-    }
-    // Also handle the case where user has pending request
-    if (user && hasPendingRequest && !onboardingCompleted) {
-      console.log('[DEBUG] User has pending request, marking onboarding complete');
-      AsyncStorage.setItem('hasCompletedOnboarding', 'true').then(() => {
-        setOnboardingCompleted(true);
-      });
-      AsyncStorage.removeItem('isGuestMode').then(() => {
-        setIsGuestMode(false);
-      });
-    }
-  }, [user, hasLinkedProfile, hasPendingRequest, onboardingCompleted]);
+    return () => {
+      if (notificationInitialized) {
+        notificationService.cleanup();
+      }
+    };
+  }, [notificationInitialized]);
 
-  // Hide the splash screen when the app is ready
+  // Hide splash screen when auth state is determined
   useEffect(() => {
-    if (appIsReady && !isLoading) {
+    if (!isLoading && authState !== AuthStates.INITIALIZING) {
       SplashScreen.hideAsync();
     }
-  }, [appIsReady, isLoading]);
+  }, [isLoading, authState]);
+
+  // Log auth state changes for debugging
+  useEffect(() => {
+    console.log('[DEBUG] Auth state changed:', authState);
+    console.log('[DEBUG] User:', !!user, 'Admin:', isAdmin);
+  }, [authState, user, isAdmin]);
+
+  // Handle navigation based on auth state
+  const shouldShowTabs = () => {
+    return [
+      AuthStates.PROFILE_LINKED,
+      AuthStates.GUEST_MODE,
+    ].includes(authState);
+  };
+
+  const shouldShowAuth = () => {
+    return [
+      AuthStates.UNAUTHENTICATED,
+      AuthStates.ONBOARDING,
+      AuthStates.PHONE_AUTH,
+      AuthStates.OTP_VERIFICATION,
+      AuthStates.PROFILE_LINKING,
+      AuthStates.AUTHENTICATED,
+      AuthStates.PENDING_APPROVAL,
+    ].includes(authState);
+  };
 
   // No need for emergency timeout - trust Supabase's auth handling
 

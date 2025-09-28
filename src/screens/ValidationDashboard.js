@@ -183,7 +183,7 @@ const ValidationDashboard = ({ navigation }) => {
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
-          <Ionicons name="chevron-back" size={28} color="#007AFF" />
+          <Ionicons name="chevron-back" size={28} color="#242121" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>لوحة التحقق</Text>
         <TouchableOpacity

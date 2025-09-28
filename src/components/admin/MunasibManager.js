@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +17,7 @@ import { supabase } from "../../services/supabase";
 import { buildNameChain } from "../../utils/nameChainBuilder";
 import FamilyDetailModal from "./FamilyDetailModal";
 
-export default function MunasibManager({ visible, onClose }) {
+export default function MunasibManager({ onClose }) {
   const [familyStats, setFamilyStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,10 +26,8 @@ export default function MunasibManager({ visible, onClose }) {
   const [showFamilyDetail, setShowFamilyDetail] = useState(false);
 
   useEffect(() => {
-    if (visible) {
-      loadFamilyStats();
-    }
-  }, [visible]);
+    loadFamilyStats();
+  }, []);
 
   useEffect(() => {
     filterFamilies();
@@ -116,20 +115,14 @@ export default function MunasibManager({ visible, onClose }) {
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="#242121" />
+            <Ionicons name="chevron-back" size={28} color="#242121" />
           </TouchableOpacity>
-          <Text style={styles.title}>عائلات المناسيب</Text>
-          <View style={{ width: 28 }} />
+          <Text style={styles.headerTitle}>المناسبين</Text>
+          <View style={{ width: 40 }} />
         </View>
 
         {/* Search Bar */}
@@ -198,7 +191,6 @@ export default function MunasibManager({ visible, onClose }) {
           }}
         />
       </SafeAreaView>
-    </Modal>
   );
 }
 
@@ -211,19 +203,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#D1BBA340", // Camel Hair Beige 40%
+    borderBottomColor: "#E8E3DC",
   },
   closeButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  title: {
-    fontSize: 20,
+  headerTitle: {
+    fontSize: 17,
     fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: "#242121", // Sadu Night
+    color: "#242121",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
   searchContainer: {
     paddingHorizontal: 16,

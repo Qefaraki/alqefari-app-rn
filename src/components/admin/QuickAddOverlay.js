@@ -518,7 +518,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               {/* Header */}
               <View style={styles.header}>
                 <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-                  <Ionicons name="close" size={24} color={COLORS.text} />
+                  <Ionicons name="chevron-back" size={28} color="#242121" />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
                   <Text style={styles.headerTitle}>إضافة أطفال</Text>

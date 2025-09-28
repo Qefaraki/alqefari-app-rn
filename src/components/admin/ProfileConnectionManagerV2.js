@@ -97,9 +97,6 @@ const getFullNameChain = (profile, allProfiles = []) => {
   return name.includes("القفاري") ? name : `${name} القفاري`;
 };
 
-// Animated button component
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
-
 export default function ProfileConnectionManagerV2({ onBack }) {
   console.log("🚀 ProfileConnectionManagerV2 MOUNTED");
   const router = useRouter();
@@ -319,19 +316,28 @@ export default function ProfileConnectionManagerV2({ onBack }) {
     }
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.loadingContainer}>
-          <View style={styles.loadingIndicator}>
-            <Ionicons name="hourglass-outline" size={48} color={colors.container} />
-          </View>
-          <Text style={styles.loadingText}>جارٍ التحميل...</Text>
+  // Skeleton component for loading state
+  const RequestSkeleton = () => (
+    <View style={styles.requestCard}>
+      <View style={[styles.statusIndicatorLine, { backgroundColor: colors.separator }]} />
+      <View style={styles.cardContent}>
+        <View style={styles.photoContainer}>
+          <SkeletonLoader width={60} height={60} borderRadius={30} />
         </View>
-      </SafeAreaView>
-    );
-  }
+        <View style={styles.profileInfo}>
+          <SkeletonLoader width={180} height={18} style={{ marginBottom: 8 }} />
+          <SkeletonLoader width={140} height={14} style={{ marginBottom: 6 }} />
+          <SkeletonLoader width={100} height={14} />
+        </View>
+      </View>
+      {selectedTab === 0 && (
+        <View style={styles.actionButtons}>
+          <SkeletonLoader width={90} height={36} borderRadius={18} style={{ marginRight: 8 }} />
+          <SkeletonLoader width={90} height={36} borderRadius={18} />
+        </View>
+      )}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -354,7 +360,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
               }}
               style={styles.backButton}
             >
-              <Ionicons name="close" size={28} color={colors.text} />
+              <Ionicons name="chevron-back" size={28} color="#242121" />
             </TouchableOpacity>
           )}
         </View>
@@ -376,35 +382,6 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         </Host>
       </View>
 
-      {/* Mini Stats Section */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <View style={[styles.statIndicator, { backgroundColor: colors.warning + "20" }]}>
-            <Text style={[styles.statNumber, { color: colors.warning }]}>
-              {requests.pending?.length || 0}
-            </Text>
-          </View>
-          <Text style={styles.statLabel}>في الانتظار</Text>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={[styles.statIndicator, { backgroundColor: colors.success + "20" }]}>
-            <Text style={[styles.statNumber, { color: colors.success }]}>
-              {requests.approved?.length || 0}
-            </Text>
-          </View>
-          <Text style={styles.statLabel}>موافق عليها</Text>
-        </View>
-
-        <View style={styles.statItem}>
-          <View style={[styles.statIndicator, { backgroundColor: colors.error + "20" }]}>
-            <Text style={[styles.statNumber, { color: colors.error }]}>
-              {requests.rejected?.length || 0}
-            </Text>
-          </View>
-          <Text style={styles.statLabel}>مرفوضة</Text>
-        </View>
-      </View>
 
       {/* List */}
       <ScrollView
@@ -442,65 +419,71 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                 <Animated.View
                   entering={FadeInDown.delay(index * 30).springify().damping(15)}
                   layout={Layout.springify()}
-                  style={[styles.requestCard, { transform: [{ scale: 1 }] }]}
+                  style={styles.requestCard}
                 >
                   {/* Status indicator line */}
                   <View style={[styles.statusIndicatorLine, { backgroundColor: statusColor }]} />
 
                   <View style={styles.cardContent}>
-                    {/* Profile photo with border */}
-                    <View style={styles.photoContainer}>
-                      {profile?.photo_url ? (
-                        <Image
-                          source={{ uri: profile.photo_url }}
-                          style={styles.profilePhoto}
-                        />
-                      ) : (
-                        <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-                          <Text style={styles.avatarText}>
-                            {getInitials(profile?.name || request.name_chain || "غير معروف")}
-                          </Text>
-                        </View>
-                      )}
-                      <View style={styles.photoBorder} />
-                    </View>
+                    <View style={styles.profileRow}>
+                      {/* Profile photo with border */}
+                      <View style={styles.photoContainer}>
+                        {profile?.photo_url ? (
+                          <Image
+                            source={{ uri: profile.photo_url }}
+                            style={styles.profilePhoto}
+                          />
+                        ) : (
+                          <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+                            <Text style={styles.avatarText}>
+                              {getInitials(profile?.name || request.name_chain || "غير معروف")}
+                            </Text>
+                          </View>
+                        )}
+                        <View style={styles.photoBorder} />
+                      </View>
 
-                    {/* Name and details */}
-                    <View style={styles.profileInfo}>
-                      <Text style={styles.profileName}>{displayName}</Text>
-                      <Text style={styles.profileMeta}>
-                        {getGenerationName(profile?.generation)}
-                      </Text>
-                      <Text style={[styles.profileMeta, { fontSize: 13, color: colors.textMuted + "99" }]}>
-                        {request.phone || "لا يوجد رقم"}
-                      </Text>
+                      {/* Name and details */}
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileName}>{displayName}</Text>
+                        <Text style={styles.profileMeta}>
+                          {getGenerationName(profile?.generation)}
+                        </Text>
+                        <Text style={[styles.profileMeta, { fontSize: 13, color: "#73637299", fontWeight: "400" }]}>
+                          {request.phone || "لا يوجد رقم"}
+                        </Text>
+                      </View>
                     </View>
 
                     {/* Actions for pending */}
                     {tabKeys[selectedTab] === "pending" && (
                       <View style={styles.actionButtons}>
-                        <AnimatedActionButton
+                        <TouchableOpacity
                           onPress={() => handleApprove(request)}
-                          style={[styles.actionButton, styles.approveButton]}
-                          icon="checkmark"
-                          color="#FFFFFF"
-                        />
+                          style={[styles.pillButton, styles.approveButton]}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="checkmark" size={18} color="#F9F7F3" />
+                          <Text style={styles.approveButtonText}>قبول</Text>
+                        </TouchableOpacity>
 
-                        <AnimatedActionButton
+                        <TouchableOpacity
                           onPress={() => handleReject(request)}
-                          style={[styles.actionButton, styles.rejectButton]}
-                          icon="close"
-                          color="#FFFFFF"
-                        />
+                          style={[styles.pillButton, styles.rejectButton]}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons name="close" size={18} color="#242121" />
+                          <Text style={styles.rejectButtonText}>رفض</Text>
+                        </TouchableOpacity>
 
                         {request.phone && (
-                          <AnimatedActionButton
+                          <TouchableOpacity
                             onPress={() => handleWhatsApp(request.phone)}
-                            style={[styles.actionButton, styles.whatsappButton]}
-                            icon="logo-whatsapp"
-                            color={colors.text}
-                            size={18}
-                          />
+                            style={[styles.pillButton, styles.whatsappButton]}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="logo-whatsapp" size={18} color="#242121" />
+                          </TouchableOpacity>
                         )}
                       </View>
                     )}
@@ -516,13 +499,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                           />
                         </View>
                         {request.phone && (
-                          <AnimatedActionButton
+                          <TouchableOpacity
                             onPress={() => handleWhatsApp(request.phone)}
-                            style={[styles.actionButton, styles.whatsappButton]}
-                            icon="logo-whatsapp"
-                            color={colors.text}
-                            size={18}
-                          />
+                            style={[styles.pillButton, styles.whatsappButton]}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="logo-whatsapp" size={18} color="#242121" />
+                          </TouchableOpacity>
                         )}
                       </View>
                     )}
@@ -542,13 +525,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                           )}
                         </View>
                         {request.phone && (
-                          <AnimatedActionButton
+                          <TouchableOpacity
                             onPress={() => handleWhatsApp(request.phone)}
-                            style={[styles.actionButton, styles.whatsappButton]}
-                            icon="logo-whatsapp"
-                            color={colors.text}
-                            size={18}
-                          />
+                            style={[styles.pillButton, styles.whatsappButton]}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="logo-whatsapp" size={18} color="#242121" />
+                          </TouchableOpacity>
                         )}
                       </View>
                     )}
@@ -558,7 +541,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
               );
             })}
           </View>
-        ) : (
+        ) : !loading ? (
           <View style={styles.emptyState}>
             <Image
               source={require('../../../assets/sadu_patterns/png/42.png')}
@@ -581,37 +564,11 @@ export default function ProfileConnectionManagerV2({ onBack }) {
               اسحب للأسفل للتحديث
             </Text>
           </View>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-// Animated action button component
-const AnimatedActionButton = ({ onPress, style, icon, color, size = 20 }) => {
-  const scaleAnim = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(scaleAnim.value, { damping: 15, stiffness: 300 }) }],
-  }));
-
-  return (
-    <AnimatedTouchable
-      style={[style, animatedStyle]}
-      onPressIn={() => {
-        scaleAnim.value = 0.88;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }}
-      onPressOut={() => {
-        scaleAnim.value = 1;
-      }}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      <Ionicons name={icon} size={size} color={color} />
-    </AnimatedTouchable>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -678,35 +635,6 @@ const styles = StyleSheet.create({
   },
 
   // Stats
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 16,
-    backgroundColor: colors.white,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.separator,
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statIndicator: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontFamily: "SF Arabic",
-  },
 
   // Scroll
   scrollView: {
@@ -727,27 +655,29 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: 12,
-    minHeight: 92,
     overflow: "hidden",
+    borderWidth: 0.5,
+    borderColor: "#D1BBA320", // Camel Hair Beige 20%
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   statusIndicatorLine: {
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
+    width: 3,
   },
   cardContent: {
+    paddingTop: 14,
+  },
+  profileRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 20,
     paddingHorizontal: 16,
-    paddingLeft: 20,
   },
 
   // Photo
@@ -787,26 +717,25 @@ const styles = StyleSheet.create({
   // Info
   profileInfo: {
     flex: 1,
-    marginLeft: 14,
-    justifyContent: "center",
+    marginLeft: 12,
   },
   profileName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: colors.text,
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#242121",
     fontFamily: "SF Arabic",
-    marginBottom: 3,
+    marginBottom: 4,
     letterSpacing: -0.3,
   },
   metaRow: {
     marginBottom: 2,
   },
   profileMeta: {
-    fontSize: 14,
-    color: colors.textMuted,
+    fontSize: 13,
+    color: "#24212160", // Sadu Night 40%
     fontFamily: "SF Arabic",
-    fontWeight: "500",
-    marginBottom: 2,
+    fontWeight: "400",
+    marginBottom: 3,
   },
   metaSeparator: {
     fontSize: 14,
@@ -818,28 +747,44 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  actionButton: {
-    width: 36,
+  pillButton: {
     height: 36,
+    paddingHorizontal: 16,
     borderRadius: 18,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    gap: 6,
   },
   approveButton: {
-    backgroundColor: colors.success,
+    backgroundColor: "#D58C4A", // Desert Ochre
+  },
+  approveButtonText: {
+    color: "#F9F7F3",
+    fontSize: 14,
+    fontWeight: "500",
+    fontFamily: Platform.select({ ios: "SF Arabic", default: "System" }),
   },
   rejectButton: {
-    backgroundColor: colors.error,
+    backgroundColor: "transparent",
+    borderWidth: 0.5,
+    borderColor: "#D1BBA330", // Camel Hair Beige 30%
+  },
+  rejectButtonText: {
+    color: "#24212180", // Sadu Night 50%
+    fontSize: 14,
+    fontWeight: "500",
+    fontFamily: Platform.select({ ios: "SF Arabic", default: "System" }),
   },
   whatsappButton: {
-    backgroundColor: colors.primary,  // Using Najdi Crimson instead of WhatsApp green
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+    minWidth: 40,
+    paddingHorizontal: 11,
   },
   statusIcon: {
     padding: 4,

@@ -56,20 +56,56 @@ export default function ProfileLinkStatusIndicator() {
   useEffect(() => {
     loadProfileStatus();
 
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates for profile_link_requests
     const subscription = supabase
       .channel('profile-status')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'profile_link_requests'
-      }, loadProfileStatus)
+      }, (payload) => {
+        console.log('[ProfileLinkStatusIndicator] Real-time update:', payload);
+        // Add haptic feedback for status changes
+        if (payload.eventType === 'UPDATE' && payload.new) {
+          const oldStatus = payload.old?.status;
+          const newStatus = payload.new?.status;
+
+          // Notify user when their request status changes
+          if (oldStatus === 'pending' && (newStatus === 'approved' || newStatus === 'rejected')) {
+            Haptics.notificationAsync(
+              newStatus === 'approved'
+                ? Haptics.NotificationFeedbackType.Success
+                : Haptics.NotificationFeedbackType.Warning
+            );
+          }
+        }
+        loadProfileStatus();
+      })
+      .subscribe();
+
+    // Also subscribe to profile updates (for when user gets linked)
+    const profileSubscription = supabase
+      .channel('profile-updates')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles',
+        filter: user ? `user_id=eq.${user.id}` : undefined
+      }, (payload) => {
+        console.log('[ProfileLinkStatusIndicator] Profile updated:', payload);
+        if (payload.new?.user_id) {
+          // Profile just got linked!
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          loadProfileStatus();
+        }
+      })
       .subscribe();
 
     return () => {
       subscription.unsubscribe();
+      profileSubscription.unsubscribe();
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     // Animate entrance
@@ -101,6 +137,16 @@ export default function ProfileLinkStatusIndicator() {
     }
   }, [loading, linkRequest]);
 
+  // Re-build name chain when allProfiles updates
+  useEffect(() => {
+    if (profile && allProfiles.length > 0) {
+      const chain = buildNameChain(profile, allProfiles);
+      const finalChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
+      console.log("[ProfileLinkStatusIndicator] Re-built chain after profiles update:", finalChain);
+      setProfileChain(finalChain);
+    }
+  }, [allProfiles, profile]);
+
   const loadProfileStatus = async () => {
     setLoading(true);
     try {
@@ -122,16 +168,35 @@ export default function ProfileLinkStatusIndicator() {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
 
-        // Load all profiles to build name chain
+        // Load all profiles to build name chain - include all necessary fields
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, name, father_id");
+          .select("id, name, father_id, father_name, grandfather_name, full_chain");
 
-        if (profiles) {
+        console.log("[ProfileLinkStatusIndicator] Loaded profiles:", profiles?.length || 0);
+        console.log("[ProfileLinkStatusIndicator] Linked profile:", linkedProfile.name, "father_id:", linkedProfile.father_id);
+
+        if (profiles && profiles.length > 0) {
           setAllProfiles(profiles);
           // Build the name chain
           const chain = buildNameChain(linkedProfile, profiles);
-          setProfileChain(chain);
+          console.log("[ProfileLinkStatusIndicator] Built chain:", chain);
+
+          // Ensure we have القفاري at the end
+          const finalChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
+          setProfileChain(finalChain);
+        } else {
+          // Fallback to using existing fields if profiles couldn't be loaded
+          let fallbackChain = linkedProfile.full_chain || linkedProfile.name;
+          if (linkedProfile.father_name) {
+            fallbackChain = `${linkedProfile.name} بن ${linkedProfile.father_name}`;
+            if (linkedProfile.grandfather_name) {
+              fallbackChain += ` ${linkedProfile.grandfather_name}`;
+            }
+          }
+          const finalChain = fallbackChain.includes("القفاري") ? fallbackChain : `${fallbackChain} القفاري`;
+          console.log("[ProfileLinkStatusIndicator] Using fallback chain:", finalChain);
+          setProfileChain(finalChain);
         }
 
         // Check if we've already shown the congratulations for this specific profile
@@ -190,6 +255,21 @@ export default function ProfileLinkStatusIndicator() {
           }
 
           setLinkRequest(request);
+
+          // Mark approval/rejection as seen if not already
+          if (request.status === 'approved' && !request.approval_seen) {
+            await supabase
+              .from('profile_link_requests')
+              .update({ approval_seen: true })
+              .eq('id', request.id);
+            console.log('[ProfileLinkStatusIndicator] Marked approval as seen');
+          } else if (request.status === 'rejected' && !request.rejection_seen) {
+            await supabase
+              .from('profile_link_requests')
+              .update({ rejection_seen: true })
+              .eq('id', request.id);
+            console.log('[ProfileLinkStatusIndicator] Marked rejection as seen');
+          }
         }
       }
     } catch (error) {
@@ -289,6 +369,17 @@ export default function ProfileLinkStatusIndicator() {
 
   // Linked Profile State - Success message with auto-dismiss
   if (hasLinkedProfile && profile && !shouldHideLinked) {
+    // Always show name chain - use profileChain if available, otherwise build from profile
+    const displayChain = profileChain || (() => {
+      let chain = profile.full_chain || profile.name;
+      if (!chain.includes("القفاري")) {
+        chain = `${chain} القفاري`;
+      }
+      return chain;
+    })();
+
+    console.log("[ProfileLinkStatusIndicator] Displaying success with chain:", displayChain);
+
     return (
       <Animated.View
         style={[
@@ -304,9 +395,7 @@ export default function ProfileLinkStatusIndicator() {
             <Ionicons name="checkmark-circle" size={24} color={colors.success} />
             <Text style={styles.successMessage}>تهانينا! تم ربط حسابك</Text>
           </View>
-          {profileChain && (
-            <Text style={styles.linkedProfileName}>{profileChain}</Text>
-          )}
+          <Text style={styles.linkedProfileName}>{displayChain}</Text>
         </View>
       </Animated.View>
     );
