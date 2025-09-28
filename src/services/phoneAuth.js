@@ -479,6 +479,30 @@ export const phoneAuthService = {
         };
       }
 
+      // CRITICAL VALIDATION: Check if the profile is already linked
+      const { data: profileCheck, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, name, user_id')
+        .eq('id', profileId)
+        .single();
+
+      if (checkError) {
+        console.error('Error checking profile status:', checkError);
+        return { success: false, error: 'حدث خطأ في التحقق من حالة الملف' };
+      }
+
+      if (!profileCheck) {
+        return { success: false, error: 'الملف المطلوب غير موجود' };
+      }
+
+      if (profileCheck.user_id) {
+        console.error('Attempted to claim already-linked profile:', profileId, profileCheck.name);
+        return {
+          success: false,
+          error: 'هذا الملف مرتبط بحساب آخر بالفعل. يرجى اختيار ملف آخر أو التواصل مع المشرف.'
+        };
+      }
+
       // Check if profile is already claimed
       const { data: profile } = await supabase
         .from("profiles")

@@ -366,10 +366,6 @@ export default function ProfileLinkingScreen({ navigation, route }) {
             {/* Results */}
             {results.length > 0 && (
               <View style={styles.resultsSection}>
-                <Text style={styles.resultsCountCompact}>
-                  {results.length} نتيجة
-                </Text>
-
                 <FlatList
                   data={results}
                   keyExtractor={keyExtractor}
@@ -556,12 +552,6 @@ const styles = StyleSheet.create({
   // Results
   resultsSection: {
     flex: 1,
-  },
-  resultsCountCompact: {
-    fontSize: 13,
-    color: colors.textHint,
-    marginBottom: 12,
-    marginHorizontal: 16,
   },
   listContent: {
     paddingBottom: 20,

@@ -18,6 +18,7 @@ import Animated, {
   FadeOut,
   withDelay,
   useAnimatedReaction,
+  cancelAnimation,
 } from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Line } from "react-native-svg";
@@ -89,6 +90,11 @@ const Star = ({ star, scrollY, brightness }) => {
         false,
       ),
     );
+
+    // Cleanup animation on unmount
+    return () => {
+      cancelAnimation(twinkle);
+    };
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -314,6 +320,11 @@ const EnhancedSaduBackdrop = forwardRef(
         -1,
         true,
       );
+
+      // Cleanup animation on unmount
+      return () => {
+        cancelAnimation(scrollY);
+      };
     }, []);
 
     // Trigger shooting star - BOTTOM LEFT to TOP RIGHT (accounting for RTL)

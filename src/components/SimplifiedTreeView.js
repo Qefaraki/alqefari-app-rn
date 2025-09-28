@@ -63,8 +63,7 @@ import NavigateToRootButton from "./NavigateToRootButton";
 // Admin components removed for simplified view
 import skiaImageCache from "../services/skiaImageCache";
 import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
-// Profile editing components removed for simplified view
-import SearchBar from "./SearchBar";
+// Profile editing and search components removed for simplified view
 import { supabase } from "../services/supabase";
 // Haptics and LottieGlow removed - no interaction in simplified view
 import NetworkErrorView from "./NetworkErrorView";
@@ -87,7 +86,7 @@ const T2_BASE = 24; // Text pill threshold (px)
 const MAX_VISIBLE_NODES = 350; // Hard cap per frame
 const MAX_VISIBLE_EDGES = 300; // Hard cap per frame
 const LOD_ENABLED = true; // Kill switch
-const AGGREGATION_ENABLED = true; // T3 chips toggle
+const AGGREGATION_ENABLED = false; // T3 chips disabled in simplified view
 
 // Image bucket hysteresis constants
 const BUCKET_HYSTERESIS = 0.15; // ±15% hysteresis
@@ -291,57 +290,86 @@ const ImageNode = ({
   );
 };
 
-// Spatial grid for efficient culling
-const GRID_CELL_SIZE = 512;
+// Optimized spatial grid for efficient culling with thousands of nodes
+const GRID_CELL_SIZE = 256; // Smaller cells for better granularity with dense trees
 
 class SpatialGrid {
   constructor(nodes, cellSize = GRID_CELL_SIZE) {
     this.cellSize = cellSize;
-    this.grid = new Map(); // "x,y" -> Set<nodeId>
+    this.grid = new Map(); // "x,y" -> Array<node> (arrays are faster than Sets)
+    this.bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
 
-    // Build grid
+    // Pre-calculate bounds and build grid in single pass
     nodes.forEach((node) => {
+      // Update bounds
+      this.bounds.minX = Math.min(this.bounds.minX, node.x);
+      this.bounds.maxX = Math.max(this.bounds.maxX, node.x);
+      this.bounds.minY = Math.min(this.bounds.minY, node.y);
+      this.bounds.maxY = Math.max(this.bounds.maxY, node.y);
+
+      // Add to grid
       const cellX = Math.floor(node.x / cellSize);
       const cellY = Math.floor(node.y / cellSize);
       const key = `${cellX},${cellY}`;
 
       if (!this.grid.has(key)) {
-        this.grid.set(key, new Set());
+        this.grid.set(key, []);
       }
-      this.grid.get(key).add(node.id);
+      this.grid.get(key).push(node); // Store node directly, not just ID
     });
+
+    // Pre-calculate cell bounds for early exit
+    this.minCellX = Math.floor(this.bounds.minX / cellSize);
+    this.maxCellX = Math.floor(this.bounds.maxX / cellSize);
+    this.minCellY = Math.floor(this.bounds.minY / cellSize);
+    this.maxCellY = Math.floor(this.bounds.maxY / cellSize);
   }
 
   getVisibleNodes({ x, y, width, height }, scale, idToNode) {
-    // Transform viewport to world space
-    const worldMinX = -x / scale;
-    const worldMaxX = (-x + width) / scale;
-    const worldMinY = -y / scale;
-    const worldMaxY = (-y + height) / scale;
+    // Transform viewport to world space with padding for smooth transitions
+    const padding = 100 / scale; // Add padding to preload nearby nodes
+    const worldMinX = (-x / scale) - padding;
+    const worldMaxX = ((-x + width) / scale) + padding;
+    const worldMinY = (-y / scale) - padding;
+    const worldMaxY = ((-y + height) / scale) + padding;
 
-    // Get intersecting cells
-    const minCellX = Math.floor(worldMinX / this.cellSize);
-    const maxCellX = Math.floor(worldMaxX / this.cellSize);
-    const minCellY = Math.floor(worldMinY / this.cellSize);
-    const maxCellY = Math.floor(worldMaxY / this.cellSize);
+    // Early exit if viewport is outside tree bounds
+    if (worldMaxX < this.bounds.minX || worldMinX > this.bounds.maxX ||
+        worldMaxY < this.bounds.minY || worldMinY > this.bounds.maxY) {
+      return [];
+    }
 
-    // Collect nodes from cells
-    const visibleIds = new Set();
+    // Get intersecting cells with bounds check
+    const minCellX = Math.max(this.minCellX, Math.floor(worldMinX / this.cellSize));
+    const maxCellX = Math.min(this.maxCellX, Math.floor(worldMaxX / this.cellSize));
+    const minCellY = Math.max(this.minCellY, Math.floor(worldMinY / this.cellSize));
+    const maxCellY = Math.min(this.maxCellY, Math.floor(worldMaxY / this.cellSize));
+
+    // Pre-allocate array with estimated size
+    const cellCount = (maxCellX - minCellX + 1) * (maxCellY - minCellY + 1);
+    const estimatedNodes = Math.min(cellCount * 10, MAX_VISIBLE_NODES);
+    const visibleNodes = [];
+    visibleNodes.length = 0; // Ensure empty but with allocated capacity
+
+    // Collect nodes from cells with inline bounds checking
     for (let cx = minCellX; cx <= maxCellX; cx++) {
       for (let cy = minCellY; cy <= maxCellY; cy++) {
         const cellNodes = this.grid.get(`${cx},${cy}`);
         if (cellNodes) {
-          cellNodes.forEach((id) => visibleIds.add(id));
+          for (const node of cellNodes) {
+            // Fine-grained bounds check (without padding for accuracy)
+            if (node.x >= worldMinX + padding && node.x <= worldMaxX - padding &&
+                node.y >= worldMinY + padding && node.y <= worldMaxY - padding) {
+              visibleNodes.push(node);
+
+              // Early exit if we hit the cap
+              if (visibleNodes.length >= MAX_VISIBLE_NODES) {
+                return visibleNodes;
+              }
+            }
+          }
         }
       }
-    }
-
-    // Convert to nodes and apply hard cap
-    const visibleNodes = [];
-    for (const id of visibleIds) {
-      if (visibleNodes.length >= MAX_VISIBLE_NODES) break;
-      const node = idToNode.get(id);
-      if (node) visibleNodes.push(node);
     }
 
     return visibleNodes;
@@ -487,15 +515,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     const nodePx = NODE_WIDTH_WITH_PHOTO * PixelRatio.get() * scale;
     let newTier = state.current;
 
+    // Simplified: Only 2 tiers (T1 full detail, T2 text only)
     // Apply hysteresis boundaries
     if (state.current === 1) {
       if (nodePx < T1_BASE * (1 - HYSTERESIS)) newTier = 2;
     } else if (state.current === 2) {
       if (nodePx >= T1_BASE * (1 + HYSTERESIS)) newTier = 1;
-      else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
-    } else {
-      // tier 3
-      if (nodePx >= T2_BASE * (1 + HYSTERESIS)) newTier = 2;
+      // T3 removed - stay in T2 when zoomed far out
     }
 
     if (newTier !== state.current) {
@@ -567,31 +593,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     })();
   }, []);
 
-  // Calculate initial position for focused node BEFORE creating shared values
-  const getInitialPosition = () => {
-    // Safety check: ensure nodes is an array before accessing
-    if (focusPersonId && nodes && Array.isArray(nodes) && nodes.length > 0) {
-      const targetNode = nodes.find(n => n.id === focusPersonId);
-      if (targetNode) {
-        const initialScale = 1.5;
-        const offsetX = dimensions.width / 2 - targetNode.x * initialScale;
-        const offsetY = dimensions.height / 2 - targetNode.y * initialScale;
-        return { x: offsetX, y: offsetY, scale: initialScale };
-      }
-    }
-    // Fallback to stage values or defaults
-    return { x: stage.x, y: stage.y, scale: stage.scale };
-  };
-
-  const initialPos = getInitialPosition();
-
-  // Gesture shared values - start with calculated position for focused node
-  const scale = useSharedValue(initialPos.scale);
-  const translateX = useSharedValue(initialPos.x);
-  const translateY = useSharedValue(initialPos.y);
-  const savedScale = useSharedValue(initialPos.scale);
-  const savedTranslateX = useSharedValue(initialPos.x);
-  const savedTranslateY = useSharedValue(initialPos.y);
+  // Gesture shared values - start with defaults, will be updated when nodes load
+  const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedScale = useSharedValue(1);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
   const isPinching = useSharedValue(false);
   // Initial focal point tracking for proper zoom+pan on physical devices
   const initialFocalX = useSharedValue(0);
@@ -615,7 +623,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       const loadTime = Date.now() - startTime;
       console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (adequate), instant load in', loadTime, 'ms');
       // Don't reload - we have enough data
-      setShowSkeleton(false);
+      // Skeleton removed
       setIsLoading(false);
       return;
     } else if (existingData && existingData.length > 0) {
@@ -673,7 +681,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
           setTreeData(familyData || []);
         }
         // Don't trigger fade animation on error
-        setShowSkeleton(false);
+        // Skeleton removed
         setIsLoading(false);
         return;
       }
@@ -705,24 +713,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         setNetworkError(null); // Clear any previous errors
       }
 
-      // Start fade transition when data is loaded
-      RNAnimated.parallel([
-        // Fade out skeleton
-        RNAnimated.timing(skeletonFadeAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        // Fade in content
-        RNAnimated.timing(contentFadeAnim, {
-          toValue: 1,
-          duration: 400,
-          delay: 100, // Slight overlap for smoother transition
-          useNativeDriver: true,
-        })
-      ]).start(() => {
-        setShowSkeleton(false); // Remove skeleton from DOM after animation
-      });
+      // No skeleton animations in simplified view
 
       const totalLoadTime = Date.now() - startTime;
       console.log('[TreeView] Tree loaded successfully in', totalLoadTime, 'ms');
@@ -743,7 +734,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         setTreeData(familyData || []);
       }
       // Don't trigger fade animation on error
-      setShowSkeleton(false);
+      // Skeleton removed
       setIsLoading(false);
     }
   };
@@ -758,18 +749,11 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     if (treeData && treeData.length > 0 && isLoading) {
       console.log('[TreeView] Tree data updated, hiding loading state');
       setIsLoading(false);
-      setShowSkeleton(false);
+      // Skeleton removed
     }
   }, [treeData, isLoading]);
 
-  // Ensure content is visible when not loading
-  useEffect(() => {
-    if (!isLoading && !showSkeleton) {
-      console.log('[TreeView] Ensuring content is visible');
-      contentFadeAnim.setValue(1);
-      skeletonFadeAnim.setValue(0);
-    }
-  }, [isLoading, showSkeleton, contentFadeAnim, skeletonFadeAnim]);
+  // Skeleton animations removed for simplified view
 
   // Load tree data on mount
   useEffect(() => {
@@ -777,9 +761,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     if (treeData && treeData.length >= 400) {
       console.log('[TreeView] Full tree data available (', treeData.length, 'nodes), skipping skeleton entirely');
       setIsLoading(false);
-      setShowSkeleton(false);
-      contentFadeAnim.setValue(1);
-      skeletonFadeAnim.setValue(0);
+      // Skeleton removed
+      // Animation values removed
       return;
     }
 
@@ -1052,72 +1035,42 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   const prevVisibleNodesRef = useRef(new Set());
 
   // Filter visible nodes for performance
+  // Optimized visible nodes calculation for thousands of nodes
   const visibleNodes = useMemo(() => {
-    const startTime = performance.now();
-
-    // Only update visibility if scale changed significantly (>5%)
-    const scaleChanged =
-      Math.abs(currentScale - lastStableScale.current) /
-        lastStableScale.current >
-      0.05;
-    if (scaleChanged) {
-      lastStableScale.current = currentScale;
+    // For thousands of nodes, use spatial grid if available
+    if (nodes.length > 500 && spatialGrid) {
+      // Spatial grid handles culling efficiently
+      return spatialGrid.getVisibleNodes(
+        { x: currentTransform.x, y: currentTransform.y, width: dimensions.width, height: dimensions.height },
+        currentTransform.scale,
+        indices?.idToNode || new Map()
+      );
     }
 
-    const visible = nodes.filter(
-      (node) =>
-        node.x >= visibleBounds.minX &&
-        node.x <= visibleBounds.maxX &&
-        node.y >= visibleBounds.minY &&
-        node.y <= visibleBounds.maxY,
-    );
+    // Fallback to simple bounds check for smaller trees
+    // Pre-allocate array for better performance
+    const visible = [];
+    const boundsMinX = visibleBounds.minX;
+    const boundsMaxX = visibleBounds.maxX;
+    const boundsMinY = visibleBounds.minY;
+    const boundsMaxY = visibleBounds.maxY;
 
-    // DEBUG: Track visibility changes
-    if (__DEV__) {
-      const currentVisibleIds = new Set(visible.map((n) => n.id));
-      const prevVisibleIds = prevVisibleNodesRef.current;
+    // Use for loop for better performance than filter
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (node.x >= boundsMinX && node.x <= boundsMaxX &&
+          node.y >= boundsMinY && node.y <= boundsMaxY) {
+        visible.push(node);
 
-      // Find nodes that entered/exited view
-      const entered = [];
-      const exited = [];
-
-      currentVisibleIds.forEach((id) => {
-        if (!prevVisibleIds.has(id)) {
-          const node = visible.find((n) => n.id === id);
-          entered.push(node);
+        // Cap visible nodes to prevent performance issues
+        if (visible.length >= MAX_VISIBLE_NODES) {
+          break;
         }
-      });
-
-      prevVisibleIds.forEach((id) => {
-        if (!currentVisibleIds.has(id)) {
-          const node = nodes.find((n) => n.id === id);
-          if (node) exited.push(node);
-        }
-      });
-
-      // if (entered.length > 0 || exited.length > 0) {
-      //   console.log(`👁️ VISIBILITY: ${prevVisibleIds.size}→${currentVisibleIds.size} nodes | +${entered.length} -${exited.length} | ${(performance.now() - startTime).toFixed(1)}ms`);
-      //
-      //   // Warn about large visibility changes that might cause jumping
-      //   if (entered.length + exited.length > 20) {
-      //     console.log(`  ⚠️ LARGE CHANGE: ${entered.length + exited.length} nodes changed visibility!`);
-      //     console.log(`  Viewport: X[${visibleBounds.minX.toFixed(0)}, ${visibleBounds.maxX.toFixed(0)}] Y[${visibleBounds.minY.toFixed(0)}, ${visibleBounds.maxY.toFixed(0)}]`);
-      //   }
-      //
-      //   // Only log details if few changes
-      //   if (entered.length > 0 && entered.length <= 5) {
-      //     console.log(`  Entered: ${entered.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
-      //   }
-      //   if (exited.length > 0 && exited.length <= 5) {
-      //     console.log(`  Exited: ${exited.map(n => `${n.name}(${n.x.toFixed(0)},${n.y.toFixed(0)})`).join(', ')}`);
-      //   }
-      // }
-
-      prevVisibleNodesRef.current = currentVisibleIds;
+      }
     }
 
     return visible;
-  }, [nodes, visibleBounds, currentScale]);
+  }, [nodes, visibleBounds, currentTransform, spatialGrid, dimensions, indices]);
 
   // Prefetch neighbor nodes for better performance
   useEffect(() => {
@@ -1225,25 +1178,28 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   }, [connections, visibleBounds]);
 
   // Initialize position on first load - center on focused node if provided
+  // Track if we've already positioned to avoid re-centering
+  const hasPositionedRef = useRef(false);
+
   useEffect(() => {
-    if (
-      nodes.length > 0 &&
-      stage.x === 0 &&
-      stage.y === 0 &&
-      stage.scale === 1
-    ) {
+    // Only position once when nodes are first loaded
+    if (nodes.length > 0 && !hasPositionedRef.current && dimensions.width > 0) {
+      hasPositionedRef.current = true;
+
       let offsetX, offsetY, initialScale;
 
       // If we have a focused node, center on it immediately
       if (focusPersonId) {
         const targetNode = nodes.find(n => n.id === focusPersonId);
         if (targetNode) {
-          // Start with a good zoom level for visibility
-          initialScale = 1.5;
-          // Center the focused node on screen
+          console.log('[SimplifiedTreeView] Centering on focused node:', targetNode.name, 'at', targetNode.x, targetNode.y);
+          // Start with a moderate zoom level for better overview
+          initialScale = 1.0;  // Reduced from 1.5 for better overview
+          // Center the focused node on screen - position higher (1/4 from top) for better tree visibility
           offsetX = dimensions.width / 2 - targetNode.x * initialScale;
-          offsetY = dimensions.height / 2 - targetNode.y * initialScale;
+          offsetY = (dimensions.height * 0.25) - targetNode.y * initialScale;  // 25% from top for higher positioning
         } else {
+          console.warn('[SimplifiedTreeView] Focused node not found:', focusPersonId);
           // Fallback to default centering if node not found
           offsetX = dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
           offsetY = 80;
@@ -1265,8 +1221,11 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       savedScale.value = initialScale;
 
       setStage({ x: offsetX, y: offsetY, scale: initialScale });
+
+      // Also update currentTransform to trigger proper rendering
+      setCurrentTransform({ x: offsetX, y: offsetY, scale: initialScale });
     }
-  }, [nodes, dimensions, treeBounds, focusPersonId]);
+  }, [nodes.length, dimensions.width, focusPersonId]); // Only depend on essential values
 
   // Navigate to a specific node with animation
   const navigateToNode = useCallback(
@@ -1355,28 +1314,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     // }
   }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
 
-  // Handle search result selection
-  const handleSearchResultSelect = useCallback(
-    (result) => {
-      console.log("Search result selected:", result);
-
-      // Check if the node is in the current nodes array
-      const nodeExists = nodes.some((n) => n.id === result.id);
-
-      if (nodeExists) {
-        console.log("Node found in tree, navigating");
-        navigateToNode(result.id);
-      } else {
-        console.log("Node not in current tree view");
-        Alert.alert(
-          "العقدة غير محملة",
-          "هذه العقدة غير موجودة في العرض الحالي. قم بتحميل المزيد من الشجرة لرؤيتها.",
-          [{ text: "حسناً", style: "default" }],
-        );
-      }
-    },
-    [navigateToNode, nodes],
-  );
+  // Search removed from simplified view
 
   // Pan gesture with momentum
   const panGesture = Gesture.Pan()
@@ -1490,37 +1428,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       return;
       const state = gestureStateRef.current;
 
-      // Check if we're in T3 mode first
-      if (state.tier === 3 && AGGREGATION_ENABLED && state.indices?.heroNodes) {
-        // Check for chip taps
-        for (const hero of state.indices.heroNodes) {
-          const centroid = state.indices.centroids[hero.id];
-          if (!centroid) continue;
-
-          // Transform centroid to screen space
-          const screenX =
-            centroid.x * state.transform.scale + state.transform.x;
-          const screenY =
-            centroid.y * state.transform.scale + state.transform.y;
-
-          const isRoot = !hero.father_id;
-          const chipScale = isRoot ? 1.3 : 1.0;
-          const chipWidth = 100 * chipScale;
-          const chipHeight = 36 * chipScale;
-
-          // Check if tap is within chip bounds
-          if (
-            e.x >= screenX - chipWidth / 2 &&
-            e.x <= screenX + chipWidth / 2 &&
-            e.y >= screenY - chipHeight / 2 &&
-            e.y <= screenY + chipHeight / 2
-          ) {
-            // Chip tap removed
-            return;
-          }
-        }
-        return; // No chip tapped and we're in T3, so ignore
-      }
+      // T3 mode removed in simplified view
 
       // Original node tap logic for T1/T2
       const canvasX = (e.x - state.transform.x) / state.transform.scale;
@@ -1648,7 +1556,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // Render edges with batching and capping
   const renderEdgesBatched = useCallback(
     (connections, visibleNodeIds, tier) => {
-      if (tier === 3) return { elements: null, count: 0 };
+      // Tier 3 removed - always render edges
 
       let edgeCount = 0;
       const paths = [];
@@ -1747,64 +1655,10 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     [nodes],
   );
 
-  // Render T3 aggregation chips (only 3 chips for hero branches)
+  // T3 aggregation removed in simplified view
   const renderTier3 = useCallback(
-    (heroNodes, indices, scale, translateX, translateY) => {
-      if (!AGGREGATION_ENABLED) return null;
-
-      const chips = [];
-
-      heroNodes.forEach((hero, index) => {
-        // Use precomputed centroid
-        const centroid = indices.centroids[hero.id];
-        if (!centroid) return;
-
-        // Transform world to screen
-        const screenX = centroid.x * scale + translateX;
-        const screenY = centroid.y * scale + translateY;
-
-        const isRoot = !hero.father_id;
-        const chipScale = isRoot ? 1.3 : 1.0;
-        const chipWidth = 100 * chipScale;
-        const chipHeight = 36 * chipScale;
-
-        chips.push(
-          <Group key={`chip-${hero.id}`}>
-            <RoundedRect
-              x={screenX - chipWidth / 2}
-              y={screenY - chipHeight / 2}
-              width={chipWidth}
-              height={chipHeight}
-              r={16}
-              color="#FFFFFF"
-            />
-            <RoundedRect
-              x={screenX - chipWidth / 2}
-              y={screenY - chipHeight / 2}
-              width={chipWidth}
-              height={chipHeight}
-              r={16}
-              color="#D1BBA340"
-              style="stroke"
-              strokeWidth={0.5}
-            />
-            {/* Hero name + count */}
-            {arabicFont && (
-              <SkiaText
-                x={screenX}
-                y={screenY + 4}
-                text={`${hero.name} (${indices.subtreeSizes[hero.id]})`}
-                font={arabicFont}
-                textAlign="center"
-                fontSize={12 * chipScale}
-                color="#242121"
-              />
-            )}
-          </Group>,
-        );
-      });
-
-      return chips;
+    () => {
+      return null; // T3 disabled
     },
     [],
   );
@@ -2157,7 +2011,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
     if (isLoading) return [];
-    if (tier === 3) return [];
+    // Tier 3 removed
     if (!spatialGrid) return visibleNodes;
     return spatialGrid.getVisibleNodes(
       {
@@ -2232,28 +2086,13 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     );
   }
 
-  // Start shimmer animation for skeleton
-  useEffect(() => {
-    if (showSkeleton) {
-      RNAnimated.loop(
-        RNAnimated.sequence([
-          RNAnimated.timing(shimmerAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          RNAnimated.timing(shimmerAnim, {
-            toValue: 0.3,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    }
-  }, [showSkeleton]);
+  // Skeleton animation removed - not needed in simplified view
 
-  // Tree skeleton component - better resembles actual tree
-  const TreeSkeleton = () => (
+  // TreeSkeleton component removed - not needed in simplified view
+  const TreeSkeleton = () => null;
+
+  // Placeholder to maintain line numbers
+  const placeholderComponent = () => (
     <View style={{
       flex: 1,
       backgroundColor: '#F9F7F3',
@@ -2263,7 +2102,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     }}>
       {/* Root node at center top */}
       <View style={{ alignItems: 'center', marginTop: -100 }}>
-        <RNAnimated.View
+        <View
           style={{
             width: 120,
             height: 70,
@@ -2271,7 +2110,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
             borderRadius: 10,
             borderWidth: 2,
             borderColor: '#D1BBA330',
-            opacity: shimmerAnim,
+            opacity: 1,
           }}
         />
 
@@ -2437,32 +2276,9 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1 }}>
-        {/* Skeleton with fade out */}
-        {showSkeleton && (
-          <RNAnimated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 10,
-              opacity: skeletonFadeAnim,
-            }}
-            pointerEvents="none"
-          >
-            <TreeSkeleton />
-          </RNAnimated.View>
-        )}
-
-        {/* Empty placeholder for tree content that will fade in */}
-        <RNAnimated.View
-          style={{
-            flex: 1,
-            opacity: contentFadeAnim,
-          }}
-        />
+      <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
+        {/* Simple loading state - no skeleton needed */}
+        <View style={{ flex: 1 }} />
       </View>
     );
   }
@@ -2475,50 +2291,15 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   );
 
   // Update frame stats
-  frameStatsRef.current.nodesDrawn = tier === 3 ? 3 : culledNodes.length;
-  frameStatsRef.current.edgesDrawn = tier === 3 ? 0 : edgesDrawn;
+  frameStatsRef.current.nodesDrawn = culledNodes.length;
+  frameStatsRef.current.edgesDrawn = edgesDrawn;
 
-  // TIER 3: Only render hero chips
-  if (tier === 3 && AGGREGATION_ENABLED) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
-        <GestureDetector gesture={composed}>
-          <Canvas style={{ flex: 1 }}>
-            {renderTier3(
-              indices.heroNodes,
-              indices,
-              currentTransform.scale,
-              currentTransform.x,
-              currentTransform.y,
-            )}
-          </Canvas>
-        </GestureDetector>
-      </View>
-    );
-  }
+  // TIER 3 removed - simplified view only has 2 tiers
 
   return (
     <View style={{ flex: 1, backgroundColor: "#F9F7F3" }}>
-      {/* Skeleton overlay with fade out */}
-      {showSkeleton && (
-        <RNAnimated.View
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 10,
-            opacity: skeletonFadeAnim,
-          }}
-          pointerEvents="none"
-        >
-          <TreeSkeleton />
-        </RNAnimated.View>
-      )}
-
-      {/* Main tree content with fade in */}
-      <RNAnimated.View style={{ flex: 1, opacity: contentFadeAnim }}>
+      {/* Main tree content - no skeleton or fade animations */}
+      <View style={{ flex: 1 }}>
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
@@ -2542,12 +2323,10 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
           </Group>
         </Canvas>
         </GestureDetector>
-      </RNAnimated.View>
+      </View>
 
       {/* LottieGlow removed - using simple red border for focused node */}
-      {/* Search bar and navigation button remain */}
-      <SearchBar onSelectResult={handleSearchResultSelect} />
-
+      {/* Navigation button to center on focused node */}
       <NavigateToRootButton
         nodes={nodes}
         viewport={dimensions}
@@ -2556,6 +2335,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
           translateY: translateY,
           scale: scale,
         }}
+        focusPersonId={focusPersonId}
       />
 
       {/* All admin components and modals removed for simplified view */}

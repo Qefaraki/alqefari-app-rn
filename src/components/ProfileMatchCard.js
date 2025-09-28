@@ -82,12 +82,6 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
             <Text style={[styles.generationText, { color: avatarColor }]}>
               {getGenerationName(profile.generation || 1)}
             </Text>
-            {profile.has_auth && (
-              <>
-                <Text style={styles.metaSeparator}>•</Text>
-                <Text style={styles.linkedText}>مطالب به</Text>
-              </>
-            )}
             {/* Match percentage */}
             <Text style={styles.metaSeparator}>•</Text>
             <Text style={[styles.matchPercentage, { color: avatarColor }]}>

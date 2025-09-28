@@ -10,19 +10,19 @@ import Animated, {
 } from "react-native-reanimated";
 import Svg, { Path, G } from "react-native-svg";
 
-const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
-  const [rootNode, setRootNode] = useState(null);
+const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) => {
+  const [targetNode, setTargetNode] = useState(null);
 
-  // Find and cache the root node when nodes change
+  // Find and cache the focused node when nodes change
   useEffect(() => {
-    if (nodes && nodes.length > 0) {
-      const root = nodes.find((n) => n.generation === 1);
-      if (root) {
-        setRootNode(root);
-        // console.log('Root node found:', root.name, 'at position:', root.x, root.y);
+    if (nodes && nodes.length > 0 && focusPersonId) {
+      const focused = nodes.find((n) => n.id === focusPersonId);
+      if (focused) {
+        setTargetNode(focused);
+        // console.log('Focused node found:', focused.name, 'at position:', focused.x, focused.y);
       }
     }
-  }, [nodes]);
+  }, [nodes, focusPersonId]);
 
   const iconScale = useSharedValue(1);
   const iconRotate = useSharedValue(0);
@@ -34,9 +34,9 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
     ],
   }));
 
-  const handleNavigateToRoot = () => {
-    if (!rootNode) {
-      // console.warn('NavigateToRootButton: Root node not ready yet');
+  const handleNavigateToCenter = () => {
+    if (!targetNode) {
+      // console.warn('NavigateToRootButton: Target node not ready yet');
       return;
     }
 
@@ -62,18 +62,13 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
       return;
     }
 
-    if (!viewport || !viewport.width || !viewport.height) {
-      console.warn("NavigateToRootButton: Viewport not ready");
-      return;
-    }
-    
-    // Calculate target position to center root node in viewport
-    const targetX = viewport.width / 2 - rootNode.x;
-    const targetY = 200 - rootNode.y; // Position near top with padding
-    const targetScale = 1; // Reset to default zoom
+    // Calculate target position to center focused node in viewport
+    const targetScale = 1.0; // Moderate zoom for better overview
+    const targetX = viewport.width / 2 - targetNode.x * targetScale;
+    const targetY = (viewport.height * 0.25) - targetNode.y * targetScale; // Position at 1/4 from top for better tree visibility
 
-    // console.log('Navigate to root:', {
-    //   rootNode: { name: rootNode.name, x: rootNode.x, y: rootNode.y },
+    // console.log('Navigate to focused node:', {
+    //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
     //   viewport: { width: viewport.width, height: viewport.height },
     //   target: { x: targetX, y: targetY, scale: targetScale }
     // });
@@ -93,14 +88,14 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues }) => {
     });
   };
 
-  // Always render the button, but disable if root not found
-  const isDisabled = !rootNode;
+  // Always render the button, but disable if target not found
+  const isDisabled = !targetNode;
 
   return (
     <View style={styles.container}>
       <View style={styles.shadowWrapper}>
         <Pressable
-          onPress={handleNavigateToRoot}
+          onPress={handleNavigateToCenter}
           disabled={isDisabled}
           style={({ pressed }) => [
             styles.button,
@@ -137,7 +132,7 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     left: 16,  // Move to left side of screen
-    bottom: 100,
+    bottom: 40,  // Lowered from 100 to be closer to bottom
   },
   shadowWrapper: {
     width: 56,

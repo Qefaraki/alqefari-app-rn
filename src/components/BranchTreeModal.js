@@ -11,12 +11,23 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import SimplifiedTreeView from "./SimplifiedTreeView";
 import TreeErrorBoundary from "./TreeErrorBoundary";
+import { buildNameChain } from "../utils/nameChainBuilder";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
  */
 const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
   if (!profile) return null;
+
+  // Convert generation number to Arabic ordinal
+  const getArabicOrdinal = (num) => {
+    const ordinals = [
+      "الأول", "الثاني", "الثالث", "الرابع", "الخامس",
+      "السادس", "السابع", "الثامن", "التاسع", "العاشر",
+      "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر"
+    ];
+    return ordinals[num - 1] || `${num}`;
+  };
 
   return (
     <Modal
@@ -61,7 +72,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
               </View>
             )}
             <View style={styles.profileDetails}>
-              <Text style={styles.profileName}>{profile.name}</Text>
+              <Text style={styles.profileName}>{buildNameChain(profile)}</Text>
               {profile.birth_year_hijri && (
                 <Text style={styles.profileMeta}>
                   ولد عام {profile.birth_year_hijri} هـ
@@ -69,7 +80,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
               )}
               {profile.generation && (
                 <Text style={styles.profileMeta}>
-                  الجيل {profile.generation}
+                  الجيل {getArabicOrdinal(profile.generation)}
                 </Text>
               )}
             </View>

@@ -145,6 +145,23 @@ export default function ProfileMatchingScreen({ navigation, route }) {
   const [showTreeModal, setShowTreeModal] = useState(false);
   const [treeModalProfile, setTreeModalProfile] = useState(null);
 
+  // CRITICAL: Filter out any profiles that are already linked (safety check)
+  const availableProfiles = React.useMemo(() => {
+    return profiles.filter(profile => {
+      // Only show profiles that are NOT linked to any user
+      if (profile.user_id) {
+        console.warn('Profile already linked but appeared in search:', profile.id, profile.name);
+        return false;
+      }
+      // Also check the has_auth field (legacy check)
+      if (profile.has_auth === true) {
+        console.warn('Profile has_auth=true but appeared in search:', profile.id, profile.name);
+        return false;
+      }
+      return true;
+    });
+  }, [profiles]);
+
   const handleSelectProfile = useCallback((profile) => {
     // Show tree modal for verification
     setTreeModalProfile(profile);
@@ -274,7 +291,7 @@ export default function ProfileMatchingScreen({ navigation, route }) {
   );
 
   // Empty state
-  if (profiles.length === 0) {
+  if (availableProfiles.length === 0) {
     return (
       <View style={styles.container}>
         {/* Header with progress dots - matching NameChainEntryScreen */}
@@ -360,7 +377,7 @@ export default function ProfileMatchingScreen({ navigation, route }) {
           <Text style={styles.searchLabel}>البحث عن</Text>
           <Text style={styles.searchQuery}>{nameChain}</Text>
           <Text style={styles.resultsCount}>
-            عدد النتائج: {profiles.length}
+            عدد النتائج: {availableProfiles.length}
           </Text>
         </View>
 
@@ -380,7 +397,7 @@ export default function ProfileMatchingScreen({ navigation, route }) {
       {/* Results List - with proper flex to prevent overlap */}
       <View style={styles.listContainer}>
         <FlatList
-          data={profiles}
+          data={availableProfiles}
           renderItem={renderProfile}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
