@@ -23,6 +23,7 @@ import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../../contexts/AuthContext";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -98,6 +99,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const hasBeenMountedRef = useRef(false); // Track if this is a return visit
+  const { stateMachine } = useAuth();  // Add state machine access
 
   // Parallax state
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -468,7 +470,7 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
     ]).start();
   };
 
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
     animateButtonPress(primaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -491,11 +493,12 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      // Navigate after fade completes
+    ]).start(async () => {
+      // Transition state machine before navigating
+      await stateMachine.navigateToPhoneAuth();
       navigation.navigate("PhoneAuth");
     });
-  }, [navigation, primaryButtonScale, logoFade, contentFade, buttonFade]);
+  }, [navigation, primaryButtonScale, logoFade, contentFade, buttonFade, stateMachine]);
 
   const handleExploreAsGuest = useCallback(async () => {
     animateButtonPress(secondaryButtonScale);
@@ -521,13 +524,15 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start(() => {
+    ]).start(async () => {
+      // Transition state machine to guest mode
+      await stateMachine.enterGuestMode();
       // Set guest mode after fade completes
       if (setIsGuest) {
         setIsGuest(true);
       }
     });
-  }, [setIsGuest, secondaryButtonScale, logoFade, contentFade, buttonFade]);
+  }, [setIsGuest, secondaryButtonScale, logoFade, contentFade, buttonFade, stateMachine]);
 
   return (
     <View style={styles.container}>

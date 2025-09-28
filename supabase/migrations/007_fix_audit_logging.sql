@@ -156,8 +156,10 @@ CREATE TRIGGER trigger_log_profile_changes
     FOR EACH ROW
     EXECUTE FUNCTION log_profile_changes();
 
--- Also fix the admin_update_profile function to ensure proper version handling
-CREATE OR REPLACE FUNCTION admin_update_profile(
+-- Drop and recreate admin_update_profile function to ensure proper version handling
+DROP FUNCTION IF EXISTS admin_update_profile(UUID, INTEGER, JSONB);
+
+CREATE FUNCTION admin_update_profile(
     p_id UUID,
     p_version INTEGER,
     p_updates JSONB

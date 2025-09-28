@@ -42,6 +42,11 @@ const StateTransitions = {
 
   [AuthStates.UNAUTHENTICATED]: [
     AuthStates.ONBOARDING,
+    AuthStates.PHONE_AUTH,  // Allow direct phone auth
+    AuthStates.AUTHENTICATED,  // Allow for direct sign in
+    AuthStates.PROFILE_LINKED,  // Allow for existing sessions
+    AuthStates.PROFILE_LINKING,  // Allow for users needing to link
+    AuthStates.PENDING_APPROVAL,  // Allow for pending users
     AuthStates.GUEST_MODE,
     AuthStates.ERROR,
   ],

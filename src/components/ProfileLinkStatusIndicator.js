@@ -47,6 +47,7 @@ export default function ProfileLinkStatusIndicator() {
   const [shouldHideLinked, setShouldHideLinked] = useState(false);
   const [profileChain, setProfileChain] = useState("");
   const [allProfiles, setAllProfiles] = useState([]);
+  const [lastLoadTime, setLastLoadTime] = useState(0);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -64,7 +65,7 @@ export default function ProfileLinkStatusIndicator() {
         schema: 'public',
         table: 'profile_link_requests'
       }, (payload) => {
-        console.log('[ProfileLinkStatusIndicator] Real-time update:', payload);
+        // console.log('[ProfileLinkStatusIndicator] Real-time update:', payload);
         // Add haptic feedback for status changes
         if (payload.eventType === 'UPDATE' && payload.new) {
           const oldStatus = payload.old?.status;
@@ -92,7 +93,7 @@ export default function ProfileLinkStatusIndicator() {
         table: 'profiles',
         filter: user ? `user_id=eq.${user.id}` : undefined
       }, (payload) => {
-        console.log('[ProfileLinkStatusIndicator] Profile updated:', payload);
+        // console.log('[ProfileLinkStatusIndicator] Profile updated:', payload);
         if (payload.new?.user_id) {
           // Profile just got linked!
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -142,7 +143,7 @@ export default function ProfileLinkStatusIndicator() {
     if (profile && allProfiles.length > 0) {
       const chain = buildNameChain(profile, allProfiles);
       const finalChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
-      console.log("[ProfileLinkStatusIndicator] Re-built chain after profiles update:", finalChain);
+      // console.log("[ProfileLinkStatusIndicator] Re-built chain after profiles update:", finalChain);
       setProfileChain(finalChain);
     }
   }, [allProfiles, profile]);
@@ -173,14 +174,14 @@ export default function ProfileLinkStatusIndicator() {
           .from("profiles")
           .select("id, name, father_id, father_name, grandfather_name, full_chain");
 
-        console.log("[ProfileLinkStatusIndicator] Loaded profiles:", profiles?.length || 0);
-        console.log("[ProfileLinkStatusIndicator] Linked profile:", linkedProfile.name, "father_id:", linkedProfile.father_id);
+        // console.log("[ProfileLinkStatusIndicator] Loaded profiles:", profiles?.length || 0);
+        // console.log("[ProfileLinkStatusIndicator] Linked profile:", linkedProfile.name, "father_id:", linkedProfile.father_id);
 
         if (profiles && profiles.length > 0) {
           setAllProfiles(profiles);
           // Build the name chain
           const chain = buildNameChain(linkedProfile, profiles);
-          console.log("[ProfileLinkStatusIndicator] Built chain:", chain);
+          // console.log("[ProfileLinkStatusIndicator] Built chain:", chain);
 
           // Ensure we have القفاري at the end
           const finalChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
@@ -195,7 +196,7 @@ export default function ProfileLinkStatusIndicator() {
             }
           }
           const finalChain = fallbackChain.includes("القفاري") ? fallbackChain : `${fallbackChain} القفاري`;
-          console.log("[ProfileLinkStatusIndicator] Using fallback chain:", finalChain);
+          // console.log("[ProfileLinkStatusIndicator] Using fallback chain:", finalChain);
           setProfileChain(finalChain);
         }
 
@@ -262,13 +263,13 @@ export default function ProfileLinkStatusIndicator() {
               .from('profile_link_requests')
               .update({ approval_seen: true })
               .eq('id', request.id);
-            console.log('[ProfileLinkStatusIndicator] Marked approval as seen');
+            // console.log('[ProfileLinkStatusIndicator] Marked approval as seen');
           } else if (request.status === 'rejected' && !request.rejection_seen) {
             await supabase
               .from('profile_link_requests')
               .update({ rejection_seen: true })
               .eq('id', request.id);
-            console.log('[ProfileLinkStatusIndicator] Marked rejection as seen');
+            // console.log('[ProfileLinkStatusIndicator] Marked rejection as seen');
           }
         }
       }
@@ -378,7 +379,7 @@ export default function ProfileLinkStatusIndicator() {
       return chain;
     })();
 
-    console.log("[ProfileLinkStatusIndicator] Displaying success with chain:", displayChain);
+    // console.log("[ProfileLinkStatusIndicator] Displaying success with chain:", displayChain);
 
     return (
       <Animated.View

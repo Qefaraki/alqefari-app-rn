@@ -18,6 +18,8 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const unsubscribeRef = useRef(null);
   const authListenerRef = useRef(null);
+  const isHandlingAuthChangeRef = useRef(false); // Prevent duplicate handling
+  const lastEventRef = useRef(null); // Track last handled event
 
   useEffect(() => {
     console.log('[DEBUG AuthContext] Mounting AuthProvider');
@@ -42,64 +44,85 @@ export const AuthProvider = ({ children }) => {
       authListenerRef.current = supabase.auth.onAuthStateChange(async (event, session) => {
         console.log('[DEBUG AuthContext] Auth state change:', event, 'Current state:', AuthStateMachine.currentState);
 
-        // Skip INITIAL_SESSION as it's handled by initialize()
-        if (event === 'INITIAL_SESSION') {
-          console.log('[DEBUG AuthContext] Skipping INITIAL_SESSION (handled by initialize)');
+        // Prevent duplicate handling of the same event
+        if (isHandlingAuthChangeRef.current) {
+          console.log('[DEBUG AuthContext] Already handling auth change, skipping duplicate event');
           return;
         }
 
-        switch (event) {
-          case 'SIGNED_IN':
-            // Handle sign in from any state
-            if (session?.user) {
-              console.log('[DEBUG AuthContext] User signed in, checking profile...');
-              const profile = await AuthStateMachine.checkUserProfile(session.user.id);
-              console.log('[DEBUG AuthContext] Profile check result:', profile);
+        // Skip if this is the same event we just handled
+        if (lastEventRef.current === event && lastEventRef.current === 'SIGNED_IN') {
+          console.log('[DEBUG AuthContext] Duplicate SIGNED_IN event, skipping');
+          return;
+        }
 
-              // Determine the appropriate state based on profile
-              if (profile?.linked_profile_id) {
-                console.log('[DEBUG AuthContext] User has linked profile, transitioning to PROFILE_LINKED');
-                await AuthStateMachine.transition(AuthStates.PROFILE_LINKED, {
-                  user: session.user,
-                  profile
-                });
-              } else if (profile?.status === 'pending') {
-                console.log('[DEBUG AuthContext] User has pending approval, transitioning to PENDING_APPROVAL');
-                await AuthStateMachine.transition(AuthStates.PENDING_APPROVAL, {
-                  user: session.user,
-                  profile
-                });
-              } else if (profile) {
-                console.log('[DEBUG AuthContext] User has profile but not linked, transitioning to PROFILE_LINKING');
-                await AuthStateMachine.transition(AuthStates.PROFILE_LINKING, {
-                  user: session.user,
-                  profile
-                });
-              } else {
-                console.log('[DEBUG AuthContext] User has no profile, transitioning to AUTHENTICATED');
-                await AuthStateMachine.transition(AuthStates.AUTHENTICATED, {
-                  user: session.user
-                });
+        isHandlingAuthChangeRef.current = true;
+        lastEventRef.current = event;
+
+        // Skip INITIAL_SESSION as it's handled by initialize()
+        if (event === 'INITIAL_SESSION') {
+          console.log('[DEBUG AuthContext] Skipping INITIAL_SESSION (handled by initialize)');
+          isHandlingAuthChangeRef.current = false; // Reset flag
+          return;
+        }
+
+        try {
+          switch (event) {
+            case 'SIGNED_IN':
+              // Handle sign in from any state
+              if (session?.user) {
+                console.log('[DEBUG AuthContext] User signed in, checking profile...');
+                const profile = await AuthStateMachine.checkUserProfile(session.user.id);
+                console.log('[DEBUG AuthContext] Profile check result:', profile);
+
+                // Determine the appropriate state based on profile
+                if (profile?.linked_profile_id) {
+                  console.log('[DEBUG AuthContext] User has linked profile, transitioning to PROFILE_LINKED');
+                  await AuthStateMachine.transition(AuthStates.PROFILE_LINKED, {
+                    user: session.user,
+                    profile
+                  });
+                } else if (profile?.status === 'pending') {
+                  console.log('[DEBUG AuthContext] User has pending approval, transitioning to PENDING_APPROVAL');
+                  await AuthStateMachine.transition(AuthStates.PENDING_APPROVAL, {
+                    user: session.user,
+                    profile
+                  });
+                } else if (profile) {
+                  console.log('[DEBUG AuthContext] User has profile but not linked, transitioning to PROFILE_LINKING');
+                  await AuthStateMachine.transition(AuthStates.PROFILE_LINKING, {
+                    user: session.user,
+                    profile
+                  });
+                } else {
+                  console.log('[DEBUG AuthContext] User has no profile, transitioning to AUTHENTICATED');
+                  await AuthStateMachine.transition(AuthStates.AUTHENTICATED, {
+                    user: session.user
+                  });
+                }
               }
-            }
-            break;
+              break;
 
-          case 'SIGNED_OUT':
-            await AuthStateMachine.transition(AuthStates.UNAUTHENTICATED);
-            break;
+            case 'SIGNED_OUT':
+              await AuthStateMachine.transition(AuthStates.UNAUTHENTICATED);
+              break;
 
-          case 'TOKEN_REFRESHED':
-            // Token refreshed successfully
-            console.log('[DEBUG AuthContext] Token refreshed');
-            break;
+            case 'TOKEN_REFRESHED':
+              // Token refreshed successfully
+              console.log('[DEBUG AuthContext] Token refreshed');
+              break;
 
-          case 'USER_UPDATED':
-            // User data updated
-            const currentState = AuthStateMachine.getState();
-            if (currentState.data.user) {
-              currentState.data.user = session.user;
-            }
-            break;
+            case 'USER_UPDATED':
+              // User data updated
+              const currentState = AuthStateMachine.getState();
+              if (currentState.data.user) {
+                currentState.data.user = session.user;
+              }
+              break;
+          }
+        } finally {
+          // Always reset the flag after handling
+          isHandlingAuthChangeRef.current = false;
         }
       });
     };

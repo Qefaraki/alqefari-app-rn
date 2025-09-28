@@ -10,11 +10,10 @@ export async function forceCompleteSignOut() {
     try {
       // Clear TreeStore state
       const treeStore = useTreeStore.getState();
-      treeStore.setNodes([]);
+      treeStore.setTreeData([]);  // Use correct method name
       treeStore.setSelectedPersonId(null);
-      treeStore.setExpandedBranches(new Set());
-      treeStore.setLayoutCache({});
-      treeStore.setProfileData({});
+      treeStore.setStage({ x: 0, y: 0, scale: 1 });  // Reset camera position
+      treeStore.setIsAnimating(false);
 
       // Clear any other global stores if they exist
       console.log("✅ App state cleared");
