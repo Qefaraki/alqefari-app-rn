@@ -204,8 +204,22 @@ export default function ProfileLinkStatusIndicator() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const getFullNameWithSurname = (name) => {
-    if (!name) return "غير محدد";
+  const getFullNameWithSurname = (profileOrName) => {
+    if (!profileOrName) return "غير محدد";
+
+    // If it's an object (profile), build the chain
+    if (typeof profileOrName === 'object') {
+      const chain = buildNameChain(profileOrName, allProfiles);
+      if (chain) {
+        return chain.includes("القفاري") ? chain : `${chain} القفاري`;
+      }
+      const name = profileOrName.name || "غير محدد";
+      return name.includes("القفاري") ? name : `${name} القفاري`;
+    }
+
+    // If it's just a string name
+    const name = profileOrName;
+
     // Try to build name chain if we have the profile
     if (linkRequest?.profile_id && allProfiles.length > 0) {
       const fullProfile = allProfiles.find(p => p.id === linkRequest.profile_id);
@@ -216,6 +230,7 @@ export default function ProfileLinkStatusIndicator() {
         }
       }
     }
+
     if (name.includes("القفاري")) return name;
     return `${name} القفاري`;
   };
@@ -233,8 +248,10 @@ export default function ProfileLinkStatusIndicator() {
 
   const handleContactAdmin = () => {
     const adminPhone = "+966501234567";
-    const displayName = linkRequest?.name_chain || linkRequest?.profile?.name || "غير محدد";
-    const message = encodeURIComponent(`مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي\n\nالملف المطلوب: ${getFullNameWithSurname(displayName)}\nرقم الهاتف: ${user?.phone || ""}`);
+    const displayName = linkRequest?.profile ?
+      getFullNameWithSurname(linkRequest.profile) :
+      getFullNameWithSurname(linkRequest?.name_chain || "غير محدد");
+    const message = encodeURIComponent(`مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي\n\nالملف المطلوب: ${displayName}\nرقم الهاتف: ${user?.phone || ""}`);
     const url = `whatsapp://send?phone=${adminPhone}&text=${message}`;
 
     Linking.canOpenURL(url).then((supported) => {
@@ -287,6 +304,9 @@ export default function ProfileLinkStatusIndicator() {
             <Ionicons name="checkmark-circle" size={24} color={colors.success} />
             <Text style={styles.successMessage}>تهانينا! تم ربط حسابك</Text>
           </View>
+          {profileChain && (
+            <Text style={styles.linkedProfileName}>{profileChain}</Text>
+          )}
         </View>
       </Animated.View>
     );
@@ -304,7 +324,9 @@ export default function ProfileLinkStatusIndicator() {
       locale: ar,
     });
 
-    const displayName = linkRequest.name_chain || linkRequest.profile?.name || "غير محدد";
+    const displayName = linkRequest.profile ?
+      getFullNameWithSurname(linkRequest.profile) :
+      getFullNameWithSurname(linkRequest.name_chain || "غير محدد");
 
     return (
       <Animated.View
@@ -351,33 +373,32 @@ export default function ProfileLinkStatusIndicator() {
 
         {expanded && (
           <View style={styles.expandedContent}>
-            <Text style={styles.requestedName} numberOfLines={1}>
-              {getFullNameWithSurname(displayName)}
-            </Text>
-
             <View style={styles.actionButtons}>
               <TouchableOpacity
-                style={styles.textActionButton}
+                style={[styles.textActionButton, styles.flexButton]}
                 onPress={handleViewInTree}
                 activeOpacity={0.8}
               >
-                <Text style={styles.actionButtonText}>عرض في الشجرة</Text>
+                <Ionicons name="eye-outline" size={16} color={colors.text} />
+                <Text style={styles.actionButtonText}>عرض</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.textActionButton}
+                style={[styles.textActionButton, styles.flexButton]}
                 onPress={handleWithdraw}
                 activeOpacity={0.8}
               >
-                <Text style={styles.withdrawButtonText}>سحب الطلب</Text>
+                <Ionicons name="close-outline" size={16} color={colors.text} />
+                <Text style={styles.actionButtonText}>سحب</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.iconActionButton, styles.whatsappButton]}
+                style={[styles.textActionButton, styles.flexButton, styles.whatsappButton]}
                 onPress={handleContactAdmin}
                 activeOpacity={0.8}
               >
-                <Ionicons name="logo-whatsapp" size={18} color="#FFFFFF" />
+                <Ionicons name="logo-whatsapp" size={16} color="#FFFFFF" />
+                <Text style={styles.whatsappButtonText}>تواصل</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -388,7 +409,9 @@ export default function ProfileLinkStatusIndicator() {
 
   // Rejected Request State - Action banner
   if (linkRequest?.status === "rejected") {
-    const displayName = linkRequest.name_chain || linkRequest.profile?.name || "غير محدد";
+    const displayName = linkRequest.profile ?
+      getFullNameWithSurname(linkRequest.profile) :
+      getFullNameWithSurname(linkRequest.name_chain || "غير محدد");
 
     return (
       <Animated.View
@@ -464,6 +487,14 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: colors.text,
   },
+  linkedProfileName: {
+    fontSize: 14,
+    fontWeight: "500",
+    fontFamily: "SF Arabic",
+    color: colors.text,
+    marginTop: 4,
+    textAlign: "center",
+  },
 
   // Pending state
   pendingContainer: {
@@ -519,53 +550,47 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   expandedContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
+    paddingTop: 8,
     paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: colors.container + "20",
   },
-  requestedName: {
-    fontSize: 15,
-    fontWeight: "500",
-    fontFamily: "SF Arabic",
-    color: colors.text,
-    marginTop: 8,
-    marginBottom: 12,
-  },
   actionButtons: {
     flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
+    gap: 6,
+    alignItems: "stretch",
   },
   textActionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: colors.container + "20",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: colors.container + "40",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  flexButton: {
+    flex: 1,
   },
   actionButtonText: {
     fontSize: 13,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: colors.primary,
-  },
-  withdrawButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.error,
-  },
-  iconActionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
+    color: colors.text,
   },
   whatsappButton: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  whatsappButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#FFFFFF",
   },
 
   // Rejected state

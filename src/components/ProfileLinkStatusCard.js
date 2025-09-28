@@ -14,6 +14,7 @@ import phoneAuthService from "../services/phoneAuth";
 import { useRouter } from "expo-router";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { buildNameChain } from "../utils/nameChainBuilder";
 
 // Najdi Sadu Color System
 const colors = {
@@ -35,6 +36,7 @@ export default function ProfileLinkStatusCard() {
   const [profile, setProfile] = useState(null);
   const [linkRequest, setLinkRequest] = useState(null);
   const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
+  const [allProfiles, setAllProfiles] = useState([]);
 
   useEffect(() => {
     loadProfileStatus();
@@ -64,12 +66,21 @@ export default function ProfileLinkStatusCard() {
       }
       setUser(user);
 
-      // Check if user has a linked profile
+      // Check if user has a linked profile - include father_id for name chain
       const { data: linkedProfile } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
+
+      // Load all profiles for name chain building
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, name, father_id");
+
+      if (profiles) {
+        setAllProfiles(profiles);
+      }
 
       if (linkedProfile) {
         setProfile(linkedProfile);
@@ -110,10 +121,22 @@ export default function ProfileLinkStatusCard() {
     setLoading(false);
   };
 
-  // Helper function to add surname to name if not present
-  const getFullNameWithSurname = (name) => {
-    if (!name) return "غير محدد";
-    // Check if القفاري is already in the name
+  // Helper function to get full name chain
+  const getFullNameChain = (profileOrName, profiles = allProfiles) => {
+    if (!profileOrName) return "غير محدد";
+
+    // If it's an object (profile), build the chain
+    if (typeof profileOrName === 'object') {
+      const chain = buildNameChain(profileOrName, profiles);
+      if (chain) {
+        return chain.includes("القفاري") ? chain : `${chain} القفاري`;
+      }
+      const name = profileOrName.name || "غير محدد";
+      return name.includes("القفاري") ? name : `${name} القفاري`;
+    }
+
+    // If it's just a string name
+    const name = profileOrName;
     if (name.includes("القفاري")) {
       return name;
     }
@@ -183,13 +206,13 @@ export default function ProfileLinkStatusCard() {
   const handleContactAdmin = () => {
     // Open WhatsApp with admin number
     const adminPhone = "+966501234567"; // Replace with actual admin number
-    const displayName = linkRequest?.name_chain ||
-                       linkRequest?.profile?.name ||
-                       "غير محدد";
+    const displayName = linkRequest?.profile ?
+                       getFullNameChain(linkRequest.profile) :
+                       getFullNameChain(linkRequest?.name_chain || "غير محدد");
 
     const message = encodeURIComponent(`مرحباً، أحتاج مساعدة بخصوص ربط ملفي الشخصي
 
-الملف المطلوب: ${getFullNameWithSurname(displayName)}
+الملف المطلوب: ${displayName}
 رقم الهاتف: ${user?.phone || ""}`);
 
     const url = `whatsapp://send?phone=${adminPhone}&text=${message}`;
@@ -247,8 +270,6 @@ export default function ProfileLinkStatusCard() {
 
   // Linked Profile State
   if (hasLinkedProfile && profile) {
-    const fullName = profile.name || "غير محدد";
-
     return (
       <View style={[styles.container, styles.successContainer]}>
         <View style={styles.statusBadge}>
@@ -257,7 +278,7 @@ export default function ProfileLinkStatusCard() {
         </View>
 
         <Text style={styles.profileName} numberOfLines={2}>
-          {getFullNameWithSurname(fullName)}
+          {getFullNameChain(profile)}
         </Text>
 
         <View style={styles.buttonRow}>
@@ -289,9 +310,9 @@ export default function ProfileLinkStatusCard() {
     });
 
     // Get the full name chain or construct from profile data
-    const displayName = linkRequest.name_chain ||
-                       linkRequest.profile?.name ||
-                       "غير محدد";
+    const displayName = linkRequest.profile ?
+                       getFullNameChain(linkRequest.profile) :
+                       getFullNameChain(linkRequest.name_chain || "غير محدد");
 
     return (
       <View style={[styles.container, styles.pendingContainer]}>
@@ -306,7 +327,7 @@ export default function ProfileLinkStatusCard() {
           <View style={styles.requestedProfileSection}>
             <Text style={styles.requestedLabel}>الملف المطلوب:</Text>
             <Text style={styles.profileName} numberOfLines={2}>
-              {getFullNameWithSurname(displayName)}
+              {displayName}
             </Text>
           </View>
         )}
@@ -344,9 +365,9 @@ export default function ProfileLinkStatusCard() {
 
   // Rejected Request State
   if (linkRequest?.status === "rejected") {
-    const displayName = linkRequest.name_chain ||
-                       linkRequest.profile?.name ||
-                       "غير محدد";
+    const displayName = linkRequest.profile ?
+                       getFullNameChain(linkRequest.profile) :
+                       getFullNameChain(linkRequest.name_chain || "غير محدد");
 
     return (
       <View style={[styles.container, styles.errorContainer]}>
@@ -363,7 +384,7 @@ export default function ProfileLinkStatusCard() {
 
         {linkRequest.profile && (
           <Text style={styles.profileName} numberOfLines={2}>
-            {getFullNameWithSurname(displayName)}
+            {displayName}
           </Text>
         )}
 

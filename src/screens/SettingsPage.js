@@ -22,7 +22,7 @@ import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import appConfig from "../config/appConfig";
 import ProfileLinkStatusIndicator from "../components/ProfileLinkStatusIndicator";
-import { getProfileDisplayName } from "../utils/nameChainBuilder";
+import { getProfileDisplayName, buildNameChain } from "../utils/nameChainBuilder";
 
 // Native SwiftUI settings temporarily disabled due to missing Expo UI native module
 const NativeSettingsView = null;
@@ -44,6 +44,7 @@ export default function SettingsPage({ user }) {
   const [expandedSection, setExpandedSection] = useState("date");
   const [currentUser, setCurrentUser] = useState(user);
   const [userProfile, setUserProfile] = useState(null);
+  const [pendingRequest, setPendingRequest] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   // Check for native view availability
@@ -97,6 +98,37 @@ export default function SettingsPage({ user }) {
           .single();
 
         setUserProfile(profile);
+
+        // If no linked profile, check for pending request
+        if (!profile) {
+          const { data: requests } = await supabase
+            .from("profile_link_requests")
+            .select(`
+              *,
+              profile:profile_id(*)
+            `)
+            .eq("user_id", user.id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          if (requests && requests.length > 0) {
+            setPendingRequest(requests[0]);
+
+            // If we have the profile, build the full name chain
+            if (requests[0].profile) {
+              // Get all profiles to build name chain
+              const { data: allProfiles } = await supabase
+                .from("profiles")
+                .select("id, name, father_id");
+
+              if (allProfiles) {
+                const fullChain = buildNameChain(requests[0].profile, allProfiles);
+                requests[0].fullNameChain = fullChain;
+              }
+            }
+          }
+        }
 
         // Update cache
         profileCache = { user, profile };
@@ -218,7 +250,15 @@ export default function SettingsPage({ user }) {
                         (getProfileDisplayName(userProfile).includes("القفاري") ?
                           getProfileDisplayName(userProfile) :
                           `${getProfileDisplayName(userProfile)} القفاري`)
-                        : "مستخدم جديد"}
+                        : pendingRequest?.fullNameChain ?
+                          (pendingRequest.fullNameChain.includes("القفاري") ?
+                            pendingRequest.fullNameChain :
+                            `${pendingRequest.fullNameChain} القفاري`)
+                          : pendingRequest?.profile?.name ?
+                          (pendingRequest.profile.name.includes("القفاري") ?
+                            pendingRequest.profile.name :
+                            `${pendingRequest.profile.name} القفاري`)
+                          : "مستخدم جديد"}
                     </Text>
                     <Text style={styles.profilePhone}>
                       {currentUser?.phone || currentUser?.email || ""}
@@ -394,7 +434,7 @@ export default function SettingsPage({ user }) {
                     {
                       text: "إعادة تعيين",
                       style: "destructive",
-                      onPress: clearSettings,
+                      onPress: resetSettings,
                     },
                   ],
                 );
@@ -427,7 +467,7 @@ export default function SettingsPage({ user }) {
                               return;
                             }
 
-                            clearSettings();
+                            resetSettings();
                             profileCache = null;
                             cacheTimestamp = null;
 

@@ -33,6 +33,7 @@ import Animated, {
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { phoneAuthService } from "../../services/phoneAuth";
+import { buildNameChain } from "../../utils/nameChainBuilder";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -84,15 +85,25 @@ const getInitials = (name) => {
   return name.charAt(0);
 };
 
-// Helper function to add surname if not present
-const getFullNameWithSurname = (name) => {
-  if (!name) return "غير محدد";
-  if (name.includes("القفاري")) return name;
-  return `${name} القفاري`;
+// Helper function to get full name chain
+const getFullNameChain = (profile, allProfiles = []) => {
+  if (!profile) return "غير محدد";
+
+  // Use buildNameChain utility to get the full chain
+  const chain = buildNameChain(profile, allProfiles);
+
+  // If we got a chain, ensure it has القفاري
+  if (chain && chain !== profile.name) {
+    return chain.includes("القفاري") ? chain : `${chain} القفاري`;
+  }
+
+  // Fallback to name with surname
+  const name = profile.name || "غير محدد";
+  return name.includes("القفاري") ? name : `${name} القفاري`;
 };
 
 // Compact request card component
-const RequestCard = ({ request, status, onApprove, onReject, onWhatsApp, onExpand, isExpanded, index }) => {
+const RequestCard = ({ request, status, onApprove, onReject, onWhatsApp, onExpand, isExpanded, index, allProfiles }) => {
   const avatarColor = DESERT_PALETTE[index % DESERT_PALETTE.length];
   const profile = request.profiles;
 
@@ -138,7 +149,7 @@ const RequestCard = ({ request, status, onApprove, onReject, onWhatsApp, onExpan
         {/* Profile Info - Simplified */}
         <View style={styles.profileInfo}>
           <Text style={styles.profileName} numberOfLines={1}>
-            {getFullNameWithSurname(request.name_chain || profile?.name || "غير معروف")}
+            {profile ? getFullNameChain(profile, allProfiles) : request.name_chain || "غير معروف"}
           </Text>
           <View style={styles.metaContainer}>
             <View style={styles.statusBadge}>
@@ -270,6 +281,7 @@ export default function ProfileConnectionManager({ onBack }) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [allProfiles, setAllProfiles] = useState([]);
 
   // Animation values using Reanimated
   const tabIndicatorPosition = useSharedValue(0);
@@ -296,14 +308,24 @@ export default function ProfileConnectionManager({ onBack }) {
 
   const loadPendingRequests = async () => {
     try {
+      // Load all profiles for name chain building
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, name, father_id");
+
+      if (profiles) {
+        setAllProfiles(profiles);
+      }
+
       const { data, error } = await supabase
         .from("profile_link_requests")
         .select(
           `
           *,
-          profiles!profile_link_requests_profile_id_fkey (
+          profiles:profile_id (
             id,
             name,
+            father_id,
             generation,
             photo_url,
             gender,
@@ -314,7 +336,10 @@ export default function ProfileConnectionManager({ onBack }) {
         .in("status", ["pending", "approved", "rejected"])
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error loading profile link requests:", error);
+        throw error;
+      }
 
       // Group by status
       const grouped = {
@@ -357,7 +382,7 @@ export default function ProfileConnectionManager({ onBack }) {
   const handleApprove = async (request) => {
     Alert.alert(
       "تأكيد الموافقة",
-      `موافقة على ربط "${getFullNameWithSurname(request.name_chain || request.profiles?.name)}"؟`,
+      `موافقة على ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles) : request.name_chain}"؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -570,6 +595,7 @@ export default function ProfileConnectionManager({ onBack }) {
               )}
               isExpanded={expandedRequest?.id === request.id}
               index={index}
+              allProfiles={allProfiles}
             />
           ))
         ) : (

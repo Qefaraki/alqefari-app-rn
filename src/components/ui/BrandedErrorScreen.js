@@ -35,21 +35,14 @@ const BrandedErrorScreen = ({ error, errorInfo, onReset }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Compact Error Header with Small Logo */}
+        {/* Compact Error Header */}
         <View style={styles.errorHeader}>
-          <View style={styles.headerRow}>
-            <Image
-              source={require('../../../assets/logo/AlqefariEmblem.png')}
-              style={styles.smallLogo}
-              resizeMode="contain"
+          <View style={styles.errorIconContainer}>
+            <Ionicons
+              name="warning"
+              size={32}
+              color={tokens.colors.najdi.primary}
             />
-            <View style={styles.errorIconContainer}>
-              <Ionicons
-                name="warning"
-                size={32}
-                color={tokens.colors.najdi.primary}
-              />
-            </View>
           </View>
 
           <Text style={styles.title}>حدث خطأ</Text>
@@ -59,10 +52,10 @@ const BrandedErrorScreen = ({ error, errorInfo, onReset }) => {
         {/* Error Details Card */}
         <View style={styles.errorCard}>
           <View style={styles.errorCardHeader}>
-            <Ionicons
-              name="information-circle"
-              size={20}
-              color={tokens.colors.najdi.primary}
+            <Image
+              source={require('../../../assets/logo/AlqefariEmblem.png')}
+              style={styles.errorCardIcon}
+              resizeMode="contain"
             />
             <Text style={styles.errorCardTitle}>تفاصيل الخطأ</Text>
           </View>
@@ -142,18 +135,8 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     marginTop: 20,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  smallLogo: {
-    width: 32,
-    height: 32,
-    tintColor: tokens.colors.najdi.text,
-    marginRight: 12,
-  },
   errorIconContainer: {
+    marginBottom: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -191,12 +174,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  errorCardIcon: {
+    width: 24,
+    height: 24,
+    tintColor: tokens.colors.najdi.primary,
+    marginRight: 8,
+  },
   errorCardTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
     fontFamily: 'SF Arabic',
-    marginLeft: 8,
   },
   errorMessage: {
     fontSize: 14,

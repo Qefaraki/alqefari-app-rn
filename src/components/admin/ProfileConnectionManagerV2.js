@@ -25,6 +25,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { supabase } from "../../services/supabase";
 import { phoneAuthService } from "../../services/phoneAuth";
+import { buildNameChain } from "../../utils/nameChainBuilder";
 import { useRouter } from "expo-router";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -79,11 +80,21 @@ const getInitials = (name) => {
   return cleanName.charAt(0);
 };
 
-// Helper function to add surname if not present
-const getFullNameWithSurname = (name) => {
-  if (!name) return "غير محدد";
-  if (name.includes("القفاري")) return name;
-  return `${name} القفاري`;
+// Helper function to get full name chain
+const getFullNameChain = (profile, allProfiles = []) => {
+  if (!profile) return "غير محدد";
+
+  // Use buildNameChain utility to get the full chain
+  const chain = buildNameChain(profile, allProfiles);
+
+  // If we got a chain, ensure it has القفاري
+  if (chain && chain !== profile.name) {
+    return chain.includes("القفاري") ? chain : `${chain} القفاري`;
+  }
+
+  // Fallback to name with surname
+  const name = profile.name || "غير محدد";
+  return name.includes("القفاري") ? name : `${name} القفاري`;
 };
 
 // Animated button component
@@ -99,6 +110,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState(0); // 0: pending, 1: approved, 2: rejected
+  const [allProfiles, setAllProfiles] = useState([]);
 
   const tabOptions = ["في الانتظار", "موافق عليها", "مرفوضة"];
   const tabKeys = ["pending", "approved", "rejected"];
@@ -111,14 +123,24 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
   const loadPendingRequests = async () => {
     try {
+      // Load all profiles for name chain building
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, name, father_id");
+
+      if (profiles) {
+        setAllProfiles(profiles);
+      }
+
       const { data, error } = await supabase
         .from("profile_link_requests")
         .select(
           `
           *,
-          profiles!profile_link_requests_profile_id_fkey (
+          profiles:profile_id (
             id,
             name,
+            father_id,
             generation,
             photo_url,
             gender,
@@ -129,7 +151,10 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         .in("status", ["pending", "approved", "rejected"])
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error loading profile link requests:", error);
+        throw error;
+      }
 
       // Group by status
       const grouped = {
@@ -174,7 +199,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
     Alert.alert(
       "تأكيد الموافقة",
-      `موافقة على ربط "${getFullNameWithSurname(request.name_chain || request.profiles?.name)}"؟`,
+      `موافقة على ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles) : request.name_chain}"؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -385,9 +410,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           <View style={styles.listContainer}>
             {currentRequests.map((request, index) => {
               const profile = request.profiles;
-              const displayName = getFullNameWithSurname(
-                request.name_chain || profile?.name || "غير معروف"
-              );
+              const displayName = profile ? getFullNameChain(profile, allProfiles) : request.name_chain || "غير معروف";
               const statusColor = getStatusColor(tabKeys[selectedTab]);
 
               return (

@@ -25,7 +25,7 @@ export function buildNameChain(profile, allProfiles = []) {
     chain = `${profile.name} بن ${profile.father_name}`;
 
     if (profile.grandfather_name) {
-      chain += ` بن ${profile.grandfather_name}`;
+      chain += ` ${profile.grandfather_name}`;
     }
   } else if (profile.father_id && allProfiles.length > 0) {
     // Try to find father in profiles array
@@ -37,7 +37,19 @@ export function buildNameChain(profile, allProfiles = []) {
       if (father.father_id) {
         const grandfather = allProfiles.find((p) => p.id === father.father_id);
         if (grandfather) {
-          chain += ` بن ${grandfather.name}`;
+          chain += ` ${grandfather.name}`;
+
+          // Continue up the chain without "بن"
+          let currentAncestor = grandfather;
+          while (currentAncestor.father_id) {
+            const nextAncestor = allProfiles.find((p) => p.id === currentAncestor.father_id);
+            if (nextAncestor) {
+              chain += ` ${nextAncestor.name}`;
+              currentAncestor = nextAncestor;
+            } else {
+              break;
+            }
+          }
         }
       }
     }

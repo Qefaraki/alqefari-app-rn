@@ -426,219 +426,60 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* Main Statistics - Always visible, shows skeleton then real data */}
+        {/* Compact Statistics Grid - 2x2 Layout */}
         <Animated.View
           style={[
-            styles.card,
-            styles.statsCard,
+            styles.statsContainer,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          <Text style={styles.cardTitle}>إحصائيات العائلة</Text>
-
           {statsLoading ? (
-            <StatsGridSkeleton />
+            <View style={styles.statsGrid}>
+              {[...Array(4)].map((_, i) => (
+                <View key={i} style={styles.statCard}>
+                  <SkeletonLoader width={50} height={28} style={{ marginBottom: 4 }} />
+                  <SkeletonLoader width="60%" height={12} />
+                </View>
+              ))}
+            </View>
           ) : (
-            <Animated.View style={{ opacity: fadeAnim }}>
-              <View style={styles.statsGrid}>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#A13333" }]}>
-                    {stats?.total_profiles || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>إجمالي الأفراد</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
-                    {stats?.alive_count || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>على قيد الحياة</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#A13333" }]}>
-                    {stats?.male_count || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>ذكور</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
-                    {stats?.female_count || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>إناث</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#A13333" }]}>
-                    {stats?.munasib?.total_munasib || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>منتسبين</Text>
-                </View>
-                <View style={styles.statBox}>
-                  <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
-                    {stats?.total_marriages || 0}
-                  </Text>
-                  <Text style={styles.statLabel}>عقود زواج</Text>
-                </View>
+            <View style={styles.statsGrid}>
+              <View style={[styles.statCard, styles.statCardTopLeft]}>
+                <Ionicons name="time-outline" size={16} color="#A13333" style={styles.statIcon} />
+                <Text style={[styles.statNumber, { color: "#A13333" }]}>
+                  {stats?.total_profiles || 0}
+                </Text>
+                <Text style={styles.statLabel}>تاريخي</Text>
               </View>
-            </Animated.View>
+              <View style={[styles.statCard, styles.statCardTopRight]}>
+                <Ionicons name="people-outline" size={16} color="#D58C4A" style={styles.statIcon} />
+                <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
+                  {stats?.alive_count || 0}
+                </Text>
+                <Text style={styles.statLabel}>حالي</Text>
+              </View>
+              <View style={[styles.statCard, styles.statCardBottomLeft]}>
+                <Ionicons name="male-outline" size={16} color="#A13333" style={styles.statIcon} />
+                <Text style={[styles.statNumber, { color: "#A13333" }]}>
+                  {stats?.male_count || 0}
+                </Text>
+                <Text style={styles.statLabel}>ذكور</Text>
+              </View>
+              <View style={[styles.statCard, styles.statCardBottomRight]}>
+                <Ionicons name="female-outline" size={16} color="#D58C4A" style={styles.statIcon} />
+                <Text style={[styles.statNumber, { color: "#D58C4A" }]}>
+                  {stats?.female_count || 0}
+                </Text>
+                <Text style={styles.statLabel}>إناث</Text>
+              </View>
+            </View>
           )}
         </Animated.View>
 
-        {/* Data Completeness - Shows skeleton then real data */}
-        {statsLoading ? (
-          <CardSkeleton />
-        ) : (
-          <Animated.View
-            style={[
-              styles.card,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.cardTitle}>اكتمال البيانات</Text>
 
-            <View style={styles.completenessGrid}>
-              <View style={styles.completenessItem}>
-                <View style={styles.completenessHeader}>
-                  <Text style={styles.completenessPercentage}>
-                    {stats?.profiles_with_photos > 0
-                      ? (
-                          (stats.profiles_with_photos /
-                            (stats?.total_profiles || 1)) *
-                          100
-                        ).toFixed(1)
-                      : "0"}
-                    %
-                  </Text>
-                  <Text style={styles.completenessIcon}>📷</Text>
-                </View>
-                <View style={styles.completenessBarContainer}>
-                  <Animated.View
-                    style={[
-                      styles.completenessBar,
-                      {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [
-                            "0%",
-                            `${Math.max(3, ((stats?.profiles_with_photos || 0) / (stats?.total_profiles || 1)) * 100)}%`,
-                          ],
-                        }),
-                        backgroundColor: "#D58C4A",
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.completenessLabel}>
-                  لديهم صور ({stats?.profiles_with_photos || 0})
-                </Text>
-              </View>
-
-              <View style={styles.completenessItem}>
-                <View style={styles.completenessHeader}>
-                  <Text style={styles.completenessPercentage}>
-                    {Math.round(
-                      ((stats?.profiles_with_dates || 0) /
-                        (stats?.total_profiles || 1)) *
-                        100,
-                    )}
-                    %
-                  </Text>
-                  <Text style={styles.completenessIcon}>📅</Text>
-                </View>
-                <View style={styles.completenessBarContainer}>
-                  <Animated.View
-                    style={[
-                      styles.completenessBar,
-                      {
-                        width: progressAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [
-                            "0%",
-                            `${((stats?.profiles_with_dates || 0) / (stats?.total_profiles || 1)) * 100}%`,
-                          ],
-                        }),
-                        backgroundColor: "#A13333",
-                      },
-                    ]}
-                  />
-                </View>
-                <Text style={styles.completenessLabel}>
-                  تواريخ كاملة ({stats?.profiles_with_dates || 0})
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* Data Health - Shows skeleton while loading */}
-        {validationLoading ? (
-          <CardSkeleton />
-        ) : (
-          <Animated.View
-            style={[
-              styles.card,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <View style={styles.dataHealthHeader}>
-              <Text style={styles.cardTitle}>صحة البيانات</Text>
-              <Text style={styles.healthPercentage}>{dataHealth}%</Text>
-            </View>
-
-            <View style={styles.progressBar}>
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: progressAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: ["0%", `${dataHealth}%`],
-                    }),
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={styles.issuesTags}>
-              {validationIssues.length === 0 ? (
-                <>
-                  <View style={styles.tagSuccess}>
-                    <Text style={styles.tagSuccessText}>✓ معرفات فريدة</Text>
-                  </View>
-                  <View style={styles.tagSuccess}>
-                    <Text style={styles.tagSuccessText}>✓ التواريخ</Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  {validationIssues.slice(0, 2).map((issue, index) => (
-                    <View key={index} style={styles.tagWarning}>
-                      <Text style={styles.tagWarningText}>
-                        ⚠ {issue.issue_type}
-                      </Text>
-                    </View>
-                  ))}
-                </>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => setShowValidationDashboard(true)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.primaryButtonText}>فحص البيانات الآن</Text>
-              <Ionicons name="chevron-back" size={20} color="#fff" />
-            </TouchableOpacity>
-          </Animated.View>
-        )}
 
         {/* Recent Activity */}
         {activityLoading ? (
@@ -695,81 +536,76 @@ const AdminDashboardUltraOptimized = ({ user }) => {
           </Animated.View>
         ) : null}
 
-        {/* Quick Actions - Always visible */}
+        {/* Quick Actions Grid - Compact 2x3 Layout */}
         <Animated.View
           style={[
+            styles.actionsContainer,
             {
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-              marginTop: 16,
             },
           ]}
         >
-          <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-          <View style={styles.card}>
+          <View style={styles.actionsGrid}>
             <TouchableOpacity
-              style={styles.actionItem}
+              style={[styles.actionCard, { backgroundColor: "#A1333310" }]}
               onPress={() => setShowLinkRequests(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>🔗</Text>
-                <Text style={styles.actionText}>طلبات ربط الملفات</Text>
+              <View style={styles.actionIconContainer}>
+                <Ionicons name="link-outline" size={28} color="#A13333" />
                 {pendingRequestsCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{pendingRequestsCount}</Text>
+                  <View style={styles.actionBadge}>
+                    <Text style={styles.actionBadgeText}>{pendingRequestsCount}</Text>
                   </View>
                 )}
               </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+              <Text style={styles.actionCardText}>ربط الملفات</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionItem}
+              style={[styles.actionCard, { backgroundColor: "#D58C4A10" }]}
               onPress={() => setShowMunasibManager(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>👥</Text>
-                <Text style={styles.actionText}>إدارة المنتسبين</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+              <Ionicons name="people-outline" size={28} color="#D58C4A" />
+              <Text style={styles.actionCardText}>المنتسبين</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionItem}
-              onPress={handleRecalculateLayouts}
+              style={[styles.actionCard, { backgroundColor: "#A1333310" }]}
+              onPress={() => setShowQuickAdd(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>🔄</Text>
-                <Text style={styles.actionText}>إعادة حساب التخطيط</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+              <Ionicons name="add-circle-outline" size={28} color="#A13333" />
+              <Text style={styles.actionCardText}>إضافة جديد</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionItem}
+              style={[styles.actionCard, { backgroundColor: "#24212110" }]}
               onPress={() => setShowActivityLog(true)}
               activeOpacity={0.7}
             >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>📋</Text>
-                <Text style={styles.actionText}>سجل النشاط المفصل</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+              <Ionicons name="document-text-outline" size={28} color="#242121" />
+              <Text style={styles.actionCardText}>سجل النشاط</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionItem, { borderBottomWidth: 0 }]}
+              style={[styles.actionCard, { backgroundColor: "#D58C4A10" }]}
               onPress={handleAutoFix}
               activeOpacity={0.7}
             >
-              <View style={styles.actionContent}>
-                <Text style={styles.actionIcon}>🔧</Text>
-                <Text style={styles.actionText}>إصلاح تلقائي</Text>
-              </View>
-              <Ionicons name="chevron-back" size={20} color="#9ca3af" />
+              <Ionicons name="construct-outline" size={28} color="#D58C4A" />
+              <Text style={styles.actionCardText}>إصلاح تلقائي</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionCard, { backgroundColor: "#24212110" }]}
+              onPress={handleRecalculateLayouts}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={28} color="#242121" />
+              <Text style={styles.actionCardText}>إعادة حساب</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -869,8 +705,101 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  statsContainer: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  statCard: {
+    backgroundColor: "#F9F7F3", // Al-Jass White
+    width: "48.5%",
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#D1BBA340", // Camel Hair Beige 40%
+    borderColor: "#D1BBA320", // Camel Hair Beige 20%
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 2,
+    position: "relative",
+  },
+  statCardTopLeft: {
+    borderTopRightRadius: 4,
+  },
+  statCardTopRight: {
+    borderTopLeftRadius: 4,
+  },
+  statCardBottomLeft: {
+    borderBottomRightRadius: 4,
+  },
+  statCardBottomRight: {
+    borderBottomLeftRadius: 4,
+  },
+  statIcon: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    opacity: 0.3,
+  },
+  actionsContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  actionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  actionCard: {
+    width: "31%",
+    aspectRatio: 1,
+    padding: 12,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#00000008",
+  },
+  actionIconContainer: {
+    position: "relative",
+  },
+  actionBadge: {
+    position: "absolute",
+    top: -4,
+    right: -8,
+    backgroundColor: "#A13333",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: "center",
+  },
+  actionBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  actionCardText: {
+    color: "#242121",
+    fontSize: 11,
+    fontWeight: "500",
+    marginTop: 6,
+    textAlign: "center",
   },
   statsCard: {
     marginTop: 16,
@@ -883,31 +812,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: "right",
   },
-  statsGrid: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  statBox: {
-    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D1BBA340", // Camel Hair Beige 40%
-    alignItems: "center",
-    width: "48%",
-    marginBottom: 10,
-  },
   statNumber: {
-    fontSize: 20,
+    fontSize: 28,
     fontWeight: "700",
+    marginTop: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#24212199", // Sadu Night 60%
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
+    fontWeight: "500",
   },
   completenessGrid: {
     flexDirection: "row-reverse",
@@ -1014,14 +929,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#242121", // Sadu Night
-    marginHorizontal: 16,
-    marginBottom: 12,
-    textAlign: "right",
-  },
   activityItem: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
@@ -1061,20 +968,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  actionItem: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  actionContent: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
   badge: {
     backgroundColor: "#A13333",
     borderRadius: 12,
@@ -1088,15 +981,6 @@ const styles = StyleSheet.create({
     color: "#F9F7F3", // Al-Jass White
     fontSize: 12,
     fontWeight: "600",
-    fontFamily: "SF Arabic",
-  },
-  actionIcon: {
-    fontSize: 24,
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#242121", // Sadu Night
     fontFamily: "SF Arabic",
   },
   munasibHeader: {

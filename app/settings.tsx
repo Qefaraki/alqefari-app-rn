@@ -1,5 +1,5 @@
 import React from "react";
-import SettingsPage from "../src/screens/SettingsPage";
+import SettingsPageModern from "../src/screens/SettingsPageModern";
 import { SettingsProvider } from "../src/contexts/SettingsContext";
 
 export default function SettingsScreen() {
@@ -18,7 +18,7 @@ export default function SettingsScreen() {
 
   return (
     <SettingsProvider>
-      <SettingsPage user={user} />
+      <SettingsPageModern user={user} />
     </SettingsProvider>
   );
 }
