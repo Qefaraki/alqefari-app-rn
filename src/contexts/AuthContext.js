@@ -40,25 +40,38 @@ export const AuthProvider = ({ children }) => {
 
       // Setup Supabase auth listener
       authListenerRef.current = supabase.auth.onAuthStateChange(async (event, session) => {
-        console.log('[DEBUG AuthContext] Auth state change:', event);
+        console.log('[DEBUG AuthContext] Auth state change:', event, 'Current state:', AuthStateMachine.currentState);
 
         switch (event) {
           case 'SIGNED_IN':
-            if (AuthStateMachine.currentState === AuthStates.OTP_VERIFICATION) {
-              // OTP verification successful
+            // Handle sign in from any state, not just OTP_VERIFICATION
+            if (session?.user) {
+              console.log('[DEBUG AuthContext] User signed in, checking profile...');
               const profile = await AuthStateMachine.checkUserProfile(session.user.id);
+              console.log('[DEBUG AuthContext] Profile check result:', profile);
 
+              // Determine the appropriate state based on profile
               if (profile?.linked_profile_id) {
+                console.log('[DEBUG AuthContext] User has linked profile, transitioning to PROFILE_LINKED');
                 await AuthStateMachine.transition(AuthStates.PROFILE_LINKED, {
                   user: session.user,
                   profile
                 });
               } else if (profile?.status === 'pending') {
+                console.log('[DEBUG AuthContext] User has pending approval, transitioning to PENDING_APPROVAL');
                 await AuthStateMachine.transition(AuthStates.PENDING_APPROVAL, {
-                  user: session.user
+                  user: session.user,
+                  profile
+                });
+              } else if (profile) {
+                console.log('[DEBUG AuthContext] User has profile but not linked, transitioning to PROFILE_LINKING');
+                await AuthStateMachine.transition(AuthStates.PROFILE_LINKING, {
+                  user: session.user,
+                  profile
                 });
               } else {
-                await AuthStateMachine.transition(AuthStates.PROFILE_LINKING, {
+                console.log('[DEBUG AuthContext] User has no profile, transitioning to AUTHENTICATED');
+                await AuthStateMachine.transition(AuthStates.AUTHENTICATED, {
                   user: session.user
                 });
               }

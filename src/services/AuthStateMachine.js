@@ -60,6 +60,9 @@ const StateTransitions = {
 
   [AuthStates.OTP_VERIFICATION]: [
     AuthStates.AUTHENTICATED,
+    AuthStates.PROFILE_LINKED,
+    AuthStates.PROFILE_LINKING,
+    AuthStates.PENDING_APPROVAL,
     AuthStates.PHONE_AUTH,
     AuthStates.ERROR,
   ],
@@ -403,22 +406,10 @@ class AuthStateMachine {
 
       if (error) throw error;
 
-      const profile = await this.checkUserProfile(data.user.id);
-
-      if (profile?.linked_profile_id) {
-        return this.transition(AuthStates.PROFILE_LINKED, {
-          user: data.user,
-          profile
-        });
-      } else if (profile?.status === 'pending') {
-        return this.transition(AuthStates.PENDING_APPROVAL, {
-          user: data.user
-        });
-      } else {
-        return this.transition(AuthStates.AUTHENTICATED, {
-          user: data.user
-        });
-      }
+      // Don't transition here - the auth listener in AuthContext will handle it
+      // This prevents race conditions and ensures single source of truth
+      console.log('[AuthStateMachine] OTP verified successfully, waiting for auth listener to handle transition');
+      return true;
     } catch (error) {
       console.error('[AuthStateMachine] OTP verification failed:', error);
       return this.transition(AuthStates.ERROR, { error: error.message });
