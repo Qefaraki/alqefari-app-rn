@@ -11,6 +11,8 @@ import {
   SafeAreaView,
   RefreshControl,
   Platform,
+  PanResponder,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatDistanceToNow } from "date-fns";
@@ -20,6 +22,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContextSimple";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import subscriptionManager from "../services/subscriptionManager";
+import { BlurView } from "expo-blur";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -31,6 +34,7 @@ const colors = {
   primary: "#A13333",       // Najdi Crimson
   secondary: "#D58C4A",     // Desert Ochre
   muted: "#24212199",       // Sadu Night 60%
+  white: "#FFFFFF",
   success: "#22C55E",
   warning: "#D58C4A",
   error: "#EF4444",
@@ -86,9 +90,49 @@ export default function NotificationCenter({ visible, onClose }) {
   const subscriptionRef = useRef(null);
   const subscriptionTimeoutRef = useRef(null);
 
-  // Animation values
-  const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
+  // Animation values for bottom sheet
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Pan responder for drag to dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        return gestureState.dy > 10 && Math.abs(gestureState.dx) < 10;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (gestureState.dy > 0) {
+          slideAnim.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dy > 150 || gestureState.vy > 0.5) {
+          // Close if dragged down enough or with velocity
+          Animated.parallel([
+            Animated.timing(slideAnim, {
+              toValue: SCREEN_HEIGHT,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 250,
+              useNativeDriver: true,
+            }),
+          ]).start(() => onClose());
+        } else {
+          // Snap back to position
+          Animated.spring(slideAnim, {
+            toValue: 0,
+            tension: 100,
+            friction: 10,
+            useNativeDriver: true,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     console.log('🔍 [NotificationCenter] useEffect triggered - visible:', visible, 'user:', !!user);
@@ -107,18 +151,18 @@ export default function NotificationCenter({ visible, onClose }) {
         setupRealtimeSubscription();
       }, 100);
 
-      // Animate in
+      // Animate in with bottom sheet style
       console.log('🔍 [NotificationCenter] Starting animations...');
       Animated.parallel([
         Animated.spring(slideAnim, {
           toValue: 0,
-          tension: 65,
-          friction: 11,
+          tension: 100,
+          friction: 15,
           useNativeDriver: true,
         }),
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 300,
+          duration: 200,
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -134,10 +178,10 @@ export default function NotificationCenter({ visible, onClose }) {
         clearTimeout(subscriptionTimeoutRef.current);
         subscriptionTimeoutRef.current = null;
       }
-      // Animate out
+      // Animate out with bottom sheet style
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: SCREEN_WIDTH,
+          toValue: SCREEN_HEIGHT,
           duration: 250,
           useNativeDriver: true,
         }),
@@ -383,30 +427,38 @@ export default function NotificationCenter({ visible, onClose }) {
           !notification.read && styles.unreadNotification,
         ]}
         onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           if (!notification.read) {
             markAsRead(notification.id);
           }
           // Handle notification tap based on type
           // ... navigation logic
         }}
-        activeOpacity={0.7}
+        activeOpacity={0.98}
       >
-        <View style={[styles.notificationIcon, { backgroundColor: `${color}15` }]}>
-          <Ionicons name={icon} size={24} color={color} />
+        <View style={[styles.notificationIconContainer, { backgroundColor: `${color}10` }]}>
+          <Ionicons name={icon} size={22} color={color} />
         </View>
         <View style={styles.notificationContent}>
-          <Text style={styles.notificationTitle}>{notification.title}</Text>
-          <Text style={styles.notificationBody}>{notification.body}</Text>
-          <Text style={styles.notificationTime}>{timeAgo}</Text>
+          <View style={styles.notificationHeader}>
+            <Text style={styles.notificationTitle}>{notification.title}</Text>
+            {!notification.read && <View style={styles.unreadIndicator} />}
+          </View>
+          <Text style={styles.notificationBody} numberOfLines={2}>{notification.body}</Text>
+          <View style={styles.notificationFooter}>
+            <Text style={styles.notificationTime}>{timeAgo}</Text>
+          </View>
         </View>
-        {!notification.read && <View style={styles.unreadDot} />}
+        <Ionicons name="chevron-forward" size={16} color={colors.muted} style={styles.chevron} />
       </TouchableOpacity>
     );
   };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="notifications-off-outline" size={64} color={colors.muted} />
+      <View style={styles.emptyIconContainer}>
+        <Ionicons name="notifications-off" size={48} color={colors.secondary} />
+      </View>
       <Text style={styles.emptyTitle}>لا توجد إشعارات</Text>
       <Text style={styles.emptySubtitle}>ستظهر الإشعارات الجديدة هنا</Text>
     </View>
@@ -434,44 +486,54 @@ export default function NotificationCenter({ visible, onClose }) {
         style={[
           styles.container,
           {
-            transform: [{ translateX: slideAnim }],
+            transform: [{ translateY: slideAnim }],
           },
         ]}
+        {...panResponder.panHandlers}
       >
         <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color={colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>الإشعارات</Text>
-            {unreadCount > 0 && (
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>{unreadCount}</Text>
-              </View>
-            )}
+          {/* Drag Handle */}
+          <View style={styles.dragHandleContainer}>
+            <View style={styles.dragHandle} />
           </View>
 
-          {/* Actions */}
-          {notifications.length > 0 && (
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={markAllAsRead}
-                disabled={unreadCount === 0}
-              >
-                <Text style={[
-                  styles.actionText,
-                  unreadCount === 0 && styles.disabledActionText
-                ]}>
-                  تحديد الكل كمقروء
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionButton} onPress={clearAll}>
-                <Text style={styles.actionText}>مسح الكل</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="chevron-down" size={28} color={colors.primary} />
               </TouchableOpacity>
             </View>
-          )}
+            <View style={styles.headerCenter}>
+              <Text style={styles.headerTitle}>الإشعارات</Text>
+              {unreadCount > 0 && (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.headerRight}>
+              {notifications.length > 0 && (
+                <TouchableOpacity
+                  style={styles.headerActionButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (unreadCount > 0) {
+                      markAllAsRead();
+                    } else {
+                      clearAll();
+                    }
+                  }}
+                >
+                  <Ionicons
+                    name={unreadCount > 0 ? "checkmark-done" : "trash-outline"}
+                    size={22}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
 
           {/* Notifications List */}
           <ScrollView
@@ -488,10 +550,11 @@ export default function NotificationCenter({ visible, onClose }) {
           >
             {loading && notifications.length === 0 ? (
               <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>جاري التحميل...</Text>
               </View>
             ) : notifications.length > 0 ? (
-              <>
+              <View style={styles.notificationsList}>
                 {subscriptionError && (
                   <View style={styles.errorBanner}>
                     <Ionicons name="warning-outline" size={16} color={colors.warning} />
@@ -501,19 +564,9 @@ export default function NotificationCenter({ visible, onClose }) {
                   </View>
                 )}
                 {notifications.map(renderNotification)}
-              </>
+              </View>
             ) : (
-              <>
-                {subscriptionError && (
-                  <View style={styles.errorBanner}>
-                    <Ionicons name="warning-outline" size={16} color={colors.warning} />
-                    <Text style={styles.errorBannerText}>
-                      التحديثات التلقائية غير متاحة حالياً
-                    </Text>
-                  </View>
-                )}
-                {renderEmptyState()}
-              </>
+              renderEmptyState()
             )}
           </ScrollView>
         </SafeAreaView>
@@ -525,100 +578,121 @@ export default function NotificationCenter({ visible, onClose }) {
 const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   backdropTouch: {
     flex: 1,
   },
   container: {
     position: "absolute",
+    left: 0,
     right: 0,
-    top: 0,
     bottom: 0,
-    width: SCREEN_WIDTH * 0.85,
+    height: SCREEN_HEIGHT,
     backgroundColor: colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     shadowColor: "#000",
-    shadowOffset: { width: -2, height: 0 },
-    shadowOpacity: 0.25,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 5,
+    elevation: 10,
   },
   safeArea: {
     flex: 1,
+  },
+  dragHandleContainer: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  dragHandle: {
+    width: 36,
+    height: 5,
+    backgroundColor: colors.muted,
+    borderRadius: 3,
+    opacity: 0.4,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: `${colors.container}40`,
+  },
+  headerLeft: {
+    width: 44,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: "center",
+  },
+  headerRight: {
+    width: 44,
+    alignItems: "flex-end",
   },
   closeButton: {
     padding: 4,
   },
   headerTitle: {
-    flex: 1,
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: "600",
     color: colors.text,
     fontFamily: "SF Arabic",
-    marginLeft: 12,
   },
   headerBadge: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    minWidth: 24,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    minWidth: 20,
     alignItems: "center",
+    position: "absolute",
+    top: -8,
+    right: -32,
   },
   headerBadgeText: {
-    color: colors.background,
-    fontSize: 12,
-    fontWeight: "600",
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: "700",
     fontFamily: "SF Arabic",
   },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  actionButton: {
+  headerActionButton: {
     padding: 4,
-  },
-  actionText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontFamily: "SF Arabic",
-  },
-  disabledActionText: {
-    color: colors.muted,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 8,
+    paddingBottom: 20,
+  },
+  notificationsList: {
+    paddingTop: 8,
   },
   notificationItem: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: colors.white,
+    marginHorizontal: 16,
+    marginVertical: 4,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   unreadNotification: {
-    backgroundColor: `${colors.primary}08`,
+    backgroundColor: colors.white,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
   },
-  notificationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  notificationIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -626,30 +700,43 @@ const styles = StyleSheet.create({
   notificationContent: {
     flex: 1,
   },
+  notificationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
   notificationTitle: {
     fontSize: 15,
     fontWeight: "600",
     color: colors.text,
     fontFamily: "SF Arabic",
-    marginBottom: 2,
+    flex: 1,
+  },
+  unreadIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginLeft: 8,
   },
   notificationBody: {
     fontSize: 14,
     color: colors.text,
     fontFamily: "SF Arabic",
-    marginBottom: 4,
+    lineHeight: 20,
+    opacity: 0.8,
+  },
+  notificationFooter: {
+    marginTop: 4,
   },
   notificationTime: {
     fontSize: 12,
     color: colors.muted,
     fontFamily: "SF Arabic",
   },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+  chevron: {
     marginLeft: 8,
+    opacity: 0.3,
   },
   emptyState: {
     flex: 1,
@@ -657,18 +744,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 100,
   },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${colors.secondary}10`,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: colors.text,
     fontFamily: "SF Arabic",
-    marginTop: 16,
+    marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.muted,
     fontFamily: "SF Arabic",
-    marginTop: 4,
   },
   loadingContainer: {
     flex: 1,
@@ -677,9 +772,10 @@ const styles = StyleSheet.create({
     paddingVertical: 100,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: 15,
     color: colors.muted,
     fontFamily: "SF Arabic",
+    marginTop: 12,
   },
   errorBanner: {
     flexDirection: "row",
@@ -689,7 +785,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginHorizontal: 16,
     marginVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: `${colors.warning}30`,
   },
