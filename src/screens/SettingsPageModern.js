@@ -125,7 +125,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export default function SettingsPageModern({ user }) {
   const router = useRouter();
   const { settings, updateSetting, resetSettings } = useSettings();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isGuestMode, exitGuestMode } = useAuth();
 
   const [currentUser, setCurrentUser] = useState(user);
   const [userProfile, setUserProfile] = useState(null);
@@ -327,6 +327,35 @@ export default function SettingsPageModern({ user }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const handleGuestSignIn = async () => {
+    handleFeedback();
+
+    // Clear all cached data
+    profileCache = null;
+    cacheTimestamp = null;
+    resetSettings();
+
+    // Clear tree store
+    try {
+      const { useTreeStore } = require('../stores/useTreeStore');
+      useTreeStore.getState().setNodes([]);
+      useTreeStore.getState().setSelectedPersonId(null);
+    } catch (e) {
+      console.log('Could not clear tree store:', e);
+    }
+
+    // Clear any stored notifications
+    await AsyncStorage.multiRemove([
+      'notificationSettings',
+      'lastNotificationCheck',
+      'unreadNotificationCount'
+    ]);
+
+    // Exit guest mode - this will trigger navigation automatically
+    await exitGuestMode();
+    // NO manual navigation - RootLayoutNav handles it based on state change
+  };
+
   const loadNotificationSettings = async () => {
     try {
       const savedNotifications = await AsyncStorage.getItem('notificationSettings');
@@ -384,16 +413,18 @@ export default function SettingsPageModern({ user }) {
             />
             <Text style={styles.title}>الإعدادات</Text>
           </View>
-          <NotificationBadge
-            onPress={() => {
-              console.log('🔍 [Settings] NotificationBadge pressed');
-              // Small delay to prevent UI freeze
-              requestAnimationFrame(() => {
-                console.log('🔍 [Settings] Setting showNotificationCenter to true');
-                setShowNotificationCenter(true);
-              });
-            }}
-          />
+          {!isGuestMode && (
+            <NotificationBadge
+              onPress={() => {
+                console.log('🔍 [Settings] NotificationBadge pressed');
+                // Small delay to prevent UI freeze
+                requestAnimationFrame(() => {
+                  console.log('🔍 [Settings] Setting showNotificationCenter to true');
+                  setShowNotificationCenter(true);
+                });
+              }}
+            />
+          )}
         </View>
 
         {/* Notification Center - Only render when needed */}
@@ -418,8 +449,56 @@ export default function SettingsPageModern({ user }) {
           />
         )}
 
-        {/* Profile Section */}
-        {currentUser && (
+        {/* Guest Sign In Card - Show for guest users */}
+        {isGuestMode && (
+          <View style={styles.guestSignInCard}>
+            <View style={styles.guestIconContainer}>
+              <Image
+                source={require('../../assets/logo/AlqefariEmblem.png')}
+                style={styles.guestEmblem}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={styles.guestTitle}>انضم إلى شجرة القفاري</Text>
+            <Text style={styles.guestSubtitle}>
+              سجل دخولك لعرض شجرة العائلة الكاملة والتواصل مع أفراد العائلة
+            </Text>
+
+            <View style={styles.guestBenefitsList}>
+              <View style={styles.guestBenefit}>
+                <View style={styles.benefitIconContainer}>
+                  <Ionicons name="people" size={20} color={colors.secondary} />
+                </View>
+                <Text style={styles.guestBenefitText}>عرض شجرة العائلة الكاملة</Text>
+              </View>
+              <View style={styles.guestBenefit}>
+                <View style={styles.benefitIconContainer}>
+                  <Ionicons name="newspaper" size={20} color={colors.secondary} />
+                </View>
+                <Text style={styles.guestBenefitText}>متابعة أخبار ومناسبات العائلة</Text>
+              </View>
+              <View style={[styles.guestBenefit, { marginBottom: 0 }]}>
+                <View style={styles.benefitIconContainer}>
+                  <Ionicons name="link" size={20} color={colors.secondary} />
+                </View>
+                <Text style={styles.guestBenefitText}>ربط ملفك الشخصي بالعائلة</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.guestSignInButton}
+              onPress={handleGuestSignIn}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="log-in-outline" size={20} color={colors.white} style={{ marginRight: 8 }} />
+              <Text style={styles.guestSignInButtonText}>تسجيل الدخول</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Profile Section - Show for authenticated users */}
+        {currentUser && !isGuestMode && (
           <View style={styles.profileSection}>
             <ProfileLinkStatusIndicator />
 
@@ -579,8 +658,9 @@ export default function SettingsPageModern({ user }) {
           </View>
         )}
 
-        {/* Notifications Settings - Available to all users */}
-        <View style={styles.settingsCard}>
+        {/* Notifications Settings - Only for authenticated users */}
+        {!isGuestMode && (
+          <View style={styles.settingsCard}>
           <Text style={styles.sectionTitle}>الإشعارات</Text>
 
           {/* Push Notifications Master Toggle */}
@@ -649,6 +729,7 @@ export default function SettingsPageModern({ user }) {
             />
           </View>
         </View>
+        )}
 
         {/* Actions */}
         <View style={styles.actionsContainer}>
@@ -673,7 +754,7 @@ export default function SettingsPageModern({ user }) {
             <Text style={styles.secondaryButtonText}>إعادة تعيين الإعدادات</Text>
           </TouchableOpacity>
 
-          {currentUser && (
+          {currentUser && !isGuestMode && (
             <TouchableOpacity
               style={[
                 styles.dangerButton,
@@ -745,6 +826,117 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
     fontFamily: "SF Arabic",
+  },
+
+  // Guest Sign In Card
+  guestSignInCard: {
+    backgroundColor: colors.white,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 20,
+    padding: 32,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 5,
+    borderWidth: 1.5,
+    borderColor: colors.container + "30",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  guestIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.primary + "12",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    borderWidth: 3,
+    borderColor: colors.primary + "20",
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  guestEmblem: {
+    width: 56,
+    height: 56,
+    tintColor: colors.primary,
+  },
+  guestTitle: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  guestSubtitle: {
+    fontSize: 16,
+    color: colors.muted,
+    fontFamily: "SF Arabic",
+    textAlign: "center",
+    marginBottom: 32,
+    lineHeight: 24,
+    paddingHorizontal: 8,
+  },
+  guestBenefitsList: {
+    width: "100%",
+    marginBottom: 32,
+    backgroundColor: colors.background,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.container + "30",
+  },
+  guestBenefit: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  benefitIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.secondary + "15",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.secondary + "25",
+  },
+  guestBenefitText: {
+    fontSize: 15,
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    flex: 1,
+    lineHeight: 22,
+  },
+  guestSignInButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  guestSignInButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    textAlign: "center",
   },
 
   // Profile Section

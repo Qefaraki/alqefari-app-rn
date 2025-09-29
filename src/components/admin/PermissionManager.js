@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Modal,
   TouchableOpacity,
   TextInput,
   FlatList,
@@ -13,33 +12,44 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import * as Haptics from "expo-haptics";
 
-// Najdi Sadu Design System
-const COLORS = {
-  background: "#F9F7F3", // Al-Jass White
-  container: "#D1BBA3", // Camel Hair Beige
-  text: "#242121", // Sadu Night
-  primary: "#A13333", // Najdi Crimson
-  secondary: "#D58C4A", // Desert Ochre
-  textLight: "#24212199",
-  textMedium: "#242121CC",
-  success: "#22C55E",
-  warning: "#F59E0B",
-  error: "#EF4444",
+// Exact colors from ProfileConnectionManagerV2
+const colors = {
+  // Najdi Sadu palette
+  background: "#F9F7F3",      // Al-Jass White
+  container: "#D1BBA3",        // Camel Hair Beige
+  text: "#242121",            // Sadu Night
+  textMuted: "#736372",       // Muted plum
+  primary: "#A13333",         // Najdi Crimson
+  secondary: "#D58C4A",       // Desert Ochre
+
+  // Status colors (keeping brand palette)
+  success: "#D58C4A",         // Desert Ochre for approve
+  warning: "#D58C4A",         // Desert Ochre for pending
+  error: "#A13333",           // Najdi Crimson for reject
+
+  // System colors
+  white: "#FFFFFF",
+  separator: "#C6C6C8",
+  whatsapp: "#A13333",  // Changed to Najdi Crimson as requested
 };
 
-const PermissionManager = ({ visible, onClose }) => {
+const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const [searchText, setSearchText] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showBranchSelector, setShowBranchSelector] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [searchTimer, setSearchTimer] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   // Load current user's role
   useEffect(() => {
@@ -53,7 +63,7 @@ const PermissionManager = ({ visible, onClose }) => {
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", user.id)
+          .eq("user_id", user.id) // Fixed: was looking for id = user.id
           .single();
 
         setCurrentUserRole(profile?.role);
@@ -64,14 +74,19 @@ const PermissionManager = ({ visible, onClose }) => {
   };
 
   // Search users by name chain
-  const searchUsers = async () => {
-    if (searchText.length < 2) return;
+  const searchUsers = async (query) => {
+    if (!query || query.length < 2) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
 
     setLoading(true);
+    setHasSearched(true);
     try {
       const { data, error } = await supabase.rpc(
         "super_admin_search_by_name_chain",
-        { p_search_text: searchText }
+        { p_search_text: query }
       );
 
       if (error) throw error;
@@ -82,6 +97,27 @@ const PermissionManager = ({ visible, onClose }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle search text change with debouncing
+  const handleSearchTextChange = (text) => {
+    setSearchText(text);
+
+    // Clear previous timer
+    if (searchTimer) clearTimeout(searchTimer);
+
+    // If text is cleared, clear results immediately
+    if (!text) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+
+    // Debounce search for 300ms
+    const timer = setTimeout(() => {
+      searchUsers(text);
+    }, 300);
+    setSearchTimer(timer);
   };
 
   // Change user role
@@ -105,8 +141,10 @@ const PermissionManager = ({ visible, onClose }) => {
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Refresh search results
-      searchUsers();
+      // Refresh search results with current query
+      if (searchText) {
+        searchUsers(searchText);
+      }
     } catch (error) {
       console.error("Error changing role:", error);
       Alert.alert("خطأ", error.message || "فشل تغيير الصلاحية");
@@ -182,27 +220,54 @@ const PermissionManager = ({ visible, onClose }) => {
 
   // Get role color
   const getRoleColor = (role) => {
-    const colors = {
-      super_admin: COLORS.error,
-      admin: COLORS.primary,
-      moderator: COLORS.secondary,
-      user: COLORS.textMedium,
-      null: COLORS.textMedium
+    const roleColors = {
+      super_admin: colors.error,
+      admin: colors.primary,
+      moderator: colors.secondary,
+      user: colors.textMuted,
+      null: colors.textMuted
     };
-    return colors[role] || COLORS.textMedium;
+    return roleColors[role] || colors.textMuted;
   };
 
-  // Render user card
-  const renderUserCard = ({ item }) => {
+  // Render user card with animations
+  const renderUserCard = ({ item, index }) => {
     const userRole = item.role || "user";
     const canEditThisUser = currentUserRole === "super_admin";
+    const animatedValue = useRef(new Animated.Value(0)).current;
+
+    // Entrance animation
+    React.useEffect(() => {
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 400,
+        delay: Math.min(index * 50, 300),
+        useNativeDriver: true,
+      }).start();
+    }, []);
+
+    const translateY = animatedValue.interpolate({
+      inputRange: [0, 1],
+      outputRange: [20, 0],
+    });
 
     return (
-      <TouchableOpacity
-        style={styles.userCard}
-        onPress={() => setSelectedUser(item)}
-        activeOpacity={0.7}
+      <Animated.View
+        style={[
+          {
+            opacity: animatedValue,
+            transform: [{ translateY }],
+          },
+        ]}
       >
+        <TouchableOpacity
+          style={styles.userCard}
+          onPress={() => {
+            setSelectedUser(item);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }}
+          activeOpacity={0.95}
+        >
         <View style={styles.userInfo}>
           {/* User name and chain */}
           <Text style={styles.userName}>{item.name}</Text>
@@ -220,7 +285,7 @@ const PermissionManager = ({ visible, onClose }) => {
 
             {item.is_branch_moderator && (
               <View style={styles.badge}>
-                <Ionicons name="git-branch" size={12} color={COLORS.secondary} />
+                <Ionicons name="git-branch" size={12} color={colors.secondary} />
                 <Text style={styles.badgeText}>
                   مشرف فرع ({item.branch_count})
                 </Text>
@@ -229,8 +294,8 @@ const PermissionManager = ({ visible, onClose }) => {
 
             {item.is_blocked && (
               <View style={[styles.badge, styles.blockedBadge]}>
-                <Ionicons name="ban" size={12} color={COLORS.error} />
-                <Text style={[styles.badgeText, { color: COLORS.error }]}>
+                <Ionicons name="ban" size={12} color={colors.error} />
+                <Text style={[styles.badgeText, { color: colors.error }]}>
                   محظور
                 </Text>
               </View>
@@ -238,45 +303,61 @@ const PermissionManager = ({ visible, onClose }) => {
           </View>
         </View>
 
-        {/* Actions */}
+        {/* Actions with better visual design */}
         {canEditThisUser && (
           <View style={styles.actions}>
             {/* Role selector */}
             {userRole !== "super_admin" && (
               <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => showRoleMenu(item)}
+                style={[styles.actionButton, styles.primaryAction]}
+                onPress={() => {
+                  showRoleMenu(item);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
               >
-                <Ionicons name="key" size={20} color={COLORS.primary} />
+                <Ionicons name="key" size={18} color={colors.primary} />
               </TouchableOpacity>
             )}
 
             {/* Branch moderator */}
             <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => manageBranchModerator(item)}
+              style={[
+                styles.actionButton,
+                item.is_branch_moderator && styles.activeAction
+              ]}
+              onPress={() => {
+                manageBranchModerator(item);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
             >
               <Ionicons
                 name="git-branch"
-                size={20}
-                color={item.is_branch_moderator ? COLORS.secondary : COLORS.textLight}
+                size={18}
+                color={item.is_branch_moderator ? colors.secondary : colors.textMuted}
               />
             </TouchableOpacity>
 
             {/* Suggestion block toggle */}
             <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => toggleSuggestionBlock(item.id, item.is_blocked)}
+              style={[
+                styles.actionButton,
+                item.is_blocked && styles.dangerAction
+              ]}
+              onPress={() => {
+                toggleSuggestionBlock(item.id, item.is_blocked);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
             >
               <Ionicons
                 name={item.is_blocked ? "checkmark-circle" : "ban"}
-                size={20}
-                color={item.is_blocked ? COLORS.success : COLORS.error}
+                size={18}
+                color={item.is_blocked ? colors.success : colors.error}
               />
             </TouchableOpacity>
           </View>
         )}
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Animated.View>
     );
   };
 
@@ -352,76 +433,82 @@ const PermissionManager = ({ visible, onClose }) => {
     }
   };
 
+  // Use onBack if provided, otherwise use onClose
+  const handleBack = onBack || onClose;
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.container}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="close" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-
-            <Text style={styles.headerTitle}>إدارة الصلاحيات</Text>
-
-            <View style={{ width: 24 }} />
+    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        {/* Header - matching ProfileConnectionManagerV2 pattern */}
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <Image
+              source={require('../../../assets/logo/AlqefariEmblem.png')}
+              style={styles.emblem}
+              resizeMode="contain"
+            />
+            <View style={styles.titleContent}>
+              <Text style={styles.title}>إدارة الصلاحيات</Text>
+            </View>
+            {handleBack && (
+              <TouchableOpacity
+                onPress={handleBack}
+                style={styles.backButton}
+              >
+                <Ionicons name="chevron-back" size={28} color={colors.text} />
+              </TouchableOpacity>
+            )}
           </View>
+        </View>
 
           {/* Only show for super admins */}
           {currentUserRole !== "super_admin" ? (
             <View style={styles.noAccessContainer}>
-              <Ionicons name="lock-closed" size={64} color={COLORS.textLight} />
+              <Ionicons name="lock-closed" size={64} color={colors.textMuted} />
               <Text style={styles.noAccessText}>
                 هذه الصفحة متاحة للمشرفين العامين فقط
               </Text>
             </View>
           ) : (
             <>
-              {/* Search bar */}
+              {/* Search bar - auto-search like tree SearchBar */}
               <View style={styles.searchContainer}>
                 <View style={styles.searchBar}>
-                  <Ionicons name="search" size={20} color={COLORS.textLight} />
+                  <Ionicons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="ابحث بالاسم الكامل..."
+                    placeholderTextColor={colors.textMuted + "99"}
                     value={searchText}
-                    onChangeText={setSearchText}
-                    onSubmitEditing={searchUsers}
+                    onChangeText={handleSearchTextChange}
                     returnKeyType="search"
                     textAlign="right"
+                    autoCorrect={false}
+                    autoCapitalize="none"
                   />
                   {searchText.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchText("")}>
-                      <Ionicons name="close-circle" size={20} color={COLORS.textLight} />
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSearchText("");
+                        setSearchResults([]);
+                        setHasSearched(false);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={styles.clearButton}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                     </TouchableOpacity>
                   )}
                 </View>
-
-                <TouchableOpacity
-                  style={styles.searchButton}
-                  onPress={searchUsers}
-                  disabled={searchText.length < 2}
-                >
-                  <Text style={styles.searchButtonText}>بحث</Text>
-                </TouchableOpacity>
               </View>
 
               {/* Results */}
               {loading ? (
                 <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={COLORS.primary} />
+                  <ActivityIndicator size="large" color={colors.primary} />
                   <Text style={styles.loadingText}>جاري البحث...</Text>
                 </View>
               ) : (
@@ -431,10 +518,21 @@ const PermissionManager = ({ visible, onClose }) => {
                   renderItem={renderUserCard}
                   contentContainerStyle={styles.listContent}
                   ListEmptyComponent={
-                    searchText.length > 0 && !loading ? (
+                    hasSearched && !loading ? (
                       <View style={styles.emptyContainer}>
+                        <Ionicons name="search-outline" size={48} color={colors.textMuted + "60"} />
                         <Text style={styles.emptyText}>
                           لا توجد نتائج للبحث
+                        </Text>
+                        <Text style={styles.emptySubtext}>
+                          جرب البحث باسم آخر
+                        </Text>
+                      </View>
+                    ) : !hasSearched ? (
+                      <View style={styles.emptyContainer}>
+                        <Ionicons name="people-outline" size={48} color={colors.textMuted + "60"} />
+                        <Text style={styles.emptyText}>
+                          ابحث عن المستخدمين لإدارة صلاحياتهم
                         </Text>
                       </View>
                     ) : null
@@ -447,33 +545,51 @@ const PermissionManager = ({ visible, onClose }) => {
           {/* Branch Selector Modal would go here */}
           {/* Implement later with tree selection */}
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </Modal>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
+
+  // Header - matching ProfileConnectionManagerV2 pattern
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
+    paddingTop: Platform.OS === "ios" ? 10 : 20, // Extra padding for iOS Dynamic Island
+    paddingBottom: 8,
   },
-  closeButton: {
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  backButton: {
     padding: 8,
+    marginLeft: 8,
+    marginRight: -8,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: COLORS.text,
+  emblem: {
+    width: 52,
+    height: 52,
+    tintColor: colors.text,
+    marginRight: 3,
+    marginTop: -5,
+    marginLeft: -5,
   },
+  titleContent: {
+    flex: 1,
+    paddingTop: 6,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: "700",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+  },
+
   noAccessContainer: {
     flex: 1,
     justifyContent: "center",
@@ -482,43 +598,42 @@ const styles = StyleSheet.create({
   },
   noAccessText: {
     fontSize: 16,
-    color: COLORS.textMedium,
+    color: colors.textMuted,
     marginTop: 16,
     textAlign: "center",
+    fontFamily: "SF Arabic",
   },
   searchContainer: {
-    flexDirection: "row",
     padding: 16,
-    gap: 12,
+    paddingBottom: 8,
   },
   searchBar: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    backgroundColor: colors.white,
+    borderRadius: 24, // Pill shape like tree SearchBar
+    paddingHorizontal: 16,
+    height: 48,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  searchIcon: {
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    paddingVertical: 0,
+    height: "100%",
   },
-  searchButton: {
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    justifyContent: "center",
-  },
-  searchButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+  clearButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -529,21 +644,29 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: COLORS.textMedium,
+    color: colors.textMuted,
+    fontFamily: "SF Arabic",
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
   userCard: {
-    backgroundColor: "white",
-    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.background,
   },
   userInfo: {
     flex: 1,
@@ -551,13 +674,15 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 18,
     fontWeight: "600",
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 4,
+    fontFamily: "SF Arabic",
   },
   userChain: {
     fontSize: 12,
-    color: COLORS.textMedium,
+    color: colors.textMuted,
     marginBottom: 8,
+    fontFamily: "SF Arabic",
   },
   badgeRow: {
     flexDirection: "row",
@@ -565,46 +690,72 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   roleBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   roleText: {
     fontSize: 12,
     fontWeight: "600",
+    fontFamily: "SF Arabic",
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: COLORS.container + "20",
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: colors.container + "20",
     gap: 4,
   },
   badgeText: {
     fontSize: 11,
-    color: COLORS.textMedium,
+    color: colors.textMuted,
+    fontFamily: "SF Arabic",
   },
   blockedBadge: {
-    backgroundColor: COLORS.error + "10",
+    backgroundColor: colors.error + "10",
   },
   actions: {
     flexDirection: "row",
     gap: 8,
   },
   actionButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.background,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryAction: {
+    backgroundColor: colors.primary + "10",
+  },
+  activeAction: {
+    backgroundColor: colors.secondary + "10",
+  },
+  dangerAction: {
+    backgroundColor: colors.error + "10",
   },
   emptyContainer: {
-    padding: 32,
+    padding: 48,
     alignItems: "center",
+    justifyContent: "center",
   },
   emptyText: {
+    fontSize: 16,
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
+    marginTop: 16,
+    textAlign: "center",
+  },
+  emptySubtext: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: colors.textMuted,
+    fontFamily: "SF Arabic",
+    marginTop: 8,
+    textAlign: "center",
   },
 });
 
