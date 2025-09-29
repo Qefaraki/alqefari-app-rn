@@ -386,8 +386,10 @@ export default function SettingsPageModern({ user }) {
           </View>
           <NotificationBadge
             onPress={() => {
+              console.log('🔍 [Settings] NotificationBadge pressed');
               // Small delay to prevent UI freeze
               requestAnimationFrame(() => {
+                console.log('🔍 [Settings] Setting showNotificationCenter to true');
                 setShowNotificationCenter(true);
               });
             }}
@@ -398,7 +400,10 @@ export default function SettingsPageModern({ user }) {
         {showNotificationCenter && (
           <NotificationCenter
             visible={showNotificationCenter}
-            onClose={() => setShowNotificationCenter(false)}
+            onClose={() => {
+              console.log('🔍 [Settings] NotificationCenter onClose called');
+              setShowNotificationCenter(false);
+            }}
           />
         )}
 

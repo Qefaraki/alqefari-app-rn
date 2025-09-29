@@ -64,10 +64,11 @@ class SubscriptionManager {
     onError = null,
     component = null // For WeakMap tracking
   }) {
+    console.log(`🔍 [SubscriptionManager] subscribe called for ${channelName}`);
     try {
       // Check circuit breaker
       if (this.isCircuitOpen(channelName)) {
-        console.warn(`[SubscriptionManager] Circuit breaker open for ${channelName}`);
+        console.warn(`🔍 [SubscriptionManager] Circuit breaker open for ${channelName}`);
         if (onError) onError(new Error('Circuit breaker is open - too many failures'));
         return null;
       }
@@ -110,10 +111,11 @@ class SubscriptionManager {
       const debouncedUpdate = this.createDebouncedHandler(channelName, onUpdate);
 
       // Create subscription with error handling
+      console.log(`🔍 [SubscriptionManager] Creating Supabase channel for ${channelName}`);
       const channel = supabase
         .channel(channelName)
         .on('postgres_changes', subscriptionConfig, (payload) => {
-          console.log(`[SubscriptionManager] Update received for ${channelName}:`, payload);
+          console.log(`🔍 [SubscriptionManager] Update received for ${channelName}:`, payload);
 
           // Update last activity
           this.updateChannelActivity(channelName);
@@ -126,8 +128,9 @@ class SubscriptionManager {
           this.handleSubscriptionError(channelName, error, onError);
         })
         .subscribe((status) => {
+          console.log(`🔍 [SubscriptionManager] Subscription status for ${channelName}: ${status}`);
           if (status === 'SUBSCRIBED') {
-            console.log(`[SubscriptionManager] Successfully subscribed to ${channelName}`);
+            console.log(`✅ [SubscriptionManager] Successfully subscribed to ${channelName}`);
 
             // Track metrics
             const connectTime = Date.now() - startTime;

@@ -91,14 +91,24 @@ export default function NotificationCenter({ visible, onClose }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    console.log('🔍 [NotificationCenter] useEffect triggered - visible:', visible, 'user:', !!user);
+
     if (visible && user) {
+      console.log('🔍 [NotificationCenter] Opening notification center...');
+
       // Load notifications first (shows cached data quickly)
+      console.log('🔍 [NotificationCenter] Loading notifications...');
       loadNotifications();
+
       // Setup subscription in background (non-blocking)
+      console.log('🔍 [NotificationCenter] Scheduling subscription setup...');
       setTimeout(() => {
+        console.log('🔍 [NotificationCenter] Setting up realtime subscription...');
         setupRealtimeSubscription();
       }, 100);
+
       // Animate in
+      console.log('🔍 [NotificationCenter] Starting animations...');
       Animated.parallel([
         Animated.spring(slideAnim, {
           toValue: 0,
@@ -111,7 +121,9 @@ export default function NotificationCenter({ visible, onClose }) {
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        console.log('🔍 [NotificationCenter] Animation complete');
+      });
     } else {
       // Clean up subscription and timeout when closing
       if (subscriptionRef.current) {
@@ -154,12 +166,14 @@ export default function NotificationCenter({ visible, onClose }) {
 
   // Setup real-time subscription for notifications
   const setupRealtimeSubscription = async () => {
+    console.log('🔍 [NotificationCenter] setupRealtimeSubscription called - user:', !!user);
     if (!user) return;
 
     // Clear any existing error state
     setSubscriptionError(false);
 
     try {
+      console.log('🔍 [NotificationCenter] Creating subscription promise...');
       // Set a timeout for subscription attempt (10 seconds)
       const subscriptionPromise = subscriptionManager.subscribe({
         channelName: `notification-center-${user.id}`, // Unique channel name for notification center
@@ -193,16 +207,18 @@ export default function NotificationCenter({ visible, onClose }) {
       });
 
       // Race between subscription and timeout
+      console.log('🔍 [NotificationCenter] Racing subscription vs timeout...');
       const subscription = await Promise.race([subscriptionPromise, timeoutPromise]);
 
       // Clear timeout if subscription succeeded
+      console.log('🔍 [NotificationCenter] Subscription succeeded, clearing timeout...');
       if (subscriptionTimeoutRef.current) {
         clearTimeout(subscriptionTimeoutRef.current);
         subscriptionTimeoutRef.current = null;
       }
 
       subscriptionRef.current = subscription;
-      console.log('✅ Real-time notifications subscription active');
+      console.log('✅ [NotificationCenter] Real-time notifications subscription active');
     } catch (error) {
       console.error('Failed to setup notification subscription:', error);
       setSubscriptionError(true);
@@ -219,8 +235,10 @@ export default function NotificationCenter({ visible, onClose }) {
 
   // Load notifications from local storage and database
   const loadNotifications = async () => {
+    console.log('🔍 [NotificationCenter] loadNotifications called');
     setLoading(true);
     try {
+      console.log('🔍 [NotificationCenter] Loading from AsyncStorage...');
       // Load from local storage first for quick display
       const cached = await AsyncStorage.getItem(`notifications_${user?.id}`);
       if (cached) {
@@ -236,6 +254,7 @@ export default function NotificationCenter({ visible, onClose }) {
       }
 
       // Fetch notifications from the new notifications table
+      console.log('🔍 [NotificationCenter] Fetching from Supabase...');
       const { data: dbNotifications, error } = await supabase
         .from("user_notifications")  // Using the view that includes related data
         .select("*")
@@ -243,8 +262,10 @@ export default function NotificationCenter({ visible, onClose }) {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      console.log('🔍 [NotificationCenter] Supabase response - error:', error, 'data length:', dbNotifications?.length);
+
       if (error) {
-        console.error("Error fetching notifications:", error);
+        console.error("❌ [NotificationCenter] Error fetching notifications:", error);
         setLoading(false);
         return;
       }
