@@ -42,6 +42,7 @@ export default function SettingsModal({ visible, onClose }) {
   const [userProfile, setUserProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Sample date for preview - using a valid date
   const sampleGregorian = { day: 15, month: 3, year: 2024 };
@@ -145,6 +146,8 @@ export default function SettingsModal({ visible, onClose }) {
   };
 
   const handleDeleteAccount = () => {
+    if (isDeletingAccount) return;
+
     Alert.alert(
       "⚠️ حذف الحساب",
       "هل أنت متأكد من حذف حسابك؟\n\nسيتم:\n• إلغاء ربط الحساب بالملف الشخصي\n• حذف جميع طلبات الربط\n• حذف بيانات المستخدم\n\nيمكنك إنشاء حساب جديد لاحقاً",
@@ -156,25 +159,7 @@ export default function SettingsModal({ visible, onClose }) {
         {
           text: "حذف الحساب نهائياً",
           style: "destructive",
-          onPress: () => {
-            // Second confirmation for safety
-            Alert.alert(
-              "تأكيد نهائي",
-              "اكتب 'حذف' للتأكيد",
-              [
-                {
-                  text: "إلغاء",
-                  style: "cancel",
-                },
-                {
-                  text: "حذف",
-                  style: "destructive",
-                  onPress: performAccountDeletion,
-                },
-              ],
-              { cancelable: true },
-            );
-          },
+          onPress: performAccountDeletion,
         },
       ],
       { cancelable: true },
@@ -182,11 +167,10 @@ export default function SettingsModal({ visible, onClose }) {
   };
 
   const performAccountDeletion = async () => {
-    try {
-      // Show loading
-      Alert.alert("جاري الحذف", "يتم حذف الحساب...");
+    if (isDeletingAccount) return;
 
-      // Use the secure account deletion service
+    setIsDeletingAccount(true);
+    try {
       const result = await accountDeletionService.deleteAccount();
 
       if (!result.success) {
@@ -195,37 +179,28 @@ export default function SettingsModal({ visible, onClose }) {
         return;
       }
 
-      // Clear cache and local state
       profileCache = null;
       cacheTimestamp = null;
       clearSettings();
 
-      console.log("Account deletion successful:", {
-        adminDeleted: result.adminDeleted,
-        profileUnlinked: result.profileUnlinked,
-      });
+      await forceCompleteSignOut();
 
-      // Navigate to root (onboarding) - CRITICAL FOR SECURITY
-      // Do not show alert, just navigate immediately
       onClose();
-
-      // Force navigation to root/onboarding
-      // Replace entire navigation stack to prevent going back
       setTimeout(() => {
         router.replace("/");
       }, 100);
-
     } catch (error) {
       console.error("Critical error in account deletion:", error);
       Alert.alert("خطأ", "حدث خطأ حرج أثناء حذف الحساب");
 
-      // Even on error, sign out for security
       try {
         await forceCompleteSignOut();
         router.replace("/");
       } catch (signOutError) {
         console.error("Failed to sign out after error:", signOutError);
       }
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -591,19 +566,30 @@ export default function SettingsModal({ visible, onClose }) {
             {/* Delete Account Button - Danger Style */}
             {currentUser && userProfile && (
               <TouchableOpacity
-                style={[styles.actionButton, styles.dangerButton]}
+                style={[
+                  styles.actionButton,
+                  styles.dangerButton,
+                  isDeletingAccount && styles.dangerButtonDisabled,
+                ]}
                 onPress={handleDeleteAccount}
                 activeOpacity={0.8}
+                disabled={isDeletingAccount}
               >
-                <Ionicons
-                  name="trash-outline"
-                  size={20}
-                  color="#A13333"
-                  style={styles.buttonIcon}
-                />
-                <Text style={[styles.actionButtonText, styles.dangerButtonText]}>
-                  حذف الحساب
-                </Text>
+                {isDeletingAccount ? (
+                  <ActivityIndicator size="small" color="#A13333" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color="#A13333"
+                      style={styles.buttonIcon}
+                    />
+                    <Text style={[styles.actionButtonText, styles.dangerButtonText]}>
+                      حذف الحساب
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             )}
           </View>
@@ -1071,6 +1057,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#A1333310", // Najdi Crimson 10%
     borderWidth: 1.5,
     borderColor: "#A13333", // Najdi Crimson
+  },
+  dangerButtonDisabled: {
+    opacity: 0.6,
   },
   dangerButtonText: {
     color: "#A13333", // Najdi Crimson

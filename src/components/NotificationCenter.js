@@ -48,6 +48,14 @@ const NotificationTypes = {
   FAMILY_UPDATE: "family_update",
 };
 
+// Legacy/alias mapping for notification type values coming from the backend
+const NotificationTypeAliases = {
+  profile_link_approved: NotificationTypes.LINK_REQUEST_APPROVED,
+  profile_link_rejected: NotificationTypes.LINK_REQUEST_REJECTED,
+  link_approved: NotificationTypes.LINK_REQUEST_APPROVED,
+  link_rejected: NotificationTypes.LINK_REQUEST_REJECTED,
+};
+
 // Get icon and color for notification type
 const getNotificationStyle = (type) => {
   switch (type) {
@@ -198,17 +206,22 @@ export default function NotificationCenter({ visible, onClose }) {
       }
 
       // Transform database notifications to our format
-      const notificationsList = (dbNotifications || []).map(notif => ({
-        id: notif.id,
-        type: notif.type.replace(/_/g, "_").toUpperCase(),  // Match our type constants
-        title: notif.title,
-        body: notif.body,
-        data: notif.data || {},
-        createdAt: notif.created_at,
-        read: notif.is_read,
-        profileName: notif.related_profile_name,
-        profilePhoto: notif.related_profile_photo,
-      }));
+      const notificationsList = (dbNotifications || []).map(notif => {
+        const rawType = (notif.type || '').toLowerCase();
+        const normalizedType = NotificationTypeAliases[rawType] || rawType;
+
+        return {
+          id: notif.id,
+          type: normalizedType,
+          title: notif.title,
+          body: notif.body,
+          data: notif.data || {},
+          createdAt: notif.created_at,
+          read: notif.is_read,
+          profileName: notif.related_profile_name,
+          profilePhoto: notif.related_profile_photo,
+        };
+      });
 
       setNotifications(notificationsList);
       updateUnreadCount(notificationsList);

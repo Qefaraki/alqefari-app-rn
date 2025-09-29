@@ -275,6 +275,9 @@ export const phoneAuthService = {
       // This ensures users can only see and claim unclaimed profiles
       query = query.is("user_id", null);
 
+      // Munasib guard: only show profiles that belong to the core tree (have HID)
+      query = query.not("hid", "is", null);
+
       // Limit results
       query = query.limit(20);
 
@@ -283,7 +286,7 @@ export const phoneAuthService = {
       if (error) throw error;
 
       // If we have father name, try to filter by checking ancestors
-      let filteredProfiles = data || [];
+      let filteredProfiles = (data || []).filter((profile) => profile.hid);
 
       if (fatherName && filteredProfiles.length > 0) {
         // Get father details for each profile
@@ -482,7 +485,7 @@ export const phoneAuthService = {
       // CRITICAL VALIDATION: Check if the profile is already linked
       const { data: profileCheck, error: checkError } = await supabase
         .from('profiles')
-        .select('id, name, user_id')
+        .select('id, name, user_id, hid, family_origin')
         .eq('id', profileId)
         .single();
 
@@ -493,6 +496,14 @@ export const phoneAuthService = {
 
       if (!profileCheck) {
         return { success: false, error: 'الملف المطلوب غير موجود' };
+      }
+
+      if (!profileCheck.hid) {
+        console.error('Attempted to claim munasib profile:', profileId, profileCheck.name, profileCheck.family_origin);
+        return {
+          success: false,
+          error: 'هذا الملف يخص عائلة مناسبة ولا يمكن ربطه بحساب مستخدم.'
+        };
       }
 
       if (profileCheck.user_id) {

@@ -132,6 +132,7 @@ export default function SettingsPageModern({ user }) {
   const [pendingRequest, setPendingRequest] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // New settings states
   const [notifications, setNotifications] = useState({
@@ -267,7 +268,47 @@ export default function SettingsPageModern({ user }) {
     ]);
   };
 
+  const performAccountDeletion = async () => {
+    if (isDeletingAccount) return;
+
+    setIsDeletingAccount(true);
+    try {
+      const result = await accountDeletionService.deleteAccount();
+
+      if (!result.success) {
+        Alert.alert("خطأ", "فشل حذف الحساب: " + (result.error || "Unknown error"));
+        return;
+      }
+
+      resetSettings();
+      profileCache = null;
+      cacheTimestamp = null;
+
+      await forceCompleteSignOut();
+
+      setTimeout(() => {
+        router.replace("/");
+      }, 100);
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      Alert.alert("خطأ", "فشل حذف الحساب");
+
+      try {
+        await forceCompleteSignOut();
+        setTimeout(() => {
+          router.replace("/");
+        }, 100);
+      } catch (signOutError) {
+        console.error("Sign out fallback failed:", signOutError);
+      }
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   const handleDeleteAccount = () => {
+    if (isDeletingAccount) return;
+
     Alert.alert(
       "حذف الحساب",
       "هل أنت متأكد من رغبتك في حذف حسابك نهائياً؟ لا يمكن التراجع عن هذا الإجراء.",
@@ -276,31 +317,7 @@ export default function SettingsPageModern({ user }) {
         {
           text: "حذف الحساب",
           style: "destructive",
-          onPress: async () => {
-            try {
-              Alert.alert("جاري الحذف", "يتم حذف الحساب...");
-              const result = await accountDeletionService.deleteAccount();
-
-              if (!result.success) {
-                Alert.alert("خطأ", "فشل حذف الحساب: " + (result.error || "Unknown error"));
-                return;
-              }
-
-              resetSettings();
-              profileCache = null;
-              cacheTimestamp = null;
-
-              setTimeout(() => {
-                router.replace("/");
-              }, 100);
-            } catch (error) {
-              Alert.alert("خطأ", "فشل حذف الحساب");
-              await supabase.auth.signOut();
-              setTimeout(() => {
-                router.replace("/");
-              }, 100);
-            }
-          },
+          onPress: performAccountDeletion,
         },
       ],
     );
@@ -635,11 +652,22 @@ export default function SettingsPageModern({ user }) {
 
           {currentUser && (
             <TouchableOpacity
-              style={styles.dangerButton}
+              style={[
+                styles.dangerButton,
+                isDeletingAccount && styles.dangerButtonDisabled,
+              ]}
               onPress={handleDeleteAccount}
+              activeOpacity={0.8}
+              disabled={isDeletingAccount}
             >
-              <Ionicons name="trash-outline" size={20} color="#DC2626" />
-              <Text style={styles.dangerButtonText}>حذف الحساب</Text>
+              {isDeletingAccount ? (
+                <ActivityIndicator size="small" color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
+                  <Text style={styles.dangerButtonText}>حذف الحساب</Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -853,6 +881,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+  dangerButtonDisabled: {
+    opacity: 0.6,
   },
   dangerButtonText: {
     color: "#DC2626",

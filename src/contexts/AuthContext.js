@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { supabase } from "../services/supabase";
 import AuthStateMachine, { AuthStates } from "../services/AuthStateMachine";
+import subscriptionManager from "../services/subscriptionManager";
 import * as SplashScreen from 'expo-splash-screen';
 
 const AuthContext = createContext({});
@@ -18,6 +19,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const unsubscribeRef = useRef(null);
   const authListenerRef = useRef(null);
+  const profileSubscriptionRef = useRef(null);
   const isHandlingAuthChangeRef = useRef(false); // Prevent duplicate handling
   const lastEventRef = useRef(null); // Track last handled event
 
@@ -138,6 +140,9 @@ export const AuthProvider = ({ children }) => {
       if (authListenerRef.current) {
         authListenerRef.current.data.subscription.unsubscribe();
       }
+      if (profileSubscriptionRef.current) {
+        profileSubscriptionRef.current.unsubscribe();
+      }
     };
   }, []);
 
@@ -150,6 +155,70 @@ export const AuthProvider = ({ children }) => {
   const isGuestMode = authState.current === AuthStates.GUEST_MODE;
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isSuperAdmin = profile?.role === 'super_admin';
+
+  // React to profile updates pushed from Supabase (e.g., admin approving link requests)
+  useEffect(() => {
+    const subscribeToProfileUpdates = async () => {
+      if (!user?.id) {
+        if (profileSubscriptionRef.current) {
+          profileSubscriptionRef.current.unsubscribe();
+          profileSubscriptionRef.current = null;
+        }
+        return;
+      }
+
+      if (profileSubscriptionRef.current) {
+        profileSubscriptionRef.current.unsubscribe();
+        profileSubscriptionRef.current = null;
+      }
+
+      profileSubscriptionRef.current = await subscriptionManager.subscribe({
+        channelName: `auth-profile-watch-${user.id}`,
+        table: 'profiles',
+        filter: `user_id=eq.${user.id}`,
+        event: '*',
+        component: { id: 'AuthContextProfileSubscription' },
+        onUpdate: async () => {
+          try {
+            const refreshedProfile = await AuthStateMachine.checkUserProfile(user.id);
+
+            if (!refreshedProfile) {
+              return;
+            }
+
+            let targetState = null;
+            let targetData = { user, profile: refreshedProfile };
+
+            if (refreshedProfile?.linked_profile_id) {
+              targetState = AuthStates.PROFILE_LINKED;
+            } else if (refreshedProfile?.status === 'pending') {
+              targetState = AuthStates.PENDING_APPROVAL;
+            } else {
+              targetState = AuthStates.PROFILE_LINKING;
+            }
+
+            if (targetState) {
+              await AuthStateMachine.transition(targetState, targetData);
+            }
+          } catch (error) {
+            console.error('[AuthContext] Failed to refresh profile after realtime update:', error);
+          }
+        },
+        onError: (error) => {
+          console.error('[AuthContext] Profile subscription error:', error);
+        }
+      });
+    };
+
+    subscribeToProfileUpdates();
+
+    return () => {
+      if (profileSubscriptionRef.current) {
+        profileSubscriptionRef.current.unsubscribe();
+        profileSubscriptionRef.current = null;
+      }
+    };
+  }, [user?.id]);
 
   // Auth actions
   const signInWithPhone = async (phone) => {

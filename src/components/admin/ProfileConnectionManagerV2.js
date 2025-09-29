@@ -3,8 +3,7 @@ import {
   View,
   Alert,
   RefreshControl,
-  ScrollView,
-  Dimensions,
+  FlatList,
   StyleSheet,
   Linking,
   TouchableOpacity,
@@ -20,9 +19,6 @@ import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
   Layout,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
 } from "react-native-reanimated";
 import { supabase } from "../../services/supabase";
 import { phoneAuthService } from "../../services/phoneAuth";
@@ -30,8 +26,7 @@ import { buildNameChain } from "../../utils/nameChainBuilder";
 import { useRouter } from "expo-router";
 import subscriptionManager from "../../services/subscriptionManager";
 import notificationService from "../../services/notifications";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+import SkeletonLoader from "../ui/SkeletonLoader";
 
 // Exact colors from app research
 const colors = {
@@ -301,10 +296,12 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       if (profileIds.size === 0) return;
 
       // Load profiles and their ancestors for name chain building
+      const ids = Array.from(profileIds);
+
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, name, father_id")
-        .or(Array.from(profileIds).map(id => `id.eq.${id}`).join(','));
+        .in("id", ids);
 
       if (profiles) {
         log(`🔍 DEBUG: Loaded ${profiles.length} relevant profiles for name chains`);
@@ -416,13 +413,20 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
 
-  // Create timeout promise
+  // Create timeout promise with proper cleanup
   const withTimeout = (promise, timeoutMs = 30000) => {
+    let timeoutId;
     return Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
-      )
+      promise.then(result => {
+        clearTimeout(timeoutId); // Clear timeout on success
+        return result;
+      }).catch(error => {
+        clearTimeout(timeoutId); // Clear timeout on error too
+        throw error;
+      }),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
+      })
     ]);
   };
 
@@ -461,9 +465,21 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           const delay = Math.min(Math.pow(2, retryCount) * 1000, 8000); // Cap at 8 seconds
           log(`⏳ Retrying ${operationName} in ${delay}ms...`);
 
-          // Store timer reference for cleanup
-          const timerId = setTimeout(attempt, delay);
-          retryTimersRef.current.set(`${operationName}-${requestId}`, timerId);
+          // Return a promise that resolves after delay
+          return new Promise((resolve, reject) => {
+            const timerId = setTimeout(async () => {
+              retryTimersRef.current.delete(`${operationName}-${requestId}`);
+              try {
+                const result = await attempt();
+                resolve(result);
+              } catch (retryError) {
+                reject(retryError);
+              }
+            }, delay);
+
+            // Store timer reference for cleanup
+            retryTimersRef.current.set(`${operationName}-${requestId}`, timerId);
+          });
         } else {
           // Final failure - clean up
           retryTimersRef.current.delete(`${operationName}-${requestId}`);
@@ -515,8 +531,8 @@ export default function ProfileConnectionManagerV2({ onBack }) {
             // Add to processing set for UI
             setProcessingRequests(prev => new Set(prev).add(request.id));
 
-            // Store previous state for rollback
-            const previousState = requests;
+            // Store only the specific request for rollback (not entire state)
+            const originalRequest = { ...request };
 
             const approveOperation = async () => {
               if (!mountedRef.current) {
@@ -535,9 +551,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
               );
 
               if (!result.success) {
-                // Rollback on failure
+                // Surgical rollback - only restore the specific request
                 if (mountedRef.current) {
-                  setRequests(previousState);
+                  setRequests(prev => ({
+                    ...prev, // Keep any concurrent real-time updates
+                    pending: [...prev.pending, originalRequest], // Restore original request
+                    approved: prev.approved.filter(r => r.id !== request.id) // Remove from approved
+                  }));
                 }
                 throw new Error(result.error || "فشلت الموافقة على الطلب");
               }
@@ -615,8 +635,8 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       // Add to processing set
       setProcessingRequests(prev => new Set(prev).add(request.id));
 
-      // Store previous state for rollback
-      const previousState = requests;
+      // Store only the specific request for rollback (not entire state)
+      const originalRequest = { ...request };
 
       const rejectOperation = async () => {
         if (!mountedRef.current) {
@@ -636,9 +656,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         );
 
         if (!result.success) {
-          // Rollback on failure
+          // Surgical rollback - only restore the specific request
           if (mountedRef.current) {
-            setRequests(previousState);
+            setRequests(prev => ({
+              ...prev, // Keep any concurrent real-time updates
+              pending: [...prev.pending, originalRequest], // Restore original request
+              rejected: prev.rejected.filter(r => r.id !== request.id) // Remove from rejected
+            }));
           }
           throw new Error(result.error || "فشل رفض الطلب");
         }
@@ -784,10 +808,18 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
   const handleWhatsApp = (phone) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const sanitizedPhone = phone?.replace(/[^\d+]/g, "");
+
+    if (!sanitizedPhone || sanitizedPhone.length < 8) {
+      Alert.alert("خطأ", "رقم الواتساب غير صالح");
+      return;
+    }
+
     const message = encodeURIComponent(
       "مرحباً، بخصوص طلب ربط ملفك الشخصي في شجرة العائلة..."
     );
-    const url = `whatsapp://send?phone=${phone}&text=${message}`;
+    const url = `whatsapp://send?phone=${sanitizedPhone}&text=${message}`;
     Linking.openURL(url).catch(() => {
       Alert.alert("خطأ", "تعذر فتح WhatsApp");
     });
@@ -814,7 +846,6 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
   const currentRequests = requests[tabKeys[selectedTab]] || [];
-  const totalRequests = requests.pending.length + requests.approved.length + requests.rejected.length;
 
   // Status color helper
   const getStatusColor = (status) => {
@@ -825,6 +856,215 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       default: return colors.textMuted;
     }
   };
+
+  // Render individual request card for FlatList
+  const renderRequestCard = useCallback(({ item: request, index }) => {
+    const profile = request.profiles;
+    const displayName = profile ? getFullNameChain(profile, allProfiles, nameChainCache.current) : request.name_chain || "غير معروف";
+    const statusColor = getStatusColor(tabKeys[selectedTab]);
+
+    return (
+      <TouchableOpacity
+        onPress={() => profile?.id && handleNavigateToProfile(profile.id)}
+        activeOpacity={0.7}
+      >
+        <Animated.View
+          entering={FadeInDown.delay(Math.min(index * 30, 300)).springify().damping(15)}
+          layout={Layout.springify()}
+          style={styles.requestCard}
+        >
+          {/* Status indicator line */}
+          <View style={[styles.statusIndicatorLine, { backgroundColor: statusColor }]} />
+
+          <View style={styles.cardContent}>
+            <View style={styles.profileRow}>
+              {/* Profile photo with border */}
+              <View style={styles.photoContainer}>
+                {profile?.photo_url ? (
+                  <Image
+                    source={{ uri: profile.photo_url }}
+                    style={styles.profilePhoto}
+                  />
+                ) : (
+                  <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.avatarText}>
+                      {getInitials(profile?.name || request.name_chain || "غير معروف")}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.photoBorder} />
+              </View>
+
+              {/* Name and details */}
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{displayName}</Text>
+                <Text style={styles.profileMeta}>
+                  {getGenerationName(profile?.generation)}
+                </Text>
+                <Text style={[styles.profileMeta, { fontSize: 13, color: "#73637299", fontWeight: "400" }]}>
+                  {request.phone || "لا يوجد رقم"}
+                </Text>
+              </View>
+            </View>
+
+            {/* Actions for pending */}
+            {tabKeys[selectedTab] === "pending" && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={() => handleApprove(request)}
+                  style={[
+                    styles.pillButton,
+                    styles.approveButton,
+                    processingRequests.has(request.id) && styles.disabledButton
+                  ]}
+                  activeOpacity={0.7}
+                  disabled={processingRequests.has(request.id)}
+                >
+                  {processingRequests.has(request.id) ? (
+                    <ActivityIndicator size="small" color="#F9F7F3" />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color="#F9F7F3" />
+                      <Text style={styles.approveButtonText}>قبول</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleReject(request)}
+                  style={[
+                    styles.pillButton,
+                    styles.rejectButton,
+                    processingRequests.has(request.id) && styles.disabledButton
+                  ]}
+                  activeOpacity={0.7}
+                  disabled={processingRequests.has(request.id)}
+                >
+                  {processingRequests.has(request.id) ? (
+                    <ActivityIndicator size="small" color="#242121" />
+                  ) : (
+                    <>
+                      <Ionicons name="close" size={18} color="#242121" />
+                      <Text style={styles.rejectButtonText}>رفض</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {request.phone && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="مراسلة عبر واتساب"
+                  onPress={() => handleWhatsApp(request.phone)}
+                  style={[
+                    styles.pillButton,
+                    styles.whatsappButton,
+                    processingRequests.has(request.id) && styles.disabledButton
+                    ]}
+                    activeOpacity={0.7}
+                    disabled={processingRequests.has(request.id)}
+                  >
+                    <Ionicons name="logo-whatsapp" size={18} color="#242121" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {/* Status indicators and WhatsApp for approved/rejected */}
+            {tabKeys[selectedTab] === "approved" && (
+              <View style={styles.actionButtons}>
+                <View style={styles.statusIcon}>
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={colors.success}
+                  />
+                </View>
+                {request.phone && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="مراسلة عبر واتساب"
+                    onPress={() => handleWhatsApp(request.phone)}
+                    style={[styles.pillButton, styles.whatsappButton]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="logo-whatsapp" size={18} color="#242121" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {tabKeys[selectedTab] === "rejected" && (
+              <View style={styles.actionButtons}>
+                <View style={styles.rejectedInfo}>
+                  <Ionicons
+                    name="close-circle"
+                    size={22}
+                    color={colors.error}
+                  />
+                  {request.review_notes && (
+                    <Text style={styles.rejectionNote} numberOfLines={1}>
+                      {request.review_notes}
+                    </Text>
+                  )}
+                </View>
+                {request.phone && (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="مراسلة عبر واتساب"
+                    onPress={() => handleWhatsApp(request.phone)}
+                    style={[styles.pillButton, styles.whatsappButton]}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="logo-whatsapp" size={18} color="#242121" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  }, [selectedTab, allProfiles, processingRequests, handleApprove, handleReject, handleWhatsApp, handleNavigateToProfile]);
+
+  // Empty state component
+  const renderEmptyState = useCallback(() => {
+    if (loading) {
+      return (
+        <View style={styles.skeletonContainer}>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <View style={styles.skeletonItem} key={`skeleton-${index}`}>
+              <RequestSkeleton />
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyState}>
+        <Image
+          source={require('../../../assets/sadu_patterns/png/42.png')}
+          style={styles.emptyPattern}
+          resizeMode="contain"
+        />
+        <Ionicons
+          name="document-text-outline"
+          size={48}
+          color={colors.container}
+        />
+        <Text style={styles.emptyText}>
+          {selectedTab === 0
+            ? "لا توجد طلبات في الانتظار"
+            : selectedTab === 1
+            ? "لا توجد طلبات موافق عليها"
+            : "لا توجد طلبات مرفوضة"}
+        </Text>
+        <Text style={styles.refreshHint}>
+          اسحب للأسفل للتحديث
+        </Text>
+      </View>
+    );
+  }, [loading, selectedTab]);
 
   // Skeleton component for loading state
   const RequestSkeleton = () => (
@@ -850,7 +1090,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
       {/* Header with emblem - matching SettingsPage pattern */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -894,9 +1134,15 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
 
       {/* List */}
-      <ScrollView
+      <FlatList
+        data={currentRequests}
+        renderItem={renderRequestCard}
+        keyExtractor={item => String(item.id)}
         style={[styles.scrollView, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          currentRequests.length === 0 && { flex: 1 }
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -912,197 +1158,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           />
         }
         showsVerticalScrollIndicator={false}
-      >
-        {currentRequests.length > 0 ? (
-          <View style={styles.listContainer}>
-            {currentRequests.map((request, index) => {
-              const profile = request.profiles;
-              const displayName = profile ? getFullNameChain(profile, allProfiles, nameChainCache.current) : request.name_chain || "غير معروف";
-              const statusColor = getStatusColor(tabKeys[selectedTab]);
-
-              return (
-                <TouchableOpacity
-                  key={request.id}
-                  onPress={() => profile?.id && handleNavigateToProfile(profile.id)}
-                  activeOpacity={0.7}
-                >
-                <Animated.View
-                  entering={FadeInDown.delay(index * 30).springify().damping(15)}
-                  layout={Layout.springify()}
-                  style={styles.requestCard}
-                >
-                  {/* Status indicator line */}
-                  <View style={[styles.statusIndicatorLine, { backgroundColor: statusColor }]} />
-
-                  <View style={styles.cardContent}>
-                    <View style={styles.profileRow}>
-                      {/* Profile photo with border */}
-                      <View style={styles.photoContainer}>
-                        {profile?.photo_url ? (
-                          <Image
-                            source={{ uri: profile.photo_url }}
-                            style={styles.profilePhoto}
-                          />
-                        ) : (
-                          <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
-                            <Text style={styles.avatarText}>
-                              {getInitials(profile?.name || request.name_chain || "غير معروف")}
-                            </Text>
-                          </View>
-                        )}
-                        <View style={styles.photoBorder} />
-                      </View>
-
-                      {/* Name and details */}
-                      <View style={styles.profileInfo}>
-                        <Text style={styles.profileName}>{displayName}</Text>
-                        <Text style={styles.profileMeta}>
-                          {getGenerationName(profile?.generation)}
-                        </Text>
-                        <Text style={[styles.profileMeta, { fontSize: 13, color: "#73637299", fontWeight: "400" }]}>
-                          {request.phone || "لا يوجد رقم"}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Actions for pending */}
-                    {tabKeys[selectedTab] === "pending" && (
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity
-                          onPress={() => handleApprove(request)}
-                          style={[
-                            styles.pillButton,
-                            styles.approveButton,
-                            processingRequests.has(request.id) && styles.disabledButton
-                          ]}
-                          activeOpacity={0.7}
-                          disabled={processingRequests.has(request.id)}
-                        >
-                          {processingRequests.has(request.id) ? (
-                            <ActivityIndicator size="small" color="#F9F7F3" />
-                          ) : (
-                            <>
-                              <Ionicons name="checkmark" size={18} color="#F9F7F3" />
-                              <Text style={styles.approveButtonText}>قبول</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          onPress={() => handleReject(request)}
-                          style={[
-                            styles.pillButton,
-                            styles.rejectButton,
-                            processingRequests.has(request.id) && styles.disabledButton
-                          ]}
-                          activeOpacity={0.7}
-                          disabled={processingRequests.has(request.id)}
-                        >
-                          {processingRequests.has(request.id) ? (
-                            <ActivityIndicator size="small" color="#242121" />
-                          ) : (
-                            <>
-                              <Ionicons name="close" size={18} color="#242121" />
-                              <Text style={styles.rejectButtonText}>رفض</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-
-                        {request.phone && (
-                          <TouchableOpacity
-                            onPress={() => handleWhatsApp(request.phone)}
-                            style={[
-                              styles.pillButton,
-                              styles.whatsappButton,
-                              processingRequests.has(request.id) && styles.disabledButton
-                            ]}
-                            activeOpacity={0.7}
-                            disabled={processingRequests.has(request.id)}
-                          >
-                            <Ionicons name="logo-whatsapp" size={18} color="#242121" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-
-                    {/* Status indicators and WhatsApp for approved/rejected */}
-                    {tabKeys[selectedTab] === "approved" && (
-                      <View style={styles.actionButtons}>
-                        <View style={styles.statusIcon}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={22}
-                            color={colors.success}
-                          />
-                        </View>
-                        {request.phone && (
-                          <TouchableOpacity
-                            onPress={() => handleWhatsApp(request.phone)}
-                            style={[styles.pillButton, styles.whatsappButton]}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="logo-whatsapp" size={18} color="#242121" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-
-                    {tabKeys[selectedTab] === "rejected" && (
-                      <View style={styles.actionButtons}>
-                        <View style={styles.rejectedInfo}>
-                          <Ionicons
-                            name="close-circle"
-                            size={22}
-                            color={colors.error}
-                          />
-                          {request.review_notes && (
-                            <Text style={styles.rejectionNote} numberOfLines={1}>
-                              {request.review_notes}
-                            </Text>
-                          )}
-                        </View>
-                        {request.phone && (
-                          <TouchableOpacity
-                            onPress={() => handleWhatsApp(request.phone)}
-                            style={[styles.pillButton, styles.whatsappButton]}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="logo-whatsapp" size={18} color="#242121" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                </Animated.View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ) : !loading ? (
-          <View style={styles.emptyState}>
-            <Image
-              source={require('../../../assets/sadu_patterns/png/42.png')}
-              style={styles.emptyPattern}
-              resizeMode="contain"
-            />
-            <Ionicons
-              name="document-text-outline"
-              size={48}
-              color={colors.container}
-            />
-            <Text style={styles.emptyText}>
-              {selectedTab === 0
-                ? "لا توجد طلبات في الانتظار"
-                : selectedTab === 1
-                ? "لا توجد طلبات موافق عليها"
-                : "لا توجد طلبات مرفوضة"}
-            </Text>
-            <Text style={styles.refreshHint}>
-              اسحب للأسفل للتحديث
-            </Text>
-          </View>
-        ) : null}
-      </ScrollView>
+        ListEmptyComponent={renderEmptyState}
+        windowSize={10}
+        maxToRenderPerBatch={20}
+        initialNumToRender={10}
+        removeClippedSubviews={true}
+        updateCellsBatchingPeriod={50}
+      />
     </SafeAreaView>
   );
 }
@@ -1127,11 +1189,18 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: "SF Arabic",
   },
+  skeletonContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+  },
+  skeletonItem: {
+    marginBottom: 12,
+  },
 
   // Header - matching SettingsPage pattern
   header: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 10 : 20, // Reduced for iOS since SafeAreaView handles it
+    paddingTop: Platform.OS === "ios" ? 10 : 20, // Extra padding for iOS Dynamic Island
     paddingBottom: 8,
   },
   headerRow: {
