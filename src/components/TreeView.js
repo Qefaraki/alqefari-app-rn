@@ -34,6 +34,8 @@ import {
   Text as SkiaText,
   useFont,
   Path,
+  Paint,
+  ColorMatrix,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -294,6 +296,78 @@ const ImageNode = ({
           fit="cover"
         />
       </Mask>
+    </Group>
+  );
+};
+
+// Sadu Icon component for root node decoration
+const SaduIcon = ({ x, y, size }) => {
+  const saduImage = useImage(require("../../assets/sadu_patterns/png/90.png"));
+
+  if (!saduImage) return null;
+
+  return (
+    <Group>
+      {/* Apply Najdi Crimson color tint */}
+      <Group
+        layer={
+          <Paint>
+            <ColorMatrix
+              matrix={[
+                0.631, 0, 0, 0, 0,   // Red channel - boost red
+                0.2, 0, 0, 0, 0,     // Green channel - reduce
+                0.2, 0, 0, 0, 0,     // Blue channel - reduce
+                0, 0, 0, 1, 0,       // Alpha channel - preserve
+              ]}
+            />
+          </Paint>
+        }
+      >
+        <SkiaImage
+          image={saduImage}
+          x={x}
+          y={y}
+          width={size}
+          height={size}
+          fit="contain"
+        />
+      </Group>
+    </Group>
+  );
+};
+
+// Sadu Icon component for Generation 2 nodes with children
+const SaduIconG2 = ({ x, y, size }) => {
+  const saduImage = useImage(require("../../assets/sadu_patterns/png/73.png"));
+
+  if (!saduImage) return null;
+
+  return (
+    <Group>
+      {/* Apply Najdi Crimson color tint */}
+      <Group
+        layer={
+          <Paint>
+            <ColorMatrix
+              matrix={[
+                0.631, 0, 0, 0, 0,   // Red channel - boost red
+                0.2, 0, 0, 0, 0,     // Green channel - reduce
+                0.2, 0, 0, 0, 0,     // Blue channel - reduce
+                0, 0, 0, 1, 0,       // Alpha channel - preserve
+              ]}
+            />
+          </Paint>
+        }
+      >
+        <SkiaImage
+          image={saduImage}
+          x={x}
+          y={y}
+          width={size}
+          height={size}
+          fit="contain"
+        />
+      </Group>
     </Group>
   );
 };
@@ -873,14 +947,39 @@ const TreeView = ({
     }
     const layout = calculateTreeLayout(treeData);
 
+    // Adjust root node position higher
+    const adjustedNodes = layout.nodes.map(node => {
+      const isRoot = !node.father_id;
+      return {
+        ...node,
+        y: isRoot ? node.y - 80 : node.y
+      };
+    });
+
+    // Adjust connections for root node
+    const adjustedConnections = layout.connections.map(conn => {
+      // Check if this connection involves the root node as parent
+      const rootNode = adjustedNodes.find(n => !n.father_id);
+      if (rootNode && conn.parent.id === rootNode.id) {
+        return {
+          ...conn,
+          parent: {
+            ...conn.parent,
+            y: conn.parent.y - 80
+          }
+        };
+      }
+      return conn;
+    });
+
     // DEBUG: Log canvas coordinates summary
-    if (layout.nodes.length > 0) {
+    if (adjustedNodes.length > 0) {
       console.log('🎯 LAYOUT CALCULATED:');
-      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
+      console.log(`  Nodes: ${adjustedNodes.length}, Connections: ${adjustedConnections.length}`);
       console.log(`  TreeData length: ${treeData.length}`);
     }
 
-    return layout;
+    return { nodes: adjustedNodes, connections: adjustedConnections };
   }, [treeData]);
 
   // Build indices for LOD system with O(N) complexity
@@ -2120,9 +2219,11 @@ const TreeView = ({
     (node) => {
       const isRoot = !node.father_id;
       const hasPhoto = !!node.photo_url;
+      const isG2Parent = node.generation === 2 && node._hasChildren;
 
-      // Make root node bigger
+      // Adjust width for root and G2 parent nodes
       const nodeWidth = isRoot ? 120 :
+        isG2Parent ? (hasPhoto ? 95 : 75) :
         (node.nodeWidth || (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY));
       const nodeHeight = isRoot ? 100 :
         (hasPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
@@ -2133,9 +2234,8 @@ const TreeView = ({
 
       const isHighlighted = highlightedNodeIdState === node.id;
 
-      // Wrap root node in a Group with transform to move it up
-      const nodeContent = (
-        <Group key={`content-${node.id}`}>
+      return (
+        <Group key={node.id}>
           {/* Removed broken Skia glow - will use Moti overlay instead */}
           {/* Shadow */}
           <RoundedRect
@@ -2229,7 +2329,7 @@ const TreeView = ({
                 const nameParagraph = createArabicParagraph(
                   node.name,
                   "bold",
-                  11,
+                  isRoot ? 22 : 11,  // Double size for root
                   "#242121",
                   nodeWidth,
                 );
@@ -2278,7 +2378,7 @@ const TreeView = ({
                 const nameParagraph = createArabicParagraph(
                   node.name,
                   "bold",
-                  11,
+                  isRoot ? 22 : 11,  // Double size for root
                   "#242121",
                   nodeWidth,
                 );
@@ -2297,22 +2397,50 @@ const TreeView = ({
                   />
                 );
               })()}
+
+              {/* Sadu icons for root node */}
+              {isRoot && !hasPhoto && (
+                <>
+                  {/* Left Sadu icon */}
+                  <SaduIcon
+                    x={x + 5}
+                    y={y + nodeHeight / 2 - 10}
+                    size={20}
+                  />
+
+                  {/* Right Sadu icon */}
+                  <SaduIcon
+                    x={x + nodeWidth - 25}
+                    y={y + nodeHeight / 2 - 10}
+                    size={20}
+                  />
+                </>
+              )}
+
+              {/* Sadu icons for Generation 2 parent nodes */}
+              {isG2Parent && (
+                <>
+                  {/* Left Sadu icon */}
+                  <SaduIconG2
+                    x={x + 3}
+                    y={hasPhoto ? y + 5 : y + nodeHeight / 2 - 7}
+                    size={14}
+                  />
+
+                  {/* Right Sadu icon */}
+                  <SaduIconG2
+                    x={x + nodeWidth - 17}
+                    y={hasPhoto ? y + 5 : y + nodeHeight / 2 - 7}
+                    size={14}
+                  />
+                </>
+              )}
             </>
           )}
         </Group>
       );
 
-      // If root, wrap in a Group with transform to move it up
-      if (isRoot) {
-        return (
-          <Group key={node.id} transform={[{ translateY: -60 }]}>
-            {nodeContent}
-          </Group>
-        );
-      }
-
-      // Otherwise return the node content directly with the original key
-      return React.cloneElement(nodeContent, { key: node.id });
+      return nodeContent;
     },
     [selectedPersonId, highlightedNodeIdState, glowOpacityState],
   );
@@ -2387,6 +2515,7 @@ const TreeView = ({
         _tier: tier,
         _scale: currentTransform.scale,
         _selectBucket: selectBucketWithHysteresis,
+        _hasChildren: indices.parentToChildren.has(node.id),
       };
       return renderNode(modifiedNode);
     },
@@ -2396,6 +2525,7 @@ const TreeView = ({
       renderNode,
       renderTier2Node,
       selectBucketWithHysteresis,
+      indices,
     ],
   );
 

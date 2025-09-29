@@ -72,9 +72,12 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
     }
 
     // Calculate target position to center node in viewport
+    // Account for root node being moved up 80px
+    const isRoot = !targetNode.father_id;
+    const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
     const targetScale = 1.0; // Moderate zoom for better overview
     const targetX = viewport.width / 2 - targetNode.x * targetScale;
-    const targetY = viewport.height / 2 - targetNode.y * targetScale; // Center vertically
+    const targetY = viewport.height / 2 - adjustedY * targetScale; // Center vertically
 
     // console.log('Navigate to focused node:', {
     //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
