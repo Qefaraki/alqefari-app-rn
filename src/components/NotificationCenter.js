@@ -82,7 +82,9 @@ export default function NotificationCenter({ visible, onClose }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState(false);
   const subscriptionRef = useRef(null);
+  const subscriptionTimeoutRef = useRef(null);
 
   // Animation values
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
@@ -90,8 +92,12 @@ export default function NotificationCenter({ visible, onClose }) {
 
   useEffect(() => {
     if (visible && user) {
+      // Load notifications first (shows cached data quickly)
       loadNotifications();
-      setupRealtimeSubscription();
+      // Setup subscription in background (non-blocking)
+      setTimeout(() => {
+        setupRealtimeSubscription();
+      }, 100);
       // Animate in
       Animated.parallel([
         Animated.spring(slideAnim, {
@@ -107,10 +113,14 @@ export default function NotificationCenter({ visible, onClose }) {
         }),
       ]).start();
     } else {
-      // Clean up subscription when closing
+      // Clean up subscription and timeout when closing
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
+      }
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
       }
       // Animate out
       Animated.parallel([
@@ -135,6 +145,10 @@ export default function NotificationCenter({ visible, onClose }) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -142,11 +156,14 @@ export default function NotificationCenter({ visible, onClose }) {
   const setupRealtimeSubscription = async () => {
     if (!user) return;
 
+    // Clear any existing error state
+    setSubscriptionError(false);
+
     try {
-      // Subscribe to notifications for this user
-      const subscription = await subscriptionManager.subscribe({
+      // Set a timeout for subscription attempt (10 seconds)
+      const subscriptionPromise = subscriptionManager.subscribe({
         channelName: `user-notifications-${user.id}`,
-        table: 'notifications',
+        table: 'notifications',  // Using the actual table name, not the view
         filter: `user_id=eq.${user.id}`,
         event: '*',
         onUpdate: (payload) => {
@@ -162,14 +179,41 @@ export default function NotificationCenter({ visible, onClose }) {
         },
         onError: (error) => {
           console.error('Notification subscription error:', error);
+          // Set error state but don't retry infinitely
+          setSubscriptionError(true);
         },
         component: { id: 'NotificationCenter' } // For WeakMap tracking
       });
+
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        subscriptionTimeoutRef.current = setTimeout(() => {
+          reject(new Error('Subscription timeout after 10 seconds'));
+        }, 10000);
+      });
+
+      // Race between subscription and timeout
+      const subscription = await Promise.race([subscriptionPromise, timeoutPromise]);
+
+      // Clear timeout if subscription succeeded
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
+      }
 
       subscriptionRef.current = subscription;
       console.log('✅ Real-time notifications subscription active');
     } catch (error) {
       console.error('Failed to setup notification subscription:', error);
+      setSubscriptionError(true);
+
+      // Clear timeout on error
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
+      }
+
+      // Don't block UI - user can still see cached notifications
     }
   };
 
@@ -426,9 +470,29 @@ export default function NotificationCenter({ visible, onClose }) {
                 <Text style={styles.loadingText}>جاري التحميل...</Text>
               </View>
             ) : notifications.length > 0 ? (
-              notifications.map(renderNotification)
+              <>
+                {subscriptionError && (
+                  <View style={styles.errorBanner}>
+                    <Ionicons name="warning-outline" size={16} color={colors.warning} />
+                    <Text style={styles.errorBannerText}>
+                      التحديثات التلقائية غير متاحة حالياً
+                    </Text>
+                  </View>
+                )}
+                {notifications.map(renderNotification)}
+              </>
             ) : (
-              renderEmptyState()
+              <>
+                {subscriptionError && (
+                  <View style={styles.errorBanner}>
+                    <Ionicons name="warning-outline" size={16} color={colors.warning} />
+                    <Text style={styles.errorBannerText}>
+                      التحديثات التلقائية غير متاحة حالياً
+                    </Text>
+                  </View>
+                )}
+                {renderEmptyState()}
+              </>
             )}
           </ScrollView>
         </SafeAreaView>
@@ -595,5 +659,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.muted,
     fontFamily: "SF Arabic",
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: `${colors.warning}15`,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: `${colors.warning}30`,
+  },
+  errorBannerText: {
+    fontSize: 14,
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    marginLeft: 8,
+    flex: 1,
   },
 });

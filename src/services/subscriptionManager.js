@@ -19,19 +19,21 @@ class SubscriptionManager {
     this.retryAttempts = new Map();
     this.circuitBreaker = new Map();
     this.lastRetryTime = new Map();
+    this.activeRetryTimeouts = new Map(); // Track active retry timeouts
 
     // Configuration
     this.config = {
       maxChannels: 5,
-      maxRetries: 5,
+      maxRetries: 3, // Reduced from 5 to fail faster
       baseRetryDelay: 1000, // 1 second
-      maxRetryDelay: 30000, // 30 seconds
+      maxRetryDelay: 15000, // Reduced from 30s to 15s
       heartbeatInterval: 30000, // 30 seconds
       inactivityTimeout: 300000, // 5 minutes
       memoryThreshold: 80 * 1024 * 1024, // 80MB warning threshold
       debounceDelay: 500, // 500ms debounce for updates
-      circuitBreakerThreshold: 5, // Failures before circuit opens
-      circuitBreakerResetTime: 60000 // 1 minute reset time
+      circuitBreakerThreshold: 3, // Reduced from 5 to open circuit faster
+      circuitBreakerResetTime: 60000, // 1 minute reset time
+      maxConcurrentRetries: 2 // New: limit concurrent retry attempts
     };
 
     // Performance monitoring
@@ -217,6 +219,14 @@ class SubscriptionManager {
       return;
     }
 
+    // Check concurrent retry limit
+    const activeRetries = Array.from(this.activeRetryTimeouts.values()).filter(t => t !== null).length;
+    if (activeRetries >= this.config.maxConcurrentRetries) {
+      console.warn(`[SubscriptionManager] Max concurrent retries reached, skipping retry for ${channelName}`);
+      if (onError) onError(new Error('Too many concurrent retry attempts'));
+      return;
+    }
+
     // Update circuit breaker
     this.updateCircuitBreaker(channelName, false);
 
@@ -227,6 +237,9 @@ class SubscriptionManager {
       // Open circuit breaker
       this.openCircuitBreaker(channelName);
 
+      // Clear any existing retry timeout
+      this.clearRetryTimeout(channelName);
+
       if (onError) onError(error);
       return;
     }
@@ -235,6 +248,7 @@ class SubscriptionManager {
     const subscriptionInfo = this.activeChannels.get(channelName);
     if (!subscriptionInfo) {
       console.log(`[SubscriptionManager] Channel ${channelName} no longer active, skipping retry`);
+      this.clearRetryTimeout(channelName);
       return;
     }
 
@@ -248,8 +262,14 @@ class SubscriptionManager {
     this.retryAttempts.set(channelName, retryCount + 1);
     this.lastRetryTime.set(channelName, Date.now());
 
-    // Retry subscription only if channel still exists
-    setTimeout(async () => {
+    // Clear any existing retry timeout for this channel
+    this.clearRetryTimeout(channelName);
+
+    // Set new retry timeout
+    const retryTimeout = setTimeout(async () => {
+      // Remove this timeout from active list
+      this.activeRetryTimeouts.delete(channelName);
+
       const subscriptionInfo = this.activeChannels.get(channelName);
       if (subscriptionInfo && !this.isCircuitOpen(channelName)) {
         console.log(`[SubscriptionManager] Attempting reconnect for ${channelName}`);
@@ -278,6 +298,20 @@ class SubscriptionManager {
         console.log(`[SubscriptionManager] Skipping retry for ${channelName} (circuit open or channel removed)`);
       }
     }, delay);
+
+    // Track the retry timeout
+    this.activeRetryTimeouts.set(channelName, retryTimeout);
+  }
+
+  /**
+   * Clear retry timeout for a channel
+   */
+  clearRetryTimeout(channelName) {
+    const timeout = this.activeRetryTimeouts.get(channelName);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.activeRetryTimeouts.delete(channelName);
+    }
   }
 
   /**
@@ -302,6 +336,9 @@ class SubscriptionManager {
         clearTimeout(this.debounceTimers.get(channelName));
         this.debounceTimers.delete(channelName);
       }
+
+      // Clear retry timeout
+      this.clearRetryTimeout(channelName);
 
       this.activeChannels.delete(channelName);
       this.retryAttempts.delete(channelName);
@@ -482,6 +519,14 @@ class SubscriptionManager {
       clearTimeout(timer);
     }
     this.debounceTimers.clear();
+
+    // Clear all retry timeouts
+    for (const [channelName, timeout] of this.activeRetryTimeouts) {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
+    this.activeRetryTimeouts.clear();
 
     // Unsubscribe all channels
     const channels = Array.from(this.activeChannels.keys());
