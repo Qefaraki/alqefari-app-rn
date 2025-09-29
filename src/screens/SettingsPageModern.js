@@ -28,6 +28,7 @@ import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
 import notificationService from "../services/notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import adminContactService from "../services/adminContact";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -750,8 +751,27 @@ export default function SettingsPageModern({ user }) {
               );
             }}
           >
-            <Ionicons name="refresh-outline" size={20} color={colors.text} />
+            <Ionicons name="refresh-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
             <Text style={styles.secondaryButtonText}>إعادة تعيين الإعدادات</Text>
+          </TouchableOpacity>
+
+          {/* Contact Admins Button */}
+          <TouchableOpacity
+            style={styles.contactAdminButton}
+            onPress={async () => {
+              handleFeedback();
+              const result = await adminContactService.openAdminWhatsApp('مرحباً، أحتاج للمساعدة');
+              if (!result.success) {
+                Alert.alert(
+                  "تعذر فتح الواتساب",
+                  "يرجى التأكد من تثبيت تطبيق الواتساب على جهازك",
+                  [{ text: "حسناً" }]
+                );
+              }
+            }}
+          >
+            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+            <Text style={styles.contactAdminButtonText}>تواصل مع الإدارة</Text>
           </TouchableOpacity>
 
           {currentUser && !isGuestMode && (
@@ -1075,16 +1095,34 @@ const styles = StyleSheet.create({
     borderColor: colors.container,
     borderRadius: 12,
     paddingVertical: 14,
+    paddingHorizontal: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
   },
   secondaryButtonText: {
     color: colors.text,
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
+  },
+  contactAdminButton: {
+    backgroundColor: "#25D366" + "15",
+    borderWidth: 1.5,
+    borderColor: "#25D366",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  contactAdminButtonText: {
+    color: "#25D366",
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    marginLeft: 8,
   },
   dangerButton: {
     backgroundColor: "#DC262610",
