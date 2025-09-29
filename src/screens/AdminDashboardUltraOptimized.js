@@ -21,6 +21,7 @@ import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionMan
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
+import AdminSettingsView from "../components/admin/AdminSettingsView";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
@@ -94,6 +95,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [showMunasibManager, setShowMunasibManager] = useState(false);
   const [showPermissionManager, setShowPermissionManager] = useState(false);
+  const [showAdminSettings, setShowAdminSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -746,12 +748,25 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
               <View style={styles.separator} />
 
               <AnimatedTouchable
-                style={[styles.listItem, styles.listItemLast]}
+                style={styles.listItem}
                 onPress={handleRecalculateLayouts}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="refresh-outline" size={22} color="#242121" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>إعادة حساب</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </AnimatedTouchable>
+
+              <View style={styles.separator} />
+
+              <AnimatedTouchable
+                style={[styles.listItem, styles.listItemLast]}
+                onPress={() => setShowAdminSettings(true)}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="logo-whatsapp" size={22} color="#25D366" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>رقم الواتساب</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>
@@ -850,6 +865,12 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         showValidationDashboard,
         () => setShowValidationDashboard(false),
         ValidationDashboard
+      )}
+
+      {renderIOSModal(
+        showAdminSettings,
+        () => setShowAdminSettings(false),
+        AdminSettingsView
       )}
     </SafeAreaView>
   );

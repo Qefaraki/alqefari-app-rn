@@ -760,7 +760,7 @@ export default function SettingsPageModern({ user }) {
             style={styles.contactAdminButton}
             onPress={async () => {
               handleFeedback();
-              const result = await adminContactService.openAdminWhatsApp('مرحباً، أحتاج للمساعدة');
+              const result = await adminContactService.openAdminWhatsApp('السلام عليكم');
               if (!result.success) {
                 Alert.alert(
                   "تعذر فتح الواتساب",
