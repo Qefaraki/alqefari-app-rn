@@ -57,7 +57,7 @@ import { useTreeStore } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
 import { useSettings } from "../contexts/SettingsContext";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContextSimple";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
 // Admin components removed for simplified view

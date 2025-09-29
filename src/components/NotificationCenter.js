@@ -17,7 +17,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../services/supabase";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContextSimple";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import subscriptionManager from "../services/subscriptionManager";
 

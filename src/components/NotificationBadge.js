@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContextSimple";
 import * as Haptics from "expo-haptics";
 import subscriptionManager from "../services/subscriptionManager";
 

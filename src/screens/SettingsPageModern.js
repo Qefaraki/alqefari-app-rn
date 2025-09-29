@@ -18,7 +18,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContextSimple";
 import { accountDeletionService } from "../services/accountDeletion";
 import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
