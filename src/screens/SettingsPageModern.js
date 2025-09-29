@@ -404,6 +404,17 @@ export default function SettingsPageModern({ user }) {
               console.log('🔍 [Settings] NotificationCenter onClose called');
               setShowNotificationCenter(false);
             }}
+            onNavigateToAdmin={(openLinkRequests) => {
+              console.log('[Settings] Navigating to admin from NotificationCenter');
+              setShowNotificationCenter(false);
+              // Navigate to admin with params
+              router.push({
+                pathname: '/(app)/admin',
+                params: {
+                  openLinkRequests: openLinkRequests ? 'true' : undefined
+                }
+              });
+            }}
           />
         )}
 

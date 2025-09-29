@@ -137,7 +137,7 @@ const NewsScreenV3: React.FC = () => {
       <View style={styles.headerContainer}>
         {/* Title section - matching Settings page style */}
         <View style={styles.header}>
-          <View style={styles.titleRow}>
+          <View style={styles.headerRow}>
             <Image
               source={require('../../assets/logo/AlqefariEmblem.png')}
               style={styles.emblem}
@@ -325,9 +325,9 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 8,
   },
-  titleRow: {
+  headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Align to top instead of center
+    alignItems: 'flex-start',
     justifyContent: 'flex-start',
   },
   titleContent: {

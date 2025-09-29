@@ -28,12 +28,26 @@ export const accountDeletionService = {
         throw new Error(data?.error || "Account deletion failed");
       }
 
+      // After successful RPC, sign out the user
+      // This clears the session and prevents further access
+      const { error: signOutError } = await supabase.auth.signOut();
+
+      if (signOutError) {
+        console.error("Sign out error after deletion:", signOutError);
+        // Continue anyway - the account is already unlinked
+      }
+
+      // Note: We cannot call auth.admin.deleteUser() from the client
+      // as it requires service role privileges. The auth record remains
+      // but is marked with deletion metadata and the user is signed out.
+
       return {
         success: true,
         message: data?.message || "Account deleted successfully",
         adminDeleted: Boolean(data?.admin_deleted),
         profileUnlinked: Boolean(data?.profile_unlinked),
-        userDeleted: Boolean(data?.user_deleted),
+        notificationsDeleted: Boolean(data?.notifications_deleted > 0),
+        authMarked: Boolean(data?.auth_marked),
       };
     } catch (error) {
       console.error("Account deletion failed:", error);

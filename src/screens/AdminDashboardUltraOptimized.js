@@ -11,6 +11,7 @@ import {
   Platform,
   Animated,
   Modal,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -70,7 +71,7 @@ const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
   );
 };
 
-const AdminDashboardUltraOptimized = ({ user }) => {
+const AdminDashboardUltraOptimized = ({ user, openLinkRequests = false }) => {
   // Loading states for each section
   const [statsLoading, setStatsLoading] = useState(true);
   const [enhancedLoading, setEnhancedLoading] = useState(true);
@@ -120,6 +121,13 @@ const AdminDashboardUltraOptimized = ({ user }) => {
         useNativeDriver: false,
       }),
     ]).start();
+
+    // Open link requests modal if requested via navigation
+    if (openLinkRequests) {
+      setTimeout(() => {
+        setShowLinkRequests(true);
+      }, 500); // Small delay to let the dashboard load first
+    }
   }, []);
 
   // Load data progressively
@@ -477,28 +485,29 @@ const AdminDashboardUltraOptimized = ({ user }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <Text style={styles.title}>الإدارة</Text>
-        <View style={styles.headerActions}>
-          <NotificationBadge
-            onPress={() => {
-              // Small delay to prevent UI freeze
-              requestAnimationFrame(() => {
-                setShowNotificationCenter(true);
-              });
-            }}
+      {/* Header - matching SettingsPage pattern */}
+      <View style={styles.header}>
+        <View style={styles.headerRow}>
+          <Image
+            source={require('../../assets/logo/AlqefariEmblem.png')}
+            style={styles.emblem}
+            resizeMode="contain"
           />
+          <View style={styles.titleContent}>
+            <Text style={styles.title}>الإدارة</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <NotificationBadge
+              onPress={() => {
+                // Small delay to prevent UI freeze
+                requestAnimationFrame(() => {
+                  setShowNotificationCenter(true);
+                });
+              }}
+            />
+          </View>
         </View>
-      </Animated.View>
+      </View>
 
       {/* Notification Center - Only render when needed */}
       {showNotificationCenter && (
@@ -827,18 +836,31 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3", // Al-Jass White
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 20,
     paddingBottom: 8,
-    backgroundColor: "#F9F7F3", // Al-Jass White
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  emblem: {
+    width: 52,
+    height: 52,
+    tintColor: '#242121',
+    marginRight: 3,
+    marginTop: -5,
+    marginLeft: -5,
+  },
+  titleContent: {
+    flex: 1,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    marginTop: 5,
   },
   title: {
     fontSize: 34,

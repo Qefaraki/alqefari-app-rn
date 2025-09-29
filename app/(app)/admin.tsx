@@ -2,11 +2,13 @@ import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator } from "react-native";
 import AdminDashboard from "../../src/screens/AdminDashboardUltraOptimized";
 import { useAuth } from "../../src/contexts/AuthContextSimple";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
 export default function AdminScreen() {
   const { user, isAdmin, isLoading } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams();
+
 
   useEffect(() => {
     // Redirect non-admins
@@ -31,5 +33,5 @@ export default function AdminScreen() {
     );
   }
 
-  return <AdminDashboard user={user} />;
+  return <AdminDashboard user={user} openLinkRequests={params.openLinkRequests === 'true'} />;
 }

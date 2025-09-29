@@ -11,18 +11,21 @@ import {
   SafeAreaView,
   RefreshControl,
   Platform,
-  PanResponder,
   ActivityIndicator,
+  Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isToday, isYesterday, format, startOfDay } from "date-fns";
 import { ar } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContextSimple";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import subscriptionManager from "../services/subscriptionManager";
-import { BlurView } from "expo-blur";
+import { Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useRouter } from 'expo-router';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -58,6 +61,8 @@ const NotificationTypeAliases = {
   profile_link_rejected: NotificationTypes.LINK_REQUEST_REJECTED,
   link_approved: NotificationTypes.LINK_REQUEST_APPROVED,
   link_rejected: NotificationTypes.LINK_REQUEST_REJECTED,
+  new_profile_link_request: NotificationTypes.NEW_LINK_REQUEST, // Map backend type to our type
+  profile_link_request: NotificationTypes.NEW_LINK_REQUEST, // Alternative mapping
 };
 
 // Get icon and color for notification type
@@ -80,8 +85,51 @@ const getNotificationStyle = (type) => {
   }
 };
 
-export default function NotificationCenter({ visible, onClose }) {
+// Group notifications by date
+const groupNotificationsByDate = (notifications) => {
+  const groups = {};
+
+  notifications.forEach(notification => {
+    const date = new Date(notification.createdAt);
+    let dateKey;
+    let dateLabel;
+
+    if (isToday(date)) {
+      dateKey = 'today';
+      dateLabel = 'اليوم';
+    } else if (isYesterday(date)) {
+      dateKey = 'yesterday';
+      dateLabel = 'أمس';
+    } else {
+      dateKey = format(date, 'yyyy-MM-dd');
+      dateLabel = format(date, 'd MMMM', { locale: ar });
+    }
+
+    if (!groups[dateKey]) {
+      groups[dateKey] = {
+        label: dateLabel,
+        notifications: [],
+      };
+    }
+
+    groups[dateKey].notifications.push(notification);
+  });
+
+  // Sort groups by date (newest first)
+  const sortedGroups = Object.entries(groups).sort(([a], [b]) => {
+    if (a === 'today') return -1;
+    if (b === 'today') return 1;
+    if (a === 'yesterday') return -1;
+    if (b === 'yesterday') return 1;
+    return b.localeCompare(a);
+  });
+
+  return sortedGroups.map(([key, value]) => value);
+};
+
+export default function NotificationCenter({ visible, onClose, onNavigateToAdmin }) {
   const { user, isAdmin } = useAuth();
+  const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,50 +137,10 @@ export default function NotificationCenter({ visible, onClose }) {
   const [subscriptionError, setSubscriptionError] = useState(false);
   const subscriptionRef = useRef(null);
   const subscriptionTimeoutRef = useRef(null);
+  const swipeableRefs = useRef({});
 
-  // Animation values for bottom sheet
-  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  // Animation value for fade in/out
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  // Pan responder for drag to dismiss
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        return gestureState.dy > 10 && Math.abs(gestureState.dx) < 10;
-      },
-      onPanResponderMove: (evt, gestureState) => {
-        if (gestureState.dy > 0) {
-          slideAnim.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dy > 150 || gestureState.vy > 0.5) {
-          // Close if dragged down enough or with velocity
-          Animated.parallel([
-            Animated.timing(slideAnim, {
-              toValue: SCREEN_HEIGHT,
-              duration: 250,
-              useNativeDriver: true,
-            }),
-            Animated.timing(fadeAnim, {
-              toValue: 0,
-              duration: 250,
-              useNativeDriver: true,
-            }),
-          ]).start(() => onClose());
-        } else {
-          // Snap back to position
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            tension: 100,
-            friction: 10,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
 
   useEffect(() => {
     console.log('🔍 [NotificationCenter] useEffect triggered - visible:', visible, 'user:', !!user);
@@ -151,21 +159,13 @@ export default function NotificationCenter({ visible, onClose }) {
         setupRealtimeSubscription();
       }, 100);
 
-      // Animate in with bottom sheet style
+      // Animate in with fade
       console.log('🔍 [NotificationCenter] Starting animations...');
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 100,
-          friction: 15,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
         console.log('🔍 [NotificationCenter] Animation complete');
       });
     } else {
@@ -178,19 +178,12 @@ export default function NotificationCenter({ visible, onClose }) {
         clearTimeout(subscriptionTimeoutRef.current);
         subscriptionTimeoutRef.current = null;
       }
-      // Animate out with bottom sheet style
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: SCREEN_HEIGHT,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Animate out with fade
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     }
   }, [visible, user]);
 
@@ -399,11 +392,58 @@ export default function NotificationCenter({ visible, onClose }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const deleteNotification = async (notificationId) => {
+    // Remove from local state
+    const updatedNotifications = notifications.filter(n => n.id !== notificationId);
+    setNotifications(updatedNotifications);
+    updateUnreadCount(updatedNotifications);
+
+    // Update in storage
+    await AsyncStorage.setItem(
+      `notifications_${user?.id}`,
+      JSON.stringify(updatedNotifications)
+    );
+
+    // Delete from database
+    try {
+      await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   const clearAll = async () => {
-    setNotifications([]);
-    setUnreadCount(0);
-    await AsyncStorage.removeItem(`notifications_${user?.id}`);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      "مسح جميع الإشعارات",
+      "هل أنت متأكد من مسح جميع الإشعارات؟",
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "مسح الكل",
+          style: "destructive",
+          onPress: async () => {
+            setNotifications([]);
+            setUnreadCount(0);
+            await AsyncStorage.removeItem(`notifications_${user?.id}`);
+
+            // Delete all from database
+            try {
+              await supabase
+                .from('notifications')
+                .delete()
+                .eq('user_id', user?.id);
+            } catch (error) {
+              console.error('Error clearing all notifications:', error);
+            }
+
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          },
+        },
+      ],
+    );
   };
 
   const handleRefresh = async () => {
@@ -419,156 +459,234 @@ export default function NotificationCenter({ visible, onClose }) {
       locale: ar,
     });
 
+
+    const renderRightActions = () => {
+      return (
+        <TouchableOpacity
+          style={styles.deleteAction}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            deleteNotification(notification.id);
+          }}
+        >
+          <Ionicons name="trash-outline" size={24} color={colors.white} />
+        </TouchableOpacity>
+      );
+    };
+
+    const handleNotificationPress = () => {
+      console.log('[NotificationCenter] Press - Type:', notification.type, 'isAdmin:', isAdmin);
+
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (!notification.read) {
+        markAsRead(notification.id);
+      }
+
+      // Handle notification tap based on type
+      console.log('[NotificationCenter] Checking conditions:');
+      console.log('  - notification.type:', notification.type);
+      console.log('  - NotificationTypes.NEW_LINK_REQUEST:', NotificationTypes.NEW_LINK_REQUEST);
+      console.log('  - Type matches:', notification.type === NotificationTypes.NEW_LINK_REQUEST);
+      console.log('  - isAdmin:', isAdmin);
+      console.log('  - Both conditions:', notification.type === NotificationTypes.NEW_LINK_REQUEST && isAdmin);
+
+      if (notification.type === NotificationTypes.NEW_LINK_REQUEST && isAdmin) {
+        console.log('[NotificationCenter] ✓ Conditions met - Navigating to admin dashboard with link requests');
+
+        // Use the callback if provided (when opened from Settings)
+        if (onNavigateToAdmin) {
+          console.log('[NotificationCenter] Using onNavigateToAdmin callback');
+          onNavigateToAdmin(true); // Pass true to open link requests
+        } else {
+          // Fallback to direct navigation
+          console.log('[NotificationCenter] Using direct navigation');
+          onClose();
+
+          setTimeout(() => {
+            console.log('[NotificationCenter] Executing navigation to admin');
+            try {
+              router.push({
+                pathname: '/(app)/admin',
+                params: {
+                  openLinkRequests: 'true'
+                }
+              });
+              console.log('[NotificationCenter] Navigation command sent');
+            } catch (error) {
+              console.error('[NotificationCenter] Navigation error:', error);
+            }
+          }, 100);
+        }
+      } else if (notification.type === NotificationTypes.LINK_REQUEST_PENDING) {
+        // For users who submitted a request, show their status
+        onClose();
+        router.push('/profile-linking');
+      } else if (notification.type === NotificationTypes.LINK_REQUEST_APPROVED) {
+        // For approved requests, go to home/profile
+        onClose();
+        router.push('/');
+      } else if (notification.type === NotificationTypes.LINK_REQUEST_REJECTED) {
+        // For rejected requests, show contact admin screen
+        onClose();
+        router.push('/contact-admin');
+      } else if (notification.type === NotificationTypes.ADMIN_MESSAGE) {
+        // Navigate to messages or home page
+        onClose();
+        router.push('/');
+      }
+    };
+
+    // Re-enable swipeable with proper touch handling
     return (
-      <TouchableOpacity
+      <Swipeable
+        ref={(ref) => (swipeableRefs.current[notification.id] = ref)}
+        renderRightActions={renderRightActions}
+        overshootRight={false}
         key={notification.id}
-        style={[
-          styles.notificationItem,
-          !notification.read && styles.unreadNotification,
-        ]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          if (!notification.read) {
-            markAsRead(notification.id);
-          }
-          // Handle notification tap based on type
-          // ... navigation logic
+        shouldCancelWhenOutside={false}
+        onSwipeableOpen={() => {
+          // Close other open swipeables
+          Object.keys(swipeableRefs.current).forEach(key => {
+            if (key !== notification.id && swipeableRefs.current[key]) {
+              swipeableRefs.current[key].close();
+            }
+          });
         }}
-        activeOpacity={0.98}
       >
-        <View style={[styles.notificationIconContainer, { backgroundColor: `${color}10` }]}>
-          <Ionicons name={icon} size={22} color={color} />
-        </View>
-        <View style={styles.notificationContent}>
-          <View style={styles.notificationHeader}>
+        <TouchableOpacity
+          style={styles.notificationItem}
+          onPress={handleNotificationPress}
+          activeOpacity={0.95}
+        >
+          {!notification.read && <View style={styles.unreadDot} />}
+          <View style={styles.notificationContent}>
             <Text style={styles.notificationTitle}>{notification.title}</Text>
-            {!notification.read && <View style={styles.unreadIndicator} />}
-          </View>
-          <Text style={styles.notificationBody} numberOfLines={2}>{notification.body}</Text>
-          <View style={styles.notificationFooter}>
+            <Text style={styles.notificationBody} numberOfLines={2}>{notification.body}</Text>
             <Text style={styles.notificationTime}>{timeAgo}</Text>
           </View>
-        </View>
-        <Ionicons name="chevron-forward" size={16} color={colors.muted} style={styles.chevron} />
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  };
+
+  const renderDateGroup = (group) => {
+    return (
+      <View key={group.label}>
+        <Text style={styles.dateHeader}>{group.label}</Text>
+        {group.notifications.map(renderNotification)}
+      </View>
     );
   };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="notifications-off" size={48} color={colors.secondary} />
+        <Ionicons name="notifications-off" size={48} color={colors.muted} />
       </View>
       <Text style={styles.emptyTitle}>لا توجد إشعارات</Text>
       <Text style={styles.emptySubtitle}>ستظهر الإشعارات الجديدة هنا</Text>
     </View>
   );
 
+  const notificationGroups = groupNotificationsByDate(notifications);
+
   return (
     <Modal
       visible={visible}
-      transparent
+      transparent={false}
       animationType="none"
       onRequestClose={onClose}
+      presentationStyle="fullScreen"
     >
       <Animated.View
         style={[
-          styles.backdrop,
+          styles.container,
           {
             opacity: fadeAnim,
           },
         ]}
       >
-        <TouchableOpacity style={styles.backdropTouch} onPress={onClose} />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          styles.container,
-          {
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-        {...panResponder.panHandlers}
-      >
         <SafeAreaView style={styles.safeArea}>
-          {/* Drag Handle */}
-          <View style={styles.dragHandleContainer}>
-            <View style={styles.dragHandle} />
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="chevron-down" size={28} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.headerCenter}>
-              <Text style={styles.headerTitle}>الإشعارات</Text>
-              {unreadCount > 0 && (
-                <View style={styles.headerBadge}>
-                  <Text style={styles.headerBadgeText}>{unreadCount}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.headerRight}>
-              {notifications.length > 0 && (
-                <TouchableOpacity
-                  style={styles.headerActionButton}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (unreadCount > 0) {
-                      markAllAsRead();
-                    } else {
-                      clearAll();
-                    }
-                  }}
-                >
-                  <Ionicons
-                    name={unreadCount > 0 ? "checkmark-done" : "trash-outline"}
-                    size={22}
-                    color={colors.primary}
-                  />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* Notifications List */}
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={colors.primary}
-              />
-            }
-          >
-            {loading && notifications.length === 0 ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={styles.loadingText}>جاري التحميل...</Text>
-              </View>
-            ) : notifications.length > 0 ? (
-              <View style={styles.notificationsList}>
-                {subscriptionError && (
-                  <View style={styles.errorBanner}>
-                    <Ionicons name="warning-outline" size={16} color={colors.warning} />
-                    <Text style={styles.errorBannerText}>
-                      التحديثات التلقائية غير متاحة حالياً
-                    </Text>
+          <GestureHandlerRootView style={styles.gestureRoot}>
+            {/* Header - Settings Style */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Image
+                  source={require('../../assets/logo/AlqefariEmblem.png')}
+                  style={styles.emblem}
+                  resizeMode="contain"
+                />
+                <Text style={styles.headerTitle}>الإشعارات</Text>
+                {unreadCount > 0 && (
+                  <View style={styles.headerBadge}>
+                    <Text style={styles.headerBadgeText}>{unreadCount}</Text>
                   </View>
                 )}
-                {notifications.map(renderNotification)}
               </View>
-            ) : (
-              renderEmptyState()
-            )}
-          </ScrollView>
+              <View style={styles.headerActions}>
+                {notifications.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.headerActionButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (unreadCount > 0) {
+                        markAllAsRead();
+                      } else {
+                        clearAll();
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name={unreadCount > 0 ? "checkmark-done" : "trash-outline"}
+                      size={22}
+                      color={colors.text}
+                    />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={onClose}
+                >
+                  <Ionicons name="close" size={28} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Notifications List */}
+            <ScrollView
+              style={styles.scrollView}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={colors.primary}
+                />
+              }
+            >
+              {loading && notifications.length === 0 ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingText}>جاري التحميل...</Text>
+                </View>
+              ) : notifications.length > 0 ? (
+                <View style={styles.notificationsList}>
+                  {subscriptionError && (
+                    <View style={styles.errorBanner}>
+                      <Ionicons name="warning-outline" size={16} color={colors.warning} />
+                      <Text style={styles.errorBannerText}>
+                        التحديثات التلقائية غير متاحة حالياً
+                      </Text>
+                    </View>
+                  )}
+                  {notificationGroups.map(renderDateGroup)}
+                </View>
+              ) : (
+                renderEmptyState()
+              )}
+            </ScrollView>
+          </GestureHandlerRootView>
         </SafeAreaView>
       </Animated.View>
     </Modal>
@@ -576,89 +694,68 @@ export default function NotificationCenter({ visible, onClose }) {
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-  },
-  backdropTouch: {
-    flex: 1,
-  },
   container: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: SCREEN_HEIGHT,
+    flex: 1,
     backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 10,
   },
   safeArea: {
     flex: 1,
   },
-  dragHandleContainer: {
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  dragHandle: {
-    width: 36,
-    height: 5,
-    backgroundColor: colors.muted,
-    borderRadius: 3,
-    opacity: 0.4,
+  gestureRoot: {
+    flex: 1,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: `${colors.container}40`,
+    borderBottomColor: colors.border,
   },
   headerLeft: {
-    width: 44,
-  },
-  headerCenter: {
-    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    flex: 1,
   },
-  headerRight: {
+  emblem: {
     width: 44,
-    alignItems: "flex-end",
-  },
-  closeButton: {
-    padding: 4,
+    height: 44,
+    tintColor: colors.text,
+    marginRight: 8,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 34,
+    fontWeight: "700",
     color: colors.text,
     fontFamily: "SF Arabic",
   },
   headerBadge: {
     backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    minWidth: 20,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
     alignItems: "center",
-    position: "absolute",
-    top: -8,
-    right: -32,
+    marginLeft: 12,
   },
   headerBadgeText: {
     color: colors.white,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700",
     fontFamily: "SF Arabic",
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   headerActionButton: {
-    padding: 4,
+    padding: 8,
+  },
+  closeButton: {
+    padding: 8,
   },
   scrollView: {
     flex: 1,
@@ -669,74 +766,62 @@ const styles = StyleSheet.create({
   notificationsList: {
     paddingTop: 8,
   },
+  dateHeader: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.muted,
+    fontFamily: "SF Arabic",
+    marginTop: 20,
+    marginBottom: 12,
+    marginHorizontal: 16,
+  },
   notificationItem: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: colors.white,
     marginHorizontal: 16,
     marginVertical: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    padding: 16,
     borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  unreadNotification: {
-    backgroundColor: colors.white,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-  },
-  notificationIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
+    alignItems: "flex-start",
   },
-  notificationTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-    fontFamily: "SF Arabic",
-    flex: 1,
-  },
-  unreadIndicator: {
+  unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.primary,
-    marginLeft: 8,
+    marginRight: 12,
+    marginTop: 6,
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+    marginBottom: 4,
   },
   notificationBody: {
     fontSize: 14,
-    color: colors.text,
+    color: colors.muted,
     fontFamily: "SF Arabic",
     lineHeight: 20,
-    opacity: 0.8,
-  },
-  notificationFooter: {
-    marginTop: 4,
+    marginBottom: 8,
   },
   notificationTime: {
     fontSize: 12,
     color: colors.muted,
     fontFamily: "SF Arabic",
   },
-  chevron: {
-    marginLeft: 8,
-    opacity: 0.3,
+  deleteAction: {
+    backgroundColor: colors.error,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+    height: "100%",
+    borderRadius: 12,
+    marginVertical: 4,
   },
   emptyState: {
     flex: 1,
@@ -748,7 +833,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: `${colors.secondary}10`,
+    backgroundColor: `${colors.container}20`,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,

@@ -186,9 +186,14 @@ export const phoneAuthService = {
    * Check if authenticated user has a linked profile
    */
   async checkProfileLink(user) {
-    if (!user) return null;
+    console.log('[phoneAuthService] checkProfileLink called with user:', user?.id);
+    if (!user) {
+      console.log('[phoneAuthService] No user provided, returning null');
+      return null;
+    }
 
     try {
+      console.log('[phoneAuthService] Querying profiles table for user_id:', user.id);
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -196,13 +201,17 @@ export const phoneAuthService = {
         .single();
 
       if (error) {
+        console.log('[phoneAuthService] No profile found for user:', user.id, 'Error:', error.message);
         // Silently return null when no profile found (this is expected for users without profiles)
         return null;
       }
 
+      console.log('[phoneAuthService] Profile found:', profile);
+      console.log('[phoneAuthService] Profile ID:', profile?.id);
+      console.log('[phoneAuthService] Profile keys:', Object.keys(profile || {}));
       return profile;
     } catch (error) {
-      console.error("Error checking profile link:", error);
+      console.error("[phoneAuthService] Error checking profile link:", error);
       return null;
     }
   },

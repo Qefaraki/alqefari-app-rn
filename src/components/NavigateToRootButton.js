@@ -13,13 +13,32 @@ import Svg, { Path, G } from "react-native-svg";
 const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) => {
   const [targetNode, setTargetNode] = useState(null);
 
-  // Find and cache the focused node when nodes change
+  // Find and cache the target node when nodes change
   useEffect(() => {
-    if (nodes && nodes.length > 0 && focusPersonId) {
-      const focused = nodes.find((n) => n.id === focusPersonId);
-      if (focused) {
-        setTargetNode(focused);
-        // console.log('Focused node found:', focused.name, 'at position:', focused.x, focused.y);
+    console.log('[NavigateToRootButton] Debug - focusPersonId:', focusPersonId);
+    console.log('[NavigateToRootButton] Debug - nodes count:', nodes?.length);
+
+    if (nodes && nodes.length > 0) {
+      // First try to find user's profile if focusPersonId provided
+      if (focusPersonId) {
+        console.log('[NavigateToRootButton] Looking for node with ID:', focusPersonId);
+        const focused = nodes.find((n) => n.id === focusPersonId);
+        if (focused) {
+          setTargetNode(focused);
+          console.log('[NavigateToRootButton] User profile node found:', focused.name, 'at position:', focused.x, focused.y);
+          return;
+        } else {
+          console.log('[NavigateToRootButton] No node found with ID:', focusPersonId);
+          // Log first few node IDs for debugging
+          console.log('[NavigateToRootButton] Sample node IDs:', nodes.slice(0, 5).map(n => ({ id: n.id, name: n.name })));
+        }
+      }
+
+      // Fallback to root node (node without father_id)
+      const root = nodes.find((n) => !n.father_id);
+      if (root) {
+        setTargetNode(root);
+        console.log('[NavigateToRootButton] Fallback to root node:', root.name, 'at position:', root.x, root.y);
       }
     }
   }, [nodes, focusPersonId]);
@@ -62,10 +81,10 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
       return;
     }
 
-    // Calculate target position to center focused node in viewport
+    // Calculate target position to center node in viewport
     const targetScale = 1.0; // Moderate zoom for better overview
     const targetX = viewport.width / 2 - targetNode.x * targetScale;
-    const targetY = (viewport.height * 0.25) - targetNode.y * targetScale; // Position at 1/4 from top for better tree visibility
+    const targetY = viewport.height / 2 - targetNode.y * targetScale; // Center vertically
 
     // console.log('Navigate to focused node:', {
     //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
@@ -132,7 +151,7 @@ const styles = StyleSheet.create({
   container: {
     position: "absolute",
     left: 16,  // Move to left side of screen
-    bottom: 40,  // Lowered from 100 to be closer to bottom
+    bottom: 120,  // Raised higher for better visibility
   },
   shadowWrapper: {
     width: 56,
