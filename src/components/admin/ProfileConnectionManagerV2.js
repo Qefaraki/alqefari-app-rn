@@ -157,6 +157,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const mountedRef = useRef(true);
   const previousRequestsRef = useRef(null);
   const retryTimersRef = useRef(new Map()); // Track all retry timers
+  const operationInProgressRef = useRef(null); // Prevent concurrent operations
 
   // Cache configuration
   const MAX_CACHE_SIZE = 100;
@@ -415,15 +416,27 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
 
+  // Create timeout promise
+  const withTimeout = (promise, timeoutMs = 30000) => {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+      )
+    ]);
+  };
+
   // Retry logic helper
   const retryWithBackoff = async (operation, operationName, requestId, maxRetries = 3) => {
     let retryCount = 0;
 
     const attempt = async () => {
-      if (!mountedRef.current) return; // Don't proceed if unmounted
+      if (!mountedRef.current) {
+        return Promise.reject(new Error('Component unmounted')); // Reject instead of silent return
+      }
 
       try {
-        const result = await operation();
+        const result = await withTimeout(operation(), 30000); // Add 30 second timeout
 
         // Clear timer reference on success
         retryTimersRef.current.delete(`${operationName}-${requestId}`);
@@ -440,7 +453,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         retryCount++;
         log(`❌ ${operationName} attempt ${retryCount} failed:`, error.message);
 
-        if (!mountedRef.current) return; // Check again after async operation
+        if (!mountedRef.current) {
+          return Promise.reject(new Error('Component unmounted'));
+        }
 
         if (retryCount < maxRetries && !error.message?.includes('Unauthorized')) {
           const delay = Math.min(Math.pow(2, retryCount) * 1000, 8000); // Cap at 8 seconds
@@ -466,9 +481,17 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
   const handleApprove = async (request) => {
-    // Prevent multiple clicks
-    if (processingRequests.has(request.id)) {
+    // Atomic check and set to prevent race condition
+    if (operationInProgressRef.current === request.id) {
       log('⚠️ Request already being processed');
+      return;
+    }
+    operationInProgressRef.current = request.id;
+
+    // Also check the processing set for UI state
+    if (processingRequests.has(request.id)) {
+      log('⚠️ Request in processing state');
+      operationInProgressRef.current = null;
       return;
     }
 
@@ -478,19 +501,27 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       "تأكيد الموافقة",
       `موافقة على ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles, nameChainCache.current) : request.name_chain}"؟`,
       [
-        { text: "إلغاء", style: "cancel" },
+        {
+          text: "إلغاء",
+          style: "cancel",
+          onPress: () => {
+            operationInProgressRef.current = null; // Clear on cancel
+          }
+        },
         {
           text: "موافقة",
           style: "default",
           onPress: async () => {
-            // Add to processing set
+            // Add to processing set for UI
             setProcessingRequests(prev => new Set(prev).add(request.id));
 
             // Store previous state for rollback
             const previousState = requests;
 
             const approveOperation = async () => {
-              if (!mountedRef.current) return;
+              if (!mountedRef.current) {
+                return Promise.reject(new Error('Component unmounted'));
+              }
 
               // Optimistic update - move to approved immediately
               setRequests(prev => ({
@@ -539,7 +570,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                   "خطأ",
                   error.message || "فشلت الموافقة على الطلب",
                   [
-                    { text: "إلغاء", style: "cancel" },
+                    {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => {
+              operationInProgressRef.current = null; // Clear on cancel
+            }
+          },
                     {
                       text: "إعادة المحاولة",
                       onPress: () => handleApprove(request)
@@ -547,6 +584,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                   ]
                 );
               }
+            } finally {
+              // Always clear the operation lock
+              operationInProgressRef.current = null;
             }
           },
         },
@@ -555,9 +595,17 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
   const handleReject = async (request) => {
-    // Prevent multiple clicks
-    if (processingRequests.has(request.id)) {
+    // Atomic check and set to prevent race condition
+    if (operationInProgressRef.current === request.id) {
       log('⚠️ Request already being processed');
+      return;
+    }
+    operationInProgressRef.current = request.id;
+
+    // Also check the processing set for UI state
+    if (processingRequests.has(request.id)) {
+      log('⚠️ Request in processing state');
+      operationInProgressRef.current = null;
       return;
     }
 
@@ -571,7 +619,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       const previousState = requests;
 
       const rejectOperation = async () => {
-        if (!mountedRef.current) return;
+        if (!mountedRef.current) {
+          return Promise.reject(new Error('Component unmounted'));
+        }
 
         // Optimistic update - move to rejected immediately
         setRequests(prev => ({
@@ -621,7 +671,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
             "خطأ",
             error.message || "فشل رفض الطلب",
             [
-              { text: "إلغاء", style: "cancel" },
+              {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => {
+              operationInProgressRef.current = null; // Clear on cancel
+            }
+          },
               {
                 text: "إعادة المحاولة",
                 onPress: () => handleReject(request)
@@ -629,6 +685,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
             ]
           );
         }
+      } finally {
+        // Always clear the operation lock
+        operationInProgressRef.current = null;
       }
     };
 
@@ -639,7 +698,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         "تأكيد الرفض",
         `رفض طلب ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles, nameChainCache.current) : request.name_chain}"؟`,
         [
-          { text: "إلغاء", style: "cancel" },
+          {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => {
+              operationInProgressRef.current = null; // Clear on cancel
+            }
+          },
           {
             text: "رفض مع سبب",
             onPress: () => {
@@ -647,7 +712,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                 "اختر سبب الرفض",
                 "",
                 [
-                  { text: "إلغاء", style: "cancel" },
+                  {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => {
+              operationInProgressRef.current = null; // Clear on cancel
+            }
+          },
                   { text: "معلومات غير صحيحة", onPress: () => performRejection("معلومات غير صحيحة") },
                   { text: "طلب مكرر", onPress: () => performRejection("طلب مكرر") },
                   { text: "غير مؤهل", onPress: () => performRejection("غير مؤهل") },
@@ -669,7 +740,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         "تأكيد الرفض",
         `رفض طلب ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles, nameChainCache.current) : request.name_chain}"؟`,
         [
-          { text: "إلغاء", style: "cancel" },
+          {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => {
+              operationInProgressRef.current = null; // Clear on cancel
+            }
+          },
           {
             text: "رفض مع سبب",
             onPress: () => {
@@ -677,7 +754,13 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                 "سبب الرفض",
                 "يمكنك إضافة سبب الرفض (اختياري)",
                 [
-                  { text: "إلغاء", style: "cancel" },
+                  {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => {
+              operationInProgressRef.current = null; // Clear on cancel
+            }
+          },
                   {
                     text: "رفض",
                     style: "destructive",
