@@ -5,7 +5,7 @@ import { useAuth } from "../../src/contexts/AuthContextSimple";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 export default function AdminScreen() {
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, profile, isAdmin, isLoading } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams();
 
@@ -33,5 +33,11 @@ export default function AdminScreen() {
     );
   }
 
-  return <AdminDashboard user={user} openLinkRequests={params.openLinkRequests === 'true'} />;
+  const isSuperAdmin = profile?.role === 'super_admin';
+  return <AdminDashboard
+    user={user}
+    profile={profile}
+    isSuperAdmin={isSuperAdmin}
+    openLinkRequests={params.openLinkRequests === 'true'}
+  />;
 }

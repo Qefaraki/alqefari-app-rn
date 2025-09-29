@@ -20,6 +20,7 @@ import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Acti
 import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
+import PermissionManager from "../components/admin/PermissionManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
@@ -71,7 +72,7 @@ const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
   );
 };
 
-const AdminDashboardUltraOptimized = ({ user, openLinkRequests = false }) => {
+const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, openLinkRequests = false }) => {
   // Loading states for each section
   const [statsLoading, setStatsLoading] = useState(true);
   const [enhancedLoading, setEnhancedLoading] = useState(true);
@@ -92,6 +93,7 @@ const AdminDashboardUltraOptimized = ({ user, openLinkRequests = false }) => {
   const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [showMunasibManager, setShowMunasibManager] = useState(false);
+  const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -676,7 +678,7 @@ const AdminDashboardUltraOptimized = ({ user, openLinkRequests = false }) => {
               <View style={styles.separator} />
 
               <AnimatedTouchable
-                style={[styles.listItem, styles.listItemLast]}
+                style={isSuperAdmin ? styles.listItem : [styles.listItem, styles.listItemLast]}
                 onPress={() => setShowMunasibManager(true)}
               >
                 <View style={styles.listItemContent}>
@@ -685,6 +687,22 @@ const AdminDashboardUltraOptimized = ({ user, openLinkRequests = false }) => {
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>
+
+              {isSuperAdmin && (
+                <>
+                  <View style={styles.separator} />
+                  <AnimatedTouchable
+                    style={[styles.listItem, styles.listItemLast]}
+                    onPress={() => setShowPermissionManager(true)}
+                  >
+                    <View style={styles.listItemContent}>
+                      <Ionicons name="star-outline" size={22} color="#A13333" style={styles.listItemIcon} />
+                      <Text style={styles.listItemText}>إدارة الصلاحيات</Text>
+                    </View>
+                    <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+                  </AnimatedTouchable>
+                </>
+              )}
 
             </View>
           </Animated.View>
@@ -819,6 +837,13 @@ const AdminDashboardUltraOptimized = ({ user, openLinkRequests = false }) => {
         showMunasibManager,
         () => setShowMunasibManager(false),
         MunasibManager
+      )}
+
+      {renderIOSModal(
+        showPermissionManager,
+        () => setShowPermissionManager(false),
+        PermissionManager,
+        { user, profile }
       )}
 
       {renderIOSModal(
