@@ -82,21 +82,34 @@ const getInitials = (name) => {
   return cleanName.charAt(0);
 };
 
-// Helper function to get full name chain
-const getFullNameChain = (profile, allProfiles = []) => {
+// Helper function to get full name chain with caching
+const getFullNameChain = (profile, allProfiles = [], cache = null) => {
   if (!profile) return "غير محدد";
+
+  // Check cache first
+  if (cache && cache.has(profile.id)) {
+    return cache.get(profile.id);
+  }
 
   // Use buildNameChain utility to get the full chain
   const chain = buildNameChain(profile, allProfiles);
 
   // If we got a chain, ensure it has القفاري
+  let fullChain;
   if (chain && chain !== profile.name) {
-    return chain.includes("القفاري") ? chain : `${chain} القفاري`;
+    fullChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
+  } else {
+    // Fallback to name with surname
+    const name = profile.name || "غير محدد";
+    fullChain = name.includes("القفاري") ? name : `${name} القفاري`;
   }
 
-  // Fallback to name with surname
-  const name = profile.name || "غير محدد";
-  return name.includes("القفاري") ? name : `${name} القفاري`;
+  // Store in cache
+  if (cache) {
+    cache.set(profile.id, fullChain);
+  }
+
+  return fullChain;
 };
 
 export default function ProfileConnectionManagerV2({ onBack }) {
@@ -114,6 +127,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const profilesLoadedRef = useRef(false);
   const updateDebounceRef = useRef(null);
+  const nameChainCache = useRef(new Map());
 
   const tabOptions = ["في الانتظار", "موافق عليها", "مرفوضة"];
   const tabKeys = ["pending", "approved", "rejected"];
@@ -139,15 +153,44 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           );
         }
 
-        // Debounce updates to prevent UI freeze
-        if (updateDebounceRef.current) {
-          clearTimeout(updateDebounceRef.current);
-        }
+        // Optimistic update - no database query, just update local state
+        setRequests(currentRequests => {
+          const updated = { ...currentRequests };
 
-        updateDebounceRef.current = setTimeout(() => {
-          // Only reload requests, not profiles
-          loadRequestsOnly();
-        }, 500);
+          if (payload.eventType === 'UPDATE') {
+            // Remove request from all status groups
+            Object.keys(updated).forEach(status => {
+              updated[status] = updated[status].filter(r => r.id !== payload.new.id);
+            });
+
+            // Add to new status group with updated data
+            const newStatus = payload.new.status;
+            if (updated[newStatus]) {
+              // Merge the payload with profile data if we have it
+              const existingRequest = Object.values(currentRequests).flat()
+                .find(r => r.id === payload.new.id);
+
+              const updatedRequest = {
+                ...payload.new,
+                profiles: existingRequest?.profiles || payload.new.profiles
+              };
+
+              updated[newStatus] = [updatedRequest, ...updated[newStatus]];
+            }
+          } else if (payload.eventType === 'INSERT') {
+            // Add new request to pending
+            if (payload.new.status === 'pending') {
+              updated.pending = [payload.new, ...updated.pending];
+            }
+          } else if (payload.eventType === 'DELETE') {
+            // Remove from all groups
+            Object.keys(updated).forEach(status => {
+              updated[status] = updated[status].filter(r => r.id !== payload.old.id);
+            });
+          }
+
+          return updated;
+        });
       },
       onError: (error) => {
         console.error('❌ Subscription error:', error);
@@ -185,19 +228,51 @@ export default function ProfileConnectionManagerV2({ onBack }) {
     };
   }, []);
 
-  // Load profiles once (expensive operation)
-  const loadProfilesOnce = async () => {
-    if (profilesLoadedRef.current || isLoadingProfiles) return;
+  // Load only profiles needed for current requests
+  const loadNeededProfiles = async (requests) => {
+    if (isLoadingProfiles) return;
 
     setIsLoadingProfiles(true);
     try {
+      // Collect all profile IDs we need for name chains
+      const profileIds = new Set();
+
+      requests.forEach(request => {
+        if (request.profile_id) profileIds.add(request.profile_id);
+        if (request.profiles?.father_id) profileIds.add(request.profiles.father_id);
+      });
+
+      if (profileIds.size === 0) return;
+
+      // Load profiles and their ancestors for name chain building
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, name, father_id");
+        .select("id, name, father_id")
+        .or(Array.from(profileIds).map(id => `id.eq.${id}`).join(','));
 
       if (profiles) {
-        console.log(`🔍 DEBUG: Loaded ${profiles.length} profiles for name chains`);
-        setAllProfiles(profiles);
+        console.log(`🔍 DEBUG: Loaded ${profiles.length} relevant profiles for name chains`);
+
+        // Load ancestors recursively to build complete chains
+        const ancestorIds = new Set();
+        profiles.forEach(p => {
+          if (p.father_id) ancestorIds.add(p.father_id);
+        });
+
+        if (ancestorIds.size > 0) {
+          const { data: ancestors } = await supabase
+            .from("profiles")
+            .select("id, name, father_id")
+            .in("id", Array.from(ancestorIds));
+
+          if (ancestors) {
+            setAllProfiles([...profiles, ...ancestors]);
+          } else {
+            setAllProfiles(profiles);
+          }
+        } else {
+          setAllProfiles(profiles);
+        }
         profilesLoadedRef.current = true;
       }
     } catch (error) {
@@ -261,6 +336,10 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       });
 
       setRequests(grouped);
+
+      // Load only the profiles needed for these requests
+      const allRequests = [...grouped.pending, ...grouped.approved, ...grouped.rejected];
+      await loadNeededProfiles(allRequests);
     } catch (error) {
       console.error("❌ Error in loadPendingRequests:", error);
       console.error("❌ Stack trace:", error.stack);
@@ -271,15 +350,12 @@ export default function ProfileConnectionManagerV2({ onBack }) {
     }
   };
 
-  // Full load (profiles + requests)
+  // Full load (requests first, then only needed profiles)
   const loadPendingRequests = async () => {
     console.log("🔍 DEBUG: Starting full load...");
     setLoading(true);
 
-    // Load profiles first if not loaded
-    await loadProfilesOnce();
-
-    // Then load requests
+    // Load requests which will also load needed profiles
     await loadRequestsOnly();
   };
 
@@ -289,7 +365,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
     Alert.alert(
       "تأكيد الموافقة",
-      `موافقة على ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles) : request.name_chain}"؟`,
+      `موافقة على ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles, nameChainCache.current) : request.name_chain}"؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -528,7 +604,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           <View style={styles.listContainer}>
             {currentRequests.map((request, index) => {
               const profile = request.profiles;
-              const displayName = profile ? getFullNameChain(profile, allProfiles) : request.name_chain || "غير معروف";
+              const displayName = profile ? getFullNameChain(profile, allProfiles, nameChainCache.current) : request.name_chain || "غير معروف";
               const statusColor = getStatusColor(tabKeys[selectedTab]);
 
               return (
