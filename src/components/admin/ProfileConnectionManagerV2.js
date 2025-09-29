@@ -111,6 +111,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedTab, setSelectedTab] = useState(0); // 0: pending, 1: approved, 2: rejected
   const [allProfiles, setAllProfiles] = useState([]);
+  const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const profilesLoadedRef = useRef(false);
+  const updateDebounceRef = useRef(null);
 
   const tabOptions = ["في الانتظار", "موافق عليها", "مرفوضة"];
   const tabKeys = ["pending", "approved", "rejected"];
@@ -136,8 +139,15 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           );
         }
 
-        // Reload data with debounce (handled by subscription manager)
-        loadPendingRequests();
+        // Debounce updates to prevent UI freeze
+        if (updateDebounceRef.current) {
+          clearTimeout(updateDebounceRef.current);
+        }
+
+        updateDebounceRef.current = setTimeout(() => {
+          // Only reload requests, not profiles
+          loadRequestsOnly();
+        }, 500);
       },
       onError: (error) => {
         console.error('❌ Subscription error:', error);
@@ -169,13 +179,18 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       if (subscriptionRef) {
         subscriptionRef.unsubscribe();
       }
+      if (updateDebounceRef.current) {
+        clearTimeout(updateDebounceRef.current);
+      }
     };
   }, []);
 
-  const loadPendingRequests = async () => {
-    console.log("🔍 DEBUG: Starting loadPendingRequests...");
+  // Load profiles once (expensive operation)
+  const loadProfilesOnce = async () => {
+    if (profilesLoadedRef.current || isLoadingProfiles) return;
+
+    setIsLoadingProfiles(true);
     try {
-      // Load all profiles for name chain building
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, name, father_id");
@@ -183,9 +198,19 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       if (profiles) {
         console.log(`🔍 DEBUG: Loaded ${profiles.length} profiles for name chains`);
         setAllProfiles(profiles);
+        profilesLoadedRef.current = true;
       }
+    } catch (error) {
+      console.error('Error loading profiles:', error);
+    } finally {
+      setIsLoadingProfiles(false);
+    }
+  };
 
-      console.log("🔍 DEBUG: Fetching profile_link_requests...");
+  // Load only requests (lightweight operation)
+  const loadRequestsOnly = async () => {
+    console.log("🔍 DEBUG: Loading requests only...");
+    try {
       const { data, error } = await supabase
         .from("profile_link_requests")
         .select(
@@ -244,6 +269,18 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Full load (profiles + requests)
+  const loadPendingRequests = async () => {
+    console.log("🔍 DEBUG: Starting full load...");
+    setLoading(true);
+
+    // Load profiles first if not loaded
+    await loadProfilesOnce();
+
+    // Then load requests
+    await loadRequestsOnly();
   };
 
 
