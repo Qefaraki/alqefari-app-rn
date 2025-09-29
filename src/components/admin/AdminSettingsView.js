@@ -5,372 +5,414 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   TextInput,
   Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import GlassSurface from '../glass/GlassSurface';
-import { useAdminMode } from '../../contexts/AdminModeContext';
 import adminContactService from '../../services/adminContact';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 
-const AdminSettingsView = () => {
-  const { isAdminMode, toggleAdminMode } = useAdminMode();
+// Najdi Sadu Color Palette
+const colors = {
+  background: "#F9F7F3", // Al-Jass White
+  container: "#D1BBA3", // Camel Hair Beige
+  text: "#242121", // Sadu Night
+  primary: "#A13333", // Najdi Crimson
+  secondary: "#D58C4A", // Desert Ochre
+  muted: "#73637280", // Muted text
+  border: "#D1BBA320", // Light border
+  white: "#FFFFFF",
+  whatsapp: "#25D366",
+};
+
+const DEFAULT_MESSAGE_KEY = 'admin_default_message';
+const DEFAULT_MESSAGE = 'السلام عليكم';
+
+const AdminSettingsView = ({ onClose }) => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [editingWhatsapp, setEditingWhatsapp] = useState(false);
-  const [tempWhatsappNumber, setTempWhatsappNumber] = useState('');
+  const [displayNumber, setDisplayNumber] = useState('');
+  const [defaultMessage, setDefaultMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Load current WhatsApp number on mount
+  // Load current settings
   useEffect(() => {
-    loadWhatsAppNumber();
+    loadSettings();
   }, []);
 
-  const loadWhatsAppNumber = async () => {
-    const number = await adminContactService.getDisplayNumber();
-    setWhatsappNumber(number);
+  const loadSettings = async () => {
+    try {
+      // Load WhatsApp number
+      const number = await adminContactService.getAdminWhatsAppNumber();
+      const display = await adminContactService.getDisplayNumber();
+      setWhatsappNumber(number);
+      setDisplayNumber(display);
+
+      // Load default message
+      const savedMessage = await AsyncStorage.getItem(DEFAULT_MESSAGE_KEY);
+      setDefaultMessage(savedMessage || DEFAULT_MESSAGE);
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveWhatsApp = async () => {
-    const result = await adminContactService.setAdminWhatsAppNumber(tempWhatsappNumber);
+    if (!whatsappNumber || whatsappNumber.trim() === '') {
+      Alert.alert('خطأ', 'يرجى إدخال رقم الواتساب');
+      return;
+    }
+
+    setSaving(true);
+    const result = await adminContactService.setAdminWhatsAppNumber(whatsappNumber);
+
     if (result.success) {
-      setWhatsappNumber(await adminContactService.getDisplayNumber());
-      setEditingWhatsapp(false);
-      Alert.alert('نجح', 'تم تحديث رقم الواتساب بنجاح');
+      const newDisplay = await adminContactService.getDisplayNumber();
+      setDisplayNumber(newDisplay);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('نجح', 'تم حفظ رقم الواتساب بنجاح');
     } else {
-      Alert.alert('خطأ', result.error || 'فشل تحديث رقم الواتساب');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('خطأ', result.error || 'فشل حفظ رقم الواتساب');
+    }
+    setSaving(false);
+  };
+
+  const handleSaveMessage = async () => {
+    if (!defaultMessage || defaultMessage.trim() === '') {
+      Alert.alert('خطأ', 'يرجى إدخال الرسالة الافتراضية');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await AsyncStorage.setItem(DEFAULT_MESSAGE_KEY, defaultMessage.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('نجح', 'تم حفظ الرسالة الافتراضية بنجاح');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('خطأ', 'فشل حفظ الرسالة الافتراضية');
+    }
+    setSaving(false);
+  };
+
+  const handleTestWhatsApp = async () => {
+    const message = defaultMessage || DEFAULT_MESSAGE;
+    const result = await adminContactService.openAdminWhatsApp(message);
+    if (!result.success) {
+      Alert.alert('خطأ', 'فشل فتح الواتساب');
     }
   };
 
-  const settingsSections = [
-    {
-      title: 'عام',
-      items: [
-        {
-          id: 'adminMode',
-          title: 'وضع المسؤول',
-          subtitle: 'تفعيل أدوات الإدارة المتقدمة',
-          icon: 'shield-checkmark-outline',
-          type: 'switch',
-          value: isAdminMode,
-          onValueChange: toggleAdminMode,
-        },
-        {
-          id: 'autoSave',
-          title: 'الحفظ التلقائي',
-          subtitle: 'حفظ التغييرات تلقائياً',
-          icon: 'save-outline',
-          type: 'switch',
-          value: true,
-          onValueChange: () => {},
-        },
-      ],
-    },
-    {
-      title: 'الأمان',
-      items: [
-        {
-          id: 'twoFactor',
-          title: 'التحقق بخطوتين',
-          subtitle: 'طبقة حماية إضافية',
-          icon: 'lock-closed-outline',
-          type: 'navigation',
-        },
-        {
-          id: 'sessionTimeout',
-          title: 'مهلة الجلسة',
-          subtitle: '30 دقيقة',
-          icon: 'time-outline',
-          type: 'navigation',
-        },
-      ],
-    },
-    {
-      title: 'البيانات',
-      items: [
-        {
-          id: 'backup',
-          title: 'النسخ الاحتياطي',
-          subtitle: 'إدارة النسخ الاحتياطية',
-          icon: 'cloud-outline',
-          type: 'navigation',
-        },
-        {
-          id: 'export',
-          title: 'تصدير البيانات',
-          subtitle: 'تصدير جميع البيانات',
-          icon: 'download-outline',
-          type: 'navigation',
-        },
-      ],
-    },
-    {
-      title: 'الدعم والتواصل',
-      items: [
-        {
-          id: 'whatsapp',
-          title: 'رقم واتساب الإدارة',
-          subtitle: whatsappNumber,
-          icon: 'logo-whatsapp',
-          type: 'editable',
-          value: whatsappNumber,
-          onPress: () => {
-            setTempWhatsappNumber(whatsappNumber.replace(/\s/g, ''));
-            setEditingWhatsapp(true);
-          },
-        },
-        {
-          id: 'testWhatsapp',
-          title: 'اختبار رابط الواتساب',
-          subtitle: 'فتح محادثة تجريبية',
-          icon: 'open-outline',
-          type: 'navigation',
-          onPress: async () => {
-            const result = await adminContactService.openAdminWhatsApp('رسالة تجريبية من لوحة الإدارة');
-            if (!result.success) {
-              Alert.alert('خطأ', 'فشل فتح الواتساب');
-            }
-          },
-        },
-      ],
-    },
-  ];
+  const handleFeedback = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
-  const SettingItem = ({ item }) => {
-    const content = (
-      <>
-        <View style={styles.itemLeft}>
-          <View style={[styles.iconContainer, { backgroundColor: '#007AFF20' }]}>
-            <Ionicons name={item.icon} size={24} color="#007AFF" />
-          </View>
-          <View style={styles.itemInfo}>
-            <Text style={styles.itemTitle}>{item.title}</Text>
-            <Text style={styles.itemSubtitle}>{item.subtitle}</Text>
-          </View>
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
-        {item.type === 'switch' ? (
-          <Switch
-            value={item.value}
-            onValueChange={item.onValueChange}
-            trackColor={{ false: '#767577', true: '#007AFF' }}
-            thumbColor={item.value ? '#FFFFFF' : '#f4f3f4'}
-          />
-        ) : (
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-        )}
-      </>
+      </SafeAreaView>
     );
-
-    if (item.type === 'navigation' || item.type === 'editable') {
-      return (
-        <TouchableOpacity
-          style={styles.settingItem}
-          activeOpacity={0.7}
-          onPress={item.onPress}
-        >
-          {content}
-        </TouchableOpacity>
-      );
-    }
-
-    return <View style={styles.settingItem}>{content}</View>;
-  };
+  }
 
   return (
-    <>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {settingsSections.map((section, index) => (
-          <View key={index} style={styles.section}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <GlassSurface style={styles.sectionContent}>
-              {section.items.map((item, itemIndex) => (
-                <View key={item.id}>
-                  <SettingItem item={item} />
-                  {itemIndex < section.items.length - 1 && (
-                    <View style={styles.separator} />
-                  )}
-                </View>
-              ))}
-            </GlassSurface>
-          </View>
-        ))}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>إصدار التطبيق: 1.0.0</Text>
-          <Text style={styles.footerText}>آخر مزامنة: منذ 5 دقائق</Text>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              handleFeedback();
+              onClose();
+            }}
+          >
+            <Ionicons name="chevron-forward" size={28} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>إعدادات الواتساب</Text>
+          <View style={{ width: 44 }} />
         </View>
-      </ScrollView>
 
-      {/* WhatsApp Number Edit Modal */}
-      {editingWhatsapp && (
-        <View style={styles.modal}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>تعديل رقم واتساب الإدارة</Text>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* WhatsApp Number Section */}
+          <View style={styles.settingsCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="logo-whatsapp" size={24} color={colors.whatsapp} />
+              <Text style={styles.sectionTitle}>رقم الواتساب</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>الرقم الحالي</Text>
+            <View style={styles.currentNumberBox}>
+              <Text style={styles.currentNumber}>{displayNumber}</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>تغيير الرقم</Text>
             <TextInput
               style={styles.input}
-              value={tempWhatsappNumber}
-              onChangeText={setTempWhatsappNumber}
+              value={whatsappNumber}
+              onChangeText={setWhatsappNumber}
               placeholder="+966501234567"
               keyboardType="phone-pad"
               textAlign="left"
-              autoFocus
+              placeholderTextColor={colors.muted}
             />
             <Text style={styles.helpText}>
               أدخل الرقم بالصيغة الدولية (مثل: +966501234567)
             </Text>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setEditingWhatsapp(false);
-                  setTempWhatsappNumber('');
-                }}
-              >
-                <Text style={styles.cancelButtonText}>إلغاء</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSaveWhatsApp}
-              >
-                <Text style={styles.saveButtonText}>حفظ</Text>
-              </TouchableOpacity>
-            </View>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.buttonDisabled]}
+              onPress={handleSaveWhatsApp}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>حفظ الرقم</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
-        </View>
-      )}
-    </>
+
+          {/* Default Message Section */}
+          <View style={styles.settingsCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="chatbox-ellipses" size={24} color={colors.secondary} />
+              <Text style={styles.sectionTitle}>الرسالة الافتراضية</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>نص الرسالة</Text>
+            <TextInput
+              style={[styles.input, styles.messageInput]}
+              value={defaultMessage}
+              onChangeText={setDefaultMessage}
+              placeholder="السلام عليكم"
+              placeholderTextColor={colors.muted}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <Text style={styles.helpText}>
+              هذه الرسالة ستظهر تلقائياً عند فتح المحادثة
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.buttonDisabled]}
+              onPress={handleSaveMessage}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>حفظ الرسالة</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Test Button */}
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.testButton}
+              onPress={handleTestWhatsApp}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="open-outline" size={20} color={colors.whatsapp} style={{ marginRight: 8 }} />
+              <Text style={styles.testButtonText}>اختبار الإعدادات</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Info Section */}
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={20} color={colors.muted} style={{ marginRight: 10 }} />
+            <Text style={styles.infoText}>
+              سيتم استخدام هذا الرقم والرسالة في جميع أنحاء التطبيق عند التواصل مع الإدارة
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.background,
   },
-  section: {
-    marginTop: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-    textTransform: 'uppercase',
-    marginLeft: 20,
-    marginBottom: 8,
-  },
-  sectionContent: {
-    marginHorizontal: 16,
-  },
-  settingItem: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
     paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  itemLeft: {
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+    fontFamily: 'SF Arabic',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  settingsCard: {
+    backgroundColor: colors.white,
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    marginBottom: 20,
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  itemInfo: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#000000',
-    marginBottom: 2,
-  },
-  itemSubtitle: {
-    fontSize: 13,
-    color: '#666666',
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#E5E5EA',
-    marginLeft: 68,
-  },
-  footer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  footerText: {
-    fontSize: 13,
-    color: '#999999',
-    marginBottom: 4,
-  },
-  // Modal styles
-  modal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
+  sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text,
+    fontFamily: 'SF Arabic',
+    marginLeft: 10,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.muted,
+    fontFamily: 'SF Arabic',
+    marginBottom: 8,
+  },
+  currentNumberBox: {
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 14,
     marginBottom: 20,
-    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: colors.container + '40',
+  },
+  currentNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontFamily: 'SF Arabic',
+    textAlign: 'left',
   },
   input: {
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.container + '60',
+    borderRadius: 10,
+    padding: 14,
     fontSize: 16,
-    marginBottom: 8,
-    backgroundColor: '#F2F2F7',
+    color: colors.text,
+    fontFamily: 'SF Arabic',
+  },
+  messageInput: {
+    height: 80,
+    paddingTop: 14,
   },
   helpText: {
     fontSize: 12,
-    color: '#666666',
+    color: colors.muted,
+    fontFamily: 'SF Arabic',
+    marginTop: 6,
     marginBottom: 20,
   },
-  modalButtons: {
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
-  },
-  modalButton: {
-    flex: 1,
-    marginHorizontal: 6,
-    paddingVertical: 12,
-    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  cancelButton: {
-    backgroundColor: '#F2F2F7',
+  buttonDisabled: {
+    opacity: 0.6,
   },
-  cancelButtonText: {
+  primaryButtonText: {
+    color: colors.white,
     fontSize: 16,
-    color: '#007AFF',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    color: '#FFFFFF',
     fontWeight: '600',
+    fontFamily: 'SF Arabic',
+  },
+  actionsContainer: {
+    paddingHorizontal: 16,
+    marginTop: 20,
+  },
+  testButton: {
+    backgroundColor: colors.whatsapp + '15',
+    borderWidth: 1.5,
+    borderColor: colors.whatsapp,
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  testButtonText: {
+    color: colors.whatsapp,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'SF Arabic',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.container + '20',
+    borderRadius: 12,
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    fontFamily: 'SF Arabic',
+    lineHeight: 20,
   },
 });
 
