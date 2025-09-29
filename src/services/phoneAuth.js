@@ -186,14 +186,11 @@ export const phoneAuthService = {
    * Check if authenticated user has a linked profile
    */
   async checkProfileLink(user) {
-    console.log('[phoneAuthService] checkProfileLink called with user:', user?.id);
     if (!user) {
-      console.log('[phoneAuthService] No user provided, returning null');
       return null;
     }
 
     try {
-      console.log('[phoneAuthService] Querying profiles table for user_id:', user.id);
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("*")
@@ -201,14 +198,10 @@ export const phoneAuthService = {
         .single();
 
       if (error) {
-        console.log('[phoneAuthService] No profile found for user:', user.id, 'Error:', error.message);
         // Silently return null when no profile found (this is expected for users without profiles)
         return null;
       }
 
-      console.log('[phoneAuthService] Profile found:', profile);
-      console.log('[phoneAuthService] Profile ID:', profile?.id);
-      console.log('[phoneAuthService] Profile keys:', Object.keys(profile || {}));
       return profile;
     } catch (error) {
       console.error("[phoneAuthService] Error checking profile link:", error);
@@ -264,7 +257,7 @@ export const phoneAuthService = {
           return { success: true, profiles: rpcData };
         }
       } catch (rpcErr) {
-        console.log("RPC not available, using fallback search");
+        // RPC not available, using fallback search
       }
 
       // Fallback: Direct query to profiles table
@@ -362,7 +355,7 @@ export const phoneAuthService = {
           return { success: true, context: rpcData };
         }
       } catch (rpcErr) {
-        console.log("RPC not available, using fallback");
+        // RPC not available, using fallback
       }
 
       // Fallback: Build context manually
@@ -584,7 +577,7 @@ export const phoneAuthService = {
           profile_id: profileId,
         });
       } catch (notifError) {
-        console.log("Notification error (non-critical):", notifError);
+        // Notification error (non-critical)
       }
 
       return {
@@ -725,7 +718,7 @@ export const phoneAuthService = {
           profile_id: profile.id,
         });
       } catch (notifError) {
-        console.log("Notification error (non-critical):", notifError);
+        // Notification error (non-critical)
       }
 
       return {

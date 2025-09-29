@@ -359,6 +359,8 @@ const TreeView = ({
   setProfileEditMode,
   onNetworkStatusChange,
   user,
+  profile,
+  linkedProfileId,
   isAdmin,
   onAdminDashboard,
   onSettingsOpen,
@@ -1563,12 +1565,11 @@ const TreeView = ({
 
       let tappedNodeId = null;
       for (const node of state.visibleNodes) {
-        const nodeWidth = node.photo_url
-          ? NODE_WIDTH_WITH_PHOTO
-          : NODE_WIDTH_TEXT_ONLY;
-        const nodeHeight = node.photo_url
-          ? NODE_HEIGHT_WITH_PHOTO
-          : NODE_HEIGHT_TEXT_ONLY;
+        const isRoot = !node.father_id;
+        const nodeWidth = isRoot ? 120 :
+          (node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
+        const nodeHeight = isRoot ? 100 :
+          (node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
 
         if (
           canvasX >= node.x - nodeWidth / 2 &&
@@ -1609,12 +1610,11 @@ const TreeView = ({
 
       let pressedNode = null;
       for (const node of state.visibleNodes) {
-        const nodeWidth = node.photo_url
-          ? NODE_WIDTH_WITH_PHOTO
-          : NODE_WIDTH_TEXT_ONLY;
-        const nodeHeight = node.photo_url
-          ? NODE_HEIGHT_WITH_PHOTO
-          : NODE_HEIGHT_TEXT_ONLY;
+        const isRoot = !node.father_id;
+        const nodeWidth = isRoot ? 120 :
+          (node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
+        const nodeHeight = isRoot ? 100 :
+          (node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
 
         if (
           canvasX >= node.x - nodeWidth / 2 &&
@@ -1932,9 +1932,9 @@ const TreeView = ({
         conn.children.forEach((child) => {
           const childNode = nodes.find((n) => n.id === child.id);
           if (childNode) {
-            const childHeight = childNode.photo_url
-              ? NODE_HEIGHT_WITH_PHOTO
-              : NODE_HEIGHT_TEXT_ONLY;
+            const isRoot = !childNode.father_id;
+            const childHeight = isRoot ? 100 :
+              (childNode.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
             pathBuilder.moveTo(childNode.x, busY);
             pathBuilder.lineTo(childNode.x, childNode.y - childHeight / 2);
           }
@@ -2118,14 +2118,14 @@ const TreeView = ({
   // Render node component (T1 - full detail)
   const renderNode = useCallback(
     (node) => {
+      const isRoot = !node.father_id;
       const hasPhoto = !!node.photo_url;
-      // Respect the node's custom width if it has one (for text sizing)
-      const nodeWidth =
-        node.nodeWidth ||
-        (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
-      const nodeHeight = hasPhoto
-        ? NODE_HEIGHT_WITH_PHOTO
-        : NODE_HEIGHT_TEXT_ONLY;
+
+      // Make root node bigger
+      const nodeWidth = isRoot ? 120 :
+        (node.nodeWidth || (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY));
+      const nodeHeight = isRoot ? 100 :
+        (hasPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
       const isSelected = selectedPersonId === node.id;
 
       const x = node.x - nodeWidth / 2;
@@ -2133,8 +2133,9 @@ const TreeView = ({
 
       const isHighlighted = highlightedNodeIdState === node.id;
 
-      return (
-        <Group key={node.id}>
+      // Wrap root node in a Group with transform to move it up
+      const nodeContent = (
+        <Group key={`content-${node.id}`}>
           {/* Removed broken Skia glow - will use Moti overlay instead */}
           {/* Shadow */}
           <RoundedRect
@@ -2300,6 +2301,18 @@ const TreeView = ({
           )}
         </Group>
       );
+
+      // If root, wrap in a Group with transform to move it up
+      if (isRoot) {
+        return (
+          <Group key={node.id} transform={[{ translateY: -60 }]}>
+            {nodeContent}
+          </Group>
+        );
+      }
+
+      // Otherwise return the node content directly with the original key
+      return React.cloneElement(nodeContent, { key: node.id });
     },
     [selectedPersonId, highlightedNodeIdState, glowOpacityState],
   );
@@ -2791,6 +2804,7 @@ const TreeView = ({
           translateY: translateY,
           scale: scale,
         }}
+        focusPersonId={linkedProfileId || profile?.id}
       />
 
       {/* Admin Toggle Button - Only for admins */}

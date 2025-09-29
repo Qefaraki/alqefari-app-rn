@@ -7,7 +7,7 @@ import ProfileSheetWrapper from "../../src/components/ProfileSheetWrapper";
 import PendingApprovalBanner from "../../src/components/PendingApprovalBanner";
 import { phoneAuthService } from "../../src/services/phoneAuth";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { useAuth } from "../../src/contexts/AuthContext";
+import { useAuth } from "../../src/contexts/AuthContextSimple";
 
 export default function TreeScreen() {
   const { user, profile, isAdmin, isLoading } = useAuth();
@@ -16,43 +16,24 @@ export default function TreeScreen() {
   const [linkStatus, setLinkStatus] = useState(null);
   const [linkedProfileId, setLinkedProfileId] = useState(null);
 
-  // Debug logging
   useEffect(() => {
-    console.log('[TreeScreen] Debug - User:', user);
-    console.log('[TreeScreen] Debug - Profile:', profile);
-    console.log('[TreeScreen] Debug - Profile.id:', profile?.id);
-    console.log('[TreeScreen] Debug - linkedProfileId state:', linkedProfileId);
-    console.log('[TreeScreen] Debug - isAdmin:', isAdmin);
-    console.log('[TreeScreen] Debug - isLoading:', isLoading);
-  }, [user, profile, linkedProfileId, isAdmin, isLoading]);
-
-  useEffect(() => {
-    console.log('[TreeScreen] User/Profile changed, checking if should fetch profile. User:', user?.id, 'Profile:', profile?.id);
     // If we have profile from auth context, use it directly
     if (profile?.id) {
-      console.log('[TreeScreen] Profile from auth context found, setting linkedProfileId:', profile.id);
       setLinkedProfileId(profile.id);
       setLinkStatus("approved");
     } else if (user && !isLoading) {
       // Otherwise fetch it
-      console.log('[TreeScreen] No profile from auth, but user exists, calling checkLinkStatus');
       checkLinkStatus();
-    } else {
-      console.log('[TreeScreen] No user or still loading, skipping checkLinkStatus. isLoading:', isLoading);
     }
   }, [user, profile, isLoading]);
 
   const checkLinkStatus = async () => {
-    console.log('[TreeScreen] checkLinkStatus called with user:', user?.id);
     try {
       if (user) {
         setIsGuest(user?.user_metadata?.isGuest || false);
-        console.log('[TreeScreen] About to call phoneAuthService.checkProfileLink');
 
         // Check profile linking status
         const fetchedProfile = await phoneAuthService.checkProfileLink(user);
-        console.log('[TreeScreen] Fetched profile from checkProfileLink:', fetchedProfile);
-        console.log('[TreeScreen] Fetched profile keys:', fetchedProfile ? Object.keys(fetchedProfile) : 'null');
 
         if (fetchedProfile) {
           setLinkStatus("approved");
@@ -61,8 +42,6 @@ export default function TreeScreen() {
           const profileId = fetchedProfile.id;
           if (profileId) {
             setLinkedProfileId(profileId);
-            console.log('[TreeScreen] Set linkedProfileId:', profileId);
-            console.log('[TreeScreen] Profile has id:', fetchedProfile.id);
           }
         } else {
           // Check for pending requests
@@ -103,6 +82,7 @@ export default function TreeScreen() {
             />
           )}
           <TreeView
+            key={linkedProfileId || 'no-profile'} // Force re-render when profile loads
             user={user}
             profile={profile}
             linkedProfileId={linkedProfileId}

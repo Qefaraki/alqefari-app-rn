@@ -15,22 +15,13 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
 
   // Find and cache the target node when nodes change
   useEffect(() => {
-    console.log('[NavigateToRootButton] Debug - focusPersonId:', focusPersonId);
-    console.log('[NavigateToRootButton] Debug - nodes count:', nodes?.length);
-
     if (nodes && nodes.length > 0) {
       // First try to find user's profile if focusPersonId provided
       if (focusPersonId) {
-        console.log('[NavigateToRootButton] Looking for node with ID:', focusPersonId);
         const focused = nodes.find((n) => n.id === focusPersonId);
         if (focused) {
           setTargetNode(focused);
-          console.log('[NavigateToRootButton] User profile node found:', focused.name, 'at position:', focused.x, focused.y);
           return;
-        } else {
-          console.log('[NavigateToRootButton] No node found with ID:', focusPersonId);
-          // Log first few node IDs for debugging
-          console.log('[NavigateToRootButton] Sample node IDs:', nodes.slice(0, 5).map(n => ({ id: n.id, name: n.name })));
         }
       }
 
@@ -38,7 +29,6 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
       const root = nodes.find((n) => !n.father_id);
       if (root) {
         setTargetNode(root);
-        console.log('[NavigateToRootButton] Fallback to root node:', root.name, 'at position:', root.x, root.y);
       }
     }
   }, [nodes, focusPersonId]);
