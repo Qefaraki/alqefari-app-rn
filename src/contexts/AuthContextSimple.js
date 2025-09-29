@@ -5,7 +5,7 @@
  * Navigation is handled by conditional rendering in _layout.tsx
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import AuthStateMachine, { AuthStates } from '../services/AuthStateMachineSimple';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,19 +25,45 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(null);
+  const isInitializedRef = useRef(false);
+  const isProcessingAuthEventRef = useRef(false);
+  const lastAuthEventRef = useRef(null);
 
   // Initialize auth state
   useEffect(() => {
+    if (isInitializedRef.current) {
+      console.log('[AuthContext] Already initialized, skipping');
+      return;
+    }
+
     const initializeAuth = async () => {
       console.log('[AuthContext] Initializing auth...');
+      isInitializedRef.current = true;
+
+      // Check onboarding status with error handling
+      const checkOnboarding = async () => {
+        try {
+          const value = await AsyncStorage.getItem('hasCompletedOnboarding');
+          setHasCompletedOnboarding(value === 'true');
+          console.log('[AuthContext] hasCompletedOnboarding:', value === 'true');
+        } catch (error) {
+          console.error('[AuthContext] Error checking onboarding status:', error);
+          setHasCompletedOnboarding(false); // Default to false on error
+        }
+      };
+      await checkOnboarding();
 
       // Subscribe to state machine changes
-      const unsubscribe = AuthStateMachine.subscribe((state) => {
+      const unsubscribe = AuthStateMachine.subscribe(async (state) => {
         console.log('[AuthContext] State changed:', state);
         setAuthState(state.state);
         setUser(state.user);
         setProfile(state.profile);
         setIsLoading(false);
+
+        // Re-check onboarding when auth state changes
+        await checkOnboarding();
       });
 
       // Initialize state machine
@@ -48,21 +74,46 @@ export function AuthProvider({ children }) {
         async (event, session) => {
           console.log('[AuthContext] Auth event:', event);
 
-          switch (event) {
-            case 'SIGNED_IN':
-              if (session?.user) {
-                // Get user profile
-                const { data: profile } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('user_id', session.user.id)
-                  .single();
+          // Prevent duplicate event processing
+          const eventKey = `${event}-${session?.user?.id || 'no-user'}`;
+          if (isProcessingAuthEventRef.current && lastAuthEventRef.current === eventKey) {
+            console.log('[AuthContext] Skipping duplicate event:', eventKey);
+            return;
+          }
 
-                await AuthStateMachine.signIn(session.user, profile);
+          isProcessingAuthEventRef.current = true;
+          lastAuthEventRef.current = eventKey;
 
-                // Set onboarding complete if profile is linked
-                if (profile?.linked_profile_id) {
-                  await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+          try {
+            switch (event) {
+              case 'INITIAL_SESSION':
+                // Skip - already handled by AuthStateMachine.initialize()
+                console.log('[AuthContext] Skipping INITIAL_SESSION (handled by initialize)');
+                break;
+
+              case 'SIGNED_IN':
+                if (session?.user) {
+                try {
+                  // Get user profile (handle missing profile gracefully)
+                  const { data: profiles, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('user_id', session.user.id);
+
+                  // Get first profile or null (no error for new users)
+                  const profile = profiles?.[0] || null;
+
+                  if (error && error.code !== 'PGRST116') {
+                    // Only log real errors, not "no rows found"
+                    console.error('[AuthContext] Error fetching profile:', error);
+                  }
+
+                  // AuthStateMachine.signIn handles onboarding status
+                  await AuthStateMachine.signIn(session.user, profile);
+                } catch (error) {
+                  console.error('[AuthContext] Error during sign in:', error);
+                  // Still attempt to sign in with just the user
+                  await AuthStateMachine.signIn(session.user, null);
                 }
               }
               break;
@@ -71,9 +122,15 @@ export function AuthProvider({ children }) {
               await AuthStateMachine.signOut();
               break;
 
-            case 'TOKEN_REFRESHED':
-              console.log('[AuthContext] Token refreshed');
-              break;
+              case 'TOKEN_REFRESHED':
+                console.log('[AuthContext] Token refreshed');
+                break;
+            }
+          } finally {
+            // Reset the processing flag after a short delay to allow for batch processing
+            setTimeout(() => {
+              isProcessingAuthEventRef.current = false;
+            }, 100);
           }
         }
       );
@@ -95,6 +152,7 @@ export function AuthProvider({ children }) {
     user,
     profile,
     isLoading,
+    hasCompletedOnboarding,
 
     // Computed values
     isAuthenticated: authState === AuthStates.AUTHENTICATED,
@@ -105,8 +163,16 @@ export function AuthProvider({ children }) {
 
     // Actions
     signOut: async () => {
+      // First sign out from Supabase to clear session
       await supabase.auth.signOut();
+      // Then clear our state machine and storage
       await AuthStateMachine.signOut();
+      // Force clear onboarding status
+      await AsyncStorage.removeItem('hasCompletedOnboarding');
+      // Reset local state
+      setUser(null);
+      setProfile(null);
+      setHasCompletedOnboarding(null);
     },
 
     enterGuestMode: async () => {

@@ -439,7 +439,7 @@ export default function ProfileLinkStatusCard() {
 
       <TouchableOpacity
         style={[styles.button, styles.primaryButton, styles.fullWidth]}
-        onPress={() => router.push("/auth/NameChainEntry")}
+        onPress={() => router.push("/auth/profile-linking")}
         activeOpacity={0.8}
       >
         <Text style={styles.primaryButtonText}>البحث عن ملفي</Text>

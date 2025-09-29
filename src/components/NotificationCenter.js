@@ -19,6 +19,7 @@ import * as Haptics from "expo-haptics";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import subscriptionManager from "../services/subscriptionManager";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -73,14 +74,16 @@ export default function NotificationCenter({ visible, onClose }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const subscriptionRef = useRef(null);
 
   // Animation values
   const slideAnim = useRef(new Animated.Value(SCREEN_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (visible) {
+    if (visible && user) {
       loadNotifications();
+      setupRealtimeSubscription();
       // Animate in
       Animated.parallel([
         Animated.spring(slideAnim, {
@@ -96,6 +99,11 @@ export default function NotificationCenter({ visible, onClose }) {
         }),
       ]).start();
     } else {
+      // Clean up subscription when closing
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
       // Animate out
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -110,7 +118,52 @@ export default function NotificationCenter({ visible, onClose }) {
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, user]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    };
+  }, []);
+
+  // Setup real-time subscription for notifications
+  const setupRealtimeSubscription = async () => {
+    if (!user) return;
+
+    try {
+      // Subscribe to notifications for this user
+      const subscription = await subscriptionManager.subscribe({
+        channelName: `user-notifications-${user.id}`,
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+        event: '*',
+        onUpdate: (payload) => {
+          console.log('📬 New notification received:', payload);
+
+          // Reload notifications on any change
+          loadNotifications();
+
+          // Show haptic feedback for new notifications
+          if (payload.eventType === 'INSERT') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          }
+        },
+        onError: (error) => {
+          console.error('Notification subscription error:', error);
+        },
+        component: { id: 'NotificationCenter' } // For WeakMap tracking
+      });
+
+      subscriptionRef.current = subscription;
+      console.log('✅ Real-time notifications subscription active');
+    } catch (error) {
+      console.error('Failed to setup notification subscription:', error);
+    }
+  };
 
   // Load notifications from local storage and database
   const loadNotifications = async () => {
@@ -124,89 +177,38 @@ export default function NotificationCenter({ visible, onClose }) {
         updateUnreadCount(parsedNotifications);
       }
 
-      // Then fetch fresh data
+      // Then fetch fresh data from the new notifications table
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const notificationsList = [];
+      // Fetch notifications from the new notifications table
+      const { data: dbNotifications, error } = await supabase
+        .from("user_notifications")  // Using the view that includes related data
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-      // For regular users - get their link request status changes
-      if (!isAdmin) {
-        const { data: requests } = await supabase
-          .from("profile_link_requests")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("updated_at", { ascending: false });
-
-        if (requests) {
-          requests.forEach(request => {
-            // Add notification for each status
-            if (request.status === "approved") {
-              notificationsList.push({
-                id: `approved_${request.id}`,
-                type: NotificationTypes.LINK_REQUEST_APPROVED,
-                title: "تمت الموافقة! 🎉",
-                body: "تم ربط ملفك الشخصي بنجاح",
-                data: { profileId: request.profile_id },
-                createdAt: request.approved_at || request.updated_at,
-                read: request.approval_seen || false,
-              });
-            } else if (request.status === "rejected") {
-              notificationsList.push({
-                id: `rejected_${request.id}`,
-                type: NotificationTypes.LINK_REQUEST_REJECTED,
-                title: "تم رفض الطلب",
-                body: request.rejection_reason || "يرجى التواصل مع المشرف",
-                createdAt: request.rejected_at || request.updated_at,
-                read: request.rejection_seen || false,
-              });
-            } else if (request.status === "pending") {
-              notificationsList.push({
-                id: `pending_${request.id}`,
-                type: NotificationTypes.LINK_REQUEST_PENDING,
-                title: "طلبك قيد المراجعة",
-                body: `تم إرسال طلب ربط: ${request.name_chain}`,
-                createdAt: request.created_at,
-                read: true, // Always read since user created it
-              });
-            }
-          });
-        }
+      if (error) {
+        console.error("Error fetching notifications:", error);
+        setLoading(false);
+        return;
       }
 
-      // For admins - get new link requests
-      if (isAdmin) {
-        const { data: requests } = await supabase
-          .from("profile_link_requests")
-          .select(`
-            *,
-            profile:profile_id(name)
-          `)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(20);
-
-        if (requests) {
-          requests.forEach(request => {
-            notificationsList.push({
-              id: `new_request_${request.id}`,
-              type: NotificationTypes.NEW_LINK_REQUEST,
-              title: "طلب ربط جديد",
-              body: `من: ${request.name_chain || request.profile?.name || "غير محدد"}`,
-              data: { requestId: request.id },
-              createdAt: request.created_at,
-              read: request.admin_viewed || false,
-            });
-          });
-        }
-      }
-
-      // Sort by date (newest first)
-      notificationsList.sort((a, b) =>
-        new Date(b.createdAt) - new Date(a.createdAt)
-      );
+      // Transform database notifications to our format
+      const notificationsList = (dbNotifications || []).map(notif => ({
+        id: notif.id,
+        type: notif.type.replace(/_/g, "_").toUpperCase(),  // Match our type constants
+        title: notif.title,
+        body: notif.body,
+        data: notif.data || {},
+        createdAt: notif.created_at,
+        read: notif.is_read,
+        profileName: notif.related_profile_name,
+        profilePhoto: notif.related_profile_photo,
+      }));
 
       setNotifications(notificationsList);
       updateUnreadCount(notificationsList);
@@ -240,8 +242,15 @@ export default function NotificationCenter({ visible, onClose }) {
       JSON.stringify(updatedNotifications)
     );
 
-    // Update in database if needed
-    // ... database update logic
+    // Update in database
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
   const markAllAsRead = async () => {
@@ -253,6 +262,17 @@ export default function NotificationCenter({ visible, onClose }) {
       `notifications_${user?.id}`,
       JSON.stringify(updatedNotifications)
     );
+
+    // Mark all as read in database
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('user_id', user?.id)
+        .eq('is_read', false);
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };

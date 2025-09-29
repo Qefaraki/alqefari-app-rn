@@ -26,6 +26,7 @@ import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { phoneAuthService } from "../../services/phoneAuth";
+import { router } from "expo-router";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -53,7 +54,7 @@ const countryCodes = [
   { code: "+44", country: "بريطانيا", flag: "🇬🇧", key: "GB" },
 ];
 
-export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
+export default function NajdiPhoneAuthScreen({ onOTPSent }) {
   const [step, setStep] = useState("phone"); // 'phone' or 'otp'
   const [phoneNumber, setPhoneNumber] = useState("");
   const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]); // Saudi default
@@ -423,7 +424,7 @@ export default function NajdiPhoneAuthScreen({ navigation, onOTPSent }) {
                           setCountdown(0);
                         } else {
                           // Go back to onboarding
-                          navigation.goBack();
+                          router.back();
                         }
                       }}
                       activeOpacity={0.7}

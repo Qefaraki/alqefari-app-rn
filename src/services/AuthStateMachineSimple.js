@@ -24,6 +24,8 @@ class AuthStateMachine {
     this.user = null;
     this.profile = null;
     this.listeners = [];
+    this.isInitialized = false;
+    this.lastNotifiedState = null;
   }
 
   subscribe(listener) {
@@ -33,7 +35,20 @@ class AuthStateMachine {
     };
   }
 
-  notify() {
+  notify(forceNotify = false) {
+    // Only notify if state actually changed or forced
+    const currentStateString = JSON.stringify({
+      state: this.currentState,
+      userId: this.user?.id,
+      profileId: this.profile?.id
+    });
+
+    if (!forceNotify && this.lastNotifiedState === currentStateString) {
+      console.log('[AuthStateMachine] Skipping duplicate notification');
+      return;
+    }
+
+    this.lastNotifiedState = currentStateString;
     this.listeners.forEach(listener => listener({
       state: this.currentState,
       user: this.user,
@@ -42,7 +57,13 @@ class AuthStateMachine {
   }
 
   async initialize() {
+    if (this.isInitialized) {
+      console.log('[AuthStateMachine] Already initialized, skipping');
+      return;
+    }
+
     console.log('[AuthStateMachine] Initializing...');
+    this.isInitialized = true;
 
     try {
       // Check guest mode first
@@ -50,7 +71,7 @@ class AuthStateMachine {
       if (isGuestMode === 'true') {
         console.log('[AuthStateMachine] Restoring guest mode');
         this.currentState = AuthStates.GUEST_MODE;
-        this.notify();
+        this.notify(true); // Force notify
         return;
       }
 
@@ -70,6 +91,13 @@ class AuthStateMachine {
 
         this.profile = profile;
         this.currentState = AuthStates.AUTHENTICATED;
+
+        // Sync onboarding status with profile link status
+        if (profile?.linked_profile_id) {
+          await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+        } else {
+          await AsyncStorage.removeItem('hasCompletedOnboarding');
+        }
       } else {
         console.log('[AuthStateMachine] No session found');
         this.currentState = AuthStates.UNAUTHENTICATED;
@@ -79,38 +107,80 @@ class AuthStateMachine {
       this.currentState = AuthStates.UNAUTHENTICATED;
     }
 
-    this.notify();
+    this.notify(true); // Force notify
   }
 
   async signIn(user, profile = null) {
-    console.log('[AuthStateMachine] User signed in');
+    console.log('[AuthStateMachine] User signed in', { userId: user?.id, hasProfile: !!profile });
     this.user = user;
     this.profile = profile;
     this.currentState = AuthStates.AUTHENTICATED;
-    this.notify();
+
+    // Check for pending link request if no profile
+    if (!profile && user) {
+      try {
+        const { data: pendingRequest } = await supabase
+          .from('profile_link_requests')
+          .select('id, status')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .single();
+
+        if (pendingRequest) {
+          // Mark as having a pending request
+          this.profile = { status: 'pending' };
+          console.log('[AuthStateMachine] User has pending link request');
+        }
+      } catch (error) {
+        // No pending request or error - that's ok
+      }
+    }
+
+    // Simple: has profile = completed onboarding
+    if (profile && profile.id) {
+      await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    } else {
+      await AsyncStorage.removeItem('hasCompletedOnboarding');
+    }
+
+    this.notify(true); // Force notify
   }
 
   async signOut() {
-    console.log('[AuthStateMachine] Signing out');
+    console.log('[AuthStateMachine] Signing out - clearing ALL data');
     this.user = null;
     this.profile = null;
     this.currentState = AuthStates.UNAUTHENTICATED;
 
-    // Clear stored data
-    await AsyncStorage.multiRemove([
-      'hasCompletedOnboarding',
-      'isGuestMode'
-    ]);
+    // Clear ALL stored data to prevent data bleeding between sessions
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      await AsyncStorage.multiRemove(keys);
+      console.log('[AuthStateMachine] Cleared all AsyncStorage keys:', keys.length);
+    } catch (error) {
+      console.error('[AuthStateMachine] Error clearing storage:', error);
+      // Fallback to specific keys
+      await AsyncStorage.multiRemove([
+        'hasCompletedOnboarding',
+        'isGuestMode',
+        'supabase.auth.token'
+      ]);
+    }
 
-    this.notify();
+    this.notify(true); // Force notify
   }
 
   async enterGuestMode() {
     console.log('[AuthStateMachine] Entering guest mode');
-    await AsyncStorage.setItem('isGuestMode', 'true');
-    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    try {
+      await AsyncStorage.setItem('isGuestMode', 'true');
+    } catch (error) {
+      console.error('[AuthStateMachine] Error setting guest mode:', error);
+      // Still enter guest mode even if storage fails
+    }
+    // Guest mode is separate from onboarding - don't conflate them
     this.currentState = AuthStates.GUEST_MODE;
-    this.notify();
+    this.notify(true); // Force notify
   }
 
   async exitGuestMode() {
@@ -118,7 +188,7 @@ class AuthStateMachine {
     await AsyncStorage.removeItem('isGuestMode');
     await AsyncStorage.removeItem('hasCompletedOnboarding');
     this.currentState = AuthStates.UNAUTHENTICATED;
-    this.notify();
+    this.notify(true); // Force notify
   }
 
   getState() {
@@ -129,9 +199,9 @@ class AuthStateMachine {
     };
   }
 
-  // Helper to check if user has linked profile
+  // Helper to check if user has a profile
   hasLinkedProfile() {
-    return this.profile?.linked_profile_id != null;
+    return this.profile?.id != null;
   }
 
   // Helper to check if pending approval

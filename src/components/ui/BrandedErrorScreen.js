@@ -9,24 +9,57 @@ import {
   Dimensions,
   Platform,
   Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import tokens from './tokens';
 import appConfig from '../../config/app.config';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const BrandedErrorScreen = ({ error, errorInfo, onReset }) => {
-  const handleReportError = () => {
+  const handleReportError = async () => {
     const errorDetails = error ? error.toString() : 'Unknown error';
     const subject = encodeURIComponent(appConfig.support.subject);
     const body = encodeURIComponent(`\n\n---\nتفاصيل الخطأ:\n${errorDetails}\n`);
     const mailtoUrl = `mailto:${appConfig.support.email}?subject=${subject}&body=${body}`;
 
-    Linking.openURL(mailtoUrl).catch((err) => {
-      console.error('Failed to open email client:', err);
-    });
+    try {
+      const canOpen = await Linking.canOpenURL(mailtoUrl);
+      if (canOpen) {
+        await Linking.openURL(mailtoUrl);
+      } else {
+        // If can't open email, copy error details to clipboard
+        const errorReport = `${appConfig.support.subject}\n\nتفاصيل الخطأ:\n${errorDetails}`;
+        await Clipboard.setStringAsync(errorReport);
+
+        Alert.alert(
+          'تم نسخ تفاصيل الخطأ',
+          `تم نسخ تفاصيل الخطأ. يمكنك إرسالها إلى:\n${appConfig.support.email}`,
+          [{ text: 'موافق' }]
+        );
+      }
+    } catch (err) {
+      // Fallback: Copy error details to clipboard
+      try {
+        const errorReport = `${appConfig.support.subject}\n\nتفاصيل الخطأ:\n${errorDetails}`;
+        await Clipboard.setStringAsync(errorReport);
+
+        Alert.alert(
+          'تم نسخ تفاصيل الخطأ',
+          `تم نسخ تفاصيل الخطأ. يمكنك إرسالها إلى:\n${appConfig.support.email}`,
+          [{ text: 'موافق' }]
+        );
+      } catch (clipboardErr) {
+        Alert.alert(
+          'خطأ',
+          `لا يمكن فتح البريد الإلكتروني. يرجى التواصل مع:\n${appConfig.support.email}`,
+          [{ text: 'موافق' }]
+        );
+      }
+    }
   };
 
   return (

@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 import * as Haptics from "expo-haptics";
+import { router, useLocalSearchParams } from "expo-router";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -34,8 +35,10 @@ const colors = {
   whatsapp: "#25D366",
 };
 
-export default function ContactAdminScreen({ navigation, route }) {
-  const { user, nameChain } = route.params || {};
+export default function ContactAdminScreen() {
+  const params = useLocalSearchParams();
+  const { user: userString, nameChain } = params;
+  const user = userString ? JSON.parse(userString) : null;
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [existingMessage, setExistingMessage] = useState(null);
@@ -61,7 +64,7 @@ export default function ContactAdminScreen({ navigation, route }) {
         Alert.alert(
           "رسالة موجودة",
           "لديك رسالة قيد المراجعة بالفعل. سيتم التواصل معك قريباً.",
-          [{ text: "موافق", onPress: () => navigation.goBack() }],
+          [{ text: "موافق", onPress: () => router.back() }],
         );
       }
     } catch (err) {
@@ -112,7 +115,7 @@ export default function ContactAdminScreen({ navigation, route }) {
         [
           {
             text: "موافق",
-            onPress: () => navigation.navigate("Onboarding"),
+            onPress: () => router.push("/(auth)/"),
           },
         ],
       );
@@ -226,7 +229,7 @@ export default function ContactAdminScreen({ navigation, route }) {
         {/* Back Button */}
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Text style={styles.backButtonText}>رجوع</Text>
         </TouchableOpacity>

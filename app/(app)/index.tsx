@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useLocalSearchParams } from "expo-router";
-import TreeView from "../src/components/TreeView";
-import ProfileSheetWrapper from "../src/components/ProfileSheetWrapper";
-import PendingApprovalBanner from "../src/components/PendingApprovalBanner";
-import { phoneAuthService } from "../src/services/phoneAuth";
+import TreeView from "../../src/components/TreeView";
+import ProfileSheetWrapper from "../../src/components/ProfileSheetWrapper";
+import PendingApprovalBanner from "../../src/components/PendingApprovalBanner";
+import { phoneAuthService } from "../../src/services/phoneAuth";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { useAuth } from "../src/contexts/AuthContext";
+import { useAuth } from "../../src/contexts/AuthContext";
 
 export default function TreeScreen() {
   const { user, isAdmin, isLoading } = useAuth();

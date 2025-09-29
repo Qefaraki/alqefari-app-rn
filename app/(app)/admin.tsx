@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator } from "react-native";
-import AdminDashboard from "../src/screens/AdminDashboardUltraOptimized";
-import { useAuth } from "../src/contexts/AuthContext";
+import AdminDashboard from "../../src/screens/AdminDashboardUltraOptimized";
+import { useAuth } from "../../src/contexts/AuthContextSimple";
 import { useRouter } from "expo-router";
 
 export default function AdminScreen() {

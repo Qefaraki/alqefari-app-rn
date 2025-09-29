@@ -20,8 +20,9 @@ import BranchTreeModal from "../../components/BranchTreeModal";
 import ProfileMatchCard from "../../components/ProfileMatchCard";
 import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContextSimple";
 import * as Haptics from "expo-haptics";
+import { router, useLocalSearchParams } from "expo-router";
 
 // Color palette - moved outside component
 const colors = {
@@ -55,13 +56,36 @@ const cleanName = (text) => {
 // Item height for FlatList optimization
 const ITEM_HEIGHT = 88 + 12; // card height + margin
 
-export default function ProfileLinkingScreen({ navigation, route }) {
-  // Get user from route params OR from auth context as fallback
-  const { user: contextUser, authStateData } = useAuth();
-  const user = route?.params?.user || contextUser || authStateData?.user;
+export default function ProfileLinkingScreen() {
+  // Get user from URL params using Expo Router
+  const params = useLocalSearchParams();
+  const authContext = useAuth();
+  const { user: contextUser, authStateData } = authContext;
+
+  // Debug log full context
+  console.log('[ProfileLinkingScreen] Full auth context:', {
+    hasContext: !!authContext,
+    hasUser: !!authContext?.user,
+    userId: authContext?.user?.id,
+    hasAuthStateData: !!authContext?.authStateData,
+    authState: authContext?.authState
+  });
+
+  // Parse user from URL params if available
+  let userFromParams = null;
+  try {
+    if (params.user) {
+      userFromParams = typeof params.user === 'string' ? JSON.parse(decodeURIComponent(params.user)) : params.user;
+    }
+  } catch (error) {
+    console.error('[ProfileLinkingScreen] Error parsing user param:', error);
+  }
+
+  // Use URL param user first, then context user as fallback
+  const user = userFromParams || contextUser || authStateData?.user;
 
   // Log for debugging
-  console.log('[ProfileLinkingScreen] User from params:', route?.params?.user ? 'Yes' : 'No');
+  console.log('[ProfileLinkingScreen] User from params:', userFromParams ? 'Yes' : 'No');
   console.log('[ProfileLinkingScreen] User from context:', contextUser ? 'Yes' : 'No');
   console.log('[ProfileLinkingScreen] User from authStateData:', authStateData?.user ? 'Yes' : 'No');
   console.log('[ProfileLinkingScreen] Final user:', user?.id);
@@ -93,10 +117,10 @@ export default function ProfileLinkingScreen({ navigation, route }) {
       Alert.alert(
         'خطأ',
         'حدث خطأ في النظام. يرجى إعادة تسجيل الدخول.',
-        [{ text: 'حسناً', onPress: () => navigation.navigate('Onboarding') }]
+        [{ text: 'حسناً', onPress: () => router.push('/(auth)/') }]
       );
     }
-  }, [user, navigation]);
+  }, [user]);
 
   // Auto-focus input on mount
   useEffect(() => {
@@ -231,7 +255,14 @@ export default function ProfileLinkingScreen({ navigation, route }) {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
-      await checkProfileStatus(user);
+
+      // Update AuthStateMachine to mark profile as pending
+      // This prevents navigation loop back to profile-linking
+      if (authContext?.stateMachine) {
+        authContext.stateMachine.profile = { status: 'pending' };
+        authContext.stateMachine.notify(true);
+        console.log('[ProfileLinkingScreen] Marked profile as pending in AuthStateMachine');
+      }
 
       Alert.alert(
         "تم إرسال الطلب ✅",
@@ -239,10 +270,7 @@ export default function ProfileLinkingScreen({ navigation, route }) {
         [{
           text: "موافق",
           onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Main" }],
-            });
+            router.replace("/(app)/");
           },
         }],
       );
@@ -328,7 +356,19 @@ export default function ProfileLinkingScreen({ navigation, route }) {
             {/* Back button last (appears on left in RTL) */}
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => navigation.goBack()}
+              onPress={async () => {
+                // SECURITY: If user backs out of profile linking, sign them out
+                // They're abandoning registration, shouldn't remain authenticated
+                console.log('[ProfileLinkingScreen] User backing out - signing out for security');
+
+                // Sign out the user
+                if (authContext?.signOut) {
+                  await authContext.signOut();
+                }
+
+                // Navigate to auth root
+                router.replace('/(auth)/');
+              }}
             >
               <Ionicons name="chevron-back" size={28} color={colors.text} />
             </TouchableOpacity>

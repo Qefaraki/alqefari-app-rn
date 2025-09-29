@@ -389,7 +389,7 @@ export default function ProfileLinkStatusIndicator() {
   };
 
   const handleStartLinking = () => {
-    router.push("/auth/NameChainEntry");
+    router.push("/auth/profile-linking");
   };
 
   if (loading) {
@@ -550,7 +550,7 @@ export default function ProfileLinkStatusIndicator() {
           <Text style={styles.rejectedText}>تم رفض الطلب</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => router.push("/auth/NameChainEntry")}
+            onPress={() => router.push("/auth/profile-linking")}
             activeOpacity={0.8}
           >
             <Text style={styles.retryText}>إعادة المحاولة</Text>

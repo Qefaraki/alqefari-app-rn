@@ -27,6 +27,8 @@ import { supabase } from "../../services/supabase";
 import { phoneAuthService } from "../../services/phoneAuth";
 import { buildNameChain } from "../../utils/nameChainBuilder";
 import { useRouter } from "expo-router";
+import subscriptionManager from "../../services/subscriptionManager";
+import notificationService from "../../services/notifications";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -116,8 +118,58 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   useEffect(() => {
     console.log("🚀 ProfileConnectionManagerV2 useEffect running");
     loadPendingRequests();
-    const subscription = subscribeToRequests();
-    return () => subscription?.unsubscribe();
+
+    // Subscribe using the memory-safe subscription manager
+    const subscriptionPromise = subscriptionManager.subscribe({
+      channelName: 'admin-link-requests',
+      table: 'profile_link_requests',
+      event: '*',
+      onUpdate: (payload) => {
+        console.log('📡 Real-time update received:', payload);
+
+        // Show real-time notification for new requests
+        if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
+          notificationService.scheduleLocalNotification(
+            'طلب ربط جديد',
+            `طلب جديد من ${payload.new.phone || 'مستخدم'}`,
+            { type: 'new_link_request', requestId: payload.new.id }
+          );
+        }
+
+        // Reload data with debounce (handled by subscription manager)
+        loadPendingRequests();
+      },
+      onError: (error) => {
+        console.error('❌ Subscription error:', error);
+        // Show user-friendly error
+        Alert.alert(
+          'تنبيه',
+          'حدث خطأ في التحديثات التلقائية. سيتم المحاولة مرة أخرى.',
+          [{ text: 'حسناً' }]
+        );
+      }
+      // Removed component: this as it's not needed in functional component
+    });
+
+    // Handle async subscription
+    subscriptionPromise.then(sub => {
+      console.log('✅ Subscription established:', sub?.channelName);
+    }).catch(err => {
+      console.error('❌ Failed to establish subscription:', err);
+    });
+
+    // Store subscription reference for cleanup
+    let subscriptionRef = null;
+    subscriptionPromise.then(sub => {
+      subscriptionRef = sub;
+    });
+
+    // Cleanup function
+    return () => {
+      if (subscriptionRef) {
+        subscriptionRef.unsubscribe();
+      }
+    };
   }, []);
 
   const loadPendingRequests = async () => {
@@ -194,22 +246,6 @@ export default function ProfileConnectionManagerV2({ onBack }) {
     }
   };
 
-  const subscribeToRequests = () => {
-    return supabase
-      .channel("admin-link-requests")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "profile_link_requests",
-        },
-        () => {
-          loadPendingRequests();
-        }
-      )
-      .subscribe();
-  };
 
   const handleApprove = async (request) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -224,13 +260,37 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           style: "default",
           onPress: async () => {
             try {
+              // Optimistic update - move to approved immediately
+              setRequests(prev => ({
+                ...prev,
+                pending: prev.pending.filter(r => r.id !== request.id),
+                approved: [{ ...request, status: 'approved' }, ...prev.approved]
+              }));
+
               const { error } = await phoneAuthService.approveProfileLink(
                 request.id
               );
-              if (error) throw error;
+
+              if (error) {
+                // Revert optimistic update on error
+                setRequests(prev => ({
+                  ...prev,
+                  pending: [...prev.pending, request],
+                  approved: prev.approved.filter(r => r.id !== request.id)
+                }));
+                throw error;
+              }
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert("نجح", "تمت الموافقة على الطلب");
+
+              // Show success notification
+              notificationService.scheduleLocalNotification(
+                'تمت الموافقة ✅',
+                `تم قبول طلب ${request.profiles?.name || request.name_chain}`,
+                { type: 'approval_success' }
+              );
+
+              // Reload to get latest data (will be debounced)
               loadPendingRequests();
             } catch (error) {
               Alert.alert("خطأ", "فشلت الموافقة على الطلب");
@@ -254,14 +314,38 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           style: "destructive",
           onPress: async () => {
             try {
+              // Optimistic update - move to rejected immediately
+              setRequests(prev => ({
+                ...prev,
+                pending: prev.pending.filter(r => r.id !== request.id),
+                rejected: [{ ...request, status: 'rejected', review_notes: 'رفض من قبل المسؤول' }, ...prev.rejected]
+              }));
+
               const { error } = await phoneAuthService.rejectProfileLink(
                 request.id,
                 "رفض من قبل المسؤول"
               );
-              if (error) throw error;
+
+              if (error) {
+                // Revert optimistic update on error
+                setRequests(prev => ({
+                  ...prev,
+                  pending: [...prev.pending, request],
+                  rejected: prev.rejected.filter(r => r.id !== request.id)
+                }));
+                throw error;
+              }
 
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              Alert.alert("تم", "تم رفض الطلب");
+
+              // Show rejection notification
+              notificationService.scheduleLocalNotification(
+                'تم الرفض ❌',
+                `تم رفض طلب ${request.profiles?.name || request.name_chain}`,
+                { type: 'rejection_success' }
+              );
+
+              // Reload to get latest data (will be debounced)
               loadPendingRequests();
             } catch (error) {
               Alert.alert("خطأ", "فشل رفض الطلب");
@@ -340,7 +424,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Header with emblem - matching SettingsPage pattern */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -594,7 +678,7 @@ const styles = StyleSheet.create({
   // Header - matching SettingsPage pattern
   header: {
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: Platform.OS === "ios" ? 10 : 20, // Reduced for iOS since SafeAreaView handles it
     paddingBottom: 8,
   },
   headerRow: {

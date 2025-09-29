@@ -1,0 +1,465 @@
+import { supabase } from './supabase';
+
+/**
+ * Memory-safe Subscription Manager
+ *
+ * Features:
+ * - Connection pooling (max 5 channels)
+ * - Automatic cleanup on unmount
+ * - Exponential backoff retry
+ * - Health monitoring with heartbeat
+ * - Memory usage tracking
+ * - Circuit breaker pattern
+ */
+class SubscriptionManager {
+  constructor() {
+    // Use WeakMap for automatic garbage collection
+    this.subscriptions = new WeakMap();
+    this.activeChannels = new Map();
+    this.retryAttempts = new Map();
+    this.circuitBreaker = new Map();
+
+    // Configuration
+    this.config = {
+      maxChannels: 5,
+      maxRetries: 5,
+      baseRetryDelay: 1000, // 1 second
+      maxRetryDelay: 30000, // 30 seconds
+      heartbeatInterval: 30000, // 30 seconds
+      inactivityTimeout: 300000, // 5 minutes
+      memoryThreshold: 80 * 1024 * 1024, // 80MB warning threshold
+      debounceDelay: 500, // 500ms debounce for updates
+      circuitBreakerThreshold: 5, // Failures before circuit opens
+      circuitBreakerResetTime: 60000 // 1 minute reset time
+    };
+
+    // Performance monitoring
+    this.metrics = {
+      connectTime: [],
+      disconnectTime: [],
+      failedReconnects: 0,
+      memoryUsage: [],
+      activeSubscriptions: 0
+    };
+
+    // Debounce timers
+    this.debounceTimers = new Map();
+
+    // Start health monitoring
+    this.startHealthMonitoring();
+  }
+
+  /**
+   * Subscribe to a channel with memory safety
+   */
+  async subscribe({
+    channelName,
+    table,
+    filter = null,
+    event = '*',
+    onUpdate,
+    onError = null,
+    component = null // For WeakMap tracking
+  }) {
+    try {
+      // Check circuit breaker
+      if (this.isCircuitOpen(channelName)) {
+        console.warn(`[SubscriptionManager] Circuit breaker open for ${channelName}`);
+        if (onError) onError(new Error('Circuit breaker is open - too many failures'));
+        return null;
+      }
+
+      // Check connection pool limit
+      if (this.activeChannels.size >= this.config.maxChannels) {
+        // Clean up inactive channels
+        await this.cleanupInactiveChannels();
+
+        if (this.activeChannels.size >= this.config.maxChannels) {
+          console.warn('[SubscriptionManager] Max channels reached, queuing subscription');
+          if (onError) onError(new Error('Max concurrent subscriptions reached'));
+          return null;
+        }
+      }
+
+      // Check memory usage
+      if (this.isMemoryThresholdExceeded()) {
+        console.warn('[SubscriptionManager] Memory threshold exceeded');
+        await this.reduceMemoryUsage();
+      }
+
+      // Clean up existing subscription
+      await this.unsubscribe(channelName);
+
+      const startTime = Date.now();
+
+      // Build subscription config
+      const subscriptionConfig = {
+        event,
+        schema: 'public',
+        table
+      };
+
+      if (filter) {
+        subscriptionConfig.filter = filter;
+      }
+
+      // Create debounced update handler
+      const debouncedUpdate = this.createDebouncedHandler(channelName, onUpdate);
+
+      // Create subscription with error handling
+      const channel = supabase
+        .channel(channelName)
+        .on('postgres_changes', subscriptionConfig, (payload) => {
+          console.log(`[SubscriptionManager] Update received for ${channelName}:`, payload);
+
+          // Update last activity
+          this.updateChannelActivity(channelName);
+
+          // Call debounced handler
+          debouncedUpdate(payload);
+        })
+        .on('error', (error) => {
+          console.error(`[SubscriptionManager] Error in ${channelName}:`, error);
+          this.handleSubscriptionError(channelName, error, onError);
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log(`[SubscriptionManager] Successfully subscribed to ${channelName}`);
+
+            // Track metrics
+            const connectTime = Date.now() - startTime;
+            this.metrics.connectTime.push(connectTime);
+            this.metrics.activeSubscriptions++;
+
+            // Reset retry attempts
+            this.retryAttempts.delete(channelName);
+
+            // Reset circuit breaker
+            this.resetCircuitBreaker(channelName);
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            console.error(`[SubscriptionManager] Channel ${channelName} closed/error`);
+            this.handleSubscriptionError(channelName, new Error(`Channel status: ${status}`), onError);
+          }
+        });
+
+      // Store subscription info
+      const subscriptionInfo = {
+        channel,
+        table,
+        filter,
+        onUpdate,
+        onError,
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+        retryCount: 0
+      };
+
+      this.activeChannels.set(channelName, subscriptionInfo);
+
+      // Store in WeakMap if component provided
+      if (component) {
+        if (!this.subscriptions.has(component)) {
+          this.subscriptions.set(component, new Set());
+        }
+        this.subscriptions.get(component).add(channelName);
+      }
+
+      return {
+        unsubscribe: () => this.unsubscribe(channelName),
+        channelName
+      };
+
+    } catch (error) {
+      console.error(`[SubscriptionManager] Failed to subscribe to ${channelName}:`, error);
+      if (onError) onError(error);
+      return null;
+    }
+  }
+
+  /**
+   * Create debounced update handler
+   */
+  createDebouncedHandler(channelName, callback) {
+    return (payload) => {
+      // Clear existing timer
+      if (this.debounceTimers.has(channelName)) {
+        clearTimeout(this.debounceTimers.get(channelName));
+      }
+
+      // Set new timer
+      const timer = setTimeout(() => {
+        callback(payload);
+        this.debounceTimers.delete(channelName);
+      }, this.config.debounceDelay);
+
+      this.debounceTimers.set(channelName, timer);
+    };
+  }
+
+  /**
+   * Handle subscription errors with retry logic
+   */
+  async handleSubscriptionError(channelName, error, onError) {
+    const retryCount = this.retryAttempts.get(channelName) || 0;
+
+    // Update circuit breaker
+    this.updateCircuitBreaker(channelName, false);
+
+    if (retryCount >= this.config.maxRetries) {
+      console.error(`[SubscriptionManager] Max retries reached for ${channelName}`);
+      this.metrics.failedReconnects++;
+
+      // Open circuit breaker
+      this.openCircuitBreaker(channelName);
+
+      if (onError) onError(error);
+      return;
+    }
+
+    // Calculate retry delay with exponential backoff
+    const delay = Math.min(
+      this.config.baseRetryDelay * Math.pow(2, retryCount),
+      this.config.maxRetryDelay
+    );
+
+    console.log(`[SubscriptionManager] Retrying ${channelName} in ${delay}ms (attempt ${retryCount + 1})`);
+    this.retryAttempts.set(channelName, retryCount + 1);
+
+    // Retry subscription
+    setTimeout(async () => {
+      const subscriptionInfo = this.activeChannels.get(channelName);
+      if (subscriptionInfo) {
+        await this.subscribe({
+          channelName,
+          table: subscriptionInfo.table,
+          filter: subscriptionInfo.filter,
+          onUpdate: subscriptionInfo.onUpdate,
+          onError: subscriptionInfo.onError
+        });
+      }
+    }, delay);
+  }
+
+  /**
+   * Unsubscribe from a channel
+   */
+  async unsubscribe(channelName) {
+    try {
+      const startTime = Date.now();
+      const subscriptionInfo = this.activeChannels.get(channelName);
+
+      if (subscriptionInfo?.channel) {
+        await subscriptionInfo.channel.unsubscribe();
+
+        // Track metrics
+        const disconnectTime = Date.now() - startTime;
+        this.metrics.disconnectTime.push(disconnectTime);
+        this.metrics.activeSubscriptions = Math.max(0, this.metrics.activeSubscriptions - 1);
+      }
+
+      // Clear debounce timer
+      if (this.debounceTimers.has(channelName)) {
+        clearTimeout(this.debounceTimers.get(channelName));
+        this.debounceTimers.delete(channelName);
+      }
+
+      this.activeChannels.delete(channelName);
+      this.retryAttempts.delete(channelName);
+
+      console.log(`[SubscriptionManager] Unsubscribed from ${channelName}`);
+    } catch (error) {
+      console.error(`[SubscriptionManager] Error unsubscribing from ${channelName}:`, error);
+    }
+  }
+
+  /**
+   * Unsubscribe all channels for a component
+   */
+  async unsubscribeComponent(component) {
+    const channelNames = this.subscriptions.get(component);
+    if (channelNames) {
+      for (const channelName of channelNames) {
+        await this.unsubscribe(channelName);
+      }
+      this.subscriptions.delete(component);
+    }
+  }
+
+  /**
+   * Clean up inactive channels
+   */
+  async cleanupInactiveChannels() {
+    const now = Date.now();
+    const inactiveChannels = [];
+
+    for (const [channelName, info] of this.activeChannels) {
+      if (now - info.lastActivity > this.config.inactivityTimeout) {
+        inactiveChannels.push(channelName);
+      }
+    }
+
+    console.log(`[SubscriptionManager] Cleaning up ${inactiveChannels.length} inactive channels`);
+
+    for (const channelName of inactiveChannels) {
+      await this.unsubscribe(channelName);
+    }
+  }
+
+  /**
+   * Update channel activity timestamp
+   */
+  updateChannelActivity(channelName) {
+    const info = this.activeChannels.get(channelName);
+    if (info) {
+      info.lastActivity = Date.now();
+    }
+  }
+
+  /**
+   * Circuit breaker implementation
+   */
+  isCircuitOpen(channelName) {
+    const breaker = this.circuitBreaker.get(channelName);
+    if (!breaker) return false;
+
+    // Check if reset time has passed
+    if (Date.now() - breaker.openedAt > this.config.circuitBreakerResetTime) {
+      this.circuitBreaker.delete(channelName);
+      return false;
+    }
+
+    return breaker.isOpen;
+  }
+
+  updateCircuitBreaker(channelName, success) {
+    let breaker = this.circuitBreaker.get(channelName) || {
+      failures: 0,
+      isOpen: false,
+      openedAt: null
+    };
+
+    if (success) {
+      breaker.failures = 0;
+    } else {
+      breaker.failures++;
+    }
+
+    this.circuitBreaker.set(channelName, breaker);
+  }
+
+  openCircuitBreaker(channelName) {
+    const breaker = this.circuitBreaker.get(channelName) || { failures: 0 };
+    breaker.isOpen = true;
+    breaker.openedAt = Date.now();
+    this.circuitBreaker.set(channelName, breaker);
+    console.warn(`[SubscriptionManager] Circuit breaker opened for ${channelName}`);
+  }
+
+  resetCircuitBreaker(channelName) {
+    this.circuitBreaker.delete(channelName);
+  }
+
+  /**
+   * Memory management
+   */
+  isMemoryThresholdExceeded() {
+    if (typeof performance !== 'undefined' && performance.memory) {
+      const usage = performance.memory.usedJSHeapSize;
+      this.metrics.memoryUsage.push(usage);
+      return usage > this.config.memoryThreshold;
+    }
+    return false;
+  }
+
+  async reduceMemoryUsage() {
+    console.warn('[SubscriptionManager] Reducing memory usage');
+
+    // Clean up old metrics
+    this.metrics.connectTime = this.metrics.connectTime.slice(-100);
+    this.metrics.disconnectTime = this.metrics.disconnectTime.slice(-100);
+    this.metrics.memoryUsage = this.metrics.memoryUsage.slice(-100);
+
+    // Clean up inactive channels
+    await this.cleanupInactiveChannels();
+  }
+
+  /**
+   * Health monitoring
+   */
+  startHealthMonitoring() {
+    this.healthInterval = setInterval(() => {
+      this.performHealthCheck();
+    }, this.config.heartbeatInterval);
+  }
+
+  performHealthCheck() {
+    console.log('[SubscriptionManager] Health check:', {
+      activeChannels: this.activeChannels.size,
+      activeSubscriptions: this.metrics.activeSubscriptions,
+      failedReconnects: this.metrics.failedReconnects,
+      memoryUsage: this.metrics.memoryUsage[this.metrics.memoryUsage.length - 1] || 0,
+      avgConnectTime: this.getAverageMetric(this.metrics.connectTime),
+      avgDisconnectTime: this.getAverageMetric(this.metrics.disconnectTime)
+    });
+
+    // Clean up if needed
+    if (this.activeChannels.size > 0) {
+      this.cleanupInactiveChannels();
+    }
+  }
+
+  getAverageMetric(metrics) {
+    if (metrics.length === 0) return 0;
+    return Math.round(metrics.reduce((a, b) => a + b, 0) / metrics.length);
+  }
+
+  /**
+   * Get current metrics
+   */
+  getMetrics() {
+    return {
+      ...this.metrics,
+      activeChannels: this.activeChannels.size,
+      avgConnectTime: this.getAverageMetric(this.metrics.connectTime),
+      avgDisconnectTime: this.getAverageMetric(this.metrics.disconnectTime)
+    };
+  }
+
+  /**
+   * Cleanup all subscriptions
+   */
+  async cleanup() {
+    console.log('[SubscriptionManager] Cleaning up all subscriptions');
+
+    // Clear health monitoring
+    if (this.healthInterval) {
+      clearInterval(this.healthInterval);
+    }
+
+    // Clear all debounce timers
+    for (const timer of this.debounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.debounceTimers.clear();
+
+    // Unsubscribe all channels
+    const channels = Array.from(this.activeChannels.keys());
+    for (const channelName of channels) {
+      await this.unsubscribe(channelName);
+    }
+
+    // Clear all maps
+    this.activeChannels.clear();
+    this.retryAttempts.clear();
+    this.circuitBreaker.clear();
+  }
+}
+
+// Export singleton instance
+const subscriptionManager = new SubscriptionManager();
+
+// Cleanup on app termination (web only)
+// Note: React Native doesn't have window.addEventListener
+// Cleanup will be handled by component unmount hooks
+
+export default subscriptionManager;

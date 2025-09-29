@@ -90,17 +90,24 @@ class NotificationService {
       } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Upsert token to push_tokens table
       const { error } = await supabase
-        .from("auth.users")
-        .update({
-          push_token: token,
-          notifications_enabled: true,
+        .from("push_tokens")
+        .upsert({
+          user_id: user.id,
+          token: token,
+          platform: Device.osName?.toLowerCase() || 'unknown',
+          is_active: true,
+          last_used: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+        }, {
+          onConflict: 'user_id,token'
+        });
 
       if (error) {
         console.error("Error saving push token:", error);
+      } else {
+        console.log("Push token saved successfully");
       }
     } catch (error) {
       console.error("Error in savePushToken:", error);
@@ -250,12 +257,14 @@ export const NotificationTypes = {
 // Helper function to send push notification via Supabase Edge Function
 export async function sendPushNotification(userId, title, body, data = {}) {
   try {
-    const { error } = await supabase.functions.invoke("send-notification", {
+    const { data: result, error } = await supabase.functions.invoke("send-push-notification", {
       body: {
         userId,
         title,
         body,
         data,
+        priority: 'high',
+        sound: 'default'
       },
     });
 
@@ -264,7 +273,8 @@ export async function sendPushNotification(userId, title, body, data = {}) {
       return false;
     }
 
-    return true;
+    console.log('Push notification result:', result);
+    return result?.sent > 0;
   } catch (error) {
     console.error("Error in sendPushNotification:", error);
     return false;
@@ -278,7 +288,7 @@ export async function notifyAdminsOfNewRequest(requestData) {
     const { data: admins, error } = await supabase
       .from("profiles")
       .select("user_id")
-      .eq("is_admin", true)
+      .in("role", ["admin", "super_admin"])
       .not("user_id", "is", null);
 
     if (error) throw error;

@@ -19,11 +19,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { router } from "expo-router";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/AuthContextSimple";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -92,14 +93,26 @@ const createMaskedStarfield = () => {
 
 // Background stars generation removed - now using SaduNightBackdrop component
 
-export default function OnboardingScreen({ navigation, setIsGuest }) {
+export default function OnboardingScreen({ setIsGuest }) {
   const [animationTime, setAnimationTime] = useState(0);
   const animationRef = useRef();
   const insets = useSafeAreaInsets();
   const [reduceMotion, setReduceMotion] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const hasBeenMountedRef = useRef(false); // Track if this is a return visit
-  const { stateMachine } = useAuth();  // Add state machine access
+  const { stateMachine, user, profile } = useAuth();  // Add state machine and user access
+
+  // SECURITY: Prevent authenticated users from accessing onboarding
+  useEffect(() => {
+    if (user) {
+      console.log('[OnboardingScreen] User already authenticated, redirecting');
+      // If user exists but no profile, go to profile-linking
+      // Otherwise they'll be handled by RootLayoutNav
+      if (!profile) {
+        router.replace('/(auth)/profile-linking');
+      }
+    }
+  }, [user, profile]);
 
   // Parallax state
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -493,19 +506,18 @@ export default function OnboardingScreen({ navigation, setIsGuest }) {
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start(async () => {
-      // Transition state machine before navigating
-      await stateMachine.navigateToPhoneAuth();
-      navigation.navigate("PhoneAuth");
+    ]).start(() => {
+      // Navigate to phone auth screen
+      router.push("/(auth)/phone-auth");
     });
-  }, [navigation, primaryButtonScale, logoFade, contentFade, buttonFade, stateMachine]);
+  }, [primaryButtonScale, logoFade, contentFade, buttonFade]);
 
   const handleExploreAsGuest = useCallback(async () => {
     animateButtonPress(secondaryButtonScale);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Mark onboarding as complete
-    await AsyncStorage.setItem('hasCompletedOnboarding', 'true');
+    // Guest mode is separate from onboarding completion
+    // Don't mark onboarding as complete for guest users
 
     // Fade out all components before setting guest mode
     Animated.parallel([

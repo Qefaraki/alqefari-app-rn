@@ -1,6 +1,6 @@
 import React from "react";
-import SettingsPageModern from "../src/screens/SettingsPageModern";
-import { SettingsProvider } from "../src/contexts/SettingsContext";
+import SettingsPageModern from "../../src/screens/SettingsPageModern";
+import { SettingsProvider } from "../../src/contexts/SettingsContext";
 
 export default function SettingsScreen() {
   const [user, setUser] = React.useState(null);
@@ -10,7 +10,7 @@ export default function SettingsScreen() {
     async function loadUser() {
       const {
         data: { user },
-      } = await require("../src/services/supabase").supabase.auth.getUser();
+      } = await require("../../src/services/supabase").supabase.auth.getUser();
       setUser(user);
     }
     loadUser();
