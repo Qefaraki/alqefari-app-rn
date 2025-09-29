@@ -29,7 +29,25 @@
 - [ ] Improve ProfileSheet bottom sheet responsiveness
 - [ ] Add field-level error states and recovery
 
-### 3. Tutorial System
+### 3. Activity Logs & Audit System Polish
+**Priority**: HIGH
+**Current State**: Implemented but UI is poor, functionality untested
+**Issues**:
+- Poor UI/UX design - needs complete redesign
+- Actor name not being tracked/displayed properly
+- Functionality largely untested
+- Missing proper filtering and search
+**Tasks**:
+- [ ] Redesign Activity Log UI for better usability
+- [ ] Fix actor name tracking (who performed the action)
+- [ ] Test and fix revert functionality
+- [ ] Add proper filtering by action type, date, actor
+- [ ] Improve performance for large audit logs
+- [ ] Add pagination or infinite scroll
+- [ ] Better error handling for failed reverts
+- [ ] Clear action descriptions in Arabic
+
+### 4. Tutorial System
 **Priority**: MEDIUM
 **Current State**: Not implemented
 **Tasks**:
@@ -40,7 +58,7 @@
 - [ ] Search/filter usage tutorial
 - [ ] Consider: Tooltips vs Modal tours vs Overlay guides
 
-### 4. Technical Debt Cleanup
+### 5. Technical Debt Cleanup
 **Priority**: MEDIUM
 **Current State**: Accumulated over development
 **Tasks**:
@@ -95,9 +113,10 @@
 The app will be considered complete when:
 1. Photo system loads reliably without flickering
 2. Profile editing feels smooth and saves consistently
-3. New users can understand the app via tutorials
-4. No console errors or warnings in normal usage
-5. Code is clean and maintainable
+3. Activity logs work properly with clear UI and actor tracking
+4. New users can understand the app via tutorials
+5. No console errors or warnings in normal usage
+6. Code is clean and maintainable
 
 ---
 
