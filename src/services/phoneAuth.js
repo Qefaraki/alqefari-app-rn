@@ -726,17 +726,39 @@ export const phoneAuthService = {
    */
   async approveProfileLink(requestId, adminNotes = null) {
     try {
-      const { data, error } = await supabase.rpc('approve_profile_link_request', {
+      // Try the new secure RPC function first
+      const { data, error } = await supabase.rpc('admin_approve_request', {
         p_request_id: requestId,
         p_admin_notes: adminNotes
       });
 
+      // If the function doesn't exist, fall back to the old one
+      if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+        console.warn('New RPC function not found, falling back to old function');
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc('approve_profile_link_request', {
+          p_request_id: requestId,
+          p_admin_notes: adminNotes
+        });
+
+        if (fallbackError) throw fallbackError;
+
+        return {
+          success: true,
+          message: "تمت الموافقة على الطلب بنجاح"
+        };
+      }
+
       if (error) throw error;
 
-      return {
-        success: true,
-        message: "تمت الموافقة على الطلب بنجاح"
-      };
+      // Check if the RPC function returned success
+      if (data && data.success) {
+        return {
+          success: true,
+          message: "تمت الموافقة على الطلب بنجاح"
+        };
+      } else {
+        throw new Error(data?.error || "فشلت الموافقة على الطلب");
+      }
     } catch (error) {
       console.error("Error approving profile link:", error);
       return {
@@ -751,17 +773,39 @@ export const phoneAuthService = {
    */
   async rejectProfileLink(requestId, adminNotes = null) {
     try {
-      const { data, error } = await supabase.rpc('reject_profile_link_request', {
+      // Try the new secure RPC function first
+      const { data, error } = await supabase.rpc('admin_reject_request', {
         p_request_id: requestId,
-        p_admin_notes: adminNotes
+        p_rejection_reason: adminNotes
       });
+
+      // If the function doesn't exist, fall back to the old one
+      if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+        console.warn('New RPC function not found, falling back to old function');
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc('reject_profile_link_request', {
+          p_request_id: requestId,
+          p_admin_notes: adminNotes
+        });
+
+        if (fallbackError) throw fallbackError;
+
+        return {
+          success: true,
+          message: "تم رفض الطلب"
+        };
+      }
 
       if (error) throw error;
 
-      return {
-        success: true,
-        message: "تم رفض الطلب"
-      };
+      // Check if the RPC function returned success
+      if (data && data.success) {
+        return {
+          success: true,
+          message: "تم رفض الطلب"
+        };
+      } else {
+        throw new Error(data?.error || "فشل رفض الطلب");
+      }
     } catch (error) {
       console.error("Error rejecting profile link:", error);
       return {

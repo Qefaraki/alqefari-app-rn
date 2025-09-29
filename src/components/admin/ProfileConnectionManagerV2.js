@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Alert,
@@ -11,6 +11,7 @@ import {
   Text,
   Image,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -82,13 +83,35 @@ const getInitials = (name) => {
   return cleanName.charAt(0);
 };
 
+// Helper function to manage cache size
+const addToCache = (cache, key, value, maxSize = 100) => {
+  if (!cache) return;
+
+  // Implement LRU cache - remove oldest if at limit
+  if (cache.size >= maxSize) {
+    const firstKey = cache.keys().next().value;
+    cache.delete(firstKey);
+  }
+
+  // If key exists, delete and re-add to make it most recent
+  if (cache.has(key)) {
+    cache.delete(key);
+  }
+
+  cache.set(key, value);
+};
+
 // Helper function to get full name chain with caching
 const getFullNameChain = (profile, allProfiles = [], cache = null) => {
   if (!profile) return "غير محدد";
 
   // Check cache first
   if (cache && cache.has(profile.id)) {
-    return cache.get(profile.id);
+    // Move to end (most recently used)
+    const cached = cache.get(profile.id);
+    cache.delete(profile.id);
+    cache.set(profile.id, cached);
+    return cached;
   }
 
   // Use buildNameChain utility to get the full chain
@@ -104,16 +127,18 @@ const getFullNameChain = (profile, allProfiles = [], cache = null) => {
     fullChain = name.includes("القفاري") ? name : `${name} القفاري`;
   }
 
-  // Store in cache
-  if (cache) {
-    cache.set(profile.id, fullChain);
-  }
+  // Store in cache with size limit
+  addToCache(cache, profile.id, fullChain, 100);
 
   return fullChain;
 };
 
+// Debug mode - set to false in production
+const DEBUG_MODE = __DEV__;
+const log = (...args) => DEBUG_MODE && console.log(...args);
+
 export default function ProfileConnectionManagerV2({ onBack }) {
-  console.log("🚀 ProfileConnectionManagerV2 MOUNTED");
+  log("🚀 ProfileConnectionManagerV2 MOUNTED");
   const router = useRouter();
   const [requests, setRequests] = useState({
     pending: [],
@@ -125,15 +150,23 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const [selectedTab, setSelectedTab] = useState(0); // 0: pending, 1: approved, 2: rejected
   const [allProfiles, setAllProfiles] = useState([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
+  const [processingRequests, setProcessingRequests] = useState(new Set()); // Track processing requests
   const profilesLoadedRef = useRef(false);
   const updateDebounceRef = useRef(null);
   const nameChainCache = useRef(new Map());
+  const mountedRef = useRef(true);
+  const previousRequestsRef = useRef(null);
+  const retryTimersRef = useRef(new Map()); // Track all retry timers
+
+  // Cache configuration
+  const MAX_CACHE_SIZE = 100;
+  const DEBOUNCE_DELAY = 500;
 
   const tabOptions = ["في الانتظار", "موافق عليها", "مرفوضة"];
   const tabKeys = ["pending", "approved", "rejected"];
 
   useEffect(() => {
-    console.log("🚀 ProfileConnectionManagerV2 useEffect running");
+    log("🚀 ProfileConnectionManagerV2 useEffect running");
     loadPendingRequests();
 
     // Subscribe using the memory-safe subscription manager
@@ -142,7 +175,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       table: 'profile_link_requests',
       event: '*',
       onUpdate: (payload) => {
-        console.log('📡 Real-time update received:', payload);
+        log('📡 Real-time update received:', payload);
 
         // Show real-time notification for new requests
         if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
@@ -153,47 +186,64 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           );
         }
 
-        // Optimistic update - no database query, just update local state
-        setRequests(currentRequests => {
-          const updated = { ...currentRequests };
+        // Optimistic update with deduplication and error handling
+        try {
+          setRequests(currentRequests => {
+            const updated = { ...currentRequests };
 
-          if (payload.eventType === 'UPDATE') {
-            // Remove request from all status groups
-            Object.keys(updated).forEach(status => {
-              updated[status] = updated[status].filter(r => r.id !== payload.new.id);
-            });
+            if (payload.eventType === 'UPDATE') {
+              // Remove request from all status groups
+              Object.keys(updated).forEach(status => {
+                updated[status] = updated[status].filter(r => r.id !== payload.new.id);
+              });
 
-            // Add to new status group with updated data
-            const newStatus = payload.new.status;
-            if (updated[newStatus]) {
-              // Merge the payload with profile data if we have it
-              const existingRequest = Object.values(currentRequests).flat()
-                .find(r => r.id === payload.new.id);
+              // Add to new status group with updated data
+              const newStatus = payload.new.status;
+              if (updated[newStatus]) {
+                // Merge the payload with profile data if we have it
+                const existingRequest = Object.values(currentRequests).flat()
+                  .find(r => r.id === payload.new.id);
 
-              const updatedRequest = {
-                ...payload.new,
-                profiles: existingRequest?.profiles || payload.new.profiles
-              };
+                const updatedRequest = {
+                  ...payload.new,
+                  profiles: existingRequest?.profiles || payload.new.profiles
+                };
 
-              updated[newStatus] = [updatedRequest, ...updated[newStatus]];
+                // Check for duplicates before adding
+                const exists = updated[newStatus].some(r => r.id === updatedRequest.id);
+                if (!exists) {
+                  updated[newStatus] = [updatedRequest, ...updated[newStatus]];
+                }
+              }
+            } else if (payload.eventType === 'INSERT') {
+              // Add new request to pending with duplicate check
+              if (payload.new.status === 'pending') {
+                const exists = updated.pending.some(r => r.id === payload.new.id);
+                if (!exists) {
+                  updated.pending = [payload.new, ...updated.pending];
+                }
+              }
+            } else if (payload.eventType === 'DELETE') {
+              // Remove from all groups
+              Object.keys(updated).forEach(status => {
+                updated[status] = updated[status].filter(r => r.id !== payload.old.id);
+              });
             }
-          } else if (payload.eventType === 'INSERT') {
-            // Add new request to pending
-            if (payload.new.status === 'pending') {
-              updated.pending = [payload.new, ...updated.pending];
-            }
-          } else if (payload.eventType === 'DELETE') {
-            // Remove from all groups
-            Object.keys(updated).forEach(status => {
-              updated[status] = updated[status].filter(r => r.id !== payload.old.id);
-            });
+
+            // Store for potential rollback
+            previousRequestsRef.current = currentRequests;
+            return updated;
+          });
+        } catch (error) {
+          log('❌ Error in optimistic update:', error);
+          // Restore previous state on error
+          if (previousRequestsRef.current) {
+            setRequests(previousRequestsRef.current);
           }
-
-          return updated;
-        });
+        }
       },
       onError: (error) => {
-        console.error('❌ Subscription error:', error);
+        log('❌ Subscription error:', error);
         // Show user-friendly error
         Alert.alert(
           'تنبيه',
@@ -206,9 +256,9 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
     // Handle async subscription
     subscriptionPromise.then(sub => {
-      console.log('✅ Subscription established:', sub?.channelName);
+      log('✅ Subscription established:', sub?.channelName);
     }).catch(err => {
-      console.error('❌ Failed to establish subscription:', err);
+      log('❌ Failed to establish subscription:', err);
     });
 
     // Store subscription reference for cleanup
@@ -219,12 +269,17 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
     // Cleanup function
     return () => {
+      mountedRef.current = false; // Mark as unmounted
+
       if (subscriptionRef) {
         subscriptionRef.unsubscribe();
       }
       if (updateDebounceRef.current) {
         clearTimeout(updateDebounceRef.current);
       }
+      // Clean up all retry timers
+      retryTimersRef.current.forEach(timer => clearTimeout(timer));
+      retryTimersRef.current.clear();
     };
   }, []);
 
@@ -251,7 +306,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         .or(Array.from(profileIds).map(id => `id.eq.${id}`).join(','));
 
       if (profiles) {
-        console.log(`🔍 DEBUG: Loaded ${profiles.length} relevant profiles for name chains`);
+        log(`🔍 DEBUG: Loaded ${profiles.length} relevant profiles for name chains`);
 
         // Load ancestors recursively to build complete chains
         const ancestorIds = new Set();
@@ -276,7 +331,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         profilesLoadedRef.current = true;
       }
     } catch (error) {
-      console.error('Error loading profiles:', error);
+      log('❌ Error loading profiles:', error);
     } finally {
       setIsLoadingProfiles(false);
     }
@@ -284,7 +339,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
   // Load only requests (lightweight operation)
   const loadRequestsOnly = async () => {
-    console.log("🔍 DEBUG: Loading requests only...");
+    log("🔍 DEBUG: Loading requests only...");
     try {
       const { data, error } = await supabase
         .from("profile_link_requests")
@@ -305,17 +360,17 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         .in("status", ["pending", "approved", "rejected"])
         .order("created_at", { ascending: false });
 
-      console.log("🔍 DEBUG: Query response:", { data, error });
+      log("🔍 DEBUG: Query response:", { data, error });
 
       if (error) {
-        console.error("❌ Error loading profile link requests:", error);
-        console.error("❌ Error details:", JSON.stringify(error, null, 2));
+        log("❌ Error loading profile link requests:", error);
+        log("❌ Error details:", JSON.stringify(error, null, 2));
         throw error;
       }
 
       console.log(`🔍 DEBUG: Received ${data?.length || 0} requests`);
       if (data && data.length > 0) {
-        console.log("🔍 DEBUG: First request:", JSON.stringify(data[0], null, 2));
+        log("🔍 DEBUG: First request:", JSON.stringify(data[0], null, 2));
       }
 
       // Group by status
@@ -329,7 +384,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         grouped[request.status].push(request);
       });
 
-      console.log("🔍 DEBUG: Grouped requests:", {
+      log("🔍 DEBUG: Grouped requests:", {
         pending: grouped.pending.length,
         approved: grouped.approved.length,
         rejected: grouped.rejected.length
@@ -341,8 +396,8 @@ export default function ProfileConnectionManagerV2({ onBack }) {
       const allRequests = [...grouped.pending, ...grouped.approved, ...grouped.rejected];
       await loadNeededProfiles(allRequests);
     } catch (error) {
-      console.error("❌ Error in loadPendingRequests:", error);
-      console.error("❌ Stack trace:", error.stack);
+      log("❌ Error in loadPendingRequests:", error);
+      log("❌ Stack trace:", error.stack);
       Alert.alert("خطأ", "فشل تحميل الطلبات");
     } finally {
       setLoading(false);
@@ -352,7 +407,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
   // Full load (requests first, then only needed profiles)
   const loadPendingRequests = async () => {
-    console.log("🔍 DEBUG: Starting full load...");
+    log("🔍 DEBUG: Starting full load...");
     setLoading(true);
 
     // Load requests which will also load needed profiles
@@ -360,7 +415,63 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
 
+  // Retry logic helper
+  const retryWithBackoff = async (operation, operationName, requestId, maxRetries = 3) => {
+    let retryCount = 0;
+
+    const attempt = async () => {
+      if (!mountedRef.current) return; // Don't proceed if unmounted
+
+      try {
+        const result = await operation();
+
+        // Clear timer reference on success
+        retryTimersRef.current.delete(`${operationName}-${requestId}`);
+
+        // Remove from processing set
+        setProcessingRequests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(requestId);
+          return newSet;
+        });
+
+        return result;
+      } catch (error) {
+        retryCount++;
+        log(`❌ ${operationName} attempt ${retryCount} failed:`, error.message);
+
+        if (!mountedRef.current) return; // Check again after async operation
+
+        if (retryCount < maxRetries && !error.message?.includes('Unauthorized')) {
+          const delay = Math.min(Math.pow(2, retryCount) * 1000, 8000); // Cap at 8 seconds
+          log(`⏳ Retrying ${operationName} in ${delay}ms...`);
+
+          // Store timer reference for cleanup
+          const timerId = setTimeout(attempt, delay);
+          retryTimersRef.current.set(`${operationName}-${requestId}`, timerId);
+        } else {
+          // Final failure - clean up
+          retryTimersRef.current.delete(`${operationName}-${requestId}`);
+          setProcessingRequests(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(requestId);
+            return newSet;
+          });
+          throw error;
+        }
+      }
+    };
+
+    return attempt();
+  };
+
   const handleApprove = async (request) => {
+    // Prevent multiple clicks
+    if (processingRequests.has(request.id)) {
+      log('⚠️ Request already being processed');
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     Alert.alert(
@@ -372,41 +483,70 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           text: "موافقة",
           style: "default",
           onPress: async () => {
-            try {
+            // Add to processing set
+            setProcessingRequests(prev => new Set(prev).add(request.id));
+
+            // Store previous state for rollback
+            const previousState = requests;
+
+            const approveOperation = async () => {
+              if (!mountedRef.current) return;
+
               // Optimistic update - move to approved immediately
               setRequests(prev => ({
                 ...prev,
                 pending: prev.pending.filter(r => r.id !== request.id),
-                approved: [{ ...request, status: 'approved' }, ...prev.approved]
+                approved: [{ ...request, status: 'approved', reviewed_at: new Date().toISOString() }, ...prev.approved]
               }));
 
-              const { error } = await phoneAuthService.approveProfileLink(
+              const result = await phoneAuthService.approveProfileLink(
                 request.id
               );
 
-              if (error) {
-                // Revert optimistic update on error
-                setRequests(prev => ({
-                  ...prev,
-                  pending: [...prev.pending, request],
-                  approved: prev.approved.filter(r => r.id !== request.id)
-                }));
-                throw error;
+              if (!result.success) {
+                // Rollback on failure
+                if (mountedRef.current) {
+                  setRequests(previousState);
+                }
+                throw new Error(result.error || "فشلت الموافقة على الطلب");
               }
 
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              if (mountedRef.current) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-              // Show success notification
-              notificationService.scheduleLocalNotification(
-                'تمت الموافقة ✅',
-                `تم قبول طلب ${request.profiles?.name || request.name_chain}`,
-                { type: 'approval_success' }
-              );
+                // Show success notification
+                notificationService.scheduleLocalNotification(
+                  'تمت الموافقة ✅',
+                  `تم قبول طلب ${request.profiles?.name || request.name_chain}`,
+                  { type: 'approval_success' }
+                );
 
-              // Reload to get latest data (will be debounced)
-              loadPendingRequests();
+                // Clear cache for this profile to refresh name chain
+                if (nameChainCache.current && request.profiles?.id) {
+                  nameChainCache.current.delete(request.profiles.id);
+                }
+              }
+
+              return result;
+            };
+
+            try {
+              await retryWithBackoff(approveOperation, 'approve', request.id);
             } catch (error) {
-              Alert.alert("خطأ", "فشلت الموافقة على الطلب");
+              if (mountedRef.current) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                Alert.alert(
+                  "خطأ",
+                  error.message || "فشلت الموافقة على الطلب",
+                  [
+                    { text: "إلغاء", style: "cancel" },
+                    {
+                      text: "إعادة المحاولة",
+                      onPress: () => handleApprove(request)
+                    }
+                  ]
+                );
+              }
             }
           },
         },
@@ -415,58 +555,148 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
   const handleReject = async (request) => {
+    // Prevent multiple clicks
+    if (processingRequests.has(request.id)) {
+      log('⚠️ Request already being processed');
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    Alert.alert(
-      "سبب الرفض",
-      "يرجى إدخال سبب رفض الطلب",
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "رفض",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Optimistic update - move to rejected immediately
-              setRequests(prev => ({
-                ...prev,
-                pending: prev.pending.filter(r => r.id !== request.id),
-                rejected: [{ ...request, status: 'rejected', review_notes: 'رفض من قبل المسؤول' }, ...prev.rejected]
-              }));
+    const performRejection = async (reason = "رفض من قبل المسؤول") => {
+      // Add to processing set
+      setProcessingRequests(prev => new Set(prev).add(request.id));
 
-              const { error } = await phoneAuthService.rejectProfileLink(
-                request.id,
-                "رفض من قبل المسؤول"
-              );
+      // Store previous state for rollback
+      const previousState = requests;
 
-              if (error) {
-                // Revert optimistic update on error
-                setRequests(prev => ({
-                  ...prev,
-                  pending: [...prev.pending, request],
-                  rejected: prev.rejected.filter(r => r.id !== request.id)
-                }));
-                throw error;
+      const rejectOperation = async () => {
+        if (!mountedRef.current) return;
+
+        // Optimistic update - move to rejected immediately
+        setRequests(prev => ({
+          ...prev,
+          pending: prev.pending.filter(r => r.id !== request.id),
+          rejected: [{ ...request, status: 'rejected', reviewed_at: new Date().toISOString(), review_notes: reason }, ...prev.rejected]
+        }));
+
+        const result = await phoneAuthService.rejectProfileLink(
+          request.id,
+          reason
+        );
+
+        if (!result.success) {
+          // Rollback on failure
+          if (mountedRef.current) {
+            setRequests(previousState);
+          }
+          throw new Error(result.error || "فشل رفض الطلب");
+        }
+
+        if (mountedRef.current) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+          // Show rejection notification
+          notificationService.scheduleLocalNotification(
+            'تم الرفض ❌',
+            `تم رفض طلب ${request.profiles?.name || request.name_chain}`,
+            { type: 'rejection_success' }
+          );
+
+          // Clear cache for this profile to refresh name chain
+          if (nameChainCache.current && request.profiles?.id) {
+            nameChainCache.current.delete(request.profiles.id);
+          }
+        }
+
+        return result;
+      };
+
+      try {
+        await retryWithBackoff(rejectOperation, 'reject', request.id);
+      } catch (error) {
+        if (mountedRef.current) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert(
+            "خطأ",
+            error.message || "فشل رفض الطلب",
+            [
+              { text: "إلغاء", style: "cancel" },
+              {
+                text: "إعادة المحاولة",
+                onPress: () => handleReject(request)
               }
+            ]
+          );
+        }
+      }
+    };
 
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-
-              // Show rejection notification
-              notificationService.scheduleLocalNotification(
-                'تم الرفض ❌',
-                `تم رفض طلب ${request.profiles?.name || request.name_chain}`,
-                { type: 'rejection_success' }
+    // Platform-specific rejection flow
+    if (Platform.OS === 'android') {
+      // Android: Can't use prompt, so provide preset options
+      Alert.alert(
+        "تأكيد الرفض",
+        `رفض طلب ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles, nameChainCache.current) : request.name_chain}"؟`,
+        [
+          { text: "إلغاء", style: "cancel" },
+          {
+            text: "رفض مع سبب",
+            onPress: () => {
+              Alert.alert(
+                "اختر سبب الرفض",
+                "",
+                [
+                  { text: "إلغاء", style: "cancel" },
+                  { text: "معلومات غير صحيحة", onPress: () => performRejection("معلومات غير صحيحة") },
+                  { text: "طلب مكرر", onPress: () => performRejection("طلب مكرر") },
+                  { text: "غير مؤهل", onPress: () => performRejection("غير مؤهل") },
+                  { text: "رفض بدون سبب", onPress: () => performRejection("رفض من قبل المسؤول") }
+                ]
               );
-
-              // Reload to get latest data (will be debounced)
-              loadPendingRequests();
-            } catch (error) {
-              Alert.alert("خطأ", "فشل رفض الطلب");
             }
           },
-        },
-      ]
-    );
+          {
+            text: "رفض سريع",
+            style: "destructive",
+            onPress: () => performRejection("رفض من قبل المسؤول")
+          }
+        ]
+      );
+    } else {
+      // iOS: Can use prompt
+      Alert.alert(
+        "تأكيد الرفض",
+        `رفض طلب ربط "${request.profiles ? getFullNameChain(request.profiles, allProfiles, nameChainCache.current) : request.name_chain}"؟`,
+        [
+          { text: "إلغاء", style: "cancel" },
+          {
+            text: "رفض مع سبب",
+            onPress: () => {
+              Alert.prompt(
+                "سبب الرفض",
+                "يمكنك إضافة سبب الرفض (اختياري)",
+                [
+                  { text: "إلغاء", style: "cancel" },
+                  {
+                    text: "رفض",
+                    style: "destructive",
+                    onPress: (reason) => performRejection(reason || "رفض من قبل المسؤول")
+                  }
+                ],
+                "plain-text",
+                ""
+              );
+            }
+          },
+          {
+            text: "رفض سريع",
+            style: "destructive",
+            onPress: () => performRejection("رفض من قبل المسؤول")
+          }
+        ]
+      );
+    }
   };
 
   const handleWhatsApp = (phone) => {
@@ -657,27 +887,54 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                       <View style={styles.actionButtons}>
                         <TouchableOpacity
                           onPress={() => handleApprove(request)}
-                          style={[styles.pillButton, styles.approveButton]}
+                          style={[
+                            styles.pillButton,
+                            styles.approveButton,
+                            processingRequests.has(request.id) && styles.disabledButton
+                          ]}
                           activeOpacity={0.7}
+                          disabled={processingRequests.has(request.id)}
                         >
-                          <Ionicons name="checkmark" size={18} color="#F9F7F3" />
-                          <Text style={styles.approveButtonText}>قبول</Text>
+                          {processingRequests.has(request.id) ? (
+                            <ActivityIndicator size="small" color="#F9F7F3" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark" size={18} color="#F9F7F3" />
+                              <Text style={styles.approveButtonText}>قبول</Text>
+                            </>
+                          )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
                           onPress={() => handleReject(request)}
-                          style={[styles.pillButton, styles.rejectButton]}
+                          style={[
+                            styles.pillButton,
+                            styles.rejectButton,
+                            processingRequests.has(request.id) && styles.disabledButton
+                          ]}
                           activeOpacity={0.7}
+                          disabled={processingRequests.has(request.id)}
                         >
-                          <Ionicons name="close" size={18} color="#242121" />
-                          <Text style={styles.rejectButtonText}>رفض</Text>
+                          {processingRequests.has(request.id) ? (
+                            <ActivityIndicator size="small" color="#242121" />
+                          ) : (
+                            <>
+                              <Ionicons name="close" size={18} color="#242121" />
+                              <Text style={styles.rejectButtonText}>رفض</Text>
+                            </>
+                          )}
                         </TouchableOpacity>
 
                         {request.phone && (
                           <TouchableOpacity
                             onPress={() => handleWhatsApp(request.phone)}
-                            style={[styles.pillButton, styles.whatsappButton]}
+                            style={[
+                              styles.pillButton,
+                              styles.whatsappButton,
+                              processingRequests.has(request.id) && styles.disabledButton
+                            ]}
                             activeOpacity={0.7}
+                            disabled={processingRequests.has(request.id)}
                           >
                             <Ionicons name="logo-whatsapp" size={18} color="#242121" />
                           </TouchableOpacity>
@@ -982,6 +1239,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
     minWidth: 40,
     paddingHorizontal: 11,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
   statusIcon: {
     padding: 4,
