@@ -18,14 +18,31 @@ export default function NotificationBadge({ onPress }) {
   const { user, isAdmin } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const subscriptionRef = useRef(null);
+  const subscriptionTimeoutRef = useRef(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (!user) return;
 
     loadUnreadCount();
-    setupRealtimeSubscription();
+    // Delay subscription setup to not block UI
+    const setupTimer = setTimeout(() => {
+      if (isMountedRef.current) {
+        setupRealtimeSubscription();
+      }
+    }, 100);
 
     return () => {
+      isMountedRef.current = false;
+      clearTimeout(setupTimer);
+
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
+      }
+
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
@@ -34,16 +51,18 @@ export default function NotificationBadge({ onPress }) {
   }, [user, isAdmin]);
 
   const setupRealtimeSubscription = async () => {
-    if (!user) return;
+    if (!user || !isMountedRef.current) return;
 
     try {
-      // Subscribe to notifications for real-time badge updates
-      const subscription = await subscriptionManager.subscribe({
-        channelName: `notification-badge-${user.id}`,
+      // Create subscription promise
+      const subscriptionPromise = subscriptionManager.subscribe({
+        channelName: `badge-updates-${user.id}`, // Changed to avoid conflict with notification center
         table: 'notifications',
         filter: `user_id=eq.${user.id}`,
         event: '*',
         onUpdate: (payload) => {
+          if (!isMountedRef.current) return;
+
           console.log('🔔 Badge notification update:', payload);
           // Reload count on any notification change
           loadUnreadCount();
@@ -55,19 +74,46 @@ export default function NotificationBadge({ onPress }) {
         },
         onError: (error) => {
           console.error('Badge subscription error:', error);
+          // Don't retry or block UI on error
         },
         component: { id: 'NotificationBadge' }
       });
 
-      subscriptionRef.current = subscription;
+      // Create timeout promise (5 seconds for badge - shorter than notification center)
+      const timeoutPromise = new Promise((_, reject) => {
+        subscriptionTimeoutRef.current = setTimeout(() => {
+          reject(new Error('Badge subscription timeout after 5 seconds'));
+        }, 5000);
+      });
+
+      // Race between subscription and timeout
+      const subscription = await Promise.race([subscriptionPromise, timeoutPromise]);
+
+      // Clear timeout if subscription succeeded
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
+      }
+
+      if (isMountedRef.current) {
+        subscriptionRef.current = subscription;
+      }
     } catch (error) {
       console.error('Failed to setup badge subscription:', error);
+
+      // Clear timeout on error
+      if (subscriptionTimeoutRef.current) {
+        clearTimeout(subscriptionTimeoutRef.current);
+        subscriptionTimeoutRef.current = null;
+      }
+
+      // Don't block UI - badge can still work without real-time updates
     }
   };
 
   const loadUnreadCount = async () => {
     try {
-      if (!user) return;
+      if (!user || !isMountedRef.current) return;
 
       // Count unread notifications from the new notifications table
       const { count } = await supabase
@@ -75,6 +121,8 @@ export default function NotificationBadge({ onPress }) {
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
         .eq("is_read", false);
+
+      if (!isMountedRef.current) return;
 
       setUnreadCount(count || 0);
 
@@ -84,6 +132,8 @@ export default function NotificationBadge({ onPress }) {
           .from("profile_link_requests")
           .select("*", { count: "exact", head: true })
           .eq("status", "pending");
+
+        if (!isMountedRef.current) return;
 
         // Show the higher count (notifications or pending requests)
         const totalCount = Math.max(count || 0, pendingCount || 0);

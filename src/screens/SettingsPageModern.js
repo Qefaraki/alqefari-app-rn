@@ -385,15 +385,22 @@ export default function SettingsPageModern({ user }) {
             <Text style={styles.title}>الإعدادات</Text>
           </View>
           <NotificationBadge
-            onPress={() => setShowNotificationCenter(true)}
+            onPress={() => {
+              // Small delay to prevent UI freeze
+              requestAnimationFrame(() => {
+                setShowNotificationCenter(true);
+              });
+            }}
           />
         </View>
 
-        {/* Notification Center */}
-        <NotificationCenter
-          visible={showNotificationCenter}
-          onClose={() => setShowNotificationCenter(false)}
-        />
+        {/* Notification Center - Only render when needed */}
+        {showNotificationCenter && (
+          <NotificationCenter
+            visible={showNotificationCenter}
+            onClose={() => setShowNotificationCenter(false)}
+          />
+        )}
 
         {/* Profile Section */}
         {currentUser && (

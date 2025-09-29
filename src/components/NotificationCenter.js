@@ -162,7 +162,7 @@ export default function NotificationCenter({ visible, onClose }) {
     try {
       // Set a timeout for subscription attempt (10 seconds)
       const subscriptionPromise = subscriptionManager.subscribe({
-        channelName: `user-notifications-${user.id}`,
+        channelName: `notification-center-${user.id}`, // Unique channel name for notification center
         table: 'notifications',  // Using the actual table name, not the view
         filter: `user_id=eq.${user.id}`,
         event: '*',

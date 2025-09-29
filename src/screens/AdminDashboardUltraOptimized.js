@@ -490,16 +490,23 @@ const AdminDashboardUltraOptimized = ({ user }) => {
         <Text style={styles.title}>الإدارة</Text>
         <View style={styles.headerActions}>
           <NotificationBadge
-            onPress={() => setShowNotificationCenter(true)}
+            onPress={() => {
+              // Small delay to prevent UI freeze
+              requestAnimationFrame(() => {
+                setShowNotificationCenter(true);
+              });
+            }}
           />
         </View>
       </Animated.View>
 
-      {/* Notification Center */}
-      <NotificationCenter
-        visible={showNotificationCenter}
-        onClose={() => setShowNotificationCenter(false)}
-      />
+      {/* Notification Center - Only render when needed */}
+      {showNotificationCenter && (
+        <NotificationCenter
+          visible={showNotificationCenter}
+          onClose={() => setShowNotificationCenter(false)}
+        />
+      )}
 
       <ScrollView
         showsVerticalScrollIndicator={false}
