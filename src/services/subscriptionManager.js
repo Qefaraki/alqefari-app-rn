@@ -18,6 +18,7 @@ class SubscriptionManager {
     this.activeChannels = new Map();
     this.retryAttempts = new Map();
     this.circuitBreaker = new Map();
+    this.lastRetryTime = new Map();
 
     // Configuration
     this.config = {
@@ -136,9 +137,15 @@ class SubscriptionManager {
 
             // Reset circuit breaker
             this.resetCircuitBreaker(channelName);
-          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-            console.error(`[SubscriptionManager] Channel ${channelName} closed/error`);
-            this.handleSubscriptionError(channelName, new Error(`Channel status: ${status}`), onError);
+          } else if (status === 'CLOSED') {
+            console.log(`[SubscriptionManager] Channel ${channelName} closed normally`);
+            // Don't retry on normal close
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error(`[SubscriptionManager] Channel ${channelName} error`);
+            this.handleSubscriptionError(channelName, new Error(`Channel error`), onError);
+          } else if (status === 'TIMED_OUT') {
+            console.warn(`[SubscriptionManager] Channel ${channelName} timed out`);
+            this.handleSubscriptionError(channelName, new Error(`Channel timeout`), onError);
           }
         });
 
@@ -202,6 +209,14 @@ class SubscriptionManager {
   async handleSubscriptionError(channelName, error, onError) {
     const retryCount = this.retryAttempts.get(channelName) || 0;
 
+    // Check if we're retrying too frequently (prevent infinite loops)
+    const lastRetry = this.lastRetryTime.get(channelName) || 0;
+    const timeSinceLastRetry = Date.now() - lastRetry;
+    if (timeSinceLastRetry < 500) {
+      console.warn(`[SubscriptionManager] Retry throttled for ${channelName} (too frequent)`);
+      return;
+    }
+
     // Update circuit breaker
     this.updateCircuitBreaker(channelName, false);
 
@@ -216,6 +231,13 @@ class SubscriptionManager {
       return;
     }
 
+    // Don't retry if explicitly closed by user or component unmounted
+    const subscriptionInfo = this.activeChannels.get(channelName);
+    if (!subscriptionInfo) {
+      console.log(`[SubscriptionManager] Channel ${channelName} no longer active, skipping retry`);
+      return;
+    }
+
     // Calculate retry delay with exponential backoff
     const delay = Math.min(
       this.config.baseRetryDelay * Math.pow(2, retryCount),
@@ -224,11 +246,27 @@ class SubscriptionManager {
 
     console.log(`[SubscriptionManager] Retrying ${channelName} in ${delay}ms (attempt ${retryCount + 1})`);
     this.retryAttempts.set(channelName, retryCount + 1);
+    this.lastRetryTime.set(channelName, Date.now());
 
-    // Retry subscription
+    // Retry subscription only if channel still exists
     setTimeout(async () => {
       const subscriptionInfo = this.activeChannels.get(channelName);
-      if (subscriptionInfo) {
+      if (subscriptionInfo && !this.isCircuitOpen(channelName)) {
+        console.log(`[SubscriptionManager] Attempting reconnect for ${channelName}`);
+
+        // Clean up old subscription first
+        if (subscriptionInfo.channel) {
+          try {
+            await subscriptionInfo.channel.unsubscribe();
+          } catch (e) {
+            // Ignore unsubscribe errors
+          }
+        }
+
+        // Remove from active channels to allow fresh subscription
+        this.activeChannels.delete(channelName);
+
+        // Then retry with fresh subscription
         await this.subscribe({
           channelName,
           table: subscriptionInfo.table,
@@ -236,6 +274,8 @@ class SubscriptionManager {
           onUpdate: subscriptionInfo.onUpdate,
           onError: subscriptionInfo.onError
         });
+      } else {
+        console.log(`[SubscriptionManager] Skipping retry for ${channelName} (circuit open or channel removed)`);
       }
     }, delay);
   }
@@ -265,6 +305,7 @@ class SubscriptionManager {
 
       this.activeChannels.delete(channelName);
       this.retryAttempts.delete(channelName);
+      this.lastRetryTime.delete(channelName);
 
       console.log(`[SubscriptionManager] Unsubscribed from ${channelName}`);
     } catch (error) {
@@ -452,6 +493,7 @@ class SubscriptionManager {
     this.activeChannels.clear();
     this.retryAttempts.clear();
     this.circuitBreaker.clear();
+    this.lastRetryTime.clear();
   }
 }
 
