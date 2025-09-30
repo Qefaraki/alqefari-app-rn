@@ -43,6 +43,7 @@ import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { useAuth } from "../contexts/AuthContextSimple";
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get("window");
 
@@ -68,6 +69,7 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
   const { isAdmin } = useAdminMode();
   const { settings } = useSettings();
+  const { user: authUser } = useAuth(); // Keep for context, but use supabase.auth for fresh sessions
   const [saving, setSaving] = useState(false);
   const [activeSegment, setActiveSegment] = useState(0);
   const [errors, setErrors] = useState({});
@@ -227,6 +229,82 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
 
     setSaving(true);
     try {
+      // Step 1: Get current session
+      let { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      // Step 2: If no session or error, try to refresh
+      if (!session || sessionError) {
+        console.log("Session missing or expired, attempting refresh...");
+        const refreshResult = await supabase.auth.refreshSession();
+
+        if (refreshResult.error || !refreshResult.data.session) {
+          console.error("Session refresh failed:", refreshResult.error);
+          Alert.alert(
+            "انتهت الجلسة",
+            "انتهت صلاحية جلستك، يرجى تسجيل الدخول مرة أخرى",
+            [{ text: "حسناً", onPress: () => onClose() }]
+          );
+          setSaving(false);
+          return;
+        }
+
+        session = refreshResult.data.session;
+      }
+
+      // Step 3: Check if session is about to expire (within 5 minutes)
+      if (session?.expires_at) {
+        const expiresAt = new Date(session.expires_at * 1000);
+        const now = new Date();
+        const minutesUntilExpiry = (expiresAt - now) / (1000 * 60);
+
+        if (minutesUntilExpiry < 5) {
+          console.log("Session expiring soon, refreshing...");
+          const refreshResult = await supabase.auth.refreshSession();
+          if (refreshResult.data.session) {
+            session = refreshResult.data.session;
+          }
+        }
+      }
+
+      // Step 4: Verify we have a valid user
+      if (!session?.user?.id) {
+        Alert.alert(
+          "خطأ في المصادقة",
+          "يجب تسجيل الدخول لحفظ التغييرات"
+        );
+        setSaving(false);
+        return;
+      }
+
+      // Step 5: Check edit permissions (optional - RLS will enforce anyway)
+      // This provides better UX by showing specific error before attempting save
+      const { data: canEdit, error: permissionError } = await supabase
+        .rpc('can_user_edit_profile', {
+          p_user_id: session.user.id,
+          p_target_id: profile.id
+        });
+
+      if (permissionError) {
+        console.warn("Permission check failed:", permissionError);
+        // Continue anyway - RLS will block if not allowed
+      } else if (canEdit === 'none' || canEdit === 'blocked') {
+        Alert.alert(
+          "خطأ في الصلاحيات",
+          canEdit === 'blocked'
+            ? "تم حظرك من تعديل الملفات الشخصية"
+            : "ليس لديك صلاحية لتعديل هذا الملف الشخصي"
+        );
+        setSaving(false);
+        return;
+      } else if (canEdit === 'suggest') {
+        Alert.alert(
+          "اقتراح التعديل",
+          "يمكنك اقتراح تعديلات على هذا الملف فقط. سيتم مراجعتها من قبل المشرفين."
+        );
+        setSaving(false);
+        return;
+      }
+
       if (editedData.email && editedData.email.trim()) {
         const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
         if (!emailRegex.test(editedData.email.trim())) {
@@ -290,8 +368,46 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         Alert.alert("تم الحفظ", "تم حفظ التغييرات بنجاح");
       }, 100);
     } catch (error) {
-      console.error("Error saving profile:", error);
-      Alert.alert("خطأ", "فشل حفظ التغييرات");
+      console.error("Error saving profile:", error?.code || error);
+
+      // Comprehensive error handling based on Supabase error codes
+      let errorTitle = "خطأ";
+      let errorMessage = "فشل حفظ التغييرات";
+
+      if (error?.code === 'PGRST301' || error?.code === '401') {
+        // JWT expired or invalid
+        errorTitle = "انتهت الجلسة";
+        errorMessage = "انتهت صلاحية جلستك، يرجى تسجيل الدخول مرة أخرى";
+      } else if (error?.code === '403' || error?.code === 'PGRST204') {
+        // Forbidden - RLS policy violation
+        errorTitle = "خطأ في الصلاحيات";
+        errorMessage = "ليس لديك صلاحية لتعديل هذا الملف الشخصي";
+      } else if (error?.code === 'PGRST116') {
+        // No rows returned - usually means RLS blocked the query
+        errorTitle = "خطأ في الصلاحيات";
+        errorMessage = "لا يمكن العثور على الملف الشخصي أو ليس لديك صلاحية لتعديله";
+      } else if (error?.code === '23505') {
+        // Unique constraint violation
+        errorTitle = "خطأ في البيانات";
+        errorMessage = "البريد الإلكتروني أو رقم الهاتف مستخدم بالفعل";
+      } else if (error?.code === '23503') {
+        // Foreign key violation
+        errorTitle = "خطأ في البيانات";
+        errorMessage = "المعرف المحدد غير صحيح";
+      } else if (error?.code === 'PGRST202') {
+        // RPC function not found
+        errorTitle = "خطأ في النظام";
+        errorMessage = "الوظيفة المطلوبة غير متوفرة";
+      } else if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
+        // Network error
+        errorTitle = "خطأ في الاتصال";
+        errorMessage = "تحقق من اتصالك بالإنترنت وحاول مرة أخرى";
+      } else if (error?.message) {
+        // Use the error message if available
+        errorMessage = error.message;
+      }
+
+      Alert.alert(errorTitle, errorMessage, [{ text: "حسناً" }]);
     } finally {
       setSaving(false);
     }
