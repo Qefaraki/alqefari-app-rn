@@ -847,9 +847,6 @@ export default function SettingsPageModern({ user }) {
             style={styles.logo}
           />
           <Text style={styles.appVersion}>الإصدار 2.0.0</Text>
-          <Text style={styles.developerCredit}>
-            بتصميم وبرمجة: محمد عبدالله سليمان القفاري
-          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
