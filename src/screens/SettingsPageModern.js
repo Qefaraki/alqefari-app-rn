@@ -255,24 +255,39 @@ export default function SettingsPageModern({ user }) {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
           try {
-            // Clear local settings and caches
+            // Clear local settings and caches first
             resetSettings();
             profileCache = null;
             cacheTimestamp = null;
 
-            // Clear any other component-level caches
-            await forceCompleteSignOut();
+            // Clear any component-level stores
+            try {
+              await forceCompleteSignOut();
+            } catch (e) {
+              console.log('Error clearing local state:', e);
+              // Continue anyway
+            }
 
-            // Use AuthContext's signOut (handles everything including navigation)
+            // Use AuthContext's signOut (handles everything)
             await signOut();
 
-            // No manual navigation needed - _layout.tsx will handle it automatically
+            // No manual navigation - _layout.tsx handles it
           } catch (error) {
             console.error('Sign-out error:', error);
+
+            // Try to at least clear local state
+            setCurrentUser(null);
+            setUserProfile(null);
+
             Alert.alert(
-              "خطأ",
-              "فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.",
-              [{ text: "حسناً", style: "default" }]
+              "خطأ في تسجيل الخروج",
+              "حدث خطأ أثناء تسجيل الخروج. قد تحتاج إلى إعادة تشغيل التطبيق.",
+              [
+                {
+                  text: "حسناً",
+                  style: "default"
+                }
+              ]
             );
           } finally {
             setIsSigningOut(false);

@@ -119,7 +119,9 @@ export function AuthProvider({ children }) {
               break;
 
             case 'SIGNED_OUT':
-              await AuthStateMachine.signOut();
+              // Don't call AuthStateMachine.signOut() here to prevent duplicate cleanup
+              // The signOut() action already handles everything
+              console.log('[AuthContext] SIGNED_OUT event received (cleanup already done)');
               break;
 
               case 'TOKEN_REFRESHED':
@@ -165,26 +167,40 @@ export function AuthProvider({ children }) {
     signOut: async () => {
       console.log('[AuthContext] Starting sign out process...');
 
-      // IMMEDIATELY clear memory state to trigger navigation
+      // STEP 1: Sign out from Supabase FIRST (while tokens still exist)
+      // This will trigger SIGNED_OUT event which we'll handle
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[AuthContext] Supabase signOut error:', error);
+        // Even if Supabase fails, continue with local cleanup
+      }
+
+      // STEP 2: IMMEDIATELY clear memory state to trigger navigation
+      // This ensures _layout.tsx detects the change right away
       setHasCompletedOnboarding(false);
       setUser(null);
       setProfile(null);
 
-      // Clear our state machine (this also clears AsyncStorage)
-      await AuthStateMachine.signOut();
+      // STEP 3: Clear our state machine (but NOT in response to SIGNED_OUT event)
+      // We'll handle this differently to prevent duplicate calls
+      // Just clear the state machine's internal state
+      AuthStateMachine.user = null;
+      AuthStateMachine.profile = null;
+      AuthStateMachine.currentState = AuthStates.UNAUTHENTICATED;
+      AuthStateMachine.notify(true);
 
-      // Then sign out from Supabase (triggers SIGNED_OUT event)
-      // Note: We do this AFTER clearing state to prevent race conditions
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('[AuthContext] Supabase signOut error:', error);
-      }
-
-      // Force clear onboarding status from storage as backup
+      // STEP 4: Clear AsyncStorage as final cleanup
       try {
-        await AsyncStorage.removeItem('hasCompletedOnboarding');
+        // Clear all auth-related storage
+        await AsyncStorage.multiRemove([
+          'hasCompletedOnboarding',
+          'isGuestMode',
+          'supabase.auth.token',
+          'supabase.auth.refreshToken',
+          'supabase.auth.user',
+        ]);
       } catch (e) {
-        console.error('[AuthContext] Error clearing onboarding status:', e);
+        console.error('[AuthContext] Error clearing storage:', e);
       }
 
       console.log('[AuthContext] Sign out complete');
