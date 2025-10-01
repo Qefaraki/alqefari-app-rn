@@ -1,21 +1,23 @@
 -- =====================================================
--- PERMISSION SYSTEM v4.2 - PRODUCTION DEPLOYMENT
+-- PERMISSION SYSTEM v4.2 - DEPLOYMENT WITH EXISTING TABLES
 -- =====================================================
--- Version: 4.2 FINAL SECURITY HARDENED
--- Date: January 2025
--- Status: PRODUCTION-READY
---
--- This migration deploys the complete v4.2 permission system
--- with all security fixes and optimizations.
---
--- IMPORTANT: Run verification queries at the end to confirm
--- successful deployment.
+-- This version handles existing tables from old migrations
 -- =====================================================
 
 BEGIN;
 
 -- =====================================================
--- SECTION 1: CORE TABLES
+-- SECTION 0: HANDLE EXISTING TABLES
+-- =====================================================
+
+-- Drop existing branch_moderators table (it has wrong structure)
+DROP TABLE IF EXISTS branch_moderators CASCADE;
+
+-- Drop existing suggestion_blocks table (it has wrong structure)
+DROP TABLE IF EXISTS suggestion_blocks CASCADE;
+
+-- =====================================================
+-- SECTION 1: CORE TABLES (FRESH START)
 -- =====================================================
 
 -- 1.1 Profile Edit Suggestions Table
@@ -65,23 +67,22 @@ CREATE INDEX IF NOT EXISTS idx_suggestions_status
 CREATE INDEX IF NOT EXISTS idx_suggestions_created_at
   ON profile_edit_suggestions(created_at);
 
--- 1.3 Branch Moderators Table
-CREATE TABLE IF NOT EXISTS branch_moderators (
+-- 1.3 Branch Moderators Table (v4.2 structure with HID)
+CREATE TABLE branch_moderators (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id),
-  branch_hid TEXT NOT NULL,
+  branch_hid TEXT NOT NULL,  -- HID like "1.2.3" not UUID
   assigned_by UUID NOT NULL REFERENCES profiles(id),
   assigned_at TIMESTAMPTZ DEFAULT NOW(),
   is_active BOOLEAN DEFAULT true
-  -- Ensure unique active assignment per branch (will create as index below)
 );
 
 -- 1.4 Create indexes for branch moderators
-CREATE INDEX IF NOT EXISTS idx_branch_moderators_user_id
+CREATE INDEX idx_branch_moderators_user_id
   ON branch_moderators(user_id);
-CREATE INDEX IF NOT EXISTS idx_branch_moderators_branch_hid
+CREATE INDEX idx_branch_moderators_branch_hid
   ON branch_moderators(branch_hid);
-CREATE INDEX IF NOT EXISTS idx_branch_moderators_active
+CREATE INDEX idx_branch_moderators_active
   ON branch_moderators(is_active)
   WHERE is_active = true;
 
@@ -96,28 +97,27 @@ CREATE TABLE IF NOT EXISTS user_rate_limits (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 1.6 Suggestion Blocks Table
-CREATE TABLE IF NOT EXISTS suggestion_blocks (
+-- 1.6 Suggestion Blocks Table (fresh)
+CREATE TABLE suggestion_blocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   blocked_user_id UUID NOT NULL REFERENCES profiles(id),
   blocked_by UUID NOT NULL REFERENCES profiles(id),
   reason TEXT,
   blocked_at TIMESTAMPTZ DEFAULT NOW(),
   is_active BOOLEAN DEFAULT true
-  -- Ensure unique active block per user (will create as index below)
 );
 
 -- 1.7 Create index for blocked user lookups
-CREATE INDEX IF NOT EXISTS idx_suggestion_blocks_blocked_user
+CREATE INDEX idx_suggestion_blocks_blocked_user
   ON suggestion_blocks(blocked_user_id)
   WHERE is_active = true;
 
 -- 1.8 Create partial unique indexes for constraints
-CREATE UNIQUE INDEX IF NOT EXISTS unique_active_branch_moderator
+CREATE UNIQUE INDEX unique_active_branch_moderator
   ON branch_moderators(branch_hid, is_active)
   WHERE is_active = true;
 
-CREATE UNIQUE INDEX IF NOT EXISTS unique_active_block
+CREATE UNIQUE INDEX unique_active_block
   ON suggestion_blocks(blocked_user_id, is_active)
   WHERE is_active = true;
 
@@ -968,7 +968,15 @@ AND tablename IN (
 )
 AND rowsecurity = true;
 
--- 4. Final Summary
+-- 4. Verify branch_moderators has correct structure
+SELECT 'Branch Moderators Structure:' as check_type,
+  CASE WHEN COUNT(*) = 1 THEN '✅ HID column exists' ELSE '❌ Missing HID' END as status
+FROM information_schema.columns
+WHERE table_name = 'branch_moderators'
+AND column_name = 'branch_hid'
+AND data_type = 'text';
+
+-- 5. Final Summary
 SELECT '=====================================' as separator;
 SELECT 'DEPLOYMENT COMPLETE!' as message;
 SELECT 'Run test suite: scripts/test_permission_v4.sql' as next_step;
