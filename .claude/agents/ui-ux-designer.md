@@ -1,7 +1,7 @@
 ---
 name: ui-ux-designer
 description: Use this agent when you need to design or review user interfaces, create new UI components, improve existing screens, or make design decisions for the app. This includes creating mockups, suggesting layout improvements, ensuring consistency with the Najdi Sadu design system, and optimizing user experience flows. <example>\nContext: The user needs to design a new screen or improve an existing UI component.\nuser: "I need to create a new settings screen for user preferences"\nassistant: "I'll use the ui-ux-designer agent to design this settings screen following our iOS-inspired standards and Najdi Sadu design system."\n<commentary>\nSince the user needs UI design work, use the ui-ux-designer agent to create a user-centered design that follows the project's established patterns.\n</commentary>\n</example>\n<example>\nContext: The user wants to improve the visual hierarchy of a screen.\nuser: "The profile page feels cluttered and hard to navigate"\nassistant: "Let me use the ui-ux-designer agent to analyze and redesign the profile page with better visual hierarchy and user flow."\n<commentary>\nThe user needs UX improvements, so the ui-ux-designer agent should be used to optimize the user experience.\n</commentary>\n</example>
-model: opus
+model: sonnet
 color: red
 ---
 
