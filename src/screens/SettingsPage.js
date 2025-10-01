@@ -20,6 +20,7 @@ import { supabase } from "../services/supabase";
 import { accountDeletionService } from "../services/accountDeletion";
 import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
+import { useAuth } from "../contexts/AuthContextSimple";
 import appConfig from "../config/appConfig";
 import ProfileLinkStatusIndicator from "../components/ProfileLinkStatusIndicator";
 import { getProfileDisplayName, buildNameChain } from "../utils/nameChainBuilder";
@@ -38,6 +39,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export default function SettingsPage({ user }) {
   const router = useRouter();
   const { settings, updateSetting, resetSettings } = useSettings();
+  const { signOut } = useAuth();
 
   // Check if we can use native SwiftUI view
   const useNativeView = false;
@@ -46,6 +48,7 @@ export default function SettingsPage({ user }) {
   const [userProfile, setUserProfile] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Check for native view availability
 
@@ -142,31 +145,39 @@ export default function SettingsPage({ user }) {
   };
 
   const handleSignOut = () => {
+    if (isSigningOut) return; // Prevent multiple sign-out attempts
+
     Alert.alert("تسجيل الخروج", "هل أنت متأكد من رغبتك في تسجيل الخروج؟", [
       { text: "إلغاء", style: "cancel" },
       {
         text: "تسجيل الخروج",
         style: "destructive",
         onPress: async () => {
-          resetSettings();
-          profileCache = null;
-          cacheTimestamp = null;
+          setIsSigningOut(true);
 
-          // Clear any other component-level caches
           try {
-            // Clear tree store directly if available
-            const { useTreeStore } = require('../stores/useTreeStore');
-            useTreeStore.getState().setNodes([]);
-            useTreeStore.getState().setSelectedPersonId(null);
-          } catch (e) {
-            console.log('Could not clear tree store:', e);
-          }
+            // Clear local settings
+            resetSettings();
+            profileCache = null;
+            cacheTimestamp = null;
 
-          await forceCompleteSignOut(); // This will clear onboarding flag too
-          // Small delay to ensure state updates propagate
-          setTimeout(() => {
-            router.replace("/"); // Navigate to root which will show onboarding
-          }, 100);
+            // Clear any other component-level caches
+            await forceCompleteSignOut();
+
+            // Use AuthContext's signOut (this will handle navigation via _layout.tsx)
+            await signOut();
+
+            // No manual navigation needed - _layout.tsx will handle it automatically
+          } catch (error) {
+            console.error('Sign-out error:', error);
+            Alert.alert(
+              "خطأ",
+              "فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.",
+              [{ text: "حسناً", style: "default" }]
+            );
+          } finally {
+            setIsSigningOut(false);
+          }
         },
       },
     ]);

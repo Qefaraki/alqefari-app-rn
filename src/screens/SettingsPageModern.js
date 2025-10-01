@@ -126,7 +126,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export default function SettingsPageModern({ user }) {
   const router = useRouter();
   const { settings, updateSetting, resetSettings } = useSettings();
-  const { isAdmin, isGuestMode, exitGuestMode } = useAuth();
+  const { isAdmin, isGuestMode, exitGuestMode, signOut } = useAuth();
 
   const [currentUser, setCurrentUser] = useState(user);
   const [userProfile, setUserProfile] = useState(null);
@@ -134,6 +134,7 @@ export default function SettingsPageModern({ user }) {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // New settings states
   const [notifications, setNotifications] = useState({
@@ -242,28 +243,40 @@ export default function SettingsPageModern({ user }) {
   };
 
   const handleSignOut = () => {
+    if (isSigningOut) return; // Prevent multiple sign-out attempts
+
     Alert.alert("تسجيل الخروج", "هل أنت متأكد من رغبتك في تسجيل الخروج؟", [
       { text: "إلغاء", style: "cancel" },
       {
         text: "تسجيل الخروج",
         style: "destructive",
         onPress: async () => {
-          resetSettings();
-          profileCache = null;
-          cacheTimestamp = null;
+          setIsSigningOut(true);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
           try {
-            const { useTreeStore } = require('../stores/useTreeStore');
-            useTreeStore.getState().setNodes([]);
-            useTreeStore.getState().setSelectedPersonId(null);
-          } catch (e) {
-            console.log('Could not clear tree store:', e);
-          }
+            // Clear local settings and caches
+            resetSettings();
+            profileCache = null;
+            cacheTimestamp = null;
 
-          await forceCompleteSignOut();
-          setTimeout(() => {
-            router.replace("/");
-          }, 100);
+            // Clear any other component-level caches
+            await forceCompleteSignOut();
+
+            // Use AuthContext's signOut (handles everything including navigation)
+            await signOut();
+
+            // No manual navigation needed - _layout.tsx will handle it automatically
+          } catch (error) {
+            console.error('Sign-out error:', error);
+            Alert.alert(
+              "خطأ",
+              "فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.",
+              [{ text: "حسناً", style: "default" }]
+            );
+          } finally {
+            setIsSigningOut(false);
+          }
         },
       },
     ]);
@@ -548,9 +561,22 @@ export default function SettingsPageModern({ user }) {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-              <Ionicons name="log-out-outline" size={20} color={colors.white} />
-              <Text style={styles.signOutText}>تسجيل الخروج</Text>
+            <TouchableOpacity
+              style={[styles.signOutButton, isSigningOut && { opacity: 0.7 }]}
+              onPress={handleSignOut}
+              disabled={isSigningOut}
+            >
+              {isSigningOut ? (
+                <>
+                  <ActivityIndicator size="small" color={colors.white} />
+                  <Text style={styles.signOutText}>جاري تسجيل الخروج...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="log-out-outline" size={20} color={colors.white} />
+                  <Text style={styles.signOutText}>تسجيل الخروج</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         )}

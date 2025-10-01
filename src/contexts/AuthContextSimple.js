@@ -163,16 +163,31 @@ export function AuthProvider({ children }) {
 
     // Actions
     signOut: async () => {
-      // First sign out from Supabase to clear session
-      await supabase.auth.signOut();
-      // Then clear our state machine and storage
-      await AuthStateMachine.signOut();
-      // Force clear onboarding status
-      await AsyncStorage.removeItem('hasCompletedOnboarding');
-      // Reset local state
+      console.log('[AuthContext] Starting sign out process...');
+
+      // IMMEDIATELY clear memory state to trigger navigation
+      setHasCompletedOnboarding(false);
       setUser(null);
       setProfile(null);
-      setHasCompletedOnboarding(null);
+
+      // Clear our state machine (this also clears AsyncStorage)
+      await AuthStateMachine.signOut();
+
+      // Then sign out from Supabase (triggers SIGNED_OUT event)
+      // Note: We do this AFTER clearing state to prevent race conditions
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[AuthContext] Supabase signOut error:', error);
+      }
+
+      // Force clear onboarding status from storage as backup
+      try {
+        await AsyncStorage.removeItem('hasCompletedOnboarding');
+      } catch (e) {
+        console.error('[AuthContext] Error clearing onboarding status:', e);
+      }
+
+      console.log('[AuthContext] Sign out complete');
     },
 
     enterGuestMode: async () => {
