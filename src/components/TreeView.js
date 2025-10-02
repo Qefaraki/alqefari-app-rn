@@ -3040,6 +3040,9 @@ const TreeView = ({
             {/* Render batched edges first */}
             {edgeElements}
 
+            {/* Highlighted ancestry path (above edges, below nodes) */}
+            {renderHighlightedPath()}
+
             {/* Render visible nodes */}
             {culledNodes.map(renderNodeWithTier)}
 
@@ -3054,9 +3057,6 @@ const TreeView = ({
                 strokeWidth={LINE_WIDTH}
               />
             ))}
-
-            {/* Highlighted ancestry path (rendered on top) */}
-            {renderHighlightedPath()}
 
             {/* Search highlight glow (rendered on top of everything) */}
             {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
