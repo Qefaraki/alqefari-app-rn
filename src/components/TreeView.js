@@ -37,6 +37,10 @@ import {
   Paint,
   ColorMatrix,
   Blur,
+  Box,
+  BoxShadow,
+  rrect,
+  rect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -3094,49 +3098,32 @@ const TreeView = ({
 
               return (
                 <Group opacity={glowOpacityState}>
-                  {/* Layer 4: Outer glow - soft golden halo (largest blur) */}
-                  <Group layer={<Paint><Blur blur={20} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 8}
-                      y={frame.y - 8}
-                      width={frame.width + 16}
-                      height={frame.height + 16}
-                      r={frame.borderRadius + 8}
-                      color="rgba(213, 140, 74, 0.28)"
-                      style="stroke"
-                      strokeWidth={16}
-                    />
-                  </Group>
+                  {/* Soft multi-layer glow using Box + BoxShadow */}
+                  <Box
+                    box={rrect(
+                      rect(frame.x, frame.y, frame.width, frame.height),
+                      frame.borderRadius,
+                      frame.borderRadius
+                    )}
+                    color="transparent"
+                  >
+                    {/* Layer 5: Outermost halo - very soft, large spread */}
+                    <BoxShadow dx={0} dy={0} blur={50} color="rgba(213, 140, 74, 0.45)" />
 
-                  {/* Layer 3: Middle glow - medium blur */}
-                  <Group layer={<Paint><Blur blur={12} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 5}
-                      y={frame.y - 5}
-                      width={frame.width + 10}
-                      height={frame.height + 10}
-                      r={frame.borderRadius + 5}
-                      color="rgba(213, 140, 74, 0.22)"
-                      style="stroke"
-                      strokeWidth={10}
-                    />
-                  </Group>
+                    {/* Layer 4: Outer glow - golden halo */}
+                    <BoxShadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.40)" />
 
-                  {/* Layer 2: Inner accent - warm crimson glow */}
-                  <Group layer={<Paint><Blur blur={6} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 2}
-                      y={frame.y - 2}
-                      width={frame.width + 4}
-                      height={frame.height + 4}
-                      r={frame.borderRadius + 2}
-                      color="rgba(161, 51, 51, 0.18)"
-                      style="stroke"
-                      strokeWidth={4}
-                    />
-                  </Group>
+                    {/* Layer 3: Middle glow - building intensity */}
+                    <BoxShadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
 
-                  {/* Layer 1: Crisp border - no blur */}
+                    {/* Layer 2: Inner glow - warm crimson accent */}
+                    <BoxShadow dx={0} dy={0} blur={20} color="rgba(161, 51, 51, 0.30)" />
+
+                    {/* Layer 1: Tight glow - color definition */}
+                    <BoxShadow dx={0} dy={0} blur={10} color="rgba(229, 168, 85, 0.50)" />
+                  </Box>
+
+                  {/* Crisp golden border on top */}
                   <RoundedRect
                     x={frame.x}
                     y={frame.y}
