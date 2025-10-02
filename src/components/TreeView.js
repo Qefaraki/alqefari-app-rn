@@ -1452,7 +1452,7 @@ const TreeView = ({
         highlightTimerRef.current = setTimeout(() => {
           highlightNode(nodeId);
           highlightTimerRef.current = null;
-        }, 650); // wait for pan/zoom animation to complete
+        }, 350); // reduced delay for faster glow response
       }
     },
     [nodes, dimensions, translateX, translateY, scale],

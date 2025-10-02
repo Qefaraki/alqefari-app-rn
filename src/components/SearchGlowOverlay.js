@@ -92,7 +92,7 @@ const SearchGlowOverlay = ({ frame, opacity }) => {
           height,
           borderRadius,
           borderWidth: 2,
-          borderColor: "#D58C4A",
+          borderColor: "#E5A855",
           backgroundColor: "transparent",
         }}
       />
