@@ -38,6 +38,7 @@ import {
   ColorMatrix,
   Blur,
   RadialGradient,
+  CornerPathEffect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -1613,7 +1614,7 @@ const TreeView = ({
           // Animate path in (after camera settles + glow appears)
           pathOpacity.value = withDelay(
             600, // After camera flight completes
-            withTiming(0.85, {
+            withTiming(0.65, { // Reduced for softer, friendlier appearance
               duration: 400,
               easing: Easing.out(Easing.ease)
             })
@@ -2291,33 +2292,39 @@ const TreeView = ({
         <Group key={`path-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
           <Path
             path={pathObj}
-            color={hexToRgba(baseColor, 0.25)}
+            color={hexToRgba(baseColor, 0.18)}
             style="stroke"
             strokeWidth={8}
             opacity={pathOpacity}
-          />
+          >
+            <CornerPathEffect r={4} />
+          </Path>
         </Group>,
 
         // Layer 3: Middle glow - medium blur
         <Group key={`path-${depthDiff}-middle`} layer={<Paint><Blur blur={10} /></Paint>}>
           <Path
             path={pathObj}
-            color={hexToRgba(baseColor, 0.32)}
+            color={hexToRgba(baseColor, 0.24)}
             style="stroke"
             strokeWidth={5.5}
             opacity={pathOpacity}
-          />
+          >
+            <CornerPathEffect r={4} />
+          </Path>
         </Group>,
 
         // Layer 2: Inner accent - subtle blur
         <Group key={`path-${depthDiff}-inner`} layer={<Paint><Blur blur={5} /></Paint>}>
           <Path
             path={pathObj}
-            color={hexToRgba(baseColor, 0.42)}
+            color={hexToRgba(baseColor, 0.32)}
             style="stroke"
             strokeWidth={4}
             opacity={pathOpacity}
-          />
+          >
+            <CornerPathEffect r={4} />
+          </Path>
         </Group>,
 
         // Layer 1: Crisp core - no blur, full color
@@ -2326,9 +2333,11 @@ const TreeView = ({
           path={pathObj}
           color={baseColor}
           style="stroke"
-          strokeWidth={3}
+          strokeWidth={2.5}
           opacity={pathOpacity}
-        />,
+        >
+          <CornerPathEffect r={4} />
+        </Path>,
       ];
     });
   }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
@@ -3134,91 +3143,91 @@ const TreeView = ({
 
               return (
                 <Group opacity={glowOpacityState}>
-                  {/* Layer 5: Outermost halo - largest emanating glow */}
-                  <Group layer={<Paint><Blur blur={20} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 60}
-                      y={frame.y - 60}
-                      width={frame.width + 120}
-                      height={frame.height + 120}
-                      r={frame.borderRadius + 60}
-                    >
-                      <RadialGradient
-                        c={vec(centerX, centerY)}
-                        r={maxDimension / 2 + 60}
-                        colors={["rgba(213, 140, 74, 0.4)", "rgba(213, 140, 74, 0.15)", "transparent"]}
-                      />
-                    </RoundedRect>
-                  </Group>
-
-                  {/* Layer 4: Large halo - golden glow */}
-                  <Group layer={<Paint><Blur blur={15} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 45}
-                      y={frame.y - 45}
-                      width={frame.width + 90}
-                      height={frame.height + 90}
-                      r={frame.borderRadius + 45}
-                    >
-                      <RadialGradient
-                        c={vec(centerX, centerY)}
-                        r={maxDimension / 2 + 45}
-                        colors={["rgba(213, 140, 74, 0.45)", "rgba(213, 140, 74, 0.2)", "transparent"]}
-                      />
-                    </RoundedRect>
-                  </Group>
-
-                  {/* Layer 3: Medium glow - building intensity */}
-                  <Group layer={<Paint><Blur blur={10} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 30}
-                      y={frame.y - 30}
-                      width={frame.width + 60}
-                      height={frame.height + 60}
-                      r={frame.borderRadius + 30}
-                    >
-                      <RadialGradient
-                        c={vec(centerX, centerY)}
-                        r={maxDimension / 2 + 30}
-                        colors={["rgba(213, 140, 74, 0.5)", "rgba(213, 140, 74, 0.25)", "transparent"]}
-                      />
-                    </RoundedRect>
-                  </Group>
-
-                  {/* Layer 2: Inner glow - warm crimson accent */}
-                  <Group layer={<Paint><Blur blur={5} /></Paint>}>
-                    <RoundedRect
-                      x={frame.x - 15}
-                      y={frame.y - 15}
-                      width={frame.width + 30}
-                      height={frame.height + 30}
-                      r={frame.borderRadius + 15}
-                    >
-                      <RadialGradient
-                        c={vec(centerX, centerY)}
-                        r={maxDimension / 2 + 15}
-                        colors={["rgba(161, 51, 51, 0.4)", "rgba(213, 140, 74, 0.3)", "transparent"]}
-                      />
-                    </RoundedRect>
-                  </Group>
-
-                  {/* Crisp golden border on top */}
+                  {/* Layer 4: Outermost halo - largest emanating glow (NO BLUR) */}
                   <RoundedRect
-                    x={frame.x}
-                    y={frame.y}
-                    width={frame.width}
-                    height={frame.height}
-                    r={frame.borderRadius}
-                    color="#E5A855"
-                    style="stroke"
-                    strokeWidth={2}
-                  />
+                    x={frame.x - 40}
+                    y={frame.y - 40}
+                    width={frame.width + 80}
+                    height={frame.height + 80}
+                    r={frame.borderRadius + 40}
+                  >
+                    <RadialGradient
+                      c={vec(centerX, centerY)}
+                      r={maxDimension / 2 + 40}
+                      colors={["rgba(213, 140, 74, 0.5)", "rgba(213, 140, 74, 0.2)", "transparent"]}
+                    />
+                  </RoundedRect>
+
+                  {/* Layer 3: Large halo - golden glow (NO BLUR) */}
+                  <RoundedRect
+                    x={frame.x - 30}
+                    y={frame.y - 30}
+                    width={frame.width + 60}
+                    height={frame.height + 60}
+                    r={frame.borderRadius + 30}
+                  >
+                    <RadialGradient
+                      c={vec(centerX, centerY)}
+                      r={maxDimension / 2 + 30}
+                      colors={["rgba(213, 140, 74, 0.55)", "rgba(213, 140, 74, 0.25)", "transparent"]}
+                    />
+                  </RoundedRect>
+
+                  {/* Layer 2: Medium glow - building intensity (NO BLUR) */}
+                  <RoundedRect
+                    x={frame.x - 20}
+                    y={frame.y - 20}
+                    width={frame.width + 40}
+                    height={frame.height + 40}
+                    r={frame.borderRadius + 20}
+                  >
+                    <RadialGradient
+                      c={vec(centerX, centerY)}
+                      r={maxDimension / 2 + 20}
+                      colors={["rgba(213, 140, 74, 0.6)", "rgba(213, 140, 74, 0.3)", "transparent"]}
+                    />
+                  </RoundedRect>
+
+                  {/* Layer 1: Inner glow - warm crimson accent (NO BLUR) */}
+                  <RoundedRect
+                    x={frame.x - 10}
+                    y={frame.y - 10}
+                    width={frame.width + 20}
+                    height={frame.height + 20}
+                    r={frame.borderRadius + 10}
+                  >
+                    <RadialGradient
+                      c={vec(centerX, centerY)}
+                      r={maxDimension / 2 + 10}
+                      colors={["rgba(161, 51, 51, 0.45)", "rgba(213, 140, 74, 0.35)", "transparent"]}
+                    />
+                  </RoundedRect>
                 </Group>
               );
             })()}
 
             {/* Render visible nodes */}
             {culledNodes.map(renderNodeWithTier)}
+
+            {/* Crisp golden border on top of highlighted node */}
+            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
+              if (!frame) return null;
+
+              return (
+                <RoundedRect
+                  x={frame.x}
+                  y={frame.y}
+                  width={frame.width}
+                  height={frame.height}
+                  r={frame.borderRadius}
+                  color="#E5A855"
+                  style="stroke"
+                  strokeWidth={2}
+                  opacity={glowOpacityState}
+                />
+              );
+            })()}
 
             {/* Pass 3: Invisible bridge lines intersecting viewport */}
             {bridgeSegments.map((seg) => (
