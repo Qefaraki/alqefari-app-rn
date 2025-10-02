@@ -2209,8 +2209,10 @@ const TreeView = ({
 
     // Create Set for O(1) membership lookups
     const pathSet = new Set(highlightedPathNodeIds);
-    const pathObj = Skia.Path.Make();
-    let segmentsDrawn = 0;
+
+    // Group segments by depth difference (generation gap) for color gradation
+    const segmentsByDepth = new Map(); // depth -> Path object
+    let totalSegments = 0;
 
     // Loop through existing connections and draw routing for path segments
     for (const conn of connections) {
@@ -2224,6 +2226,15 @@ const TreeView = ({
       const parent = nodes.find(n => n.id === conn.parent.id);
       const child = nodes.find(n => n.id === pathChild.id);
       if (!parent || !child) continue;
+
+      // Calculate depth difference for color selection
+      const depthDiff = Math.abs(child.depth - parent.depth);
+
+      // Get or create path for this depth level
+      if (!segmentsByDepth.has(depthDiff)) {
+        segmentsByDepth.set(depthDiff, Skia.Path.Make());
+      }
+      const pathObj = segmentsByDepth.get(depthDiff);
 
       // Reuse EXACT same busY calculation as regular edges
       const childYs = conn.children.map(c => c.y);
@@ -2245,23 +2256,31 @@ const TreeView = ({
       // 3. Bus up to child
       pathObj.lineTo(child.x, child.y - childHeight / 2);
 
-      segmentsDrawn++;
+      totalSegments++;
     }
 
-    if (segmentsDrawn === 0) {
+    if (totalSegments === 0) {
       console.warn('No valid path segments to render');
       return null;
     }
 
-    return (
-      <Path
-        path={pathObj}
-        color="#D58C4A" // Desert Ochre
-        style="stroke"
-        strokeWidth={3.5}
-        opacity={pathOpacity}
-      />
-    );
+    // Render each depth level with its own color and glow
+    return Array.from(segmentsByDepth.entries()).map(([depthDiff, pathObj]) => {
+      const colorIndex = depthDiff % ANCESTRY_COLORS.length;
+
+      return (
+        <Path
+          key={`path-depth-${depthDiff}`}
+          path={pathObj}
+          color={ANCESTRY_COLORS[colorIndex]}
+          style="stroke"
+          strokeWidth={3.5}
+          opacity={pathOpacity}
+        >
+          <Blur blur={4} />
+        </Path>
+      );
+    });
   }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
