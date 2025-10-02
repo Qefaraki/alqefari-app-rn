@@ -37,7 +37,7 @@ import {
   Paint,
   ColorMatrix,
   Blur,
-  RadialGradient,
+  Shadow,
   CornerPathEffect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
@@ -1614,7 +1614,7 @@ const TreeView = ({
           // Animate path in (after camera settles + glow appears)
           pathOpacity.value = withDelay(
             600, // After camera flight completes
-            withTiming(0.65, { // Reduced for softer, friendlier appearance
+            withTiming(0.52, { // 20% reduction for even softer appearance
               duration: 400,
               easing: Easing.out(Easing.ease)
             })
@@ -3136,71 +3136,27 @@ const TreeView = ({
               const frame = nodeFramesRef.current.get(highlightedNodeIdState);
               if (!frame) return null;
 
-              // Calculate center point for radial gradients
-              const centerX = frame.x + frame.width / 2;
-              const centerY = frame.y + frame.height / 2;
-              const maxDimension = Math.max(frame.width, frame.height);
-
               return (
                 <Group opacity={glowOpacityState}>
-                  {/* Layer 4: Outermost halo - largest emanating glow (NO BLUR) */}
                   <RoundedRect
-                    x={frame.x - 40}
-                    y={frame.y - 40}
-                    width={frame.width + 80}
-                    height={frame.height + 80}
-                    r={frame.borderRadius + 40}
+                    x={frame.x}
+                    y={frame.y}
+                    width={frame.width}
+                    height={frame.height}
+                    r={frame.borderRadius}
+                    color="transparent"
                   >
-                    <RadialGradient
-                      c={vec(centerX, centerY)}
-                      r={maxDimension / 2 + 40}
-                      colors={["rgba(213, 140, 74, 0.5)", "rgba(213, 140, 74, 0.2)", "transparent"]}
-                    />
-                  </RoundedRect>
+                    {/* Layer 4: Outermost soft glow */}
+                    <Shadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.3)" />
 
-                  {/* Layer 3: Large halo - golden glow (NO BLUR) */}
-                  <RoundedRect
-                    x={frame.x - 30}
-                    y={frame.y - 30}
-                    width={frame.width + 60}
-                    height={frame.height + 60}
-                    r={frame.borderRadius + 30}
-                  >
-                    <RadialGradient
-                      c={vec(centerX, centerY)}
-                      r={maxDimension / 2 + 30}
-                      colors={["rgba(213, 140, 74, 0.55)", "rgba(213, 140, 74, 0.25)", "transparent"]}
-                    />
-                  </RoundedRect>
+                    {/* Layer 3: Large golden halo */}
+                    <Shadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
 
-                  {/* Layer 2: Medium glow - building intensity (NO BLUR) */}
-                  <RoundedRect
-                    x={frame.x - 20}
-                    y={frame.y - 20}
-                    width={frame.width + 40}
-                    height={frame.height + 40}
-                    r={frame.borderRadius + 20}
-                  >
-                    <RadialGradient
-                      c={vec(centerX, centerY)}
-                      r={maxDimension / 2 + 20}
-                      colors={["rgba(213, 140, 74, 0.6)", "rgba(213, 140, 74, 0.3)", "transparent"]}
-                    />
-                  </RoundedRect>
+                    {/* Layer 2: Medium glow */}
+                    <Shadow dx={0} dy={0} blur={20} color="rgba(213, 140, 74, 0.4)" />
 
-                  {/* Layer 1: Inner glow - warm crimson accent (NO BLUR) */}
-                  <RoundedRect
-                    x={frame.x - 10}
-                    y={frame.y - 10}
-                    width={frame.width + 20}
-                    height={frame.height + 20}
-                    r={frame.borderRadius + 10}
-                  >
-                    <RadialGradient
-                      c={vec(centerX, centerY)}
-                      r={maxDimension / 2 + 10}
-                      colors={["rgba(161, 51, 51, 0.45)", "rgba(213, 140, 74, 0.35)", "transparent"]}
-                    />
+                    {/* Layer 1: Inner warm crimson accent */}
+                    <Shadow dx={0} dy={0} blur={10} color="rgba(161, 51, 51, 0.45)" />
                   </RoundedRect>
                 </Group>
               );
