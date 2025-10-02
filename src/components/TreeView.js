@@ -2197,33 +2197,44 @@ const TreeView = ({
       return null;
     }
 
-    // Use nodes array which has x/y coordinates from layout algorithm
+    // Create Set for O(1) membership lookups
+    const pathSet = new Set(highlightedPathNodeIds);
     const pathObj = Skia.Path.Make();
     let segmentsDrawn = 0;
 
-    // Draw lines between consecutive ancestors in the path
-    for (let i = 0; i < highlightedPathNodeIds.length - 1; i++) {
-      const childId = highlightedPathNodeIds[i];
-      const parentId = highlightedPathNodeIds[i + 1];
+    // Loop through existing connections and draw routing for path segments
+    for (const conn of connections) {
+      // Skip if parent not in path
+      if (!pathSet.has(conn.parent.id)) continue;
 
-      const child = nodes.find(n => n.id === childId);
-      const parent = nodes.find(n => n.id === parentId);
+      // Find which child in this connection is part of the path
+      const pathChild = conn.children.find(c => pathSet.has(c.id));
+      if (!pathChild) continue;
 
-      if (!child || !parent) {
-        console.warn(`Path segment ${i} missing: ${childId} -> ${parentId}`);
-        continue; // Skip broken segment
+      const parent = nodes.find(n => n.id === conn.parent.id);
+      const child = nodes.find(n => n.id === pathChild.id);
+      if (!parent || !child) continue;
+
+      // Reuse EXACT same busY calculation as regular edges
+      const childYs = conn.children.map(c => c.y);
+      const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
+
+      const parentHeight = parent.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+      const childHeight = child.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+
+      // Draw 3-segment routing matching regular edges exactly:
+      // 1. Parent down to bus
+      pathObj.moveTo(parent.x, parent.y + parentHeight / 2);
+      pathObj.lineTo(parent.x, busY);
+
+      // 2. Horizontal along bus (if parent and child x differ)
+      if (Math.abs(parent.x - child.x) > 1) {
+        pathObj.lineTo(child.x, busY);
       }
 
-      // Calculate attachment points based on node size
-      const childHeight = child.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-      const parentHeight = parent.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+      // 3. Bus up to child
+      pathObj.lineTo(child.x, child.y - childHeight / 2);
 
-      const childY = child.y - childHeight / 2;
-      const parentY = parent.y + parentHeight / 2;
-
-      // Draw vertical connection from child to parent
-      pathObj.moveTo(child.x, childY);
-      pathObj.lineTo(parent.x, parentY);
       segmentsDrawn++;
     }
 
@@ -2241,7 +2252,7 @@ const TreeView = ({
         opacity={pathOpacity}
       />
     );
-  }, [highlightedPathNodeIds, pathOpacity, nodes]);
+  }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
   const renderTier3 = useCallback(
