@@ -76,13 +76,26 @@ const SearchGlowOverlay = ({ frame, opacity }) => {
           style={{
             width,
             height,
-            borderRadius: borderRadius + 1,
+            borderRadius,
             backgroundColor: "transparent",
-            borderWidth: 2,
-            borderColor: "#A13333",
           }}
         />
       </AnimatedGlow>
+
+      {/* Separate border overlay for crisp corner rendering */}
+      <View
+        style={{
+          position: "absolute",
+          left: haloPadding,
+          top: haloPadding,
+          width,
+          height,
+          borderRadius,
+          borderWidth: 2,
+          borderColor: "#A13333",
+          backgroundColor: "transparent",
+        }}
+      />
     </Animated.View>
   );
 };
