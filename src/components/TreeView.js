@@ -68,7 +68,6 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/AuthContextSimple";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
-import AdminToggleButton from "./AdminToggleButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -3158,8 +3157,6 @@ const TreeView = ({
         focusPersonId={linkedProfileId || profile?.id}
       />
 
-      {/* Admin Toggle Button - Only for admins */}
-      {isAdmin && user && !user.is_anonymous ? <AdminToggleButton user={user} /> : null}
 
 
       {/* Admin components */}

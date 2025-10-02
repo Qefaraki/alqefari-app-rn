@@ -24,7 +24,7 @@ const SettingsButton = ({ onPress }) => {
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Tap animation - same as AdminToggleButton
+    // Tap animation - similar bounce pattern
     iconScale.value = withSequence(
       withTiming(0.9, { duration: 90, easing: Easing.out(Easing.quad) }),
       withTiming(1.05, { duration: 160, easing: Easing.out(Easing.back(1.6)) }),
@@ -42,7 +42,7 @@ const SettingsButton = ({ onPress }) => {
 
   return (
     <View style={styles.container}>
-      {/* Button with shadow wrapper - exact same as AdminToggleButton */}
+      {/* Button with shadow wrapper - standard pattern */}
       <View style={styles.shadowWrapper}>
         <Pressable
           onPress={handlePress}
