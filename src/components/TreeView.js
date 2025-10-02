@@ -695,6 +695,12 @@ const gestureStateRef = useRef({
   visibleNodes: [],
 });
 
+// Debug logging for camera movements
+const debugCamera = useCallback((label, payload) => {
+  if (!__DEV__) return;
+  console.log(`[Camera] ${label}`, payload);
+}, []);
+
 const viewportShared = useSharedValue({
   width: Math.max(dimensions.width || 1, 1),
   height: Math.max(dimensions.height || 1, 1),
@@ -1736,31 +1742,77 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // Create decay modifier with current scale and bounds
-      const decayMod = createDecayModifier(
+      // CRITICAL: Clamp current position before applying decay
+      // This prevents slow drags from leaving the user stranded far from tree
+      const clamped = clampStageToBounds(
+        { x: translateX.value, y: translateY.value, scale: scale.value },
         viewportShared.value,
         boundsShared.value,
-        scale.value,
         minZoomShared.value,
         maxZoomShared.value
       );
 
-      translateX.value = withDecay(
-        {
-          velocity: e.velocityX,
-          deceleration: 0.995,
-        },
-        (value) => decayMod(value, 'x')
-      );
-      translateY.value = withDecay(
-        {
-          velocity: e.velocityY,
-          deceleration: 0.995,
-        },
-        (value) => decayMod(value, 'y')
-      );
+      // Calculate how far outside bounds we are
+      const deltaX = Math.abs(clamped.stage.x - translateX.value);
+      const deltaY = Math.abs(clamped.stage.y - translateY.value);
+      const distanceOutside = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-      // Save current values (before decay animation modifies them)
+      if (__DEV__) {
+        runOnJS(debugCamera)("pan.end", {
+          current: {
+            x: Number(translateX.value.toFixed(1)),
+            y: Number(translateY.value.toFixed(1)),
+          },
+          clamped: {
+            x: Number(clamped.stage.x.toFixed(1)),
+            y: Number(clamped.stage.y.toFixed(1)),
+          },
+          distance: Number(distanceOutside.toFixed(1)),
+          velocity: {
+            x: Number(e.velocityX.toFixed(1)),
+            y: Number(e.velocityY.toFixed(1)),
+          },
+        });
+      }
+
+      // If significantly outside bounds, spring back gently
+      // This handles slow drags that went too far
+      if (distanceOutside > 50) {
+        translateX.value = withSpring(clamped.stage.x, {
+          damping: 20,
+          stiffness: 90,
+        });
+        translateY.value = withSpring(clamped.stage.y, {
+          damping: 20,
+          stiffness: 90,
+        });
+      } else {
+        // Close enough to bounds, apply momentum with decay modifier
+        const decayMod = createDecayModifier(
+          viewportShared.value,
+          boundsShared.value,
+          scale.value,
+          minZoomShared.value,
+          maxZoomShared.value
+        );
+
+        translateX.value = withDecay(
+          {
+            velocity: e.velocityX,
+            deceleration: 0.995,
+          },
+          (value) => decayMod(value, 'x')
+        );
+        translateY.value = withDecay(
+          {
+            velocity: e.velocityY,
+            deceleration: 0.995,
+          },
+          (value) => decayMod(value, 'y')
+        );
+      }
+
+      // Save current values
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     });
