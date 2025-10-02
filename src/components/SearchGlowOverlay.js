@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import AnimatedGlow from "react-native-animated-glow/lib/module/AnimatedGlow";
+import AnimatedGlow from "react-native-animated-glow";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 
 /**
@@ -76,9 +76,9 @@ const SearchGlowOverlay = ({ frame, opacity }) => {
           style={{
             width,
             height,
-            borderRadius,
+            borderRadius: borderRadius + 1,
             backgroundColor: "transparent",
-            borderWidth: 4,
+            borderWidth: 2,
             borderColor: "#A13333",
           }}
         />
