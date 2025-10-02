@@ -37,10 +37,7 @@ import {
   Paint,
   ColorMatrix,
   Blur,
-  Box,
-  BoxShadow,
-  rrect,
-  rect,
+  RadialGradient,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -92,10 +89,27 @@ const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
 
-// Ancestry path color palette - smooth 10-color cycle
+// Helper function to convert hex color to rgba with opacity
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Ancestry path color palette - high-contrast 10-color cycle
+// Spans warm to cool spectrum for clear generational distinction
 const ANCESTRY_COLORS = [
-  '#A13333', '#B54538', '#C9573D', '#D58C4A', '#CCA25E',
-  '#C3B872', '#D1BBA3', '#C4A592', '#B78F81', '#AA7970',
+  '#C73E3E', // Bright crimson
+  '#E38740', // Vivid orange
+  '#F5C555', // Warm gold
+  '#9FB885', // Sage green (cool contrast)
+  '#6A9AA6', // Teal (cool)
+  '#8E7AB8', // Purple (brand focus family)
+  '#B56B8A', // Mauve (cool-warm transition)
+  '#C75A5A', // Rose
+  '#D58C4A', // Desert Ochre (brand)
+  '#A95252', // Deep terracotta (back to crimson)
 ];
 
 // LOD Constants
@@ -2267,22 +2281,55 @@ const TreeView = ({
       return null;
     }
 
-    // Render each depth level with its own color and glow
-    return Array.from(segmentsByDepth.entries()).map(([depthDiff, pathObj]) => {
+    // Render each depth level with 4-layer glow system (matches search highlight)
+    return Array.from(segmentsByDepth.entries()).flatMap(([depthDiff, pathObj]) => {
       const colorIndex = depthDiff % ANCESTRY_COLORS.length;
+      const baseColor = ANCESTRY_COLORS[colorIndex];
 
-      return (
+      return [
+        // Layer 4: Outer glow - soft halo (largest blur)
+        <Group key={`path-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.25)}
+            style="stroke"
+            strokeWidth={8}
+            opacity={pathOpacity}
+          />
+        </Group>,
+
+        // Layer 3: Middle glow - medium blur
+        <Group key={`path-${depthDiff}-middle`} layer={<Paint><Blur blur={10} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.32)}
+            style="stroke"
+            strokeWidth={5.5}
+            opacity={pathOpacity}
+          />
+        </Group>,
+
+        // Layer 2: Inner accent - subtle blur
+        <Group key={`path-${depthDiff}-inner`} layer={<Paint><Blur blur={5} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.42)}
+            style="stroke"
+            strokeWidth={4}
+            opacity={pathOpacity}
+          />
+        </Group>,
+
+        // Layer 1: Crisp core - no blur, full color
         <Path
-          key={`path-depth-${depthDiff}`}
+          key={`path-${depthDiff}-core`}
           path={pathObj}
-          color={ANCESTRY_COLORS[colorIndex]}
+          color={baseColor}
           style="stroke"
-          strokeWidth={3.5}
+          strokeWidth={3}
           opacity={pathOpacity}
-        >
-          <Blur blur={4} />
-        </Path>
-      );
+        />,
+      ];
     });
   }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
 
@@ -3095,32 +3142,80 @@ const TreeView = ({
               const frame = nodeFramesRef.current.get(highlightedNodeIdState);
               if (!frame) return null;
 
+              // Calculate center point for radial gradients
+              const centerX = frame.x + frame.width / 2;
+              const centerY = frame.y + frame.height / 2;
+              const maxDimension = Math.max(frame.width, frame.height);
+
               return (
                 <Group opacity={glowOpacityState}>
-                  {/* Soft multi-layer glow using Box + BoxShadow */}
-                  <Box
-                    box={rrect(
-                      rect(frame.x, frame.y, frame.width, frame.height),
-                      frame.borderRadius,
-                      frame.borderRadius
-                    )}
-                    color="transparent"
-                  >
-                    {/* Layer 5: Outermost halo - very soft, large spread */}
-                    <BoxShadow dx={0} dy={0} blur={50} color="rgba(213, 140, 74, 0.45)" />
+                  {/* Layer 5: Outermost halo - largest emanating glow */}
+                  <Group layer={<Paint><Blur blur={20} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 60}
+                      y={frame.y - 60}
+                      width={frame.width + 120}
+                      height={frame.height + 120}
+                      r={frame.borderRadius + 60}
+                    >
+                      <RadialGradient
+                        c={vec(centerX, centerY)}
+                        r={maxDimension / 2 + 60}
+                        colors={["rgba(213, 140, 74, 0.4)", "rgba(213, 140, 74, 0.15)", "transparent"]}
+                      />
+                    </RoundedRect>
+                  </Group>
 
-                    {/* Layer 4: Outer glow - golden halo */}
-                    <BoxShadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.40)" />
+                  {/* Layer 4: Large halo - golden glow */}
+                  <Group layer={<Paint><Blur blur={15} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 45}
+                      y={frame.y - 45}
+                      width={frame.width + 90}
+                      height={frame.height + 90}
+                      r={frame.borderRadius + 45}
+                    >
+                      <RadialGradient
+                        c={vec(centerX, centerY)}
+                        r={maxDimension / 2 + 45}
+                        colors={["rgba(213, 140, 74, 0.45)", "rgba(213, 140, 74, 0.2)", "transparent"]}
+                      />
+                    </RoundedRect>
+                  </Group>
 
-                    {/* Layer 3: Middle glow - building intensity */}
-                    <BoxShadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
+                  {/* Layer 3: Medium glow - building intensity */}
+                  <Group layer={<Paint><Blur blur={10} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 30}
+                      y={frame.y - 30}
+                      width={frame.width + 60}
+                      height={frame.height + 60}
+                      r={frame.borderRadius + 30}
+                    >
+                      <RadialGradient
+                        c={vec(centerX, centerY)}
+                        r={maxDimension / 2 + 30}
+                        colors={["rgba(213, 140, 74, 0.5)", "rgba(213, 140, 74, 0.25)", "transparent"]}
+                      />
+                    </RoundedRect>
+                  </Group>
 
-                    {/* Layer 2: Inner glow - warm crimson accent */}
-                    <BoxShadow dx={0} dy={0} blur={20} color="rgba(161, 51, 51, 0.30)" />
-
-                    {/* Layer 1: Tight glow - color definition */}
-                    <BoxShadow dx={0} dy={0} blur={10} color="rgba(229, 168, 85, 0.50)" />
-                  </Box>
+                  {/* Layer 2: Inner glow - warm crimson accent */}
+                  <Group layer={<Paint><Blur blur={5} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 15}
+                      y={frame.y - 15}
+                      width={frame.width + 30}
+                      height={frame.height + 30}
+                      r={frame.borderRadius + 15}
+                    >
+                      <RadialGradient
+                        c={vec(centerX, centerY)}
+                        r={maxDimension / 2 + 15}
+                        colors={["rgba(161, 51, 51, 0.4)", "rgba(213, 140, 74, 0.3)", "transparent"]}
+                      />
+                    </RoundedRect>
+                  </Group>
 
                   {/* Crisp golden border on top */}
                   <RoundedRect
