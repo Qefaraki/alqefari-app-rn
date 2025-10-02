@@ -94,6 +94,7 @@ export default function TreeScreen() {
             setProfileEditMode={() => {}}
             onNetworkStatusChange={() => {}}
           />
+          {/* AdminToggleButton removed - QuickAdd now works automatically based on user role */}
           <ProfileSheetWrapper editMode={false} />
         </View>
       </BottomSheetModalProvider>

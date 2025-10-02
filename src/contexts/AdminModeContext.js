@@ -1,3 +1,22 @@
+/**
+ * AdminModeContext - Provides admin mode state and role checking
+ *
+ * NOTE (v4.3 - January 2025):
+ * The mode toggle (isAdminMode) is now primarily for UI indicators only.
+ * Actual permissions (like QuickAdd access, edit rights) are role-based, not mode-based.
+ *
+ * Use this context for:
+ * - SystemStatusIndicator visibility
+ * - Other admin UI element visibility
+ * - Visual state indicators
+ *
+ * For permission checks, use profile.role directly:
+ * - profile?.role === 'super_admin' → Full access
+ * - profile?.role === 'admin' → Admin access
+ * - profile?.role === 'moderator' → Branch moderator access
+ * - profile?.role === 'user' or null → Regular user
+ */
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { supabase } from "../services/supabase";
 

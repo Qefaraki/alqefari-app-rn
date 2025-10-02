@@ -1,3 +1,16 @@
+/**
+ * @deprecated This component is deprecated as of v4.3 (January 2025)
+ *
+ * The edit mode toggle is no longer required. Admin features (like QuickAdd) now work
+ * automatically based on user role (admin, super_admin, moderator) without needing to
+ * toggle a mode on/off.
+ *
+ * This component is kept for backward compatibility and can be fully removed in the
+ * next major version. The AdminModeContext is still used for other UI indicators.
+ *
+ * Replacement: Permission checks are now role-based via profile.role, not mode-based.
+ */
+
 import React, { useState } from "react";
 import { View, Pressable, StyleSheet, Text } from "react-native";
 import * as Haptics from "expo-haptics";

@@ -89,6 +89,12 @@ const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
 
+// Ancestry path color palette - smooth 10-color cycle
+const ANCESTRY_COLORS = [
+  '#A13333', '#B54538', '#C9573D', '#D58C4A', '#CCA25E',
+  '#C3B872', '#D1BBA3', '#C4A592', '#B78F81', '#AA7970',
+];
+
 // LOD Constants
 const SCALE_QUANTUM = 0.05; // 5% quantization steps
 const HYSTERESIS = 0.15; // ±15% hysteresis
@@ -1806,7 +1812,10 @@ const TreeView = ({
     .maxDistance(10)
     .runOnJS(true)
     .onStart((e) => {
-      if (!isAdminMode) return;
+      // Check user role instead of mode - QuickAdd is now permission-based
+      if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
+        return;
+      }
 
       const state = gestureStateRef.current;
 
@@ -2011,7 +2020,8 @@ const TreeView = ({
   const composed = Gesture.Simultaneous(
     panGesture,
     pinchGesture,
-    isAdminMode ? Gesture.Exclusive(longPressGesture, tapGesture) : tapGesture,
+    // Long press always enabled - permission check is inside the gesture
+    Gesture.Exclusive(longPressGesture, tapGesture),
   );
 
   // Render connection lines with proper elbow style
@@ -3065,42 +3075,59 @@ const TreeView = ({
 
               return (
                 <Group opacity={glowOpacityState}>
-                  {/* Outer glow - soft golden halo */}
-                  <RoundedRect
-                    x={frame.x - 6}
-                    y={frame.y - 6}
-                    width={frame.width + 12}
-                    height={frame.height + 12}
-                    r={frame.borderRadius + 6}
-                  >
-                    <Paint style="stroke" strokeWidth={12} color="rgba(213, 140, 74, 0.4)">
-                      <Blur blur={16} />
-                    </Paint>
-                  </RoundedRect>
+                  {/* Layer 4: Outer glow - soft golden halo (largest blur) */}
+                  <Group layer={<Paint><Blur blur={20} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 8}
+                      y={frame.y - 8}
+                      width={frame.width + 16}
+                      height={frame.height + 16}
+                      r={frame.borderRadius + 8}
+                      color="rgba(213, 140, 74, 0.28)"
+                      style="stroke"
+                      strokeWidth={16}
+                    />
+                  </Group>
 
-                  {/* Inner glow - warmer accent */}
-                  <RoundedRect
-                    x={frame.x - 3}
-                    y={frame.y - 3}
-                    width={frame.width + 6}
-                    height={frame.height + 6}
-                    r={frame.borderRadius + 3}
-                  >
-                    <Paint style="stroke" strokeWidth={6} color="rgba(161, 51, 51, 0.3)">
-                      <Blur blur={8} />
-                    </Paint>
-                  </RoundedRect>
+                  {/* Layer 3: Middle glow - medium blur */}
+                  <Group layer={<Paint><Blur blur={12} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 5}
+                      y={frame.y - 5}
+                      width={frame.width + 10}
+                      height={frame.height + 10}
+                      r={frame.borderRadius + 5}
+                      color="rgba(213, 140, 74, 0.22)"
+                      style="stroke"
+                      strokeWidth={10}
+                    />
+                  </Group>
 
-                  {/* Crisp border - no blur */}
+                  {/* Layer 2: Inner accent - warm crimson glow */}
+                  <Group layer={<Paint><Blur blur={6} /></Paint>}>
+                    <RoundedRect
+                      x={frame.x - 2}
+                      y={frame.y - 2}
+                      width={frame.width + 4}
+                      height={frame.height + 4}
+                      r={frame.borderRadius + 2}
+                      color="rgba(161, 51, 51, 0.18)"
+                      style="stroke"
+                      strokeWidth={4}
+                    />
+                  </Group>
+
+                  {/* Layer 1: Crisp border - no blur */}
                   <RoundedRect
                     x={frame.x}
                     y={frame.y}
                     width={frame.width}
                     height={frame.height}
                     r={frame.borderRadius}
-                  >
-                    <Paint style="stroke" strokeWidth={2} color="#E5A855" />
-                  </RoundedRect>
+                    color="#E5A855"
+                    style="stroke"
+                    strokeWidth={2}
+                  />
                 </Group>
               );
             })()}
