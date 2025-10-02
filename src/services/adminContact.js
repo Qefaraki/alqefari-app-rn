@@ -10,6 +10,10 @@ import { Linking, Platform } from 'react-native';
 
 const ADMIN_WHATSAPP_KEY = 'admin_whatsapp_number';
 const DEFAULT_ADMIN_NUMBER = '+966539266345'; // Default fallback number
+const ONBOARDING_HELP_MESSAGE_KEY = 'admin_onboarding_help_message';
+const DEFAULT_ONBOARDING_MESSAGE = 'مرحباً، أحتاج مساعدة في استخدام تطبيق شجرة عائلة القفاري';
+const ARTICLE_SUGGESTION_MESSAGE_KEY = 'admin_article_suggestion_message';
+const DEFAULT_ARTICLE_SUGGESTION = 'أود اقتراح مقال للنشر';
 
 class AdminContactService {
   constructor() {
@@ -183,6 +187,106 @@ class AdminContactService {
   clearCache() {
     this.cachedNumber = null;
     this.cacheTimestamp = null;
+  }
+
+  /**
+   * Get the onboarding help message
+   * Returns the stored message or default if not configured
+   */
+  async getOnboardingHelpMessage() {
+    try {
+      const storedMessage = await AsyncStorage.getItem(ONBOARDING_HELP_MESSAGE_KEY);
+      return storedMessage || DEFAULT_ONBOARDING_MESSAGE;
+    } catch (error) {
+      console.error('Error getting onboarding help message:', error);
+      return DEFAULT_ONBOARDING_MESSAGE;
+    }
+  }
+
+  /**
+   * Set the onboarding help message (admin only)
+   * @param {string} message - The help message to show on onboarding screen
+   */
+  async setOnboardingHelpMessage(message) {
+    try {
+      if (!message || message.trim() === '') {
+        throw new Error('Message cannot be empty');
+      }
+
+      await AsyncStorage.setItem(ONBOARDING_HELP_MESSAGE_KEY, message.trim());
+      return { success: true, message: message.trim() };
+    } catch (error) {
+      console.error('Error setting onboarding help message:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Open WhatsApp with onboarding help message
+   */
+  async openOnboardingHelp() {
+    const message = await this.getOnboardingHelpMessage();
+    return await this.openAdminWhatsApp(message);
+  }
+
+  /**
+   * Get the article suggestion message template
+   * Returns the stored message or default if not configured
+   */
+  async getArticleSuggestionMessage() {
+    try {
+      const storedMessage = await AsyncStorage.getItem(ARTICLE_SUGGESTION_MESSAGE_KEY);
+      return storedMessage || DEFAULT_ARTICLE_SUGGESTION;
+    } catch (error) {
+      console.error('Error getting article suggestion message:', error);
+      return DEFAULT_ARTICLE_SUGGESTION;
+    }
+  }
+
+  /**
+   * Set the article suggestion message template (admin only)
+   * @param {string} message - The message template to show when suggesting articles
+   */
+  async setArticleSuggestionMessage(message) {
+    try {
+      if (!message || message.trim() === '') {
+        throw new Error('Message cannot be empty');
+      }
+
+      await AsyncStorage.setItem(ARTICLE_SUGGESTION_MESSAGE_KEY, message.trim());
+      return { success: true, message: message.trim() };
+    } catch (error) {
+      console.error('Error setting article suggestion message:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Open WhatsApp to suggest an article with user info
+   * @param {object} userProfile - User profile containing name_chain and phone
+   */
+  async openWhatsAppForArticleSuggestion(userProfile) {
+    try {
+      // Get the template message
+      const template = await this.getArticleSuggestionMessage();
+
+      // Extract user info
+      const nameChain = userProfile?.name_chain || 'غير محدد';
+      const phone = userProfile?.phone || 'غير محدد';
+
+      // Format the complete message
+      const message = `${template}
+
+الاسم: ${nameChain}
+الجوال: ${phone}
+
+`;
+
+      return await this.openAdminWhatsApp(message);
+    } catch (error) {
+      console.error('Error opening WhatsApp for article suggestion:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
 

@@ -32,11 +32,15 @@ const colors = {
 
 const DEFAULT_MESSAGE_KEY = 'admin_default_message';
 const DEFAULT_MESSAGE = 'السلام عليكم';
+const ONBOARDING_MESSAGE_KEY = 'admin_onboarding_help_message';
+const DEFAULT_ONBOARDING_MESSAGE = 'مرحباً، أحتاج مساعدة في استخدام تطبيق شجرة عائلة القفاري';
 
 const AdminSettingsView = ({ onClose }) => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [displayNumber, setDisplayNumber] = useState('');
   const [defaultMessage, setDefaultMessage] = useState('');
+  const [onboardingMessage, setOnboardingMessage] = useState('');
+  const [articleSuggestionMessage, setArticleSuggestionMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -56,6 +60,14 @@ const AdminSettingsView = ({ onClose }) => {
       // Load default message
       const savedMessage = await AsyncStorage.getItem(DEFAULT_MESSAGE_KEY);
       setDefaultMessage(savedMessage || DEFAULT_MESSAGE);
+
+      // Load onboarding help message
+      const savedOnboarding = await AsyncStorage.getItem(ONBOARDING_MESSAGE_KEY);
+      setOnboardingMessage(savedOnboarding || DEFAULT_ONBOARDING_MESSAGE);
+
+      // Load article suggestion message
+      const savedArticleSuggestion = await adminContactService.getArticleSuggestionMessage();
+      setArticleSuggestionMessage(savedArticleSuggestion);
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
@@ -98,6 +110,43 @@ const AdminSettingsView = ({ onClose }) => {
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('خطأ', 'فشل حفظ الرسالة الافتراضية');
+    }
+    setSaving(false);
+  };
+
+  const handleSaveOnboardingMessage = async () => {
+    if (!onboardingMessage || onboardingMessage.trim() === '') {
+      Alert.alert('خطأ', 'يرجى إدخال رسالة المساعدة');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await AsyncStorage.setItem(ONBOARDING_MESSAGE_KEY, onboardingMessage.trim());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('نجح', 'تم حفظ رسالة المساعدة بنجاح');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('خطأ', 'فشل حفظ رسالة المساعدة');
+    }
+    setSaving(false);
+  };
+
+  const handleSaveArticleSuggestionMessage = async () => {
+    if (!articleSuggestionMessage || articleSuggestionMessage.trim() === '') {
+      Alert.alert('خطأ', 'يرجى إدخال رسالة اقتراح المقال');
+      return;
+    }
+
+    setSaving(true);
+    const result = await adminContactService.setArticleSuggestionMessage(articleSuggestionMessage.trim());
+
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('نجح', 'تم حفظ رسالة اقتراح المقال بنجاح');
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('خطأ', result.error || 'فشل حفظ رسالة اقتراح المقال');
     }
     setSaving(false);
   };
@@ -218,6 +267,84 @@ const AdminSettingsView = ({ onClose }) => {
             <TouchableOpacity
               style={[styles.primaryButton, saving && styles.buttonDisabled]}
               onPress={handleSaveMessage}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>حفظ الرسالة</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Onboarding Help Message Section */}
+          <View style={styles.settingsCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="help-circle" size={24} color={colors.primary} />
+              <Text style={styles.sectionTitle}>رسالة المساعدة (شاشة البداية)</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>نص الرسالة</Text>
+            <TextInput
+              style={[styles.input, styles.messageInput]}
+              value={onboardingMessage}
+              onChangeText={setOnboardingMessage}
+              placeholder="مرحباً، أحتاج مساعدة في استخدام التطبيق"
+              placeholderTextColor={colors.muted}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <Text style={styles.helpText}>
+              الرسالة التي ستظهر عند النقر على زر المساعدة في شاشة البداية
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.buttonDisabled]}
+              onPress={handleSaveOnboardingMessage}
+              disabled={saving}
+              activeOpacity={0.8}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 8 }} />
+                  <Text style={styles.primaryButtonText}>حفظ الرسالة</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Article Suggestion Message Section */}
+          <View style={styles.settingsCard}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="newspaper-outline" size={24} color={colors.secondary} />
+              <Text style={styles.sectionTitle}>رسالة اقتراح المقالات</Text>
+            </View>
+
+            <Text style={styles.fieldLabel}>نص الرسالة</Text>
+            <TextInput
+              style={[styles.input, styles.messageInput]}
+              value={articleSuggestionMessage}
+              onChangeText={setArticleSuggestionMessage}
+              placeholder="أود اقتراح مقال للنشر"
+              placeholderTextColor={colors.muted}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <Text style={styles.helpText}>
+              الرسالة التي ستظهر عند اقتراح مقال من صفحة الأخبار (سيتم إضافة الاسم ورقم الجوال تلقائياً)
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.primaryButton, saving && styles.buttonDisabled]}
+              onPress={handleSaveArticleSuggestionMessage}
               disabled={saving}
               activeOpacity={0.8}
             >
