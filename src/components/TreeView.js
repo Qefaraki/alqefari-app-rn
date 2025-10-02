@@ -45,6 +45,7 @@ import Animated, {
   withDecay,
   withTiming,
   withSequence,
+  withDelay,
   Easing,
   runOnJS,
   clamp,
@@ -1446,14 +1447,8 @@ const TreeView = ({
         highlightTimerRef.current = null;
       }
 
-      if (distanceMoved < 40 && scaleDelta < 0.05) {
-        highlightNode(nodeId);
-      } else {
-        highlightTimerRef.current = setTimeout(() => {
-          highlightNode(nodeId);
-          highlightTimerRef.current = null;
-        }, 350); // reduced delay for faster glow response
-      }
+      // Trigger highlight immediately - opacity delay handles visibility during flight
+      highlightNode(nodeId);
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
@@ -1466,19 +1461,22 @@ const TreeView = ({
     // Set the highlighted node
     highlightedNodeId.value = nodeId;
 
-    // Elegant animation: quick burst, gentle hold, smooth fade
-    glowOpacity.value = withSequence(
-      withTiming(0.6, { duration: 280, easing: Easing.bezier(0.42, 0, 0.2, 1) }),
-      withTiming(0.5, { duration: 240, easing: Easing.linear }),
-      withTiming(0.55, { duration: 420, easing: Easing.inOut(Easing.ease) }),
-      withTiming(0.45, { duration: 500, easing: Easing.linear }),
-      withTiming(0, { duration: 700, easing: Easing.bezier(0.6, 0.05, 0.8, 0.2) }),
+    // Elegant animation: delay for camera flight, then quick burst, gentle hold, smooth fade
+    glowOpacity.value = withDelay(
+      350,
+      withSequence(
+        withTiming(0.6, { duration: 280, easing: Easing.bezier(0.42, 0, 0.2, 1) }),
+        withTiming(0.5, { duration: 240, easing: Easing.linear }),
+        withTiming(0.55, { duration: 420, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.45, { duration: 500, easing: Easing.linear }),
+        withTiming(0, { duration: 700, easing: Easing.bezier(0.6, 0.05, 0.8, 0.2) }),
+      ),
     );
 
-    // Clear highlight after animation completes
+    // Clear highlight after animation completes (including delay)
     setTimeout(() => {
       highlightedNodeId.value = null;
-    }, 2200);
+    }, 2550);
 
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
