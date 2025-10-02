@@ -3137,7 +3137,7 @@ const TreeView = ({
               if (!frame) return null;
 
               return (
-                <Group opacity={glowOpacityState}>
+                <Group opacity={glowOpacityState} blendMode="screen">
                   <RoundedRect
                     x={frame.x}
                     y={frame.y}
