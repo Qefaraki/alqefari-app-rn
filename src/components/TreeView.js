@@ -2222,7 +2222,7 @@ const TreeView = ({
       return null;
     }
 
-    const { nodesMap } = useTreeStore.getState();
+    // Use nodes array which has x/y coordinates from layout algorithm
     const pathObj = Skia.Path.Make();
     let segmentsDrawn = 0;
 
@@ -2231,8 +2231,8 @@ const TreeView = ({
       const childId = highlightedPathNodeIds[i];
       const parentId = highlightedPathNodeIds[i + 1];
 
-      const child = nodesMap.get(childId);
-      const parent = nodesMap.get(parentId);
+      const child = nodes.find(n => n.id === childId);
+      const parent = nodes.find(n => n.id === parentId);
 
       if (!child || !parent) {
         console.warn(`Path segment ${i} missing: ${childId} -> ${parentId}`);
@@ -2266,7 +2266,7 @@ const TreeView = ({
         opacity={pathOpacity}
       />
     );
-  }, [highlightedPathNodeIds, pathOpacity]);
+  }, [highlightedPathNodeIds, pathOpacity, nodes]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
   const renderTier3 = useCallback(
