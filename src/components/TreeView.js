@@ -36,6 +36,7 @@ import {
   Path,
   Paint,
   ColorMatrix,
+  Blur,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -76,7 +77,6 @@ import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
-import SearchGlowOverlay from "./SearchGlowOverlay";
 import NetworkErrorView from "./NetworkErrorView";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
@@ -513,7 +513,6 @@ const TreeView = ({
   const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
   const nodeFramesRef = useRef(new Map());
   const highlightTimerRef = useRef(null);
-  const glowLockedFrameRef = useRef(null); // Pre-calculated glow position to prevent flying during camera animation
 
   // Ancestry path highlighting state
   const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
@@ -1452,32 +1451,6 @@ const TreeView = ({
         highlightTimerRef.current = null;
       }
 
-      // Pre-calculate glow position at destination to prevent flying during camera animation
-      let nodeFrame = nodeFramesRef.current.get(nodeId);
-
-      // If frame not available (node not rendered yet), estimate it
-      if (!nodeFrame) {
-        const hasPhoto = targetNode.photo_url;
-        const nodeWidth = hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY;
-        const nodeHeight = hasPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-        nodeFrame = {
-          x: targetNode.x - nodeWidth / 2,
-          y: targetNode.y - nodeHeight / 2,
-          width: nodeWidth,
-          height: nodeHeight,
-          borderRadius: hasPhoto ? 16 : 13,
-        };
-      }
-
-      // Calculate final screen position using target transform (not animating current transform)
-      glowLockedFrameRef.current = {
-        x: nodeFrame.x * targetScale + targetX,
-        y: nodeFrame.y * targetScale + targetY,
-        width: nodeFrame.width * targetScale,
-        height: nodeFrame.height * targetScale,
-        borderRadius: nodeFrame.borderRadius * targetScale,
-      };
-
       // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
@@ -1491,6 +1464,9 @@ const TreeView = ({
 
     // Set the highlighted node
     highlightedNodeId.value = nodeId;
+
+    // Immediately hide any existing glow
+    glowOpacity.value = 0;
 
     // Elegant animation: delay for camera flight, then quick burst, gentle hold, smooth fade
     glowOpacity.value = withDelay(
@@ -1507,7 +1483,6 @@ const TreeView = ({
     // Clear highlight after animation completes (including delay)
     setTimeout(() => {
       highlightedNodeId.value = null;
-      glowLockedFrameRef.current = null; // Clear locked frame for next highlight
     }, 2550);
 
     // Haptic feedback with impact
@@ -3071,53 +3046,33 @@ const TreeView = ({
 
             {/* Highlighted ancestry path (rendered on top) */}
             {renderHighlightedPath()}
+
+            {/* Search highlight glow (rendered on top of everything) */}
+            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
+              if (!frame) return null;
+
+              return (
+                <Group opacity={glowOpacityState}>
+                  <RoundedRect
+                    x={frame.x}
+                    y={frame.y}
+                    width={frame.width}
+                    height={frame.height}
+                    r={frame.borderRadius}
+                  >
+                    <Paint style="stroke" strokeWidth={2} color="#E5A855">
+                      <Blur blur={8} />
+                    </Paint>
+                  </RoundedRect>
+                </Group>
+              );
+            })()}
           </Group>
         </Canvas>
         </GestureDetector>
       </RNAnimated.View>
 
-      {/* Search highlight glow overlay */}
-      {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
-        const highlightedNode = nodes.find(
-          (n) => n.id === highlightedNodeIdState,
-        );
-        if (!highlightedNode) return null;
-
-        // Use locked frame if available (prevents flying during camera animation)
-        const lockedFrame = glowLockedFrameRef.current;
-        if (lockedFrame) {
-          return (
-            <SearchGlowOverlay
-              key={`glow-${glowTrigger}`}
-              frame={lockedFrame}
-              opacity={glowOpacity}
-            />
-          );
-        }
-
-        // Fallback: calculate from current transform (for other highlight triggers)
-        const frame = nodeFramesRef.current.get(highlightedNode.id);
-        if (!frame) return null;
-
-        const scaledWidth = frame.width * currentTransform.scale;
-        const scaledHeight = frame.height * currentTransform.scale;
-        const screenX = frame.x * currentTransform.scale + currentTransform.x;
-        const screenY = frame.y * currentTransform.scale + currentTransform.y;
-
-        return (
-          <SearchGlowOverlay
-            key={`glow-${glowTrigger}`}
-            frame={{
-              x: screenX,
-              y: screenY,
-              width: scaledWidth,
-              height: scaledHeight,
-              borderRadius: frame.borderRadius * currentTransform.scale,
-            }}
-            opacity={glowOpacity}
-          />
-        );
-      })()}
       <SearchBar
         onSelectResult={handleSearchResultSelect}
         onClearHighlight={clearPathHighlight}
