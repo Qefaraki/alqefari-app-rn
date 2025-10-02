@@ -20,7 +20,6 @@ import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
-import { buildNameChain } from "../utils/nameChainBuilder";
 
 const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [query, setQuery] = useState("");
@@ -311,8 +310,8 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
     (item) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // Fill search bar with formatted name chain
-      const nameChain = buildNameChain(item);
+      // Fill search bar with name chain (search results already have full chain)
+      const nameChain = item.name_chain || item.name || "";
       setQuery(nameChain);
 
       hideResults();
