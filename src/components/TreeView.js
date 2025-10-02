@@ -1492,22 +1492,14 @@ const TreeView = ({
     // Immediately hide any existing glow
     glowOpacity.value = 0;
 
-    // Elegant animation: delay for camera flight, then quick burst, gentle hold, smooth fade
+    // Fade in and hold (matches path behavior - stays visible until X clicked)
     glowOpacity.value = withDelay(
-      350,
-      withSequence(
-        withTiming(0.6, { duration: 280, easing: Easing.bezier(0.42, 0, 0.2, 1) }),
-        withTiming(0.5, { duration: 240, easing: Easing.linear }),
-        withTiming(0.55, { duration: 420, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.45, { duration: 500, easing: Easing.linear }),
-        withTiming(0, { duration: 700, easing: Easing.bezier(0.6, 0.05, 0.8, 0.2) }),
-      ),
+      350, // Match camera flight delay
+      withTiming(0.55, {
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+      })
     );
-
-    // Clear highlight after animation completes (including delay)
-    setTimeout(() => {
-      highlightedNodeId.value = null;
-    }, 2550);
 
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1576,6 +1568,25 @@ const TreeView = ({
       setHighlightedPathNodeIds(null);
     }, 300);
   }, [pathOpacity]);
+
+  // Clear all highlights (glow + path) - called when X button clicked
+  const clearAllHighlights = useCallback(() => {
+    // Clear glow
+    glowOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+    highlightedNodeId.value = null;
+
+    // Clear path
+    pathOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+    setTimeout(() => {
+      setHighlightedPathNodeIds(null);
+    }, 300);
+  }, [glowOpacity, pathOpacity, highlightedNodeId]);
 
   // Handle highlight from navigation params
   useEffect(() => {
@@ -3146,17 +3157,17 @@ const TreeView = ({
                     r={frame.borderRadius}
                     color="transparent"
                   >
-                    {/* Layer 4: Outermost soft glow */}
-                    <Shadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.3)" />
+                    {/* Layer 4: Outermost soft glow - crimson */}
+                    <Shadow dx={0} dy={0} blur={40} color="rgba(199, 62, 62, 0.25)" />
 
-                    {/* Layer 3: Large golden halo */}
-                    <Shadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
+                    {/* Layer 3: Large warm halo - vivid orange */}
+                    <Shadow dx={0} dy={0} blur={30} color="rgba(227, 135, 64, 0.3)" />
 
-                    {/* Layer 2: Medium glow */}
-                    <Shadow dx={0} dy={0} blur={20} color="rgba(213, 140, 74, 0.4)" />
+                    {/* Layer 2: Medium glow - crimson */}
+                    <Shadow dx={0} dy={0} blur={20} color="rgba(199, 62, 62, 0.35)" />
 
-                    {/* Layer 1: Inner warm crimson accent */}
-                    <Shadow dx={0} dy={0} blur={10} color="rgba(161, 51, 51, 0.45)" />
+                    {/* Layer 1: Inner warm accent - vivid orange */}
+                    <Shadow dx={0} dy={0} blur={10} color="rgba(227, 135, 64, 0.4)" />
                   </RoundedRect>
                 </Group>
               );
@@ -3203,7 +3214,7 @@ const TreeView = ({
 
       <SearchBar
         onSelectResult={handleSearchResultSelect}
-        onClearHighlight={clearPathHighlight}
+        onClearHighlight={clearAllHighlights}
       />
 
       <NavigateToRootButton
