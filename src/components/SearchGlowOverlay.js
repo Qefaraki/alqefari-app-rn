@@ -58,8 +58,7 @@ const SearchGlowOverlay = ({ frame, opacity }) => {
       <AnimatedGlow
         glowLayers={glowLayers}
         cornerRadius={borderRadius + haloPadding}
-        outlineWidth={2.5}
-        outlineColor="#A13333"
+        outlineWidth={0}
         backgroundColor="transparent"
         animationSpeed={0}
         borderSpeedMultiplier={0}
@@ -79,6 +78,8 @@ const SearchGlowOverlay = ({ frame, opacity }) => {
             height,
             borderRadius,
             backgroundColor: "transparent",
+            borderWidth: 4,
+            borderColor: "#A13333",
           }}
         />
       </AnimatedGlow>
