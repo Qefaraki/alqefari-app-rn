@@ -21,7 +21,7 @@ import { toArabicNumerals } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 
-const SearchBar = ({ onSelectResult, style }) => {
+const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [query, setQuery] = useState("");
   const insets = useSafeAreaInsets();
   const [results, setResults] = useState([]);
@@ -323,7 +323,12 @@ const SearchBar = ({ onSelectResult, style }) => {
     setResults([]);
     setShowResults(false);
     inputRef.current?.focus();
-  }, []);
+
+    // Clear highlighted ancestry path
+    if (onClearHighlight) {
+      onClearHighlight();
+    }
+  }, [onClearHighlight]);
 
   const handleFocus = () => {
     setIsFocused(true);

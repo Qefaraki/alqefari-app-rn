@@ -515,6 +515,10 @@ const TreeView = ({
   const highlightTimerRef = useRef(null);
   const glowLockedFrameRef = useRef(null); // Pre-calculated glow position to prevent flying during camera animation
 
+  // Ancestry path highlighting state
+  const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
+  const pathOpacity = useSharedValue(0);
+
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
     () => ({
@@ -1519,6 +1523,61 @@ const TreeView = ({
     };
   }, []);
 
+  // Calculate ancestry path from node to root
+  const calculateAncestryPath = useCallback((nodeId) => {
+    const { nodesMap } = useTreeStore.getState();
+    const path = [];
+    const visited = new Set();
+    let current = nodeId;
+    let depth = 0;
+
+    while (current && depth < 50) { // Max 50 generations failsafe
+      // Check for circular references
+      if (visited.has(current)) {
+        console.error(`Circular reference detected at node ${current}`);
+        break;
+      }
+      visited.add(current);
+      path.push(current);
+
+      // Get parent node
+      const node = nodesMap.get(current);
+      if (!node) {
+        console.warn(`Node ${current} not found in nodesMap`);
+        break;
+      }
+
+      // Check if reached root
+      if (!node.father_id) {
+        // Reached root (or orphaned node)
+        break;
+      }
+
+      current = node.father_id;
+      depth++;
+    }
+
+    if (depth >= 50) {
+      console.warn('Ancestry path exceeded max depth of 50 generations');
+    }
+
+    return path;
+  }, []);
+
+  // Clear ancestry path highlight
+  const clearPathHighlight = useCallback(() => {
+    // Animate out
+    pathOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+
+    // Clear state after animation
+    setTimeout(() => {
+      setHighlightedPathNodeIds(null);
+    }, 300);
+  }, [pathOpacity]);
+
   // Handle highlight from navigation params
   useEffect(() => {
     if (highlightProfileId && focusOnProfile && nodes.length > 0) {
@@ -1539,7 +1598,33 @@ const TreeView = ({
 
       if (nodeExists) {
         console.log("Node found in tree, navigating");
+
+        // Cancel existing animations first
+        cancelAnimation(glowOpacity);
+        cancelAnimation(pathOpacity);
+
+        // Navigate to node (includes camera flight + glow)
         navigateToNode(result.id);
+
+        // Calculate and highlight ancestry path
+        const path = calculateAncestryPath(result.id);
+
+        if (path.length > 1) {
+          setHighlightedPathNodeIds(path);
+
+          // Animate path in (after camera settles + glow appears)
+          pathOpacity.value = withDelay(
+            600, // After camera flight completes
+            withTiming(0.85, {
+              duration: 400,
+              easing: Easing.out(Easing.ease)
+            })
+          );
+
+          console.log(`Highlighted ${path.length}-node ancestry path`);
+        } else {
+          console.log('Node has no ancestry path (root node or single node)');
+        }
       } else {
         console.log("Node not in current tree view");
         Alert.alert(
@@ -1549,7 +1634,7 @@ const TreeView = ({
         );
       }
     },
-    [navigateToNode, nodes],
+    [navigateToNode, nodes, calculateAncestryPath, glowOpacity, pathOpacity],
   );
 
   // Pan gesture with momentum
@@ -2130,6 +2215,58 @@ const TreeView = ({
     },
     [nodes],
   );
+
+  // Render highlighted ancestry path
+  const renderHighlightedPath = useCallback(() => {
+    if (!highlightedPathNodeIds || highlightedPathNodeIds.length < 2) {
+      return null;
+    }
+
+    const { nodesMap } = useTreeStore.getState();
+    const pathObj = Skia.Path.Make();
+    let segmentsDrawn = 0;
+
+    // Draw lines between consecutive ancestors in the path
+    for (let i = 0; i < highlightedPathNodeIds.length - 1; i++) {
+      const childId = highlightedPathNodeIds[i];
+      const parentId = highlightedPathNodeIds[i + 1];
+
+      const child = nodesMap.get(childId);
+      const parent = nodesMap.get(parentId);
+
+      if (!child || !parent) {
+        console.warn(`Path segment ${i} missing: ${childId} -> ${parentId}`);
+        continue; // Skip broken segment
+      }
+
+      // Calculate attachment points based on node size
+      const childHeight = child.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+      const parentHeight = parent.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+
+      const childY = child.y - childHeight / 2;
+      const parentY = parent.y + parentHeight / 2;
+
+      // Draw vertical connection from child to parent
+      pathObj.moveTo(child.x, childY);
+      pathObj.lineTo(parent.x, parentY);
+      segmentsDrawn++;
+    }
+
+    if (segmentsDrawn === 0) {
+      console.warn('No valid path segments to render');
+      return null;
+    }
+
+    return (
+      <Path
+        path={pathObj}
+        color="#D58C4A" // Desert Ochre
+        style="stroke"
+        strokeWidth={3.5}
+        opacity={pathOpacity}
+      />
+    );
+  }, [highlightedPathNodeIds, pathOpacity]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
   const renderTier3 = useCallback(
@@ -2931,6 +3068,9 @@ const TreeView = ({
                 strokeWidth={LINE_WIDTH}
               />
             ))}
+
+            {/* Highlighted ancestry path (rendered on top) */}
+            {renderHighlightedPath()}
           </Group>
         </Canvas>
         </GestureDetector>
@@ -2978,7 +3118,10 @@ const TreeView = ({
           />
         );
       })()}
-      <SearchBar onSelectResult={handleSearchResultSelect} />
+      <SearchBar
+        onSelectResult={handleSearchResultSelect}
+        onClearHighlight={clearPathHighlight}
+      />
 
       <NavigateToRootButton
         nodes={nodes}
