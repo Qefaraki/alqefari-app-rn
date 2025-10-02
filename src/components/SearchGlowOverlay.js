@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import AnimatedGlow from "react-native-animated-glow";
+import AnimatedGlow from "react-native-animated-glow/lib/module/AnimatedGlow";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 
 /**
