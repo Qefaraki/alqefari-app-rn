@@ -3122,22 +3122,7 @@ const TreeView = ({
             {/* Highlighted ancestry path (above edges, below nodes) */}
             {renderHighlightedPath()}
 
-            {/* Render visible nodes */}
-            {culledNodes.map(renderNodeWithTier)}
-
-            {/* Pass 3: Invisible bridge lines intersecting viewport */}
-            {bridgeSegments.map((seg) => (
-              <Line
-                key={seg.id}
-                p1={vec(seg.x1, seg.y)}
-                p2={vec(seg.x2, seg.y)}
-                color={LINE_COLOR}
-                style="stroke"
-                strokeWidth={LINE_WIDTH}
-              />
-            ))}
-
-            {/* Search highlight glow (rendered on top of everything) */}
+            {/* Search highlight glow (rendered behind nodes for visibility) */}
             {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
               const frame = nodeFramesRef.current.get(highlightedNodeIdState);
               if (!frame) return null;
@@ -3231,6 +3216,21 @@ const TreeView = ({
                 </Group>
               );
             })()}
+
+            {/* Render visible nodes */}
+            {culledNodes.map(renderNodeWithTier)}
+
+            {/* Pass 3: Invisible bridge lines intersecting viewport */}
+            {bridgeSegments.map((seg) => (
+              <Line
+                key={seg.id}
+                p1={vec(seg.x1, seg.y)}
+                p2={vec(seg.x2, seg.y)}
+                color={LINE_COLOR}
+                style="stroke"
+                strokeWidth={LINE_WIDTH}
+              />
+            ))}
           </Group>
         </Canvas>
         </GestureDetector>
