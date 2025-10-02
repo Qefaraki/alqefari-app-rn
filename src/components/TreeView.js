@@ -3054,6 +3054,33 @@ const TreeView = ({
 
               return (
                 <Group opacity={glowOpacityState}>
+                  {/* Outer glow - soft golden halo */}
+                  <RoundedRect
+                    x={frame.x - 6}
+                    y={frame.y - 6}
+                    width={frame.width + 12}
+                    height={frame.height + 12}
+                    r={frame.borderRadius + 6}
+                  >
+                    <Paint style="stroke" strokeWidth={12} color="rgba(213, 140, 74, 0.4)">
+                      <Blur blur={16} />
+                    </Paint>
+                  </RoundedRect>
+
+                  {/* Inner glow - warmer accent */}
+                  <RoundedRect
+                    x={frame.x - 3}
+                    y={frame.y - 3}
+                    width={frame.width + 6}
+                    height={frame.height + 6}
+                    r={frame.borderRadius + 3}
+                  >
+                    <Paint style="stroke" strokeWidth={6} color="rgba(161, 51, 51, 0.3)">
+                      <Blur blur={8} />
+                    </Paint>
+                  </RoundedRect>
+
+                  {/* Crisp border - no blur */}
                   <RoundedRect
                     x={frame.x}
                     y={frame.y}
@@ -3061,9 +3088,7 @@ const TreeView = ({
                     height={frame.height}
                     r={frame.borderRadius}
                   >
-                    <Paint style="stroke" strokeWidth={2} color="#E5A855">
-                      <Blur blur={8} />
-                    </Paint>
+                    <Paint style="stroke" strokeWidth={2} color="#E5A855" />
                   </RoundedRect>
                 </Group>
               );
