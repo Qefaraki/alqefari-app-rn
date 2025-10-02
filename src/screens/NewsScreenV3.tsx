@@ -183,7 +183,7 @@ const NewsScreenV3: React.FC = () => {
               onPress={handleSuggestArticle}
               activeOpacity={0.7}
             >
-              <Ionicons name="paper-plane" size={20} color={tokens.colors.najdi.secondary} />
+              <Ionicons name="create-outline" size={20} color={tokens.colors.najdi.secondary} />
             </TouchableOpacity>
           </View>
         </View>
