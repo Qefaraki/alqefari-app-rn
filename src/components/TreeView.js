@@ -79,6 +79,11 @@ import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkErrorView from "./NetworkErrorView";
+import {
+  clampStageToBounds,
+  createDecayModifier,
+  DEFAULT_BOUNDS,
+} from "../utils/cameraConstraints";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -474,6 +479,7 @@ const TreeView = ({
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
+  const setTreeBoundsStore = useTreeStore((s) => s.setTreeBounds);
   const { settings } = useSettings();
   const { isPreloadingTree } = useAuth();
 
@@ -662,13 +668,40 @@ const TreeView = ({
     }
   }, [networkError, onNetworkStatusChange]);
 
+  useEffect(() => {
+    viewportShared.value = {
+      width: Math.max(dimensions.width || 1, 1),
+      height: Math.max(dimensions.height || 1, 1),
+    };
+  }, [dimensions.width, dimensions.height]);
+
+  useEffect(() => {
+    boundsShared.value = treeBounds || DEFAULT_BOUNDS;
+  }, [treeBounds]);
+
+  useEffect(() => {
+    minZoomShared.value = minZoom;
+  }, [minZoom]);
+
+  useEffect(() => {
+    maxZoomShared.value = maxZoom;
+  }, [maxZoom]);
+
   // Create ref to hold current values for gestures
-  const gestureStateRef = useRef({
-    transform: { x: 0, y: 0, scale: 1 },
-    tier: 1,
-    indices: null,
-    visibleNodes: [],
-  });
+const gestureStateRef = useRef({
+  transform: { x: 0, y: 0, scale: 1 },
+  tier: 1,
+  indices: null,
+  visibleNodes: [],
+});
+
+const viewportShared = useSharedValue({
+  width: Math.max(dimensions.width || 1, 1),
+  height: Math.max(dimensions.height || 1, 1),
+});
+const boundsShared = useSharedValue(treeBounds || DEFAULT_BOUNDS);
+const minZoomShared = useSharedValue(minZoom);
+const maxZoomShared = useSharedValue(maxZoom);
 
   // Load SF Arabic asset font and register with Paragraph font collection
   useEffect(() => {
@@ -1158,6 +1191,10 @@ const TreeView = ({
       height: maxY - minY,
     };
   }, [nodes]);
+
+  useEffect(() => {
+    setTreeBoundsStore(treeBounds);
+  }, [treeBounds, setTreeBoundsStore]);
 
   // Visible bounds for culling
   const [visibleBounds, setVisibleBounds] = useState({
@@ -1699,14 +1736,29 @@ const TreeView = ({
         return;
       }
 
-      translateX.value = withDecay({
-        velocity: e.velocityX,
-        deceleration: 0.995,
-      });
-      translateY.value = withDecay({
-        velocity: e.velocityY,
-        deceleration: 0.995,
-      });
+      // Create decay modifier with current scale and bounds
+      const decayMod = createDecayModifier(
+        viewportShared.value,
+        boundsShared.value,
+        scale.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      translateX.value = withDecay(
+        {
+          velocity: e.velocityX,
+          deceleration: 0.995,
+        },
+        (value) => decayMod(value, 'x')
+      );
+      translateY.value = withDecay(
+        {
+          velocity: e.velocityY,
+          deceleration: 0.995,
+        },
+        (value) => decayMod(value, 'y')
+      );
 
       // Save current values (before decay animation modifies them)
       savedTranslateX.value = translateX.value;
@@ -1763,6 +1815,31 @@ const TreeView = ({
     })
     .onEnd(() => {
       "worklet";
+
+      // Check if we need to clamp back into bounds
+      const clamped = clampStageToBounds(
+        { x: translateX.value, y: translateY.value, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      // If we're significantly outside bounds, spring back gently
+      const deltaX = Math.abs(clamped.stage.x - translateX.value);
+      const deltaY = Math.abs(clamped.stage.y - translateY.value);
+
+      if (deltaX > 10 || deltaY > 10) {
+        translateX.value = withSpring(clamped.stage.x, {
+          damping: 20,
+          stiffness: 90,
+        });
+        translateY.value = withSpring(clamped.stage.y, {
+          damping: 20,
+          stiffness: 90,
+        });
+      }
+
       // Save final values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;

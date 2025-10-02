@@ -1,4 +1,8 @@
 import { create } from "zustand";
+import {
+  DEFAULT_BOUNDS,
+  clampStageToBounds,
+} from "../utils/cameraConstraints";
 
 export const useTreeStore = create((set, get) => ({
   // Camera State
@@ -7,6 +11,9 @@ export const useTreeStore = create((set, get) => ({
     y: 0,
     scale: 1,
   },
+
+  // Cached tree bounds for camera constraints
+  treeBounds: DEFAULT_BOUNDS,
 
   // Zoom limits
   minZoom: 0.15, // Doubled zoom-out range for LOD
@@ -32,6 +39,11 @@ export const useTreeStore = create((set, get) => ({
 
   // Actions to update the state
   setStage: (newStage) => set({ stage: newStage }),
+
+  setTreeBounds: (bounds) =>
+    set({
+      treeBounds: bounds || DEFAULT_BOUNDS,
+    }),
 
   setIsAnimating: (animating) => set({ isAnimating: animating }),
 
@@ -94,7 +106,7 @@ export const useTreeStore = create((set, get) => ({
 
   // Zoom function with pointer anchoring
   zoom: (direction, pointerPosition, viewport) => {
-    const { stage, minZoom, maxZoom } = get();
+    const { stage, minZoom, maxZoom, treeBounds } = get();
     const scaleBy = 1.2;
     const newScale =
       direction > 0
@@ -115,17 +127,22 @@ export const useTreeStore = create((set, get) => ({
       y: (pointer.y - stage.y) / stage.scale,
     };
 
-    const newPos = {
+    const proposedStage = {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
+      scale: newScale,
     };
 
+    const clamped = clampStageToBounds(
+      proposedStage,
+      viewport,
+      treeBounds,
+      minZoom,
+      maxZoom,
+    );
+
     set({
-      stage: {
-        x: newPos.x,
-        y: newPos.y,
-        scale: newScale,
-      },
+      stage: clamped.stage,
     });
   },
 
@@ -218,17 +235,30 @@ export const useTreeStore = create((set, get) => ({
   },
 
   // Smooth animated reset to initial view
-  resetView: (viewport, treeBounds) => {
-    const { stage, cancelMomentum } = get();
+  resetView: (viewport, treeBoundsOverride, limits) => {
+    const { stage, cancelMomentum, treeBounds, minZoom, maxZoom } = get();
+
+    const safeViewport = viewport || { width: 1, height: 1 };
+    const bounds = treeBoundsOverride || treeBounds || DEFAULT_BOUNDS;
+    const min = limits?.minZoom ?? minZoom;
+    const max = limits?.maxZoom ?? maxZoom;
 
     // Cancel any ongoing momentum
     cancelMomentum();
 
     // Calculate target position to center the tree
     const targetX =
-      viewport.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
+      safeViewport.width / 2 - (bounds.minX + bounds.maxX) / 2;
     const targetY = 80; // Top padding
     const targetScale = 1;
+
+    const clampedTarget = clampStageToBounds(
+      { x: targetX, y: targetY, scale: targetScale },
+      safeViewport,
+      bounds,
+      min,
+      max,
+    );
 
     // Set animating state
     set({ isAnimating: true });
@@ -248,9 +278,9 @@ export const useTreeStore = create((set, get) => ({
       const e = easeOut(t);
 
       const next = {
-        x: startX + (targetX - startX) * e,
-        y: startY + (targetY - startY) * e,
-        scale: startScale + (targetScale - startScale) * e,
+        x: startX + (clampedTarget.stage.x - startX) * e,
+        y: startY + (clampedTarget.stage.y - startY) * e,
+        scale: startScale + (clampedTarget.stage.scale - startScale) * e,
       };
 
       set({ stage: next });
@@ -260,7 +290,7 @@ export const useTreeStore = create((set, get) => ({
       } else {
         set({
           isAnimating: false,
-          stage: { x: targetX, y: targetY, scale: targetScale },
+          stage: clampedTarget.stage,
         });
       }
     };
@@ -288,8 +318,17 @@ export const useTreeStore = create((set, get) => ({
       y: (centerY - stage.y) / stage.scale,
     };
 
-    const targetX = centerX - mousePointTo.x * targetScale;
-    const targetY = centerY - mousePointTo.y * targetScale;
+    const clampedTarget = clampStageToBounds(
+      {
+        x: centerX - mousePointTo.x * targetScale,
+        y: centerY - mousePointTo.y * targetScale,
+        scale: targetScale,
+      },
+      viewport,
+      get().treeBounds,
+      minZoom,
+      maxZoom,
+    );
 
     set({ isAnimating: true });
 
@@ -306,9 +345,9 @@ export const useTreeStore = create((set, get) => ({
       const e = easeOut(t);
 
       const next = {
-        x: startX + (targetX - startX) * e,
-        y: startY + (targetY - startY) * e,
-        scale: startScale + (targetScale - startScale) * e,
+        x: startX + (clampedTarget.stage.x - startX) * e,
+        y: startY + (clampedTarget.stage.y - startY) * e,
+        scale: startScale + (clampedTarget.stage.scale - startScale) * e,
       };
 
       set({ stage: next });
@@ -318,7 +357,7 @@ export const useTreeStore = create((set, get) => ({
       } else {
         set({
           isAnimating: false,
-          stage: { x: targetX, y: targetY, scale: targetScale },
+          stage: clampedTarget.stage,
         });
       }
     };
