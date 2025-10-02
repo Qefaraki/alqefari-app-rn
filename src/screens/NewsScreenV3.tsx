@@ -12,6 +12,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -27,6 +28,8 @@ import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
 import NetworkError from '../components/NetworkError';
 import ArticleReaderModal from '../components/ArticleViewer/ArticleReaderModal';
 import tokens from '../components/ui/tokens';
+import { useAuth } from '../contexts/AuthContextSimple';
+import adminContactService from '../services/adminContact';
 
 // Item types for mixed list
 type ListItem =
@@ -56,6 +59,9 @@ const NewsScreenV3: React.FC = () => {
     clearError,
     cleanup,
   } = useOptimizedNewsStore();
+
+  // Auth state
+  const { isAuthenticated, hasLinkedProfile, profile } = useAuth();
 
   // State for article viewer
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
@@ -98,6 +104,32 @@ const NewsScreenV3: React.FC = () => {
     setSelectedArticle(article);
     setArticleViewerVisible(true);
   }, [setScrollPosition]);
+
+  // Handle suggest article
+  const handleSuggestArticle = useCallback(async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Check if user is authenticated and has a linked profile
+      if (!isAuthenticated || !hasLinkedProfile || !profile) {
+        Alert.alert(
+          'تسجيل الدخول مطلوب',
+          'يجب تسجيل الدخول وربط حسابك بملفك الشخصي لاقتراح مقال'
+        );
+        return;
+      }
+
+      // Open WhatsApp with the formatted message
+      const result = await adminContactService.openWhatsAppForArticleSuggestion(profile);
+
+      if (!result.success) {
+        Alert.alert('خطأ', 'فشل فتح الواتساب');
+      }
+    } catch (error) {
+      console.error('Error suggesting article:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء فتح الواتساب');
+    }
+  }, [isAuthenticated, hasLinkedProfile, profile]);
 
   // Handle scroll for pre-fetching
   const handleScroll = useCallback(
@@ -146,6 +178,13 @@ const NewsScreenV3: React.FC = () => {
             <View style={styles.titleContent}>
               <Text style={styles.title}>أخبار القفاري</Text>
             </View>
+            <TouchableOpacity
+              style={styles.suggestButton}
+              onPress={handleSuggestArticle}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="paper-plane" size={20} color={tokens.colors.najdi.secondary} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -172,7 +211,7 @@ const NewsScreenV3: React.FC = () => {
         </View>
       </View>
     );
-  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured]);
+  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured, handleSuggestArticle]);
 
   // Render list item
   const renderItem = useCallback(
@@ -328,10 +367,20 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   titleContent: {
     flex: 1,
+  },
+  suggestButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${tokens.colors.najdi.secondary}20`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 6,
   },
   emblem: {
     width: 52,

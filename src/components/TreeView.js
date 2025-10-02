@@ -1392,38 +1392,29 @@ const TreeView = ({
       }
 
       if (!targetNode) {
-        // Fallback to root node
+        // Always fallback to root node
         targetNode = nodes.find((n) => !n.father_id);
       }
 
-      if (targetNode) {
-        // Calculate centered position (matches NavigateToRootButton)
-        const isRoot = !targetNode.father_id;
-        const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
-        const targetScale = 1.0;
-        const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
-        const offsetY = dimensions.height / 2 - adjustedY * targetScale;
-
-        // INSTANT placement - NO animation
-        translateX.value = offsetX;
-        translateY.value = offsetY;
-        savedTranslateX.value = offsetX;
-        savedTranslateY.value = offsetY;
-
-        setStage({ x: offsetX, y: offsetY, scale: targetScale });
-      } else {
-        // Fallback to old centering logic if no target found
-        const offsetX =
-          dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
-        const offsetY = 80;
-
-        translateX.value = offsetX;
-        translateY.value = offsetY;
-        savedTranslateX.value = offsetX;
-        savedTranslateY.value = offsetY;
-
-        setStage({ x: offsetX, y: offsetY, scale: 1 });
+      if (!targetNode && nodes.length > 0) {
+        // Ultimate fallback: first node in array (should never happen)
+        targetNode = nodes[0];
       }
+
+      // At this point targetNode is guaranteed to exist
+      const isRoot = !targetNode.father_id;
+      const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
+      const targetScale = 1.0;
+      const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
+      const offsetY = dimensions.height / 2 - adjustedY * targetScale;
+
+      // INSTANT placement - NO animation
+      translateX.value = offsetX;
+      translateY.value = offsetY;
+      savedTranslateX.value = offsetX;
+      savedTranslateY.value = offsetY;
+
+      setStage({ x: offsetX, y: offsetY, scale: targetScale });
     }
   }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
 

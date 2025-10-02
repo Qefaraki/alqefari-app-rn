@@ -12,8 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
 import tokens from '../../ui/tokens';
-import { useAuth } from '../../../contexts/AuthContextSimple';
-import adminContactService from '../../../services/adminContact';
 
 interface ArticleActionsProps {
   article: NewsArticle;
@@ -32,8 +30,6 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
   onToggleNightMode,
   readingProgress,
 }) => {
-  const { isAuthenticated, hasLinkedProfile, profile } = useAuth();
-
   // Share article
   const handleShare = async () => {
     try {
@@ -48,32 +44,6 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
       });
     } catch (error) {
       Alert.alert('خطأ', 'فشل مشاركة المقال');
-    }
-  };
-
-  // Suggest article to admin
-  const handleSuggestArticle = async () => {
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      // Check if user is authenticated and has a linked profile
-      if (!isAuthenticated || !hasLinkedProfile || !profile) {
-        Alert.alert(
-          'تسجيل الدخول مطلوب',
-          'يجب تسجيل الدخول وربط حسابك بملفك الشخصي لاقتراح مقال'
-        );
-        return;
-      }
-
-      // Open WhatsApp with the formatted message
-      const result = await adminContactService.openWhatsAppForArticleSuggestion(profile);
-
-      if (!result.success) {
-        Alert.alert('خطأ', 'فشل فتح الواتساب');
-      }
-    } catch (error) {
-      console.error('Error suggesting article:', error);
-      Alert.alert('خطأ', 'حدث خطأ أثناء فتح الواتساب');
     }
   };
 
@@ -153,18 +123,6 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
               color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
             />
           )}
-        </TouchableOpacity>
-
-        {/* Suggest Article */}
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handleSuggestArticle}
-        >
-          <Ionicons
-            name="paper-plane-outline"
-            size={20}
-            color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.secondary}
-          />
         </TouchableOpacity>
       </View>
     </View>
