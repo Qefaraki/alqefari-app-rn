@@ -206,7 +206,7 @@ class PDFExportService {
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-value">${stats.marriages_count || 0}</div>
-              <div class="stat-label">عدد الزيجات</div>
+              <div class="stat-label">عدد حالات الزواج</div>
             </div>
             <div class="stat-card">
               <div class="stat-value">${stats.photos_count || 0}</div>

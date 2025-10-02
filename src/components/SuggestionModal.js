@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
+import suggestionService from "../services/suggestionService";
 import * as Haptics from "expo-haptics";
 
 // Najdi Sadu Design System Colors
@@ -92,46 +93,33 @@ const SuggestionModal = ({
         }
         onClose();
       } else {
-        // Create a suggestion
+        // Create a suggestion using v4 service
+        const result = await suggestionService.submitEditSuggestion(
+          profile.id,
+          selectedField,
+          newValue,
+          reason || null
+        );
+
+        // Get permission level to show appropriate message
         const { data: user } = await supabase.auth.getUser();
+        const permission = await suggestionService.checkPermission(user.user?.id, profile.id);
+        const message = suggestionService.getPermissionMessage(permission);
 
-        // Get the profile ID for the current user
-        const { data: userProfile, error: profileError } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("user_id", user.user?.id)
-          .single();
-
-        if (profileError || !userProfile) {
-          throw new Error("لا يمكن العثور على ملفك الشخصي");
+        if (result === null) {
+          message.message = `${message.message || ''}\n\nتم حفظ التغيير مباشرة.`.trim();
         }
 
-        const suggestion = {
-          profile_id: profile.id,
-          suggested_by: userProfile.id, // Use profile ID, not auth user ID
-          field_name: selectedField,
-          old_value: currentValue ? { value: currentValue } : null,
-          new_value: { value: newValue },
-          reason: reason || null,
-          status: "pending",
-        };
-
-        const { error } = await supabase
-          .from("profile_edit_suggestions")
-          .insert(suggestion);
-
-        if (error) throw error;
-
         Alert.alert(
-          "تم الإرسال",
-          "تم إرسال اقتراح التعديل للمراجعة. سيتم إشعارك عند الموافقة."
+          message.title || "تم الإرسال",
+          message.message || "تم إرسال اقتراح التعديل للمراجعة. سيتم إشعارك عند الموافقة."
         );
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onClose();
       }
     } catch (error) {
       console.error("Error submitting:", error);
-      Alert.alert("خطأ", "فشل في إرسال التعديل. حاول مرة أخرى.");
+      Alert.alert("خطأ", error.message || "فشل في إرسال التعديل. حاول مرة أخرى.");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSubmitting(false);

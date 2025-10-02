@@ -47,7 +47,7 @@ const socialPlatforms = [
   },
 ];
 
-const SocialMediaEditor = ({ links, onChange }) => {
+const SocialMediaEditor = ({ links = {}, onChange }) => {
   // Helper to convert username to full URL if needed
   const formatSocialLink = (platform, value) => {
     if (!value || !value.trim()) return '';
@@ -143,7 +143,7 @@ const SocialMediaEditor = ({ links, onChange }) => {
           </View>
           <TextInput
             style={styles.platformInput}
-            value={extractUsername(platform.key, links[platform.key]) || ""}
+            value={extractUsername(platform.key, links?.[platform.key]) || ""}
             onChangeText={(value) => handleLinkChange(platform.key, value)}
             placeholder={platform.placeholder}
             textAlign="right"

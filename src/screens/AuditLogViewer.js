@@ -120,7 +120,7 @@ const AuditLogViewer = ({ navigation, onClose }) => {
   const getTableLabel = (tableName) => {
     const labels = {
       profiles: "الملفات الشخصية",
-      marriages: "الزيجات",
+      marriages: "حالات الزواج",
       audit_log: "سجل التدقيق",
     };
     return labels[tableName] || tableName;

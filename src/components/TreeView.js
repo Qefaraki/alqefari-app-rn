@@ -75,7 +75,7 @@ import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
-import LottieGlow from "./LottieGlow";
+import SearchGlowOverlay from "./SearchGlowOverlay";
 import NetworkErrorView from "./NetworkErrorView";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
@@ -510,6 +510,8 @@ const TreeView = ({
   const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
   const [glowOpacityState, setGlowOpacityState] = useState(0);
   const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
+  const nodeFramesRef = useRef(new Map());
+  const highlightTimerRef = useRef(null);
 
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
@@ -1432,8 +1434,26 @@ const TreeView = ({
       savedTranslateY.value = targetY;
       savedScale.value = targetScale;
 
-      // Start highlight animation immediately (will reach full brightness as navigation completes)
-      highlightNode(nodeId);
+      // Determine if we need to delay the glow until after navigation settles
+      const distanceMoved = Math.hypot(
+        targetX - translateX.value,
+        targetY - translateY.value,
+      );
+      const scaleDelta = Math.abs(targetScale - currentScale);
+
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+
+      if (distanceMoved < 40 && scaleDelta < 0.05) {
+        highlightNode(nodeId);
+      } else {
+        highlightTimerRef.current = setTimeout(() => {
+          highlightNode(nodeId);
+          highlightTimerRef.current = null;
+        }, 650); // wait for pan/zoom animation to complete
+      }
     },
     [nodes, dimensions, translateX, translateY, scale],
   );
@@ -1448,25 +1468,29 @@ const TreeView = ({
 
     // Elegant animation: quick burst, gentle hold, smooth fade
     glowOpacity.value = withSequence(
-      // Quick initial flash
-      withTiming(1, { duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
-      // Brief peak hold
-      withTiming(0.95, { duration: 200, easing: Easing.linear }),
-      // Gentle pulse at peak
-      withTiming(1, { duration: 400, easing: Easing.inOut(Easing.ease) }),
-      // Hold at high intensity
-      withTiming(0.9, { duration: 600, easing: Easing.linear }),
-      // Smooth fade out
-      withTiming(0, { duration: 800, easing: Easing.bezier(0.6, 0, 0.8, 1) }),
+      withTiming(0.6, { duration: 280, easing: Easing.bezier(0.42, 0, 0.2, 1) }),
+      withTiming(0.5, { duration: 240, easing: Easing.linear }),
+      withTiming(0.55, { duration: 420, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0.45, { duration: 500, easing: Easing.linear }),
+      withTiming(0, { duration: 700, easing: Easing.bezier(0.6, 0.05, 0.8, 0.2) }),
     );
 
     // Clear highlight after animation completes
     setTimeout(() => {
       highlightedNodeId.value = null;
-    }, 2500);
+    }, 2200);
 
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+    };
   }, []);
 
   // Handle highlight from navigation params
@@ -2152,6 +2176,15 @@ const TreeView = ({
       const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
 
+      // Capture the world-space frame for the highlight overlay
+      nodeFramesRef.current.set(node.id, {
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeHeight,
+        borderRadius: 13,
+      });
+
       return (
         <Group key={node.id}>
           {/* Shadow (lighter for T2) */}
@@ -2232,12 +2265,20 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
 
-      const isHighlighted = highlightedNodeIdState === node.id;
+      const isT1 = indices?.heroNodes?.some((hero) => hero.id === node.id) || false;
+      const isT2 = indices?.searchTiers?.[node.id] === 2;
+
+      nodeFramesRef.current.set(node.id, {
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeHeight,
+        borderRadius: isRoot ? 20 : isT1 ? 16 : isT2 ? 13 : CORNER_RADIUS,
+      });
 
       return (
         <Group key={node.id}>
-          {/* Removed broken Skia glow - will use Moti overlay instead */}
-          {/* Shadow */}
+          {/* Soft shadow */}
           <RoundedRect
             x={x + 1}
             y={y + 1}
@@ -2442,7 +2483,7 @@ const TreeView = ({
 
       return nodeContent;
     },
-    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
+    [selectedPersonId, highlightedNodeIdState, glowOpacityState, indices],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
@@ -2869,61 +2910,35 @@ const TreeView = ({
         </GestureDetector>
       </RNAnimated.View>
 
-      {/* Lottie Glow Effect Overlay */}
-      {highlightedNodeIdState &&
-        glowOpacityState > 0 &&
-        (() => {
-          const highlightedNode = nodes.find(
-            (n) => n.id === highlightedNodeIdState,
-          );
-          if (!highlightedNode) return null;
+      {/* Search highlight glow overlay */}
+      {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+        const highlightedNode = nodes.find(
+          (n) => n.id === highlightedNodeIdState,
+        );
+        if (!highlightedNode) return null;
 
-          // Determine node tier and get appropriate border radius
-          const isT1 = indices?.heroNodes?.some(
-            (hero) => hero.id === highlightedNode.id,
-          );
-          const isT2 = indices?.searchTiers?.[highlightedNode.id] === 2;
+        const frame = nodeFramesRef.current.get(highlightedNode.id);
+        if (!frame) return null;
 
-          let borderRadius;
-          if (isT1) {
-            borderRadius = 16; // T1 hero nodes
-          } else if (isT2) {
-            borderRadius = 13; // T2 text-only nodes
-          } else {
-            borderRadius = CORNER_RADIUS; // Regular nodes (8)
-          }
+        const scaledWidth = frame.width * currentTransform.scale;
+        const scaledHeight = frame.height * currentTransform.scale;
+        const screenX = frame.x * currentTransform.scale + currentTransform.x;
+        const screenY = frame.y * currentTransform.scale + currentTransform.y;
 
-          // Get actual node dimensions based on whether it has a photo
-          const nodeWidth = highlightedNode.profile_photo_url
-            ? NODE_WIDTH_WITH_PHOTO
-            : NODE_WIDTH_TEXT_ONLY;
-          const nodeHeight = highlightedNode.profile_photo_url
-            ? NODE_HEIGHT_WITH_PHOTO
-            : NODE_HEIGHT_TEXT_ONLY;
-
-          // Use current transform state instead of accessing shared values directly
-          const screenX =
-            highlightedNode.x * currentTransform.scale + currentTransform.x;
-          const screenY =
-            highlightedNode.y * currentTransform.scale + currentTransform.y;
-
-          return (
-            <LottieGlow
-              key={`glow-${glowTrigger}`} // Force re-mount on same node
-              visible={true}
-              x={screenX}
-              y={screenY}
-              width={nodeWidth * currentTransform.scale}
-              height={nodeHeight * currentTransform.scale}
-              borderRadius={borderRadius * currentTransform.scale}
-              onAnimationFinish={() => {
-                // Clear highlight after fade-out completes
-                setHighlightedNodeIdState(null);
-                setGlowOpacityState(0);
-              }}
-            />
-          );
-        })()}
+        return (
+          <SearchGlowOverlay
+            key={`glow-${glowTrigger}`}
+            frame={{
+              x: screenX,
+              y: screenY,
+              width: scaledWidth,
+              height: scaledHeight,
+              borderRadius: frame.borderRadius * currentTransform.scale,
+            }}
+            opacity={glowOpacity}
+          />
+        );
+      })()}
       <SearchBar onSelectResult={handleSearchResultSelect} />
 
       <NavigateToRootButton

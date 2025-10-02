@@ -453,7 +453,7 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
                     ))}
                   </View>
                 ) : (
-                  <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+                  <Text style={styles.emptyText}>لا توجد حالات زواج مسجلة</Text>
                 )}
               </Surface>
             )}

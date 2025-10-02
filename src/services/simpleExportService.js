@@ -153,7 +153,7 @@ class SimpleExportService {
       person.marriages &&
       person.marriages.length > 0
     ) {
-      text += `   💑 الزيجات: ${person.marriages.length}\n`;
+      text += `   💑 حالات الزواج: ${person.marriages.length}\n`;
       person.marriages.forEach((m) => {
         const spouseName = m.wife?.name || m.husband?.name || "غير محدد";
         text += `      - ${spouseName} (${m.status === "married" ? "متزوج" : m.status})\n`;

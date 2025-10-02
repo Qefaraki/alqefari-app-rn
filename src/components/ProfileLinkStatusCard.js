@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
 import { buildNameChain } from "../utils/nameChainBuilder";
+import { featureFlags } from "../config/featureFlags";
 
 // Najdi Sadu Color System
 const colors = {
@@ -30,6 +31,10 @@ const colors = {
 };
 
 export default function ProfileLinkStatusCard() {
+  if (!featureFlags.profileLinkRequests) {
+    return null;
+  }
+
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);

@@ -55,7 +55,7 @@ export const AdminModeProvider = ({ children }) => {
         .single();
 
       if (profile && !profileError) {
-        const hasAdminRole = profile.role === "admin";
+        const hasAdminRole = profile.role === "admin" || profile.role === "super_admin";
         setIsAdmin(hasAdminRole);
         if (hasAdminRole) {
           setIsAdminMode(true); // Auto-enable admin mode for admins

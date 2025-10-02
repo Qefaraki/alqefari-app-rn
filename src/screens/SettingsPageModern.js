@@ -28,6 +28,7 @@ import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
 import notificationService from "../services/notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { featureFlags } from "../config/featureFlags";
 import adminContactService from "../services/adminContact";
 
 // Najdi Sadu Color Palette
@@ -202,7 +203,7 @@ export default function SettingsPageModern({ user }) {
           }
         }
         // If no linked profile, check for pending request
-        else {
+        else if (featureFlags.profileLinkRequests) {
           const { data: requests } = await supabase
             .from("profile_link_requests")
             .select(`

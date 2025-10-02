@@ -1947,35 +1947,53 @@ const usePendingCount = () => {
 
 ## 🕐 CRON JOBS
 
+**⚠️ STATUS: NOT IMPLEMENTED - DEFERRED FOR FUTURE CONSIDERATION**
+
+The following cron jobs are specified in the v4.2 design but have NOT been deployed yet.
+They will be implemented later when the system needs automated scheduling:
+
 ```sql
--- Auto-approval every hour
-SELECT cron.schedule(
-  'auto-approve-family',
-  '0 * * * *',
-  'SELECT auto_approve_suggestions_v4();'
-);
+-- PLANNED (NOT ACTIVE): Auto-approval every hour
+-- Would automatically approve family circle suggestions after 48 hours
+-- SELECT cron.schedule(
+--   'auto-approve-family',
+--   '0 * * * *',
+--   'SELECT auto_approve_suggestions_v4();'
+-- );
 
--- Reset daily rate limits at midnight
-SELECT cron.schedule(
-  'reset-rate-limits',
-  '0 0 * * *',
-  'SELECT reset_daily_rate_limits();'
-);
+-- PLANNED (NOT ACTIVE): Reset daily rate limits at midnight
+-- Would clean up expired rate limit records
+-- SELECT cron.schedule(
+--   'reset-rate-limits',
+--   '0 0 * * *',
+--   'SELECT reset_daily_rate_limits();'
+-- );
 
--- Refresh materialized view hourly
-SELECT cron.schedule(
-  'refresh-grandparents',
-  '30 * * * *',
-  'SELECT refresh_family_grandparents();'
-);
+-- PLANNED (NOT ACTIVE): Refresh materialized view hourly
+-- Would update cached family relationship data
+-- SELECT cron.schedule(
+--   'refresh-grandparents',
+--   '30 * * * *',
+--   'SELECT refresh_family_grandparents();'
+-- );
 
--- Send daily summary notifications
-SELECT cron.schedule(
-  'daily-notifications',
-  '0 9 * * *',
-  'SELECT send_daily_approval_summary();'
-);
+-- PLANNED (NOT ACTIVE): Send daily summary notifications
+-- Would send digest emails of pending approvals
+-- SELECT cron.schedule(
+--   'daily-notifications',
+--   '0 9 * * *',
+--   'SELECT send_daily_approval_summary();'
+-- );
+
+-- NOTE: When implementing, ensure the pg_cron extension is enabled:
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;
 ```
+
+### Current Auto-Approval Approach
+Without cron jobs, the auto-approval function (`auto_approve_suggestions_v4`) can be:
+1. Called manually by admins
+2. Triggered by user actions (when they view their suggestions)
+3. Added to Supabase Dashboard scheduled functions later
 
 ---
 

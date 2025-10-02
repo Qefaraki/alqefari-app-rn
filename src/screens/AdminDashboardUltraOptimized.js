@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
 import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
+import { featureFlags } from "../config/featureFlags";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
@@ -151,6 +152,10 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   };
 
   const loadPendingRequestsCount = async () => {
+    if (!featureFlags.profileLinkRequests) {
+      setPendingRequestsCount(0);
+      return;
+    }
     try {
       const { count } = await supabase
         .from("profile_link_requests")

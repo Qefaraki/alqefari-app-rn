@@ -27,6 +27,7 @@ import { useRouter } from "expo-router";
 import subscriptionManager from "../../services/subscriptionManager";
 import notificationService from "../../services/notifications";
 import SkeletonLoader from "../ui/SkeletonLoader";
+import { featureFlags } from "../../config/featureFlags";
 
 // Exact colors from app research
 const colors = {
@@ -133,6 +134,26 @@ const DEBUG_MODE = __DEV__;
 const log = (...args) => DEBUG_MODE && console.log(...args);
 
 export default function ProfileConnectionManagerV2({ onBack }) {
+  if (!featureFlags.profileLinkRequests) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>إدارة طلبات الربط</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="checkmark-circle" size={48} color={colors.success} />
+          <Text style={styles.emptyStateTitle}>لا توجد طلبات ربط</Text>
+          <Text style={styles.emptyStateText}>
+            تم إيقاف نظام طلبات الربط في الإصدار الحالي. يمكن للمستخدمين التواصل مع المشرف مباشرةً لإدارة الحسابات.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   log("🚀 ProfileConnectionManagerV2 MOUNTED");
   const router = useRouter();
   const [requests, setRequests] = useState({

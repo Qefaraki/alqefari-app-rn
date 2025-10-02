@@ -216,6 +216,37 @@ DECLARE
 BEGIN
   -- Get user profile
   SELECT * INTO v_user_profile FROM profiles WHERE id = p_user_id;
+
+  -- Fallback: resolve via user_id if column exists
+  IF v_user_profile.id IS NULL THEN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'profiles'
+        AND column_name = 'user_id'
+    ) THEN
+      SELECT * INTO v_user_profile
+      FROM profiles
+      WHERE user_id = p_user_id
+      LIMIT 1;
+    END IF;
+  END IF;
+
+  -- Fallback: resolve via auth_user_id when available
+  IF v_user_profile.id IS NULL THEN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'profiles'
+        AND column_name = 'auth_user_id'
+    ) THEN
+      SELECT * INTO v_user_profile
+      FROM profiles
+      WHERE auth_user_id = p_user_id
+      LIMIT 1;
+    END IF;
+  END IF;
+
   SELECT * INTO v_target_profile FROM profiles WHERE id = p_target_id;
 
   IF v_user_profile.id IS NULL OR v_target_profile.id IS NULL THEN
@@ -225,7 +256,7 @@ BEGIN
   -- Check if user is blocked
   SELECT EXISTS(
     SELECT 1 FROM suggestion_blocks
-    WHERE blocked_user_id = p_user_id
+    WHERE blocked_user_id = v_user_profile.id
     AND is_active = true
   ) INTO v_is_blocked;
 
@@ -244,7 +275,7 @@ BEGIN
   -- Check branch moderator permissions (FIXED: HID pattern matching)
   IF EXISTS (
     SELECT 1 FROM branch_moderators bm
-    WHERE bm.user_id = p_user_id
+    WHERE bm.user_id = v_user_profile.id
     AND bm.is_active = true
     AND v_target_hid IS NOT NULL
     AND v_target_hid LIKE bm.branch_hid || '%'
@@ -253,7 +284,7 @@ BEGIN
   END IF;
 
   -- Self edit
-  IF p_user_id = p_target_id THEN
+  IF v_user_profile.id = p_target_id THEN
     RETURN 'inner';
   END IF;
 
@@ -262,8 +293,8 @@ BEGIN
     SELECT 1 FROM marriages
     WHERE is_current = true
     AND (
-      (husband_id = p_user_id AND wife_id = p_target_id) OR
-      (wife_id = p_user_id AND husband_id = p_target_id)
+      (husband_id = v_user_profile.id AND wife_id = p_target_id) OR
+      (wife_id = v_user_profile.id AND husband_id = p_target_id)
     )
   ) THEN
     RETURN 'inner';
@@ -272,8 +303,8 @@ BEGIN
   -- Check parent-child relationship (both directions)
   IF v_user_profile.father_id = p_target_id OR
      v_user_profile.mother_id = p_target_id OR
-     v_target_profile.father_id = p_user_id OR
-     v_target_profile.mother_id = p_user_id THEN
+     v_target_profile.father_id = v_user_profile.id OR
+     v_target_profile.mother_id = v_user_profile.id THEN
     RETURN 'inner';
   END IF;
 
@@ -286,12 +317,12 @@ BEGIN
   END IF;
 
   -- Check if user is descendant of target (can edit ancestors)
-  IF is_descendant_of(p_user_id, p_target_id) THEN
+  IF is_descendant_of(v_user_profile.id, p_target_id) THEN
     RETURN 'inner';
   END IF;
 
   -- Check if target is descendant of user (can edit all descendants)
-  IF is_descendant_of(p_target_id, p_user_id) THEN
+  IF is_descendant_of(p_target_id, v_user_profile.id) THEN
     RETURN 'inner';
   END IF;
 
@@ -305,7 +336,7 @@ BEGIN
          p.mother_id = v_user_profile.mother_id)
   ) OR EXISTS (
     SELECT 1 FROM profiles p
-    WHERE p.id = p_user_id
+    WHERE p.id = v_user_profile.id
     AND (p.father_id = v_target_profile.father_id OR
          p.father_id = v_target_profile.mother_id OR
          p.mother_id = v_target_profile.father_id OR
@@ -321,7 +352,7 @@ BEGIN
       p1.father_id = p2.father_id OR
       p1.mother_id = p2.mother_id
     )
-    WHERE p1.id = p_user_id
+    WHERE p1.id = v_user_profile.id
     AND (p2.id = v_target_profile.father_id OR
          p2.id = v_target_profile.mother_id)
   ) OR EXISTS (
@@ -345,7 +376,7 @@ BEGIN
     )
     JOIN profiles gp1 ON p1.father_id = gp1.id
     JOIN profiles gp2 ON p2.father_id = gp2.id
-    WHERE p1.id = p_user_id
+    WHERE p1.id = v_user_profile.id
     AND p2.id = p_target_id
     AND (gp1.father_id = gp2.father_id OR gp1.mother_id = gp2.mother_id)
   ) THEN

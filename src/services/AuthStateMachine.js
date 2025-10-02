@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { featureFlags } from '../config/featureFlags';
 
 // All possible authentication states
 export const AuthStates = {
@@ -348,15 +349,17 @@ class AuthStateMachine {
 
       // Check for pending link requests
       if (data) {
-        const { data: linkRequest } = await supabase
-          .from('profile_link_requests')
-          .select('status')
-          .eq('user_id', userId)
-          .eq('status', 'pending')
-          .single();
+        if (featureFlags.profileLinkRequests) {
+          const { data: linkRequest } = await supabase
+            .from('profile_link_requests')
+            .select('status')
+            .eq('user_id', userId)
+            .eq('status', 'pending')
+            .single();
 
-        if (linkRequest) {
-          data.status = 'pending';
+          if (linkRequest) {
+            data.status = 'pending';
+          }
         }
 
         // Consider profile linked if they have an HID
