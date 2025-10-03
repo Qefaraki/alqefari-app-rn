@@ -1732,8 +1732,37 @@ const maxZoomShared = useSharedValue(maxZoom);
       if (isPinching.value) {
         return;
       }
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
+
+      // Calculate proposed position from finger movement
+      const proposedX = savedTranslateX.value + e.translationX;
+      const proposedY = savedTranslateY.value + e.translationY;
+
+      // Check bounds
+      const clamped = clampStageToBounds(
+        { x: proposedX, y: proposedY, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      // Calculate distance outside bounds
+      const deltaX = proposedX - clamped.stage.x;
+      const deltaY = proposedY - clamped.stage.y;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      // Apply rubber band resistance if beyond bounds
+      if (distance > 5) {
+        // Resistance increases with distance (asymptotic curve)
+        // At 100px out: ~33% movement, at 200px: ~20%, at 400px: ~11%
+        const resistance = 200 / (200 + distance);
+        translateX.value = clamped.stage.x + deltaX * resistance;
+        translateY.value = clamped.stage.y + deltaY * resistance;
+      } else {
+        // Within bounds: normal 1:1 movement
+        translateX.value = proposedX;
+        translateY.value = proposedY;
+      }
     })
     .onEnd((e) => {
       "worklet";

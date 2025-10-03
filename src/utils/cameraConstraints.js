@@ -8,9 +8,9 @@ export const DEFAULT_BOUNDS = {
 };
 
 const DEFAULT_VIEWPORT = { width: 1, height: 1 };
-const MIN_MARGIN_PX = 200;
-const MIN_MARGIN_RATIO = 0.12;
-const EXTRA_VIEWPORT_RATIO = 0.6;
+const MIN_MARGIN_PX = 50;        // Reduced from 200 - only 50px beyond tree edge
+const MIN_MARGIN_RATIO = 0.05;   // Reduced from 0.12 - only 5% of tree size
+const EXTRA_VIEWPORT_RATIO = 0.1; // Reduced from 0.6 - only 10% extra viewport
 const MIN_VIEWPORT_RATIO = 0.0;
 const INFINITE_RANGE = [-Number.MAX_VALUE, Number.MAX_VALUE];
 
