@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 
 const InfoCard = ({ title, children, hint, collapsible = false, expanded = true, onToggle }) => {
   if (collapsible && !expanded) {
@@ -27,17 +27,19 @@ const InfoCard = ({ title, children, hint, collapsible = false, expanded = true,
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 3 },
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.6)',
   },
   headerRow: {
     flexDirection: 'row',
@@ -46,9 +48,9 @@ const styles = {
     marginBottom: 12,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2a1521',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#242121',
   },
   hint: {
     fontSize: 12,
@@ -62,6 +64,6 @@ const styles = {
     color: '#7a3f50',
     fontWeight: '600',
   },
-};
+});
 
 export default InfoCard;

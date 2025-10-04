@@ -5,15 +5,12 @@ import FieldRow from '../components/FieldRow';
 
 const ProfessionalCard = ({ person }) => {
   const hasAchievements = Array.isArray(person?.achievements) && person.achievements.length > 0;
-  if (!person?.occupation && !person?.education && !hasAchievements) {
+  if (!person?.education && !hasAchievements) {
     return null;
   }
 
   return (
-    <InfoCard title="المعلومات المهنية">
-      {person?.occupation ? (
-        <FieldRow label="المهنة" value={person.occupation} />
-      ) : null}
+    <InfoCard title="السيرة المهنية">
       {person?.education ? (
         <FieldRow label="التعليم" value={person.education} />
       ) : null}
@@ -34,12 +31,12 @@ const ProfessionalCard = ({ person }) => {
 const styles = {
   label: {
     fontSize: 13,
-    color: '#7a6571',
-    marginBottom: 6,
+    color: '#736372',
+    marginBottom: 8,
   },
   bullet: {
-    fontSize: 14,
-    color: '#312028',
+    fontSize: 15,
+    color: '#242121',
     lineHeight: 20,
   },
 };

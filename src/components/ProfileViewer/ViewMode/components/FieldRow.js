@@ -26,7 +26,7 @@ const FieldRow = ({
           <Text style={styles.statusText}>{status}</Text>
         </View>
       ) : null}
-      {icon ? <Ionicons name={icon} size={18} color="#8a7480" /> : null}
+      {icon ? <Ionicons name={icon} size={18} color="#736372" /> : null}
     </View>
   );
 
@@ -50,33 +50,33 @@ const styles = {
   },
   label: {
     fontSize: 13,
-    color: '#7a6571',
-    marginBottom: 4,
+    color: '#736372',
+    marginBottom: 8,
   },
   value: {
     fontSize: 15,
-    color: '#30212a',
+    color: '#242121',
     fontWeight: '600',
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f6e1e6',
+    backgroundColor: '#A1333320',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 16,
   },
   statusText: {
     fontSize: 12,
-    color: '#a45160',
+    color: '#A13333',
     fontWeight: '600',
   },
   editedRow: {
     borderRightWidth: 3,
-    borderRightColor: '#a45160',
+    borderRightColor: '#A13333',
     paddingRight: 12,
-    backgroundColor: 'rgba(164,81,96,0.06)',
+    backgroundColor: '#A1333310',
     borderRadius: 12,
   },
 };

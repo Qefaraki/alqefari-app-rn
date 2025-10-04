@@ -8,6 +8,8 @@ const PersonalCard = ({ person }) => {
   const rows = [
     person.kunya ? { label: 'الكنية', value: person.kunya } : null,
     person.nickname ? { label: 'اللقب', value: person.nickname } : null,
+    person.birth_place ? { label: 'مكان الميلاد', value: person.birth_place } : null,
+    person.family_origin ? { label: 'الأصل العائلي', value: person.family_origin } : null,
   ].filter(Boolean);
 
   if (rows.length === 0) return null;
@@ -17,7 +19,9 @@ const PersonalCard = ({ person }) => {
       <View style={styles.grid}>
         {rows.map((row) => (
           <View key={row.label} style={styles.gridItem}>
-            <Text style={styles.label}>{row.label}</Text>
+            <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit>
+              {row.label}
+            </Text>
             <Text style={styles.value}>{row.value}</Text>
           </View>
         ))}
@@ -34,9 +38,9 @@ const styles = {
     alignItems: 'flex-start',
   },
   gridItem: {
-    backgroundColor: '#f7f1f4',
+    backgroundColor: '#D1BBA320',
     borderRadius: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     alignSelf: 'flex-start',
     maxWidth: '100%',
@@ -44,13 +48,13 @@ const styles = {
   },
   label: {
     fontSize: 12,
-    color: '#7a6571',
-    marginBottom: 6,
+    color: '#736372',
+    marginBottom: 8,
   },
   value: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#2f1823',
+    fontWeight: '600',
+    color: '#242121',
   },
 };
 

@@ -197,8 +197,8 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         // Show real-time notification for new requests
         if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
           notificationService.scheduleLocalNotification(
-            'طلب ربط جديد',
-            `طلب جديد من ${payload.new.phone || 'مستخدم'}`,
+            'طلب انضمام جديد',
+            `${payload.new.name_chain || 'عضو من العائلة'} يطلب ربط حسابه بالشجرة`,
             { type: 'new_link_request', requestId: payload.new.id }
           );
         }
@@ -586,13 +586,6 @@ export default function ProfileConnectionManagerV2({ onBack }) {
               if (mountedRef.current) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-                // Show success notification
-                notificationService.scheduleLocalNotification(
-                  'تمت الموافقة ✅',
-                  `تم قبول طلب ${request.profiles?.name || request.name_chain}`,
-                  { type: 'approval_success' }
-                );
-
                 // Clear cache for this profile to refresh name chain
                 if (nameChainCache.current && request.profiles?.id) {
                   nameChainCache.current.delete(request.profiles.id);
@@ -690,13 +683,6 @@ export default function ProfileConnectionManagerV2({ onBack }) {
 
         if (mountedRef.current) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-
-          // Show rejection notification
-          notificationService.scheduleLocalNotification(
-            'تم الرفض ❌',
-            `تم رفض طلب ${request.profiles?.name || request.name_chain}`,
-            { type: 'rejection_success' }
-          );
 
           // Clear cache for this profile to refresh name chain
           if (nameChainCache.current && request.profiles?.id) {

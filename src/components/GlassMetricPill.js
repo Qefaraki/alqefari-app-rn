@@ -51,7 +51,7 @@ const GlassMetricPill = ({
       style={[animatedStyle, style]}
       disabled={!onPress}
     >
-      <CardSurface radius={18} contentStyle={styles.pillContent} style={styles.cardWrapper}>
+      <CardSurface radius={16} contentStyle={styles.pillContent} style={styles.cardWrapper}>
         <View style={styles.innerContent}>
           {icon && <View style={styles.iconContainer}>{icon}</View>}
           <View style={styles.textContainer}>

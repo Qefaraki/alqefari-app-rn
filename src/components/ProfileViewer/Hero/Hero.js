@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ProgressiveHeroImage } from '../../ProgressiveImage';
 import HeroActions from './HeroActions';
 import MetricsRow from './MetricsRow';
-import { Ionicons } from '@expo/vector-icons';
 import { useTreeStore } from '../../../stores/useTreeStore';
 
 const constructCommonName = (person, nodesMap) => {
@@ -44,6 +43,7 @@ const Hero = ({
   onToggleBio,
   metrics,
   onClose,
+  topInset = 0,
 }) => {
   const bioText = person.bio || person.biography || '';
   const hasBio = Boolean(bioText);
@@ -54,6 +54,8 @@ const Hero = ({
     if (person.common_name) return person.common_name;
     return constructCommonName(person, nodesMap);
   }, [nodesMap, person]);
+
+  const isRTL = I18nManager.isRTL;
 
   return (
     <View style={styles.container}>
@@ -76,21 +78,12 @@ const Hero = ({
       ) : null}
 
       <View style={styles.body}>
-        <View style={styles.topRow}>
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeButton}
-            accessibilityRole="button"
-            accessibilityLabel="إغلاق الملف"
-          >
-            <Ionicons name="close" size={20} color="#2a1620" />
-          </TouchableOpacity>
-          <HeroActions onMenuPress={onMenu} />
-        </View>
         <View style={styles.nameRow}>
-          <Text style={styles.name}>{person?.name}</Text>
+          <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>{person?.name}</Text>
           {person?.status === 'deceased' ? (
-            <Text style={styles.deceasedTag}>الله يرحمه</Text>
+            <Text style={styles.deceasedTag} adjustsFontSizeToFit numberOfLines={1}>
+              الله يرحمه
+            </Text>
           ) : null}
         </View>
         {lineage ? (
@@ -98,7 +91,9 @@ const Hero = ({
             onPress={() => onCopyChain?.(lineage)}
             accessibilityLabel="نسخ سلسلة النسب"
           >
-            <Text style={styles.chain}>{lineage}</Text>
+            <Text style={styles.chain} numberOfLines={2}>
+              {lineage}
+            </Text>
           </Pressable>
         ) : null}
 
@@ -120,6 +115,20 @@ const Hero = ({
 
         <MetricsRow metrics={metrics} />
       </View>
+
+      <View
+        pointerEvents="box-none"
+        style={[
+          styles.overlayControls,
+          { top: 16 },
+        ]}
+      >
+        <HeroActions
+          onMenuPress={onMenu}
+          onClose={onClose}
+          style={isRTL ? styles.actionsRtl : styles.actionsLtr}
+        />
+      </View>
     </View>
   );
 };
@@ -127,7 +136,7 @@ const Hero = ({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    borderRadius: 32,
+    borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 24,
     backgroundColor: '#f9f5f0',
@@ -144,31 +153,12 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginBottom: 12,
-    gap: 12,
-  },
-  closeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    paddingVertical: 20,
   },
   name: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#2a1620',
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#242121',
   },
   nameRow: {
     flexDirection: 'row',
@@ -177,25 +167,38 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   deceasedTag: {
-    fontSize: 14,
-    color: '#874b5a',
+    fontSize: 13,
+    color: '#A13333',
     fontWeight: '600',
   },
   chain: {
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 15,
-    color: '#5f4652',
+    color: '#736372',
   },
   bio: {
-    fontSize: 14,
-    color: '#4c3841',
+    fontSize: 15,
+    color: '#242121',
     lineHeight: 20,
   },
   expand: {
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 13,
     fontWeight: '600',
-    color: '#8c4d5d',
+    color: '#A13333',
+  },
+  overlayControls: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    zIndex: 3,
+  },
+  actionsLtr: {
+    alignSelf: 'flex-end',
+  },
+  actionsRtl: {
+    alignSelf: 'flex-start',
   },
 });
 

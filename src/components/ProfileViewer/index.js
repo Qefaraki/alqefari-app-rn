@@ -21,22 +21,16 @@ import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
-import {
-  useSharedValue,
-  useAnimatedReaction,
-} from 'react-native-reanimated';
+import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
 import Hero from './Hero/Hero';
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
 import PersonalCard from './ViewMode/cards/PersonalCard';
 import DatesCard from './ViewMode/cards/DatesCard';
 import ProfessionalCard from './ViewMode/cards/ProfessionalCard';
-import LocationsCard from './ViewMode/cards/LocationsCard';
 import ContactCard from './ViewMode/cards/ContactCard';
 import FamilyCard from './ViewMode/cards/FamilyCard';
 import TimelineCard from './ViewMode/cards/TimelineCard';
 import PhotosCard from './ViewMode/cards/PhotosCard';
-import SystemCard from './ViewMode/cards/SystemCard';
-import AdditionalInfoCard from './ViewMode/cards/AdditionalInfoCard';
 import TabsHost from './EditMode/TabsHost';
 import TabGeneral from './EditMode/TabGeneral';
 import TabDetails from './EditMode/TabDetails';
@@ -50,7 +44,7 @@ import { useProfileForm } from './hooks/useProfileForm';
 import { useProfileMetrics } from './hooks/useProfileMetrics';
 import { usePendingChanges } from './hooks/usePendingChanges';
 import { diffObjects, groupDirtyByTab } from './utils/diff';
-import { KNOWN_PROFILE_FIELDS, VIEW_TABS } from './constants';
+import { VIEW_TABS } from './constants';
 import { profilesService } from '../../services/profiles';
 import suggestionService, {
   ALLOWED_SUGGESTION_FIELDS,
@@ -148,8 +142,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     () => animatedPosition.value,
     (current, previous) => {
       if (current === previous) return;
+      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
+
       if (profileSheetProgress) {
-        const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
         profileSheetProgress.value = progress;
       }
     },
@@ -436,6 +431,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           onToggleBio={() => setBioExpanded((prev) => !prev)}
           metrics={metricsPayload}
           onClose={closeSheet}
+          topInset={insets.top}
         />
 
         <PendingReviewBanner
@@ -446,7 +442,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         <PersonalCard person={person} />
         <DatesCard person={person} />
         <ProfessionalCard person={person} />
-        <LocationsCard person={person} />
         <ContactCard person={person} />
         <FamilyCard
           father={metrics.father}
@@ -459,8 +454,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         />
         <TimelineCard timeline={person?.timeline} />
         <PhotosCard person={person} mode={mode} />
-        <SystemCard person={person} isAdmin={isAdminMode} />
-        <AdditionalInfoCard person={person} knownFields={KNOWN_PROFILE_FIELDS} />
     </BottomSheetScrollView>
   );
 
@@ -488,6 +481,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           onToggleBio={() => setBioExpanded((prev) => !prev)}
           metrics={metricsPayload}
           onClose={closeSheet}
+          topInset={insets.top}
         />
 
         <EditModeBanner accessMode={accessMode} />

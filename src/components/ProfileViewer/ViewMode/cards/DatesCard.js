@@ -18,7 +18,7 @@ const DatesCard = ({ person }) => {
     rows.push(
         <FieldRow
           key="dob"
-          label="📅 تاريخ الميلاد"
+          label="تاريخ الميلاد"
           value={dobText}
           status={dob?.approximate ? 'تاريخ تقريبي' : undefined}
         />,
@@ -29,7 +29,7 @@ const DatesCard = ({ person }) => {
     rows.push(
         <FieldRow
           key="dod"
-          label="🌙 تاريخ الوفاة"
+          label="تاريخ الوفاة"
           value={dodText}
           status={dod?.approximate ? 'تاريخ تقريبي' : undefined}
         />,
@@ -52,7 +52,7 @@ const styles = {
   privacy: {
     marginTop: 8,
     fontSize: 12,
-    color: '#9a7b87',
+    color: '#736372',
   },
 };
 

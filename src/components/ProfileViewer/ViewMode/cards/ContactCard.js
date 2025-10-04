@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Linking } from 'react-native';
+import { View, Text, Linking, TouchableOpacity } from 'react-native';
 import InfoCard from '../components/InfoCard';
 import FieldRow from '../components/FieldRow';
 
@@ -28,29 +28,36 @@ const ContactCard = ({ person }) => {
     return null;
   }
 
+  const openUrl = (url) => {
+    if (!url) return;
+    Linking.openURL(url).catch(() => {});
+  };
+
   return (
     <InfoCard title="التواصل">
       {person?.phone ? (
         <FieldRow
-          label="📱 الهاتف"
+          label="الهاتف"
           value={person.phone}
           copyable
         />
       ) : null}
       {person?.email ? (
-        <FieldRow label="📧 البريد" value={person.email} copyable />
+        <FieldRow label="البريد" value={person.email} copyable />
       ) : null}
       {hasSocials ? (
         <View>
           <Text style={styles.label}>روابط التواصل</Text>
           {Object.entries(socials).map(([platform, url]) => (
-            <Text
+            <TouchableOpacity
               key={platform}
-              style={styles.link}
-              onPress={() => Linking.openURL(url)}
+              onPress={() => openUrl(url)}
+              accessibilityRole="link"
+              accessibilityLabel={`فتح ${formatPlatform(platform)}`}
+              style={styles.linkButton}
             >
-              {formatPlatform(platform)}
-            </Text>
+              <Text style={styles.link}>{formatPlatform(platform)}</Text>
+            </TouchableOpacity>
           ))}
         </View>
       ) : null}
@@ -61,13 +68,16 @@ const ContactCard = ({ person }) => {
 const styles = {
   label: {
     fontSize: 13,
-    color: '#7a6571',
-    marginBottom: 6,
+    color: '#736372',
+    marginBottom: 8,
+  },
+  linkButton: {
+    paddingVertical: 8,
   },
   link: {
-    fontSize: 14,
-    color: '#6b3f4e',
-    marginBottom: 6,
+    fontSize: 15,
+    color: '#A13333',
+    fontWeight: '600',
   },
 };
 
