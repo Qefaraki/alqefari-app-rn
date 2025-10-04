@@ -86,7 +86,7 @@ import {
   DEFAULT_BOUNDS,
 } from "../utils/cameraConstraints";
 
-const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
+const VIEWPORT_MARGIN = 1200; // Nodes appear further off-screen to reduce pop-in effect
 const NODE_WIDTH_WITH_PHOTO = 85;
 const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;

@@ -79,11 +79,20 @@ const Hero = ({
 
       <View style={styles.body}>
         <View style={styles.nameRow}>
-          <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>{person?.name}</Text>
-          {person?.status === 'deceased' ? (
-            <Text style={styles.deceasedTag} adjustsFontSizeToFit numberOfLines={1}>
-              الله يرحمه
-            </Text>
+          <View style={styles.nameAndStatus}>
+            <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>{person?.name}</Text>
+            {person?.status === 'deceased' ? (
+              <Text style={styles.deceasedTag} adjustsFontSizeToFit numberOfLines={1}>
+                الله يرحمه
+              </Text>
+            ) : null}
+          </View>
+          {!person?.photo_url ? (
+            <HeroActions
+              onMenuPress={onMenu}
+              onClose={onClose}
+              style={styles.actionsInline}
+            />
           ) : null}
         </View>
         {lineage ? (
@@ -116,19 +125,18 @@ const Hero = ({
         <MetricsRow metrics={metrics} />
       </View>
 
-      <View
-        pointerEvents="box-none"
-        style={[
-          styles.overlayControls,
-          { top: person?.photo_url ? 16 : 80 }, // Push down if no photo to avoid name overlap
-        ]}
-      >
-        <HeroActions
-          onMenuPress={onMenu}
-          onClose={onClose}
-          style={isRTL ? styles.actionsRtl : styles.actionsLtr}
-        />
-      </View>
+      {person?.photo_url ? (
+        <View
+          pointerEvents="box-none"
+          style={[styles.overlayControls, { top: 16 }]}
+        >
+          <HeroActions
+            onMenuPress={onMenu}
+            onClose={onClose}
+            style={isRTL ? styles.actionsRtl : styles.actionsLtr}
+          />
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -165,6 +173,16 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     gap: 10,
     flexWrap: 'wrap',
+  },
+  nameAndStatus: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 10,
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  actionsInline: {
+    // Aligned with name row baseline
   },
   deceasedTag: {
     fontSize: 13,
