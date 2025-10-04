@@ -1758,24 +1758,6 @@ const maxZoomShared = useSharedValue(maxZoom);
       const isOutsideY = Math.abs(translateY.value - clamped.stage.y) > 1;
       const isOutside = isOutsideX || isOutsideY;
 
-      if (__DEV__) {
-        runOnJS(debugCamera)("pan.end", {
-          current: {
-            x: Number(translateX.value.toFixed(1)),
-            y: Number(translateY.value.toFixed(1)),
-          },
-          clamped: {
-            x: Number(clamped.stage.x.toFixed(1)),
-            y: Number(clamped.stage.y.toFixed(1)),
-          },
-          isOutside,
-          velocity: {
-            x: Number(e.velocityX.toFixed(1)),
-            y: Number(e.velocityY.toFixed(1)),
-          },
-        });
-      }
-
       // If outside bounds, snap to clamped position instantly
       // This ensures we ALWAYS end at a valid position
       if (isOutside) {
@@ -2198,6 +2180,31 @@ const maxZoomShared = useSharedValue(maxZoom);
     pinchGesture,
     // Long press always enabled - permission check is inside the gesture
     Gesture.Exclusive(longPressGesture, tapGesture),
+  );
+
+  // Safe camera logging - doesn't trigger React re-renders during gestures
+  useAnimatedReaction(
+    () => ({
+      x: translateX.value,
+      y: translateY.value,
+      scale: scale.value,
+    }),
+    (current, previous) => {
+      'worklet';
+      // Only log meaningful changes to avoid spam
+      if (previous && (
+        Math.abs(current.x - previous.x) > 5 ||
+        Math.abs(current.y - previous.y) > 5 ||
+        Math.abs(current.scale - previous.scale) > 0.01
+      )) {
+        runOnJS(console.log)('[Camera]', {
+          x: Math.round(current.x),
+          y: Math.round(current.y),
+          scale: current.scale.toFixed(3),
+        });
+      }
+    },
+    []
   );
 
   // Render connection lines with proper elbow style
