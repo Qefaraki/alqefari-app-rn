@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
+import suggestionService from "../../services/suggestionService";
 import * as Haptics from "expo-haptics";
 
 // Najdi Sadu Design System Colors
@@ -78,7 +79,7 @@ const SuggestionReviewManager = () => {
           `
           *,
           profile:profile_id(id, name, hid),
-          suggester:suggested_by(id, name)
+          suggester:submitter_id(id, name)
         `
         )
         .order("created_at", { ascending: false });
@@ -103,11 +104,7 @@ const SuggestionReviewManager = () => {
 
   const handleApprove = async (suggestion) => {
     try {
-      const { error } = await supabase.rpc("admin_approve_suggestion", {
-        p_suggestion_id: suggestion.id,
-      });
-
-      if (error) throw error;
+      await suggestionService.approveSuggestion(suggestion.id);
 
       Alert.alert("نجاح", "تم قبول الاقتراح وتطبيقه");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -122,12 +119,10 @@ const SuggestionReviewManager = () => {
 
   const handleReject = async (suggestion, reason) => {
     try {
-      const { error } = await supabase.rpc("admin_reject_suggestion", {
-        p_suggestion_id: suggestion.id,
-        p_rejection_reason: reason || "لا يتوافق مع البيانات المؤكدة",
-      });
-
-      if (error) throw error;
+      await suggestionService.rejectSuggestion(
+        suggestion.id,
+        reason || "لا يتوافق مع البيانات المؤكدة"
+      );
 
       Alert.alert("تم", "تم رفض الاقتراح");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -144,8 +139,8 @@ const SuggestionReviewManager = () => {
     Alert.alert(
       "تأكيد القبول",
       `هل تريد قبول تغيير "${getFieldLabel(suggestion.field_name)}" من "${
-        suggestion.old_value?.value || "فارغ"
-      }" إلى "${suggestion.new_value?.value}"؟`,
+        suggestion.old_value ?? "فارغ"
+      }" إلى "${suggestion.new_value ?? ""}"؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -242,7 +237,7 @@ const SuggestionReviewManager = () => {
           <View style={styles.oldValue}>
             <Text style={styles.valueLabel}>من:</Text>
             <Text style={styles.valueText}>
-              {suggestion.old_value?.value || "فارغ"}
+              {suggestion.old_value ?? "فارغ"}
             </Text>
           </View>
           <Ionicons
@@ -254,7 +249,7 @@ const SuggestionReviewManager = () => {
           <View style={styles.newValue}>
             <Text style={styles.valueLabel}>إلى:</Text>
             <Text style={[styles.valueText, styles.newValueText]}>
-              {suggestion.new_value?.value}
+              {suggestion.new_value ?? ""}
             </Text>
           </View>
         </View>

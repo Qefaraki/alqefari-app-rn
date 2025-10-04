@@ -20,6 +20,7 @@ import { ar } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { buildNameChain } from "../utils/nameChainBuilder";
+import { featureFlags } from "../config/featureFlags";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -37,6 +38,10 @@ const colors = {
 };
 
 export default function ProfileLinkStatusIndicator() {
+  if (!featureFlags.profileLinkRequests) {
+    return null;
+  }
+
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);

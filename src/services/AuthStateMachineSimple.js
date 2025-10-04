@@ -10,6 +10,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { featureFlags } from '../config/featureFlags';
 
 export const AuthStates = {
   INITIALIZING: 'INITIALIZING',
@@ -117,7 +118,7 @@ class AuthStateMachine {
     this.currentState = AuthStates.AUTHENTICATED;
 
     // Check for pending link request if no profile
-    if (!profile && user) {
+    if (!profile && user && featureFlags.profileLinkRequests) {
       try {
         const { data: pendingRequest } = await supabase
           .from('profile_link_requests')

@@ -18,6 +18,7 @@ import { formatDateByPreference } from "../utils/dateDisplay";
 import { gregorianToHijri } from "../utils/hijriConverter";
 import { supabase } from "../services/supabase";
 import { accountDeletionService } from "../services/accountDeletion";
+import { featureFlags } from "../config/featureFlags";
 import { forceCompleteSignOut } from "../utils/forceSignOut";
 import { useRouter } from "expo-router";
 import { useAuth } from "../contexts/AuthContextSimple";
@@ -103,7 +104,7 @@ export default function SettingsPage({ user }) {
         setUserProfile(profile);
 
         // If no linked profile, check for pending request
-        if (!profile) {
+        if (!profile && featureFlags.profileLinkRequests) {
           const { data: requests } = await supabase
             .from("profile_link_requests")
             .select(`

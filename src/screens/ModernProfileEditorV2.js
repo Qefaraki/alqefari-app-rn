@@ -529,7 +529,7 @@ const ModernProfileEditorV2 = ({ visible, profile, onClose, onSave }) => {
               ))
             ) : (
               <Text style={styles.emptyText}>
-                {editedData.gender === "female" ? "لا توجد زيجات مسجلة" : "لا توجد زيجات مسجلة"}
+                {editedData.gender === "female" ? "لا توجد حالات زواج مسجلة" : "لا توجد حالات زواج مسجلة"}
               </Text>
             )}
           </View>

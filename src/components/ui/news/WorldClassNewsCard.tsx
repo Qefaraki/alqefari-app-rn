@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   // Feature Card Styles
   featureContainer: {
     marginHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 8, // iOS 8px grid
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: 'transparent',
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   featureImage: {
     width: '100%',
-    height: 320,
+    height: 300, // Reduced from 320px
   },
   featureImageStyle: {
     borderRadius: 10,
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   // Large Story Card Styles
   largeContainer: {
     marginHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 8, // iOS 8px grid
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: 'transparent',
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   largeTitle: {
-    fontSize: 19,
+    fontSize: 20, // iOS title 3 standard
     fontWeight: '700',
     color: '#242121',
     lineHeight: 26,
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   largeDate: {
-    fontSize: 12,
+    fontSize: 13, // iOS caption 1 standard
     fontWeight: '600',
     color: '#A13333',
     fontFamily: 'SF Arabic',
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   // Side by Side Card Styles
   sideContainer: {
     marginHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 8, // iOS 8px grid
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: 'transparent',
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   sideTitle: {
-    fontSize: 19,
+    fontSize: 20, // iOS title 3 standard
     fontWeight: '700',
     color: '#242121',
     lineHeight: 26,
@@ -496,14 +496,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   sideDate: {
-    fontSize: 12,
+    fontSize: 13, // iOS caption 1 standard
     fontWeight: '600',
     color: '#A13333',
     fontFamily: 'SF Arabic',
   },
   sideImage: {
-    width: 160,
-    height: 120,
+    width: 140, // Better 4:3 aspect ratio
+    height: 105,
     borderRadius: 10,
   },
   sidePlaceholder: {
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   // Text Only Card Styles
   textContainer: {
     marginHorizontal: 16,
-    marginVertical: 6,
+    marginVertical: 8, // iOS 8px grid
     borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: 'transparent',
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textTitle: {
-    fontSize: 19,
+    fontSize: 20, // iOS title 3 standard
     fontWeight: '700',
     color: '#242121',
     lineHeight: 26,
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   textDate: {
-    fontSize: 12,
+    fontSize: 13, // iOS caption 1 standard
     fontWeight: '600',
     color: '#A13333',
     fontFamily: 'SF Arabic',

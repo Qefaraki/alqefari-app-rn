@@ -226,7 +226,11 @@ class EnhancedSearchService {
         .flat();
 
       // Query the database with variations
-      let query = supabase.from("profiles").select("*").limit(limit);
+      let query = supabase
+        .from("profiles")
+        .select("*")
+        .is("deleted_at", null)
+        .not("hid", "is", null); // Munasib profiles have NULL HID; exclude them from tree search (see docs/system-docs/munasib-system-documentation.md)
 
       // Add OR conditions for each variation
       if (searchPatterns.length > 0) {
@@ -237,13 +241,15 @@ class EnhancedSearchService {
         query = query.or(orConditions);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await query.limit(limit);
 
       if (error) throw error;
 
       // Score and sort results by relevance
+      const filteredResults = (data || []).filter((result) => result?.hid);
+
       const scoredResults = this.scoreSearchResults(
-        data || [],
+        filteredResults,
         normalizedNames,
       );
 

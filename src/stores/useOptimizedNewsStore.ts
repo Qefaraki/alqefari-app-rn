@@ -123,9 +123,15 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
         state.prefetchNextFeatured();
       }
     } catch (error) {
+      // Detect network errors
+      const errorMessage = error instanceof Error ? error.message : '';
+      const isNetworkError = errorMessage.includes('Network request failed') ||
+                             errorMessage.includes('fetch') ||
+                             error?.name === 'TypeError';
+
       set({
         isInitialLoading: false,
-        error: error instanceof Error ? error.message : 'فشل تحميل الأخبار',
+        error: isNetworkError ? 'network' : (errorMessage || 'فشل تحميل الأخبار'),
       });
     }
   },
@@ -174,9 +180,15 @@ export const useOptimizedNewsStore = create<OptimizedNewsStore>((set, get) => ({
         state.prefetchNextFeatured();
       }
     } catch (error) {
+      // Detect network errors
+      const errorMessage = error instanceof Error ? error.message : '';
+      const isNetworkError = errorMessage.includes('Network request failed') ||
+                             errorMessage.includes('fetch') ||
+                             error?.name === 'TypeError';
+
       set({
         isRefreshing: false,
-        error: error instanceof Error ? error.message : 'فشل التحديث',
+        error: isNetworkError ? 'network' : (errorMessage || 'فشل التحديث'),
       });
     }
   },

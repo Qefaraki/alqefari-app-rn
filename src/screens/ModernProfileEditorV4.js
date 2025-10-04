@@ -40,6 +40,7 @@ import MarriageEditor from "../components/admin/MarriageEditor";
 import InlineSpouseAdder from "../components/InlineSpouseAdder";
 import profilesService from "../services/profiles";
 import { supabase } from "../services/supabase";
+import suggestionService from "../services/suggestionService";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useSettings } from "../contexts/SettingsContext";
@@ -276,30 +277,30 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         return;
       }
 
-      // Step 5: Check edit permissions (optional - RLS will enforce anyway)
-      // This provides better UX by showing specific error before attempting save
-      const { data: canEdit, error: permissionError } = await supabase
-        .rpc('can_user_edit_profile', {
-          p_user_id: session.user.id,
-          p_target_id: profile.id
-        });
+      // Step 5: Check edit permissions using v4.2 system
+      let permission;
+      try {
+        permission = await suggestionService.checkPermission(session.user.id, profile.id);
+      } catch (error) {
+        console.warn("Permission check failed:", error);
+        // Continue with 'none' permission - will show appropriate error
+        permission = 'none';
+      }
 
-      if (permissionError) {
-        console.warn("Permission check failed:", permissionError);
-        // Continue anyway - RLS will block if not allowed
-      } else if (canEdit === 'none' || canEdit === 'blocked') {
+      // Check if user is blocked or has no permission
+      if (permission === 'blocked') {
         Alert.alert(
-          "خطأ في الصلاحيات",
-          canEdit === 'blocked'
-            ? "تم حظرك من تعديل الملفات الشخصية"
-            : "ليس لديك صلاحية لتعديل هذا الملف الشخصي"
+          "محظور",
+          "تم حظرك من تعديل الملفات الشخصية",
+          [{ text: "حسناً", onPress: () => onClose() }]
         );
         setSaving(false);
         return;
-      } else if (canEdit === 'suggest') {
+      } else if (permission === 'none') {
         Alert.alert(
-          "اقتراح التعديل",
-          "يمكنك اقتراح تعديلات على هذا الملف فقط. سيتم مراجعتها من قبل المشرفين."
+          "غير مسموح",
+          "ليس لديك صلاحية لتعديل هذا الملف الشخصي",
+          [{ text: "حسناً", onPress: () => onClose() }]
         );
         setSaving(false);
         return;
@@ -346,27 +347,83 @@ const ModernProfileEditorV4 = ({ visible, profile, onClose, onSave }) => {
         role: editedData.role || null,
       };
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(cleanedData)
-        .eq("id", profile.id)
-        .select()
-        .single();
+      // Step 6: Handle save based on permission level (v4.2 three-circle model)
+      if (permission === 'inner' || permission === 'admin' || permission === 'moderator') {
+        // Direct save for inner circle, admins, and moderators
+        const { data, error } = await supabase
+          .from("profiles")
+          .update(cleanedData)
+          .eq("id", profile.id)
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data) {
-        useTreeStore.getState().updateNode(profile.id, data);
+        if (data) {
+          useTreeStore.getState().updateNode(profile.id, data);
+        }
+
+        // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
+        if (profileSheetProgress) {
+          profileSheetProgress.value = 0; // Direct assignment
+        }
+        onClose();
+        setTimeout(() => {
+          Alert.alert("تم الحفظ", "تم حفظ التغييرات بنجاح");
+        }, 100);
+      } else {
+        // Submit as suggestions for family and extended circles
+        try {
+          // Calculate what changed
+          const changes = {};
+          Object.keys(cleanedData).forEach(key => {
+            // Skip unchanged fields
+            if (cleanedData[key] === originalData[key]) return;
+            // Skip empty to null changes
+            if (!cleanedData[key] && !originalData[key]) return;
+            // Track the change
+            changes[key] = cleanedData[key];
+          });
+
+          if (Object.keys(changes).length === 0) {
+            Alert.alert("لا توجد تغييرات", "لم تقم بتغيير أي معلومات");
+            setSaving(false);
+            return;
+          }
+
+          // Submit changes as suggestions
+          const result = await suggestionService.submitProfileChanges(profile.id, changes);
+
+          // Show appropriate message based on permission
+          const message = suggestionService.getPermissionMessage(permission);
+
+          if (result.skipped?.length) {
+            const skippedLabels = result.skipped
+              .map(field => suggestionService.formatFieldName(field))
+              .join(', ');
+            message.message = `${message.message}\n\nالحقول التالية تتطلب موافقة مباشرة من صاحب الملف: ${skippedLabels}.`;
+          }
+
+          if (result.errors?.length) {
+            const firstError = result.errors[0]?.error;
+            if (firstError) {
+              message.message = `${message.message}\n\n${firstError}`;
+            }
+          }
+
+          // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
+          if (profileSheetProgress) {
+            profileSheetProgress.value = 0; // Direct assignment
+          }
+          onClose();
+
+          setTimeout(() => {
+            Alert.alert(message.title, message.message);
+          }, 100);
+        } catch (suggestionError) {
+          throw suggestionError;
+        }
       }
-
-      // CRITICAL: Reset profileSheetProgress to ensure SearchBar reappears
-      if (profileSheetProgress) {
-        profileSheetProgress.value = 0; // Direct assignment
-      }
-      onClose();
-      setTimeout(() => {
-        Alert.alert("تم الحفظ", "تم حفظ التغييرات بنجاح");
-      }, 100);
     } catch (error) {
       console.error("Error saving profile:", error?.code || error);
 

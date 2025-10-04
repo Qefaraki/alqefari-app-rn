@@ -162,6 +162,7 @@ export function AuthProvider({ children }) {
     hasLinkedProfile: AuthStateMachine.hasLinkedProfile(),
     isPendingApproval: AuthStateMachine.isPendingApproval(),
     isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
+    isPreloadingTree: false, // Not implemented yet
 
     // Actions
     signOut: async () => {

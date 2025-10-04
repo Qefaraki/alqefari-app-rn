@@ -5,6 +5,7 @@ import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContextSimple";
 import * as Haptics from "expo-haptics";
 import subscriptionManager from "../services/subscriptionManager";
+import { featureFlags } from "../config/featureFlags";
 
 // Najdi Sadu Color System
 const colors = {
@@ -127,7 +128,7 @@ export default function NotificationBadge({ onPress }) {
       setUnreadCount(count || 0);
 
       // Also count pending requests for admins (backward compatibility)
-      if (isAdmin) {
+      if (isAdmin && featureFlags.profileLinkRequests) {
         const { count: pendingCount } = await supabase
           .from("profile_link_requests")
           .select("*", { count: "exact", head: true })

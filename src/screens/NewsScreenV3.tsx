@@ -12,6 +12,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Dimensions,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
@@ -27,6 +28,8 @@ import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
 import NetworkError from '../components/NetworkError';
 import ArticleReaderModal from '../components/ArticleViewer/ArticleReaderModal';
 import tokens from '../components/ui/tokens';
+import { useAuth } from '../contexts/AuthContextSimple';
+import adminContactService from '../services/adminContact';
 
 // Item types for mixed list
 type ListItem =
@@ -56,6 +59,9 @@ const NewsScreenV3: React.FC = () => {
     clearError,
     cleanup,
   } = useOptimizedNewsStore();
+
+  // Auth state
+  const { isAuthenticated, hasLinkedProfile, profile } = useAuth();
 
   // State for article viewer
   const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(null);
@@ -98,6 +104,32 @@ const NewsScreenV3: React.FC = () => {
     setSelectedArticle(article);
     setArticleViewerVisible(true);
   }, [setScrollPosition]);
+
+  // Handle suggest article
+  const handleSuggestArticle = useCallback(async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Check if user is authenticated and has a linked profile
+      if (!isAuthenticated || !hasLinkedProfile || !profile) {
+        Alert.alert(
+          'تسجيل الدخول مطلوب',
+          'يجب تسجيل الدخول وربط حسابك بملفك الشخصي لاقتراح مقال'
+        );
+        return;
+      }
+
+      // Open WhatsApp with the formatted message
+      const result = await adminContactService.openWhatsAppForArticleSuggestion(profile);
+
+      if (!result.success) {
+        Alert.alert('خطأ', 'فشل فتح الواتساب');
+      }
+    } catch (error) {
+      console.error('Error suggesting article:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء فتح الواتساب');
+    }
+  }, [isAuthenticated, hasLinkedProfile, profile]);
 
   // Handle scroll for pre-fetching
   const handleScroll = useCallback(
@@ -146,6 +178,13 @@ const NewsScreenV3: React.FC = () => {
             <View style={styles.titleContent}>
               <Text style={styles.title}>أخبار القفاري</Text>
             </View>
+            <TouchableOpacity
+              style={styles.suggestButton}
+              onPress={handleSuggestArticle}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add-circle" size={22} color="#736372" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -172,7 +211,7 @@ const NewsScreenV3: React.FC = () => {
         </View>
       </View>
     );
-  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured]);
+  }, [featured, headerDate, isInitialLoading, handleArticlePress, loadMoreFeatured, handleSuggestArticle]);
 
   // Render list item
   const renderItem = useCallback(
@@ -245,7 +284,8 @@ const NewsScreenV3: React.FC = () => {
     return null;
   }, [hasMoreRecent, recent.length]);
 
-  // Error state
+  // Error state - only show full error screen if we have no data
+  // If refresh fails but we have cached data, show alert instead
   if (error && featured.length === 0 && recent.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -255,11 +295,36 @@ const NewsScreenV3: React.FC = () => {
             initialize();
           }}
           message={error}
-          type="server"
+          type={error === 'network' ? 'offline' : 'server'}
         />
       </SafeAreaView>
     );
   }
+
+  // If we have an error but also have cached data, show alert
+  useEffect(() => {
+    if (error && (featured.length > 0 || recent.length > 0)) {
+      Alert.alert(
+        'خطأ في التحديث',
+        error === 'network'
+          ? 'تحقق من اتصالك بالإنترنت'
+          : 'حدث خطأ أثناء تحديث الأخبار',
+        [
+          {
+            text: 'حسناً',
+            onPress: () => clearError(),
+          },
+          {
+            text: 'إعادة المحاولة',
+            onPress: () => {
+              clearError();
+              refresh();
+            },
+          },
+        ]
+      );
+    }
+  }, [error, featured.length, recent.length]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -328,19 +393,26 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16, // iOS standard spacing
   },
   titleContent: {
     flex: 1,
   },
+  suggestButton: {
+    width: 44, // iOS minimum touch target
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emblem: {
-    width: 52,
-    height: 52,
+    width: 44, // iOS standard icon size
+    height: 44,
     opacity: 1,
     tintColor: '#242121', // Back to black
-    marginRight: 3, // 3px spacing towards title
-    marginTop: -5, // Move up by 5px
-    marginLeft: -5, // Negative margin to align with sections below
+    marginRight: 8, // Standard spacing
+    marginTop: 0, // No negative margin
+    marginLeft: 0, // Align naturally
   },
   carouselSection: {
     marginBottom: 16,
@@ -352,7 +424,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20, // iOS headline standard
     fontWeight: '600',
     color: '#242121',
     fontFamily: 'SF Arabic',
@@ -363,7 +435,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   verticalSectionTitle: {
-    fontSize: 18,
+    fontSize: 20, // iOS headline standard
     fontWeight: '600',
     color: '#242121',
     fontFamily: 'SF Arabic',

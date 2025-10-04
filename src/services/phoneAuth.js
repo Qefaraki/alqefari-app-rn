@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { featureFlags } from "../config/featureFlags";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const phoneAuthService = {
@@ -472,6 +473,12 @@ export const phoneAuthService = {
    * Submit profile link request
    */
   async submitProfileLinkRequest(profileId, nameChain) {
+    if (!featureFlags.profileLinkRequests) {
+      return {
+        success: false,
+        error: 'ميزة طلب ربط الملف غير مفعلة حالياً.',
+      };
+    }
     try {
       const {
         data: { user },
@@ -599,6 +606,12 @@ export const phoneAuthService = {
    * Get user's pending link requests
    */
   async getUserLinkRequests() {
+    if (!featureFlags.profileLinkRequests) {
+      return {
+        success: true,
+        requests: [],
+      };
+    }
     try {
       const {
         data: { user },
@@ -633,6 +646,12 @@ export const phoneAuthService = {
    * Withdraw a pending link request
    */
   async withdrawLinkRequest(requestId) {
+    if (!featureFlags.profileLinkRequests) {
+      return {
+        success: false,
+        error: 'لا توجد طلبات ربط فعّالة لحذفها في الإصدار الحالي.',
+      };
+    }
     try {
       const {
         data: { user },
@@ -738,6 +757,12 @@ export const phoneAuthService = {
    * Admin: Approve a profile link request
    */
   async approveProfileLink(requestId, adminNotes = null) {
+    if (!featureFlags.profileLinkRequests) {
+      return {
+        success: false,
+        error: 'لوحة طلبات الربط غير مفعلة.',
+      };
+    }
     try {
       // Try the new secure RPC function first
       const { data, error } = await supabase.rpc('admin_approve_request', {
@@ -785,6 +810,12 @@ export const phoneAuthService = {
    * Admin: Reject a profile link request
    */
   async rejectProfileLink(requestId, adminNotes = null) {
+    if (!featureFlags.profileLinkRequests) {
+      return {
+        success: false,
+        error: 'لوحة طلبات الربط غير مفعلة.',
+      };
+    }
     try {
       // Try the new secure RPC function first
       const { data, error } = await supabase.rpc('admin_reject_request', {
@@ -857,6 +888,12 @@ export const phoneAuthService = {
    * Admin: Get all pending profile link requests
    */
   async getPendingLinkRequests() {
+    if (!featureFlags.profileLinkRequests) {
+      return {
+        success: true,
+        requests: [],
+      };
+    }
     try {
       const { data, error } = await supabase
         .from('profile_link_requests')

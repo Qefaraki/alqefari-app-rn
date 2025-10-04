@@ -84,6 +84,8 @@ import DraggableChildrenList from "./admin/DraggableChildrenList";
 import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import SuggestionModal from "./SuggestionModal";
+import ApprovalInbox from "../screens/ApprovalInbox";
+import ModernProfileEditorV4 from "../screens/ModernProfileEditorV4";
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -150,7 +152,11 @@ const ProfileSheet = ({ editMode = false }) => {
   const [showChildrenModal, setShowChildrenModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
   const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [showApprovalInbox, setShowApprovalInbox] = useState(false);
+  const [showModernEditor, setShowModernEditor] = useState(false);
+  const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
   const [permissionLevel, setPermissionLevel] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Get the global profileSheetProgress from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -634,25 +640,90 @@ const ProfileSheet = ({ editMode = false }) => {
     }
   };
 
-  // Handle cancel
-  // Check user's permission level for this profile
+  // Check user's permission level for this profile using v4.2 system
   const checkPermission = async () => {
     if (!person?.id) return;
 
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user?.user?.id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('❌ No authenticated user');
+        setPermissionLevel('none');
+        return;
+      }
 
-      const { data, error } = await supabase.rpc('can_user_edit_profile', {
-        p_user_id: user.user.id,
-        p_target_id: person.id
+      console.log('🔍 Getting profile for auth user:', user.id);
+
+      // Get user's profile record (we need profile.id, not auth.users.id)
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name, hid, role')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError || !userProfile) {
+        console.error('❌ No profile found for user:', user.id, profileError);
+        setPermissionLevel('none');
+        return;
+      }
+
+      console.log('✅ Found user profile:', userProfile.name, 'ID:', userProfile.id);
+      console.log('🎯 Checking permission for target:', person.name, 'ID:', person.id);
+
+      // Use v4.2 permission system with PROFILE IDs (not auth IDs)
+      const { data, error } = await supabase.rpc('check_family_permission_v4', {
+        p_user_id: userProfile.id,  // PROFILE ID
+        p_target_id: person.id       // PROFILE ID
       });
 
-      if (!error && data) {
+      if (error) {
+        console.error('❌ Permission check RPC error:', error);
+        setPermissionLevel('none');
+        return;
+      }
+
+      if (data) {
+        // v4.2 returns: 'inner', 'family', 'extended', 'admin', 'moderator', 'blocked', 'none'
+        console.log('✅ Permission level for', person.name, ':', data);
         setPermissionLevel(data);
+      } else {
+        console.warn('⚠️ Permission check returned null');
+        setPermissionLevel('none');
       }
     } catch (error) {
-      console.error('Error checking permissions:', error);
+      console.error('💥 Error checking permissions:', error);
+      setPermissionLevel('none');
+    }
+  };
+
+  // Load current user
+  useEffect(() => {
+    loadCurrentUser();
+  }, []);
+
+  const loadCurrentUser = async () => {
+    try {
+      const { data } = await supabase.auth.getUser();
+      setCurrentUser(data?.user);
+    } catch (error) {
+      console.log("Could not load current user:", error);
+    }
+  };
+
+  // Load pending suggestions count
+  useEffect(() => {
+    if (person?.id && !isAdminMode) {
+      loadPendingSuggestionsCount();
+    }
+  }, [person?.id, isAdminMode]);
+
+  const loadPendingSuggestionsCount = async () => {
+    try {
+      const { default: suggestionService } = await import("../services/suggestionService");
+      const count = await suggestionService.getPendingSuggestionsCount(person.id);
+      setPendingSuggestionsCount(count);
+    } catch (error) {
+      console.log("Could not load suggestions count:", error);
     }
   };
 
@@ -662,72 +733,48 @@ const ProfileSheet = ({ editMode = false }) => {
     const destructiveIndex = -1;
     const actions = [];
 
-    // Show permission feedback to user
-    if (permissionLevel === 'blocked') {
+    console.log('🔍 showProfileActions called:', {
+      permissionLevel,
+      isAdminMode,
+      personName: person?.name,
+      personId: person?.id,
+      currentUserId: currentUser?.id
+    });
+
+    // If permission is still loading or null, don't show error - just show limited options
+    if (!permissionLevel) {
+      console.log('⚠️ Permission level not loaded yet');
+      // Will show cancel button below
+    }
+
+    // v4.2 Permission Handling
+    else if (permissionLevel === 'blocked') {
+      console.log('🚫 User is blocked');
       Alert.alert(
         'محظور',
-        'عذراً، لقد تم حظرك من تقديم الاقتراحات. تواصل مع المشرف إذا كنت تعتقد أن هذا خطأ.',
+        'تم حظرك من تقديم الاقتراحات',
         [{ text: 'حسناً' }]
       );
       return;
     }
 
-    if (permissionLevel === 'full' || isAdminMode) {
+    else if (permissionLevel === 'none') {
+      console.log('❌ User has no permission (none)');
+      Alert.alert(
+        'لا توجد صلاحية',
+        'ليس لديك صلة عائلية بهذا الملف الشخصي',
+        [{ text: 'حسناً' }]
+      );
+      return;
+    }
+
+    // Direct edit for: inner circle, admins, moderators
+    else if (permissionLevel === 'inner' || permissionLevel === 'admin' || permissionLevel === 'moderator' || isAdminMode) {
+      console.log('✅ Direct edit permission:', permissionLevel);
       options.push('تعديل الملف');
       actions.push(() => {
-        // Enable editing for both admins and users with full permission
-        setEditedData({
-          name: person.name || "",
-          kunya: person.kunya || "",
-          nickname: person.nickname || "",
-          bio: person.bio || "",
-          birth_place: person.birth_place || "",
-          current_residence: person.current_residence || "",
-          occupation: person.occupation || "",
-          education: person.education || "",
-          phone: person.phone || "",
-          email: person.email || "",
-          // Keep complex fields
-          gender: person.gender,
-          status: person.status,
-          sibling_order: person.sibling_order || 0,
-          social_media_links: person.social_media_links || {},
-          achievements: person.achievements || [],
-          timeline: person.timeline || [],
-          dob_data: person.dob_data,
-          dod_data: person.dod_data,
-          dob_is_public: person.dob_is_public !== false,
-          profile_visibility: person.profile_visibility || "public",
-          father_id: person.father_id,
-          mother_id: person.mother_id,
-          role: person.role,
-        });
-        setOriginalData({
-          name: person.name || "",
-          kunya: person.kunya || "",
-          nickname: person.nickname || "",
-          bio: person.bio || "",
-          birth_place: person.birth_place || "",
-          current_residence: person.current_residence || "",
-          occupation: person.occupation || "",
-          education: person.education || "",
-          phone: person.phone || "",
-          email: person.email || "",
-          // Keep complex fields
-          gender: person.gender,
-          status: person.status,
-          sibling_order: person.sibling_order || 0,
-          social_media_links: person.social_media_links || {},
-          achievements: person.achievements || [],
-          timeline: person.timeline || [],
-          dob_data: person.dob_data,
-          dod_data: person.dod_data,
-          dob_is_public: person.dob_is_public !== false,
-          profile_visibility: person.profile_visibility || "public",
-          father_id: person.father_id,
-          mother_id: person.mother_id,
-          role: person.role,
-        });
+        console.log('📝 Opening ModernProfileEditorV4 for:', person.name);
+        setShowModernEditor(true);
       });
 
       if (isAdminMode) {
@@ -739,17 +786,26 @@ const ProfileSheet = ({ editMode = false }) => {
         options.push('إدارة الزواج');
         actions.push(() => setShowMarriageModal(true));
       }
-    } else if (permissionLevel === 'suggest') {
+    }
+    // Suggest-only for: family circle, extended family
+    else if (permissionLevel === 'family' || permissionLevel === 'extended') {
+      console.log('💡 Suggest-only permission:', permissionLevel);
       options.push('اقتراح تعديل');
       actions.push(() => setShowSuggestionModal(true));
     }
 
-    // Always available options
-    options.push('نسخ المعلومات');
-    actions.push(() => handleCopyName());
+    // Add approval inbox if user owns this profile and has pending suggestions
+    if (person?.user_id === currentUser?.id && pendingSuggestionsCount > 0) {
+      console.log('📬 Adding approval inbox with', pendingSuggestionsCount, 'suggestions');
+      options.push(`صندوق الاقتراحات (${pendingSuggestionsCount})`);
+      actions.push(() => setShowApprovalInbox(true));
+    }
 
+    // Cancel option
     options.push('إلغاء');
     actions.push(() => {});
+
+    console.log('📋 Final menu options:', options);
 
     Alert.alert(
       'خيارات',
@@ -808,30 +864,31 @@ const ProfileSheet = ({ editMode = false }) => {
   if (!person) return null;
 
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      snapPoints={snapPoints}
-      animatedPosition={animatedPosition}
-      onChange={handleSheetChange}
-      onClose={() => {
-        setSelectedPersonId(null);
-        // Reset the shared value properly, don't overwrite it
-        if (profileSheetProgress) {
-          profileSheetProgress.value = 0;
-        }
-        useTreeStore.setState({
-          profileSheetIndex: -1,
-        });
-      }}
-      backdropComponent={renderBackdrop}
-      handleComponent={renderHandle}
-      backgroundStyle={[
-        styles.sheetBackground,
-        isEditing && styles.sheetBackgroundEditing,
-      ]}
-      enablePanDownToClose
-      animateOnMount
-    >
+    <>
+      <BottomSheet
+        ref={bottomSheetRef}
+        snapPoints={snapPoints}
+        animatedPosition={animatedPosition}
+        onChange={handleSheetChange}
+        onClose={() => {
+          setSelectedPersonId(null);
+          // Reset the shared value properly, don't overwrite it
+          if (profileSheetProgress) {
+            profileSheetProgress.value = 0;
+          }
+          useTreeStore.setState({
+            profileSheetIndex: -1,
+          });
+        }}
+        backdropComponent={renderBackdrop}
+        handleComponent={renderHandle}
+        backgroundStyle={[
+          styles.sheetBackground,
+          isEditing && styles.sheetBackgroundEditing,
+        ]}
+        enablePanDownToClose
+        animateOnMount
+      >
       {/* Edit mode header with save/cancel - always at top */}
       {(isAdminMode || editedData) && (
         <Animated.View
@@ -1632,7 +1689,7 @@ const ProfileSheet = ({ editMode = false }) => {
                         ))}
                       </View>
                     ) : (
-                      <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+                      <Text style={styles.emptyText}>لا توجد حالات زواج مسجلة</Text>
                     )}
                   </View>
                 )}
@@ -1844,7 +1901,7 @@ const ProfileSheet = ({ editMode = false }) => {
                   ))}
                 </View>
               ) : (
-                <Text style={styles.emptyText}>لا توجد زيجات مسجلة</Text>
+                <Text style={styles.emptyText}>لا توجد حالات زواج مسجلة</Text>
               )}
             </SectionCard>
           )}
@@ -2192,9 +2249,29 @@ const ProfileSheet = ({ editMode = false }) => {
               refreshData();
             }}
           />
+
+          <ApprovalInbox
+            visible={showApprovalInbox}
+            onClose={() => {
+              setShowApprovalInbox(false);
+              loadPendingSuggestionsCount(); // Refresh count after closing
+            }}
+          />
         </>
       )}
-    </BottomSheet>
+      </BottomSheet>
+
+      {/* Modern Profile Editor V4 - Outside ProfileSheet to avoid nested BottomSheets */}
+      <ModernProfileEditorV4
+        visible={showModernEditor}
+        profile={person}
+        onClose={() => setShowModernEditor(false)}
+        onSave={(updatedProfile) => {
+          setShowModernEditor(false);
+          useTreeStore.getState().updateNode(updatedProfile);
+        }}
+      />
+    </>
   );
 };
 

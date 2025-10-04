@@ -28,6 +28,7 @@ import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
 import notificationService from "../services/notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { featureFlags } from "../config/featureFlags";
 import adminContactService from "../services/adminContact";
 
 // Najdi Sadu Color Palette
@@ -202,7 +203,7 @@ export default function SettingsPageModern({ user }) {
           }
         }
         // If no linked profile, check for pending request
-        else {
+        else if (featureFlags.profileLinkRequests) {
           const { data: requests } = await supabase
             .from("profile_link_requests")
             .select(`
@@ -533,9 +534,9 @@ export default function SettingsPageModern({ user }) {
 
             <View style={styles.profileCard}>
               <View style={styles.profileImageContainer}>
-                {userProfile?.profile_photo_url ? (
+                {userProfile?.photo_url ? (
                   <Image
-                    source={{ uri: userProfile.profile_photo_url }}
+                    source={{ uri: userProfile.photo_url }}
                     style={styles.profileImage}
                   />
                 ) : (
@@ -847,9 +848,6 @@ export default function SettingsPageModern({ user }) {
             style={styles.logo}
           />
           <Text style={styles.appVersion}>الإصدار 2.0.0</Text>
-          <Text style={styles.developerCredit}>
-            بتصميم وبرمجة: محمد عبدالله سليمان القفاري
-          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,9 +1,11 @@
 import React, { useEffect } from "react";
 import ProfileSheet from "./ProfileSheet";
 import ModernProfileEditorV4 from "../screens/ModernProfileEditorV4";
+import ProfileViewer from "./ProfileViewer";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
 import { familyData } from "../data/family-data";
+import { featureFlags } from "../config/featureFlags";
 
 const ProfileSheetWrapper = ({ editMode }) => {
   const { isAdminMode } = useAdminMode();
@@ -28,6 +30,34 @@ const ProfileSheetWrapper = ({ editMode }) => {
       profileSheetProgress.value = 0;
     }
   }, [selectedPersonId, profileSheetProgress]);
+
+  const navigateToProfile = (targetId) => {
+    if (!targetId) return;
+    setSelectedPersonId(targetId);
+  };
+
+  const handleUpdate = (updatedData) => {
+    if (!person?.id || !updatedData) return;
+    useTreeStore.getState().updateNode(person.id, updatedData);
+  };
+
+  const handleClose = () => {
+    if (profileSheetProgress) {
+      profileSheetProgress.value = 0;
+    }
+    setSelectedPersonId(null);
+  };
+
+  if (featureFlags.profileViewer && person) {
+    return (
+      <ProfileViewer
+        person={person}
+        onClose={handleClose}
+        onNavigateToProfile={navigateToProfile}
+        onUpdate={handleUpdate}
+      />
+    );
+  }
 
   // When in admin mode, show the modern editor
   // When not in admin mode, show the regular ProfileSheet

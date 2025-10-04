@@ -372,7 +372,7 @@ class ExportService {
       includeMarriages && profile.marriages && profile.marriages.length > 0
         ? `
         <div class="marriages">
-          <strong>الزيجات:</strong>
+          <strong>حالات الزواج:</strong>
           ${profile.marriages
             .map(
               (m) => `
@@ -486,7 +486,7 @@ class ExportService {
     }
 
     if (includeMarriages) {
-      headers.push("عدد الزيجات", "أسماء الأزواج");
+      headers.push("عدد حالات الزواج", "أسماء الأزواج والزوجات");
     }
 
     // Create parent lookup map

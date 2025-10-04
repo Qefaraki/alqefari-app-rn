@@ -13,6 +13,7 @@ import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getProfileDisplayName } from "../utils/nameChainBuilder";
+import { featureFlags } from "../config/featureFlags";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -27,6 +28,10 @@ const colors = {
 };
 
 const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
+  if (!featureFlags.profileLinkRequests) {
+    return null;
+  }
+
   const [linkRequest, setLinkRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

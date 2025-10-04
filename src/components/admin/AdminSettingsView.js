@@ -14,7 +14,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import adminContactService from '../../services/adminContact';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 
 // Najdi Sadu Color Palette
@@ -30,13 +29,9 @@ const colors = {
   whatsapp: "#25D366",
 };
 
-const DEFAULT_MESSAGE_KEY = 'admin_default_message';
-const DEFAULT_MESSAGE = 'السلام عليكم';
-
 const AdminSettingsView = ({ onClose }) => {
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [displayNumber, setDisplayNumber] = useState('');
-  const [defaultMessage, setDefaultMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -52,10 +47,6 @@ const AdminSettingsView = ({ onClose }) => {
       const display = await adminContactService.getDisplayNumber();
       setWhatsappNumber(number);
       setDisplayNumber(display);
-
-      // Load default message
-      const savedMessage = await AsyncStorage.getItem(DEFAULT_MESSAGE_KEY);
-      setDefaultMessage(savedMessage || DEFAULT_MESSAGE);
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
@@ -82,32 +73,6 @@ const AdminSettingsView = ({ onClose }) => {
       Alert.alert('خطأ', result.error || 'فشل حفظ رقم الواتساب');
     }
     setSaving(false);
-  };
-
-  const handleSaveMessage = async () => {
-    if (!defaultMessage || defaultMessage.trim() === '') {
-      Alert.alert('خطأ', 'يرجى إدخال الرسالة الافتراضية');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await AsyncStorage.setItem(DEFAULT_MESSAGE_KEY, defaultMessage.trim());
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('نجح', 'تم حفظ الرسالة الافتراضية بنجاح');
-    } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('خطأ', 'فشل حفظ الرسالة الافتراضية');
-    }
-    setSaving(false);
-  };
-
-  const handleTestWhatsApp = async () => {
-    const message = defaultMessage || DEFAULT_MESSAGE;
-    const result = await adminContactService.openAdminWhatsApp(message);
-    if (!result.success) {
-      Alert.alert('خطأ', 'فشل فتح الواتساب');
-    }
   };
 
   const handleFeedback = () => {
@@ -193,62 +158,11 @@ const AdminSettingsView = ({ onClose }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Default Message Section */}
-          <View style={styles.settingsCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="chatbox-ellipses" size={24} color={colors.secondary} />
-              <Text style={styles.sectionTitle}>الرسالة الافتراضية</Text>
-            </View>
-
-            <Text style={styles.fieldLabel}>نص الرسالة</Text>
-            <TextInput
-              style={[styles.input, styles.messageInput]}
-              value={defaultMessage}
-              onChangeText={setDefaultMessage}
-              placeholder="السلام عليكم"
-              placeholderTextColor={colors.muted}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-            <Text style={styles.helpText}>
-              هذه الرسالة ستظهر تلقائياً عند فتح المحادثة
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.primaryButton, saving && styles.buttonDisabled]}
-              onPress={handleSaveMessage}
-              disabled={saving}
-              activeOpacity={0.8}
-            >
-              {saving ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryButtonText}>حفظ الرسالة</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Test Button */}
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={handleTestWhatsApp}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="open-outline" size={20} color={colors.whatsapp} style={{ marginRight: 8 }} />
-              <Text style={styles.testButtonText}>اختبار الإعدادات</Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Info Section */}
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color={colors.muted} style={{ marginRight: 10 }} />
             <Text style={styles.infoText}>
-              سيتم استخدام هذا الرقم والرسالة في جميع أنحاء التطبيق عند التواصل مع الإدارة
+              سيتم استخدام هذا الرقم في جميع أنحاء التطبيق عند التواصل مع الإدارة. لإدارة رسائل الواتساب، استخدم "قوالب الرسائل" من لوحة التحكم.
             </Text>
           </View>
         </ScrollView>

@@ -1,5 +1,6 @@
 // Design tokens for neo-native (non-glass) UI
 // Neutral surfaces, soft elevation, crisp dividers, Arabic-first
+// Aligned with iOS Human Interface Guidelines
 
 const tokens = {
   colors: {
@@ -22,18 +23,39 @@ const tokens = {
       focus: '#957EB5',
     },
   },
+  // iOS-standard typography scale
+  typography: {
+    largeTitle: { fontSize: 34, fontWeight: '700', lineHeight: 41 },
+    title1: { fontSize: 28, fontWeight: '700', lineHeight: 34 },
+    title2: { fontSize: 22, fontWeight: '700', lineHeight: 28 },
+    title3: { fontSize: 20, fontWeight: '600', lineHeight: 25 },
+    headline: { fontSize: 17, fontWeight: '600', lineHeight: 22 },
+    body: { fontSize: 17, fontWeight: '400', lineHeight: 22 },
+    callout: { fontSize: 16, fontWeight: '400', lineHeight: 21 },
+    subheadline: { fontSize: 15, fontWeight: '400', lineHeight: 20 },
+    footnote: { fontSize: 13, fontWeight: '400', lineHeight: 18 },
+    caption1: { fontSize: 12, fontWeight: '400', lineHeight: 16 },
+    caption2: { fontSize: 11, fontWeight: '400', lineHeight: 13 },
+  },
   radii: {
+    sm: 10,
+    md: 12,
+    lg: 16,
+    xl: 20,
+  },
+  // iOS-standard spacing scale (8px grid)
+  spacing: {
+    xxs: 4,
+    xs: 8,
     sm: 12,
     md: 16,
     lg: 20,
     xl: 24,
+    xxl: 32,
   },
-  spacing: {
-    xs: 6,
-    sm: 10,
-    md: 14,
-    lg: 18,
-    xl: 24,
+  // iOS minimum touch target
+  touchTarget: {
+    minimum: 44,
   },
   shadow: {
     ios: {

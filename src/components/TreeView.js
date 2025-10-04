@@ -36,6 +36,9 @@ import {
   Path,
   Paint,
   ColorMatrix,
+  Blur,
+  Shadow,
+  CornerPathEffect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -45,6 +48,7 @@ import Animated, {
   withDecay,
   withTiming,
   withSequence,
+  withDelay,
   Easing,
   runOnJS,
   clamp,
@@ -62,7 +66,6 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/AuthContextSimple";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
-import AdminToggleButton from "./AdminToggleButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -75,8 +78,13 @@ import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
-import LottieGlow from "./LottieGlow";
 import NetworkErrorView from "./NetworkErrorView";
+import {
+  clampStageToBounds,
+  createDecayModifier,
+  applyRubberBand,
+  DEFAULT_BOUNDS,
+} from "../utils/cameraConstraints";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -87,6 +95,29 @@ const PHOTO_SIZE = 60;
 const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
+
+// Helper function to convert hex color to rgba with opacity
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Ancestry path color palette - high-contrast 10-color cycle
+// Spans warm to cool spectrum for clear generational distinction
+const ANCESTRY_COLORS = [
+  '#C73E3E', // Bright crimson
+  '#E38740', // Vivid orange
+  '#F5C555', // Warm gold
+  '#9FB885', // Sage green (cool contrast)
+  '#6A9AA6', // Teal (cool)
+  '#8E7AB8', // Purple (brand focus family)
+  '#B56B8A', // Mauve (cool-warm transition)
+  '#C75A5A', // Rose
+  '#D58C4A', // Desert Ochre (brand)
+  '#A95252', // Deep terracotta (back to crimson)
+];
 
 // LOD Constants
 const SCALE_QUANTUM = 0.05; // 5% quantization steps
@@ -449,6 +480,7 @@ const TreeView = ({
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
+  const setTreeBoundsStore = useTreeStore((s) => s.setTreeBounds);
   const { settings } = useSettings();
   const { isPreloadingTree } = useAuth();
 
@@ -510,6 +542,12 @@ const TreeView = ({
   const [highlightedNodeIdState, setHighlightedNodeIdState] = useState(null);
   const [glowOpacityState, setGlowOpacityState] = useState(0);
   const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
+  const nodeFramesRef = useRef(new Map());
+  const highlightTimerRef = useRef(null);
+
+  // Ancestry path highlighting state
+  const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
+  const pathOpacity = useSharedValue(0);
 
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
@@ -631,13 +669,46 @@ const TreeView = ({
     }
   }, [networkError, onNetworkStatusChange]);
 
+  useEffect(() => {
+    viewportShared.value = {
+      width: Math.max(dimensions.width || 1, 1),
+      height: Math.max(dimensions.height || 1, 1),
+    };
+  }, [dimensions.width, dimensions.height]);
+
+  useEffect(() => {
+    boundsShared.value = treeBounds || DEFAULT_BOUNDS;
+  }, [treeBounds]);
+
+  useEffect(() => {
+    minZoomShared.value = minZoom;
+  }, [minZoom]);
+
+  useEffect(() => {
+    maxZoomShared.value = maxZoom;
+  }, [maxZoom]);
+
   // Create ref to hold current values for gestures
-  const gestureStateRef = useRef({
-    transform: { x: 0, y: 0, scale: 1 },
-    tier: 1,
-    indices: null,
-    visibleNodes: [],
-  });
+const gestureStateRef = useRef({
+  transform: { x: 0, y: 0, scale: 1 },
+  tier: 1,
+  indices: null,
+  visibleNodes: [],
+});
+
+// Debug logging for camera movements
+const debugCamera = useCallback((label, payload) => {
+  if (!__DEV__) return;
+  console.log(`[Camera] ${label}`, payload);
+}, []);
+
+const viewportShared = useSharedValue({
+  width: Math.max(dimensions.width || 1, 1),
+  height: Math.max(dimensions.height || 1, 1),
+});
+const boundsShared = useSharedValue(treeBounds || DEFAULT_BOUNDS);
+const minZoomShared = useSharedValue(minZoom);
+const maxZoomShared = useSharedValue(maxZoom);
 
   // Load SF Arabic asset font and register with Paragraph font collection
   useEffect(() => {
@@ -1128,6 +1199,10 @@ const TreeView = ({
     };
   }, [nodes]);
 
+  useEffect(() => {
+    setTreeBoundsStore(treeBounds);
+  }, [treeBounds, setTreeBoundsStore]);
+
   // Visible bounds for culling
   const [visibleBounds, setVisibleBounds] = useState({
     minX: -VIEWPORT_MARGIN,
@@ -1343,7 +1418,7 @@ const TreeView = ({
     return result;
   }, [connections, visibleBounds]);
 
-  // Initialize position on first load
+  // Initialize position on first load - smart positioning based on user
   useEffect(() => {
     if (
       nodes.length > 0 &&
@@ -1351,18 +1426,41 @@ const TreeView = ({
       stage.y === 0 &&
       stage.scale === 1
     ) {
-      const offsetX =
-        dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
-      const offsetY = 80;
+      // Determine target node (matches NavigateToRootButton logic)
+      let targetNode = null;
+      const focusPersonId = linkedProfileId || profile?.id;
 
+      if (focusPersonId) {
+        // Try to find user's linked profile
+        targetNode = nodes.find((n) => n.id === focusPersonId);
+      }
+
+      if (!targetNode) {
+        // Always fallback to root node
+        targetNode = nodes.find((n) => !n.father_id);
+      }
+
+      if (!targetNode && nodes.length > 0) {
+        // Ultimate fallback: first node in array (should never happen)
+        targetNode = nodes[0];
+      }
+
+      // At this point targetNode is guaranteed to exist
+      const isRoot = !targetNode.father_id;
+      const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
+      const targetScale = 1.0;
+      const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
+      const offsetY = dimensions.height / 2 - adjustedY * targetScale;
+
+      // INSTANT placement - NO animation
       translateX.value = offsetX;
       translateY.value = offsetY;
       savedTranslateX.value = offsetX;
       savedTranslateY.value = offsetY;
 
-      setStage({ x: offsetX, y: offsetY, scale: 1 });
+      setStage({ x: offsetX, y: offsetY, scale: targetScale });
     }
-  }, [nodes, dimensions, treeBounds]);
+  }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
 
   // Navigate to a specific node with animation
   const navigateToNode = useCallback(
@@ -1432,7 +1530,19 @@ const TreeView = ({
       savedTranslateY.value = targetY;
       savedScale.value = targetScale;
 
-      // Start highlight animation immediately (will reach full brightness as navigation completes)
+      // Determine if we need to delay the glow until after navigation settles
+      const distanceMoved = Math.hypot(
+        targetX - translateX.value,
+        targetY - translateY.value,
+      );
+      const scaleDelta = Math.abs(targetScale - currentScale);
+
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+
+      // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
     [nodes, dimensions, translateX, translateY, scale],
@@ -1446,28 +1556,104 @@ const TreeView = ({
     // Set the highlighted node
     highlightedNodeId.value = nodeId;
 
-    // Elegant animation: quick burst, gentle hold, smooth fade
-    glowOpacity.value = withSequence(
-      // Quick initial flash
-      withTiming(1, { duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
-      // Brief peak hold
-      withTiming(0.95, { duration: 200, easing: Easing.linear }),
-      // Gentle pulse at peak
-      withTiming(1, { duration: 400, easing: Easing.inOut(Easing.ease) }),
-      // Hold at high intensity
-      withTiming(0.9, { duration: 600, easing: Easing.linear }),
-      // Smooth fade out
-      withTiming(0, { duration: 800, easing: Easing.bezier(0.6, 0, 0.8, 1) }),
-    );
+    // Immediately hide any existing glow
+    glowOpacity.value = 0;
 
-    // Clear highlight after animation completes
-    setTimeout(() => {
-      highlightedNodeId.value = null;
-    }, 2500);
+    // Fade in and hold (matches path behavior - stays visible until X clicked)
+    glowOpacity.value = withDelay(
+      350, // Match camera flight delay
+      withTiming(0.55, {
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+      })
+    );
 
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Calculate ancestry path from node to root
+  const calculateAncestryPath = useCallback((nodeId) => {
+    const { nodesMap } = useTreeStore.getState();
+    const path = [];
+    const visited = new Set();
+    let current = nodeId;
+    let depth = 0;
+
+    while (current && depth < 50) { // Max 50 generations failsafe
+      // Check for circular references
+      if (visited.has(current)) {
+        console.error(`Circular reference detected at node ${current}`);
+        break;
+      }
+      visited.add(current);
+      path.push(current);
+
+      // Get parent node
+      const node = nodesMap.get(current);
+      if (!node) {
+        console.warn(`Node ${current} not found in nodesMap`);
+        break;
+      }
+
+      // Check if reached root
+      if (!node.father_id) {
+        // Reached root (or orphaned node)
+        break;
+      }
+
+      current = node.father_id;
+      depth++;
+    }
+
+    if (depth >= 50) {
+      console.warn('Ancestry path exceeded max depth of 50 generations');
+    }
+
+    return path;
+  }, []);
+
+  // Clear ancestry path highlight
+  const clearPathHighlight = useCallback(() => {
+    // Animate out
+    pathOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+
+    // Clear state after animation
+    setTimeout(() => {
+      setHighlightedPathNodeIds(null);
+    }, 300);
+  }, [pathOpacity]);
+
+  // Clear all highlights (glow + path) - called when X button clicked
+  const clearAllHighlights = useCallback(() => {
+    // Clear glow
+    glowOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+    highlightedNodeId.value = null;
+
+    // Clear path
+    pathOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+    setTimeout(() => {
+      setHighlightedPathNodeIds(null);
+    }, 300);
+  }, [glowOpacity, pathOpacity, highlightedNodeId]);
 
   // Handle highlight from navigation params
   useEffect(() => {
@@ -1489,7 +1675,33 @@ const TreeView = ({
 
       if (nodeExists) {
         console.log("Node found in tree, navigating");
+
+        // Cancel existing animations first
+        cancelAnimation(glowOpacity);
+        cancelAnimation(pathOpacity);
+
+        // Navigate to node (includes camera flight + glow)
         navigateToNode(result.id);
+
+        // Calculate and highlight ancestry path
+        const path = calculateAncestryPath(result.id);
+
+        if (path.length > 1) {
+          setHighlightedPathNodeIds(path);
+
+          // Animate path in (after camera settles + glow appears)
+          pathOpacity.value = withDelay(
+            600, // After camera flight completes
+            withTiming(0.52, { // 20% reduction for even softer appearance
+              duration: 400,
+              easing: Easing.out(Easing.ease)
+            })
+          );
+
+          console.log(`Highlighted ${path.length}-node ancestry path`);
+        } else {
+          console.log('Node has no ancestry path (root node or single node)');
+        }
       } else {
         console.log("Node not in current tree view");
         Alert.alert(
@@ -1499,7 +1711,7 @@ const TreeView = ({
         );
       }
     },
-    [navigateToNode, nodes],
+    [navigateToNode, nodes, calculateAncestryPath, glowOpacity, pathOpacity],
   );
 
   // Pan gesture with momentum
@@ -1521,8 +1733,39 @@ const TreeView = ({
       if (isPinching.value) {
         return;
       }
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
+
+      // Calculate proposed position
+      const proposedX = savedTranslateX.value + e.translationX;
+      const proposedY = savedTranslateY.value + e.translationY;
+
+      // Get valid bounds for current scale/viewport
+      const clamped = clampStageToBounds(
+        { x: proposedX, y: proposedY, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      const ranges = clamped.ranges;
+
+      // Apply iOS-style rubber-band resistance when panning outside bounds
+      // This prevents extreme positions while maintaining natural feel
+      translateX.value = applyRubberBand(
+        proposedX,
+        ranges.x[0],  // min translation
+        ranges.x[1],  // max translation
+        0.55,         // tension (resistance strength)
+        200           // softZone (distance before full resistance)
+      );
+
+      translateY.value = applyRubberBand(
+        proposedY,
+        ranges.y[0],
+        ranges.y[1],
+        0.55,
+        200
+      );
     })
     .onEnd((e) => {
       "worklet";
@@ -1531,16 +1774,64 @@ const TreeView = ({
         return;
       }
 
-      translateX.value = withDecay({
-        velocity: e.velocityX,
-        deceleration: 0.995,
-      });
-      translateY.value = withDecay({
-        velocity: e.velocityY,
-        deceleration: 0.995,
-      });
+      // Check if we're outside valid bounds
+      const clamped = clampStageToBounds(
+        { x: translateX.value, y: translateY.value, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
 
-      // Save current values (before decay animation modifies them)
+      const isOutsideX = Math.abs(translateX.value - clamped.stage.x) > 1;
+      const isOutsideY = Math.abs(translateY.value - clamped.stage.y) > 1;
+      const isOutside = isOutsideX || isOutsideY;
+
+      // If outside bounds, spring back smoothly (no jarring snap)
+      // This should be rare now with rubber-band resistance in onUpdate
+      if (isOutside) {
+        translateX.value = withSpring(clamped.stage.x, {
+          damping: 20,
+          stiffness: 150,
+          mass: 1,
+        });
+        translateY.value = withSpring(clamped.stage.y, {
+          damping: 20,
+          stiffness: 150,
+          mass: 1,
+        });
+
+        // Update saved values
+        savedTranslateX.value = clamped.stage.x;
+        savedTranslateY.value = clamped.stage.y;
+        return; // Don't apply momentum when springing back
+      }
+
+      // Apply momentum with rubber-band modifier for smooth deceleration
+      const decayMod = createDecayModifier(
+        viewportShared.value,
+        boundsShared.value,
+        scale.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      translateX.value = withDecay(
+        {
+          velocity: e.velocityX,
+          deceleration: 0.995,
+        },
+        (value) => decayMod(value, 'x')
+      );
+      translateY.value = withDecay(
+        {
+          velocity: e.velocityY,
+          deceleration: 0.995,
+        },
+        (value) => decayMod(value, 'y')
+      );
+
+      // Save current values
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     });
@@ -1595,6 +1886,31 @@ const TreeView = ({
     })
     .onEnd(() => {
       "worklet";
+
+      // Check if we need to clamp back into bounds
+      const clamped = clampStageToBounds(
+        { x: translateX.value, y: translateY.value, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      // If we're significantly outside bounds, spring back gently
+      const deltaX = Math.abs(clamped.stage.x - translateX.value);
+      const deltaY = Math.abs(clamped.stage.y - translateY.value);
+
+      if (deltaX > 10 || deltaY > 10) {
+        translateX.value = withSpring(clamped.stage.x, {
+          damping: 20,
+          stiffness: 90,
+        });
+        translateY.value = withSpring(clamped.stage.y, {
+          damping: 20,
+          stiffness: 90,
+        });
+      }
+
       // Save final values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
@@ -1696,7 +2012,10 @@ const TreeView = ({
     .maxDistance(10)
     .runOnJS(true)
     .onStart((e) => {
-      if (!isAdminMode) return;
+      // Check user role instead of mode - QuickAdd is now permission-based
+      if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
+        return;
+      }
 
       const state = gestureStateRef.current;
 
@@ -1901,7 +2220,37 @@ const TreeView = ({
   const composed = Gesture.Simultaneous(
     panGesture,
     pinchGesture,
-    isAdminMode ? Gesture.Exclusive(longPressGesture, tapGesture) : tapGesture,
+    // Long press always enabled - permission check is inside the gesture
+    Gesture.Exclusive(longPressGesture, tapGesture),
+  );
+
+  // Safe camera logging - doesn't trigger React re-renders during gestures
+  const logCameraState = React.useCallback((state) => {
+    console.log('[Camera]', state);
+  }, []);
+
+  useAnimatedReaction(
+    () => ({
+      x: translateX.value,
+      y: translateY.value,
+      scale: scale.value,
+    }),
+    (current, previous) => {
+      'worklet';
+      // Only log meaningful changes to avoid spam
+      if (previous && (
+        Math.abs(current.x - previous.x) > 5 ||
+        Math.abs(current.y - previous.y) > 5 ||
+        Math.abs(current.scale - previous.scale) > 0.01
+      )) {
+        runOnJS(logCameraState)({
+          x: Math.round(current.x),
+          y: Math.round(current.y),
+          scale: current.scale.toFixed(3),
+        });
+      }
+    },
+    []
   );
 
   // Render connection lines with proper elbow style
@@ -2081,6 +2430,129 @@ const TreeView = ({
     [nodes],
   );
 
+  // Render highlighted ancestry path
+  const renderHighlightedPath = useCallback(() => {
+    if (!highlightedPathNodeIds || highlightedPathNodeIds.length < 2) {
+      return null;
+    }
+
+    // Create Set for O(1) membership lookups
+    const pathSet = new Set(highlightedPathNodeIds);
+
+    // Group segments by depth difference (generation gap) for color gradation
+    const segmentsByDepth = new Map(); // depth -> Path object
+    let totalSegments = 0;
+
+    // Loop through existing connections and draw routing for path segments
+    for (const conn of connections) {
+      // Skip if parent not in path
+      if (!pathSet.has(conn.parent.id)) continue;
+
+      // Find which child in this connection is part of the path
+      const pathChild = conn.children.find(c => pathSet.has(c.id));
+      if (!pathChild) continue;
+
+      const parent = nodes.find(n => n.id === conn.parent.id);
+      const child = nodes.find(n => n.id === pathChild.id);
+      if (!parent || !child) continue;
+
+      // Calculate depth difference for color selection
+      const depthDiff = Math.abs(child.depth - parent.depth);
+
+      // Get or create path for this depth level
+      if (!segmentsByDepth.has(depthDiff)) {
+        segmentsByDepth.set(depthDiff, Skia.Path.Make());
+      }
+      const pathObj = segmentsByDepth.get(depthDiff);
+
+      // Reuse EXACT same busY calculation as regular edges
+      const childYs = conn.children.map(c => c.y);
+      const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
+
+      const parentHeight = parent.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+      const childHeight = child.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
+
+      // Draw 3-segment routing matching regular edges exactly:
+      // 1. Parent down to bus
+      pathObj.moveTo(parent.x, parent.y + parentHeight / 2);
+      pathObj.lineTo(parent.x, busY);
+
+      // 2. Horizontal along bus (if parent and child x differ)
+      if (Math.abs(parent.x - child.x) > 1) {
+        pathObj.lineTo(child.x, busY);
+      }
+
+      // 3. Bus up to child
+      pathObj.lineTo(child.x, child.y - childHeight / 2);
+
+      totalSegments++;
+    }
+
+    if (totalSegments === 0) {
+      console.warn('No valid path segments to render');
+      return null;
+    }
+
+    // Render each depth level with 4-layer glow system (matches search highlight)
+    return Array.from(segmentsByDepth.entries()).flatMap(([depthDiff, pathObj]) => {
+      const colorIndex = depthDiff % ANCESTRY_COLORS.length;
+      const baseColor = ANCESTRY_COLORS[colorIndex];
+
+      return [
+        // Layer 4: Outer glow - soft halo (largest blur)
+        <Group key={`path-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.18)}
+            style="stroke"
+            strokeWidth={8}
+            opacity={pathOpacity}
+          >
+            <CornerPathEffect r={4} />
+          </Path>
+        </Group>,
+
+        // Layer 3: Middle glow - medium blur
+        <Group key={`path-${depthDiff}-middle`} layer={<Paint><Blur blur={10} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.24)}
+            style="stroke"
+            strokeWidth={5.5}
+            opacity={pathOpacity}
+          >
+            <CornerPathEffect r={4} />
+          </Path>
+        </Group>,
+
+        // Layer 2: Inner accent - subtle blur
+        <Group key={`path-${depthDiff}-inner`} layer={<Paint><Blur blur={5} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.32)}
+            style="stroke"
+            strokeWidth={4}
+            opacity={pathOpacity}
+          >
+            <CornerPathEffect r={4} />
+          </Path>
+        </Group>,
+
+        // Layer 1: Crisp core - no blur, full color
+        <Path
+          key={`path-${depthDiff}-core`}
+          path={pathObj}
+          color={baseColor}
+          style="stroke"
+          strokeWidth={2.5}
+          opacity={pathOpacity}
+        >
+          <CornerPathEffect r={4} />
+        </Path>,
+      ];
+    });
+  }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
+
   // Render T3 aggregation chips (only 3 chips for hero branches)
   const renderTier3 = useCallback(
     (heroNodes, indices, scale, translateX, translateY) => {
@@ -2151,6 +2623,15 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
+
+      // Capture the world-space frame for the highlight overlay
+      nodeFramesRef.current.set(node.id, {
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeHeight,
+        borderRadius: 13,
+      });
 
       return (
         <Group key={node.id}>
@@ -2232,12 +2713,20 @@ const TreeView = ({
       const x = node.x - nodeWidth / 2;
       const y = node.y - nodeHeight / 2;
 
-      const isHighlighted = highlightedNodeIdState === node.id;
+      const isT1 = indices?.heroNodes?.some((hero) => hero.id === node.id) || false;
+      const isT2 = indices?.searchTiers?.[node.id] === 2;
+
+      nodeFramesRef.current.set(node.id, {
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeHeight,
+        borderRadius: isRoot ? 20 : isT1 ? 16 : isT2 ? 13 : CORNER_RADIUS,
+      });
 
       return (
         <Group key={node.id}>
-          {/* Removed broken Skia glow - will use Moti overlay instead */}
-          {/* Shadow */}
+          {/* Soft shadow */}
           <RoundedRect
             x={x + 1}
             y={y + 1}
@@ -2442,7 +2931,7 @@ const TreeView = ({
 
       return nodeContent;
     },
-    [selectedPersonId, highlightedNodeIdState, glowOpacityState],
+    [selectedPersonId, highlightedNodeIdState, glowOpacityState, indices],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
@@ -2850,8 +3339,62 @@ const TreeView = ({
             {/* Render batched edges first */}
             {edgeElements}
 
+            {/* Highlighted ancestry path (above edges, below nodes) */}
+            {renderHighlightedPath()}
+
+            {/* Search highlight glow (rendered behind nodes for visibility) */}
+            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
+              if (!frame) return null;
+
+              return (
+                <Group opacity={glowOpacityState} blendMode="screen">
+                  <RoundedRect
+                    x={frame.x}
+                    y={frame.y}
+                    width={frame.width}
+                    height={frame.height}
+                    r={frame.borderRadius}
+                    color="transparent"
+                  >
+                    {/* Layer 4: Outermost soft glow - crimson */}
+                    <Shadow dx={0} dy={0} blur={40} color="rgba(199, 62, 62, 0.25)" />
+
+                    {/* Layer 3: Large warm halo - vivid orange */}
+                    <Shadow dx={0} dy={0} blur={30} color="rgba(227, 135, 64, 0.3)" />
+
+                    {/* Layer 2: Medium glow - crimson */}
+                    <Shadow dx={0} dy={0} blur={20} color="rgba(199, 62, 62, 0.35)" />
+
+                    {/* Layer 1: Inner warm accent - vivid orange */}
+                    <Shadow dx={0} dy={0} blur={10} color="rgba(227, 135, 64, 0.4)" />
+                  </RoundedRect>
+                </Group>
+              );
+            })()}
+
             {/* Render visible nodes */}
             {culledNodes.map(renderNodeWithTier)}
+
+            {/* Crisp golden border on top of highlighted node */}
+            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
+              if (!frame) return null;
+
+              return (
+                <RoundedRect
+                  x={frame.x}
+                  y={frame.y}
+                  width={frame.width}
+                  height={frame.height}
+                  r={frame.borderRadius}
+                  color="#E5A855"
+                  style="stroke"
+                  strokeWidth={2}
+                  opacity={glowOpacityState}
+                />
+              );
+            })()}
 
             {/* Pass 3: Invisible bridge lines intersecting viewport */}
             {bridgeSegments.map((seg) => (
@@ -2869,62 +3412,10 @@ const TreeView = ({
         </GestureDetector>
       </RNAnimated.View>
 
-      {/* Lottie Glow Effect Overlay */}
-      {highlightedNodeIdState &&
-        glowOpacityState > 0 &&
-        (() => {
-          const highlightedNode = nodes.find(
-            (n) => n.id === highlightedNodeIdState,
-          );
-          if (!highlightedNode) return null;
-
-          // Determine node tier and get appropriate border radius
-          const isT1 = indices?.heroNodes?.some(
-            (hero) => hero.id === highlightedNode.id,
-          );
-          const isT2 = indices?.searchTiers?.[highlightedNode.id] === 2;
-
-          let borderRadius;
-          if (isT1) {
-            borderRadius = 16; // T1 hero nodes
-          } else if (isT2) {
-            borderRadius = 13; // T2 text-only nodes
-          } else {
-            borderRadius = CORNER_RADIUS; // Regular nodes (8)
-          }
-
-          // Get actual node dimensions based on whether it has a photo
-          const nodeWidth = highlightedNode.profile_photo_url
-            ? NODE_WIDTH_WITH_PHOTO
-            : NODE_WIDTH_TEXT_ONLY;
-          const nodeHeight = highlightedNode.profile_photo_url
-            ? NODE_HEIGHT_WITH_PHOTO
-            : NODE_HEIGHT_TEXT_ONLY;
-
-          // Use current transform state instead of accessing shared values directly
-          const screenX =
-            highlightedNode.x * currentTransform.scale + currentTransform.x;
-          const screenY =
-            highlightedNode.y * currentTransform.scale + currentTransform.y;
-
-          return (
-            <LottieGlow
-              key={`glow-${glowTrigger}`} // Force re-mount on same node
-              visible={true}
-              x={screenX}
-              y={screenY}
-              width={nodeWidth * currentTransform.scale}
-              height={nodeHeight * currentTransform.scale}
-              borderRadius={borderRadius * currentTransform.scale}
-              onAnimationFinish={() => {
-                // Clear highlight after fade-out completes
-                setHighlightedNodeIdState(null);
-                setGlowOpacityState(0);
-              }}
-            />
-          );
-        })()}
-      <SearchBar onSelectResult={handleSearchResultSelect} />
+      <SearchBar
+        onSelectResult={handleSearchResultSelect}
+        onClearHighlight={clearAllHighlights}
+      />
 
       <NavigateToRootButton
         nodes={nodes}
@@ -2937,8 +3428,6 @@ const TreeView = ({
         focusPersonId={linkedProfileId || profile?.id}
       />
 
-      {/* Admin Toggle Button - Only for admins */}
-      {isAdmin && user && !user.is_anonymous ? <AdminToggleButton user={user} /> : null}
 
 
       {/* Admin components */}

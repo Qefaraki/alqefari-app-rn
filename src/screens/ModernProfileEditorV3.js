@@ -597,7 +597,7 @@ const ModernProfileEditorV3 = ({ visible, profile, onClose, onSave }) => {
               ))
             ) : (
               <Text style={styles.emptyText}>
-                لا توجد زيجات مسجلة
+                لا توجد حالات زواج مسجلة
               </Text>
             )}
           </View>

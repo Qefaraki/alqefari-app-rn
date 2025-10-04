@@ -22,9 +22,11 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { router } from "expo-router";
 import { Canvas, Circle, Group } from "@shopify/react-native-skia";
 import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../contexts/AuthContextSimple";
+import { useMessageTemplate } from "../../hooks/useMessageTemplate";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -124,6 +126,7 @@ export default function OnboardingScreen({ setIsGuest }) {
   const backgroundStarsFade = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const buttonFade = useRef(new Animated.Value(0)).current;
+  const helpButtonFade = useRef(new Animated.Value(0)).current;
 
   const logoRotate = useRef(new Animated.Value(0)).current;
   const logoScale = useRef(new Animated.Value(0.95)).current;
@@ -200,6 +203,7 @@ export default function OnboardingScreen({ setIsGuest }) {
       backgroundStarsFade.setValue(0);
       contentFade.setValue(0);
       buttonFade.setValue(0);
+      helpButtonFade.setValue(0);
       logoBreath.setValue(1);
       logoRotate.setValue(0);
       primaryButtonScale.setValue(1);
@@ -231,7 +235,12 @@ export default function OnboardingScreen({ setIsGuest }) {
           }),
           Animated.timing(buttonFade, {
             toValue: 1,
-            duration: 200, // Buttons appear very quickly
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(helpButtonFade, {
+            toValue: 1,
+            duration: 250, // Help button appears last but quickly
             useNativeDriver: true,
           }),
         ]).start();
@@ -273,7 +282,7 @@ export default function OnboardingScreen({ setIsGuest }) {
           }).start();
         }, 1000);
 
-        // Stage 4: Buttons fade in last
+        // Stage 4: Buttons fade in
         setTimeout(() => {
           Animated.timing(buttonFade, {
             toValue: 1,
@@ -281,6 +290,15 @@ export default function OnboardingScreen({ setIsGuest }) {
             useNativeDriver: true,
           }).start();
         }, 1800);
+
+        // Stage 5: Help text fades in last (after buttons)
+        setTimeout(() => {
+          Animated.timing(helpButtonFade, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }).start();
+        }, 2300);
       }
 
       // Return cleanup function if needed
@@ -297,6 +315,7 @@ export default function OnboardingScreen({ setIsGuest }) {
       logoRotate,
       primaryButtonScale,
       secondaryButtonScale,
+      helpButtonFade,
     ]),
   );
 
@@ -506,6 +525,11 @@ export default function OnboardingScreen({ setIsGuest }) {
         duration: 200,
         useNativeDriver: true,
       }),
+      Animated.timing(helpButtonFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
     ]).start(() => {
       // Navigate to phone auth screen
       router.push("/(auth)/phone-auth");
@@ -536,6 +560,11 @@ export default function OnboardingScreen({ setIsGuest }) {
         duration: 200,
         useNativeDriver: true,
       }),
+      Animated.timing(helpButtonFade, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
     ]).start(async () => {
       // Transition state machine to guest mode
       await stateMachine.enterGuestMode();
@@ -546,11 +575,41 @@ export default function OnboardingScreen({ setIsGuest }) {
     });
   }, [setIsGuest, secondaryButtonScale, logoFade, contentFade, buttonFade, stateMachine]);
 
+  const { openWhatsApp } = useMessageTemplate();
+
+  const handleHelp = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      await openWhatsApp('onboarding_help');
+    } catch (error) {
+      console.error('Error opening WhatsApp:', error);
+    }
+  }, [openWhatsApp]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       {/* Star backdrop removed - handled at navigator level */}
+
+      {/* Help Button - Top Right */}
+      <Animated.View
+        style={[
+          styles.helpButtonContainer,
+          {
+            opacity: helpButtonFade,
+            top: insets.top + 16,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.helpButton}
+          onPress={handleHelp}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.helpButtonText}>تحتاج مساعدة؟</Text>
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Logo stars with masking - hide during transition */}
       {MaskedView ? (
@@ -817,5 +876,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "400",
     fontFamily: "SF Arabic",
+  },
+  helpButtonContainer: {
+    position: "absolute",
+    left: 20, // Left in RTL means top-right corner for Arabic
+    zIndex: 1000,
+  },
+  helpButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minHeight: 44, // Accessibility touch target
+  },
+  helpButtonText: {
+    color: "rgba(249, 247, 243, 0.4)", // Al-Jass White at 40% opacity (reduced from 65%)
+    fontSize: 14,
+    fontWeight: "400",
+    fontFamily: "SF Arabic",
+    letterSpacing: -0.2,
   },
 });

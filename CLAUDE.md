@@ -76,47 +76,85 @@ A culturally authentic design system inspired by Najdi Sadu weaving traditions, 
 
 ### Typography System
 
+**iOS-Standard Scale** - Use these exact sizes for consistency:
+
 ```javascript
-// Text Hierarchy
-title: {
-  fontSize: 22,
+// iOS Text Styles (from tokens.js)
+largeTitle: {
+  fontSize: 34,
   fontWeight: "700",
+  lineHeight: 41,
   fontFamily: "SF Arabic",
   color: "#242121", // Sadu Night
-  letterSpacing: -0.5,
 }
 
-subtitle: {
-  fontSize: 15,
-  fontWeight: "400",
+title2: {
+  fontSize: 22,
+  fontWeight: "700",
+  lineHeight: 28,
   fontFamily: "SF Arabic",
-  color: "#242121CC", // Sadu Night 80%
-  lineHeight: 22,
+  color: "#242121",
+}
+
+title3: {
+  fontSize: 20,
+  fontWeight: "600",
+  lineHeight: 25,
+  fontFamily: "SF Arabic",
+  color: "#242121",
 }
 
 body: {
-  fontSize: 16,
-  fontWeight: "500",
+  fontSize: 17,
+  fontWeight: "400",
+  lineHeight: 22,
   fontFamily: "SF Arabic",
-  color: "#242121", // Sadu Night
+  color: "#242121",
 }
 
-caption: {
+subheadline: {
+  fontSize: 15,
+  fontWeight: "400",
+  lineHeight: 20,
+  fontFamily: "SF Arabic",
+  color: "#242121CC", // Sadu Night 80%
+}
+
+footnote: {
   fontSize: 13,
-  fontWeight: "500",
+  fontWeight: "400",
+  lineHeight: 18,
   fontFamily: "SF Arabic",
   color: "#24212199", // Sadu Night 60%
 }
+
+caption1: {
+  fontSize: 12,
+  fontWeight: "400",
+  lineHeight: 16,
+  fontFamily: "SF Arabic",
+  color: "#24212199",
+}
 ```
+
+**Valid iOS Font Sizes**: 11, 12, 13, 15, 17, 20, 22, 28, 34
+**Never use**: 14, 16, 18, 19 (non-standard)
 
 ### Spacing System (8px Grid)
 
-- **Extra Small**: 4px
-- **Small**: 8px
+**iOS-Standard Scale** - Use these exact values:
+
+- **XXS**: 4px
+- **XS**: 8px
+- **Small**: 12px
 - **Medium**: 16px
-- **Large**: 24px
-- **Extra Large**: 32px
+- **Large**: 20px
+- **XL**: 24px
+- **XXL**: 32px
+- **Touch Target**: 44px minimum (all interactive elements)
 - **Page Margins**: 16px horizontal
+
+**Never use**: 6px, 10px, 14px, 18px (breaks 8px grid rhythm)
 
 ### Component Patterns
 
@@ -546,256 +584,43 @@ Example:
 - Implement row-level security (RLS)
 - Validate all inputs
 
-## 👥 Permission System & User Roles
+## 👥 Permission System v4.2
 
-### Role Hierarchy
+**📖 Full Documentation**: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTEM_V4.md)
 
-The app implements a sophisticated permission system with four distinct user roles:
+**Status**: ✅ Deployed and operational
 
-1. **Super Admin** (`super_admin`)
-   - Can manage all other users' roles
-   - Can assign/remove branch moderators
-   - Can block users from making suggestions
-   - Has all admin privileges
-   - Only super admins can create other super admins
+### Quick Reference
 
-2. **Admin** (`admin`)
-   - Can edit any profile directly
-   - Can approve/reject edit suggestions
-   - Can block users from suggestions
-   - Can access all admin dashboard features
-   - Cannot change user roles
+The app uses a family-relationship-based permission system with three circles:
 
-3. **Moderator** (`moderator`)
-   - Limited administrative privileges
-   - Can be assigned as branch moderator for specific family branches
+| Permission Level | Edit Rights | Auto-Approve | Example Relationships |
+|-----------------|-------------|--------------|---------------------|
+| `inner` | Direct edit | N/A | Self, spouse, parents, children, siblings, all descendants |
+| `family` | Suggest only | 48 hours | Cousins, aunts/uncles (shared grandparent) |
+| `extended` | Suggest only | Manual | Distant Al Qefari relatives |
+| `admin`/`moderator` | Direct edit | N/A | Admin role or branch moderator |
+| `blocked` | None | Never | Explicitly blocked users |
 
-4. **User** (`user` or `null`)
-   - Default role for all family members
-   - Can edit based on family relationships (see below)
-   - Can suggest edits for any profile
+### Key Function
 
-### Family-Based Edit Permissions
-
-Regular users have automatic edit permissions based on their family relationships:
-
-#### Full Edit Rights (Direct Modification)
-Users can directly edit profiles of:
-- **Themselves** - Own profile
-- **Spouse** - Husband/wife without approval needed
-- **Parents** - Father and mother
-- **Children** - All direct children
-- **All Descendants** - Grandchildren and all descendants
-- **Siblings** - Brothers and sisters
-
-#### Suggestion Only Rights
-For all other relationships, users can only suggest edits that require admin approval:
-- Aunts/Uncles
-- Cousins
-- Nephews/Nieces
-- Extended family members
-- Any non-direct relatives
-
-### Branch Moderator System
-
-Branch moderators are users assigned to manage specific subtrees of the family:
-
-```sql
--- A branch moderator for "محمد's branch" can edit:
--- محمد and all his descendants (children, grandchildren, etc.)
+```javascript
+// Check permission level for a user to edit a profile
+const { data: permission } = await supabase.rpc('check_family_permission_v4', {
+  p_user_id: userProfile.id,   // IMPORTANT: Use profiles.id, NOT auth.users.id
+  p_target_id: targetProfile.id
+});
+// Returns: 'inner', 'family', 'extended', 'admin', 'moderator', 'blocked', or 'none'
 ```
 
-Features:
-- Only super admins can assign branch moderators
-- One user can moderate multiple branches
-- Moderators have full edit rights for their assigned branches
-- Assignment tracked in audit log
+### User Roles
 
-### Edit Suggestion Workflow
+- **super_admin** - Manages roles, assigns moderators
+- **admin** - Reviews suggestions, blocks users
+- **moderator** - Manages assigned family branch
+- **user** - Standard family member (permission based on relationship)
 
-When users don't have direct edit rights, they use the suggestion system:
-
-1. **User Creates Suggestion**
-   - Opens profile they want to edit
-   - Clicks three-dots menu (non-admin mode)
-   - Selects field to change
-   - Enters new value and optional reason
-   - Submits suggestion
-
-2. **Admin Reviews Suggestion**
-   - Admins see pending suggestions in dashboard
-   - Can view old value vs new value
-   - Can see who suggested and why
-   - Can approve or reject with reason
-
-3. **Automatic Application**
-   - Approved suggestions automatically update the profile
-   - All changes logged in audit system
-   - Suggester notified of decision
-
-### Admin Dashboard Features
-
-The admin dashboard shows different options based on role:
-
-#### Quick Actions Section
-- **إضافة ملف جديد** (Add New Profile) - All admins
-- **رسائل المستخدمين** (User Messages) - All admins
-- **مراجعة الاقتراحات** (Review Suggestions) - All admins
-- **إعادة حساب التخطيط** (Recalculate Layout) - All admins
-- **تصدير التقرير** (Export Report) - All admins
-- **سجل التدقيق** (Audit Log) - All admins
-- **إصلاح تلقائي** (Auto Fix) - All admins
-
-#### Administrators Section
-- **إدارة الصلاحيات** (Manage Permissions) - Super admins only
-- Shows as **طلب صلاحية** (Request Permission) for regular admins
-
-### Database Tables
-
-The permission system uses these tables:
-
-1. **profiles** (updated)
-   - `role` column: 'super_admin', 'admin', 'moderator', 'user', or NULL
-   - `can_edit`: BOOLEAN - deprecated, use role-based permissions
-   - `is_moderator`: BOOLEAN - indicates branch moderator status
-   - `moderated_branch`: TEXT - HID of branch they moderate
-
-2. **profile_suggestions**
-   - Stores all edit suggestions from non-admin users
-   - Fields: `id`, `profile_id`, `submitter_id`, `field_name`, `old_value`, `new_value`
-   - `status`: 'pending', 'approved', 'rejected'
-   - `reviewed_by`: Admin who reviewed
-   - `reviewed_at`: Review timestamp
-   - `notes`: Optional review notes
-
-3. **profile_link_requests**
-   - Requests to link unregistered family members
-   - Fields: `id`, `requester_id`, `target_phone`, `target_name`, `relationship_type`
-   - `status`: 'pending', 'approved', 'rejected'
-   - `reviewed_by`, `reviewed_at`, `notes`
-
-4. **audit_log**
-   - Comprehensive audit trail for all changes
-   - Note: `action` field currently only accepts limited values
-   - Does not accept 'ROLE_CHANGE' - constraint needs updating
-
-### Key Functions
-
-#### Deployed Functions (Available Now)
-
-##### Suggestion Management
-```sql
--- Get all pending suggestions (admin/super_admin only)
-get_pending_suggestions()
--- Returns: id, profile_id, profile_name, submitter_name, field_name, old_value, new_value, created_at
-
--- Approve a suggestion and apply changes
-approve_suggestion(p_suggestion_id UUID)
--- Returns: BOOLEAN - success status
-
--- Reject a suggestion with optional notes
-reject_suggestion(p_suggestion_id UUID, p_notes TEXT)
--- Returns: BOOLEAN - success status
-```
-
-##### Link Request Management
-```sql
--- Get all pending link requests (admin/super_admin only)
-get_pending_link_requests()
--- Returns: id, requester_name, target_phone, target_name, relationship_type, created_at
-
--- Approve a link request
-approve_link_request(p_request_id UUID)
--- Returns: BOOLEAN - success status
-
--- Reject a link request with optional notes
-reject_link_request(p_request_id UUID, p_notes TEXT)
--- Returns: BOOLEAN - success status
-```
-
-##### Role Management (Super Admin Only)
-```sql
--- Grant admin role to a user
-grant_admin_role(p_profile_id UUID)
--- Returns: BOOLEAN - success status
-
--- Revoke admin role from a user
-revoke_admin_role(p_profile_id UUID)
--- Returns: BOOLEAN - sets role to 'user'
-
--- Assign a user as branch moderator
-grant_moderator_role(p_profile_id UUID, p_branch_hid TEXT)
--- Returns: BOOLEAN - success status
-
--- Remove branch moderator privileges
-revoke_moderator_role(p_profile_id UUID)
--- Returns: BOOLEAN - success status
-```
-
-##### Search Functions
-```sql
--- Search profiles by name with full ancestry chain
-super_admin_search_by_name_chain(p_search_text TEXT)
--- Returns: Profiles with complete ancestry paths
--- Note: Renamed from 'search_profiles_by_name_chain' to avoid collision
-```
-
-### Setting Up Permissions
-
-1. **Deploy Migrations**
-   ```bash
-   # Migration 005: Family edit permissions system
-   # Creates profile_suggestions and profile_link_requests tables
-   # Adds suggestion workflow functions
-
-   # Migration 006: Super admin permissions
-   # Adds role management functions
-   # Creates super_admin_search_by_name_chain
-
-   # Deploy both migrations together:
-   node scripts/execute-sql.js scripts/deploy-missing-admin-migrations.sql
-   ```
-
-2. **Fix Role Constraints (if needed)**
-   ```sql
-   -- If you get "check_profile_role" constraint error:
-   -- Drop the old constraint that only allows 'admin' and 'user'
-   ALTER TABLE profiles
-   DROP CONSTRAINT IF EXISTS check_profile_role;
-
-   -- The new constraint 'check_valid_role' allows all roles
-   ```
-
-3. **Create First Super Admin**
-   ```sql
-   -- Update a specific user to super_admin by their profile ID
-   UPDATE profiles
-   SET role = 'super_admin',
-       updated_at = NOW()
-   WHERE id = 'your-profile-uuid-here';
-
-   -- Or find by phone number (example for 966501669043)
-   UPDATE profiles
-   SET role = 'super_admin'
-   WHERE id = (
-     SELECT p.id FROM profiles p
-     JOIN auth.users au ON au.id = p.user_id
-     WHERE au.phone = '966501669043'
-   );
-   ```
-
-4. **Manage Through UI**
-   - Super admins access "إدارة الصلاحيات" in admin dashboard
-   - Search users by name chain (ancestry)
-   - Change roles, assign moderators, block users
-   - Review suggestions through "مراجعة الاقتراحات"
-
-### Security Considerations
-
-- **No Self-Demotion**: Super admins cannot demote themselves
-- **Audit Trail**: All permission changes logged
-- **RLS Policies**: Database enforces permissions at row level
-- **Blocked Users**: Cannot make any suggestions
+**See full documentation for**: Database schema, API reference, testing, troubleshooting
 - **Version Control**: All edits tracked with versions for rollback
 
 ### UI Components
@@ -969,6 +794,82 @@ _This design system ensures consistency, cultural appropriateness, and premium f
 - Introduced cached WordPress news service (`src/services/news.ts`) with 24h TTL and background refresh.
 - Created reusable news UI primitives (`FeaturedNewsCarousel`, `NewsCard`, `RecentArticleItem`) that lean on the Najdi palette and subtle Sadu patterns.
 - Added `NewsScreen` with localized Gregorian/Hijri headers, Expo-router tab integration, proactive prefetching/infinite scroll, shimmer loading states, and link-out article viewing.
+
+## 📱 WhatsApp Message Template System (January 2025)
+
+**Full Documentation**: [`/docs/MESSAGE_TEMPLATE_SYSTEM.md`](docs/MESSAGE_TEMPLATE_SYSTEM.md)
+
+A unified, registry-based system for managing all WhatsApp contact messages with dynamic variable replacement.
+
+### Quick Start
+
+**Adding a new template**:
+```typescript
+// 1. Add to MESSAGE_TEMPLATES in templateRegistry.ts
+{
+  id: 'my_template',
+  name: 'اسم القالب',
+  defaultMessage: 'مرحباً {name_chain}، جوالك {phone}',
+  category: 'support',
+  variables: ['name_chain', 'phone'],
+  // ... rest of config
+}
+
+// 2. Use in components
+const { openWhatsApp } = useMessageTemplate();
+await openWhatsApp('my_template', profile);
+```
+
+### Key Features
+
+- **Registry-based**: Single source of truth (`src/services/messageTemplates/templateRegistry.ts`)
+- **Variable replacement**: `{name_chain}`, `{phone}`, `{hid}`, etc. auto-filled from user profile
+- **Admin UI**: Visual interface in Admin Dashboard → "قوالب الرسائل"
+- **Type-safe**: Full TypeScript support with compile-time checks
+- **Easy to extend**: Just add to registry, UI auto-generates
+
+### Architecture
+
+```
+src/
+├── services/messageTemplates/
+│   ├── templateRegistry.ts    # Single source of truth
+│   ├── templateService.ts     # Business logic
+│   ├── variables.ts           # Common variables
+│   └── types.ts               # TypeScript types
+├── hooks/
+│   └── useMessageTemplate.ts  # React hook
+└── components/admin/
+    └── MessageTemplateManager.tsx  # Admin UI
+```
+
+### Important: Name Chain Building
+
+The system relies on `profile.fullNameChain` for proper ancestry display. The **AuthContext automatically builds this** when loading profiles:
+
+```javascript
+// AuthContextSimple.js builds fullNameChain on sign-in
+const { data: allProfiles } = await supabase
+  .from('profiles')
+  .select('id, name, father_id, gender');
+
+const fullChain = buildNameChain(profile, allProfiles);
+profile.fullNameChain = fullChain;  // e.g., "محمد بن علي عبدالله القفاري"
+```
+
+### Current Templates
+
+- **onboarding_help** - Help button on onboarding screen
+- **article_suggestion** - Article viewer suggest button (`src/components/ArticleViewer/components/ArticleActions.tsx:56`)
+- **contact_admin** - General admin contact
+- **profile_link_request** - Profile linking requests
+- **report_issue** - Bug reporting
+
+### Common Issues
+
+**"الاسم غير متوفر"**: Profile missing fullNameChain (AuthContext should build it automatically)
+
+**"رقم الجوال غير متوفر"**: User's phone field is NULL in database
 
 ## 🚀 Multi-Agent Git Workflow
 
