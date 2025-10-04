@@ -6,7 +6,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 import { buildNameChain } from '../../utils/nameChainBuilder';
 import { getTemplateById, getAllTemplates } from './templateRegistry';
 import { supabase } from '../supabase';
@@ -138,15 +137,14 @@ class MessageTemplateService {
       return message;
     }
 
-    // DEBUG: Log what data we received
-    console.log('[TemplateService.replaceVariables] Starting replacement...');
-    console.log('[TemplateService.replaceVariables] Received userData:', {
+    // Debug: Log what data we received
+    console.log('[TemplateService] Received userData:', {
       name: userData?.name,
       phone: userData?.phone,
       father_id: userData?.father_id,
       hid: userData?.hid,
     });
-    console.log('[TemplateService.replaceVariables] Template message:', message);
+    console.log('[TemplateService] Template message:', message);
 
     let processedMessage = message;
 
@@ -244,17 +242,8 @@ class MessageTemplateService {
       processedMessage = processedMessage.replace(/{time}/g, time);
     }
 
-    console.log('[TemplateService.replaceVariables] Variable replacement completed');
-    console.log('[TemplateService.replaceVariables] Final message:', processedMessage);
-
-    // DEBUG: Show exactly what was replaced
-    const replacedVars: string[] = [];
-    if (message.includes('{name_chain}')) replacedVars.push('name_chain');
-    if (message.includes('{first_name}')) replacedVars.push('first_name');
-    if (message.includes('{phone}')) replacedVars.push('phone');
-    if (message.includes('{hid}')) replacedVars.push('hid');
-    console.log('[TemplateService.replaceVariables] Variables replaced:', replacedVars.join(', '));
-
+    console.log('[TemplateService] Variable replacement completed');
+    console.log('[TemplateService] Final message:', processedMessage);
     return processedMessage;
   }
 
@@ -265,15 +254,6 @@ class MessageTemplateService {
     templateId: string,
     userData: any
   ): Promise<string> {
-    // DEBUG: Show what userData was received
-    console.log('[TemplateService.getMessageWithData] Received userData:', {
-      id: userData?.id,
-      name: userData?.name,
-      phone: userData?.phone,
-      father_id: userData?.father_id,
-      hid: userData?.hid,
-    });
-
     const template = await this.getTemplateMessage(templateId);
     const messageWithData = await this.replaceVariables(template, userData);
 

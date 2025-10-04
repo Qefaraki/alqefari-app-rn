@@ -82,6 +82,7 @@ import NetworkErrorView from "./NetworkErrorView";
 import {
   clampStageToBounds,
   createDecayModifier,
+  applyRubberBand,
   DEFAULT_BOUNDS,
 } from "../utils/cameraConstraints";
 
@@ -1732,9 +1733,39 @@ const maxZoomShared = useSharedValue(maxZoom);
       if (isPinching.value) {
         return;
       }
-      // Simple 1:1 movement - natural feel, no resistance
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
+
+      // Calculate proposed position
+      const proposedX = savedTranslateX.value + e.translationX;
+      const proposedY = savedTranslateY.value + e.translationY;
+
+      // Get valid bounds for current scale/viewport
+      const clamped = clampStageToBounds(
+        { x: proposedX, y: proposedY, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      const ranges = clamped.ranges;
+
+      // Apply iOS-style rubber-band resistance when panning outside bounds
+      // This prevents extreme positions while maintaining natural feel
+      translateX.value = applyRubberBand(
+        proposedX,
+        ranges.x[0],  // min translation
+        ranges.x[1],  // max translation
+        0.55,         // tension (resistance strength)
+        200           // softZone (distance before full resistance)
+      );
+
+      translateY.value = applyRubberBand(
+        proposedY,
+        ranges.y[0],
+        ranges.y[1],
+        0.55,
+        200
+      );
     })
     .onEnd((e) => {
       "worklet";
@@ -1743,8 +1774,7 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // CRITICAL: Always clamp to valid position before applying momentum
-      // This prevents cumulative drift from multiple small pans
+      // Check if we're outside valid bounds
       const clamped = clampStageToBounds(
         { x: translateX.value, y: translateY.value, scale: scale.value },
         viewportShared.value,
@@ -1753,19 +1783,31 @@ const maxZoomShared = useSharedValue(maxZoom);
         maxZoomShared.value
       );
 
-      // Check if we're outside bounds
       const isOutsideX = Math.abs(translateX.value - clamped.stage.x) > 1;
       const isOutsideY = Math.abs(translateY.value - clamped.stage.y) > 1;
       const isOutside = isOutsideX || isOutsideY;
 
-      // If outside bounds, snap to clamped position instantly
-      // This ensures we ALWAYS end at a valid position
+      // If outside bounds, spring back smoothly (no jarring snap)
+      // This should be rare now with rubber-band resistance in onUpdate
       if (isOutside) {
-        translateX.value = clamped.stage.x;
-        translateY.value = clamped.stage.y;
+        translateX.value = withSpring(clamped.stage.x, {
+          damping: 20,
+          stiffness: 150,
+          mass: 1,
+        });
+        translateY.value = withSpring(clamped.stage.y, {
+          damping: 20,
+          stiffness: 150,
+          mass: 1,
+        });
+
+        // Update saved values
+        savedTranslateX.value = clamped.stage.x;
+        savedTranslateY.value = clamped.stage.y;
+        return; // Don't apply momentum when springing back
       }
 
-      // Now apply momentum from the valid (clamped) position
+      // Apply momentum with rubber-band modifier for smooth deceleration
       const decayMod = createDecayModifier(
         viewportShared.value,
         boundsShared.value,
@@ -2183,6 +2225,10 @@ const maxZoomShared = useSharedValue(maxZoom);
   );
 
   // Safe camera logging - doesn't trigger React re-renders during gestures
+  const logCameraState = React.useCallback((state) => {
+    console.log('[Camera]', state);
+  }, []);
+
   useAnimatedReaction(
     () => ({
       x: translateX.value,
@@ -2197,7 +2243,7 @@ const maxZoomShared = useSharedValue(maxZoom);
         Math.abs(current.y - previous.y) > 5 ||
         Math.abs(current.scale - previous.scale) > 0.01
       )) {
-        runOnJS(console.log)('[Camera]', {
+        runOnJS(logCameraState)({
           x: Math.round(current.x),
           y: Math.round(current.y),
           scale: current.scale.toFixed(3),

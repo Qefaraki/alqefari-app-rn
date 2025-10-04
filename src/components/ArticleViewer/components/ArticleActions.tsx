@@ -62,19 +62,11 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
         return;
       }
 
-      // DEBUG: Show what profile contains
-      Alert.alert(
-        'DEBUG: ArticleActions Profile',
-        `ID: ${profile?.id || 'NULL'}\nName: ${profile?.name || 'NULL'}\nPhone: ${profile?.phone || 'NULL'}`,
-        [{ text: 'Continue', onPress: async () => {
-          // Hook automatically merges auth phone with profile data
-          const result = await openWhatsApp('article_suggestion', profile);
+      const result = await openWhatsApp('article_suggestion', profile);
 
-          if (!result.success) {
-            Alert.alert('خطأ', 'فشل فتح الواتساب');
-          }
-        }}]
-      );
+      if (!result.success) {
+        Alert.alert('خطأ', 'فشل فتح الواتساب');
+      }
     } catch (error) {
       console.error('Error suggesting article:', error);
       Alert.alert('خطأ', 'حدث خطأ أثناء فتح الواتساب');
