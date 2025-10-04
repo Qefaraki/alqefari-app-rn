@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { NewsArticle } from '../../../services/news';
 import tokens from '../../ui/tokens';
+import { useAuth } from '../../../contexts/AuthContextSimple';
+import { useMessageTemplate } from '../../../hooks/useMessageTemplate';
 
 interface ArticleActionsProps {
   article: NewsArticle;
@@ -30,6 +32,9 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
   onToggleNightMode,
   readingProgress,
 }) => {
+  const { profile } = useAuth();
+  const { openWhatsApp } = useMessageTemplate();
+
   // Share article
   const handleShare = async () => {
     try {
@@ -44,6 +49,35 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
       });
     } catch (error) {
       Alert.alert('خطأ', 'فشل مشاركة المقال');
+    }
+  };
+
+  // Suggest article via WhatsApp
+  const handleSuggestArticle = async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      if (!profile) {
+        Alert.alert('خطأ', 'يجب تسجيل الدخول لاقتراح مقال');
+        return;
+      }
+
+      // DEBUG: Show what profile contains
+      Alert.alert(
+        'DEBUG: ArticleActions Profile',
+        `ID: ${profile?.id || 'NULL'}\nName: ${profile?.name || 'NULL'}\nPhone: ${profile?.phone || 'NULL'}`,
+        [{ text: 'Continue', onPress: async () => {
+          // Hook automatically merges auth phone with profile data
+          const result = await openWhatsApp('article_suggestion', profile);
+
+          if (!result.success) {
+            Alert.alert('خطأ', 'فشل فتح الواتساب');
+          }
+        }}]
+      );
+    } catch (error) {
+      console.error('Error suggesting article:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء فتح الواتساب');
     }
   };
 
@@ -100,6 +134,18 @@ const ArticleActions: React.FC<ArticleActionsProps> = ({
         >
           <Ionicons
             name={isNightMode ? 'sunny' : 'moon'}
+            size={20}
+            color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
+          />
+        </TouchableOpacity>
+
+        {/* Suggest Article */}
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleSuggestArticle}
+        >
+          <Ionicons
+            name="bulb-outline"
             size={20}
             color={isNightMode ? '#FFFFFF' : tokens.colors.najdi.text}
           />

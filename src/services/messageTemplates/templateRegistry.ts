@@ -60,23 +60,14 @@ export const MESSAGE_TEMPLATES: MessageTemplate[] = [
   {
     id: 'article_suggestion',
     name: 'رسالة اقتراح المقالات',
-    description: 'تظهر عند اقتراح مقال من صفحة الأخبار (يتم إضافة الاسم ورقم الجوال تلقائياً)',
+    description: 'تظهر عند اقتراح مقال من صفحة الأخبار',
     category: 'content',
-    defaultMessage: `أود اقتراح مقال للنشر
-
-الاسم: {name_chain}
-الجوال: {phone}`,
+    defaultMessage: `أود اقتراح مقال للنشر`,
     icon: 'newspaper-outline',
     storageKey: 'admin_article_suggestion_message',
-    variables: [
-      COMMON_VARIABLES.USER_IDENTITY[0], // {name_chain}
-      COMMON_VARIABLES.USER_IDENTITY[2], // {phone}
-    ],
+    variables: [],
     testable: true,
-    testMockData: {
-      name_chain: 'علي بن محمد القفاري',
-      phone: '+966505551234',
-    },
+    testMockData: {},
     order: 3,
   },
 

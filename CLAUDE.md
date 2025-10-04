@@ -76,47 +76,85 @@ A culturally authentic design system inspired by Najdi Sadu weaving traditions, 
 
 ### Typography System
 
+**iOS-Standard Scale** - Use these exact sizes for consistency:
+
 ```javascript
-// Text Hierarchy
-title: {
-  fontSize: 22,
+// iOS Text Styles (from tokens.js)
+largeTitle: {
+  fontSize: 34,
   fontWeight: "700",
+  lineHeight: 41,
   fontFamily: "SF Arabic",
   color: "#242121", // Sadu Night
-  letterSpacing: -0.5,
 }
 
-subtitle: {
-  fontSize: 15,
-  fontWeight: "400",
+title2: {
+  fontSize: 22,
+  fontWeight: "700",
+  lineHeight: 28,
   fontFamily: "SF Arabic",
-  color: "#242121CC", // Sadu Night 80%
-  lineHeight: 22,
+  color: "#242121",
+}
+
+title3: {
+  fontSize: 20,
+  fontWeight: "600",
+  lineHeight: 25,
+  fontFamily: "SF Arabic",
+  color: "#242121",
 }
 
 body: {
-  fontSize: 16,
-  fontWeight: "500",
+  fontSize: 17,
+  fontWeight: "400",
+  lineHeight: 22,
   fontFamily: "SF Arabic",
-  color: "#242121", // Sadu Night
+  color: "#242121",
 }
 
-caption: {
+subheadline: {
+  fontSize: 15,
+  fontWeight: "400",
+  lineHeight: 20,
+  fontFamily: "SF Arabic",
+  color: "#242121CC", // Sadu Night 80%
+}
+
+footnote: {
   fontSize: 13,
-  fontWeight: "500",
+  fontWeight: "400",
+  lineHeight: 18,
   fontFamily: "SF Arabic",
   color: "#24212199", // Sadu Night 60%
 }
+
+caption1: {
+  fontSize: 12,
+  fontWeight: "400",
+  lineHeight: 16,
+  fontFamily: "SF Arabic",
+  color: "#24212199",
+}
 ```
+
+**Valid iOS Font Sizes**: 11, 12, 13, 15, 17, 20, 22, 28, 34
+**Never use**: 14, 16, 18, 19 (non-standard)
 
 ### Spacing System (8px Grid)
 
-- **Extra Small**: 4px
-- **Small**: 8px
+**iOS-Standard Scale** - Use these exact values:
+
+- **XXS**: 4px
+- **XS**: 8px
+- **Small**: 12px
 - **Medium**: 16px
-- **Large**: 24px
-- **Extra Large**: 32px
+- **Large**: 20px
+- **XL**: 24px
+- **XXL**: 32px
+- **Touch Target**: 44px minimum (all interactive elements)
 - **Page Margins**: 16px horizontal
+
+**Never use**: 6px, 10px, 14px, 18px (breaks 8px grid rhythm)
 
 ### Component Patterns
 
@@ -756,6 +794,82 @@ _This design system ensures consistency, cultural appropriateness, and premium f
 - Introduced cached WordPress news service (`src/services/news.ts`) with 24h TTL and background refresh.
 - Created reusable news UI primitives (`FeaturedNewsCarousel`, `NewsCard`, `RecentArticleItem`) that lean on the Najdi palette and subtle Sadu patterns.
 - Added `NewsScreen` with localized Gregorian/Hijri headers, Expo-router tab integration, proactive prefetching/infinite scroll, shimmer loading states, and link-out article viewing.
+
+## 📱 WhatsApp Message Template System (January 2025)
+
+**Full Documentation**: [`/docs/MESSAGE_TEMPLATE_SYSTEM.md`](docs/MESSAGE_TEMPLATE_SYSTEM.md)
+
+A unified, registry-based system for managing all WhatsApp contact messages with dynamic variable replacement.
+
+### Quick Start
+
+**Adding a new template**:
+```typescript
+// 1. Add to MESSAGE_TEMPLATES in templateRegistry.ts
+{
+  id: 'my_template',
+  name: 'اسم القالب',
+  defaultMessage: 'مرحباً {name_chain}، جوالك {phone}',
+  category: 'support',
+  variables: ['name_chain', 'phone'],
+  // ... rest of config
+}
+
+// 2. Use in components
+const { openWhatsApp } = useMessageTemplate();
+await openWhatsApp('my_template', profile);
+```
+
+### Key Features
+
+- **Registry-based**: Single source of truth (`src/services/messageTemplates/templateRegistry.ts`)
+- **Variable replacement**: `{name_chain}`, `{phone}`, `{hid}`, etc. auto-filled from user profile
+- **Admin UI**: Visual interface in Admin Dashboard → "قوالب الرسائل"
+- **Type-safe**: Full TypeScript support with compile-time checks
+- **Easy to extend**: Just add to registry, UI auto-generates
+
+### Architecture
+
+```
+src/
+├── services/messageTemplates/
+│   ├── templateRegistry.ts    # Single source of truth
+│   ├── templateService.ts     # Business logic
+│   ├── variables.ts           # Common variables
+│   └── types.ts               # TypeScript types
+├── hooks/
+│   └── useMessageTemplate.ts  # React hook
+└── components/admin/
+    └── MessageTemplateManager.tsx  # Admin UI
+```
+
+### Important: Name Chain Building
+
+The system relies on `profile.fullNameChain` for proper ancestry display. The **AuthContext automatically builds this** when loading profiles:
+
+```javascript
+// AuthContextSimple.js builds fullNameChain on sign-in
+const { data: allProfiles } = await supabase
+  .from('profiles')
+  .select('id, name, father_id, gender');
+
+const fullChain = buildNameChain(profile, allProfiles);
+profile.fullNameChain = fullChain;  // e.g., "محمد بن علي عبدالله القفاري"
+```
+
+### Current Templates
+
+- **onboarding_help** - Help button on onboarding screen
+- **article_suggestion** - Article viewer suggest button (`src/components/ArticleViewer/components/ArticleActions.tsx:56`)
+- **contact_admin** - General admin contact
+- **profile_link_request** - Profile linking requests
+- **report_issue** - Bug reporting
+
+### Common Issues
+
+**"الاسم غير متوفر"**: Profile missing fullNameChain (AuthContext should build it automatically)
+
+**"رقم الجوال غير متوفر"**: User's phone field is NULL in database
 
 ## 🚀 Multi-Agent Git Workflow
 

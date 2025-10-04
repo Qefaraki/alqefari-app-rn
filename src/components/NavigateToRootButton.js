@@ -9,9 +9,19 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import Svg, { Path, G } from "react-native-svg";
+import { useTreeStore } from "../stores/useTreeStore";
+import { clampStageToBounds } from "../utils/cameraConstraints";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const BUTTON_SIZE = 56;
+const ICON_SIZE = 26;
 
 const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) => {
   const [targetNode, setTargetNode] = useState(null);
+  const treeBounds = useTreeStore((s) => s.treeBounds);
+  const minZoom = useTreeStore((s) => s.minZoom);
+  const maxZoom = useTreeStore((s) => s.maxZoom);
+  const insets = useSafeAreaInsets();
 
   // Find and cache the target node when nodes change
   useEffect(() => {
@@ -76,8 +86,21 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
     const isRoot = !targetNode.father_id;
     const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
     const targetScale = 1.0; // Moderate zoom for better overview
-    const targetX = viewport.width / 2 - targetNode.x * targetScale;
-    const targetY = viewport.height / 2 - adjustedY * targetScale; // Center vertically
+    const clampedTarget = clampStageToBounds(
+      {
+        x: viewport.width / 2 - targetNode.x * targetScale,
+        y: viewport.height / 2 - adjustedY * targetScale,
+        scale: targetScale,
+      },
+      viewport,
+      treeBounds,
+      minZoom,
+      maxZoom,
+    );
+
+    const targetX = clampedTarget.stage.x;
+    const targetY = clampedTarget.stage.y;
+    const finalScale = clampedTarget.stage.scale;
 
     // console.log('Navigate to focused node:', {
     //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
@@ -94,7 +117,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
       duration: 600,
       easing: Easing.inOut(Easing.ease),
     });
-    sharedValues.scale.value = withTiming(targetScale, {
+    sharedValues.scale.value = withTiming(finalScale, {
       duration: 600,
       easing: Easing.inOut(Easing.ease),
     });
@@ -103,8 +126,17 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
   // Always render the button, but disable if target not found
   const isDisabled = !targetNode;
 
+  const buttonBottomOffset = insets.bottom > 0 ? insets.bottom + 72 : 96;
+
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          bottom: buttonBottomOffset,
+        },
+      ]}
+    >
       <View style={styles.shadowWrapper}>
         <Pressable
           onPress={handleNavigateToCenter}
@@ -118,11 +150,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
           {/* Pointer icon */}
           <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
             <Svg
-              width={30}
-              height={30}
+              width={ICON_SIZE}
+              height={ICON_SIZE}
               viewBox="0 0 24 24"
               preserveAspectRatio="xMidYMid meet"
-              style={{ transform: [{ scaleX: -1 }, { scale: 0.75 }] }}
+              style={{ transform: [{ scaleX: -1 }, { scale: 0.82 }] }}
             >
               <G transform="translate(1.5, 1.5)">
                 <Path
@@ -143,39 +175,36 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: 16,  // Move to left side of screen
-    bottom: 120,  // Raised higher for better visibility
+    left: 16, // Left in code = right side in RTL mode
   },
   shadowWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
     backgroundColor: "#FFFFFF",
-    // Shadow properties for iOS
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 3,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.22,
     shadowRadius: 8,
-    // Shadow for Android
-    elevation: 12,
+    elevation: 8,
   },
   button: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: 56,
-    height: 56,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
     backgroundColor: "transparent",
-    borderRadius: 28,
+    borderRadius: BUTTON_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
   },
   iconContainer: {
-    width: 56,
-    height: 56,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
     alignItems: "center",
     justifyContent: "center",
   },

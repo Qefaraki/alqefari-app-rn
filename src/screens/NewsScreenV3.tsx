@@ -183,7 +183,7 @@ const NewsScreenV3: React.FC = () => {
               onPress={handleSuggestArticle}
               activeOpacity={0.7}
             >
-              <Ionicons name="create-outline" size={20} color={tokens.colors.najdi.secondary} />
+              <Ionicons name="add-circle" size={22} color="#736372" />
             </TouchableOpacity>
           </View>
         </View>
@@ -284,7 +284,8 @@ const NewsScreenV3: React.FC = () => {
     return null;
   }, [hasMoreRecent, recent.length]);
 
-  // Error state
+  // Error state - only show full error screen if we have no data
+  // If refresh fails but we have cached data, show alert instead
   if (error && featured.length === 0 && recent.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -294,11 +295,36 @@ const NewsScreenV3: React.FC = () => {
             initialize();
           }}
           message={error}
-          type="server"
+          type={error === 'network' ? 'offline' : 'server'}
         />
       </SafeAreaView>
     );
   }
+
+  // If we have an error but also have cached data, show alert
+  useEffect(() => {
+    if (error && (featured.length > 0 || recent.length > 0)) {
+      Alert.alert(
+        'خطأ في التحديث',
+        error === 'network'
+          ? 'تحقق من اتصالك بالإنترنت'
+          : 'حدث خطأ أثناء تحديث الأخبار',
+        [
+          {
+            text: 'حسناً',
+            onPress: () => clearError(),
+          },
+          {
+            text: 'إعادة المحاولة',
+            onPress: () => {
+              clearError();
+              refresh();
+            },
+          },
+        ]
+      );
+    }
+  }, [error, featured.length, recent.length]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -368,28 +394,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 16, // iOS standard spacing
   },
   titleContent: {
     flex: 1,
   },
   suggestButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${tokens.colors.najdi.secondary}20`,
+    width: 44, // iOS minimum touch target
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 6,
   },
   emblem: {
-    width: 52,
-    height: 52,
+    width: 44, // iOS standard icon size
+    height: 44,
     opacity: 1,
     tintColor: '#242121', // Back to black
-    marginRight: 3, // 3px spacing towards title
-    marginTop: -5, // Move up by 5px
-    marginLeft: -5, // Negative margin to align with sections below
+    marginRight: 8, // Standard spacing
+    marginTop: 0, // No negative margin
+    marginLeft: 0, // Align naturally
   },
   carouselSection: {
     marginBottom: 16,
@@ -401,7 +424,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20, // iOS headline standard
     fontWeight: '600',
     color: '#242121',
     fontFamily: 'SF Arabic',
@@ -412,7 +435,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   verticalSectionTitle: {
-    fontSize: 18,
+    fontSize: 20, // iOS headline standard
     fontWeight: '600',
     color: '#242121',
     fontFamily: 'SF Arabic',

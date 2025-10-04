@@ -9,21 +9,31 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const ZoomControls = () => {
   const zoom = useTreeStore(s => s.zoom);
   const resetView = useTreeStore(s => s.resetView);
-  const stage = useTreeStore(s => s.stage);
+  const treeBounds = useTreeStore(s => s.treeBounds);
+
+  const viewport = {
+    width: screenWidth,
+    height: screenHeight,
+  };
 
   const handleZoomIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    zoom(1, { x: screenWidth / 2, y: screenHeight / 2 });
+    zoom(1, { x: screenWidth / 2, y: screenHeight / 2 }, viewport);
   };
 
   const handleZoomOut = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    zoom(-1, { x: screenWidth / 2, y: screenHeight / 2 });
+    zoom(-1, { x: screenWidth / 2, y: screenHeight / 2 }, viewport);
   };
 
   const handleReset = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    resetView({ width: screenWidth, height: screenHeight }, { minX: 0, maxX: 1000, minY: 0, maxY: 1000 });
+    resetView(
+      viewport,
+      treeBounds && treeBounds.width > 0
+        ? treeBounds
+        : { minX: 0, maxX: 1000, minY: 0, maxY: 1000 },
+    );
   };
 
   return (

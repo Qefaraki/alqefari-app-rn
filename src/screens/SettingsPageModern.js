@@ -534,9 +534,9 @@ export default function SettingsPageModern({ user }) {
 
             <View style={styles.profileCard}>
               <View style={styles.profileImageContainer}>
-                {userProfile?.profile_photo_url ? (
+                {userProfile?.photo_url ? (
                   <Image
-                    source={{ uri: userProfile.profile_photo_url }}
+                    source={{ uri: userProfile.photo_url }}
                     style={styles.profileImage}
                   />
                 ) : (

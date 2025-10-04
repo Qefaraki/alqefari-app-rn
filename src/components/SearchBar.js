@@ -1,15 +1,17 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import {
   View,
   TextInput,
   Text,
-  FlatList,
   Pressable,
   Keyboard,
   Animated,
   Platform,
   Image,
   Easing,
+  useWindowDimensions,
+  StyleSheet,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -20,9 +22,12 @@ import { supabase } from "../services/supabase";
 import { toArabicNumerals } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
+import useDynamicTypography from "../hooks/useDynamicTypography";
 
 const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [query, setQuery] = useState("");
+  const { height: windowHeight } = useWindowDimensions();
+  const resultsMaxHeight = Math.min(windowHeight * 0.55, 420);
   const insets = useSafeAreaInsets();
   const [results, setResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
@@ -31,6 +36,9 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const inputRef = useRef(null);
+  const getTypography = useDynamicTypography();
+  const fontFamilyBase = Platform.OS === "ios" ? "System" : "Roboto";
+  const fontFamilyArabic = Platform.OS === "ios" ? "SF Arabic" : "Roboto";
 
   // Get profile sheet state from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -166,31 +174,40 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
     }
   }, [selectedPersonId, searchBarOpacity, profileSheetProgress]);
 
-  const showBackdrop = () => {
+  const showBackdrop = useCallback(() => {
     Animated.timing(backdropOpacity, {
       toValue: 1,
-      duration: 200,
+      duration: 160,
       useNativeDriver: true,
     }).start();
-  };
+  }, [backdropOpacity]);
+
+  const hideBackdrop = useCallback(() => {
+    Animated.timing(backdropOpacity, {
+      toValue: 0,
+      duration: 150,
+      useNativeDriver: true,
+      easing: Easing.in(Easing.quad),
+    }).start();
+  }, [backdropOpacity]);
 
   const hideResults = () => {
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 0,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
         easing: Easing.in(Easing.quad),
       }),
       Animated.timing(resultsOpacity, {
         toValue: 0,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
         easing: Easing.in(Easing.quad),
       }),
       Animated.timing(containerScale, {
         toValue: 0.95,
-        duration: 200,
+        duration: 150,
         useNativeDriver: true,
         easing: Easing.in(Easing.quad),
       }),
@@ -249,19 +266,19 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
             Animated.parallel([
               Animated.timing(resultsOpacity, {
                 toValue: 1,
-                duration: 250,
+                duration: 180,
                 useNativeDriver: true,
                 easing: Easing.out(Easing.quad),
               }),
               Animated.timing(resultsTranslateY, {
                 toValue: 0,
-                duration: 250,
+                duration: 180,
                 useNativeDriver: true,
                 easing: Easing.out(Easing.quad),
               }),
               Animated.timing(containerScale, {
                 toValue: 1,
-                duration: 250,
+                duration: 180,
                 useNativeDriver: true,
                 easing: Easing.out(Easing.quad),
               }),
@@ -277,13 +294,98 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
     [resultsOpacity, resultsTranslateY, containerScale],
   );
 
+  const inputTypography = useMemo(
+    () =>
+      getTypography("body", {
+        fontFamily: fontFamilyBase,
+        fontWeight: "400",
+      }),
+    [getTypography, fontFamilyBase],
+  );
+
+  const nameTypography = useMemo(() => {
+    const typography = getTypography("headline", {
+      fontWeight: "500",
+      fontFamily: fontFamilyArabic,
+    });
+    return {
+      ...typography,
+      letterSpacing: -0.1,
+    };
+  }, [getTypography, fontFamilyArabic]);
+
+  const generationTypography = useMemo(
+    () =>
+      getTypography("footnote", {
+        fontFamily: fontFamilyArabic,
+        fontWeight: "400",
+      }),
+    [getTypography, fontFamilyArabic],
+  );
+
+  const avatarTypography = useMemo(() => {
+    const typography = getTypography("subheadline", {
+      fontFamily: fontFamilyBase,
+      fontWeight: "500",
+    });
+    return {
+      ...typography,
+      lineHeight: typography.fontSize,
+    };
+  }, [getTypography, fontFamilyBase]);
+
+  const dynamicInputStyle = useMemo(() => {
+    const length = query.trim().length;
+    const baseSize = inputTypography.fontSize;
+    const ratio =
+      inputTypography.fontSize > 0 && inputTypography.lineHeight
+        ? inputTypography.lineHeight / inputTypography.fontSize
+        : 1.3;
+
+    if (length <= 24) {
+      return null;
+    }
+
+    if (length > 44) {
+      const newSize = Math.max(13, Math.round(baseSize * 0.82));
+      return {
+        fontSize: newSize,
+        lineHeight: Math.round(newSize * ratio),
+        letterSpacing: -0.3,
+      };
+    }
+
+    if (length > 36) {
+      const newSize = Math.max(14, Math.round(baseSize * 0.88));
+      return {
+        fontSize: newSize,
+        lineHeight: Math.round(newSize * ratio),
+        letterSpacing: -0.25,
+      };
+    }
+
+    if (length > 28) {
+      const newSize = Math.max(15, Math.round(baseSize * 0.94));
+      return {
+        fontSize: newSize,
+        lineHeight: Math.round(newSize * ratio),
+        letterSpacing: -0.2,
+      };
+    }
+
+    return null;
+  }, [query, inputTypography]);
+
   const handleChangeText = useCallback(
     (text) => {
-      setQuery(text);
+      const sanitizedText = text.replace(/\n/g, " ");
+      const trimmed = sanitizedText.trim();
+
+      setQuery(sanitizedText);
 
       // Animate clear button
       Animated.timing(clearButtonOpacity, {
-        toValue: text.length > 0 ? 1 : 0,
+        toValue: trimmed.length > 0 ? 1 : 0,
         duration: 150,
         useNativeDriver: true,
       }).start();
@@ -292,14 +394,14 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       if (searchTimer) clearTimeout(searchTimer);
 
       // If text is cleared, hide results immediately
-      if (!text) {
+      if (!trimmed) {
         hideResults();
         return;
       }
 
       // Debounce search
       const timer = setTimeout(() => {
-        performSearch(text);
+        performSearch(trimmed);
       }, 300);
       setSearchTimer(timer);
     },
@@ -311,7 +413,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Fill search bar with name chain (search results already have full chain)
-      const nameChain = item.name_chain || item.name || "";
+      const nameChain = (item.name_chain || item.name || "").replace(/\n/g, " ");
       setQuery(nameChain);
 
       hideResults();
@@ -342,8 +444,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       duration: 150,
       useNativeDriver: true,
     }).start();
-    // Always show backdrop when focused, not just when there's a query
-    showBackdrop();
   };
 
   const handleBlur = () => {
@@ -357,7 +457,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
     // Hide backdrop when blur happens
     Animated.timing(backdropOpacity, {
       toValue: 0,
-      duration: 200,
+      duration: 150,
       useNativeDriver: true,
     }).start();
   };
@@ -388,7 +488,6 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
 
     return (
       <Pressable
-        key={item.id}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           handleSelectResult(item);
@@ -417,18 +516,23 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                   },
                 ]}
               >
-                <Text style={styles.avatarLetter}>{initials}</Text>
+                <Text style={[styles.avatarLetter, avatarTypography]} allowFontScaling>
+                  {initials}
+                </Text>
               </View>
             )}
           </View>
 
           {/* Text content - RTL aligned to right edge */}
           <View style={styles.textContainer}>
-            <Text style={styles.nameText} numberOfLines={1}>
+            <Text style={[styles.nameText, nameTypography]} allowFontScaling numberOfLines={1}>
               {item.name_chain || item.name || "بدون اسم"}
             </Text>
             <View style={styles.metaContainer}>
-              <Text style={[styles.generationText, { color: desertColor }]}>
+              <Text
+                style={[styles.generationText, generationTypography, { color: desertColor }]}
+                allowFontScaling
+              >
                 الجيل {toArabicNumerals(item.generation?.toString() || "0")}
               </Text>
             </View>
@@ -436,7 +540,9 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
 
           {/* Chevron indicator on left edge */}
           <View style={styles.chevronContainer}>
-            <Text style={styles.chevron}>‹</Text>
+            <Text style={styles.chevron} allowFontScaling={false}>
+              ‹
+            </Text>
           </View>
         </View>
       </Pressable>
@@ -447,8 +553,10 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   useEffect(() => {
     if (showResults && results.length > 0) {
       showBackdrop();
+    } else {
+      hideBackdrop();
     }
-  }, [showResults, results]);
+  }, [showResults, results, showBackdrop, hideBackdrop]);
 
   // Dismiss results when tapping outside
   useEffect(() => {
@@ -472,7 +580,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
             opacity: backdropOpacity,
           },
         ]}
-        pointerEvents={showResults || isFocused ? "auto" : "none"}
+        pointerEvents={showResults && results.length > 0 ? "auto" : "none"}
       >
         <Pressable
           style={{ flex: 1 }}
@@ -493,7 +601,10 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
         />
       </Animated.View>
 
-      <View style={[styles.container, { top: insets.top + 10 }, style]}>
+      <View
+        pointerEvents="box-none"
+        style={[styles.container, { top: insets.top + 16 }, style]}
+      >
         <Animated.View
           style={[
             styles.searchBarContainer,
@@ -508,6 +619,8 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
             <Pressable
               style={styles.searchBar}
               onPress={() => inputRef.current?.focus()}
+              accessibilityRole="search"
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               {/* Family emblem on left (RTL) */}
               <Image
@@ -518,7 +631,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
 
               <TextInput
                 ref={inputRef}
-                style={styles.input}
+                style={[styles.input, inputTypography, dynamicInputStyle]}
                 placeholder="البحث في شجرة العائلة"
                 placeholderTextColor="#24212199"
                 value={query}
@@ -529,13 +642,25 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                 autoCapitalize="none"
                 returnKeyType="search"
                 textAlign="right"
+                multiline={false}
+                allowFontScaling
               />
 
               {/* Clear button on the right with fade animation */}
               {query.length > 0 && (
                 <Animated.View style={{ opacity: clearButtonOpacity }}>
-                  <Pressable onPress={handleClear} style={styles.clearButton}>
-                    <Ionicons name="close-circle" size={20} color="#24212199" />
+                  <Pressable
+                    onPress={handleClear}
+                    style={styles.clearButton}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear search"
+                  >
+                    <Ionicons
+                      name={Platform.OS === "ios" ? "close-circle" : "close-circle"}
+                      size={20}
+                      color="#24212199"
+                    />
                   </Pressable>
                 </Animated.View>
               )}
@@ -553,23 +678,22 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                   { translateY: resultsTranslateY },
                   { scale: containerScale },
                 ],
+                maxHeight: resultsMaxHeight,
               },
             ]}
           >
-            <FlatList
-              data={results}
-              keyExtractor={(item) => item.id}
-              renderItem={renderResult}
+            <ScrollView
+              style={styles.resultsScroll}
+              contentContainerStyle={styles.resultsContentWrapper}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              style={styles.resultsList}
-              contentContainerStyle={styles.resultsContent}
-              nestedScrollEnabled={true}
-              // Performance optimizations
-              removeClippedSubviews={true}
-              maxToRenderPerBatch={10}
-              windowSize={10}
-            />
+            >
+              {results.map((item, index) => (
+                <View key={String(item.id ?? index)}>
+                  {renderResult({ item, index })}
+                </View>
+              ))}
+            </ScrollView>
           </Animated.View>
         )}
       </View>
@@ -577,112 +701,108 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   backdrop: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.2)", // Lighter backdrop
-    zIndex: 9999,
-    elevation: 999,
+    backgroundColor: "rgba(0, 0, 0, 0.03)", // Lighter scrim behind results
+    zIndex: 8,
+    elevation: 8,
   },
   container: {
     position: "absolute",
-    left: 12,
-    right: 12,
+    left: 16,
+    right: 16,
     // Remove fixed height to allow expansion for results
-    zIndex: 10001,
-    elevation: 1001,
+    zIndex: 12,
+    elevation: 12,
   },
   searchBarContainer: {
     // Subtle unified shadow
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF", // Pure white for contrast with Al-Jass White background
-    borderRadius: 24, // Full pill shape
-    paddingHorizontal: 14,
-    height: 48, // Google Maps height
+    borderRadius: 22, // iOS search pill radius for 44pt height
+    paddingHorizontal: 16, // iOS standard horizontal padding
+    height: 44, // Align with iOS search bar height
     borderWidth: 0,
   },
   familyEmblemLeft: {
-    width: 36,
-    height: 36,
-    marginRight: 10,
+    width: 30, // 25% larger emblem for clearer branding
+    height: 30,
+    marginRight: 8,
     opacity: 0.8,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    fontFamily: Platform.OS === "ios" ? "System" : "Roboto",
     color: "#242121", // Sadu Night
     paddingVertical: 0,
     paddingHorizontal: 4,
     height: "100%",
   },
   clearButton: {
-    padding: 4,
-    marginLeft: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginLeft: 6,
   },
   // Unified results container - flows from search bar
   resultsContainer: {
-    marginTop: 4, // Tight connection to search bar
-    marginHorizontal: 4, // Slight inset for dropdown effect
+    marginTop: 6,
+    marginHorizontal: 0,
     backgroundColor: "#FFFFFF",
-    borderRadius: 24, // Match search bar radius
-    borderTopLeftRadius: 20, // Slightly softer top
-    borderTopRightRadius: 20,
-    maxHeight: "70%", // Use percentage of screen height instead of fixed pixels
-    overflow: "visible", // Allow content to be fully visible
-    paddingTop: 12,
-    paddingBottom: 0, // Remove container padding, use content padding instead
+    borderRadius: 16,
+    overflow: "hidden",
+    paddingTop: 0, // iOS continuous list style
+    paddingBottom: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.06)",
     // Matching shadow system (slightly lighter)
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  resultsList: {
-    flexGrow: 0, // Prevent list from growing unnecessarily
-    backgroundColor: "transparent",
+  resultsScroll: {
+    flexGrow: 0,
   },
-  resultsContent: {
-    paddingTop: 0,
-    paddingBottom: 20, // Increased bottom padding to ensure last item is fully visible
-    paddingHorizontal: 12,
+  resultsContentWrapper: {
+    paddingVertical: 4,
   },
-  // Clean card design - no borders
+  // iOS list item style - clean, continuous
   resultCard: {
-    backgroundColor: "#D1BBA310", // Camel Hair Beige 10%
-    borderRadius: 12,
-    marginHorizontal: 4,
-    marginBottom: 4,
-    overflow: "visible", // Allow content to be fully visible
-    borderWidth: 0, // No borders, ultra-clean
+    backgroundColor: "transparent", // iOS list items are transparent
+    borderRadius: 0, // No radius for continuous list
+    marginBottom: 0, // No gaps between items
+    overflow: "hidden",
+    borderWidth: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(0,0,0,0.08)", // Subtle divider
   },
   resultCardPressed: {
-    backgroundColor: "#D1BBA320", // Camel Hair Beige 20% when pressed
-    transform: [{ scale: 0.99 }],
+    backgroundColor: "#D1BBA310", // Subtle press state
+    transform: [{ scale: 1 }], // No scale on press for iOS list
   },
   lastCard: {
-    marginBottom: 12, // Add extra margin to last card to prevent cropping
+    borderBottomWidth: 0, // No separator on last item
   },
   cardContent: {
     flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
     alignItems: "center",
-    paddingVertical: 12,
-    paddingLeft: 12,
+    paddingVertical: 11, // iOS list item standard
+    paddingLeft: 16, // iOS standard horizontal padding
     paddingRight: 16,
-    minHeight: 60,
+    minHeight: 44, // iOS touch target standard
   },
   // Refined avatar styling - on right side for RTL
   avatarContainer: {
@@ -690,24 +810,22 @@ const styles = {
     marginRight: 0, // Avatar should be flush right
   },
   avatarPhoto: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36, // iOS small avatar standard
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36, // iOS small avatar standard
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     // backgroundColor set dynamically
   },
   avatarLetter: {
-    fontSize: 17,
-    fontWeight: "400",
     color: "#F9F7F3", // Al-Jass White
-    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
+    textAlign: "center",
   },
 
   // Text styling - uses full width with forced RTL
@@ -719,14 +837,10 @@ const styles = {
     alignItems: "flex-start", // Changed to flex-start for proper RTL text alignment
   },
   nameText: {
-    fontSize: 15,
-    fontWeight: "400",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
     color: "#242121", // Sadu Night
     marginBottom: 3,
     textAlign: "left", // Changed to left for proper display with row-reverse
     alignSelf: "stretch", // Take full width
-    letterSpacing: -0.1,
     writingDirection: "rtl", // Force RTL writing direction
   },
   metaContainer: {
@@ -741,10 +855,6 @@ const styles = {
     borderRadius: 0,
   },
   generationText: {
-    fontSize: 13,
-    fontWeight: "400",
-    fontFamily: Platform.OS === "ios" ? "SF Pro Text" : "Roboto",
-    letterSpacing: 0,
     opacity: 0.6,
     textAlign: "left", // Changed to left for proper display with row-reverse
     writingDirection: "rtl", // Force RTL writing direction
@@ -758,14 +868,11 @@ const styles = {
     borderRadius: 4,
   },
   fuzzyBadgeText: {
-    fontSize: 11,
     color: "#D58C4A", // Desert Ochre
-    fontFamily: "SF Arabic",
-    fontWeight: "500",
   },
   // Minimal chevron - on left edge
   chevronContainer: {
-    paddingLeft: 0,
+    paddingLeft: 6,
   },
   chevron: {
     fontSize: 18,
@@ -773,6 +880,6 @@ const styles = {
     fontWeight: "300",
     opacity: 0.5,
   },
-};
+});
 
 export default SearchBar;

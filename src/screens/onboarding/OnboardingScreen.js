@@ -26,7 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuth } from "../../contexts/AuthContextSimple";
-import adminContactService from "../../services/adminContact";
+import { useMessageTemplate } from "../../hooks/useMessageTemplate";
 // Gyroscope is optional - app works without it
 let Gyroscope;
 try {
@@ -575,14 +575,16 @@ export default function OnboardingScreen({ setIsGuest }) {
     });
   }, [setIsGuest, secondaryButtonScale, logoFade, contentFade, buttonFade, stateMachine]);
 
+  const { openWhatsApp } = useMessageTemplate();
+
   const handleHelp = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      await adminContactService.openOnboardingHelp();
+      await openWhatsApp('onboarding_help');
     } catch (error) {
       console.error('Error opening WhatsApp:', error);
     }
-  }, []);
+  }, [openWhatsApp]);
 
   return (
     <View style={styles.container}>
