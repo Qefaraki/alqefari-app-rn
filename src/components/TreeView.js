@@ -627,10 +627,8 @@ const TreeView = ({
       if (nodePx < T1_BASE * (1 - HYSTERESIS)) newTier = 2;
     } else if (state.current === 2) {
       if (nodePx >= T1_BASE * (1 + HYSTERESIS)) newTier = 1;
-      else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
-    } else {
-      // tier 3
-      if (nodePx >= T2_BASE * (1 + HYSTERESIS)) newTier = 2;
+      // Tier 3 disabled - stay in tier 2 even when very zoomed out to prevent pop-in
+      // else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
     }
 
     if (newTier !== state.current) {
