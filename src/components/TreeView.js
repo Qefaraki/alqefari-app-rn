@@ -754,6 +754,12 @@ const maxZoomShared = useSharedValue(maxZoom);
   // Throttle culling updates to reduce React re-renders during gestures
   const lastCullingUpdate = useSharedValue(0);
 
+  // Delta tracking for smart throttling - detect large changes (navigation/animation)
+  const lastX = useSharedValue(0);
+  const lastY = useSharedValue(0);
+  const lastScale = useSharedValue(1);
+  const isFirstUpdate = useSharedValue(true);
+
   // Sync scale value to React state for use in render
   useAnimatedReaction(
     () => scale.value,
@@ -2959,9 +2965,10 @@ const maxZoomShared = useSharedValue(maxZoom);
     scale: 1,
   });
 
-  // Update transform values when they change - throttled for performance
-  // 200ms throttle reduces React re-renders from 60/sec to 5/sec during gestures
-  // 800px VIEWPORT_MARGIN ensures smooth culling even with throttled updates
+  // Update transform values when they change - smart throttling
+  // Gestures: Throttled to 200ms (5 updates/sec for performance)
+  // Navigation/Animation: Immediate update when large change detected (fixes culling lag)
+  // World-space deltas ensure consistent behavior across zoom levels
   useAnimatedReaction(
     () => ({
       x: translateX.value,
@@ -2971,8 +2978,36 @@ const maxZoomShared = useSharedValue(maxZoom);
     (current) => {
       'worklet';
       const now = Date.now();
-      // Throttle to max 5 updates per second (every 200ms)
-      if (now - lastCullingUpdate.value >= 200) {
+
+      // Always update on first reaction to establish baseline
+      if (isFirstUpdate.value) {
+        isFirstUpdate.value = false;
+        lastX.value = current.x;
+        lastY.value = current.y;
+        lastScale.value = current.scale;
+        lastCullingUpdate.value = now;
+        runOnJS(setCurrentTransform)(current);
+        return;
+      }
+
+      // Calculate world-space deltas (scale-aware for consistent detection)
+      const worldDeltaX = Math.abs(current.x - lastX.value) / Math.max(current.scale, 0.1);
+      const worldDeltaY = Math.abs(current.y - lastY.value) / Math.max(current.scale, 0.1);
+      const scaleDelta = Math.abs(current.scale - lastScale.value);
+
+      // Large change detection: 100px in world space OR 0.1 scale change
+      const WORLD_THRESHOLD = 100;
+      const SCALE_THRESHOLD = 0.1;
+      const isLargeChange =
+        worldDeltaX > WORLD_THRESHOLD ||
+        worldDeltaY > WORLD_THRESHOLD ||
+        scaleDelta > SCALE_THRESHOLD;
+
+      // Update immediately for large changes (navigation/animation), throttle for small changes (gestures)
+      if (isLargeChange || now - lastCullingUpdate.value >= 200) {
+        lastX.value = current.x;
+        lastY.value = current.y;
+        lastScale.value = current.scale;
         lastCullingUpdate.value = now;
         runOnJS(setCurrentTransform)(current);
       }

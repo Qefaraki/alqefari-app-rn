@@ -1,7 +1,6 @@
 import React from 'react';
-import { View } from 'react-native';
 import InfoCard from '../components/InfoCard';
-import PhotoGalleryMaps from '../../../PhotoGalleryMaps';
+import PhotoGallerySimple from '../../../PhotoGallerySimple';
 
 const PhotosCard = ({ person, accessMode }) => {
   if (!person?.id) return null;
@@ -11,13 +10,10 @@ const PhotosCard = ({ person, accessMode }) => {
 
   return (
     <InfoCard title="الصور">
-      <View style={{ borderRadius: 18, overflow: 'hidden' }}>
-        <PhotoGalleryMaps
-          profileId={person.id}
-          isEditMode={canEdit}
-          forceAdminMode={canEdit}
-        />
-      </View>
+      <PhotoGallerySimple
+        profileId={person.id}
+        isEditMode={canEdit}
+      />
     </InfoCard>
   );
 };

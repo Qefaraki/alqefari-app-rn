@@ -16,6 +16,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
   BottomSheetScrollView,
@@ -49,6 +51,8 @@ import { profilesService } from '../../services/profiles';
 import suggestionService, {
   ALLOWED_SUGGESTION_FIELDS,
 } from '../../services/suggestionService';
+import storageService from '../../services/storage';
+import { supabase } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { useAdminMode } from '../../contexts/AdminModeContext';
 
@@ -166,6 +170,77 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     bottomSheetRef.current?.close?.();
   }, []);
 
+  // Image compression helper
+  const compressImage = useCallback(async (uri) => {
+    try {
+      const result = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1920 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      return result.uri;
+    } catch (error) {
+      console.error('Error compressing image:', error);
+      return uri;
+    }
+  }, []);
+
+  // Change profile photo
+  const handleChangeProfilePhoto = useCallback(async () => {
+    if (!canEdit) {
+      Alert.alert('غير متاح', 'ليس لديك صلاحية التعديل.');
+      return;
+    }
+
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.status !== 'granted') {
+      Alert.alert('الإذن مطلوب', 'نحتاج إذن الوصول للصور');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        // Compress and upload
+        const compressedUri = await compressImage(result.assets[0].uri);
+        const storagePath = `profiles/${person.id}/profile_${Date.now()}.jpg`;
+        const { url, error } = await storageService.uploadProfilePhoto(
+          compressedUri,
+          person.id,
+          storagePath
+        );
+
+        if (error) throw error;
+
+        // Update profiles.photo_url only (no gallery)
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ photo_url: url })
+          .eq('id', person.id);
+
+        if (updateError) throw updateError;
+
+        // Update local state
+        useTreeStore.getState().updateNode(person.id, { ...person, photo_url: url });
+        onUpdate?.({ ...person, photo_url: url });
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } catch (error) {
+        console.error('Error uploading profile photo:', error);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert('خطأ', 'فشل رفع الصورة');
+      }
+    }
+  }, [canEdit, person, onUpdate, compressImage]);
+
   const handleMenuPress = useCallback(() => {
     const options = [
       canEdit
@@ -174,13 +249,15 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
             onPress: () => handleEditPress(),
           }
         : null,
+      canEdit
+        ? {
+            text: 'تغيير صورة الملف',
+            onPress: () => handleChangeProfilePhoto(),
+          }
+        : null,
       {
         text: 'مشاركة الملف',
         onPress: () => Alert.alert('قريباً', 'ميزة المشاركة قيد الإعداد'),
-      },
-      {
-        text: 'الصور والإعلام',
-        onPress: () => Alert.alert('الصور', 'استخدم وضع التعديل لإدارة الصور'),
       },
       {
         text: 'طلب مساعدة',
@@ -194,7 +271,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     ].filter(Boolean);
 
     Alert.alert(person?.name || 'الملف', 'اختر الإجراء', options);
-  }, [canEdit, person?.name]);
+  }, [canEdit, person, handleChangeProfilePhoto]);
 
   const enterEditMode = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
