@@ -453,7 +453,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           showMarriages={isAdminMode}
         />
         <TimelineCard timeline={person?.timeline} />
-        <PhotosCard person={person} mode={mode} />
+        <PhotosCard person={person} accessMode={accessMode} />
     </BottomSheetScrollView>
   );
 
