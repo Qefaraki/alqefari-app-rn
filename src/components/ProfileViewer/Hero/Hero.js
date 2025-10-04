@@ -120,7 +120,7 @@ const Hero = ({
         pointerEvents="box-none"
         style={[
           styles.overlayControls,
-          { top: 16 },
+          { top: person?.photo_url ? 16 : 80 }, // Push down if no photo to avoid name overlap
         ]}
       >
         <HeroActions
@@ -195,10 +195,10 @@ const styles = StyleSheet.create({
     zIndex: 3,
   },
   actionsLtr: {
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start', // Left side in LTR
   },
   actionsRtl: {
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end', // Left side in RTL (flex-end = left in RTL)
   },
 });
 

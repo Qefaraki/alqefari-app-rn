@@ -6,16 +6,6 @@ const HeroActions = ({ onMenuPress, onClose, style }) => {
   return (
     <View style={[styles.container, style]}>
       <TouchableOpacity
-        onPress={onClose}
-        style={styles.iconButton}
-        accessibilityRole="button"
-        accessibilityLabel="إغلاق الملف"
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="chevron-down" size={18} color="#2a1620" />
-      </TouchableOpacity>
-      <View style={styles.divider} />
-      <TouchableOpacity
         onPress={onMenuPress}
         style={styles.iconButton}
         accessibilityRole="button"
@@ -23,6 +13,16 @@ const HeroActions = ({ onMenuPress, onClose, style }) => {
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
         <Ionicons name="ellipsis-horizontal" size={18} color="#2a1620" />
+      </TouchableOpacity>
+      <View style={styles.divider} />
+      <TouchableOpacity
+        onPress={onClose}
+        style={styles.iconButton}
+        accessibilityRole="button"
+        accessibilityLabel="إغلاق الملف"
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="chevron-down" size={18} color="#2a1620" />
       </TouchableOpacity>
     </View>
   );
