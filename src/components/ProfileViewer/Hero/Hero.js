@@ -51,8 +51,9 @@ const Hero = ({
 
   const lineage = useMemo(() => {
     if (!person) return '';
-    if (person.common_name) return person.common_name;
-    return constructCommonName(person, nodesMap);
+    if (person.common_name) return `${person.common_name} القفاري`;
+    const chain = constructCommonName(person, nodesMap);
+    return chain ? `${chain} القفاري` : '';
   }, [nodesMap, person]);
 
   const isRTL = I18nManager.isRTL;
