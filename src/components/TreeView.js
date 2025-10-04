@@ -1732,37 +1732,9 @@ const maxZoomShared = useSharedValue(maxZoom);
       if (isPinching.value) {
         return;
       }
-
-      // Calculate proposed position from finger movement
-      const proposedX = savedTranslateX.value + e.translationX;
-      const proposedY = savedTranslateY.value + e.translationY;
-
-      // Check bounds
-      const clamped = clampStageToBounds(
-        { x: proposedX, y: proposedY, scale: scale.value },
-        viewportShared.value,
-        boundsShared.value,
-        minZoomShared.value,
-        maxZoomShared.value
-      );
-
-      // Calculate distance outside bounds
-      const deltaX = proposedX - clamped.stage.x;
-      const deltaY = proposedY - clamped.stage.y;
-      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-      // Apply rubber band resistance if beyond bounds
-      if (distance > 5) {
-        // Resistance increases with distance (asymptotic curve)
-        // At 100px out: ~33% movement, at 200px: ~20%, at 400px: ~11%
-        const resistance = 200 / (200 + distance);
-        translateX.value = clamped.stage.x + deltaX * resistance;
-        translateY.value = clamped.stage.y + deltaY * resistance;
-      } else {
-        // Within bounds: normal 1:1 movement
-        translateX.value = proposedX;
-        translateY.value = proposedY;
-      }
+      // Simple 1:1 movement - natural feel, no resistance
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
     })
     .onEnd((e) => {
       "worklet";
@@ -1771,8 +1743,8 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // CRITICAL: Clamp current position before applying decay
-      // This prevents slow drags from leaving the user stranded far from tree
+      // CRITICAL: Always clamp to valid position before applying momentum
+      // This prevents cumulative drift from multiple small pans
       const clamped = clampStageToBounds(
         { x: translateX.value, y: translateY.value, scale: scale.value },
         viewportShared.value,
@@ -1781,10 +1753,10 @@ const maxZoomShared = useSharedValue(maxZoom);
         maxZoomShared.value
       );
 
-      // Calculate how far outside bounds we are
-      const deltaX = Math.abs(clamped.stage.x - translateX.value);
-      const deltaY = Math.abs(clamped.stage.y - translateY.value);
-      const distanceOutside = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      // Check if we're outside bounds
+      const isOutsideX = Math.abs(translateX.value - clamped.stage.x) > 1;
+      const isOutsideY = Math.abs(translateY.value - clamped.stage.y) > 1;
+      const isOutside = isOutsideX || isOutsideY;
 
       if (__DEV__) {
         runOnJS(debugCamera)("pan.end", {
@@ -1796,7 +1768,7 @@ const maxZoomShared = useSharedValue(maxZoom);
             x: Number(clamped.stage.x.toFixed(1)),
             y: Number(clamped.stage.y.toFixed(1)),
           },
-          distance: Number(distanceOutside.toFixed(1)),
+          isOutside,
           velocity: {
             x: Number(e.velocityX.toFixed(1)),
             y: Number(e.velocityY.toFixed(1)),
@@ -1804,42 +1776,36 @@ const maxZoomShared = useSharedValue(maxZoom);
         });
       }
 
-      // If significantly outside bounds, spring back gently
-      // This handles slow drags that went too far
-      if (distanceOutside > 50) {
-        translateX.value = withSpring(clamped.stage.x, {
-          damping: 20,
-          stiffness: 90,
-        });
-        translateY.value = withSpring(clamped.stage.y, {
-          damping: 20,
-          stiffness: 90,
-        });
-      } else {
-        // Close enough to bounds, apply momentum with decay modifier
-        const decayMod = createDecayModifier(
-          viewportShared.value,
-          boundsShared.value,
-          scale.value,
-          minZoomShared.value,
-          maxZoomShared.value
-        );
-
-        translateX.value = withDecay(
-          {
-            velocity: e.velocityX,
-            deceleration: 0.995,
-          },
-          (value) => decayMod(value, 'x')
-        );
-        translateY.value = withDecay(
-          {
-            velocity: e.velocityY,
-            deceleration: 0.995,
-          },
-          (value) => decayMod(value, 'y')
-        );
+      // If outside bounds, snap to clamped position instantly
+      // This ensures we ALWAYS end at a valid position
+      if (isOutside) {
+        translateX.value = clamped.stage.x;
+        translateY.value = clamped.stage.y;
       }
+
+      // Now apply momentum from the valid (clamped) position
+      const decayMod = createDecayModifier(
+        viewportShared.value,
+        boundsShared.value,
+        scale.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
+      translateX.value = withDecay(
+        {
+          velocity: e.velocityX,
+          deceleration: 0.995,
+        },
+        (value) => decayMod(value, 'x')
+      );
+      translateY.value = withDecay(
+        {
+          velocity: e.velocityY,
+          deceleration: 0.995,
+        },
+        (value) => decayMod(value, 'y')
+      );
 
       // Save current values
       savedTranslateX.value = translateX.value;
