@@ -76,6 +76,12 @@ const RobustImage = ({
 
   // Manual retry (user-triggered)
   const handleManualRetry = useCallback(() => {
+    // CRITICAL FIX: Clear auto-retry timeout to prevent race condition
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     console.log('[RobustImage] Manual retry triggered for:', imageUrl);
 
@@ -173,9 +179,16 @@ const RobustImage = ({
           <Ionicons name="image-outline" size={32} color="#73637299" />
           {showRetryButton && (
             <TouchableOpacity
-              style={styles.retryButton}
+              style={[
+                styles.retryButton,
+                loadState === 'loading' && styles.retryButtonDisabled,
+              ]}
               onPress={handleManualRetry}
               activeOpacity={0.7}
+              disabled={loadState === 'loading'}
+              accessible={true}
+              accessibilityLabel="إعادة تحميل الصورة"
+              accessibilityRole="button"
             >
               <Ionicons name="refresh" size={16} color="#F9F7F3" />
               <Text style={styles.retryText}>إعادة المحاولة</Text>
@@ -222,6 +235,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 12,
     gap: 6,
+  },
+
+  retryButtonDisabled: {
+    opacity: 0.5,
   },
 
   retryText: {

@@ -201,9 +201,44 @@ class StorageService {
         data: { publicUrl },
       } = supabase.storage.from("profile-photos").getPublicUrl(filePath);
 
+      // Verify the URL is actually accessible (CRITICAL FIX)
+      const isAccessible = await this.verifyImageUrl(publicUrl);
+      if (!isAccessible) {
+        // URL not accessible - delete the uploaded file and fail
+        await supabase.storage.from("profile-photos").remove([filePath]);
+        throw new Error("تعذر الوصول لصورة الزوج/الزوجة بعد الرفع");
+      }
+
       return publicUrl;
     } catch (error) {
       console.error("Error uploading spouse photo:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch with timeout helper
+   * @param {string} url - URL to fetch
+   * @param {object} options - Fetch options
+   * @param {number} timeout - Timeout in milliseconds
+   * @returns {Promise<Response>}
+   */
+  async fetchWithTimeout(url, options = {}, timeout = 30000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === "AbortError") {
+        throw new Error("انتهت مهلة التحميل");
+      }
       throw error;
     }
   }
@@ -221,10 +256,15 @@ class StorageService {
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
 
-        const response = await fetch(url, {
-          method: "HEAD", // HEAD request is faster than GET
-          cache: "no-cache",
-        });
+        // Use fetchWithTimeout to prevent hanging
+        const response = await this.fetchWithTimeout(
+          url,
+          {
+            method: "HEAD", // HEAD request is faster than GET
+            cache: "no-cache",
+          },
+          10000, // 10 second timeout for HEAD request
+        );
 
         if (response.ok && response.status === 200) {
           console.log("[StorageService] ✅ Image URL verified:", url);
