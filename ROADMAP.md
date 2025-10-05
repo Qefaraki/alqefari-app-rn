@@ -8,15 +8,22 @@
 
 ## 🎯 Remaining Work
 
-### 1. Photo System Polish
+### 1. Photo System Polish ✅
 **Priority**: HIGH
-**Current State**: Working but fidgety behavior
-**Tasks**:
-- [ ] Fix inconsistent loading states across TreeView/ProfileSheet
-- [ ] Improve error handling and retry mechanism
-- [ ] Remove URL-based photo code (technical debt in PhotoEditor.js)
-- [ ] Optimize memory usage for trees with many photos
-- [ ] Fix Supabase image transformation or implement proper fallback
+**Current State**: Complete - All components using expo-image
+**Completed Tasks**:
+- [x] Fix inconsistent loading states across TreeView/ProfileSheet
+- [x] Improve error handling and retry mechanism
+- [x] Migrated PhotoEditor to expo-image (was using React Native Image)
+- [x] Added blurhash placeholders and smooth transitions
+- [x] Visual error states with retry buttons
+- [x] Automatic memory + disk caching
+- [x] Backwards compatible with both photo systems (profiles.photo_url + profile_photos table)
+- [x] Comprehensive documentation in docs/PHOTO_SYSTEM_UPDATE_2025.md
+
+**Remaining** (optional):
+- [ ] Test on physical device with slow network
+- [ ] Optimize memory usage for trees with 100+ photos (if needed)
 
 ### 2. Profile System & Edit Polish
 **Priority**: HIGH
