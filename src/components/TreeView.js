@@ -1669,13 +1669,21 @@ const maxZoomShared = useSharedValue(maxZoom);
 
   // Handle highlight from navigation params
   useEffect(() => {
-    if (highlightProfileId && focusOnProfile && nodes.length > 0) {
-      // Small delay to ensure tree is fully rendered
-      setTimeout(() => {
+    // Early return if no navigation needed
+    if (!highlightProfileId || !focusOnProfile) return;
+
+    // Schedule navigation with delay to ensure tree is fully rendered
+    const timer = setTimeout(() => {
+      // Check nodes exist at execution time (not dependency time)
+      if (nodes.length > 0) {
         navigateToNode(highlightProfileId);
-      }, 500);
-    }
-  }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
+      }
+    }, 500);
+
+    // Cleanup: auto-cancels pending navigation on unmount or when highlightProfileId changes
+    // This prevents race conditions and duplicate navigations
+    return () => clearTimeout(timer);
+  }, [highlightProfileId, focusOnProfile]); // nodes.length removed - prevents re-trigger on culling
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
