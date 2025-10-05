@@ -3021,12 +3021,17 @@ const maxZoomShared = useSharedValue(maxZoom);
     if (isLoading) return [];
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
+
+    // Calculate world-space margin to add buffer around viewport
+    // This prevents nodes from disappearing immediately when they leave screen
+    const worldMargin = VIEWPORT_MARGIN / currentTransform.scale;
+
     return spatialGrid.getVisibleNodes(
       {
         x: currentTransform.x,
         y: currentTransform.y,
-        width: dimensions.width,
-        height: dimensions.height,
+        width: dimensions.width + (2 * worldMargin),   // Add margin on both sides
+        height: dimensions.height + (2 * worldMargin), // Add margin on both sides
       },
       currentTransform.scale,
       indices.idToNode,
