@@ -10,6 +10,7 @@ import {
 import * as Haptics from "expo-haptics";
 import CardSurface from "../../ios/CardSurface";
 import SegmentedControl from "../../ui/SegmentedControl";
+import tokens from "../../ui/tokens";
 import {
   toDateData,
   toArabicNumerals,
@@ -352,9 +353,12 @@ const DateEditor = ({ label, value, onChange, error }) => {
               <Switch
                 value={isApproximate}
                 onValueChange={handleApproximateToggle}
-                trackColor={{ false: "#E5E5EA", true: "#34C759" }}
-                thumbColor="#FFFFFF"
-                ios_backgroundColor="#E5E5EA"
+                trackColor={{
+                  false: tokens.colors.najdi.container + '60',
+                  true: tokens.colors.najdi.secondary, // Desert Ochre
+                }}
+                thumbColor={tokens.colors.najdi.background}
+                ios_backgroundColor={tokens.colors.najdi.container + '60'}
               />
             </View>
 
@@ -390,67 +394,67 @@ const DateEditor = ({ label, value, onChange, error }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: tokens.spacing.md, // 16px
   },
   label: {
     fontSize: 16,
-    marginBottom: 8,
-    color: "#8A8A8E",
+    marginBottom: tokens.spacing.xs, // 8px
+    color: tokens.colors.najdi.textMuted, // #736372
     fontFamily: "SF Arabic Regular",
   },
   content: {
-    padding: 16,
+    padding: tokens.spacing.md, // 16px
   },
   segmentContainer: {
-    marginBottom: 20,
+    marginBottom: tokens.spacing.lg, // 20px
   },
   inputRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
+    gap: tokens.spacing.sm, // 12px
+    marginBottom: tokens.spacing.md, // 16px
   },
   inputWrapper: {
     flex: 1,
   },
   inputLabel: {
-    fontSize: 12,
-    color: "#8A8A8E",
-    marginBottom: 4,
+    fontSize: 12, // iOS caption1
+    color: tokens.colors.najdi.textMuted, // #736372
+    marginBottom: tokens.spacing.xxs, // 4px
     textAlign: "center",
     fontFamily: "SF Arabic Regular",
   },
   input: {
-    height: 44,
+    height: tokens.touchTarget.minimum, // 44px
     borderWidth: 1,
-    borderColor: "#E5E5EA",
-    borderRadius: 8,
+    borderColor: tokens.colors.najdi.container + '60', // Camel Hair Beige 60%
+    borderRadius: tokens.radii.sm, // 8px
     fontSize: 18,
     fontWeight: "500",
-    color: "#000000",
-    backgroundColor: "#FFFFFF",
+    color: tokens.colors.najdi.text, // Sadu Night #242121
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White #F9F7F3
   },
   yearInput: {
     flex: 1.5,
   },
   conversionDisplay: {
-    backgroundColor: "#F7F7FA",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: tokens.colors.najdi.container + '20', // Camel Hair Beige 20%
+    padding: tokens.spacing.sm, // 12px
+    borderRadius: tokens.radii.sm, // 8px
+    marginBottom: tokens.spacing.md, // 16px
   },
   conversionLabel: {
-    fontSize: 12,
-    color: "#8A8A8E",
-    marginBottom: 4,
+    fontSize: 12, // iOS caption1
+    color: tokens.colors.najdi.textMuted, // #736372
+    marginBottom: tokens.spacing.xxs, // 4px
     fontFamily: "SF Arabic Regular",
   },
   conversionText: {
     fontSize: 16,
-    color: "#000000",
+    color: tokens.colors.najdi.text, // Sadu Night #242121
     fontFamily: "SF Arabic Regular",
   },
   controls: {
-    gap: 16,
+    gap: tokens.spacing.md, // 16px
   },
   approximateRow: {
     flexDirection: "row",
@@ -459,36 +463,37 @@ const styles = StyleSheet.create({
   },
   approximateLabel: {
     fontSize: 16,
-    color: "#000000",
+    color: tokens.colors.najdi.text, // Sadu Night #242121
     fontFamily: "SF Arabic Regular",
   },
   presetButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: tokens.spacing.sm, // 12px
   },
   presetButton: {
     flex: 1,
-    backgroundColor: "#007AFF",
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: tokens.colors.najdi.primary, // Najdi Crimson #A13333
+    paddingVertical: tokens.spacing.sm, // 12px
+    borderRadius: tokens.radii.sm, // 8px
     alignItems: "center",
+    minHeight: tokens.touchTarget.minimum, // 44px
   },
   clearButton: {
-    backgroundColor: "#E5E5EA",
+    backgroundColor: tokens.colors.najdi.container, // Camel Hair Beige #D1BBA3
   },
   presetButtonText: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: tokens.colors.najdi.background, // Al-Jass White for contrast
     fontWeight: "600",
     fontFamily: "SF Arabic Regular",
   },
   clearButtonText: {
-    color: "#8A8A8E",
+    color: tokens.colors.najdi.text, // Sadu Night #242121
   },
   errorText: {
     fontSize: 14,
-    color: "#FF3B30",
-    marginTop: 4,
+    color: tokens.colors.danger, // #FF3B30
+    marginTop: tokens.spacing.xxs, // 4px
     fontFamily: "SF Arabic Regular",
   },
 });

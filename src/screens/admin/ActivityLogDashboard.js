@@ -345,10 +345,10 @@ export default function ActivityLogDashboard({ onClose }) {
           <View
             style={[
               styles.iconContainer,
-              { backgroundColor: config.color + "20" },
+              { backgroundColor: config.color + "15" },
             ]}
           >
-            <Ionicons name={config.icon} size={20} color={config.color} />
+            <Ionicons name={config.icon} size={24} color={config.color} />
           </View>
 
           <View style={styles.activityInfo}>
@@ -930,70 +930,75 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   roleBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 2,
     borderRadius: 4,
-    marginLeft: 8,
+    marginLeft: tokens.spacing.xs,
   },
   roleBadgeText: {
     fontSize: 10,
     fontWeight: "600",
-    color: colors.background,
+    color: "#FFFFFF",
     textTransform: "uppercase",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   expandedContent: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
+    marginTop: tokens.spacing.md,
+    paddingTop: tokens.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.container + "20",
   },
   metadataRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: tokens.spacing.sm,
   },
   metadataItem: {
     flex: 1,
   },
   metadataLabel: {
-    fontSize: 12,
-    color: colors.textLight,
-    marginBottom: 4,
+    fontSize: tokens.typography.caption1.fontSize,
+    color: colors.textMuted,
+    marginBottom: tokens.spacing.xxs,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   metadataValue: {
-    fontSize: 14,
+    fontSize: tokens.typography.subheadline.fontSize,
     color: colors.text,
     fontWeight: "500",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   severityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xxs,
     borderRadius: 4,
     alignSelf: "flex-start",
   },
   severityBadgeText: {
-    fontSize: 12,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
     textTransform: "uppercase",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffContainer: {
-    marginTop: 12,
+    marginTop: tokens.spacing.sm,
   },
   diffSection: {
-    marginBottom: 12,
+    marginBottom: tokens.spacing.sm,
   },
   diffLabel: {
-    fontSize: 12,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
-    color: colors.textLight,
+    color: colors.textMuted,
     marginBottom: 6,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffContent: {
-    fontSize: 12,
+    fontSize: tokens.typography.caption1.fontSize,
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
     color: colors.text,
     backgroundColor: colors.container + "10",
-    padding: 8,
+    padding: tokens.spacing.xs,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: colors.container + "20",
@@ -1001,41 +1006,44 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: 12,
-    gap: 8,
+    marginTop: tokens.spacing.sm,
+    gap: tokens.spacing.xs,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
+    minHeight: 32,
   },
   revertButton: {
     borderColor: colors.error + "40",
     backgroundColor: colors.error + "10",
   },
   revertButtonText: {
-    fontSize: 12,
+    fontSize: tokens.typography.caption1.fontSize,
     color: colors.error,
     marginLeft: 4,
     fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   detailsButton: {
     borderColor: colors.info + "40",
     backgroundColor: colors.info + "10",
   },
   detailsButtonText: {
-    fontSize: 12,
+    fontSize: tokens.typography.caption1.fontSize,
     color: colors.info,
     marginLeft: 4,
     fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   expansionIndicator: {
     position: "absolute",
-    bottom: 8,
-    right: 16,
+    bottom: tokens.spacing.xs,
+    right: tokens.spacing.md,
   },
   emptyContainer: {
     flex: 1,
@@ -1044,14 +1052,16 @@ const styles = StyleSheet.create({
     paddingVertical: 64,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: tokens.typography.body.fontSize,
     fontWeight: "600",
     color: colors.text,
-    marginTop: 16,
+    marginTop: tokens.spacing.md,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   emptySubtext: {
-    fontSize: 14,
-    color: colors.textLight,
-    marginTop: 8,
+    fontSize: tokens.typography.subheadline.fontSize,
+    color: colors.textMuted,
+    marginTop: tokens.spacing.xs,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 });

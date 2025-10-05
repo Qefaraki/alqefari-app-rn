@@ -31,9 +31,9 @@ const styles = StyleSheet.create({
     // Shadow styles applied dynamically in render
   },
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White (Najdi Sadu)
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.07)",
+    borderColor: "#D1BBA340", // Camel Hair Beige 40%
     overflow: "hidden",
   },
   content: {
