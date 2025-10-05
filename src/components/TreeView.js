@@ -837,15 +837,14 @@ const maxZoomShared = useSharedValue(maxZoom);
         if (isNetworkError) {
           console.log("Setting network error state");
           setNetworkError("network");
-          setTreeData([]);
         } else if (rootData?.length === 0) {
           setNetworkError("empty");
-          setTreeData([]);
-        } else {
-          // Fall back to local data
-          console.log("Falling back to local data");
-          setTreeData(familyData || []);
         }
+
+        // CRITICAL: Never fallback to static familyData - always use empty array
+        // Static familyData is from September and doesn't have latest updates
+        setTreeData([]);
+
         // Don't trigger fade animation on error
         setShowSkeleton(false);
         setIsLoading(false);
@@ -869,11 +868,11 @@ const maxZoomShared = useSharedValue(maxZoom);
           error?.code === "PGRST301"
         ) {
           setNetworkError("network");
-          setTreeData([]);
-        } else {
-          // Fall back to local data if backend fails
-          setTreeData(familyData || []);
         }
+
+        // CRITICAL: Never fallback to static familyData - always use empty array
+        // Static familyData is from September and doesn't have latest updates
+        setTreeData([]);
       } else {
         setTreeData(data || []);
         setNetworkError(null); // Clear any previous errors
@@ -909,11 +908,12 @@ const maxZoomShared = useSharedValue(maxZoom);
         err?.code === "PGRST301"
       ) {
         setNetworkError("network");
-        setTreeData([]);
-      } else {
-        // Fall back to local data
-        setTreeData(familyData || []);
       }
+
+      // CRITICAL: Never fallback to static familyData - always use empty array
+      // Static familyData is from September and doesn't have latest updates
+      setTreeData([]);
+
       // Don't trigger fade animation on error
       setShowSkeleton(false);
       setIsLoading(false);
