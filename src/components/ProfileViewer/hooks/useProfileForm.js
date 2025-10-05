@@ -26,9 +26,12 @@ export const useProfileForm = (person) => {
   }, []);
 
   const reset = useCallback(() => {
-    setDraft(clone(original));
+    // Always reset from current person prop, not cached original
+    // This ensures we get latest data even if original hasn't updated yet
+    setOriginal(clone(person));
+    setDraft(clone(person));
     setTouched(new Set());
-  }, [original]);
+  }, [person]);
 
   const isDirty = useMemo(() => {
     if (!person) return false;

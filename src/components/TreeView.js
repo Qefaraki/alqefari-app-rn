@@ -517,6 +517,9 @@ const TreeView = ({
   const { isAdminMode } = useAdminMode();
   const [showMultiAddModal, setShowMultiAddModal] = useState(false);
   const [multiAddParent, setMultiAddParent] = useState(null);
+
+  // Debug mode state
+  const [debugMode, setDebugMode] = useState(__DEV__ ? true : false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuNode, setContextMenuNode] = useState(null);
   const [contextMenuPosition, setContextMenuPosition] = useState({
