@@ -491,6 +491,8 @@ const TreeView = ({
   const maxZoom = useTreeStore((s) => s.maxZoom);
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
+  const hasInitializedCamera = useTreeStore((s) => s.hasInitializedCamera);
+  const setHasInitializedCamera = useTreeStore((s) => s.setHasInitializedCamera);
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
   const setTreeBoundsStore = useTreeStore((s) => s.setTreeBounds);
@@ -709,9 +711,6 @@ const gestureStateRef = useRef({
   indices: null,
   visibleNodes: [],
 });
-
-  // Ref to ensure initial positioning only happens once
-  const hasInitializedPosition = useRef(false);
 
 const viewportShared = useSharedValue({
   width: Math.max(dimensions.width || 1, 1),
@@ -1426,10 +1425,10 @@ const maxZoomShared = useSharedValue(maxZoom);
 
   // Initialize position on first load - smart positioning based on user
   useEffect(() => {
-    // CRITICAL: Only run this ONCE on initial mount to prevent camera reset loops
-    // Dependencies can change (nodes, dimensions, etc.) but we must not re-position
+    // CRITICAL: Only run this ONCE globally to prevent camera reset loops
+    // Persisted in Zustand store to survive component remounts
     if (
-      !hasInitializedPosition.current &&  // ← Prevent re-triggering
+      !hasInitializedCamera &&  // ← Store value persists across remounts
       nodes.length > 0 &&
       stage.x === 0 &&
       stage.y === 0 &&
@@ -1469,8 +1468,8 @@ const maxZoomShared = useSharedValue(maxZoom);
 
       setStage({ x: offsetX, y: offsetY, scale: targetScale });
 
-      // Mark as initialized - this effect will never run again
-      hasInitializedPosition.current = true;
+      // Mark as initialized globally - persists across component remounts
+      setHasInitializedCamera(true);
     }
   }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
 

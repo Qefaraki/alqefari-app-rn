@@ -8,6 +8,7 @@ import PendingApprovalBanner from "../../src/components/PendingApprovalBanner";
 import { phoneAuthService } from "../../src/services/phoneAuth";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "../../src/contexts/AuthContextSimple";
+import { useTreeStore } from "../../src/stores/useTreeStore";
 
 export default function TreeScreen() {
   const { user, profile, isAdmin, isLoading } = useAuth();
@@ -26,6 +27,13 @@ export default function TreeScreen() {
       checkLinkStatus();
     }
   }, [user, profile, isLoading]);
+
+  // Reset camera initialization when user logs out (multi-user support)
+  useEffect(() => {
+    if (!user) {
+      useTreeStore.getState().resetCameraInitialization();
+    }
+  }, [user?.id]);
 
   const checkLinkStatus = async () => {
     try {
