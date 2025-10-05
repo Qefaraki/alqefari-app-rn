@@ -2229,6 +2229,56 @@ const maxZoomShared = useSharedValue(maxZoom);
     Gesture.Exclusive(longPressGesture, tapGesture),
   );
 
+  // Debug: Track camera changes to detect glitching
+  const lastCameraLog = useSharedValue({ x: 0, y: 0, scale: 1, timestamp: 0 });
+  const logCameraChange = useCallback((change) => {
+    if (!debugMode) return;
+    const now = Date.now();
+    const delta = {
+      x: Math.abs(change.x - change.prevX),
+      y: Math.abs(change.y - change.prevY),
+      scale: Math.abs(change.scale - change.prevScale),
+      dt: now - change.timestamp,
+    };
+
+    // Flag large jumps (potential glitching)
+    const isLargeJump = delta.x > 50 || delta.y > 50;
+    const prefix = isLargeJump ? '🔴 JUMP' : '📍';
+
+    console.log(`${prefix} Camera: x=${Math.round(change.x)}, y=${Math.round(change.y)}, scale=${change.scale.toFixed(3)} | Δx=${Math.round(delta.x)}, Δy=${Math.round(delta.y)} (${delta.dt}ms)`);
+  }, [debugMode]);
+
+  useAnimatedReaction(
+    () => ({
+      x: translateX.value,
+      y: translateY.value,
+      scale: scale.value,
+    }),
+    (current, previous) => {
+      'worklet';
+      if (!previous || !debugMode) return;
+
+      // Only log meaningful changes
+      const dx = Math.abs(current.x - previous.x);
+      const dy = Math.abs(current.y - previous.y);
+      const dscale = Math.abs(current.scale - previous.scale);
+
+      if (dx > 1 || dy > 1 || dscale > 0.001) {
+        const now = Date.now();
+        runOnJS(logCameraChange)({
+          x: current.x,
+          y: current.y,
+          scale: current.scale,
+          prevX: previous.x,
+          prevY: previous.y,
+          prevScale: previous.scale,
+          timestamp: now,
+        });
+      }
+    },
+    [debugMode]
+  );
+
   // Render connection lines with proper elbow style
   const renderConnection = useCallback(
     (connection) => {
@@ -3439,10 +3489,98 @@ const maxZoomShared = useSharedValue(maxZoom);
                 strokeWidth={LINE_WIDTH}
               />
             ))}
+
+            {/* Debug visualization: Viewport rectangles */}
+            {debugMode && (() => {
+              // Calculate visible viewport in world space (green rectangle)
+              const visibleWorldMinX = -currentTransform.x / currentTransform.scale;
+              const visibleWorldMaxX = (-currentTransform.x + dimensions.width) / currentTransform.scale;
+              const visibleWorldMinY = -currentTransform.y / currentTransform.scale;
+              const visibleWorldMaxY = (-currentTransform.y + dimensions.height) / currentTransform.scale;
+
+              // Calculate culled viewport in world space (blue rectangle)
+              const culledX = currentTransform.x + VIEWPORT_MARGIN;
+              const culledY = currentTransform.y + VIEWPORT_MARGIN;
+              const culledWidth = dimensions.width + (2 * VIEWPORT_MARGIN);
+              const culledHeight = dimensions.height + (2 * VIEWPORT_MARGIN);
+
+              const culledWorldMinX = -culledX / currentTransform.scale;
+              const culledWorldMaxX = (-culledX + culledWidth) / currentTransform.scale;
+              const culledWorldMinY = -culledY / currentTransform.scale;
+              const culledWorldMaxY = (-culledY + culledHeight) / currentTransform.scale;
+
+              return (
+                <>
+                  {/* Blue rectangle: Culled viewport (with margin) */}
+                  <Rect
+                    x={culledWorldMinX}
+                    y={culledWorldMinY}
+                    width={culledWorldMaxX - culledWorldMinX}
+                    height={culledWorldMaxY - culledWorldMinY}
+                    color="rgba(0, 150, 255, 0.15)"
+                    style="stroke"
+                    strokeWidth={3 / currentTransform.scale}
+                  />
+
+                  {/* Green rectangle: Visible viewport */}
+                  <Rect
+                    x={visibleWorldMinX}
+                    y={visibleWorldMinY}
+                    width={visibleWorldMaxX - visibleWorldMinX}
+                    height={visibleWorldMaxY - visibleWorldMinY}
+                    color="rgba(0, 255, 0, 0.3)"
+                    style="stroke"
+                    strokeWidth={2 / currentTransform.scale}
+                  />
+                </>
+              );
+            })()}
           </Group>
         </Canvas>
         </GestureDetector>
       </RNAnimated.View>
+
+      {/* Debug overlay panel */}
+      {debugMode && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 60,
+            left: 16,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            padding: 12,
+            borderRadius: 8,
+            minWidth: 280,
+            zIndex: 1000,
+          }}
+          pointerEvents="none"
+        >
+          <Text style={{ color: '#00FF00', fontSize: 11, fontFamily: 'Courier', marginBottom: 4, fontWeight: 'bold' }}>
+            🔧 DEBUG MODE
+          </Text>
+          <Text style={{ color: '#FFF', fontSize: 10, fontFamily: 'Courier' }}>
+            Camera: x={Math.round(currentTransform.x)}, y={Math.round(currentTransform.y)}, scale={currentTransform.scale.toFixed(3)}
+          </Text>
+          <Text style={{ color: '#FFF', fontSize: 10, fontFamily: 'Courier' }}>
+            Bounds: X[{treeBounds?.minX?.toFixed(0) || '?'}, {treeBounds?.maxX?.toFixed(0) || '?'}] Y[{treeBounds?.minY?.toFixed(0) || '?'}, {treeBounds?.maxY?.toFixed(0) || '?'}]
+          </Text>
+          <Text style={{ color: '#FFF', fontSize: 10, fontFamily: 'Courier' }}>
+            Viewport: {dimensions.width}x{dimensions.height}px
+          </Text>
+          <Text style={{ color: '#FFF', fontSize: 10, fontFamily: 'Courier' }}>
+            Margin: {VIEWPORT_MARGIN}px
+          </Text>
+          <Text style={{ color: '#0FF', fontSize: 10, fontFamily: 'Courier', marginTop: 4 }}>
+            Nodes: {nodes.length} total / {visibleNodes.length} visible / {culledNodes.length} culled
+          </Text>
+          <Text style={{ color: '#FFF', fontSize: 10, fontFamily: 'Courier' }}>
+            Tier: {tier} | Connections: {connections.length}
+          </Text>
+          <Text style={{ color: '#FF0', fontSize: 9, fontFamily: 'Courier', marginTop: 4 }}>
+            Green=Visible | Blue=Culled
+          </Text>
+        </View>
+      )}
 
       <SearchBar
         onSelectResult={handleSearchResultSelect}
