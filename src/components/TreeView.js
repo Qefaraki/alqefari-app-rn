@@ -2982,18 +2982,19 @@ const maxZoomShared = useSharedValue(maxZoom);
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
 
-    // Expand viewport by VIEWPORT_MARGIN pixels in all directions (screen-space)
-    // Add to x/y to extend left and up, add to width/height to extend right and down
-    // Because worldMin = -transform/scale, more positive transform = smaller worldMin (extends left/up)
-    const viewport = {
-      x: currentTransform.x + VIEWPORT_MARGIN,              // Extend left (makes worldMinX smaller)
-      y: currentTransform.y + VIEWPORT_MARGIN,              // Extend up (makes worldMinY smaller)
-      width: dimensions.width + (2 * VIEWPORT_MARGIN),      // Extend right
-      height: dimensions.height + (2 * VIEWPORT_MARGIN),    // Extend down
-    };
+    // Calculate world-space margin to add buffer around viewport
+    // IMPORTANT: Do NOT modify x/y - they are screen-space camera position
+    // that SpatialGrid.getVisibleNodes() will transform to world space.
+    // Only the width/height should be expanded with the margin.
+    const worldMargin = VIEWPORT_MARGIN / currentTransform.scale;
 
     return spatialGrid.getVisibleNodes(
-      viewport,
+      {
+        x: currentTransform.x,
+        y: currentTransform.y,
+        width: dimensions.width + (2 * worldMargin),
+        height: dimensions.height + (2 * worldMargin),
+      },
       currentTransform.scale,
       indices.idToNode,
     );
