@@ -319,6 +319,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const directSave = useCallback(
     async (changes) => {
       const payload = { ...changes };
+
+      // DEBUG: Log version before save
+      console.log('[ProfileViewer] Saving with version:', {
+        personName: person.name,
+        currentVersion: person.version,
+        personId: person.id
+      });
+
       const { error, data } = await profilesService.updateProfile(
         person.id,
         person.version || 1,
@@ -326,12 +334,22 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
       );
 
       if (error) {
+        console.error('[ProfileViewer] Save error:', error.message);
         throw error;
       }
+
+      // DEBUG: Log returned data
+      console.log('[ProfileViewer] Save response:', {
+        returnedVersion: data?.version,
+        hasVersionInResponse: !!data?.version,
+        fullData: data
+      });
 
       // CRITICAL FIX: Use returned data from RPC which includes updated version
       // This prevents "version mismatch" errors on subsequent saves
       const updatedProfile = { ...person, ...payload, version: data?.version || (person.version || 1) + 1 };
+
+      console.log('[ProfileViewer] Updating store with version:', updatedProfile.version);
 
       useTreeStore.getState().updateNode(person.id, updatedProfile);
       onUpdate?.(updatedProfile);

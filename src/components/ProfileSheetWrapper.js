@@ -19,8 +19,18 @@ const ProfileSheetWrapper = ({ editMode }) => {
     if (!selectedPersonId) return null;
     // Use nodesMap for O(1) lookup and reactive version updates
     const foundPerson = nodesMap.get(selectedPersonId);
-    // Fallback to familyData if not in store (should be rare)
-    return foundPerson || familyData.find((p) => p.id === selectedPersonId);
+    const fallbackPerson = foundPerson || familyData.find((p) => p.id === selectedPersonId);
+
+    // DEBUG: Log person version for troubleshooting
+    if (fallbackPerson) {
+      console.log('[ProfileSheetWrapper] Person loaded:', {
+        name: fallbackPerson.name,
+        version: fallbackPerson.version,
+        source: foundPerson ? 'nodesMap' : 'familyData'
+      });
+    }
+
+    return fallbackPerson;
   }, [selectedPersonId, nodesMap]);
 
   // Critical: Reset profileSheetProgress when switching between modals

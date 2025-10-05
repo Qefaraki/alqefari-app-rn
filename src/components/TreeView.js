@@ -2982,24 +2982,30 @@ const maxZoomShared = useSharedValue(maxZoom);
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
 
-    // Apply margin in screen-space (pixels) before world-space transform.
-    // This ensures consistent 1200px buffer beyond viewport edge at ALL zoom levels.
+    // Expand viewport by VIEWPORT_MARGIN in ALL FOUR directions (screen-space).
+    // This prevents nodes from popping in/out immediately when entering screen edges.
     //
-    // How it works:
-    // - We add VIEWPORT_MARGIN directly to width/height in screen pixels
-    // - getVisibleNodes() divides by scale internally: worldMaxX = (-x + width) / scale
-    // - Buffer in world space = (2 * VIEWPORT_MARGIN) / scale
-    // - Buffer back in screen space = ((2 * VIEWPORT_MARGIN) / scale) * scale = 2 * VIEWPORT_MARGIN ✅
+    // Geometry explanation:
+    // getVisibleNodes() transforms viewport to world space:
+    //   worldMinX = -x / scale
+    //   worldMaxX = (-x + width) / scale
     //
-    // CRITICAL: Do NOT add margin to x/y coordinates!
-    // - x/y represent camera position and are transformed inside getVisibleNodes()
-    // - Adding margin to x/y causes double transformation and breaks camera panning
+    // To add margin on LEFT side:
+    //   x_adjusted = x + VIEWPORT_MARGIN
+    //   worldMinX = -(x + VIEWPORT_MARGIN) / scale = -x/scale - VIEWPORT_MARGIN/scale
+    //   This shifts the left edge VIEWPORT_MARGIN/scale further left in world space
+    //
+    // To add margin on RIGHT side:
+    //   width_adjusted = width + 2*VIEWPORT_MARGIN
+    //   (The +2* accounts for both the shift from x adjustment AND right extension)
+    //
+    // Result: Consistent 1200px buffer on all sides at any zoom level.
     return spatialGrid.getVisibleNodes(
       {
-        x: currentTransform.x,                           // Unmodified camera position
-        y: currentTransform.y,                           // Unmodified camera position
-        width: dimensions.width + (2 * VIEWPORT_MARGIN),    // Screen-space margin
-        height: dimensions.height + (2 * VIEWPORT_MARGIN),  // Screen-space margin
+        x: currentTransform.x + VIEWPORT_MARGIN,            // Extend left & top
+        y: currentTransform.y + VIEWPORT_MARGIN,
+        width: dimensions.width + (2 * VIEWPORT_MARGIN),    // Extend right (accounts for shift)
+        height: dimensions.height + (2 * VIEWPORT_MARGIN),  // Extend bottom (accounts for shift)
       },
       currentTransform.scale,
       indices.idToNode,

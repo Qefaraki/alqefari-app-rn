@@ -58,7 +58,15 @@ export const useTreeStore = create((set, get) => ({
   // Update a single node without reloading the entire tree
   updateNode: (nodeId, updatedData) =>
     set((state) => {
-      console.log("🔄 Updating node:", nodeId, "with data:", updatedData.name);
+      const existingNode = state.nodesMap.get(nodeId);
+
+      // DEBUG: Log version changes
+      console.log("🔄 [useTreeStore] Updating node:", {
+        name: updatedData.name || existingNode?.name,
+        oldVersion: existingNode?.version,
+        newVersion: updatedData.version,
+        versionIncremented: updatedData.version > (existingNode?.version || 0)
+      });
 
       // Create new array with the updated node
       const newTreeData = state.treeData.map((node) =>
@@ -67,9 +75,12 @@ export const useTreeStore = create((set, get) => ({
 
       // Update the nodesMap as well
       const newNodesMap = new Map(state.nodesMap);
-      const existingNode = newNodesMap.get(nodeId);
       if (existingNode) {
-        newNodesMap.set(nodeId, { ...existingNode, ...updatedData });
+        const mergedNode = { ...existingNode, ...updatedData };
+        newNodesMap.set(nodeId, mergedNode);
+
+        // DEBUG: Confirm version in Map
+        console.log("✅ [useTreeStore] Node updated in Map with version:", mergedNode.version);
       }
 
       return {

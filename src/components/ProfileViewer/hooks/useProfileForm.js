@@ -11,7 +11,7 @@ export const useProfileForm = (person) => {
     setOriginal(clone(person));
     setDraft(clone(person));
     setTouched(new Set());
-  }, [person?.id]);
+  }, [person?.id, person?.version]); // ✅ React to version changes
 
   const updateField = useCallback((key, value) => {
     setDraft((prev) => {
