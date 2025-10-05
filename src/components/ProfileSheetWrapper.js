@@ -11,17 +11,17 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const { isAdminMode } = useAdminMode();
   const selectedPersonId = useTreeStore((s) => s.selectedPersonId);
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
-  const treeData = useTreeStore((state) => state.treeData);
+  const nodesMap = useTreeStore((s) => s.nodesMap);
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
-  // Get person data
+  // Get person data - O(1) lookup, reactive to version updates
   const person = React.useMemo(() => {
     if (!selectedPersonId) return null;
-    if (treeData && treeData.length > 0) {
-      return treeData.find((p) => p.id === selectedPersonId);
-    }
-    return familyData.find((p) => p.id === selectedPersonId);
-  }, [selectedPersonId, treeData]);
+    // Use nodesMap for O(1) lookup and reactive version updates
+    const foundPerson = nodesMap.get(selectedPersonId);
+    // Fallback to familyData if not in store (should be rare)
+    return foundPerson || familyData.find((p) => p.id === selectedPersonId);
+  }, [selectedPersonId, nodesMap]);
 
   // Critical: Reset profileSheetProgress when switching between modals
   useEffect(() => {

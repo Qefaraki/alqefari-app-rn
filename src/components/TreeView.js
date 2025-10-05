@@ -2982,18 +2982,24 @@ const maxZoomShared = useSharedValue(maxZoom);
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
 
-    // Calculate world-space margin to add buffer around viewport
-    // IMPORTANT: Do NOT modify x/y - they are screen-space camera position
-    // that SpatialGrid.getVisibleNodes() will transform to world space.
-    // Only the width/height should be expanded with the margin.
-    const worldMargin = VIEWPORT_MARGIN / currentTransform.scale;
-
+    // Apply margin in screen-space (pixels) before world-space transform.
+    // This ensures consistent 1200px buffer beyond viewport edge at ALL zoom levels.
+    //
+    // How it works:
+    // - We add VIEWPORT_MARGIN directly to width/height in screen pixels
+    // - getVisibleNodes() divides by scale internally: worldMaxX = (-x + width) / scale
+    // - Buffer in world space = (2 * VIEWPORT_MARGIN) / scale
+    // - Buffer back in screen space = ((2 * VIEWPORT_MARGIN) / scale) * scale = 2 * VIEWPORT_MARGIN ✅
+    //
+    // CRITICAL: Do NOT add margin to x/y coordinates!
+    // - x/y represent camera position and are transformed inside getVisibleNodes()
+    // - Adding margin to x/y causes double transformation and breaks camera panning
     return spatialGrid.getVisibleNodes(
       {
-        x: currentTransform.x,
-        y: currentTransform.y,
-        width: dimensions.width + (2 * worldMargin),
-        height: dimensions.height + (2 * worldMargin),
+        x: currentTransform.x,                           // Unmodified camera position
+        y: currentTransform.y,                           // Unmodified camera position
+        width: dimensions.width + (2 * VIEWPORT_MARGIN),    // Screen-space margin
+        height: dimensions.height + (2 * VIEWPORT_MARGIN),  // Screen-space margin
       },
       currentTransform.scale,
       indices.idToNode,
