@@ -4,7 +4,6 @@ import ProfileSheet from "./ProfileSheet";
 import ProfileViewer from "./ProfileViewer";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
-import { familyData } from "../data/family-data";
 import { featureFlags } from "../config/featureFlags";
 
 const ProfileSheetWrapper = ({ editMode }) => {
@@ -17,20 +16,24 @@ const ProfileSheetWrapper = ({ editMode }) => {
   // Get person data - O(1) lookup, reactive to version updates
   const person = React.useMemo(() => {
     if (!selectedPersonId) return null;
-    // Use nodesMap for O(1) lookup and reactive version updates
+
+    // CRITICAL: Only use nodesMap (zustand store), never fallback to static familyData
+    // The static familyData is from September and doesn't have version column
+    // If person not in store yet, wait for TreeView to load it
     const foundPerson = nodesMap.get(selectedPersonId);
-    const fallbackPerson = foundPerson || familyData.find((p) => p.id === selectedPersonId);
 
     // DEBUG: Log person version for troubleshooting
-    if (fallbackPerson) {
+    if (foundPerson) {
       console.log('[ProfileSheetWrapper] Person loaded:', {
-        name: fallbackPerson.name,
-        version: fallbackPerson.version,
-        source: foundPerson ? 'nodesMap' : 'familyData'
+        name: foundPerson.name,
+        version: foundPerson.version,
+        source: 'nodesMap'
       });
+    } else if (selectedPersonId) {
+      console.log('[ProfileSheetWrapper] Person not in store yet, waiting for TreeView to load');
     }
 
-    return fallbackPerson;
+    return foundPerson || null;
   }, [selectedPersonId, nodesMap]);
 
   // Critical: Reset profileSheetProgress when switching between modals
