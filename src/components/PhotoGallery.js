@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Image,
   Alert,
   ActivityIndicator,
   StyleSheet,
@@ -16,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import { supabase } from "../services/supabase";
 import storageService from "../services/storage";
 import { useAdminMode } from "../contexts/AdminModeContext";
+import RobustImage from "./ui/RobustImage";
 
 const { width: screenWidth } = Dimensions.get("window");
 const PHOTO_SIZE = (screenWidth - 48) / 3; // 3 photos per row with spacing
@@ -312,7 +312,16 @@ const PhotoGallery = ({
               }}
               activeOpacity={isEditMode ? 0.7 : 1}
             >
-              <Image source={{ uri: photo.photo_url }} style={styles.photo} />
+              <RobustImage
+                source={{ uri: photo.photo_url }}
+                style={styles.photo}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                maxRetries={3}
+                showRetryButton={true}
+                recyclingKey={photo.id}
+                transition={300}
+              />
 
               {/* Primary badge */}
               {photo.is_primary && (

@@ -77,6 +77,14 @@ class StorageService {
           data: { publicUrl },
         } = supabase.storage.from(this.bucketName).getPublicUrl(filePath);
 
+        // Verify the URL is actually accessible (critical for reliability)
+        const isAccessible = await this.verifyImageUrl(publicUrl);
+        if (!isAccessible) {
+          // URL not accessible - delete the uploaded file and fail
+          await supabase.storage.from(this.bucketName).remove([filePath]);
+          throw new Error("تعذر الوصول للصورة بعد الرفع");
+        }
+
         // Clean up old photos on successful upload
         await this.cleanupOldPhotos(profileId, publicUrl);
 
@@ -198,6 +206,45 @@ class StorageService {
       console.error("Error uploading spouse photo:", error);
       throw error;
     }
+  }
+
+  /**
+   * Verifies that an image URL is actually accessible
+   * @param {string} url - The image URL to verify
+   * @returns {Promise<boolean>}
+   */
+  async verifyImageUrl(url, maxAttempts = 3) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        // Add small delay for CDN propagation on retries
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+
+        const response = await fetch(url, {
+          method: "HEAD", // HEAD request is faster than GET
+          cache: "no-cache",
+        });
+
+        if (response.ok && response.status === 200) {
+          console.log("[StorageService] ✅ Image URL verified:", url);
+          return true;
+        }
+
+        console.warn(
+          `[StorageService] Image URL check failed (attempt ${attempt + 1}/${maxAttempts}):`,
+          response.status,
+        );
+      } catch (error) {
+        console.error(
+          `[StorageService] Error verifying image URL (attempt ${attempt + 1}/${maxAttempts}):`,
+          error.message,
+        );
+      }
+    }
+
+    console.error("[StorageService] ❌ Image URL verification failed:", url);
+    return false;
   }
 
   /**

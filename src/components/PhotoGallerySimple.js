@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
   StyleSheet,
@@ -18,6 +17,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../services/supabase';
 import storageService from '../services/storage';
+import RobustImage from './ui/RobustImage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const PHOTO_SIZE = 140; // Larger for better face visibility
@@ -69,7 +69,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [imageLoadingStates, setImageLoadingStates] = useState({});
   const scrollViewRef = useRef(null);
   const [shouldScrollToEnd, setShouldScrollToEnd] = useState(false);
 
@@ -115,13 +114,13 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
     }
   }, [uploading]);
 
-  // Track individual image loading
-  const handleImageLoadStart = (photoId) => {
-    setImageLoadingStates((prev) => ({ ...prev, [photoId]: true }));
-  };
-
-  const handleImageLoadEnd = (photoId) => {
-    setImageLoadingStates((prev) => ({ ...prev, [photoId]: false }));
+  // Log image errors for diagnostics
+  const handleImageError = (photoId, error) => {
+    console.error('[PhotoGallerySimple] Image load error:', {
+      photoId,
+      profileId,
+      error: error?.message || 'Unknown error',
+    });
   };
 
   // Compress image
@@ -269,23 +268,17 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
               index === photos.length - 1 && !isEditMode && styles.lastPhoto,
             ]}
           >
-            {/* Skeleton loader */}
-            {imageLoadingStates[photo.id] && (
-              <View style={StyleSheet.absoluteFill}>
-                <PhotoSkeleton />
-              </View>
-            )}
-
-            {/* Actual image */}
-            <Image
+            {/* RobustImage with error recovery */}
+            <RobustImage
               source={{ uri: photo.photo_url }}
-              style={[
-                styles.photo,
-                imageLoadingStates[photo.id] && styles.photoHidden,
-              ]}
-              onLoadStart={() => handleImageLoadStart(photo.id)}
-              onLoadEnd={() => handleImageLoadEnd(photo.id)}
-              resizeMode="cover"
+              style={styles.photo}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              maxRetries={3}
+              showRetryButton={true}
+              onError={(error) => handleImageError(photo.id, error)}
+              recyclingKey={photo.id}
+              transition={300}
             />
 
             {/* Delete button (edit mode only) */}
@@ -375,10 +368,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
-  },
-
-  photoHidden: {
-    opacity: 0, // Hide while skeleton shows
   },
 
   photoSkeleton: {

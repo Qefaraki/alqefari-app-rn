@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
   StyleSheet,
@@ -16,6 +15,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../services/supabase";
 import storageService from "../services/storage";
+import RobustImage from "./ui/RobustImage";
 
 const { width: screenWidth } = Dimensions.get("window");
 const THUMBNAIL_SIZE = 80; // Small square thumbnails
@@ -349,13 +349,18 @@ const PhotoGalleryMaps = ({
       {/* Main Preview Photo - Contained within margins */}
       {currentPhoto ? (
         <View style={styles.previewContainer}>
-          <Image
+          <RobustImage
             source={{ uri: currentPhoto.photo_url }}
             style={[
               styles.previewImage,
               currentPhoto.isTemporary && styles.previewImageLoading,
             ]}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            maxRetries={3}
+            showRetryButton={!currentPhoto.isTemporary}
+            recyclingKey={currentPhoto.id}
+            transition={300}
           />
           {currentPhoto.isTemporary && (
             <View style={styles.uploadingOverlay}>
@@ -411,13 +416,19 @@ const PhotoGalleryMaps = ({
                 activeOpacity={0.7}
                 style={styles.thumbnailWrapper}
               >
-                <Image
+                <RobustImage
                   source={{ uri: photo.photo_url }}
                   style={[
                     styles.thumbnail,
                     selectedPhotoIndex === index && styles.thumbnailSelected,
                     photo.isTemporary && styles.thumbnailLoading,
                   ]}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  maxRetries={2}
+                  showRetryButton={false}
+                  recyclingKey={photo.id}
+                  transition={200}
                 />
 
                 {/* Primary star badge */}
