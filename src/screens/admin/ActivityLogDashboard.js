@@ -17,7 +17,6 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,8 +40,6 @@ const colors = {
   error: "#FF3B30",
   info: tokens.colors.accent,
 };
-
-const { width: screenWidth } = Dimensions.get("window");
 
 // Action type configurations
 const ACTION_CONFIGS = {
@@ -114,23 +111,27 @@ export default function ActivityLogDashboard({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedCards, setExpandedCards] = useState(new Set());
-  const [stats, setStats] = useState({
-    total: 0,
-    today: 0,
-    critical: 0,
-    pending: 0,
-  });
 
   const subscriptionRef = useRef(null);
   const flatListRef = useRef(null);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
 
   // Fetch activities from database
   const fetchActivities = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("audit_log")
+        .from("audit_log_enhanced")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
@@ -138,24 +139,6 @@ export default function ActivityLogDashboard({ onClose }) {
       if (error) throw error;
 
       setActivities(data || []);
-
-      // Calculate stats
-      const now = new Date();
-      const todayStart = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-      );
-
-      const stats = {
-        total: data?.length || 0,
-        today:
-          data?.filter((a) => new Date(a.created_at) >= todayStart).length || 0,
-        critical: data?.filter((a) => a.severity === "critical").length || 0,
-        pending: data?.filter((a) => a.status === "pending").length || 0,
-      };
-
-      setStats(stats);
     } catch (error) {
       console.error("Error fetching activities:", error);
       Alert.alert("خطأ", "فشل تحميل سجل النشاط");
@@ -186,14 +169,39 @@ export default function ActivityLogDashboard({ onClose }) {
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Failed to subscribe to audit log changes');
+          Alert.alert("خطأ", "فشل الاتصال بالتحديثات الفورية");
+        }
+      });
 
     return () => {
       if (subscriptionRef.current) {
         supabase.removeChannel(subscriptionRef.current);
       }
     };
-  }, [fetchActivities]);
+  }, []);
+
+  // Calculate stats (memoized for performance)
+  const stats = useMemo(() => {
+    const now = new Date();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    return {
+      total: activities.length || 0,
+      today:
+        activities.filter((a) => new Date(a.created_at) >= todayStart).length ||
+        0,
+      critical:
+        activities.filter((a) => a.severity === "critical").length || 0,
+      pending: activities.filter((a) => a.status === "pending").length || 0,
+    };
+  }, [activities]);
 
   // Filter activities based on search and filter
   useEffect(() => {
@@ -244,9 +252,9 @@ export default function ActivityLogDashboard({ onClose }) {
       }
     }
 
-    // Apply search
-    if (searchText.trim()) {
-      const search = searchText.trim().toLowerCase();
+    // Apply search (debounced)
+    if (debouncedSearch.trim()) {
+      const search = debouncedSearch.trim().toLowerCase();
       filtered = filtered.filter(
         (a) =>
           a.actor_name?.toLowerCase().includes(search) ||
@@ -254,12 +262,12 @@ export default function ActivityLogDashboard({ onClose }) {
           a.target_name?.toLowerCase().includes(search) ||
           a.target_phone?.includes(search) ||
           a.description?.toLowerCase().includes(search) ||
-          ACTION_CONFIGS[a.action_type]?.label.toLowerCase().includes(search),
+          ACTION_CONFIGS[a.action_type]?.label?.toLowerCase().includes(search),
       );
     }
 
     setFilteredActivities(filtered);
-  }, [activities, activeFilter, searchText]);
+  }, [activities, activeFilter, debouncedSearch]);
 
   // Format timestamp
   const formatTimestamp = (timestamp) => {
@@ -294,16 +302,23 @@ export default function ActivityLogDashboard({ onClose }) {
     }
   };
 
-  // Toggle card expansion
-  const toggleCardExpansion = (id) => {
-    const newExpanded = new Set(expandedCards);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedCards(newExpanded);
-  };
+  // Toggle card expansion (limit to 5 cards to prevent memory issues)
+  const toggleCardExpansion = useCallback((id) => {
+    setExpandedCards((prev) => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(id)) {
+        newExpanded.delete(id);
+      } else {
+        // Limit to 5 expanded cards at once for performance
+        if (newExpanded.size >= 5) {
+          const firstId = newExpanded.values().next().value;
+          newExpanded.delete(firstId);
+        }
+        newExpanded.add(id);
+      }
+      return newExpanded;
+    });
+  }, []);
 
   // Handle revert action
   const handleRevert = async (activity) => {
@@ -486,7 +501,8 @@ export default function ActivityLogDashboard({ onClose }) {
 
             {/* Action buttons */}
             <View style={styles.actionButtons}>
-              {item.can_revert && (
+              {/* TODO: Implement revert functionality before enabling */}
+              {false && item.can_revert && (
                 <TouchableOpacity
                   style={[styles.actionButton, styles.revertButton]}
                   onPress={() => handleRevert(item)}
@@ -496,20 +512,23 @@ export default function ActivityLogDashboard({ onClose }) {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.detailsButton]}
-                onPress={() => {
-                  // Navigate to specific entity (node, marriage, etc.)
-                  Alert.alert("التفاصيل", `ID: ${item.target_id || item.id}`);
-                }}
-              >
-                <Ionicons
-                  name="information-circle"
-                  size={16}
-                  color={colors.info}
-                />
-                <Text style={styles.detailsButtonText}>عرض التفاصيل</Text>
-              </TouchableOpacity>
+              {/* TODO: Implement navigation to profile/entity before enabling */}
+              {false && (
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.detailsButton]}
+                  onPress={() => {
+                    // Navigate to specific entity (node, marriage, etc.)
+                    Alert.alert("التفاصيل", `ID: ${item.target_id || item.id}`);
+                  }}
+                >
+                  <Ionicons
+                    name="information-circle"
+                    size={16}
+                    color={colors.info}
+                  />
+                  <Text style={styles.detailsButtonText}>عرض التفاصيل</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -685,9 +704,10 @@ export default function ActivityLogDashboard({ onClose }) {
           </View>
         }
         showsVerticalScrollIndicator={false}
-        initialNumToRender={10}
+        initialNumToRender={15}
         maxToRenderPerBatch={10}
-        windowSize={10}
+        windowSize={11}
+        removeClippedSubviews={true}
       />
     </SafeAreaView>
   );
@@ -802,8 +822,8 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: tokens.spacing.xxs,
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1012,11 +1032,11 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     borderRadius: 6,
     borderWidth: 1,
-    minHeight: 32,
+    minHeight: 44,
   },
   revertButton: {
     borderColor: colors.error + "40",

@@ -115,7 +115,7 @@ const TabGeneral = ({ form, updateField }) => {
 
   const dodHeight = dodHeightAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 320], // Full height for DateEditor component (was 120px, caused cutoff)
+    outputRange: [0, 360], // Full height for DateEditor with extra padding (was 120px)
   });
 
   return (

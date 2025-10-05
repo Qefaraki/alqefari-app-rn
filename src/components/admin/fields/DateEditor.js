@@ -479,7 +479,9 @@ const styles = StyleSheet.create({
     minHeight: tokens.touchTarget.minimum, // 44px
   },
   clearButton: {
-    backgroundColor: tokens.colors.najdi.container, // Camel Hair Beige #D1BBA3
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White #F9F7F3
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '60', // Camel Hair border
   },
   presetButtonText: {
     fontSize: 16,
