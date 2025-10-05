@@ -249,29 +249,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
             onPress: () => handleEditPress(),
           }
         : null,
-      canEdit
-        ? {
-            text: 'تغيير صورة الملف',
-            onPress: () => handleChangeProfilePhoto(),
-          }
-        : null,
-      {
-        text: 'مشاركة الملف',
-        onPress: () => Alert.alert('قريباً', 'ميزة المشاركة قيد الإعداد'),
-      },
-      {
-        text: 'طلب مساعدة',
-        onPress: () => Alert.alert('طلب المساعدة', 'سيتواصل فريق الدعم معك قريباً'),
-      },
-      {
-        text: 'الإبلاغ عن مشكلة',
-        onPress: () => Alert.alert('تم الاستلام', 'شكراً لتنبيهك'),
-      },
       { text: 'إغلاق', style: 'cancel' },
     ].filter(Boolean);
 
     Alert.alert(person?.name || 'الملف', 'اختر الإجراء', options);
-  }, [canEdit, person, handleChangeProfilePhoto]);
+  }, [canEdit, person]);
 
   const enterEditMode = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -508,6 +490,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           onToggleBio={() => setBioExpanded((prev) => !prev)}
           metrics={metricsPayload}
           onClose={closeSheet}
+          onPhotoPress={canEdit ? handleChangeProfilePhoto : undefined}
           topInset={insets.top}
         />
 
@@ -554,6 +537,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           person={form.draft}
           onMenu={handleMenuPress}
           onCopyChain={() => {}}
+          onPhotoPress={canEdit ? handleChangeProfilePhoto : undefined}
           bioExpanded={bioExpanded}
           onToggleBio={() => setBioExpanded((prev) => !prev)}
           metrics={metricsPayload}

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
+import { View, Text, Pressable, StyleSheet, I18nManager, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ProgressiveHeroImage } from '../../ProgressiveImage';
 import HeroActions from './HeroActions';
@@ -43,6 +43,7 @@ const Hero = ({
   onToggleBio,
   metrics,
   onClose,
+  onPhotoPress,
   topInset = 0,
 }) => {
   const bioText = person.bio || person.biography || '';
@@ -61,7 +62,12 @@ const Hero = ({
   return (
     <View style={styles.container}>
       {person?.photo_url ? (
-        <View style={styles.photoWrapper}>
+        <TouchableOpacity
+          style={styles.photoWrapper}
+          onPress={onPhotoPress}
+          disabled={!onPhotoPress}
+          activeOpacity={onPhotoPress ? 0.95 : 1}
+        >
           <ProgressiveHeroImage
             source={{ uri: person.photo_url }}
             style={styles.heroImage}
@@ -75,7 +81,7 @@ const Hero = ({
             ]}
             style={styles.gradient}
           />
-        </View>
+        </TouchableOpacity>
       ) : null}
 
       <View style={styles.body}>
