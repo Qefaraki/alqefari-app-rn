@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.sm,
   },
   toggleWrapper: {
-    flex: 1,
+    minWidth: 80, // Prevents squishing, allows natural growth
   },
   toggleChip: {
     height: tokens.touchTarget.minimum,
@@ -320,6 +320,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: tokens.colors.najdi.background,
+    paddingHorizontal: tokens.spacing.md, // 16px horizontal padding for breathing room
+    minWidth: 80, // Ensures minimum comfort size
   },
   toggleChipActive: {
     borderColor: tokens.colors.najdi.primary,
