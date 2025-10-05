@@ -10,7 +10,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Platform,
   ActivityIndicator,
   FlatList,
@@ -20,6 +19,7 @@ import {
   Alert,
   Dimensions,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import {
@@ -30,19 +30,16 @@ import {
   formatDistanceToNow,
 } from "date-fns";
 import { ar } from "date-fns/locale";
+import tokens from "../../components/ui/tokens";
 
-// Najdi Sadu Color Palette
+// Use Najdi Sadu Color Palette from tokens
 const colors = {
-  background: "#F9F7F3",
-  container: "#D1BBA3",
-  text: "#242121",
-  textLight: "#24212199",
-  primary: "#A13333",
-  secondary: "#D58C4A",
-  success: "#4CAF50",
+  ...tokens.colors.najdi,
+  success: tokens.colors.success,
+  danger: tokens.colors.danger,
   warning: "#FF9800",
-  error: "#F44336",
-  info: "#2196F3",
+  error: "#FF3B30",
+  info: tokens.colors.accent,
 };
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -568,10 +565,10 @@ export default function ActivityLogDashboard({ onClose }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="chevron-back" size={28} color="#242121" />
+            <Ionicons name="chevron-back" size={28} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>سجل النشاط المفصل</Text>
           <View style={{ width: 40 }} />
@@ -586,11 +583,11 @@ export default function ActivityLogDashboard({ onClose }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>سجل النشاط المفصل</Text>
         <TouchableOpacity
@@ -600,7 +597,7 @@ export default function ActivityLogDashboard({ onClose }) {
             fetchActivities();
           }}
         >
-          <Ionicons name="refresh" size={20} color={colors.primary} />
+          <Ionicons name="refresh" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -705,113 +702,130 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 20 : 40,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.container + "40",
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.container + "20",
   },
   closeButton: {
-    padding: 8,
+    width: 40,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-start",
   },
   refreshButton: {
-    padding: 8,
+    width: 40,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "flex-end",
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#242121",
+    fontSize: tokens.typography.headline.fontSize,
+    fontWeight: tokens.typography.headline.fontWeight,
+    color: colors.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: tokens.spacing.xxl,
   },
   loadingText: {
-    fontSize: 18,
-    fontFamily: "SF Arabic",
+    fontSize: tokens.typography.body.fontSize,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     color: colors.text,
-    marginTop: 16,
+    marginTop: tokens.spacing.md,
   },
   statsContainer: {
     maxHeight: 100,
-    marginVertical: 16,
+    marginVertical: tokens.spacing.md,
   },
   statsContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: tokens.spacing.md,
+    gap: tokens.spacing.sm,
   },
   statsCard: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: tokens.radii.md,
+    padding: tokens.spacing.md,
     minWidth: 100,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.container + "40",
-    borderLeftWidth: 3,
-    marginRight: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: colors.container + "20",
+    marginRight: tokens.spacing.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   statsValue: {
-    fontSize: 24,
-    fontWeight: "700",
+    fontSize: tokens.typography.title2.fontSize,
+    fontWeight: tokens.typography.title2.fontWeight,
     color: colors.text,
-    marginTop: 8,
+    marginTop: tokens.spacing.xs,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   statsLabel: {
-    fontSize: 12,
-    color: colors.textLight,
-    marginTop: 4,
+    fontSize: tokens.typography.footnote.fontSize,
+    color: colors.textMuted,
+    marginTop: tokens.spacing.xxs,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.container + "20",
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    height: 44,
+    backgroundColor: colors.container + "10",
+    borderRadius: tokens.radii.sm,
+    marginHorizontal: tokens.spacing.md,
+    marginBottom: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
+    height: tokens.touchTarget.minimum,
     borderWidth: 1,
-    borderColor: colors.container + "40",
+    borderColor: colors.container + "20",
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: tokens.spacing.xs,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: tokens.typography.body.fontSize,
     color: colors.text,
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   clearButton: {
-    padding: 4,
+    padding: tokens.spacing.xxs,
+    width: 28,
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
   },
   filterContainer: {
     maxHeight: 44,
-    marginBottom: 16,
+    marginBottom: tokens.spacing.md,
   },
   filterContent: {
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: tokens.spacing.md,
+    gap: tokens.spacing.xs,
   },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    minHeight: 32,
     borderRadius: 20,
     backgroundColor: colors.container + "20",
     borderWidth: 1,
-    borderColor: colors.container + "40",
-    marginRight: 8,
+    borderColor: colors.container + "30",
+    marginRight: tokens.spacing.xs,
   },
   filterButtonActive: {
     backgroundColor: colors.primary,
@@ -821,41 +835,48 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   filterButtonText: {
-    fontSize: 14,
+    fontSize: tokens.typography.footnote.fontSize,
     fontWeight: "600",
     color: colors.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterButtonTextActive: {
-    color: colors.background,
+    color: "#FFFFFF",
   },
   listContent: {
     paddingBottom: 100,
   },
   activityCard: {
-    backgroundColor: colors.background,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: tokens.spacing.md,
+    marginVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.md,
+    padding: tokens.spacing.md,
     borderWidth: 1,
-    borderColor: colors.container + "40",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: colors.container + "20",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   activityHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    marginRight: tokens.spacing.sm,
   },
   activityInfo: {
     flex: 1,
@@ -864,44 +885,49 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: tokens.spacing.xxs,
   },
   activityTitle: {
-    fontSize: 16,
+    fontSize: tokens.typography.body.fontSize,
     fontWeight: "600",
     color: colors.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityTime: {
-    fontSize: 12,
-    color: colors.textLight,
+    fontSize: tokens.typography.footnote.fontSize,
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityActorRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: tokens.spacing.xxs,
   },
   activityActor: {
-    fontSize: 14,
+    fontSize: tokens.typography.subheadline.fontSize,
     color: colors.text,
     marginLeft: 6,
     flex: 1,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityTargetRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
-    marginLeft: 20,
+    marginBottom: tokens.spacing.xxs,
+    marginLeft: tokens.spacing.lg,
   },
   activityTarget: {
-    fontSize: 14,
-    color: colors.textLight,
+    fontSize: tokens.typography.subheadline.fontSize,
+    color: colors.textMuted,
     marginLeft: 6,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityDescription: {
-    fontSize: 14,
-    color: colors.textLight,
-    marginTop: 4,
-    lineHeight: 20,
+    fontSize: tokens.typography.subheadline.fontSize,
+    color: colors.textMuted,
+    marginTop: tokens.spacing.xxs,
+    lineHeight: tokens.typography.subheadline.lineHeight,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   roleBadge: {
     paddingHorizontal: 8,

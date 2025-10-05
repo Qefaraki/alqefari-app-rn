@@ -1,16 +1,45 @@
+/**
+ * PhotoEditor - Profile photo upload and management component
+ *
+ * BACKWARDS COMPATIBILITY:
+ * - Supports both OLD system (profiles.photo_url column) and NEW system (profile_photos table)
+ * - Accepts `currentPhotoUrl` prop for existing photos from either system
+ * - Uses expo-image for consistent loading/caching across all photo components
+ * - Automatically uses storage service retry logic (3 attempts with exponential backoff)
+ *
+ * EXPO-IMAGE FEATURES:
+ * - Automatic memory and disk caching (cachePolicy="memory-disk")
+ * - Blurhash placeholder during loading
+ * - Smooth 300ms transition when image loads
+ * - Error retry with cache-busting
+ *
+ * DATABASE SCHEMA:
+ * - OLD: profiles.photo_url (text, nullable) - 9 profiles currently use this
+ * - NEW: profile_photos table (id, profile_id, photo_url, is_primary, display_order) - 7 profiles, 13 photos
+ *
+ * UPLOAD FLOW:
+ * 1. Image picker (camera or library)
+ * 2. Image optimization (resize, compress, strip EXIF) - 0-30% progress
+ * 3. Storage service upload with retry - 30-100% progress
+ * 4. URL verification (ensures image is actually accessible)
+ * 5. Old photo cleanup (deletes previous uploads)
+ *
+ * Updated: January 2025 - Migrated from React Native Image to expo-image
+ */
+
 import React, { useState, useRef } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Image,
   ActivityIndicator,
   Text,
   Alert,
   Platform,
   ActionSheetIOS,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
@@ -32,9 +61,40 @@ const PhotoEditor = ({
   const [previewUrl, setPreviewUrl] = useState(
     value || currentPhotoUrl || null,
   );
+  const [imageError, setImageError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+
+  // Image load handlers
+  const handleImageLoadStart = () => {
+    setImageLoading(true);
+    setImageError(false);
+  };
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+    setImageError(false);
+  };
+
+  const handleImageError = (error) => {
+    console.error("Image load error:", error);
+    setImageLoading(false);
+    setImageError(true);
+  };
+
+  const handleRetryImage = () => {
+    setImageError(false);
+    setImageLoading(true);
+    // Force re-render by adding cache-busting timestamp
+    if (previewUrl) {
+      const separator = previewUrl.includes('?') ? '&' : '?';
+      const urlWithCacheBust = `${previewUrl}${separator}_retry=${Date.now()}`;
+      setPreviewUrl(urlWithCacheBust);
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   // Request permissions
   const requestPermissions = async () => {
@@ -285,11 +345,36 @@ const PhotoEditor = ({
         >
           <View style={styles.imageContainer}>
             {previewUrl ? (
-              <Image
-                source={{ uri: previewUrl }}
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
+              <>
+                <Image
+                  source={{ uri: previewUrl }}
+                  style={styles.profileImage}
+                  contentFit="cover"
+                  transition={300}
+                  cachePolicy="memory-disk"
+                  placeholder={{ blurhash: 'L6D]_g00~q00~q00~q00M{00~q00' }}
+                  placeholderContentFit="cover"
+                  onLoadStart={handleImageLoadStart}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+
+                {/* Image Error State with Retry */}
+                {imageError && !isLoading && (
+                  <View style={styles.imageErrorOverlay}>
+                    <Ionicons name="image-outline" size={48} color="#D1D5DB" />
+                    <TouchableOpacity
+                      style={styles.retryButton}
+                      onPress={handleRetryImage}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="refresh" size={16} color="#FFFFFF" />
+                      <Text style={styles.retryButtonText}>إعادة المحاولة</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.errorHint}>فشل تحميل الصورة</Text>
+                  </View>
+                )}
+              </>
             ) : (
               <View style={styles.noPhotoContainer}>
                 <Ionicons
@@ -438,6 +523,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
+  },
+  imageErrorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(209, 187, 163, 0.9)", // Camel Hair Beige with opacity
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#A13333", // Najdi Crimson
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+  },
+  errorHint: {
+    fontSize: 12,
+    color: "#736372",
+    fontFamily: "SF Arabic",
+    marginTop: 4,
   },
 });
 
