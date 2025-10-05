@@ -25,9 +25,6 @@ export const useTreeStore = create((set, get) => ({
   // Selection state
   selectedPersonId: null,
 
-  // Camera initialization tracking (persists across component remounts)
-  hasInitializedCamera: false,
-
   // Profile sheet state for coordinating animations
   profileSheetIndex: -1,
   profileSheetProgress: null, // This will hold a Reanimated shared value
@@ -51,15 +48,6 @@ export const useTreeStore = create((set, get) => ({
   setIsAnimating: (animating) => set({ isAnimating: animating }),
 
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
-
-  // Camera initialization control
-  setHasInitializedCamera: (value) => set({ hasInitializedCamera: value }),
-
-  resetCameraInitialization: () =>
-    set({
-      hasInitializedCamera: false,
-      stage: { x: 0, y: 0, scale: 1 },
-    }),
 
   setTreeData: (data) =>
     set({

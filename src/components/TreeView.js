@@ -82,10 +82,11 @@ import NetworkErrorView from "./NetworkErrorView";
 import {
   clampStageToBounds,
   createDecayModifier,
+  applyRubberBand,
   DEFAULT_BOUNDS,
 } from "../utils/cameraConstraints";
 
-const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
+const VIEWPORT_MARGIN = 1200; // Nodes appear further off-screen to reduce pop-in effect
 const NODE_WIDTH_WITH_PHOTO = 85;
 const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;
@@ -626,10 +627,8 @@ const TreeView = ({
       if (nodePx < T1_BASE * (1 - HYSTERESIS)) newTier = 2;
     } else if (state.current === 2) {
       if (nodePx >= T1_BASE * (1 + HYSTERESIS)) newTier = 1;
-      else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
-    } else {
-      // tier 3
-      if (nodePx >= T2_BASE * (1 + HYSTERESIS)) newTier = 2;
+      // Tier 3 disabled - stay in tier 2 even when very zoomed out to prevent pop-in
+      // else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
     }
 
     if (newTier !== state.current) {
@@ -745,6 +744,19 @@ const maxZoomShared = useSharedValue(maxZoom);
   // Initial focal point tracking for proper zoom+pan on physical devices
   const initialFocalX = useSharedValue(0);
   const initialFocalY = useSharedValue(0);
+
+  // Frozen pan ranges - calculated once at gesture start for consistent rubber-band
+  const panRangesX = useSharedValue([0, 0]);
+  const panRangesY = useSharedValue([0, 0]);
+
+  // Throttle culling updates to reduce React re-renders during gestures
+  const lastCullingUpdate = useSharedValue(0);
+
+  // Delta tracking for smart throttling - detect large changes (navigation/animation)
+  const lastX = useSharedValue(0);
+  const lastY = useSharedValue(0);
+  const lastScale = useSharedValue(1);
+  const isFirstUpdate = useSharedValue(true);
 
   // Sync scale value to React state for use in render
   useAnimatedReaction(
@@ -1725,26 +1737,9 @@ const maxZoomShared = useSharedValue(maxZoom);
       cancelAnimation(translateY);
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
-    })
-    .onUpdate((e) => {
-      "worklet";
-      // Don't update during pinch
-      if (isPinching.value) {
-        return;
-      }
-      // Simple 1:1 movement - natural feel, no resistance
-      translateX.value = savedTranslateX.value + e.translationX;
-      translateY.value = savedTranslateY.value + e.translationY;
-    })
-    .onEnd((e) => {
-      "worklet";
-      // Don't apply momentum if we were pinching
-      if (isPinching.value) {
-        return;
-      }
 
-      // CRITICAL: Always clamp to valid position before applying momentum
-      // This prevents cumulative drift from multiple small pans
+      // Calculate and freeze pan ranges for this gesture
+      // This prevents jumping when bounds/viewport change mid-gesture
       const clamped = clampStageToBounds(
         { x: translateX.value, y: translateY.value, scale: scale.value },
         viewportShared.value,
@@ -1753,19 +1748,79 @@ const maxZoomShared = useSharedValue(maxZoom);
         maxZoomShared.value
       );
 
-      // Check if we're outside bounds
+      panRangesX.value = clamped.ranges.x;
+      panRangesY.value = clamped.ranges.y;
+    })
+    .onUpdate((e) => {
+      "worklet";
+      // Don't update during pinch
+      if (isPinching.value) {
+        return;
+      }
+
+      // Calculate proposed position
+      const proposedX = savedTranslateX.value + e.translationX;
+      const proposedY = savedTranslateY.value + e.translationY;
+
+      // Use frozen ranges from onStart - prevents jumping from bounds/viewport changes
+      // No expensive clampStageToBounds() call per frame (60-120x performance improvement)
+      translateX.value = applyRubberBand(
+        proposedX,
+        panRangesX.value[0],  // frozen min translation
+        panRangesX.value[1],  // frozen max translation
+        0.55,                 // tension (resistance strength)
+        200                   // softZone (distance before full resistance)
+      );
+
+      translateY.value = applyRubberBand(
+        proposedY,
+        panRangesY.value[0],
+        panRangesY.value[1],
+        0.55,
+        200
+      );
+    })
+    .onEnd((e) => {
+      "worklet";
+      // Don't apply momentum if we were pinching
+      if (isPinching.value) {
+        return;
+      }
+
+      // Check if we're outside valid bounds
+      const clamped = clampStageToBounds(
+        { x: translateX.value, y: translateY.value, scale: scale.value },
+        viewportShared.value,
+        boundsShared.value,
+        minZoomShared.value,
+        maxZoomShared.value
+      );
+
       const isOutsideX = Math.abs(translateX.value - clamped.stage.x) > 1;
       const isOutsideY = Math.abs(translateY.value - clamped.stage.y) > 1;
       const isOutside = isOutsideX || isOutsideY;
 
-      // If outside bounds, snap to clamped position instantly
-      // This ensures we ALWAYS end at a valid position
+      // If outside bounds, spring back smoothly (no jarring snap)
+      // This should be rare now with rubber-band resistance in onUpdate
       if (isOutside) {
-        translateX.value = clamped.stage.x;
-        translateY.value = clamped.stage.y;
+        translateX.value = withSpring(clamped.stage.x, {
+          damping: 20,
+          stiffness: 150,
+          mass: 1,
+        });
+        translateY.value = withSpring(clamped.stage.y, {
+          damping: 20,
+          stiffness: 150,
+          mass: 1,
+        });
+
+        // Update saved values
+        savedTranslateX.value = clamped.stage.x;
+        savedTranslateY.value = clamped.stage.y;
+        return; // Don't apply momentum when springing back
       }
 
-      // Now apply momentum from the valid (clamped) position
+      // Apply momentum with rubber-band modifier for smooth deceleration
       const decayMod = createDecayModifier(
         viewportShared.value,
         boundsShared.value,
@@ -2183,6 +2238,10 @@ const maxZoomShared = useSharedValue(maxZoom);
   );
 
   // Safe camera logging - doesn't trigger React re-renders during gestures
+  const logCameraState = React.useCallback((state) => {
+    console.log('[Camera]', state);
+  }, []);
+
   useAnimatedReaction(
     () => ({
       x: translateX.value,
@@ -2197,7 +2256,7 @@ const maxZoomShared = useSharedValue(maxZoom);
         Math.abs(current.y - previous.y) > 5 ||
         Math.abs(current.scale - previous.scale) > 0.01
       )) {
-        runOnJS(console.log)('[Camera]', {
+        runOnJS(logCameraState)({
           x: Math.round(current.x),
           y: Math.round(current.y),
           scale: current.scale.toFixed(3),
@@ -2904,7 +2963,10 @@ const maxZoomShared = useSharedValue(maxZoom);
     scale: 1,
   });
 
-  // Update transform values when they change
+  // Update transform values when they change - smart throttling
+  // Gestures: Throttled to 200ms (5 updates/sec for performance)
+  // Navigation/Animation: Immediate update when large change detected (fixes culling lag)
+  // World-space deltas ensure consistent behavior across zoom levels
   useAnimatedReaction(
     () => ({
       x: translateX.value,
@@ -2912,7 +2974,41 @@ const maxZoomShared = useSharedValue(maxZoom);
       scale: scale.value,
     }),
     (current) => {
-      runOnJS(setCurrentTransform)(current);
+      'worklet';
+      const now = Date.now();
+
+      // Always update on first reaction to establish baseline
+      if (isFirstUpdate.value) {
+        isFirstUpdate.value = false;
+        lastX.value = current.x;
+        lastY.value = current.y;
+        lastScale.value = current.scale;
+        lastCullingUpdate.value = now;
+        runOnJS(setCurrentTransform)(current);
+        return;
+      }
+
+      // Calculate world-space deltas (scale-aware for consistent detection)
+      const worldDeltaX = Math.abs(current.x - lastX.value) / Math.max(current.scale, 0.1);
+      const worldDeltaY = Math.abs(current.y - lastY.value) / Math.max(current.scale, 0.1);
+      const scaleDelta = Math.abs(current.scale - lastScale.value);
+
+      // Large change detection: 100px in world space OR 0.1 scale change
+      const WORLD_THRESHOLD = 100;
+      const SCALE_THRESHOLD = 0.1;
+      const isLargeChange =
+        worldDeltaX > WORLD_THRESHOLD ||
+        worldDeltaY > WORLD_THRESHOLD ||
+        scaleDelta > SCALE_THRESHOLD;
+
+      // Update immediately for large changes (navigation/animation), throttle for small changes (gestures)
+      if (isLargeChange || now - lastCullingUpdate.value >= 200) {
+        lastX.value = current.x;
+        lastY.value = current.y;
+        lastScale.value = current.scale;
+        lastCullingUpdate.value = now;
+        runOnJS(setCurrentTransform)(current);
+      }
     },
   );
 
