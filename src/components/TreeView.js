@@ -761,6 +761,13 @@ const maxZoomShared = useSharedValue(maxZoom);
   const panRangesX = useSharedValue([0, 0]);
   const panRangesY = useSharedValue([0, 0]);
 
+  // Frozen viewport/bounds - prevents mid-gesture changes (keyboard, modal, culling)
+  // from causing false "outside bounds" detection and unwanted rubber-banding
+  const frozenViewport = useSharedValue({ width: 1, height: 1 });
+  const frozenBounds = useSharedValue(DEFAULT_BOUNDS);
+  const frozenMinZoom = useSharedValue(0.15);
+  const frozenMaxZoom = useSharedValue(3.0);
+
   // Throttle culling updates to reduce React re-renders during gestures
   const lastCullingUpdate = useSharedValue(0);
 
@@ -1746,14 +1753,20 @@ const maxZoomShared = useSharedValue(maxZoom);
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
 
-      // Calculate and freeze pan ranges for this gesture
-      // This prevents jumping when bounds/viewport change mid-gesture
+      // Freeze viewport/bounds to prevent mid-gesture changes from causing
+      // false "outside bounds" detection and unwanted rubber-banding
+      frozenViewport.value = viewportShared.value;
+      frozenBounds.value = boundsShared.value;
+      frozenMinZoom.value = minZoomShared.value;
+      frozenMaxZoom.value = maxZoomShared.value;
+
+      // Calculate and freeze pan ranges using frozen values
       const clamped = clampStageToBounds(
         { x: translateX.value, y: translateY.value, scale: scale.value },
-        viewportShared.value,
-        boundsShared.value,
-        minZoomShared.value,
-        maxZoomShared.value
+        frozenViewport.value,
+        frozenBounds.value,
+        frozenMinZoom.value,
+        frozenMaxZoom.value
       );
 
       panRangesX.value = clamped.ranges.x;
@@ -1795,14 +1808,27 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // Check if we're outside valid bounds
+      // Check if outside bounds using SAME frozen values from onStart
+      // This prevents false positives from mid-gesture viewport/bounds changes
       const clamped = clampStageToBounds(
         { x: translateX.value, y: translateY.value, scale: scale.value },
-        viewportShared.value,
-        boundsShared.value,
-        minZoomShared.value,
-        maxZoomShared.value
+        frozenViewport.value,
+        frozenBounds.value,
+        frozenMinZoom.value,
+        frozenMaxZoom.value
       );
+
+      // Debug: Check if viewport/bounds changed mid-gesture (remove after testing)
+      const viewportChanged =
+        frozenViewport.value.width !== viewportShared.value.width ||
+        frozenViewport.value.height !== viewportShared.value.height;
+
+      if (viewportChanged) {
+        console.log('📐 Viewport changed mid-pan:', {
+          frozen: frozenViewport.value,
+          current: viewportShared.value
+        });
+      }
 
       const isOutsideX = Math.abs(translateX.value - clamped.stage.x) > 1;
       const isOutsideY = Math.abs(translateY.value - clamped.stage.y) > 1;
@@ -1828,13 +1854,13 @@ const maxZoomShared = useSharedValue(maxZoom);
         return; // Don't apply momentum when springing back
       }
 
-      // Apply momentum with rubber-band modifier for smooth deceleration
+      // Apply momentum with rubber-band modifier using frozen values
       const decayMod = createDecayModifier(
-        viewportShared.value,
-        boundsShared.value,
+        frozenViewport.value,
+        frozenBounds.value,
         scale.value,
-        minZoomShared.value,
-        maxZoomShared.value
+        frozenMinZoom.value,
+        frozenMaxZoom.value
       );
 
       translateX.value = withDecay(
@@ -1874,6 +1900,12 @@ const maxZoomShared = useSharedValue(maxZoom);
         savedTranslateX.value = translateX.value;
         savedTranslateY.value = translateY.value;
 
+        // Freeze viewport/bounds for this pinch gesture
+        frozenViewport.value = viewportShared.value;
+        frozenBounds.value = boundsShared.value;
+        frozenMinZoom.value = minZoomShared.value;
+        frozenMaxZoom.value = maxZoomShared.value;
+
         // Store INITIAL focal point for anchoring zoom
         initialFocalX.value = e.focalX;
         initialFocalY.value = e.focalY;
@@ -1908,13 +1940,13 @@ const maxZoomShared = useSharedValue(maxZoom);
     .onEnd(() => {
       "worklet";
 
-      // Check if we need to clamp back into bounds
+      // Check if we need to clamp back into bounds using frozen values
       const clamped = clampStageToBounds(
         { x: translateX.value, y: translateY.value, scale: scale.value },
-        viewportShared.value,
-        boundsShared.value,
-        minZoomShared.value,
-        maxZoomShared.value
+        frozenViewport.value,
+        frozenBounds.value,
+        frozenMinZoom.value,
+        frozenMaxZoom.value
       );
 
       // If we're significantly outside bounds, spring back gently

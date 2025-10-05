@@ -1,7 +1,7 @@
 ---
 name: plan-validator
 description: Use this agent when you have created implementation plans, feature specifications, or refactoring documents that need thorough validation before development begins. Examples: <example>Context: User has created a plan for implementing a new family member search feature with advanced filtering capabilities. user: "I've written up a plan for adding advanced search to the family tree. Can you review it to make sure it's solid before I start coding?" assistant: "I'll use the plan-validator agent to thoroughly review your search feature plan and ensure it aligns with our architecture and requirements." <commentary>The user has a plan document that needs validation before implementation, so use the plan-validator agent to review feasibility, architecture alignment, and identify potential issues.</commentary></example> <example>Context: User is planning a major database refactor to improve performance. user: "Here's my plan for restructuring the family tree database schema. I want to make sure I'm not missing anything critical before I start the migration." assistant: "Let me use the plan-validator agent to analyze your database refactor plan and validate it against our current architecture." <commentary>This is exactly the type of major refactoring plan that needs thorough validation before implementation begins.</commentary></example>
-model: opus
+model: sonnet
 color: pink
 ---
 
