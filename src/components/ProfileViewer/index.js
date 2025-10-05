@@ -23,7 +23,7 @@ import BottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
-import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
+import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import Hero from './Hero/Hero';
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
 import PersonalCard from './ViewMode/cards/PersonalCard';
@@ -38,7 +38,7 @@ import TabGeneral from './EditMode/TabGeneral';
 import TabDetails from './EditMode/TabDetails';
 import TabFamily from './EditMode/TabFamily';
 import TabContact from './EditMode/TabContact';
-import Footer from './EditMode/Footer';
+import EditHeader from './EditMode/EditHeader';
 import EditModeBanner from './EditMode/EditModeBanner';
 import PreEditModal from './EditMode/PreEditModal';
 import { useProfilePermissions } from './hooks/useProfilePermissions';
@@ -63,6 +63,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const { isAdminMode } = useAdminMode();
   const bottomSheetRef = useRef(null);
   const snapPoints = useMemo(() => ['36%', '74%', '100%'], []);
+
+  const [mode, setMode] = useState('view');
+  const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
+
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -76,15 +80,16 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     [],
   );
   const handleComponent = useCallback(
-    () => (
-      <View style={styles.handleContainer}>
-        <View style={styles.handleBar} />
-      </View>
-    ),
+    () => {
+      // Always show drag handle for visual parity
+      return (
+        <View style={styles.handleContainer}>
+          <View style={styles.handleBar} />
+        </View>
+      );
+    },
     [],
   );
-
-  const [mode, setMode] = useState('view');
   const [activeTab, setActiveTab] = useState('general');
   const [bioExpanded, setBioExpanded] = useState(false);
   const [preEditVisible, setPreEditVisible] = useState(false);
@@ -93,6 +98,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const [saving, setSaving] = useState(false);
   const [marriages, setMarriages] = useState([]);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const viewOpacity = useRef(new Animated.Value(1)).current;
+  const editOpacity = useRef(new Animated.Value(0)).current;
   const animatedPosition = useSharedValue(0);
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
 
@@ -155,13 +162,23 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     [profileSheetProgress, screenHeight],
   );
 
+  // Fade animation when switching between view and edit modes
   useEffect(() => {
-    return () => {
-      if (profileSheetProgress) {
-        profileSheetProgress.value = 0;
-      }
-    };
-  }, [profileSheetProgress]);
+    Animated.parallel([
+      Animated.timing(viewOpacity, {
+        toValue: mode === 'view' ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(editOpacity, {
+        toValue: mode === 'edit' ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [mode, viewOpacity, editOpacity]);
+
+  // Cleanup handled by parent component
 
   const canEdit = accessMode !== 'readonly';
 
@@ -260,7 +277,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     form.reset();
     setMode('edit');
     setActiveTab('general');
-    bottomSheetRef.current?.snapToIndex?.(2);
+    // Don't force snap - maintain current position
   }, [form]);
 
   const handleEditPress = useCallback(() => {
@@ -281,7 +298,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     setMode('view');
     setActiveTab('general');
     form.reset();
-    bottomSheetRef.current?.snapToIndex?.(1);
+    // Don't force snap - maintain current position
   }, [form]);
 
   const handleCancel = useCallback(() => {
@@ -312,8 +329,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         throw error;
       }
 
-      useTreeStore.getState().updateNode(person.id, { ...person, ...payload });
-      onUpdate?.({ ...person, ...payload });
+      // CRITICAL FIX: Use returned data from RPC which includes updated version
+      // This prevents "version mismatch" errors on subsequent saves
+      const updatedProfile = { ...person, ...payload, version: data?.version || (person.version || 1) + 1 };
+
+      useTreeStore.getState().updateNode(person.id, updatedProfile);
+      onUpdate?.(updatedProfile);
       return data;
     },
     [onUpdate, person],
@@ -433,15 +454,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
       .join('\n');
   }, [pending]);
 
-  useEffect(() => {
-    if (mode === 'edit') {
-      bottomSheetRef.current?.snapToIndex?.(2);
-    } else {
-      bottomSheetRef.current?.snapToIndex?.(0);
-    }
-  }, [mode]);
+  // Removed: Don't force snap position changes on mode switch
+  // The drawer should maintain its current position for seamless UX
 
   const handleSheetChange = useCallback((index) => {
+    setCurrentSnapIndex(index);
     useTreeStore.setState({ profileSheetIndex: index });
     if (index === -1) {
       onClose?.();
@@ -518,12 +535,19 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   );
 
   const editModeContent = (
-    <>
+    <View style={{ flex: 1 }}>
+      <EditHeader
+        onCancel={handleCancel}
+        onSubmit={handleSubmit}
+        saving={saving}
+        canSubmit={form.isDirty && !permissionLoading}
+        accessMode={accessMode}
+      />
       <BottomSheetScrollView
         contentContainerStyle={{
           paddingHorizontal: 20,
-          paddingTop: 12,
-          paddingBottom: insets.bottom + 160,
+          paddingTop: 0,
+          paddingBottom: insets.bottom + 80,
           gap: 20,
         }}
         showsVerticalScrollIndicator={false}
@@ -533,20 +557,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         )}
         scrollEventThrottle={16}
       >
-        <Hero
-          person={form.draft}
-          onMenu={handleMenuPress}
-          onCopyChain={() => {}}
-          onPhotoPress={canEdit ? handleChangeProfilePhoto : undefined}
-          bioExpanded={bioExpanded}
-          onToggleBio={() => setBioExpanded((prev) => !prev)}
-          metrics={metricsPayload}
-          onClose={closeSheet}
-          topInset={insets.top}
-        />
-
-        <EditModeBanner accessMode={accessMode} />
-
         <TabsHost
           tabs={VIEW_TABS}
           activeTab={activeTab}
@@ -572,38 +582,57 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           ) : null}
         </TabsHost>
       </BottomSheetScrollView>
-
-      <Footer
-        onCancel={handleCancel}
-        onSubmit={handleSubmit}
-        saving={saving}
-        canSubmit={form.isDirty && !permissionLoading}
-        accessMode={accessMode}
-      />
-    </>
+    </View>
   );
 
   return (
     <>
       <BottomSheet
         ref={bottomSheetRef}
-        index={0}
+        index={currentSnapIndex}
         snapPoints={snapPoints}
-        enablePanDownToClose
+        enablePanDownToClose={mode !== 'edit'}
         backdropComponent={renderBackdrop}
         handleComponent={handleComponent}
         animatedPosition={animatedPosition}
-        animateOnMount
+        animateOnMount={false}
         onClose={() => {
           onClose?.();
-          if (profileSheetProgress) {
-            profileSheetProgress.value = 0;
-          }
         }}
         onChange={handleSheetChange}
         backgroundStyle={styles.sheetBackground}
       >
-        {mode === 'view' ? viewModeContent : editModeContent}
+        <View style={{ flex: 1 }}>
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: viewOpacity,
+              zIndex: mode === 'view' ? 1 : 0,
+            }}
+            pointerEvents={mode === 'view' ? 'auto' : 'none'}
+          >
+            {viewModeContent}
+          </Animated.View>
+
+          <Animated.View
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: editOpacity,
+              zIndex: mode === 'edit' ? 1 : 0,
+            }}
+            pointerEvents={mode === 'edit' ? 'auto' : 'none'}
+          >
+            {editModeContent}
+          </Animated.View>
+        </View>
       </BottomSheet>
 
       <PreEditModal

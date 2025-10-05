@@ -1,30 +1,88 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, Switch } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Switch,
+  Animated,
+  StyleSheet,
+} from 'react-native';
+import PropTypes from 'prop-types';
 import PhotoEditor from '../../admin/fields/PhotoEditor';
 import NameEditor from '../../admin/fields/NameEditor';
 import DateEditor from '../../admin/fields/DateEditor';
+import * as Haptics from 'expo-haptics';
+import tokens from '../../ui/tokens';
 
+// iOS-style Form Group with header
+const FormGroup = ({ title, children, style }) => (
+  <View style={[styles.formGroup, style]}>
+    {title ? <Text style={styles.formGroupHeader}>{title}</Text> : null}
+    <View style={styles.formGroupContent}>{children}</View>
+  </View>
+);
+
+// Enhanced Toggle Group with proper iOS styling and haptics
 const ToggleGroup = ({ label, value, options, onChange }) => {
+  const scaleAnims = useRef(options.map(() => new Animated.Value(1))).current;
+
+  const handlePress = (option, index) => {
+    // Haptic feedback on selection
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Scale animation
+    Animated.sequence([
+      Animated.timing(scaleAnims[index], {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnims[index], {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    onChange(option.value);
+  };
+
   return (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.toggleRow}>
-        {options.map((option) => {
+    <FormGroup title={label}>
+      <View style={styles.toggleContainer}>
+        {options.map((option, index) => {
           const isActive = option.value === value;
           return (
-            <TouchableOpacity
+            <Animated.View
               key={option.value}
-              style={[styles.toggleChip, isActive ? styles.toggleChipActive : null]}
-              onPress={() => onChange(option.value)}
+              style={[
+                styles.toggleWrapper,
+                { transform: [{ scale: scaleAnims[index] }] },
+              ]}
             >
-              <Text style={[styles.toggleLabel, isActive ? styles.toggleLabelActive : null]}>
-                {option.label}
-              </Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.toggleChip,
+                  isActive && styles.toggleChipActive,
+                ]}
+                onPress={() => handlePress(option, index)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.toggleLabel,
+                    isActive && styles.toggleLabelActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
           );
         })}
       </View>
-    </View>
+    </FormGroup>
   );
 };
 
@@ -32,8 +90,37 @@ const TabGeneral = ({ form, updateField }) => {
   const { draft, original } = form;
   const profileId = original?.id || draft?.id;
 
+  // Animated height for DOD field (smooth reveal)
+  const dodHeightAnim = useRef(new Animated.Value(0)).current;
+  const dodOpacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Animate DOD field when status changes
+  useEffect(() => {
+    const isDeceased = draft?.status === 'deceased';
+
+    Animated.parallel([
+      Animated.spring(dodHeightAnim, {
+        toValue: isDeceased ? 1 : 0,
+        damping: 20,
+        stiffness: 200,
+        useNativeDriver: false,
+      }),
+      Animated.timing(dodOpacityAnim, {
+        toValue: isDeceased ? 1 : 0,
+        duration: 300,
+        useNativeDriver: false, // Must be false when animating with height
+      }),
+    ]).start();
+  }, [draft?.status]);
+
+  const dodHeight = dodHeightAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 120], // Approximate height of DOD field
+  });
+
   return (
-    <View style={{ gap: 24 }}>
+    <View style={styles.container}>
+      {/* Photo Section - Standalone */}
       <PhotoEditor
         value={draft?.photo_url || ''}
         onChange={(url) => updateField('photo_url', url)}
@@ -42,32 +129,44 @@ const TabGeneral = ({ form, updateField }) => {
         profileId={profileId}
       />
 
-      <NameEditor
-        value={draft?.name || ''}
-        onChange={(text) => updateField('name', text)}
-        placeholder="الاسم الكامل"
-      />
+      {/* Basic Info Group */}
+      <FormGroup title="المعلومات الأساسية">
+        <View style={styles.groupedInputs}>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>الاسم الكامل</Text>
+            <NameEditor
+              value={draft?.name || ''}
+              onChange={(text) => updateField('name', text)}
+              placeholder="الاسم الكامل"
+              fontSize={17}
+            />
+          </View>
 
-      <View style={styles.fieldGroup}>
-        <Text style={styles.sectionLabel}>الكنية</Text>
-        <TextInput
-          style={styles.input}
-          value={draft?.kunya || ''}
-          onChangeText={(text) => updateField('kunya', text)}
-          placeholder="أدخل الكنية"
-        />
-      </View>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>الكنية</Text>
+            <TextInput
+              style={styles.input}
+              value={draft?.kunya || ''}
+              onChangeText={(text) => updateField('kunya', text)}
+              placeholder="أبو محمد"
+              placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+            />
+          </View>
 
-      <View style={styles.fieldGroup}>
-        <Text style={styles.sectionLabel}>اللقب</Text>
-        <TextInput
-          style={styles.input}
-          value={draft?.nickname || ''}
-          onChangeText={(text) => updateField('nickname', text)}
-          placeholder="أدخل اللقب"
-        />
-      </View>
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>اللقب</Text>
+            <TextInput
+              style={styles.input}
+              value={draft?.nickname || ''}
+              onChangeText={(text) => updateField('nickname', text)}
+              placeholder="اللقب المعروف به"
+              placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+            />
+          </View>
+        </View>
+      </FormGroup>
 
+      {/* Gender Selection */}
       <ToggleGroup
         label="الجنس"
         value={draft?.gender || 'male'}
@@ -78,6 +177,7 @@ const TabGeneral = ({ form, updateField }) => {
         ]}
       />
 
+      {/* Status Selection */}
       <ToggleGroup
         label="الحالة"
         value={draft?.status || 'alive'}
@@ -88,86 +188,198 @@ const TabGeneral = ({ form, updateField }) => {
         ]}
       />
 
-      <View style={styles.fieldGroup}>
-        <Text style={styles.sectionLabel}>تاريخ الميلاد</Text>
-        <DateEditor
-          value={draft?.dob_data}
-          onChange={(value) => updateField('dob_data', value)}
-        />
-      </View>
-
-      {draft?.status === 'deceased' ? (
-        <View style={styles.fieldGroup}>
-          <Text style={styles.sectionLabel}>تاريخ الوفاة</Text>
+      {/* Dates Group */}
+      <FormGroup title="التواريخ">
+        <View style={styles.dateContainer}>
+          <Text style={styles.dateLabel}>تاريخ الميلاد</Text>
           <DateEditor
-            value={draft?.dod_data}
-            onChange={(value) => updateField('dod_data', value)}
+            value={draft?.dob_data}
+            onChange={(value) => updateField('dob_data', value)}
           />
         </View>
-      ) : null}
 
-      <View style={[styles.fieldGroup, styles.switchRow]}>
-        <Text style={styles.sectionLabel}>عرض تاريخ الميلاد للعائلة</Text>
-        <Switch
-          value={draft?.dob_is_public !== false}
-          onValueChange={(value) => updateField('dob_is_public', value)}
-        />
-      </View>
+        {/* Animated DOD Field */}
+        <Animated.View
+          style={[
+            styles.dodAnimatedContainer,
+            {
+              height: dodHeight,
+              opacity: dodOpacityAnim,
+              overflow: 'hidden',
+            },
+          ]}
+          pointerEvents={draft?.status === 'deceased' ? 'auto' : 'none'}
+        >
+          <View style={styles.dateContainer}>
+            <Text style={styles.dateLabel}>تاريخ الوفاة</Text>
+            <DateEditor
+              value={draft?.dod_data}
+              onChange={(value) => updateField('dod_data', value)}
+            />
+          </View>
+        </Animated.View>
+      </FormGroup>
+
+      {/* Privacy Settings */}
+      <FormGroup>
+        <View style={styles.switchRow}>
+          <Switch
+            value={draft?.dob_is_public !== false}
+            onValueChange={(value) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              updateField('dob_is_public', value);
+            }}
+            trackColor={{
+              false: tokens.colors.najdi.container + '60',
+              true: tokens.colors.najdi.secondary,
+            }}
+            thumbColor={tokens.colors.najdi.background}
+            ios_backgroundColor={tokens.colors.najdi.container + '60'}
+          />
+          <View style={styles.switchTextContainer}>
+            <Text style={styles.switchLabel}>عرض تاريخ الميلاد للعائلة</Text>
+            <Text style={styles.switchHint}>
+              يمكن لأفراد العائلة رؤية تاريخ الميلاد الكامل
+            </Text>
+          </View>
+        </View>
+      </FormGroup>
+
+      {/* Bottom spacing for scroll comfort */}
+      <View style={{ height: 32 }} />
     </View>
   );
 };
 
-const styles = {
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4d3440',
-    marginBottom: 8,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: tokens.spacing.md,
+    gap: tokens.spacing.xl,
   },
-  fieldGroup: {
-    gap: 8,
+
+  // Form Group Styles (iOS Inset Grouped List)
+  formGroup: {
+    gap: tokens.spacing.xs,
+  },
+  formGroupHeader: {
+    fontSize: 13, // iOS caption1
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingHorizontal: tokens.spacing.md,
+    marginBottom: tokens.spacing.xxs,
+  },
+  formGroupContent: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '40',
+    overflow: 'hidden',
+  },
+
+  // Grouped Inputs (like iOS Settings)
+  groupedInputs: {
+    gap: 1, // Thin divider
+    backgroundColor: tokens.colors.najdi.container + '20',
+  },
+  inputWrapper: {
+    backgroundColor: tokens.colors.najdi.background,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    gap: tokens.spacing.xxs,
+  },
+  inputLabel: {
+    fontSize: 13, // iOS caption1
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#321f27',
-    borderWidth: 1,
-    borderColor: '#e8d9df',
+    fontSize: 17, // iOS body
+    fontWeight: '400',
+    color: tokens.colors.najdi.text,
+    paddingVertical: tokens.spacing.xxs,
+    minHeight: tokens.touchTarget.minimum,
   },
-  toggleRow: {
+
+  // Toggle Group Styles (Najdi Sadu)
+  toggleContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: tokens.spacing.xs,
+    padding: tokens.spacing.sm,
+  },
+  toggleWrapper: {
+    flex: 1,
   },
   toggleChip: {
-    flex: 1,
-    height: 40,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#d9c6cd',
+    height: tokens.touchTarget.minimum,
+    borderRadius: tokens.radii.sm,
+    borderWidth: 1.5,
+    borderColor: tokens.colors.najdi.container,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: tokens.colors.najdi.background,
   },
   toggleChipActive: {
-    borderColor: '#802a46',
-    backgroundColor: '#fde8ed',
+    borderColor: tokens.colors.najdi.primary,
+    backgroundColor: tokens.colors.najdi.primary + '10',
   },
   toggleLabel: {
-    fontSize: 14,
-    color: '#725963',
+    fontSize: 15, // iOS subheadline
     fontWeight: '600',
+    color: tokens.colors.najdi.textMuted,
   },
   toggleLabelActive: {
-    color: '#57172c',
+    color: tokens.colors.najdi.primary,
   },
+
+  // Date Section
+  dateContainer: {
+    padding: tokens.spacing.md,
+    gap: tokens.spacing.xs,
+  },
+  dateLabel: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+  },
+  dodAnimatedContainer: {
+    // Animated height and opacity handled inline
+  },
+
+  // Switch Row (iOS Style)
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
+    minHeight: tokens.touchTarget.minimum,
   },
+  switchTextContainer: {
+    flex: 1,
+    gap: tokens.spacing.xxs,
+  },
+  switchLabel: {
+    fontSize: 17, // iOS body
+    fontWeight: '400',
+    color: tokens.colors.najdi.text,
+  },
+  switchHint: {
+    fontSize: 13, // iOS caption1
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+    lineHeight: 18,
+  },
+});
+
+TabGeneral.propTypes = {
+  form: PropTypes.shape({
+    draft: PropTypes.object,
+    original: PropTypes.object,
+  }).isRequired,
+  updateField: PropTypes.func.isRequired,
 };
 
 export default TabGeneral;

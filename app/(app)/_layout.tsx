@@ -14,18 +14,14 @@ export default function AppLayout() {
   useEffect(() => {
     const initializeNotifications = async () => {
       if (user && isAuthenticated && !notificationInitialized) {
-        console.log('[DEBUG] Initializing notification service for user');
-
         try {
           await notificationService.initialize();
 
           notificationService.setNavigationCallbacks({
             navigateToProfile: (profileId) => {
-              console.log('[DEBUG] Navigate to profile:', profileId);
               router.replace("/settings");
             },
             navigateToAdminRequests: () => {
-              console.log('[DEBUG] Navigate to admin requests');
               if (isAdmin) {
                 router.replace("/admin");
               }
@@ -34,20 +30,19 @@ export default function AppLayout() {
 
           notificationService.setEventCallbacks({
             onApprovalReceived: (data) => {
-              console.log('[DEBUG] Approval notification received:', data);
+              // Handle approval notification
             },
             onRejectionReceived: (data) => {
-              console.log('[DEBUG] Rejection notification received:', data);
+              // Handle rejection notification
             },
             onNewRequestReceived: (data) => {
-              console.log('[DEBUG] New request notification received:', data);
+              // Handle new request notification
             },
           });
 
           setNotificationInitialized(true);
-          console.log('[DEBUG] Notification service initialized successfully');
         } catch (error) {
-          console.error('[DEBUG] Error initializing notifications:', error);
+          console.error('Error initializing notifications:', error);
         }
       }
     };

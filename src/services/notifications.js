@@ -24,7 +24,6 @@ class NotificationService {
     try {
       // Check if physical device
       if (!Device.isDevice) {
-        console.log("Push notifications only work on physical devices");
         return null;
       }
 

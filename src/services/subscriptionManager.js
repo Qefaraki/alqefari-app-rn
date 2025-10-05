@@ -64,11 +64,10 @@ class SubscriptionManager {
     onError = null,
     component = null // For WeakMap tracking
   }) {
-    console.log(`🔍 [SubscriptionManager] subscribe called for ${channelName}`);
     try {
       // Check circuit breaker
       if (this.isCircuitOpen(channelName)) {
-        console.warn(`🔍 [SubscriptionManager] Circuit breaker open for ${channelName}`);
+        console.warn(`[SubscriptionManager] Circuit breaker open for ${channelName}`);
         if (onError) onError(new Error('Circuit breaker is open - too many failures'));
         return null;
       }
@@ -111,12 +110,9 @@ class SubscriptionManager {
       const debouncedUpdate = this.createDebouncedHandler(channelName, onUpdate);
 
       // Create subscription with error handling
-      console.log(`🔍 [SubscriptionManager] Creating Supabase channel for ${channelName}`);
       const channel = supabase
         .channel(channelName)
         .on('postgres_changes', subscriptionConfig, (payload) => {
-          console.log(`🔍 [SubscriptionManager] Update received for ${channelName}:`, payload);
-
           // Update last activity
           this.updateChannelActivity(channelName);
 
@@ -128,9 +124,7 @@ class SubscriptionManager {
           this.handleSubscriptionError(channelName, error, onError);
         })
         .subscribe((status) => {
-          console.log(`🔍 [SubscriptionManager] Subscription status for ${channelName}: ${status}`);
           if (status === 'SUBSCRIBED') {
-            console.log(`✅ [SubscriptionManager] Successfully subscribed to ${channelName}`);
 
             // Track metrics
             const connectTime = Date.now() - startTime;
@@ -143,7 +137,6 @@ class SubscriptionManager {
             // Reset circuit breaker
             this.resetCircuitBreaker(channelName);
           } else if (status === 'CLOSED') {
-            console.log(`[SubscriptionManager] Channel ${channelName} closed normally`);
             // Don't retry on normal close
           } else if (status === 'CHANNEL_ERROR') {
             console.error(`[SubscriptionManager] Channel ${channelName} error`);
@@ -250,7 +243,6 @@ class SubscriptionManager {
     // Don't retry if explicitly closed by user or component unmounted
     const subscriptionInfo = this.activeChannels.get(channelName);
     if (!subscriptionInfo) {
-      console.log(`[SubscriptionManager] Channel ${channelName} no longer active, skipping retry`);
       this.clearRetryTimeout(channelName);
       return;
     }
@@ -261,7 +253,6 @@ class SubscriptionManager {
       this.config.maxRetryDelay
     );
 
-    console.log(`[SubscriptionManager] Retrying ${channelName} in ${delay}ms (attempt ${retryCount + 1})`);
     this.retryAttempts.set(channelName, retryCount + 1);
     this.lastRetryTime.set(channelName, Date.now());
 
@@ -275,7 +266,6 @@ class SubscriptionManager {
 
       const subscriptionInfo = this.activeChannels.get(channelName);
       if (subscriptionInfo && !this.isCircuitOpen(channelName)) {
-        console.log(`[SubscriptionManager] Attempting reconnect for ${channelName}`);
 
         // Clean up old subscription first
         if (subscriptionInfo.channel) {
@@ -297,8 +287,6 @@ class SubscriptionManager {
           onUpdate: subscriptionInfo.onUpdate,
           onError: subscriptionInfo.onError
         });
-      } else {
-        console.log(`[SubscriptionManager] Skipping retry for ${channelName} (circuit open or channel removed)`);
       }
     }, delay);
 
@@ -346,8 +334,6 @@ class SubscriptionManager {
       this.activeChannels.delete(channelName);
       this.retryAttempts.delete(channelName);
       this.lastRetryTime.delete(channelName);
-
-      console.log(`[SubscriptionManager] Unsubscribed from ${channelName}`);
     } catch (error) {
       console.error(`[SubscriptionManager] Error unsubscribing from ${channelName}:`, error);
     }
@@ -378,8 +364,6 @@ class SubscriptionManager {
         inactiveChannels.push(channelName);
       }
     }
-
-    console.log(`[SubscriptionManager] Cleaning up ${inactiveChannels.length} inactive channels`);
 
     for (const channelName of inactiveChannels) {
       await this.unsubscribe(channelName);
@@ -474,15 +458,6 @@ class SubscriptionManager {
   }
 
   performHealthCheck() {
-    console.log('[SubscriptionManager] Health check:', {
-      activeChannels: this.activeChannels.size,
-      activeSubscriptions: this.metrics.activeSubscriptions,
-      failedReconnects: this.metrics.failedReconnects,
-      memoryUsage: this.metrics.memoryUsage[this.metrics.memoryUsage.length - 1] || 0,
-      avgConnectTime: this.getAverageMetric(this.metrics.connectTime),
-      avgDisconnectTime: this.getAverageMetric(this.metrics.disconnectTime)
-    });
-
     // Clean up if needed
     if (this.activeChannels.size > 0) {
       this.cleanupInactiveChannels();
@@ -510,8 +485,6 @@ class SubscriptionManager {
    * Cleanup all subscriptions
    */
   async cleanup() {
-    console.log('[SubscriptionManager] Cleaning up all subscriptions');
-
     // Clear health monitoring
     if (this.healthInterval) {
       clearInterval(this.healthInterval);

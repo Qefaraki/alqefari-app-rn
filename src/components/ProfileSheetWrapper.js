@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
+import { runOnUI } from "react-native-reanimated";
 import ProfileSheet from "./ProfileSheet";
-import ModernProfileEditorV4 from "../screens/ModernProfileEditorV4";
 import ProfileViewer from "./ProfileViewer";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
@@ -27,7 +27,10 @@ const ProfileSheetWrapper = ({ editMode }) => {
   useEffect(() => {
     // When admin mode changes or person selection changes, ensure clean state
     if (!selectedPersonId && profileSheetProgress) {
-      profileSheetProgress.value = 0;
+      runOnUI(() => {
+        'worklet';
+        profileSheetProgress.value = 0;
+      })();
     }
   }, [selectedPersonId, profileSheetProgress]);
 
@@ -43,7 +46,10 @@ const ProfileSheetWrapper = ({ editMode }) => {
 
   const handleClose = () => {
     if (profileSheetProgress) {
-      profileSheetProgress.value = 0;
+      runOnUI(() => {
+        'worklet';
+        profileSheetProgress.value = 0;
+      })();
     }
     setSelectedPersonId(null);
   };
@@ -59,42 +65,8 @@ const ProfileSheetWrapper = ({ editMode }) => {
     );
   }
 
-  // When in admin mode, show the modern editor
-  // When not in admin mode, show the regular ProfileSheet
-  if (selectedPersonId && isAdminMode && person) {
-    return (
-      <ModernProfileEditorV4
-        visible={true}
-        profile={person}
-        onClose={() => {
-          // CRITICAL: Force reset before closing to ensure SearchBar reappears
-          if (profileSheetProgress) {
-            profileSheetProgress.value = 0;
-          }
-          // Small delay to ensure the reset is processed
-          setTimeout(() => {
-            setSelectedPersonId(null);
-          }, 50);
-        }}
-        onSave={(updatedData) => {
-          // Update the node in the tree
-          if (updatedData) {
-            useTreeStore.getState().updateNode(person.id, updatedData);
-          }
-          // CRITICAL: Force reset before closing
-          if (profileSheetProgress) {
-            profileSheetProgress.value = 0;
-          }
-          setSelectedPersonId(null);
-          // Optionally reopen to see changes
-          setTimeout(() => setSelectedPersonId(person.id), 100);
-        }}
-      />
-    );
-  }
-
-  // Show regular ProfileSheet when not in admin mode
-  return <ProfileSheet editMode={editMode} />;
+  // Show ProfileSheet with edit mode enabled when in admin mode
+  return <ProfileSheet editMode={editMode || isAdminMode} />;
 };
 
 export default ProfileSheetWrapper;

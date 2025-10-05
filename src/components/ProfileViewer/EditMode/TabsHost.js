@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Platform } from 'react-native';
+import { Host, Picker } from '@expo/ui/swift-ui';
+import { Host as AndroidHost, Picker as AndroidPicker } from '@expo/ui/jetpack-compose';
 
 const TabsHost = ({
   tabs,
@@ -8,71 +10,58 @@ const TabsHost = ({
   dirtyByTab = {},
   children,
 }) => {
-  return (
-    <View style={{ flex: 1 }}>
-      <View style={styles.tabsRow}>
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTab;
-          const isDirty = dirtyByTab[tab.id];
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tabButton, isActive ? styles.tabButtonActive : null]}
-              onPress={() => onTabChange(tab.id)}
-            >
-              <Text style={[styles.tabLabel, isActive ? styles.tabLabelActive : null]}>
-                {tab.label}
-                {isDirty ? ' •' : ''}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+  const segments = tabs.map((tab) => ({
+    ...tab,
+    label: tab.label + (dirtyByTab[tab.id] ? ' •' : ''),
+  }));
+
+  const activeIndex = tabs.findIndex((tab) => tab.id === activeTab);
+
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={{ gap: 16 }}>
+        <View style={styles.segmentContainer}>
+          <Host matchContents>
+            <Picker
+              options={segments.map((s) => s.label)}
+              selectedIndex={activeIndex}
+              onOptionSelected={({ nativeEvent: { index } }) => onTabChange(tabs[index].id)}
+              variant="segmented"
+            />
+          </Host>
+        </View>
+        <View style={styles.content}>
+          {children}
+        </View>
       </View>
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {children}
-      </ScrollView>
-    </View>
-  );
+    );
+  } else {
+    return (
+      <View style={{ gap: 16 }}>
+        <View style={styles.segmentContainer}>
+          <AndroidHost>
+            <AndroidPicker
+              options={segments.map((s) => s.label)}
+              selectedIndex={activeIndex}
+              onOptionSelected={({ nativeEvent: { index } }) => onTabChange(tabs[index].id)}
+              variant="segmented"
+            />
+          </AndroidHost>
+        </View>
+        <View style={styles.content}>
+          {children}
+        </View>
+      </View>
+    );
+  }
 };
 
 const styles = {
-  tabsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 18,
-    backgroundColor: '#f2e8ed',
-    padding: 6,
-    marginBottom: 12,
-  },
-  tabButton: {
-    flex: 1,
-    height: 40,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabButtonActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  tabLabel: {
-    fontSize: 14,
-    color: '#836f7b',
-    fontWeight: '600',
-  },
-  tabLabelActive: {
-    color: '#2f1823',
+  segmentContainer: {
+    paddingVertical: 12,
   },
   content: {
-    flex: 1,
+    // Content is inside BottomSheetScrollView, no flex needed
   },
 };
 

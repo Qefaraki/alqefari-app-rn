@@ -92,27 +92,9 @@ function RootLayoutNav() {
       const isFullyAuthenticated = Boolean(user && isProfileValid);
       const shouldBeInApp = Boolean(isFullyAuthenticated || isGuestMode || isAuthenticatedWithPending);
 
-      console.log('[RootLayoutNav] Navigation check:', {
-        user: !!user,
-        userId: user?.id,
-        hasProfile,
-        hasPendingRequest,
-        profileId: profile?.id,
-        profileUserId: profile?.user_id,
-        isProfileValid,
-        hasCompletedOnboarding,
-        isGuestMode,
-        isAuthenticatedNoProfile,
-        isAuthenticatedWithPending,
-        isFullyAuthenticated,
-        currentPath,
-        shouldBeInApp
-      });
-
       // Prevent duplicate navigations
       const preventNavigation = (destination: string) => {
         if (lastNavigationRef.current === destination) {
-          console.log('[RootLayoutNav] Preventing duplicate navigation to:', destination);
           return true;
         }
         lastNavigationRef.current = destination;
@@ -123,7 +105,6 @@ function RootLayoutNav() {
       if (isAuthenticatedNoProfile && currentPath !== '(auth)/profile-linking') {
         const destination = '/(auth)/profile-linking';
         if (!preventNavigation(destination)) {
-          console.log('[RootLayoutNav] User needs to link profile - redirecting to profile-linking');
           // Pass user data as URL parameter
           const userParam = encodeURIComponent(JSON.stringify(user));
           router.replace(`${destination}?user=${userParam}`);
@@ -135,14 +116,12 @@ function RootLayoutNav() {
       if (shouldBeInApp && !inAppGroup) {
         const destination = '/(app)/';
         if (!preventNavigation(destination)) {
-          console.log('[RootLayoutNav] Redirecting to app');
           router.replace(destination);
         }
       } else if (!shouldBeInApp && !inAuthGroup) {
         // This handles both unauthenticated users and authenticated users without profiles
         const destination = '/(auth)/';
         if (!preventNavigation(destination)) {
-          console.log('[RootLayoutNav] Redirecting to auth');
           router.replace(destination);
         }
       }
@@ -161,8 +140,6 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  console.log('[DEBUG RootLayout] Rendering root layout');
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>

@@ -352,18 +352,6 @@ const styles = StyleSheet.create({
     position: "relative",
     backgroundColor: "#EEE",
   },
-  photoSection: {
-    width: "100%",
-    height: 280,
-  },
-  photoCard: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 24,
-    overflow: "hidden",
-    position: "relative",
-    backgroundColor: "#EEE",
-  },
 
   imageContainer: {
     width: "100%",

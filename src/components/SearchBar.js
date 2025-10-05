@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
+import { useAnimatedReaction, runOnJS, runOnUI } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { supabase } from "../services/supabase";
@@ -169,7 +169,10 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
 
       // Reset the profileSheetProgress immediately if it exists
       if (profileSheetProgress && profileSheetProgress.value !== 0) {
-        profileSheetProgress.value = 0;
+        runOnUI(() => {
+          'worklet';
+          profileSheetProgress.value = 0;
+        })();
       }
     }
   }, [selectedPersonId, searchBarOpacity, profileSheetProgress]);

@@ -425,6 +425,19 @@ class SpatialGrid {
   }
 
   getVisibleNodes({ x, y, width, height }, scale, idToNode) {
+    // Guard against invalid scale values to prevent division by zero
+    if (!Number.isFinite(scale) || scale <= 0) {
+      console.warn('[SpatialGrid] Invalid scale:', scale);
+      return [];
+    }
+
+    // Guard against extremely small scales that could cause precision issues
+    const MIN_SAFE_SCALE = 0.001;
+    if (scale < MIN_SAFE_SCALE) {
+      console.warn('[SpatialGrid] Scale too small:', scale, '- clamping to', MIN_SAFE_SCALE);
+      scale = MIN_SAFE_SCALE;
+    }
+
     // Transform viewport to world space
     const worldMinX = -x / scale;
     const worldMaxX = (-x + width) / scale;
@@ -694,12 +707,6 @@ const gestureStateRef = useRef({
   visibleNodes: [],
 });
 
-// Debug logging for camera movements
-const debugCamera = useCallback((label, payload) => {
-  if (!__DEV__) return;
-  console.log(`[Camera] ${label}`, payload);
-}, []);
-
 const viewportShared = useSharedValue({
   width: Math.max(dimensions.width || 1, 1),
   height: Math.max(dimensions.height || 1, 1),
@@ -885,8 +892,6 @@ const maxZoomShared = useSharedValue(maxZoom);
         setShowSkeleton(false); // Remove skeleton from DOM after animation
       });
 
-      const totalLoadTime = Date.now() - startTime;
-      console.log('[TreeView] Tree loaded successfully in', totalLoadTime, 'ms');
       setIsLoading(false);
     } catch (err) {
       console.error("Failed to load tree:", err);
@@ -917,7 +922,6 @@ const maxZoomShared = useSharedValue(maxZoom);
   // Sync loading state with treeData changes
   useEffect(() => {
     if (treeData && treeData.length > 0 && isLoading) {
-      console.log('[TreeView] Tree data updated, hiding loading state');
       setIsLoading(false);
       setShowSkeleton(false);
     }
@@ -926,7 +930,6 @@ const maxZoomShared = useSharedValue(maxZoom);
   // Ensure content is visible when not loading
   useEffect(() => {
     if (!isLoading && !showSkeleton) {
-      console.log('[TreeView] Ensuring content is visible');
       contentFadeAnim.setValue(1);
       skeletonFadeAnim.setValue(0);
     }
@@ -936,19 +939,11 @@ const maxZoomShared = useSharedValue(maxZoom);
   useEffect(() => {
     // If we already have adequate data, skip everything - instant render
     if (treeData && treeData.length >= 400) {
-      console.log('[TreeView] Full tree data available (', treeData.length, 'nodes), skipping skeleton entirely');
       setIsLoading(false);
       setShowSkeleton(false);
       contentFadeAnim.setValue(1);
       skeletonFadeAnim.setValue(0);
       return;
-    }
-
-    // No adequate data exists, load it
-    if (treeData && treeData.length > 0) {
-      console.log('[TreeView] Partial data exists (', treeData.length, 'nodes), loading full tree');
-    } else {
-      console.log('[TreeView] No preloaded data, loading now');
     }
     loadTreeData();
   }, []); // Run only once on mount
@@ -1055,12 +1050,6 @@ const maxZoomShared = useSharedValue(maxZoom);
     });
 
     // DEBUG: Log canvas coordinates summary
-    if (adjustedNodes.length > 0) {
-      console.log('🎯 LAYOUT CALCULATED:');
-      console.log(`  Nodes: ${adjustedNodes.length}, Connections: ${adjustedConnections.length}`);
-      console.log(`  TreeData length: ${treeData.length}`);
-    }
-
     return { nodes: adjustedNodes, connections: adjustedConnections };
   }, [treeData]);
 
@@ -2237,35 +2226,6 @@ const maxZoomShared = useSharedValue(maxZoom);
     Gesture.Exclusive(longPressGesture, tapGesture),
   );
 
-  // Safe camera logging - doesn't trigger React re-renders during gestures
-  const logCameraState = React.useCallback((state) => {
-    console.log('[Camera]', state);
-  }, []);
-
-  useAnimatedReaction(
-    () => ({
-      x: translateX.value,
-      y: translateY.value,
-      scale: scale.value,
-    }),
-    (current, previous) => {
-      'worklet';
-      // Only log meaningful changes to avoid spam
-      if (previous && (
-        Math.abs(current.x - previous.x) > 5 ||
-        Math.abs(current.y - previous.y) > 5 ||
-        Math.abs(current.scale - previous.scale) > 0.01
-      )) {
-        runOnJS(logCameraState)({
-          x: Math.round(current.x),
-          y: Math.round(current.y),
-          scale: current.scale.toFixed(3),
-        });
-      }
-    },
-    []
-  );
-
   // Render connection lines with proper elbow style
   const renderConnection = useCallback(
     (connection) => {
@@ -3022,17 +2982,18 @@ const maxZoomShared = useSharedValue(maxZoom);
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
 
-    // Calculate world-space margin to add buffer around viewport
-    // This prevents nodes from disappearing immediately when they leave screen
-    const worldMargin = VIEWPORT_MARGIN / currentTransform.scale;
+    // Expand viewport by VIEWPORT_MARGIN pixels in all directions (screen-space)
+    // Add to x/y to extend left and up, add to width/height to extend right and down
+    // Because worldMin = -transform/scale, more positive transform = smaller worldMin (extends left/up)
+    const viewport = {
+      x: currentTransform.x + VIEWPORT_MARGIN,              // Extend left (makes worldMinX smaller)
+      y: currentTransform.y + VIEWPORT_MARGIN,              // Extend up (makes worldMinY smaller)
+      width: dimensions.width + (2 * VIEWPORT_MARGIN),      // Extend right
+      height: dimensions.height + (2 * VIEWPORT_MARGIN),    // Extend down
+    };
 
     return spatialGrid.getVisibleNodes(
-      {
-        x: currentTransform.x,
-        y: currentTransform.y,
-        width: dimensions.width + (2 * worldMargin),   // Add margin on both sides
-        height: dimensions.height + (2 * worldMargin), // Add margin on both sides
-      },
+      viewport,
       currentTransform.scale,
       indices.idToNode,
     );

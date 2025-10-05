@@ -35,6 +35,10 @@ import {
   runOnJS,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
+// Expo UI native components
+import { Host, HStack, Button as UIButton, Text as UIText, Spacer } from "@expo/ui/swift-ui";
+import { Host as AndroidHost, HStack as AndroidHStack, Button as AndroidButton, Text as AndroidText, Spacer as AndroidSpacer } from "@expo/ui/jetpack-compose";
 import { useTreeStore } from "../stores/useTreeStore";
 import {
   familyData,
@@ -85,7 +89,6 @@ import { useSettings } from "../contexts/SettingsContext";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import SuggestionModal from "./SuggestionModal";
 import ApprovalInbox from "../screens/ApprovalInbox";
-import ModernProfileEditorV4 from "../screens/ModernProfileEditorV4";
 // Direct translation of the original web ProfileSheet.jsx to Expo
 
 // Note: RTL requires app restart to take effect
@@ -863,8 +866,86 @@ const ProfileSheet = ({ editMode = false }) => {
 
   if (!person) return null;
 
+  // Render fixed header using Expo UI when in edit mode
+  const renderFixedEditHeader = () => {
+    if (!isEditing) return null;
+
+    const isDisabled = !hasChanges || saving || !!dateErrors.dob || !!dateErrors.dod;
+
+    if (Platform.OS === 'ios') {
+      return (
+        <SafeAreaView style={styles.fixedHeaderContainer} edges={['top']}>
+          <Host style={styles.fixedHeaderHost}>
+            <HStack spacing={16}>
+              <UIButton onPress={handleCancel} variant="plain">
+                <UIText color="#007AFF" size={17}>إلغاء</UIText>
+              </UIButton>
+              <Spacer />
+              <UIText weight="semibold" size={17} color="#000">تعديل الملف</UIText>
+              <Spacer />
+              <UIButton
+                onPress={handleSave}
+                variant="plain"
+                disabled={isDisabled}
+              >
+                {saving ? (
+                  <BrandedInlineLoader size={20} />
+                ) : (
+                  <UIText
+                    color="#007AFF"
+                    size={17}
+                    weight="semibold"
+                    style={{ opacity: isDisabled ? 0.3 : 1 }}
+                  >
+                    حفظ
+                  </UIText>
+                )}
+              </UIButton>
+            </HStack>
+          </Host>
+        </SafeAreaView>
+      );
+    } else {
+      return (
+        <SafeAreaView style={styles.fixedHeaderContainer} edges={['top']}>
+          <AndroidHost style={styles.fixedHeaderHost}>
+            <AndroidHStack spacing={16}>
+              <AndroidButton onPress={handleCancel} variant="text">
+                <AndroidText color="#007AFF" fontSize={17}>إلغاء</AndroidText>
+              </AndroidButton>
+              <AndroidSpacer />
+              <AndroidText fontWeight="bold" fontSize={17} color="#000">تعديل الملف</AndroidText>
+              <AndroidSpacer />
+              <AndroidButton
+                onPress={handleSave}
+                variant="text"
+                disabled={isDisabled}
+              >
+                {saving ? (
+                  <BrandedInlineLoader size={20} />
+                ) : (
+                  <AndroidText
+                    color="#007AFF"
+                    fontSize={17}
+                    fontWeight="bold"
+                    style={{ opacity: isDisabled ? 0.3 : 1 }}
+                  >
+                    حفظ
+                  </AndroidText>
+                )}
+              </AndroidButton>
+            </AndroidHStack>
+          </AndroidHost>
+        </SafeAreaView>
+      );
+    }
+  };
+
   return (
     <>
+      {/* Fixed Edit Header - Outside BottomSheet */}
+      {renderFixedEditHeader()}
+
       <BottomSheet
         ref={bottomSheetRef}
         snapPoints={snapPoints}
@@ -881,7 +962,7 @@ const ProfileSheet = ({ editMode = false }) => {
           });
         }}
         backdropComponent={renderBackdrop}
-        handleComponent={renderHandle}
+        handleComponent={isEditing ? null : renderHandle}
         backgroundStyle={[
           styles.sheetBackground,
           isEditing && styles.sheetBackgroundEditing,
@@ -889,48 +970,6 @@ const ProfileSheet = ({ editMode = false }) => {
         enablePanDownToClose
         animateOnMount
       >
-      {/* Edit mode header with save/cancel - always at top */}
-      {(isAdminMode || editedData) && (
-        <Animated.View
-          style={[styles.editHeader, { marginTop: animatedMargin }]}
-        >
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={handleCancel}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Text style={[styles.headerButtonText, styles.cancelText]}>
-              إلغاء
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.headerTitle}>تعديل الملف</Text>
-
-          <TouchableOpacity
-            style={styles.headerButton}
-            onPress={handleSave}
-            disabled={
-              !hasChanges || saving || !!dateErrors.dob || !!dateErrors.dod
-            }
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            {saving ? (
-              <BrandedInlineLoader size={20} />
-            ) : (
-              <Text
-                style={[
-                  styles.headerButtonText,
-                  styles.saveText,
-                  (!hasChanges || !!dateErrors.dob || !!dateErrors.dod) &&
-                    styles.disabledText,
-                ]}
-              >
-                حفظ
-              </Text>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      )}
 
       <BottomSheetScrollView
         style={styles.container}
@@ -2260,17 +2299,6 @@ const ProfileSheet = ({ editMode = false }) => {
         </>
       )}
       </BottomSheet>
-
-      {/* Modern Profile Editor V4 - Outside ProfileSheet to avoid nested BottomSheets */}
-      <ModernProfileEditorV4
-        visible={showModernEditor}
-        profile={person}
-        onClose={() => setShowModernEditor(false)}
-        onSave={(updatedProfile) => {
-          setShowModernEditor(false);
-          useTreeStore.getState().updateNode(updatedProfile);
-        }}
-      />
     </>
   );
 };
@@ -2281,7 +2309,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 110, // Increased to account for fixed edit header
   },
   sheetBackground: {
     backgroundColor: "#FFFFFF",
@@ -2293,6 +2321,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#d0d0d0",
     width: 48,
     height: 5,
+  },
+  fixedHeaderContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10000,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(60, 60, 67, 0.18)',
+  },
+  fixedHeaderHost: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
 
   // Card header (image + description)

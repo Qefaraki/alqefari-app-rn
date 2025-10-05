@@ -33,12 +33,10 @@ export function AuthProvider({ children }) {
   // Initialize auth state
   useEffect(() => {
     if (isInitializedRef.current) {
-      console.log('[AuthContext] Already initialized, skipping');
       return;
     }
 
     const initializeAuth = async () => {
-      console.log('[AuthContext] Initializing auth...');
       isInitializedRef.current = true;
 
       // Check onboarding status with error handling
@@ -46,7 +44,6 @@ export function AuthProvider({ children }) {
         try {
           const value = await AsyncStorage.getItem('hasCompletedOnboarding');
           setHasCompletedOnboarding(value === 'true');
-          console.log('[AuthContext] hasCompletedOnboarding:', value === 'true');
         } catch (error) {
           console.error('[AuthContext] Error checking onboarding status:', error);
           setHasCompletedOnboarding(false); // Default to false on error
@@ -56,7 +53,6 @@ export function AuthProvider({ children }) {
 
       // Subscribe to state machine changes
       const unsubscribe = AuthStateMachine.subscribe(async (state) => {
-        console.log('[AuthContext] State changed:', state);
         setAuthState(state.state);
         setUser(state.user);
         setProfile(state.profile);
@@ -72,12 +68,9 @@ export function AuthProvider({ children }) {
       // Listen for auth changes
       const { data: authListener } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log('[AuthContext] Auth event:', event);
-
           // Prevent duplicate event processing
           const eventKey = `${event}-${session?.user?.id || 'no-user'}`;
           if (isProcessingAuthEventRef.current && lastAuthEventRef.current === eventKey) {
-            console.log('[AuthContext] Skipping duplicate event:', eventKey);
             return;
           }
 
@@ -88,7 +81,6 @@ export function AuthProvider({ children }) {
             switch (event) {
               case 'INITIAL_SESSION':
                 // Skip - already handled by AuthStateMachine.initialize()
-                console.log('[AuthContext] Skipping INITIAL_SESSION (handled by initialize)');
                 break;
 
               case 'SIGNED_IN':
@@ -121,11 +113,9 @@ export function AuthProvider({ children }) {
             case 'SIGNED_OUT':
               // Don't call AuthStateMachine.signOut() here to prevent duplicate cleanup
               // The signOut() action already handles everything
-              console.log('[AuthContext] SIGNED_OUT event received (cleanup already done)');
               break;
 
               case 'TOKEN_REFRESHED':
-                console.log('[AuthContext] Token refreshed');
                 break;
             }
           } finally {
@@ -166,8 +156,6 @@ export function AuthProvider({ children }) {
 
     // Actions
     signOut: async () => {
-      console.log('[AuthContext] Starting sign out process...');
-
       // STEP 1: Sign out from Supabase FIRST (while tokens still exist)
       // This will trigger SIGNED_OUT event which we'll handle
       const { error } = await supabase.auth.signOut();
@@ -203,8 +191,6 @@ export function AuthProvider({ children }) {
       } catch (e) {
         console.error('[AuthContext] Error clearing storage:', e);
       }
-
-      console.log('[AuthContext] Sign out complete');
     },
 
     enterGuestMode: async () => {

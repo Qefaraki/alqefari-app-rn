@@ -15,12 +15,14 @@ const DatesCard = ({ person }) => {
 
   const rows = [];
   if (dob && dobText) {
+    // Only show DOB if it's public or if user is viewing their own profile
+    const showDOB = person?.dob_is_public !== false;
     rows.push(
         <FieldRow
           key="dob"
           label="تاريخ الميلاد"
-          value={dobText}
-          status={dob?.approximate ? 'تاريخ تقريبي' : undefined}
+          value={showDOB ? dobText : 'مخفي'}
+          status={showDOB && dob?.approximate ? 'تاريخ تقريبي' : undefined}
         />,
     );
   }
@@ -41,9 +43,6 @@ const DatesCard = ({ person }) => {
   return (
     <InfoCard title="التواريخ المهمة">
       {rows}
-      {person?.dob_is_public === false ? (
-        <Text style={styles.privacy}>هذا التاريخ مخفي عن الآخرين</Text>
-      ) : null}
     </InfoCard>
   );
 };

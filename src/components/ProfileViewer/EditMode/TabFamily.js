@@ -1,81 +1,63 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import tokens from '../../ui/tokens';
 
-const TabFamily = ({ father, mother, children = [], marriages = [], onRequestAdvanced }) => {
+const TabFamily = () => {
   return (
-    <View style={{ gap: 24 }}>
-      <View style={styles.section}>
-        <Text style={styles.title}>الوالدان</Text>
-        {father ? (
-          <Text style={styles.value}>👨 {father.name}</Text>
-        ) : (
-          <Text style={styles.muted}>لم يتم تحديد الوالد</Text>
-        )}
-        {mother ? (
-          <Text style={styles.value}>👩 {mother.name}</Text>
-        ) : (
-          <Text style={styles.muted}>لم يتم تحديد الوالدة</Text>
-        )}
-        <Text style={styles.note}>لتعديل الوالدين يرجى التواصل مع المشرف.</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.title}>الزوجات ({marriages?.length || 0})</Text>
-        {Array.isArray(marriages) && marriages.length > 0 ? (
-          marriages.map((marriage) => (
-            <Text
-              key={marriage?.id || marriage?.marriage_id || marriage?.spouse_id || marriage?.spouse_name}
-              style={styles.value}
-            >
-              • {marriage?.spouse_name || marriage?.spouse?.name || 'غير معروف'}
-            </Text>
-          ))
-        ) : (
-          <Text style={styles.muted}>لم يتم إضافة حالات زواج بعد.</Text>
-        )}
-        <Text style={styles.note} onPress={onRequestAdvanced}>
-          تحتاج لتعديل تفاصيل الزواج؟ اطلب مساعدة المشرف.
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <Ionicons
+            name="construct-outline"
+            size={48}
+            color={tokens.colors.najdi.textMuted}
+          />
+        </View>
+        <Text style={styles.title}>قيد التطوير</Text>
+        <Text style={styles.subtitle}>
+          ستتوفر ميزة تعديل العلاقات العائلية قريباً
         </Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.title}>الأبناء ({children.length})</Text>
-        {children.length > 0 ? (
-          children.map((child) => (
-            <Text key={child.id} style={styles.value}>
-              • {child.name}
-            </Text>
-          ))
-        ) : (
-          <Text style={styles.muted}>لا توجد أبناء مسجلين.</Text>
-        )}
       </View>
     </View>
   );
 };
 
-const styles = {
-  section: {
-    gap: 8,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: tokens.spacing.xl,
+    paddingVertical: tokens.spacing.xxl,
+  },
+  content: {
+    alignItems: 'center',
+    gap: tokens.spacing.md,
+    maxWidth: 280,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: tokens.colors.najdi.container + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: tokens.spacing.sm,
   },
   title: {
-    fontSize: 15,
+    fontSize: 22, // iOS title2
     fontWeight: '700',
-    color: '#4d3440',
+    color: tokens.colors.najdi.text,
+    textAlign: 'center',
   },
-  value: {
-    fontSize: 14,
-    color: '#321f27',
-    fontWeight: '600',
+  subtitle: {
+    fontSize: 15, // iOS subheadline
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
   },
-  muted: {
-    fontSize: 13,
-    color: '#9b848e',
-  },
-  note: {
-    fontSize: 12,
-    color: '#7a3f4e',
-  },
-};
+});
 
 export default TabFamily;

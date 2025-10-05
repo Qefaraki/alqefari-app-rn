@@ -1,22 +1,79 @@
 import React from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
+import PropTypes from 'prop-types';
 import BioEditor from '../../admin/fields/BioEditor';
 import AchievementsEditor from '../../admin/AchievementsEditor';
 import TimelineEditor from '../../admin/TimelineEditor';
+import tokens from '../../ui/tokens';
+import { Ionicons } from '@expo/vector-icons';
 
-const Section = ({ title, children }) => (
-  <View style={styles.section}>
-    <Text style={styles.title}>{title}</Text>
-    {children}
+// Section with enhanced styling and icons
+const Section = ({ title, subtitle, icon, children, isLast }) => (
+  <View style={[styles.section, !isLast && styles.sectionDivider]}>
+    <View style={styles.sectionHeader}>
+      {icon && (
+        <View style={styles.iconContainer}>
+          <Ionicons name={icon} size={20} color={tokens.colors.najdi.primary} />
+        </View>
+      )}
+      <View style={styles.sectionTitleContainer}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+      </View>
+    </View>
+    <View style={styles.sectionContent}>{children}</View>
   </View>
 );
+
+// Enhanced Input with character count
+const LimitedInput = ({
+  value,
+  onChange,
+  placeholder,
+  maxLength = 100,
+  multiline = false,
+}) => {
+  const charCount = value?.length || 0;
+  const isNearLimit = charCount > maxLength * 0.8;
+
+  return (
+    <View style={styles.limitedInputContainer}>
+      <TextInput
+        style={[styles.input, multiline && styles.inputMultiline]}
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+        maxLength={maxLength}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        textAlignVertical={multiline ? 'top' : 'center'}
+      />
+      <View style={styles.inputFooter}>
+        <Text
+          style={[
+            styles.charCount,
+            isNearLimit && styles.charCountWarning,
+            charCount >= maxLength && styles.charCountError,
+          ]}
+        >
+          {charCount}/{maxLength}
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 const TabDetails = ({ form, updateField }) => {
   const { draft } = form;
 
   return (
-    <View style={{ gap: 24 }}>
-      <Section title="السيرة">
+    <View style={styles.container}>
+      <Section
+        title="السيرة الذاتية"
+        subtitle="نبذة مختصرة عن الشخصية"
+        icon="document-text-outline"
+      >
         <BioEditor
           value={draft?.bio || draft?.biography || ''}
           onChange={(text) => updateField('bio', text)}
@@ -24,60 +81,154 @@ const TabDetails = ({ form, updateField }) => {
         />
       </Section>
 
-      <Section title="المهنة">
-        <TextInput
-          style={styles.input}
+      <Section
+        title="المهنة"
+        subtitle="المجال المهني أو الحرفة"
+        icon="briefcase-outline"
+      >
+        <LimitedInput
           value={draft?.occupation || ''}
-          onChangeText={(text) => updateField('occupation', text)}
-          placeholder="أدخل المهنة"
+          onChange={(text) => updateField('occupation', text)}
+          placeholder="مثال: مهندس برمجيات، طبيب، معلم..."
+          maxLength={100}
         />
       </Section>
 
-      <Section title="التعليم">
-        <TextInput
-          style={styles.input}
+      <Section
+        title="التعليم"
+        subtitle="المؤهلات العلمية والدراسية"
+        icon="school-outline"
+      >
+        <LimitedInput
           value={draft?.education || ''}
-          onChangeText={(text) => updateField('education', text)}
-          placeholder="أدخل التعليم"
+          onChange={(text) => updateField('education', text)}
+          placeholder="مثال: بكالوريوس علوم حاسب - جامعة الملك سعود"
+          maxLength={150}
+          multiline
         />
       </Section>
 
-      <Section title="الإنجازات">
+      <Section
+        title="الإنجازات"
+        subtitle="الإنجازات والجوائز البارزة"
+        icon="trophy-outline"
+      >
         <AchievementsEditor
           achievements={draft?.achievements || []}
           onChange={(items) => updateField('achievements', items)}
         />
       </Section>
 
-      <Section title="الخط الزمني">
+      <Section
+        title="الخط الزمني"
+        subtitle="الأحداث والمحطات المهمة"
+        icon="time-outline"
+        isLast
+      >
         <TimelineEditor
           timeline={draft?.timeline || []}
           onChange={(items) => updateField('timeline', items)}
         />
       </Section>
+
+      {/* Bottom spacing */}
+      <View style={{ height: 32 }} />
     </View>
   );
 };
 
-const styles = {
-  section: {
-    gap: 12,
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingHorizontal: tokens.spacing.md,
+    paddingTop: tokens.spacing.xs,
   },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#4d3440',
+
+  // Section Styles
+  section: {
+    paddingVertical: tokens.spacing.lg,
+  },
+  sectionDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.najdi.container + '30',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.sm,
+    marginBottom: tokens.spacing.md,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: tokens.colors.najdi.primary + '10',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionTitleContainer: {
+    flex: 1,
+    gap: tokens.spacing.xxs,
+  },
+  sectionTitle: {
+    fontSize: 20, // iOS title3
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+    lineHeight: 25,
+  },
+  sectionSubtitle: {
+    fontSize: 13, // iOS caption1
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+    lineHeight: 18,
+  },
+  sectionContent: {
+    // Content goes here
+  },
+
+  // Input Styles
+  limitedInputContainer: {
+    gap: tokens.spacing.xs,
   },
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#321f27',
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    fontSize: 17, // iOS body
+    fontWeight: '400',
+    color: tokens.colors.najdi.text,
     borderWidth: 1,
-    borderColor: '#e8d9df',
+    borderColor: tokens.colors.najdi.container + '40',
+    minHeight: tokens.touchTarget.minimum,
   },
+  inputMultiline: {
+    minHeight: 88, // ~3 lines
+    paddingTop: tokens.spacing.sm,
+  },
+  inputFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: tokens.spacing.xxs,
+  },
+  charCount: {
+    fontSize: 12, // iOS caption1
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+  },
+  charCountWarning: {
+    color: tokens.colors.najdi.secondary,
+  },
+  charCountError: {
+    color: tokens.colors.danger,
+  },
+});
+
+TabDetails.propTypes = {
+  form: PropTypes.shape({
+    draft: PropTypes.object,
+  }).isRequired,
+  updateField: PropTypes.func.isRequired,
 };
 
 export default TabDetails;
