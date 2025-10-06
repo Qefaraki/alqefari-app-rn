@@ -550,7 +550,7 @@ export default function ActivityLogDashboard({ onClose }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Image
@@ -617,7 +617,7 @@ export default function ActivityLogDashboard({ onClose }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       {/* Header - Emblem + Large Title Pattern */}
       <View style={styles.header}>
         <View style={styles.headerRow}>
@@ -776,9 +776,6 @@ export default function ActivityLogDashboard({ onClose }) {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-
-      {/* Section Title */}
-      <Text style={styles.sectionTitle}>النشاط الأخير</Text>
 
       {/* Activities List - Date-grouped rows */}
       <FlatList
@@ -940,6 +937,7 @@ const styles = StyleSheet.create({
   // Filter Buttons
   filterSection: {
     marginBottom: 16,
+    height: 44,
   },
   filterScrollContent: {
     paddingHorizontal: 16,
@@ -968,16 +966,6 @@ const styles = StyleSheet.create({
   },
   filterButtonTextActive: {
     color: "#F9F7F3",
-  },
-
-  // Section Title
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#242121",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-    paddingHorizontal: 16,
-    marginBottom: 12,
   },
 
   // Activities List
