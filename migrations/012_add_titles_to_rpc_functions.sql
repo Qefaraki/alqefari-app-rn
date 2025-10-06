@@ -278,8 +278,8 @@ BEGIN
         THEN array_length(v_normalized_names, 1)
         ELSE (
           SELECT COUNT(*)::INT
-          FROM unnest(m.name_array) name
-          WHERE name = ANY(v_normalized_names)
+          FROM unnest(m.name_array) AS elem
+          WHERE elem = ANY(v_normalized_names)
         )
       END as match_depth,
       -- Father and grandfather names
