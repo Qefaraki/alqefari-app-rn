@@ -796,6 +796,8 @@ export default function ActivityLogDashboard({ onClose }) {
         renderItem={renderDateGroup}
         keyExtractor={(item) => item.dateLabel}
         contentContainerStyle={styles.listContent}
+        contentInsetAdjustmentBehavior="never"
+        automaticallyAdjustContentInsets={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -948,18 +950,21 @@ const styles = StyleSheet.create({
 
   // Filter Buttons
   filterSection: {
-    marginBottom: 16,
-    height: 48,
+    marginBottom: 8,
+    marginTop: 0,
+    height: 52,
   },
   filterScrollContent: {
     paddingHorizontal: 16,
     gap: 8,
+    alignItems: 'center',
   },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
+    paddingVertical: 0,
     height: 36,
     borderRadius: 18,
     backgroundColor: "transparent",
@@ -983,7 +988,9 @@ const styles = StyleSheet.create({
 
   // Activities List
   listContent: {
+    paddingTop: 0,
     paddingBottom: 16,
+    flexGrow: 1,
   },
   dateGroup: {
     marginBottom: 16,
