@@ -563,6 +563,7 @@ export default function ActivityLogDashboard({ onClose }) {
         activeFilter === key && styles.filterButtonActive,
       ]}
       onPress={() => setActiveFilter(key)}
+      activeOpacity={0.8}
     >
       {icon && (
         <Ionicons
@@ -577,6 +578,7 @@ export default function ActivityLogDashboard({ onClose }) {
           styles.filterButtonText,
           activeFilter === key && styles.filterButtonTextActive,
         ]}
+        numberOfLines={1}
       >
         {label}
       </Text>
@@ -585,7 +587,7 @@ export default function ActivityLogDashboard({ onClose }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="chevron-back" size={28} color={colors.text} />
@@ -603,36 +605,29 @@ export default function ActivityLogDashboard({ onClose }) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
           <Ionicons name="chevron-back" size={28} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>سجل النشاط المفصل</Text>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={() => {
-            setRefreshing(true);
-            fetchActivities();
-          }}
-        >
-          <Ionicons name="refresh" size={24} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       {/* Stats Cards */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.statsContainer}
-        contentContainerStyle={styles.statsContent}
-      >
-        {renderStatsCard("analytics", "إجمالي", stats.total, colors.info)}
-        {renderStatsCard("today", "اليوم", stats.today, colors.success)}
-        {renderStatsCard("warning", "حرج", stats.critical, colors.error)}
-        {renderStatsCard("time", "معلق", stats.pending, colors.warning)}
-      </ScrollView>
+      <View style={styles.statsSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statsScrollContent}
+        >
+          {renderStatsCard("analytics", "إجمالي", stats.total, colors.info)}
+          {renderStatsCard("today", "اليوم", stats.today, colors.success)}
+          {renderStatsCard("warning", "حرج", stats.critical, colors.error)}
+          {renderStatsCard("time", "معلق", stats.pending, colors.warning)}
+        </ScrollView>
+      </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -661,19 +656,20 @@ export default function ActivityLogDashboard({ onClose }) {
       </View>
 
       {/* Filter Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {renderFilterButton("all", "الكل", null)}
-        {renderFilterButton("tree", "الشجرة", "git-branch")}
-        {renderFilterButton("marriages", "الزواجات", "heart")}
-        {renderFilterButton("photos", "الصور", "image")}
-        {renderFilterButton("admin", "الإدارة", "shield")}
-        {renderFilterButton("critical", "حرج", "warning")}
-      </ScrollView>
+      <View style={styles.filterSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScrollContent}
+        >
+          {renderFilterButton("all", "الكل", null)}
+          {renderFilterButton("tree", "الشجرة", "git-branch")}
+          {renderFilterButton("marriages", "الزواجات", "heart")}
+          {renderFilterButton("photos", "الصور", "image")}
+          {renderFilterButton("admin", "الإدارة", "shield")}
+          {renderFilterButton("critical", "حرج", "warning")}
+        </ScrollView>
+      </View>
 
       {/* Activities List */}
       <FlatList
@@ -717,17 +713,17 @@ export default function ActivityLogDashboard({ onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F7F3", // Al-Jass White - explicitly set
+    backgroundColor: "#F9F7F3",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.md,
-    backgroundColor: "#F9F7F3", // Al-Jass White
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.container + "30",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#F9F7F3",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8E3DC",
   },
   closeButton: {
     width: 40,
@@ -735,147 +731,143 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "flex-start",
   },
-  refreshButton: {
-    width: 40,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "flex-end",
-  },
   headerTitle: {
-    fontSize: tokens.typography.headline.fontSize,
-    fontWeight: tokens.typography.headline.fontWeight,
-    color: colors.text,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: tokens.spacing.xxl,
+    padding: 32,
   },
   loadingText: {
-    fontSize: tokens.typography.body.fontSize,
+    fontSize: 17,
+    color: "#242121",
+    marginTop: 16,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-    color: colors.text,
-    marginTop: tokens.spacing.md,
   },
-  statsContainer: {
-    maxHeight: 100,
-    marginVertical: tokens.spacing.md,
+  statsSection: {
+    marginVertical: 16,
+    flexGrow: 0,
+    flexShrink: 0,
   },
-  statsContent: {
-    paddingHorizontal: tokens.spacing.md,
-    gap: tokens.spacing.sm,
+  statsScrollContent: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
   },
   statsCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: tokens.radii.md,
-    padding: tokens.spacing.md,
-    minWidth: 110,
+    borderRadius: 12,
+    padding: 16,
+    width: 100,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.container + "25",
-    marginRight: tokens.spacing.xs,
+    borderColor: "#D1BBA325",
+    marginRight: 8,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.04,
         shadowRadius: 4,
       },
       android: {
-        elevation: 1,
+        elevation: 2,
       },
     }),
   },
   statsValue: {
     fontSize: 28,
     fontWeight: "700",
-    color: colors.text,
-    marginTop: tokens.spacing.xxs,
+    color: "#242121",
+    marginTop: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   statsLabel: {
-    fontSize: tokens.typography.caption1.fontSize,
-    color: colors.textMuted,
-    marginTop: tokens.spacing.xxs,
+    fontSize: 12,
+    color: "#736372",
+    marginTop: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.container + "10",
-    borderRadius: tokens.radii.sm,
-    marginHorizontal: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.sm,
-    height: tokens.touchTarget.minimum,
+    backgroundColor: "#D1BBA320",
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    height: 44,
     borderWidth: 1,
-    borderColor: colors.container + "20",
+    borderColor: "#D1BBA320",
   },
   searchIcon: {
-    marginRight: tokens.spacing.xs,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: tokens.typography.body.fontSize,
-    color: colors.text,
+    fontSize: 17,
+    color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   clearButton: {
-    padding: tokens.spacing.xxs,
+    padding: 4,
     width: 44,
     height: 44,
     justifyContent: "center",
     alignItems: "center",
   },
-  filterContainer: {
-    maxHeight: 44,
-    marginBottom: tokens.spacing.md,
+  filterSection: {
+    marginBottom: 16,
+    flexGrow: 0,
+    flexShrink: 0,
   },
-  filterContent: {
-    paddingHorizontal: tokens.spacing.md,
-    gap: tokens.spacing.xs,
+  filterScrollContent: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
   },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    minHeight: tokens.touchTarget.minimum,
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    height: 44,
     borderRadius: 22,
     backgroundColor: "transparent",
     borderWidth: 1.5,
-    borderColor: colors.container + "40",
-    marginRight: tokens.spacing.xs,
+    borderColor: "#D1BBA340",
+    marginRight: 8,
   },
   filterButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: "#A13333",
+    borderColor: "#A13333",
   },
   filterIcon: {
-    marginRight: tokens.spacing.xs,
+    marginRight: 8,
   },
   filterButtonText: {
-    fontSize: tokens.typography.footnote.fontSize,
+    fontSize: 13,
     fontWeight: "600",
-    color: colors.text,
+    color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterButtonTextActive: {
-    color: colors.background,
+    color: "#F9F7F3",
   },
   listContent: {
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   activityCard: {
     backgroundColor: "#FFFFFF",
-    marginHorizontal: tokens.spacing.md,
-    marginVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.md,
-    padding: tokens.spacing.md,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: colors.container + "25",
+    borderColor: "#D1BBA325",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -898,7 +890,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: tokens.spacing.sm,
+    marginRight: 12,
   },
   activityInfo: {
     flex: 1,
@@ -907,165 +899,165 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: tokens.spacing.xxs,
+    marginBottom: 4,
   },
   activityTitle: {
-    fontSize: tokens.typography.body.fontSize,
+    fontSize: 17,
     fontWeight: "600",
-    color: colors.text,
+    color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityTime: {
-    fontSize: tokens.typography.footnote.fontSize,
-    color: colors.textMuted,
+    fontSize: 13,
+    color: "#736372",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityActorRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: tokens.spacing.xxs,
+    marginBottom: 4,
   },
   activityActor: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: colors.text,
-    marginLeft: tokens.spacing.xs,
+    fontSize: 15,
+    color: "#242121",
+    marginLeft: 8,
     flex: 1,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityTargetRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: tokens.spacing.xxs,
-    marginLeft: tokens.spacing.lg,
+    marginBottom: 4,
+    marginLeft: 20,
   },
   activityTarget: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: colors.textMuted,
-    marginLeft: tokens.spacing.xs,
+    fontSize: 15,
+    color: "#736372",
+    marginLeft: 8,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityDescription: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: colors.textMuted,
-    marginTop: tokens.spacing.xxs,
-    lineHeight: tokens.typography.subheadline.lineHeight,
+    fontSize: 15,
+    color: "#736372",
+    marginTop: 4,
+    lineHeight: 20,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   roleBadge: {
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xxs,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 6,
-    marginLeft: tokens.spacing.xs,
+    marginLeft: 8,
   },
   roleBadgeText: {
-    fontSize: tokens.typography.caption2.fontSize,
+    fontSize: 11,
     fontWeight: "600",
-    color: colors.background,
+    color: "#F9F7F3",
     textTransform: "uppercase",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   expandedContent: {
-    marginTop: tokens.spacing.md,
-    paddingTop: tokens.spacing.md,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.container + "20",
+    borderTopColor: "#D1BBA320",
   },
   metadataRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: tokens.spacing.sm,
+    marginBottom: 12,
   },
   metadataItem: {
     flex: 1,
   },
   metadataLabel: {
-    fontSize: tokens.typography.caption1.fontSize,
-    color: colors.textMuted,
-    marginBottom: tokens.spacing.xxs,
+    fontSize: 12,
+    color: "#736372",
+    marginBottom: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   metadataValue: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: colors.text,
+    fontSize: 15,
+    color: "#242121",
     fontWeight: "500",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   severityBadge: {
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xxs,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 6,
     alignSelf: "flex-start",
   },
   severityBadgeText: {
-    fontSize: tokens.typography.caption1.fontSize,
+    fontSize: 12,
     fontWeight: "600",
     textTransform: "uppercase",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffContainer: {
-    marginTop: tokens.spacing.sm,
+    marginTop: 12,
   },
   diffSection: {
-    marginBottom: tokens.spacing.sm,
+    marginBottom: 12,
   },
   diffLabel: {
-    fontSize: tokens.typography.caption1.fontSize,
+    fontSize: 12,
     fontWeight: "600",
-    color: colors.textMuted,
-    marginBottom: tokens.spacing.xs,
+    color: "#736372",
+    marginBottom: 8,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffContent: {
-    fontSize: tokens.typography.caption1.fontSize,
+    fontSize: 12,
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-    color: colors.text,
-    backgroundColor: colors.container + "10",
-    padding: tokens.spacing.xs,
-    borderRadius: tokens.radii.sm,
+    color: "#242121",
+    backgroundColor: "#D1BBA310",
+    padding: 8,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.container + "20",
+    borderColor: "#D1BBA320",
   },
   actionButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    marginTop: tokens.spacing.sm,
-    gap: tokens.spacing.xs,
+    marginTop: 12,
+    gap: 8,
   },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radii.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
     borderWidth: 1,
     minHeight: 44,
   },
   revertButton: {
-    borderColor: colors.error + "40",
-    backgroundColor: colors.error + "10",
+    borderColor: "#FF3B3040",
+    backgroundColor: "#FF3B3010",
   },
   revertButtonText: {
-    fontSize: tokens.typography.caption1.fontSize,
-    color: colors.error,
-    marginLeft: tokens.spacing.xxs,
+    fontSize: 12,
+    color: "#FF3B30",
+    marginLeft: 4,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   detailsButton: {
-    borderColor: colors.info + "40",
-    backgroundColor: colors.info + "10",
+    borderColor: "#007AFF40",
+    backgroundColor: "#007AFF10",
   },
   detailsButtonText: {
-    fontSize: tokens.typography.caption1.fontSize,
-    color: colors.info,
-    marginLeft: tokens.spacing.xxs,
+    fontSize: 12,
+    color: "#007AFF",
+    marginLeft: 4,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   expansionIndicator: {
     position: "absolute",
-    bottom: tokens.spacing.xs,
-    right: tokens.spacing.md,
+    bottom: 8,
+    right: 16,
   },
   emptyContainer: {
     flex: 1,
@@ -1074,16 +1066,16 @@ const styles = StyleSheet.create({
     paddingVertical: 64,
   },
   emptyText: {
-    fontSize: tokens.typography.body.fontSize,
+    fontSize: 17,
     fontWeight: "600",
-    color: colors.text,
-    marginTop: tokens.spacing.md,
+    color: "#242121",
+    marginTop: 16,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   emptySubtext: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: colors.textMuted,
-    marginTop: tokens.spacing.xs,
+    fontSize: 15,
+    color: "#736372",
+    marginTop: 8,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 });
