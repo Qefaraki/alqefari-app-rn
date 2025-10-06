@@ -1359,7 +1359,7 @@ const TreeView = ({
     return result;
   }, [connections, visibleBounds]);
 
-  // Initialize position on first load
+  // Initialize position on first load - smart positioning based on user
   useEffect(() => {
     if (
       nodes.length > 0 &&
@@ -1367,18 +1367,50 @@ const TreeView = ({
       stage.y === 0 &&
       stage.scale === 1
     ) {
-      const offsetX =
-        dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
-      const offsetY = 80;
+      // Determine target node (matches NavigateToRootButton logic)
+      let targetNode = null;
+      const focusPersonId = linkedProfileId || profile?.id;
 
-      translateX.value = offsetX;
-      translateY.value = offsetY;
-      savedTranslateX.value = offsetX;
-      savedTranslateY.value = offsetY;
+      if (focusPersonId) {
+        // Try to find user's linked profile
+        targetNode = nodes.find((n) => n.id === focusPersonId);
+      }
 
-      setStage({ x: offsetX, y: offsetY, scale: 1 });
+      if (!targetNode) {
+        // Fallback to root node
+        targetNode = nodes.find((n) => !n.father_id);
+      }
+
+      if (targetNode) {
+        // Calculate centered position (matches NavigateToRootButton)
+        const isRoot = !targetNode.father_id;
+        const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
+        const targetScale = 1.0;
+        const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
+        const offsetY = dimensions.height / 2 - adjustedY * targetScale;
+
+        // INSTANT placement - NO animation
+        translateX.value = offsetX;
+        translateY.value = offsetY;
+        savedTranslateX.value = offsetX;
+        savedTranslateY.value = offsetY;
+
+        setStage({ x: offsetX, y: offsetY, scale: targetScale });
+      } else {
+        // Fallback to old centering logic if no target found
+        const offsetX =
+          dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
+        const offsetY = 80;
+
+        translateX.value = offsetX;
+        translateY.value = offsetY;
+        savedTranslateX.value = offsetX;
+        savedTranslateY.value = offsetY;
+
+        setStage({ x: offsetX, y: offsetY, scale: 1 });
+      }
     }
-  }, [nodes, dimensions, treeBounds]);
+  }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
 
   // Navigate to a specific node with animation
   const navigateToNode = useCallback(
