@@ -62,6 +62,7 @@ import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
+import { formatNameWithTitle } from "../services/professionalTitleService";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/AuthContextSimple";
 import { formatDateByPreference } from "../utils/dateDisplay";
@@ -1749,31 +1750,32 @@ const maxZoomShared = useSharedValue(maxZoom);
       const proposedX = savedTranslateX.value + e.translationX;
       const proposedY = savedTranslateY.value + e.translationY;
 
-      // Get valid bounds for current scale/viewport
-      const clamped = clampStageToBounds(
-        { x: proposedX, y: proposedY, scale: scale.value },
-        viewportShared.value,
-        boundsShared.value,
-        minZoomShared.value,
-        maxZoomShared.value
-      );
+      // FIXED: Removed clampStageToBounds call that used stale boundsShared.value
+      // The pan gesture captures boundsShared at creation time which contains
+      // DEFAULT_BOUNDS (all zeros), causing incorrect clamping of valid positions.
+      // Instead, use simple symmetric rubber-band resistance based on viewport size.
+      // This provides smooth edge resistance without depending on accurate tree bounds.
+      // Proper bounds checking happens during navigation and in momentum decay onEnd.
 
-      const ranges = clamped.ranges;
+      const maxPanDistance = Math.max(
+        viewportShared.value.width,
+        viewportShared.value.height
+      ) * 3;
 
-      // Apply iOS-style rubber-band resistance when panning outside bounds
-      // This prevents extreme positions while maintaining natural feel
+      // Apply iOS-style rubber-band resistance with generous symmetric bounds
+      // This prevents extreme positions while maintaining natural pan feel
       translateX.value = applyRubberBand(
         proposedX,
-        ranges.x[0],  // min translation
-        ranges.x[1],  // max translation
-        0.55,         // tension (resistance strength)
-        200           // softZone (distance before full resistance)
+        -maxPanDistance,  // Symmetric bounds don't require accurate tree dimensions
+        maxPanDistance,
+        0.55,             // tension (resistance strength)
+        200               // softZone (distance before full resistance)
       );
 
       translateY.value = applyRubberBand(
         proposedY,
-        ranges.y[0],
-        ranges.y[1],
+        -maxPanDistance,
+        maxPanDistance,
         0.55,
         200
       );
@@ -2798,8 +2800,15 @@ const maxZoomShared = useSharedValue(maxZoom);
 
               {/* Name text - centered across full width (on top) */}
               {(() => {
+                // Format name with title, with overflow handling
+                const maxChars = 12; // Smaller for nodes with photos
+                const displayName = formatNameWithTitle(node, {
+                  maxLength: maxChars,
+                  skipTitle: node.name?.length > 15, // Drop title if name already long
+                });
+
                 const nameParagraph = createArabicParagraph(
-                  node.name,
+                  displayName,
                   "bold",
                   isRoot ? 22 : 11,  // Double size for root
                   "#242121",
@@ -2847,8 +2856,15 @@ const maxZoomShared = useSharedValue(maxZoom);
 
               {/* Text-only name - centered across full width (on top) */}
               {(() => {
+                // Format name with title, with overflow handling
+                const maxChars = 18; // Larger for text-only nodes
+                const displayName = formatNameWithTitle(node, {
+                  maxLength: maxChars,
+                  skipTitle: node.name?.length > 15, // Drop title if name already long
+                });
+
                 const nameParagraph = createArabicParagraph(
-                  node.name,
+                  displayName,
                   "bold",
                   isRoot ? 22 : 11,  // Double size for root
                   "#242121",
