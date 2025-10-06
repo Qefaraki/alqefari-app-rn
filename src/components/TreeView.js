@@ -37,8 +37,6 @@ import {
   Paint,
   ColorMatrix,
   Blur,
-  Shadow,
-  CornerPathEffect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -62,11 +60,11 @@ import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
-import { formatNameWithTitle } from "../services/professionalTitleService";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/AuthContextSimple";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
+import AdminToggleButton from "./AdminToggleButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -80,12 +78,6 @@ import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkErrorView from "./NetworkErrorView";
-import {
-  clampStageToBounds,
-  createDecayModifier,
-  applyRubberBand,
-  DEFAULT_BOUNDS,
-} from "../utils/cameraConstraints";
 
 const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
 const NODE_WIDTH_WITH_PHOTO = 85;
@@ -96,29 +88,6 @@ const PHOTO_SIZE = 60;
 const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
-
-// Helper function to convert hex color to rgba with opacity
-const hexToRgba = (hex, alpha) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
-
-// Ancestry path color palette - high-contrast 10-color cycle
-// Spans warm to cool spectrum for clear generational distinction
-const ANCESTRY_COLORS = [
-  '#C73E3E', // Bright crimson
-  '#E38740', // Vivid orange
-  '#F5C555', // Warm gold
-  '#9FB885', // Sage green (cool contrast)
-  '#6A9AA6', // Teal (cool)
-  '#8E7AB8', // Purple (brand focus family)
-  '#B56B8A', // Mauve (cool-warm transition)
-  '#C75A5A', // Rose
-  '#D58C4A', // Desert Ochre (brand)
-  '#A95252', // Deep terracotta (back to crimson)
-];
 
 // LOD Constants
 const SCALE_QUANTUM = 0.05; // 5% quantization steps
@@ -481,7 +450,6 @@ const TreeView = ({
   const setSelectedPersonId = useTreeStore((s) => s.setSelectedPersonId);
   const treeData = useTreeStore((s) => s.treeData);
   const setTreeData = useTreeStore((s) => s.setTreeData);
-  const setTreeBoundsStore = useTreeStore((s) => s.setTreeBounds);
   const { settings } = useSettings();
   const { isPreloadingTree } = useAuth();
 
@@ -670,49 +638,13 @@ const TreeView = ({
     }
   }, [networkError, onNetworkStatusChange]);
 
-  useEffect(() => {
-    viewportShared.value = {
-      width: Math.max(dimensions.width || 1, 1),
-      height: Math.max(dimensions.height || 1, 1),
-    };
-  }, [dimensions.width, dimensions.height]);
-
-  useEffect(() => {
-    boundsShared.value = treeBounds || DEFAULT_BOUNDS;
-  }, [treeBounds]);
-
-  useEffect(() => {
-    minZoomShared.value = minZoom;
-  }, [minZoom]);
-
-  useEffect(() => {
-    maxZoomShared.value = maxZoom;
-  }, [maxZoom]);
-
-  // Ref to ensure initial positioning only happens once
-  const hasInitializedPosition = useRef(false);
-
   // Create ref to hold current values for gestures
-const gestureStateRef = useRef({
-  transform: { x: 0, y: 0, scale: 1 },
-  tier: 1,
-  indices: null,
-  visibleNodes: [],
-});
-
-// Debug logging for camera movements
-const debugCamera = useCallback((label, payload) => {
-  if (!__DEV__) return;
-  console.log(`[Camera] ${label}`, payload);
-}, []);
-
-const viewportShared = useSharedValue({
-  width: Math.max(dimensions.width || 1, 1),
-  height: Math.max(dimensions.height || 1, 1),
-});
-const boundsShared = useSharedValue(treeBounds || DEFAULT_BOUNDS);
-const minZoomShared = useSharedValue(minZoom);
-const maxZoomShared = useSharedValue(maxZoom);
+  const gestureStateRef = useRef({
+    transform: { x: 0, y: 0, scale: 1 },
+    tier: 1,
+    indices: null,
+    visibleNodes: [],
+  });
 
   // Load SF Arabic asset font and register with Paragraph font collection
   useEffect(() => {
@@ -1193,7 +1125,7 @@ const maxZoomShared = useSharedValue(maxZoom);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
 
-    const bounds = {
+    return {
       minX,
       maxX,
       minY,
@@ -1201,13 +1133,7 @@ const maxZoomShared = useSharedValue(maxZoom);
       width: maxX - minX,
       height: maxY - minY,
     };
-
-    return bounds;
   }, [nodes]);
-
-  useEffect(() => {
-    setTreeBoundsStore(treeBounds);
-  }, [treeBounds, setTreeBoundsStore]);
 
   // Visible bounds for culling
   const [visibleBounds, setVisibleBounds] = useState({
@@ -1424,64 +1350,26 @@ const maxZoomShared = useSharedValue(maxZoom);
     return result;
   }, [connections, visibleBounds]);
 
-  // Initialize position on first load - smart positioning based on user
+  // Initialize position on first load
   useEffect(() => {
-    // CRITICAL: Only run this ONCE on initial mount to prevent camera reset loops
-    // Dependencies can change (nodes, dimensions, etc.) but we must not re-position
     if (
-      !hasInitializedPosition.current &&  // Prevent re-triggering
       nodes.length > 0 &&
       stage.x === 0 &&
       stage.y === 0 &&
       stage.scale === 1
     ) {
-      // Determine target node (matches NavigateToRootButton logic)
-      let targetNode = null;
-      const focusPersonId = linkedProfileId || profile?.id;
+      const offsetX =
+        dimensions.width / 2 - (treeBounds.minX + treeBounds.maxX) / 2;
+      const offsetY = 80;
 
-      if (focusPersonId) {
-        // Try to find user's linked profile
-        targetNode = nodes.find((n) => n.id === focusPersonId);
-      }
-
-      if (!targetNode) {
-        // Always fallback to root node
-        targetNode = nodes.find((n) => !n.father_id);
-      }
-
-      if (!targetNode && nodes.length > 0) {
-        // Ultimate fallback: first node in array (should never happen)
-        targetNode = nodes[0];
-      }
-
-      // At this point targetNode is guaranteed to exist
-      const isRoot = !targetNode.father_id;
-      const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
-      const targetScale = 1.0;
-
-      const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
-      const offsetY = dimensions.height / 2 - adjustedY * targetScale;
-
-      // DEBUG: Log initial positioning
-      console.log('🎬 [Initial Positioning]', {
-        node: { name: targetNode.name, x: Math.round(targetNode.x), y: Math.round(targetNode.y), isRoot },
-        dimensions: { width: dimensions.width, height: dimensions.height },
-        calculated: { offsetX: Math.round(offsetX), offsetY: Math.round(offsetY), scale: targetScale },
-        treeBounds: { minX: Math.round(treeBounds.minX), maxX: Math.round(treeBounds.maxX), width: Math.round(treeBounds.width) }
-      });
-
-      // INSTANT placement - NO animation
       translateX.value = offsetX;
       translateY.value = offsetY;
       savedTranslateX.value = offsetX;
       savedTranslateY.value = offsetY;
 
-      setStage({ x: offsetX, y: offsetY, scale: targetScale });
-
-      // Mark as initialized - this effect will never run again
-      hasInitializedPosition.current = true;
+      setStage({ x: offsetX, y: offsetY, scale: 1 });
     }
-  }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
+  }, [nodes, dimensions, treeBounds]);
 
   // Navigate to a specific node with animation
   const navigateToNode = useCallback(
@@ -1580,14 +1468,22 @@ const maxZoomShared = useSharedValue(maxZoom);
     // Immediately hide any existing glow
     glowOpacity.value = 0;
 
-    // Fade in and hold (matches path behavior - stays visible until X clicked)
+    // Elegant animation: delay for camera flight, then quick burst, gentle hold, smooth fade
     glowOpacity.value = withDelay(
-      350, // Match camera flight delay
-      withTiming(0.55, {
-        duration: 400,
-        easing: Easing.out(Easing.ease),
-      })
+      350,
+      withSequence(
+        withTiming(0.6, { duration: 280, easing: Easing.bezier(0.42, 0, 0.2, 1) }),
+        withTiming(0.5, { duration: 240, easing: Easing.linear }),
+        withTiming(0.55, { duration: 420, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.45, { duration: 500, easing: Easing.linear }),
+        withTiming(0, { duration: 700, easing: Easing.bezier(0.6, 0.05, 0.8, 0.2) }),
+      ),
     );
+
+    // Clear highlight after animation completes (including delay)
+    setTimeout(() => {
+      highlightedNodeId.value = null;
+    }, 2550);
 
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1657,42 +1553,15 @@ const maxZoomShared = useSharedValue(maxZoom);
     }, 300);
   }, [pathOpacity]);
 
-  // Clear all highlights (glow + path) - called when X button clicked
-  const clearAllHighlights = useCallback(() => {
-    // Clear glow
-    glowOpacity.value = withTiming(0, {
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-    });
-    highlightedNodeId.value = null;
-
-    // Clear path
-    pathOpacity.value = withTiming(0, {
-      duration: 300,
-      easing: Easing.in(Easing.ease),
-    });
-    setTimeout(() => {
-      setHighlightedPathNodeIds(null);
-    }, 300);
-  }, [glowOpacity, pathOpacity, highlightedNodeId]);
-
   // Handle highlight from navigation params
   useEffect(() => {
-    // Early return if no navigation needed
-    if (!highlightProfileId || !focusOnProfile) return;
-
-    // Schedule navigation with delay to ensure tree is fully rendered
-    const timer = setTimeout(() => {
-      // Check nodes exist at execution time (not dependency time)
-      if (nodes.length > 0) {
+    if (highlightProfileId && focusOnProfile && nodes.length > 0) {
+      // Small delay to ensure tree is fully rendered
+      setTimeout(() => {
         navigateToNode(highlightProfileId);
-      }
-    }, 500);
-
-    // Cleanup: auto-cancels pending navigation on unmount or when highlightProfileId changes
-    // This prevents race conditions and duplicate navigations
-    return () => clearTimeout(timer);
-  }, [highlightProfileId, focusOnProfile]); // Don't include nodes.length - causes re-triggers
+      }, 500);
+    }
+  }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
@@ -1721,7 +1590,7 @@ const maxZoomShared = useSharedValue(maxZoom);
           // Animate path in (after camera settles + glow appears)
           pathOpacity.value = withDelay(
             600, // After camera flight completes
-            withTiming(0.52, { // 20% reduction for even softer appearance
+            withTiming(0.85, {
               duration: 400,
               easing: Easing.out(Easing.ease)
             })
@@ -1762,40 +1631,8 @@ const maxZoomShared = useSharedValue(maxZoom);
       if (isPinching.value) {
         return;
       }
-
-      // Calculate proposed position
-      const proposedX = savedTranslateX.value + e.translationX;
-      const proposedY = savedTranslateY.value + e.translationY;
-
-      // FIXED: Removed clampStageToBounds call that used stale boundsShared.value
-      // The pan gesture captures boundsShared at creation time which contains
-      // DEFAULT_BOUNDS (all zeros), causing incorrect clamping of valid positions.
-      // Instead, use simple symmetric rubber-band resistance based on viewport size.
-      // This provides smooth edge resistance without depending on accurate tree bounds.
-      // Proper bounds checking happens during navigation and in momentum decay onEnd.
-
-      const maxPanDistance = Math.max(
-        viewportShared.value.width,
-        viewportShared.value.height
-      ) * 3;
-
-      // Apply iOS-style rubber-band resistance with generous symmetric bounds
-      // This prevents extreme positions while maintaining natural pan feel
-      translateX.value = applyRubberBand(
-        proposedX,
-        -maxPanDistance,  // Symmetric bounds don't require accurate tree dimensions
-        maxPanDistance,
-        0.55,             // tension (resistance strength)
-        200               // softZone (distance before full resistance)
-      );
-
-      translateY.value = applyRubberBand(
-        proposedY,
-        -maxPanDistance,
-        maxPanDistance,
-        0.55,
-        200
-      );
+      translateX.value = savedTranslateX.value + e.translationX;
+      translateY.value = savedTranslateY.value + e.translationY;
     })
     .onEnd((e) => {
       "worklet";
@@ -1804,11 +1641,16 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // NUCLEAR OPTION: Remove ALL momentum and bounds checking
-      // Even simple withDecay might be interfering with camera position
-      // Just save the current position and stop immediately
-      // NavigateButton will still work to reposition the camera
+      translateX.value = withDecay({
+        velocity: e.velocityX,
+        deceleration: 0.995,
+      });
+      translateY.value = withDecay({
+        velocity: e.velocityY,
+        deceleration: 0.995,
+      });
 
+      // Save current values (before decay animation modifies them)
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     });
@@ -1863,12 +1705,7 @@ const maxZoomShared = useSharedValue(maxZoom);
     })
     .onEnd(() => {
       "worklet";
-
-      // NUCLEAR OPTION: Remove ALL clamping and spring-back
-      // clampStageToBounds was using stale boundsShared.value (ZERO bounds)
-      // causing camera to jump from correct position to clamped position
-      // Just save the final values without any bounds checking
-
+      // Save final values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
@@ -1969,10 +1806,7 @@ const maxZoomShared = useSharedValue(maxZoom);
     .maxDistance(10)
     .runOnJS(true)
     .onStart((e) => {
-      // Check user role instead of mode - QuickAdd is now permission-based
-      if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
-        return;
-      }
+      if (!isAdminMode) return;
 
       const state = gestureStateRef.current;
 
@@ -2177,37 +2011,7 @@ const maxZoomShared = useSharedValue(maxZoom);
   const composed = Gesture.Simultaneous(
     panGesture,
     pinchGesture,
-    // Long press always enabled - permission check is inside the gesture
-    Gesture.Exclusive(longPressGesture, tapGesture),
-  );
-
-  // Safe camera logging - doesn't trigger React re-renders during gestures
-  const logCameraState = React.useCallback((state) => {
-    console.log('[Camera]', state);
-  }, []);
-
-  useAnimatedReaction(
-    () => ({
-      x: translateX.value,
-      y: translateY.value,
-      scale: scale.value,
-    }),
-    (current, previous) => {
-      'worklet';
-      // Only log meaningful changes to avoid spam
-      if (previous && (
-        Math.abs(current.x - previous.x) > 5 ||
-        Math.abs(current.y - previous.y) > 5 ||
-        Math.abs(current.scale - previous.scale) > 0.01
-      )) {
-        runOnJS(logCameraState)({
-          x: Math.round(current.x),
-          y: Math.round(current.y),
-          scale: current.scale.toFixed(3),
-        });
-      }
-    },
-    []
+    isAdminMode ? Gesture.Exclusive(longPressGesture, tapGesture) : tapGesture,
   );
 
   // Render connection lines with proper elbow style
@@ -2395,10 +2199,8 @@ const maxZoomShared = useSharedValue(maxZoom);
 
     // Create Set for O(1) membership lookups
     const pathSet = new Set(highlightedPathNodeIds);
-
-    // Group segments by depth difference (generation gap) for color gradation
-    const segmentsByDepth = new Map(); // depth -> Path object
-    let totalSegments = 0;
+    const pathObj = Skia.Path.Make();
+    let segmentsDrawn = 0;
 
     // Loop through existing connections and draw routing for path segments
     for (const conn of connections) {
@@ -2412,15 +2214,6 @@ const maxZoomShared = useSharedValue(maxZoom);
       const parent = nodes.find(n => n.id === conn.parent.id);
       const child = nodes.find(n => n.id === pathChild.id);
       if (!parent || !child) continue;
-
-      // Calculate depth difference for color selection
-      const depthDiff = Math.abs(child.depth - parent.depth);
-
-      // Get or create path for this depth level
-      if (!segmentsByDepth.has(depthDiff)) {
-        segmentsByDepth.set(depthDiff, Skia.Path.Make());
-      }
-      const pathObj = segmentsByDepth.get(depthDiff);
 
       // Reuse EXACT same busY calculation as regular edges
       const childYs = conn.children.map(c => c.y);
@@ -2442,72 +2235,23 @@ const maxZoomShared = useSharedValue(maxZoom);
       // 3. Bus up to child
       pathObj.lineTo(child.x, child.y - childHeight / 2);
 
-      totalSegments++;
+      segmentsDrawn++;
     }
 
-    if (totalSegments === 0) {
+    if (segmentsDrawn === 0) {
       console.warn('No valid path segments to render');
       return null;
     }
 
-    // Render each depth level with 4-layer glow system (matches search highlight)
-    return Array.from(segmentsByDepth.entries()).flatMap(([depthDiff, pathObj]) => {
-      const colorIndex = depthDiff % ANCESTRY_COLORS.length;
-      const baseColor = ANCESTRY_COLORS[colorIndex];
-
-      return [
-        // Layer 4: Outer glow - soft halo (largest blur)
-        <Group key={`path-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
-          <Path
-            path={pathObj}
-            color={hexToRgba(baseColor, 0.18)}
-            style="stroke"
-            strokeWidth={8}
-            opacity={pathOpacity}
-          >
-            <CornerPathEffect r={4} />
-          </Path>
-        </Group>,
-
-        // Layer 3: Middle glow - medium blur
-        <Group key={`path-${depthDiff}-middle`} layer={<Paint><Blur blur={10} /></Paint>}>
-          <Path
-            path={pathObj}
-            color={hexToRgba(baseColor, 0.24)}
-            style="stroke"
-            strokeWidth={5.5}
-            opacity={pathOpacity}
-          >
-            <CornerPathEffect r={4} />
-          </Path>
-        </Group>,
-
-        // Layer 2: Inner accent - subtle blur
-        <Group key={`path-${depthDiff}-inner`} layer={<Paint><Blur blur={5} /></Paint>}>
-          <Path
-            path={pathObj}
-            color={hexToRgba(baseColor, 0.32)}
-            style="stroke"
-            strokeWidth={4}
-            opacity={pathOpacity}
-          >
-            <CornerPathEffect r={4} />
-          </Path>
-        </Group>,
-
-        // Layer 1: Crisp core - no blur, full color
-        <Path
-          key={`path-${depthDiff}-core`}
-          path={pathObj}
-          color={baseColor}
-          style="stroke"
-          strokeWidth={2.5}
-          opacity={pathOpacity}
-        >
-          <CornerPathEffect r={4} />
-        </Path>,
-      ];
-    });
+    return (
+      <Path
+        path={pathObj}
+        color="#D58C4A" // Desert Ochre
+        style="stroke"
+        strokeWidth={3.5}
+        opacity={pathOpacity}
+      />
+    );
   }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
@@ -2772,15 +2516,8 @@ const maxZoomShared = useSharedValue(maxZoom);
 
               {/* Name text - centered across full width (on top) */}
               {(() => {
-                // Format name with title, with overflow handling
-                const maxChars = 12; // Smaller for nodes with photos
-                const displayName = formatNameWithTitle(node, {
-                  maxLength: maxChars,
-                  skipTitle: node.name?.length > 15, // Drop title if name already long
-                });
-
                 const nameParagraph = createArabicParagraph(
-                  displayName,
+                  node.name,
                   "bold",
                   isRoot ? 22 : 11,  // Double size for root
                   "#242121",
@@ -2828,15 +2565,8 @@ const maxZoomShared = useSharedValue(maxZoom);
 
               {/* Text-only name - centered across full width (on top) */}
               {(() => {
-                // Format name with title, with overflow handling
-                const maxChars = 18; // Larger for text-only nodes
-                const displayName = formatNameWithTitle(node, {
-                  maxLength: maxChars,
-                  skipTitle: node.name?.length > 15, // Drop title if name already long
-                });
-
                 const nameParagraph = createArabicParagraph(
-                  displayName,
+                  node.name,
                   "bold",
                   isRoot ? 22 : 11,  // Double size for root
                   "#242121",
@@ -3313,59 +3043,8 @@ const maxZoomShared = useSharedValue(maxZoom);
             {/* Highlighted ancestry path (above edges, below nodes) */}
             {renderHighlightedPath()}
 
-            {/* Search highlight glow (rendered behind nodes for visibility) */}
-            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
-              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
-              if (!frame) return null;
-
-              return (
-                <Group opacity={glowOpacityState} blendMode="screen">
-                  <RoundedRect
-                    x={frame.x}
-                    y={frame.y}
-                    width={frame.width}
-                    height={frame.height}
-                    r={frame.borderRadius}
-                    color="transparent"
-                  >
-                    {/* Layer 4: Outermost soft glow - crimson */}
-                    <Shadow dx={0} dy={0} blur={40} color="rgba(199, 62, 62, 0.25)" />
-
-                    {/* Layer 3: Large warm halo - vivid orange */}
-                    <Shadow dx={0} dy={0} blur={30} color="rgba(227, 135, 64, 0.3)" />
-
-                    {/* Layer 2: Medium glow - crimson */}
-                    <Shadow dx={0} dy={0} blur={20} color="rgba(199, 62, 62, 0.35)" />
-
-                    {/* Layer 1: Inner warm accent - vivid orange */}
-                    <Shadow dx={0} dy={0} blur={10} color="rgba(227, 135, 64, 0.4)" />
-                  </RoundedRect>
-                </Group>
-              );
-            })()}
-
             {/* Render visible nodes */}
             {culledNodes.map(renderNodeWithTier)}
-
-            {/* Crisp golden border on top of highlighted node */}
-            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
-              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
-              if (!frame) return null;
-
-              return (
-                <RoundedRect
-                  x={frame.x}
-                  y={frame.y}
-                  width={frame.width}
-                  height={frame.height}
-                  r={frame.borderRadius}
-                  color="#E5A855"
-                  style="stroke"
-                  strokeWidth={2}
-                  opacity={glowOpacityState}
-                />
-              );
-            })()}
 
             {/* Pass 3: Invisible bridge lines intersecting viewport */}
             {bridgeSegments.map((seg) => (
@@ -3378,6 +3057,53 @@ const maxZoomShared = useSharedValue(maxZoom);
                 strokeWidth={LINE_WIDTH}
               />
             ))}
+
+            {/* Search highlight glow (rendered on top of everything) */}
+            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
+              if (!frame) return null;
+
+              return (
+                <Group opacity={glowOpacityState}>
+                  {/* Outer glow - soft golden halo */}
+                  <RoundedRect
+                    x={frame.x - 6}
+                    y={frame.y - 6}
+                    width={frame.width + 12}
+                    height={frame.height + 12}
+                    r={frame.borderRadius + 6}
+                  >
+                    <Paint style="stroke" strokeWidth={12} color="rgba(213, 140, 74, 0.4)">
+                      <Blur blur={16} />
+                    </Paint>
+                  </RoundedRect>
+
+                  {/* Inner glow - warmer accent */}
+                  <RoundedRect
+                    x={frame.x - 3}
+                    y={frame.y - 3}
+                    width={frame.width + 6}
+                    height={frame.height + 6}
+                    r={frame.borderRadius + 3}
+                  >
+                    <Paint style="stroke" strokeWidth={6} color="rgba(161, 51, 51, 0.3)">
+                      <Blur blur={8} />
+                    </Paint>
+                  </RoundedRect>
+
+                  {/* Crisp border - no blur */}
+                  <RoundedRect
+                    x={frame.x}
+                    y={frame.y}
+                    width={frame.width}
+                    height={frame.height}
+                    r={frame.borderRadius}
+                  >
+                    <Paint style="stroke" strokeWidth={2} color="#E5A855" />
+                  </RoundedRect>
+                </Group>
+              );
+            })()}
           </Group>
         </Canvas>
         </GestureDetector>
@@ -3385,7 +3111,7 @@ const maxZoomShared = useSharedValue(maxZoom);
 
       <SearchBar
         onSelectResult={handleSearchResultSelect}
-        onClearHighlight={clearAllHighlights}
+        onClearHighlight={clearPathHighlight}
       />
 
       <NavigateToRootButton
@@ -3399,6 +3125,8 @@ const maxZoomShared = useSharedValue(maxZoom);
         focusPersonId={linkedProfileId || profile?.id}
       />
 
+      {/* Admin Toggle Button - Only for admins */}
+      {isAdmin && user && !user.is_anonymous ? <AdminToggleButton user={user} /> : null}
 
 
       {/* Admin components */}
