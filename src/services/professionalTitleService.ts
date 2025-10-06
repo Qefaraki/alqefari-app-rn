@@ -23,6 +23,8 @@ export interface ProfessionalTitle {
 
 export interface ProfileWithTitle {
   name?: string;
+  name_chain?: string;
+  fullNameChain?: string;
   professional_title?: ProfessionalTitleValue;
   title_abbreviation?: string;
 }
@@ -107,7 +109,8 @@ export const formatNameWithTitle = (
   options?: { maxLength?: number; skipTitle?: boolean }
 ): string => {
   const abbrev = getTitleAbbreviation(profile);
-  const baseName = profile.name || '';
+  // Prefer full name chain over first name only
+  const baseName = profile.name_chain || profile.fullNameChain || profile.name || '';
 
   // If skipTitle requested or no abbreviation, return plain name
   if (options?.skipTitle || !abbrev) {

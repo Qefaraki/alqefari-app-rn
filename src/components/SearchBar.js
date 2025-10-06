@@ -23,6 +23,7 @@ import { toArabicNumerals } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import useDynamicTypography from "../hooks/useDynamicTypography";
+import { formatNameWithTitle } from "../services/professionalTitleService";
 
 const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [query, setQuery] = useState("");
@@ -529,7 +530,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
           {/* Text content - RTL aligned to right edge */}
           <View style={styles.textContainer}>
             <Text style={[styles.nameText, nameTypography]} allowFontScaling numberOfLines={1}>
-              {item.name_chain || item.name || "بدون اسم"}
+              {formatNameWithTitle(item) || "بدون اسم"}
             </Text>
             <View style={styles.metaContainer}>
               <Text

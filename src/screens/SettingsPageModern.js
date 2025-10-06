@@ -30,6 +30,7 @@ import notificationService from "../services/notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { featureFlags } from "../config/featureFlags";
 import adminContactService from "../services/adminContact";
+import { formatNameWithTitle } from "../services/professionalTitleService";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -551,23 +552,20 @@ export default function SettingsPageModern({ user }) {
                 ) : (
                   <>
                     <Text style={styles.profileName}>
-                      {userProfile?.fullNameChain ?
-                        (userProfile.fullNameChain.includes("القفاري") ?
-                          userProfile.fullNameChain :
-                          `${userProfile.fullNameChain} القفاري`)
-                        : userProfile ?
-                        (getProfileDisplayName(userProfile).includes("القفاري") ?
-                          getProfileDisplayName(userProfile) :
-                          `${getProfileDisplayName(userProfile)} القفاري`)
-                        : pendingRequest?.fullNameChain ?
-                          (pendingRequest.fullNameChain.includes("القفاري") ?
-                            pendingRequest.fullNameChain :
-                            `${pendingRequest.fullNameChain} القفاري`)
-                        : pendingRequest?.profile?.name ?
-                          (pendingRequest.profile.name.includes("القفاري") ?
-                            pendingRequest.profile.name :
-                            `${pendingRequest.profile.name} القفاري`)
-                        : "مستخدم جديد"}
+                      {(() => {
+                        // Get the formatted name with title
+                        let displayName = "";
+                        if (userProfile) {
+                          displayName = formatNameWithTitle(userProfile) || getProfileDisplayName(userProfile);
+                        } else if (pendingRequest?.profile) {
+                          displayName = pendingRequest.fullNameChain || pendingRequest.profile.name;
+                        } else {
+                          return "مستخدم جديد";
+                        }
+
+                        // Add القفاري suffix if not already present
+                        return displayName.includes("القفاري") ? displayName : `${displayName} القفاري`;
+                      })()}
                     </Text>
                     <Text style={styles.profilePhone}>
                       {currentUser?.phone || currentUser?.email || ""}
