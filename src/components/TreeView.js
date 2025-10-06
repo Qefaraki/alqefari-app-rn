@@ -1787,34 +1787,22 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // DISABLED: Spring-back logic was incorrectly triggering for valid camera positions
-      // With wide trees (24,837px), centering a node at x=10714 requires camera at x=-10513
-      // The bounds check incorrectly flagged this as "outside bounds" and sprang back to x=-27
-      // Rubber-band resistance in onUpdate is sufficient for boundary enforcement
+      // FIXED: Removed createDecayModifier that used stale boundsShared.value
+      // The decay modifier was creating rubber-band with ZERO bounds, causing jumps
+      // from correct position (x=-10513) to clamped position (x=-2729) on mount.
+      // Simple momentum decay without bounds-based modifier is more reliable.
+      // Rubber-band resistance in onUpdate already provides edge resistance.
 
-      // Apply momentum with rubber-band modifier for smooth deceleration
-      const decayMod = createDecayModifier(
-        viewportShared.value,
-        boundsShared.value,
-        scale.value,
-        minZoomShared.value,
-        maxZoomShared.value
-      );
+      // Apply simple momentum decay without bounds-dependent modifier
+      translateX.value = withDecay({
+        velocity: e.velocityX,
+        deceleration: 0.998,  // Slightly higher for smoother, more natural feel
+      });
 
-      translateX.value = withDecay(
-        {
-          velocity: e.velocityX,
-          deceleration: 0.995,
-        },
-        (value) => decayMod(value, 'x')
-      );
-      translateY.value = withDecay(
-        {
-          velocity: e.velocityY,
-          deceleration: 0.995,
-        },
-        (value) => decayMod(value, 'y')
-      );
+      translateY.value = withDecay({
+        velocity: e.velocityY,
+        deceleration: 0.998,
+      });
 
       // Save current values
       savedTranslateX.value = translateX.value;
