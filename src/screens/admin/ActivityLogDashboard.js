@@ -736,7 +736,7 @@ export default function ActivityLogDashboard({ onClose }) {
             style={{ marginRight: 4 }}
           />
           <Text style={[styles.filterButtonText, activeFilter === "marriages" && styles.filterButtonTextActive]}>
-            الزواجات
+            الأزواج
           </Text>
         </TouchableOpacity>
 
@@ -950,21 +950,18 @@ const styles = StyleSheet.create({
 
   // Filter Buttons
   filterSection: {
-    marginBottom: 8,
-    marginTop: 0,
-    height: 52,
+    marginBottom: 12,
   },
   filterScrollContent: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
     gap: 8,
-    alignItems: 'center',
   },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
-    paddingVertical: 0,
     height: 36,
     borderRadius: 18,
     backgroundColor: "transparent",
