@@ -31,6 +31,7 @@ import {
 } from "date-fns";
 import { ar } from "date-fns/locale";
 import tokens from "../../components/ui/tokens";
+import SkeletonLoader, { SkeletonStatBox } from "../../components/ui/SkeletonLoader";
 
 // Use Najdi Sadu Color Palette from tokens
 const colors = {
@@ -106,6 +107,41 @@ const SEVERITY_COLORS = {
   high: colors.warning,
   critical: colors.error,
 };
+
+// Shimmer Skeleton Components
+const ActivityRowSkeleton = () => (
+  <View style={styles.activityRow}>
+    <SkeletonLoader width={36} height={36} borderRadius={18} />
+    <View style={{ flex: 1, gap: 4 }}>
+      <SkeletonLoader width="60%" height={17} borderRadius={4} />
+      <SkeletonLoader width="80%" height={15} borderRadius={4} />
+    </View>
+    <SkeletonLoader width={60} height={13} borderRadius={4} />
+    <View style={{ width: 18 }} />
+  </View>
+);
+
+const ActivityCardSkeleton = () => (
+  <View style={styles.activityCard}>
+    <ActivityRowSkeleton />
+    <View style={styles.activityRowBorder} />
+    <ActivityRowSkeleton />
+    <View style={styles.activityRowBorder} />
+    <ActivityRowSkeleton />
+  </View>
+);
+
+const DateGroupSkeleton = () => (
+  <View style={styles.dateGroup}>
+    <SkeletonLoader
+      width={80}
+      height={13}
+      borderRadius={4}
+      style={{ marginHorizontal: 16, marginBottom: 8 }}
+    />
+    <ActivityCardSkeleton />
+  </View>
+);
 
 export default function ActivityLogDashboard({ onClose }) {
   const [activities, setActivities] = useState([]);
@@ -529,10 +565,53 @@ export default function ActivityLogDashboard({ onClose }) {
           </View>
         </View>
 
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#A13333" />
-          <Text style={styles.loadingText}>جاري تحميل سجل النشاط...</Text>
-        </View>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {/* Stats Widget Skeleton */}
+          <View style={styles.statsWidget}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+                <SkeletonLoader width="80%" height={12} borderRadius={4} />
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+                <SkeletonLoader width="80%" height={12} borderRadius={4} />
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+                <SkeletonLoader width="80%" height={12} borderRadius={4} />
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+                <SkeletonLoader width="80%" height={12} borderRadius={4} />
+              </View>
+            </View>
+          </View>
+
+          {/* Search Bar Skeleton */}
+          <SkeletonLoader
+            width="auto"
+            height={48}
+            borderRadius={12}
+            style={{ marginHorizontal: 16, marginBottom: 16 }}
+          />
+
+          {/* Section Title Skeleton */}
+          <SkeletonLoader
+            width={120}
+            height={20}
+            borderRadius={4}
+            style={{ marginHorizontal: 16, marginBottom: 12 }}
+          />
+
+          {/* Activity Cards Skeletons */}
+          <DateGroupSkeleton />
+          <DateGroupSkeleton />
+          <DateGroupSkeleton />
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -600,6 +679,104 @@ export default function ActivityLogDashboard({ onClose }) {
         )}
       </View>
 
+      {/* Filter Category Buttons */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterScrollContent}
+        style={styles.filterSection}
+      >
+        <TouchableOpacity
+          style={[styles.filterButton, activeFilter === "all" && styles.filterButtonActive]}
+          onPress={() => setActiveFilter("all")}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.filterButtonText, activeFilter === "all" && styles.filterButtonTextActive]}>
+            الكل
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterButton, activeFilter === "tree" && styles.filterButtonActive]}
+          onPress={() => setActiveFilter("tree")}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="git-branch"
+            size={14}
+            color={activeFilter === "tree" ? "#F9F7F3" : "#242121"}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.filterButtonText, activeFilter === "tree" && styles.filterButtonTextActive]}>
+            الشجرة
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterButton, activeFilter === "marriages" && styles.filterButtonActive]}
+          onPress={() => setActiveFilter("marriages")}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="heart"
+            size={14}
+            color={activeFilter === "marriages" ? "#F9F7F3" : "#242121"}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.filterButtonText, activeFilter === "marriages" && styles.filterButtonTextActive]}>
+            الزواجات
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterButton, activeFilter === "photos" && styles.filterButtonActive]}
+          onPress={() => setActiveFilter("photos")}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="image"
+            size={14}
+            color={activeFilter === "photos" ? "#F9F7F3" : "#242121"}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.filterButtonText, activeFilter === "photos" && styles.filterButtonTextActive]}>
+            الصور
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterButton, activeFilter === "admin" && styles.filterButtonActive]}
+          onPress={() => setActiveFilter("admin")}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="shield"
+            size={14}
+            color={activeFilter === "admin" ? "#F9F7F3" : "#242121"}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.filterButtonText, activeFilter === "admin" && styles.filterButtonTextActive]}>
+            الإدارة
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.filterButton, activeFilter === "critical" && styles.filterButtonActive]}
+          onPress={() => setActiveFilter("critical")}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="warning"
+            size={14}
+            color={activeFilter === "critical" ? "#F9F7F3" : "#242121"}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={[styles.filterButtonText, activeFilter === "critical" && styles.filterButtonTextActive]}>
+            حرج
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
       {/* Section Title */}
       <Text style={styles.sectionTitle}>النشاط الأخير</Text>
 
@@ -658,6 +835,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 12,
   },
   emblem: {
     width: 44,
@@ -666,14 +844,12 @@ const styles = StyleSheet.create({
   },
   titleContent: {
     flex: 1,
-    paddingHorizontal: 12,
   },
   title: {
     fontSize: 34,
     fontWeight: "700",
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-    textAlign: "center",
   },
 
   // Loading
@@ -759,6 +935,39 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+
+  // Filter Buttons
+  filterSection: {
+    marginBottom: 16,
+  },
+  filterScrollContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
+  },
+  filterButtonActive: {
+    backgroundColor: "#A13333",
+    borderColor: "#A13333",
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#242121",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filterButtonTextActive: {
+    color: "#F9F7F3",
   },
 
   // Section Title
