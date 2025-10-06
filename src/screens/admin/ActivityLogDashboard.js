@@ -244,6 +244,8 @@ export default function ActivityLogDashboard({ onClose }) {
   // Group activities by date (memoized for performance)
   const groupedActivities = useMemo(() => {
     const groups = {};
+
+    // Group by date and track timestamp for sorting
     filteredActivities.forEach(activity => {
       const date = parseISO(activity.created_at);
       let dateLabel;
@@ -257,15 +259,25 @@ export default function ActivityLogDashboard({ onClose }) {
       }
 
       if (!groups[dateLabel]) {
-        groups[dateLabel] = [];
+        groups[dateLabel] = {
+          activities: [],
+          timestamp: date.getTime(),
+        };
       }
-      groups[dateLabel].push(activity);
+      groups[dateLabel].activities.push(activity);
     });
 
-    return Object.entries(groups).map(([dateLabel, activities]) => ({
-      dateLabel,
-      activities,
-    }));
+    // Sort groups by date descending (newest first)
+    // Sort activities within each group by time descending (newest first)
+    return Object.entries(groups)
+      .map(([dateLabel, { activities, timestamp }]) => ({
+        dateLabel,
+        activities: activities.sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
+        timestamp,
+      }))
+      .sort((a, b) => b.timestamp - a.timestamp);
   }, [filteredActivities]);
 
   // Filter activities based on search and filter
@@ -937,7 +949,7 @@ const styles = StyleSheet.create({
   // Filter Buttons
   filterSection: {
     marginBottom: 16,
-    height: 44,
+    height: 48,
   },
   filterScrollContent: {
     paddingHorizontal: 16,
@@ -953,6 +965,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#D1BBA340",
+    minWidth: 60,
   },
   filterButtonActive: {
     backgroundColor: "#A13333",
@@ -970,7 +983,7 @@ const styles = StyleSheet.create({
 
   // Activities List
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: 16,
   },
   dateGroup: {
     marginBottom: 16,
@@ -1116,7 +1129,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 64,
+    paddingVertical: 32,
   },
   emptyText: {
     fontSize: 17,
