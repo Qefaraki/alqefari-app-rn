@@ -266,12 +266,12 @@ BEGIN
       m.birth_year_hijri,
       m.death_year_hijri,
       -- Calculate match score
-      CASE
+      (CASE
         WHEN m.name_array[1:array_length(v_normalized_names, 1)] = v_normalized_names THEN 3.0
         WHEN m.name_array[1:array_length(v_normalized_names, 1)] @> v_normalized_names THEN 2.5
         WHEN m.name_array @> v_normalized_names THEN 2.0
         ELSE 1.0
-      END as match_score,
+      END)::DOUBLE PRECISION as match_score,
       -- Match depth
       CASE
         WHEN m.name_array[1:array_length(v_normalized_names, 1)] = v_normalized_names
