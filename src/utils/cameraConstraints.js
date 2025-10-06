@@ -105,8 +105,30 @@ export function clampStageToBounds(stage, viewport, bounds, explicitMinZoom, exp
   const minTranslateY = vpHeight / 2 - (tree.maxY + marginY) * clampedScale;
   const maxTranslateY = vpHeight / 2 - (tree.minY - marginY) * clampedScale;
 
+  // DEBUG: Log clamping decision
+  console.log('🔍 [clampStageToBounds]', {
+    proposed: { x: Math.round(proposed.x), y: Math.round(proposed.y), scale: clampedScale.toFixed(2) },
+    viewport: { width: Math.round(vpWidth), height: Math.round(vpHeight) },
+    treeBounds: { minX: Math.round(tree.minX), maxX: Math.round(tree.maxX), width: Math.round(tree.width) },
+    margin: { x: Math.round(marginX), y: Math.round(marginY) },
+    xRange: [Math.round(minTranslateX), Math.round(maxTranslateX)],
+    yRange: [Math.round(minTranslateY), Math.round(maxTranslateY)],
+  });
+
   const clampedX = Math.min(Math.max(proposed.x, minTranslateX), maxTranslateX);
   const clampedY = Math.min(Math.max(proposed.y, minTranslateY), maxTranslateY);
+
+  // DEBUG: Log if clamping occurred
+  if (Math.abs(clampedX - proposed.x) > 1 || Math.abs(clampedY - proposed.y) > 1) {
+    console.log('⚠️ [CLAMPED!]', {
+      from: { x: Math.round(proposed.x), y: Math.round(proposed.y) },
+      to: { x: Math.round(clampedX), y: Math.round(clampedY) },
+      reason: {
+        xClamped: Math.abs(clampedX - proposed.x) > 1,
+        yClamped: Math.abs(clampedY - proposed.y) > 1
+      }
+    });
+  }
 
   return {
     stage: {
@@ -135,8 +157,22 @@ export function applyRubberBand(value, min, max, tension = 0.55, softZone = 200)
   return value;
 }
 
+// DEBUG: Track decay modifier calls to limit logging
+let decayLogCount = 0;
+const MAX_DECAY_LOGS = 5;
+
 export function createDecayModifier(viewport, bounds, currentScale, minZoom, maxZoom) {
   'worklet';
+
+  // DEBUG: Log decay modifier creation (only once per gesture)
+  if (decayLogCount < MAX_DECAY_LOGS) {
+    console.log('🏃 [createDecayModifier] Created with:', {
+      viewport: { width: Math.round(viewport.width), height: Math.round(viewport.height) },
+      bounds: { minX: Math.round(bounds.minX), maxX: Math.round(bounds.maxX), width: Math.round(bounds.width) },
+      scale: currentScale.toFixed(2)
+    });
+    decayLogCount++;
+  }
 
   return (value, axis) => {
     'worklet';
@@ -175,7 +211,19 @@ export function createDecayModifier(viewport, bounds, currentScale, minZoom, max
       softZone = Math.max(140, (vp.height / Math.max(scale, 0.1)) * 0.25);
     }
 
+    const result = applyRubberBand(value, min, max, 0.55, softZone);
+
+    // DEBUG: Log if rubber band is modifying the value (only first few times)
+    if (decayLogCount < MAX_DECAY_LOGS && Math.abs(result - value) > 1) {
+      console.log(`🎈 [DecayModifier] Rubber band on ${axis}:`, {
+        value: Math.round(value),
+        range: [Math.round(min), Math.round(max)],
+        result: Math.round(result),
+        modified: Math.abs(result - value) > 1
+      });
+    }
+
     // Apply rubber band with generous soft zone
-    return applyRubberBand(value, min, max, 0.55, softZone);
+    return result;
   };
 }

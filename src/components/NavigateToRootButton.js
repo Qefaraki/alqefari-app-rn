@@ -86,12 +86,23 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
     const isRoot = !targetNode.father_id;
     const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
     const targetScale = 1.0; // Moderate zoom for better overview
+
+    const unclamped = {
+      x: viewport.width / 2 - targetNode.x * targetScale,
+      y: viewport.height / 2 - adjustedY * targetScale,
+      scale: targetScale,
+    };
+
+    // DEBUG: Log button navigation
+    console.log('🎯 [NavigateButton] Navigating to:', {
+      node: { name: targetNode.name, x: Math.round(targetNode.x), y: Math.round(targetNode.y) },
+      viewport: { width: viewport.width, height: viewport.height },
+      unclamped: { x: Math.round(unclamped.x), y: Math.round(unclamped.y) },
+      treeBounds: { minX: Math.round(treeBounds.minX), maxX: Math.round(treeBounds.maxX), width: Math.round(treeBounds.width) }
+    });
+
     const clampedTarget = clampStageToBounds(
-      {
-        x: viewport.width / 2 - targetNode.x * targetScale,
-        y: viewport.height / 2 - adjustedY * targetScale,
-        scale: targetScale,
-      },
+      unclamped,
       viewport,
       treeBounds,
       minZoom,
@@ -101,6 +112,14 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
     const targetX = clampedTarget.stage.x;
     const targetY = clampedTarget.stage.y;
     const finalScale = clampedTarget.stage.scale;
+
+    // DEBUG: Log if button clamped the position
+    if (Math.abs(targetX - unclamped.x) > 1 || Math.abs(targetY - unclamped.y) > 1) {
+      console.log('⚠️ [NavigateButton] Position was clamped!', {
+        unclamped: { x: Math.round(unclamped.x), y: Math.round(unclamped.y) },
+        clamped: { x: Math.round(targetX), y: Math.round(targetY) }
+      });
+    }
 
     // console.log('Navigate to focused node:', {
     //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },

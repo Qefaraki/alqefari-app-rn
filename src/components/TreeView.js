@@ -1455,6 +1455,14 @@ const maxZoomShared = useSharedValue(maxZoom);
       const offsetX = dimensions.width / 2 - targetNode.x * targetScale;
       const offsetY = dimensions.height / 2 - adjustedY * targetScale;
 
+      // DEBUG: Log initial positioning
+      console.log('🎬 [Initial Positioning]', {
+        node: { name: targetNode.name, x: Math.round(targetNode.x), y: Math.round(targetNode.y), isRoot },
+        dimensions: { width: dimensions.width, height: dimensions.height },
+        calculated: { offsetX: Math.round(offsetX), offsetY: Math.round(offsetY), scale: targetScale },
+        treeBounds: { minX: Math.round(treeBounds.minX), maxX: Math.round(treeBounds.maxX), width: Math.round(treeBounds.width) }
+      });
+
       // INSTANT placement - NO animation
       translateX.value = offsetX;
       translateY.value = offsetY;
