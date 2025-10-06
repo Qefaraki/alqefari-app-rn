@@ -54,8 +54,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
   }));
 
   const handleNavigateToCenter = () => {
+    // DEBUG: Log button click
+    console.log('🔘 [NavigateButton] CLICKED - Starting navigation');
+
     if (!targetNode) {
-      // console.warn('NavigateToRootButton: Target node not ready yet');
+      console.warn('NavigateToRootButton: Target node not ready yet');
       return;
     }
 
@@ -121,11 +124,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
       });
     }
 
-    // console.log('Navigate to focused node:', {
-    //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
-    //   viewport: { width: viewport.width, height: viewport.height },
-    //   target: { x: targetX, y: targetY, scale: targetScale }
-    // });
+    // DEBUG: Log final animation start
+    console.log('▶️ [NavigateButton] Starting withTiming animation to:', {
+      target: { x: Math.round(targetX), y: Math.round(targetY), scale: finalScale },
+      duration: 600
+    });
 
     // Animate the shared values directly
     sharedValues.translateX.value = withTiming(targetX, {
