@@ -276,7 +276,11 @@ BEGIN
       CASE
         WHEN m.name_array[1:array_length(v_normalized_names, 1)] = v_normalized_names
         THEN array_length(v_normalized_names, 1)
-        ELSE cardinality(m.name_array & v_normalized_names)
+        ELSE (
+          SELECT COUNT(*)::INT
+          FROM unnest(m.name_array) name
+          WHERE name = ANY(v_normalized_names)
+        )
       END as match_depth,
       -- Father and grandfather names
       CASE WHEN array_length(m.display_names, 1) > 1
