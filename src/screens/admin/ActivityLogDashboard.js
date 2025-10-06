@@ -17,6 +17,7 @@ import {
   ScrollView,
   RefreshControl,
   Alert,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -204,6 +205,33 @@ export default function ActivityLogDashboard({ onClose }) {
     };
   }, [activities]);
 
+  // Group activities by date (memoized for performance)
+  const groupedActivities = useMemo(() => {
+    const groups = {};
+    filteredActivities.forEach(activity => {
+      const date = parseISO(activity.created_at);
+      let dateLabel;
+
+      if (isToday(date)) {
+        dateLabel = "اليوم";
+      } else if (isYesterday(date)) {
+        dateLabel = "أمس";
+      } else {
+        dateLabel = format(date, "d MMMM", { locale: ar });
+      }
+
+      if (!groups[dateLabel]) {
+        groups[dateLabel] = [];
+      }
+      groups[dateLabel].push(activity);
+    });
+
+    return Object.entries(groups).map(([dateLabel, activities]) => ({
+      dateLabel,
+      activities,
+    }));
+  }, [filteredActivities]);
+
   // Filter activities based on search and filter
   useEffect(() => {
     let filtered = [...activities];
@@ -346,258 +374,163 @@ export default function ActivityLogDashboard({ onClose }) {
     );
   };
 
-  // Render activity item
-  const renderActivityItem = ({ item }) => {
-    const config = ACTION_CONFIGS[item.action_type] || ACTION_CONFIGS.default;
-    const isExpanded = expandedCards.has(item.id);
-
-    return (
-      <TouchableOpacity
-        style={styles.activityCard}
-        onPress={() => toggleCardExpansion(item.id)}
-        activeOpacity={0.95}
-      >
-        <View style={styles.activityHeader}>
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: config.color + "15" },
-            ]}
-          >
-            <Ionicons name={config.icon} size={24} color={config.color} />
-          </View>
-
-          <View style={styles.activityInfo}>
-            <View style={styles.activityTitleRow}>
-              <Text style={styles.activityTitle}>{config.label}</Text>
-              <Text style={styles.activityTime}>
-                {formatRelativeTime(item.created_at)}
-              </Text>
-            </View>
-
-            <View style={styles.activityActorRow}>
-              <Ionicons name="person" size={14} color={colors.textLight} />
-              <Text style={styles.activityActor}>
-                {item.actor_name || "مستخدم غير معروف"}
-                {item.actor_phone && ` (${item.actor_phone})`}
-              </Text>
-              {item.actor_role && (
-                <View
-                  style={[
-                    styles.roleBadge,
-                    {
-                      backgroundColor:
-                        item.actor_role === "super_admin"
-                          ? colors.primary
-                          : item.actor_role === "admin"
-                            ? colors.secondary
-                            : colors.container,
-                    },
-                  ]}
-                >
-                  <Text style={styles.roleBadgeText}>{item.actor_role}</Text>
-                </View>
-              )}
-            </View>
-
-            {item.target_name && (
-              <View style={styles.activityTargetRow}>
-                <Ionicons
-                  name="arrow-forward"
-                  size={14}
-                  color={colors.textLight}
-                />
-                <Text style={styles.activityTarget}>
-                  {item.target_name}
-                  {item.target_phone && ` (${item.target_phone})`}
-                </Text>
-              </View>
-            )}
-
-            {item.description && (
-              <Text
-                style={styles.activityDescription}
-                numberOfLines={isExpanded ? undefined : 2}
-              >
-                {item.description}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        {isExpanded && (
-          <View style={styles.expandedContent}>
-            {/* Metadata */}
-            <View style={styles.metadataRow}>
-              <View style={styles.metadataItem}>
-                <Text style={styles.metadataLabel}>الوقت الكامل</Text>
-                <Text style={styles.metadataValue}>
-                  {formatTimestamp(item.created_at)}
-                </Text>
-              </View>
-
-              {item.severity && (
-                <View style={styles.metadataItem}>
-                  <Text style={styles.metadataLabel}>الأهمية</Text>
-                  <View
-                    style={[
-                      styles.severityBadge,
-                      {
-                        backgroundColor: SEVERITY_COLORS[item.severity] + "20",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.severityBadgeText,
-                        { color: SEVERITY_COLORS[item.severity] },
-                      ]}
-                    >
-                      {item.severity}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {item.ip_address && (
-                <View style={styles.metadataItem}>
-                  <Text style={styles.metadataLabel}>IP</Text>
-                  <Text style={styles.metadataValue}>{item.ip_address}</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Before/After diff if available */}
-            {(item.old_data || item.new_data) && (
-              <View style={styles.diffContainer}>
-                {item.old_data && (
-                  <View style={styles.diffSection}>
-                    <Text style={styles.diffLabel}>قبل التغيير</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <Text style={styles.diffContent}>
-                        {JSON.stringify(item.old_data, null, 2)}
-                      </Text>
-                    </ScrollView>
-                  </View>
-                )}
-
-                {item.new_data && (
-                  <View style={styles.diffSection}>
-                    <Text style={styles.diffLabel}>بعد التغيير</Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <Text style={styles.diffContent}>
-                        {JSON.stringify(item.new_data, null, 2)}
-                      </Text>
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-            )}
-
-            {/* Action buttons */}
-            <View style={styles.actionButtons}>
-              {/* TODO: Implement revert functionality before enabling */}
-              {false && item.can_revert && (
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.revertButton]}
-                  onPress={() => handleRevert(item)}
-                >
-                  <Ionicons name="arrow-undo" size={16} color={colors.error} />
-                  <Text style={styles.revertButtonText}>تراجع</Text>
-                </TouchableOpacity>
-              )}
-
-              {/* TODO: Implement navigation to profile/entity before enabling */}
-              {false && (
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.detailsButton]}
-                  onPress={() => {
-                    // Navigate to specific entity (node, marriage, etc.)
-                    Alert.alert("التفاصيل", `ID: ${item.target_id || item.id}`);
-                  }}
-                >
-                  <Ionicons
-                    name="information-circle"
-                    size={16}
-                    color={colors.info}
-                  />
-                  <Text style={styles.detailsButtonText}>عرض التفاصيل</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Expansion indicator */}
-        <View style={styles.expansionIndicator}>
-          <Ionicons
-            name={isExpanded ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={colors.textLight}
-          />
-        </View>
-      </TouchableOpacity>
-    );
+  // Get action icon and color
+  const getActionIcon = (activity) => {
+    const config = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
+    return config.icon;
   };
 
-  // Render stats card
-  const renderStatsCard = (icon, label, value, iconColor) => (
-    <View style={styles.statsCard}>
-      <Ionicons name={icon} size={28} color={iconColor} />
-      <Text style={styles.statsValue}>{value}</Text>
-      <Text style={styles.statsLabel}>{label}</Text>
-    </View>
-  );
+  const getActionColor = (activity) => {
+    const config = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
+    return config.color;
+  };
 
-  // Render filter button
-  const renderFilterButton = (key, label, icon) => (
-    <TouchableOpacity
-      style={[
-        styles.filterButton,
-        activeFilter === key && styles.filterButtonActive,
-      ]}
-      onPress={() => setActiveFilter(key)}
-      activeOpacity={0.8}
-    >
-      {icon && (
-        <Ionicons
-          name={icon}
-          size={16}
-          color={activeFilter === key ? colors.background : colors.text}
-          style={styles.filterIcon}
-        />
-      )}
-      <Text
-        style={[
-          styles.filterButtonText,
-          activeFilter === key && styles.filterButtonTextActive,
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
+  // Handle activity press (show detailed modal)
+  const handleActivityPress = (activity) => {
+    toggleCardExpansion(activity.id);
+  };
+
+  // Render date group with activities as rows
+  const renderDateGroup = ({ item }) => (
+    <View style={styles.dateGroup}>
+      <Text style={styles.dateLabel}>{item.dateLabel}</Text>
+      <View style={styles.activityCard}>
+        {item.activities.map((activity, index) => {
+          const config = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
+          const isExpanded = expandedCards.has(activity.id);
+
+          return (
+            <View key={activity.id}>
+              <TouchableOpacity
+                style={styles.activityRow}
+                onPress={() => handleActivityPress(activity)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.activityIcon, { backgroundColor: config.color + "15" }]}>
+                  <Ionicons name={config.icon} size={20} color={config.color} />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle} numberOfLines={1}>
+                    {config.label}
+                  </Text>
+                  <Text style={styles.activitySubtitle} numberOfLines={1}>
+                    {activity.actor_name || "مستخدم"}
+                    {activity.target_name && ` → ${activity.target_name}`}
+                  </Text>
+                </View>
+                <Text style={styles.activityTime}>
+                  {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
+                </Text>
+                <Ionicons name="chevron-forward" size={18} color="#24212140" />
+              </TouchableOpacity>
+
+              {/* Expanded details */}
+              {isExpanded && (
+                <View style={styles.expandedContent}>
+                  {/* Metadata */}
+                  <View style={styles.metadataRow}>
+                    <View style={styles.metadataItem}>
+                      <Text style={styles.metadataLabel}>الوقت الكامل</Text>
+                      <Text style={styles.metadataValue}>
+                        {formatTimestamp(activity.created_at)}
+                      </Text>
+                    </View>
+
+                    {activity.severity && (
+                      <View style={styles.metadataItem}>
+                        <Text style={styles.metadataLabel}>الأهمية</Text>
+                        <View
+                          style={[
+                            styles.severityBadge,
+                            {
+                              backgroundColor: SEVERITY_COLORS[activity.severity] + "20",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.severityBadgeText,
+                              { color: SEVERITY_COLORS[activity.severity] },
+                            ]}
+                          >
+                            {activity.severity}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  {activity.description && (
+                    <Text style={styles.activityDescription}>
+                      {activity.description}
+                    </Text>
+                  )}
+
+                  {/* Before/After diff if available */}
+                  {(activity.old_data || activity.new_data) && (
+                    <View style={styles.diffContainer}>
+                      {activity.old_data && (
+                        <View style={styles.diffSection}>
+                          <Text style={styles.diffLabel}>قبل التغيير</Text>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                          >
+                            <Text style={styles.diffContent}>
+                              {JSON.stringify(activity.old_data, null, 2)}
+                            </Text>
+                          </ScrollView>
+                        </View>
+                      )}
+
+                      {activity.new_data && (
+                        <View style={styles.diffSection}>
+                          <Text style={styles.diffLabel}>بعد التغيير</Text>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                          >
+                            <Text style={styles.diffContent}>
+                              {JSON.stringify(activity.new_data, null, 2)}
+                            </Text>
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Row separator */}
+              {index < item.activities.length - 1 && (
+                <View style={styles.activityRowBorder} />
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="chevron-back" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>سجل النشاط المفصل</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.headerRow}>
+            <Image
+              source={require('../../../assets/logo/AlqefariEmblem.png')}
+              style={styles.emblem}
+              resizeMode="contain"
+            />
+            <View style={styles.titleContent}>
+              <Text style={styles.title}>سجل النشاط</Text>
+            </View>
+            <View style={{ width: 44, height: 44 }} />
+          </View>
         </View>
 
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#A13333" />
           <Text style={styles.loadingText}>جاري تحميل سجل النشاط...</Text>
         </View>
       </SafeAreaView>
@@ -605,78 +538,77 @@ export default function ActivityLogDashboard({ onClose }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header - Emblem + Large Title Pattern */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="chevron-back" size={28} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>سجل النشاط المفصل</Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerRow}>
+          <Image
+            source={require('../../../assets/logo/AlqefariEmblem.png')}
+            style={styles.emblem}
+            resizeMode="contain"
+          />
+          <View style={styles.titleContent}>
+            <Text style={styles.title}>سجل النشاط</Text>
+          </View>
+          <View style={{ width: 44, height: 44 }} />
+        </View>
       </View>
 
-      {/* Stats Cards */}
-      <View style={styles.statsSection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.statsScrollContent}
-        >
-          {renderStatsCard("analytics", "إجمالي", stats.total, colors.info)}
-          {renderStatsCard("today", "اليوم", stats.today, colors.success)}
-          {renderStatsCard("warning", "حرج", stats.critical, colors.error)}
-          {renderStatsCard("time", "معلق", stats.pending, colors.warning)}
-        </ScrollView>
+      {/* Stats Widget - White card with dividers */}
+      <View style={styles.statsWidget}>
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{stats.total}</Text>
+            <Text style={styles.statLabel}>إجمالي</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{stats.today}</Text>
+            <Text style={styles.statLabel}>اليوم</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{stats.critical}</Text>
+            <Text style={styles.statLabel}>حرج</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{stats.pending}</Text>
+            <Text style={styles.statLabel}>معلق</Text>
+          </View>
+        </View>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons
-          name="search"
-          size={20}
-          color={colors.textLight}
-          style={styles.searchIcon}
-        />
+      {/* Search Bar - Clean ProfileLinker style */}
+      <View style={[
+        styles.searchBar,
+        searchText.length > 0 && styles.searchBarFocused
+      ]}>
+        <Ionicons name="search" size={20} color="#24212160" />
         <TextInput
           style={styles.searchInput}
-          placeholder="بحث بالاسم، الهاتف، أو النشاط..."
-          placeholderTextColor={colors.textLight}
+          placeholder="ابحث بالاسم، الهاتف، أو النشاط..."
+          placeholderTextColor="#24212199"
           value={searchText}
           onChangeText={setSearchText}
           returnKeyType="search"
         />
         {searchText.length > 0 && (
-          <TouchableOpacity
-            onPress={() => setSearchText("")}
-            style={styles.clearButton}
-          >
-            <Ionicons name="close-circle" size={20} color={colors.textLight} />
+          <TouchableOpacity onPress={() => setSearchText("")}>
+            <Ionicons name="close-circle" size={20} color="#24212160" />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Filter Buttons */}
-      <View style={styles.filterSection}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterScrollContent}
-        >
-          {renderFilterButton("all", "الكل", null)}
-          {renderFilterButton("tree", "الشجرة", "git-branch")}
-          {renderFilterButton("marriages", "الزواجات", "heart")}
-          {renderFilterButton("photos", "الصور", "image")}
-          {renderFilterButton("admin", "الإدارة", "shield")}
-          {renderFilterButton("critical", "حرج", "warning")}
-        </ScrollView>
-      </View>
+      {/* Section Title */}
+      <Text style={styles.sectionTitle}>النشاط الأخير</Text>
 
-      {/* Activities List */}
+      {/* Activities List - Date-grouped rows */}
       <FlatList
         ref={flatListRef}
-        data={filteredActivities}
-        renderItem={renderActivityItem}
-        keyExtractor={(item) => item.id}
+        data={groupedActivities}
+        renderItem={renderDateGroup}
+        keyExtractor={(item) => item.dateLabel}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -685,13 +617,13 @@ export default function ActivityLogDashboard({ onClose }) {
               setRefreshing(true);
               fetchActivities();
             }}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={["#A13333"]}
+            tintColor="#A13333"
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="document-text" size={64} color={colors.textLight} />
+            <Ionicons name="document-text" size={64} color="#73637280" />
             <Text style={styles.emptyText}>لا توجد أنشطة</Text>
             <Text style={styles.emptySubtext}>
               {searchText
@@ -701,9 +633,9 @@ export default function ActivityLogDashboard({ onClose }) {
           </View>
         }
         showsVerticalScrollIndicator={false}
-        initialNumToRender={15}
-        maxToRenderPerBatch={10}
-        windowSize={11}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={7}
         removeClippedSubviews={true}
       />
     </SafeAreaView>
@@ -715,28 +647,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F9F7F3",
   },
+
+  // Header - NewsScreen/ProfileLinker pattern
   header: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#F9F7F3",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8E3DC",
   },
-  closeButton: {
-    width: 40,
+  emblem: {
+    width: 44,
     height: 44,
-    justifyContent: "center",
-    alignItems: "flex-start",
+    tintColor: "#242121",
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+  titleContent: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+  title: {
+    fontSize: 34,
+    fontWeight: "700",
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    textAlign: "center",
   },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -749,63 +689,70 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  statsSection: {
-    marginVertical: 16,
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  statsScrollContent: {
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  statsCard: {
+
+  // Stats Widget - AdminDash pattern
+  statsWidget: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 16,
-    width: 100,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#D1BBA325",
-    marginRight: 8,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+    borderRadius: 13,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 0.5 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
+    padding: 16,
   },
-  statsValue: {
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statValue: {
     fontSize: 28,
     fontWeight: "700",
     color: "#242121",
-    marginTop: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  statsLabel: {
+  statLabel: {
     fontSize: 12,
     color: "#736372",
     marginTop: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  searchContainer: {
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: "#D1BBA320",
+  },
+
+  // Search Bar - ProfileLinker pattern
+  searchBar: {
+    backgroundColor: "#D1BBA320",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#D1BBA320",
-    borderRadius: 10,
+    paddingHorizontal: 16,
+    height: 48,
     marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    height: 44,
-    borderWidth: 1,
-    borderColor: "#D1BBA320",
+    marginBottom: 16,
+    gap: 8,
   },
-  searchIcon: {
-    marginRight: 8,
+  searchBarFocused: {
+    borderColor: "#A13333",
   },
   searchInput: {
     flex: 1,
@@ -813,162 +760,104 @@ const styles = StyleSheet.create({
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  clearButton: {
-    padding: 4,
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  filterSection: {
-    marginBottom: 16,
-    flexGrow: 0,
-    flexShrink: 0,
-  },
-  filterScrollContent: {
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  filterButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: "#D1BBA340",
-    marginRight: 8,
-  },
-  filterButtonActive: {
-    backgroundColor: "#A13333",
-    borderColor: "#A13333",
-  },
-  filterIcon: {
-    marginRight: 8,
-  },
-  filterButtonText: {
-    fontSize: 13,
+
+  // Section Title
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: "600",
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  filterButtonTextActive: {
-    color: "#F9F7F3",
-  },
+
+  // Activities List
   listContent: {
     paddingBottom: 24,
   },
+  dateGroup: {
+    marginBottom: 16,
+  },
+  dateLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#736372",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+
+  // Activity Card - AdminDash pattern (card with rows)
   activityCard: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    marginVertical: 8,
+    backgroundColor: "#F9F7F3",
     borderRadius: 12,
-    padding: 16,
     borderWidth: 1,
-    borderColor: "#D1BBA325",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
+    borderColor: "#D1BBA340",
+    marginHorizontal: 16,
+    overflow: "hidden",
   },
-  activityHeader: {
+  activityRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+    minHeight: 60,
+    backgroundColor: "#F9F7F3",
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  activityRowBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#D1BBA320",
+    marginHorizontal: 16,
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
-  activityInfo: {
+  activityContent: {
     flex: 1,
-  },
-  activityTitleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
   },
   activityTitle: {
     fontSize: 17,
     fontWeight: "600",
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    marginBottom: 2,
+  },
+  activitySubtitle: {
+    fontSize: 15,
+    color: "#736372",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityTime: {
     fontSize: 13,
     color: "#736372",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    minWidth: 60,
+    textAlign: "left",
   },
-  activityActorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  activityActor: {
-    fontSize: 15,
-    color: "#242121",
-    marginLeft: 8,
-    flex: 1,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  activityTargetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-    marginLeft: 20,
-  },
-  activityTarget: {
-    fontSize: 15,
-    color: "#736372",
-    marginLeft: 8,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  activityDescription: {
-    fontSize: 15,
-    color: "#736372",
-    marginTop: 4,
-    lineHeight: 20,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  roleBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  roleBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#F9F7F3",
-    textTransform: "uppercase",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
+
+  // Expanded Content
   expandedContent: {
-    marginTop: 16,
-    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 16,
+    backgroundColor: "#F9F7F3",
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#D1BBA320",
   },
   metadataRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 16,
     marginBottom: 12,
   },
   metadataItem: {
-    flex: 1,
+    minWidth: 120,
   },
   metadataLabel: {
     fontSize: 12,
@@ -994,8 +883,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
+  activityDescription: {
+    fontSize: 15,
+    color: "#736372",
+    lineHeight: 22,
+    marginBottom: 12,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
   diffContainer: {
-    marginTop: 12,
+    marginTop: 8,
   },
   diffSection: {
     marginBottom: 12,
@@ -1012,53 +908,13 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
     color: "#242121",
     backgroundColor: "#D1BBA310",
-    padding: 8,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#D1BBA320",
   },
-  actionButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 12,
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    minHeight: 44,
-  },
-  revertButton: {
-    borderColor: "#FF3B3040",
-    backgroundColor: "#FF3B3010",
-  },
-  revertButtonText: {
-    fontSize: 12,
-    color: "#FF3B30",
-    marginLeft: 4,
-    fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  detailsButton: {
-    borderColor: "#007AFF40",
-    backgroundColor: "#007AFF10",
-  },
-  detailsButtonText: {
-    fontSize: 12,
-    color: "#007AFF",
-    marginLeft: 4,
-    fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  expansionIndicator: {
-    position: "absolute",
-    bottom: 8,
-    right: 16,
-  },
+
+  // Empty State
   emptyContainer: {
     flex: 1,
     alignItems: "center",
