@@ -39,6 +39,7 @@ const colors = {
   warning: "#FF9800",
   error: "#FF3B30",
   info: tokens.colors.accent,
+  textLight: tokens.colors.najdi.textMuted, // Add missing color definition
 };
 
 // Action type configurations
@@ -546,9 +547,9 @@ export default function ActivityLogDashboard({ onClose }) {
   };
 
   // Render stats card
-  const renderStatsCard = (icon, label, value, color) => (
-    <View style={[styles.statsCard, { borderLeftColor: color }]}>
-      <Ionicons name={icon} size={24} color={color} />
+  const renderStatsCard = (icon, label, value, iconColor) => (
+    <View style={styles.statsCard}>
+      <Ionicons name={icon} size={28} color={iconColor} />
       <Text style={styles.statsValue}>{value}</Text>
       <Text style={styles.statsLabel}>{label}</Text>
     </View>
@@ -716,16 +717,17 @@ export default function ActivityLogDashboard({ onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: "#F9F7F3", // Al-Jass White - explicitly set
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.md,
+    backgroundColor: "#F9F7F3", // Al-Jass White
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.container + "20",
+    borderBottomColor: colors.container + "30",
   },
   closeButton: {
     width: 40,
@@ -769,32 +771,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: tokens.radii.md,
     padding: tokens.spacing.md,
-    minWidth: 100,
+    minWidth: 110,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: colors.container + "20",
-    marginRight: tokens.spacing.sm,
+    borderColor: colors.container + "25",
+    marginRight: tokens.spacing.xs,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
   statsValue: {
-    fontSize: tokens.typography.title2.fontSize,
-    fontWeight: tokens.typography.title2.fontWeight,
+    fontSize: 28,
+    fontWeight: "700",
     color: colors.text,
-    marginTop: tokens.spacing.xs,
+    marginTop: tokens.spacing.xxs,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   statsLabel: {
-    fontSize: tokens.typography.footnote.fontSize,
+    fontSize: tokens.typography.caption1.fontSize,
     color: colors.textMuted,
     marginTop: tokens.spacing.xxs,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
@@ -839,12 +841,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.xs,
-    minHeight: 32,
-    borderRadius: 20,
-    backgroundColor: colors.container + "20",
-    borderWidth: 1,
-    borderColor: colors.container + "30",
+    paddingVertical: tokens.spacing.sm,
+    minHeight: tokens.touchTarget.minimum,
+    borderRadius: 22,
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: colors.container + "40",
     marginRight: tokens.spacing.xs,
   },
   filterButtonActive: {
@@ -852,7 +854,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   filterIcon: {
-    marginRight: 6,
+    marginRight: tokens.spacing.xs,
   },
   filterButtonText: {
     fontSize: tokens.typography.footnote.fontSize,
@@ -861,7 +863,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterButtonTextActive: {
-    color: "#FFFFFF",
+    color: colors.background,
   },
   listContent: {
     paddingBottom: 100,
@@ -873,16 +875,16 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.md,
     padding: tokens.spacing.md,
     borderWidth: 1,
-    borderColor: colors.container + "20",
+    borderColor: colors.container + "25",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
@@ -926,7 +928,7 @@ const styles = StyleSheet.create({
   activityActor: {
     fontSize: tokens.typography.subheadline.fontSize,
     color: colors.text,
-    marginLeft: 6,
+    marginLeft: tokens.spacing.xs,
     flex: 1,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
@@ -939,7 +941,7 @@ const styles = StyleSheet.create({
   activityTarget: {
     fontSize: tokens.typography.subheadline.fontSize,
     color: colors.textMuted,
-    marginLeft: 6,
+    marginLeft: tokens.spacing.xs,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityDescription: {
@@ -951,14 +953,14 @@ const styles = StyleSheet.create({
   },
   roleBadge: {
     paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingVertical: tokens.spacing.xxs,
+    borderRadius: 6,
     marginLeft: tokens.spacing.xs,
   },
   roleBadgeText: {
-    fontSize: 10,
+    fontSize: tokens.typography.caption2.fontSize,
     fontWeight: "600",
-    color: "#FFFFFF",
+    color: colors.background,
     textTransform: "uppercase",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
@@ -991,7 +993,7 @@ const styles = StyleSheet.create({
   severityBadge: {
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: tokens.spacing.xxs,
-    borderRadius: 4,
+    borderRadius: 6,
     alignSelf: "flex-start",
   },
   severityBadgeText: {
@@ -1010,7 +1012,7 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
     color: colors.textMuted,
-    marginBottom: 6,
+    marginBottom: tokens.spacing.xs,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffContent: {
@@ -1019,7 +1021,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.container + "10",
     padding: tokens.spacing.xs,
-    borderRadius: 6,
+    borderRadius: tokens.radii.sm,
     borderWidth: 1,
     borderColor: colors.container + "20",
   },
@@ -1034,7 +1036,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
-    borderRadius: 6,
+    borderRadius: tokens.radii.sm,
     borderWidth: 1,
     minHeight: 44,
   },
@@ -1045,7 +1047,7 @@ const styles = StyleSheet.create({
   revertButtonText: {
     fontSize: tokens.typography.caption1.fontSize,
     color: colors.error,
-    marginLeft: 4,
+    marginLeft: tokens.spacing.xxs,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
@@ -1056,7 +1058,7 @@ const styles = StyleSheet.create({
   detailsButtonText: {
     fontSize: tokens.typography.caption1.fontSize,
     color: colors.info,
-    marginLeft: 4,
+    marginLeft: tokens.spacing.xxs,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },

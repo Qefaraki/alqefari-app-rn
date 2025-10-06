@@ -284,24 +284,8 @@ const NewsScreenV3: React.FC = () => {
     return null;
   }, [hasMoreRecent, recent.length]);
 
-  // Error state - only show full error screen if we have no data
-  // If refresh fails but we have cached data, show alert instead
-  if (error && featured.length === 0 && recent.length === 0) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <NetworkError
-          onRetry={() => {
-            clearError();
-            initialize();
-          }}
-          message={error}
-          type={error === 'network' ? 'offline' : 'server'}
-        />
-      </SafeAreaView>
-    );
-  }
-
   // If we have an error but also have cached data, show alert
+  // IMPORTANT: This useEffect must come BEFORE any conditional returns to satisfy Rules of Hooks
   useEffect(() => {
     if (error && (featured.length > 0 || recent.length > 0)) {
       Alert.alert(
@@ -325,6 +309,23 @@ const NewsScreenV3: React.FC = () => {
       );
     }
   }, [error, featured.length, recent.length]);
+
+  // Error state - only show full error screen if we have no data
+  // If refresh fails but we have cached data, show alert instead
+  if (error && featured.length === 0 && recent.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <NetworkError
+          onRetry={() => {
+            clearError();
+            initialize();
+          }}
+          message={error}
+          type={error === 'network' ? 'offline' : 'server'}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
