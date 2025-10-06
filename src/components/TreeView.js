@@ -689,6 +689,9 @@ const TreeView = ({
     maxZoomShared.value = maxZoom;
   }, [maxZoom]);
 
+  // Ref to ensure initial positioning only happens once
+  const hasInitializedPosition = useRef(false);
+
   // Create ref to hold current values for gestures
 const gestureStateRef = useRef({
   transform: { x: 0, y: 0, scale: 1 },
@@ -1423,7 +1426,10 @@ const maxZoomShared = useSharedValue(maxZoom);
 
   // Initialize position on first load - smart positioning based on user
   useEffect(() => {
+    // CRITICAL: Only run this ONCE on initial mount to prevent camera reset loops
+    // Dependencies can change (nodes, dimensions, etc.) but we must not re-position
     if (
+      !hasInitializedPosition.current &&  // Prevent re-triggering
       nodes.length > 0 &&
       stage.x === 0 &&
       stage.y === 0 &&
@@ -1471,6 +1477,9 @@ const maxZoomShared = useSharedValue(maxZoom);
       savedTranslateY.value = offsetY;
 
       setStage({ x: offsetX, y: offsetY, scale: targetScale });
+
+      // Mark as initialized - this effect will never run again
+      hasInitializedPosition.current = true;
     }
   }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
 
