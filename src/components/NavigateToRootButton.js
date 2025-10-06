@@ -9,19 +9,9 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import Svg, { Path, G } from "react-native-svg";
-import { useTreeStore } from "../stores/useTreeStore";
-import { clampStageToBounds } from "../utils/cameraConstraints";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const BUTTON_SIZE = 56;
-const ICON_SIZE = 26;
 
 const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) => {
   const [targetNode, setTargetNode] = useState(null);
-  const treeBounds = useTreeStore((s) => s.treeBounds);
-  const minZoom = useTreeStore((s) => s.minZoom);
-  const maxZoom = useTreeStore((s) => s.maxZoom);
-  const insets = useSafeAreaInsets();
 
   // Find and cache the target node when nodes change
   useEffect(() => {
@@ -54,11 +44,8 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
   }));
 
   const handleNavigateToCenter = () => {
-    // DEBUG: Log button click
-    console.log('🔘 [NavigateButton] CLICKED - Starting navigation');
-
     if (!targetNode) {
-      console.warn('NavigateToRootButton: Target node not ready yet');
+      // console.warn('NavigateToRootButton: Target node not ready yet');
       return;
     }
 
@@ -89,46 +76,14 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
     const isRoot = !targetNode.father_id;
     const adjustedY = isRoot ? targetNode.y - 80 : targetNode.y;
     const targetScale = 1.0; // Moderate zoom for better overview
+    const targetX = viewport.width / 2 - targetNode.x * targetScale;
+    const targetY = viewport.height / 2 - adjustedY * targetScale; // Center vertically
 
-    const unclamped = {
-      x: viewport.width / 2 - targetNode.x * targetScale,
-      y: viewport.height / 2 - adjustedY * targetScale,
-      scale: targetScale,
-    };
-
-    // DEBUG: Log button navigation
-    console.log('🎯 [NavigateButton] Navigating to:', {
-      node: { name: targetNode.name, x: Math.round(targetNode.x), y: Math.round(targetNode.y) },
-      viewport: { width: viewport.width, height: viewport.height },
-      unclamped: { x: Math.round(unclamped.x), y: Math.round(unclamped.y) },
-      treeBounds: { minX: Math.round(treeBounds.minX), maxX: Math.round(treeBounds.maxX), width: Math.round(treeBounds.width) }
-    });
-
-    const clampedTarget = clampStageToBounds(
-      unclamped,
-      viewport,
-      treeBounds,
-      minZoom,
-      maxZoom,
-    );
-
-    const targetX = clampedTarget.stage.x;
-    const targetY = clampedTarget.stage.y;
-    const finalScale = clampedTarget.stage.scale;
-
-    // DEBUG: Log if button clamped the position
-    if (Math.abs(targetX - unclamped.x) > 1 || Math.abs(targetY - unclamped.y) > 1) {
-      console.log('⚠️ [NavigateButton] Position was clamped!', {
-        unclamped: { x: Math.round(unclamped.x), y: Math.round(unclamped.y) },
-        clamped: { x: Math.round(targetX), y: Math.round(targetY) }
-      });
-    }
-
-    // DEBUG: Log final animation start
-    console.log('▶️ [NavigateButton] Starting withTiming animation to:', {
-      target: { x: Math.round(targetX), y: Math.round(targetY), scale: finalScale },
-      duration: 600
-    });
+    // console.log('Navigate to focused node:', {
+    //   targetNode: { name: targetNode.name, x: targetNode.x, y: targetNode.y },
+    //   viewport: { width: viewport.width, height: viewport.height },
+    //   target: { x: targetX, y: targetY, scale: targetScale }
+    // });
 
     // Animate the shared values directly
     sharedValues.translateX.value = withTiming(targetX, {
@@ -139,7 +94,7 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
       duration: 600,
       easing: Easing.inOut(Easing.ease),
     });
-    sharedValues.scale.value = withTiming(finalScale, {
+    sharedValues.scale.value = withTiming(targetScale, {
       duration: 600,
       easing: Easing.inOut(Easing.ease),
     });
@@ -148,17 +103,8 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
   // Always render the button, but disable if target not found
   const isDisabled = !targetNode;
 
-  const buttonBottomOffset = insets.bottom > 0 ? insets.bottom + 72 : 96;
-
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          bottom: buttonBottomOffset,
-        },
-      ]}
-    >
+    <View style={styles.container}>
       <View style={styles.shadowWrapper}>
         <Pressable
           onPress={handleNavigateToCenter}
@@ -172,11 +118,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
           {/* Pointer icon */}
           <Animated.View style={[styles.iconContainer, animatedIconStyle]}>
             <Svg
-              width={ICON_SIZE}
-              height={ICON_SIZE}
+              width={30}
+              height={30}
               viewBox="0 0 24 24"
               preserveAspectRatio="xMidYMid meet"
-              style={{ transform: [{ scaleX: -1 }, { scale: 0.82 }] }}
+              style={{ transform: [{ scaleX: -1 }, { scale: 0.75 }] }}
             >
               <G transform="translate(1.5, 1.5)">
                 <Path
@@ -197,36 +143,39 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: 16, // Left in code = right side in RTL mode
+    left: 16,  // Move to left side of screen
+    bottom: 120,  // Raised higher for better visibility
   },
   shadowWrapper: {
-    width: BUTTON_SIZE,
-    height: BUTTON_SIZE,
-    borderRadius: BUTTON_SIZE / 2,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
+    // Shadow properties for iOS
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 3,
+      height: 4,
     },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    // Shadow for Android
+    elevation: 12,
   },
   button: {
     position: "absolute",
     top: 0,
     left: 0,
-    width: BUTTON_SIZE,
-    height: BUTTON_SIZE,
+    width: 56,
+    height: 56,
     backgroundColor: "transparent",
-    borderRadius: BUTTON_SIZE / 2,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
   },
   iconContainer: {
-    width: BUTTON_SIZE,
-    height: BUTTON_SIZE,
+    width: 56,
+    height: 56,
     alignItems: "center",
     justifyContent: "center",
   },
