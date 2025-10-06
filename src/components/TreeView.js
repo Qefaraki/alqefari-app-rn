@@ -1787,24 +1787,11 @@ const maxZoomShared = useSharedValue(maxZoom);
         return;
       }
 
-      // FIXED: Removed createDecayModifier that used stale boundsShared.value
-      // The decay modifier was creating rubber-band with ZERO bounds, causing jumps
-      // from correct position (x=-10513) to clamped position (x=-2729) on mount.
-      // Simple momentum decay without bounds-based modifier is more reliable.
-      // Rubber-band resistance in onUpdate already provides edge resistance.
+      // NUCLEAR OPTION: Remove ALL momentum and bounds checking
+      // Even simple withDecay might be interfering with camera position
+      // Just save the current position and stop immediately
+      // NavigateButton will still work to reposition the camera
 
-      // Apply simple momentum decay without bounds-dependent modifier
-      translateX.value = withDecay({
-        velocity: e.velocityX,
-        deceleration: 0.998,  // Slightly higher for smoother, more natural feel
-      });
-
-      translateY.value = withDecay({
-        velocity: e.velocityY,
-        deceleration: 0.998,
-      });
-
-      // Save current values
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
     });
@@ -1860,31 +1847,11 @@ const maxZoomShared = useSharedValue(maxZoom);
     .onEnd(() => {
       "worklet";
 
-      // Check if we need to clamp back into bounds
-      const clamped = clampStageToBounds(
-        { x: translateX.value, y: translateY.value, scale: scale.value },
-        viewportShared.value,
-        boundsShared.value,
-        minZoomShared.value,
-        maxZoomShared.value
-      );
+      // NUCLEAR OPTION: Remove ALL clamping and spring-back
+      // clampStageToBounds was using stale boundsShared.value (ZERO bounds)
+      // causing camera to jump from correct position to clamped position
+      // Just save the final values without any bounds checking
 
-      // If we're significantly outside bounds, spring back gently
-      const deltaX = Math.abs(clamped.stage.x - translateX.value);
-      const deltaY = Math.abs(clamped.stage.y - translateY.value);
-
-      if (deltaX > 10 || deltaY > 10) {
-        translateX.value = withSpring(clamped.stage.x, {
-          damping: 20,
-          stiffness: 90,
-        });
-        translateY.value = withSpring(clamped.stage.y, {
-          damping: 20,
-          stiffness: 90,
-        });
-      }
-
-      // Save final values
       savedScale.value = scale.value;
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
