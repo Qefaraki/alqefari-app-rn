@@ -37,6 +37,10 @@ import {
   Paint,
   ColorMatrix,
   Blur,
+  Box,
+  BoxShadow,
+  rrect,
+  rect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
@@ -64,7 +68,6 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/AuthContextSimple";
 import { formatDateByPreference } from "../utils/dateDisplay";
 import NavigateToRootButton from "./NavigateToRootButton";
-import AdminToggleButton from "./AdminToggleButton";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
@@ -88,6 +91,12 @@ const PHOTO_SIZE = 60;
 const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
+
+// Ancestry path color palette - smooth 10-color cycle
+const ANCESTRY_COLORS = [
+  '#A13333', '#B54538', '#C9573D', '#D58C4A', '#CCA25E',
+  '#C3B872', '#D1BBA3', '#C4A592', '#B78F81', '#AA7970',
+];
 
 // LOD Constants
 const SCALE_QUANTUM = 0.05; // 5% quantization steps
@@ -1806,7 +1815,10 @@ const TreeView = ({
     .maxDistance(10)
     .runOnJS(true)
     .onStart((e) => {
-      if (!isAdminMode) return;
+      // Check user role instead of mode - QuickAdd is now permission-based
+      if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
+        return;
+      }
 
       const state = gestureStateRef.current;
 
@@ -2011,7 +2023,8 @@ const TreeView = ({
   const composed = Gesture.Simultaneous(
     panGesture,
     pinchGesture,
-    isAdminMode ? Gesture.Exclusive(longPressGesture, tapGesture) : tapGesture,
+    // Long press always enabled - permission check is inside the gesture
+    Gesture.Exclusive(longPressGesture, tapGesture),
   );
 
   // Render connection lines with proper elbow style
@@ -2199,8 +2212,10 @@ const TreeView = ({
 
     // Create Set for O(1) membership lookups
     const pathSet = new Set(highlightedPathNodeIds);
-    const pathObj = Skia.Path.Make();
-    let segmentsDrawn = 0;
+
+    // Group segments by depth difference (generation gap) for color gradation
+    const segmentsByDepth = new Map(); // depth -> Path object
+    let totalSegments = 0;
 
     // Loop through existing connections and draw routing for path segments
     for (const conn of connections) {
@@ -2214,6 +2229,15 @@ const TreeView = ({
       const parent = nodes.find(n => n.id === conn.parent.id);
       const child = nodes.find(n => n.id === pathChild.id);
       if (!parent || !child) continue;
+
+      // Calculate depth difference for color selection
+      const depthDiff = Math.abs(child.depth - parent.depth);
+
+      // Get or create path for this depth level
+      if (!segmentsByDepth.has(depthDiff)) {
+        segmentsByDepth.set(depthDiff, Skia.Path.Make());
+      }
+      const pathObj = segmentsByDepth.get(depthDiff);
 
       // Reuse EXACT same busY calculation as regular edges
       const childYs = conn.children.map(c => c.y);
@@ -2235,23 +2259,31 @@ const TreeView = ({
       // 3. Bus up to child
       pathObj.lineTo(child.x, child.y - childHeight / 2);
 
-      segmentsDrawn++;
+      totalSegments++;
     }
 
-    if (segmentsDrawn === 0) {
+    if (totalSegments === 0) {
       console.warn('No valid path segments to render');
       return null;
     }
 
-    return (
-      <Path
-        path={pathObj}
-        color="#D58C4A" // Desert Ochre
-        style="stroke"
-        strokeWidth={3.5}
-        opacity={pathOpacity}
-      />
-    );
+    // Render each depth level with its own color and glow
+    return Array.from(segmentsByDepth.entries()).map(([depthDiff, pathObj]) => {
+      const colorIndex = depthDiff % ANCESTRY_COLORS.length;
+
+      return (
+        <Path
+          key={`path-depth-${depthDiff}`}
+          path={pathObj}
+          color={ANCESTRY_COLORS[colorIndex]}
+          style="stroke"
+          strokeWidth={3.5}
+          opacity={pathOpacity}
+        >
+          <Blur blur={4} />
+        </Path>
+      );
+    });
   }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
@@ -3065,42 +3097,42 @@ const TreeView = ({
 
               return (
                 <Group opacity={glowOpacityState}>
-                  {/* Outer glow - soft golden halo */}
-                  <RoundedRect
-                    x={frame.x - 6}
-                    y={frame.y - 6}
-                    width={frame.width + 12}
-                    height={frame.height + 12}
-                    r={frame.borderRadius + 6}
+                  {/* Soft multi-layer glow using Box + BoxShadow */}
+                  <Box
+                    box={rrect(
+                      rect(frame.x, frame.y, frame.width, frame.height),
+                      frame.borderRadius,
+                      frame.borderRadius
+                    )}
+                    color="transparent"
                   >
-                    <Paint style="stroke" strokeWidth={12} color="rgba(213, 140, 74, 0.4)">
-                      <Blur blur={16} />
-                    </Paint>
-                  </RoundedRect>
+                    {/* Layer 5: Outermost halo - very soft, large spread */}
+                    <BoxShadow dx={0} dy={0} blur={50} color="rgba(213, 140, 74, 0.45)" />
 
-                  {/* Inner glow - warmer accent */}
-                  <RoundedRect
-                    x={frame.x - 3}
-                    y={frame.y - 3}
-                    width={frame.width + 6}
-                    height={frame.height + 6}
-                    r={frame.borderRadius + 3}
-                  >
-                    <Paint style="stroke" strokeWidth={6} color="rgba(161, 51, 51, 0.3)">
-                      <Blur blur={8} />
-                    </Paint>
-                  </RoundedRect>
+                    {/* Layer 4: Outer glow - golden halo */}
+                    <BoxShadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.40)" />
 
-                  {/* Crisp border - no blur */}
+                    {/* Layer 3: Middle glow - building intensity */}
+                    <BoxShadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
+
+                    {/* Layer 2: Inner glow - warm crimson accent */}
+                    <BoxShadow dx={0} dy={0} blur={20} color="rgba(161, 51, 51, 0.30)" />
+
+                    {/* Layer 1: Tight glow - color definition */}
+                    <BoxShadow dx={0} dy={0} blur={10} color="rgba(229, 168, 85, 0.50)" />
+                  </Box>
+
+                  {/* Crisp golden border on top */}
                   <RoundedRect
                     x={frame.x}
                     y={frame.y}
                     width={frame.width}
                     height={frame.height}
                     r={frame.borderRadius}
-                  >
-                    <Paint style="stroke" strokeWidth={2} color="#E5A855" />
-                  </RoundedRect>
+                    color="#E5A855"
+                    style="stroke"
+                    strokeWidth={2}
+                  />
                 </Group>
               );
             })()}
@@ -3125,8 +3157,6 @@ const TreeView = ({
         focusPersonId={linkedProfileId || profile?.id}
       />
 
-      {/* Admin Toggle Button - Only for admins */}
-      {isAdmin && user && !user.is_anonymous ? <AdminToggleButton user={user} /> : null}
 
 
       {/* Admin components */}
