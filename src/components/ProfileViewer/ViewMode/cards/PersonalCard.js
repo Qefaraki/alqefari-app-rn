@@ -1,13 +1,19 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import InfoCard from '../components/InfoCard';
+import { getTitleLabel } from '../../../../services/professionalTitleService';
 
 const PersonalCard = ({ person }) => {
   if (!person) return null;
 
   const rows = [
     person.kunya ? { label: 'الكنية', value: person.kunya } : null,
-    person.nickname ? { label: 'اللقب', value: person.nickname } : null,
+    person.professional_title
+      ? {
+          label: 'اللقب المهني',
+          value: getTitleLabel(person.professional_title) || person.title_abbreviation,
+        }
+      : null,
     person.birth_place ? { label: 'مكان الميلاد', value: person.birth_place } : null,
     person.family_origin ? { label: 'الأصل العائلي', value: person.family_origin } : null,
   ].filter(Boolean);

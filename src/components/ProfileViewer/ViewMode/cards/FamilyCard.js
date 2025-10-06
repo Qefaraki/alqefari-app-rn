@@ -8,11 +8,12 @@ import {
 } from 'react-native';
 import InfoCard from '../components/InfoCard';
 import { ProgressiveThumbnail } from '../../../ProgressiveImage';
+import { formatNameWithTitle } from '../../../../services/professionalTitleService';
 
 const buildRelative = (node, { fallbackId, fallbackName, label }) => {
   if (!node && !fallbackName) return null;
 
-  const name = node?.name || fallbackName || '';
+  const name = formatNameWithTitle(node) || node?.name || fallbackName || '';
   const id = node?.id ?? fallbackId ?? null;
 
   return {

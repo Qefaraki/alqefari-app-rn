@@ -5,6 +5,7 @@ import { ProgressiveHeroImage } from '../../ProgressiveImage';
 import HeroActions from './HeroActions';
 import MetricsRow from './MetricsRow';
 import { useTreeStore } from '../../../stores/useTreeStore';
+import { formatNameWithTitle } from '../../../services/professionalTitleService';
 
 const constructCommonName = (person, nodesMap) => {
   if (!person) return '';
@@ -87,7 +88,9 @@ const Hero = ({
       <View style={styles.body}>
         <View style={styles.nameRow}>
           <View style={styles.nameAndStatus}>
-            <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>{person?.name}</Text>
+            <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>
+              {formatNameWithTitle(person)}
+            </Text>
             {person?.status === 'deceased' ? (
               <Text style={styles.deceasedTag} adjustsFontSizeToFit numberOfLines={1}>
                 الله يرحمه

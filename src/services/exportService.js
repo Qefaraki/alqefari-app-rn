@@ -5,6 +5,7 @@ import { captureRef } from "react-native-view-shot";
 import { format } from "date-fns";
 import { ar } from "date-fns/locale";
 import { toArabicNumerals } from "../utils/arabicHelpers";
+import { formatNameWithTitle } from "./professionalTitleService";
 
 /**
  * Export Service - Handles PDF, CSV, and Image exports
@@ -499,9 +500,10 @@ class ExportService {
     const rows = profiles.map((profile) => {
       const row = [
         profile.hid || "",
-        profile.name || "",
+        formatNameWithTitle(profile) || profile.name || "",
         profile.kunya || "",
-        profile.nickname || "",
+        profile.professional_title || "",
+        profile.title_abbreviation || "",
         profile.gender === "male"
           ? "ذكر"
           : profile.gender === "female"

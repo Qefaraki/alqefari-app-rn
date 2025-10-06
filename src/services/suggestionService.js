@@ -25,6 +25,8 @@ const ALLOWED_SUGGESTION_FIELDS = new Set([
   'twitter',
   'linkedin',
   'notes',
+  'professional_title',
+  'title_abbreviation',
 ]);
 
 // Arabic error messages

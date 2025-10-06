@@ -43,6 +43,14 @@ export const USER_IDENTITY_VARIABLES: TemplateVariable[] = [
     example: 'A1.B2.C3',
     required: false,
   },
+  {
+    key: '{title}',
+    label: 'اللقب المهني',
+    description: 'الاختصار المهني (د., م., أ.د.)',
+    source: 'getTitleAbbreviation(profile)',
+    example: 'د.',
+    required: false,
+  },
 ];
 
 /**

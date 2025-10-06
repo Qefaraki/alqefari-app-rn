@@ -12,6 +12,7 @@ import PropTypes from 'prop-types';
 import PhotoEditor from '../../admin/fields/PhotoEditor';
 import NameEditor from '../../admin/fields/NameEditor';
 import DateEditor from '../../admin/fields/DateEditor';
+import TitleSelector from '../../admin/fields/TitleSelector';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 
@@ -154,13 +155,15 @@ const TabGeneral = ({ form, updateField }) => {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>اللقب</Text>
-            <TextInput
-              style={styles.input}
-              value={draft?.nickname || ''}
-              onChangeText={(text) => updateField('nickname', text)}
-              placeholder="اللقب المعروف به"
-              placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+            <Text style={styles.inputLabel}>اللقب المهني</Text>
+            <TitleSelector
+              value={draft?.professional_title}
+              customValue={draft?.title_abbreviation}
+              onChange={({ professional_title, title_abbreviation }) => {
+                updateField('professional_title', professional_title);
+                updateField('title_abbreviation', title_abbreviation);
+              }}
+              personName={draft?.name}
             />
           </View>
         </View>
