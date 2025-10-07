@@ -121,11 +121,11 @@ export function calculateTreeLayout(familyData) {
     if (node.children && node.children.length > 0) {
       // Sort by sibling_order: 0 = oldest (firstborn), 1 = second oldest, etc.
       // Tree display (RTL): Oldest appears rightmost, youngest leftmost
-      // List display: Oldest at top, youngest at bottom
+      // To achieve this, we reverse the order so d3 positions them right-to-left
       node.children.sort((a, b) => {
         const orderA = a.sibling_order ?? 999;
         const orderB = b.sibling_order ?? 999;
-        return orderA - orderB; // Ascending order: 0, 1, 2, 3...
+        return orderB - orderA; // Descending: 2, 1, 0 → d3 positions LEFT to RIGHT → Visual: Oldest on RIGHT
       });
 
       // Recursively sort grandchildren

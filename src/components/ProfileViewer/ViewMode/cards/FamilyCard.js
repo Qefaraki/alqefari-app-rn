@@ -51,17 +51,15 @@ const FamilyCard = ({
       list.push({ type: 'divider', key: 'divider' });
     }
 
-    // Sort children (oldest to youngest: 0, 1, 2...)
+    // Sort children by sibling_order (0 = oldest)
     const sortedChildren = [...children].sort((a, b) => {
       const orderA = a.sibling_order ?? 999;
       const orderB = b.sibling_order ?? 999;
       return orderA - orderB;
     });
 
-    // Reverse for RTL so oldest appears on right (like QuickAdd)
-    const displayChildren = sortedChildren.reverse();
-
-    displayChildren.forEach(child => {
+    // Native RTL mode handles visual direction automatically
+    sortedChildren.forEach(child => {
       list.push({ ...buildRelative(child, {}), type: 'child' });
     });
 

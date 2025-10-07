@@ -288,20 +288,18 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           updates.mother_id = child.mother_id;
         }
 
-        promises.push(profilesService.updateProfile(child.id, 1, updates));
+        promises.push(profilesService.updateProfile(child.id, child.version || 1, updates));
       }
 
-      // 3. Update sibling orders for ALL existing children if reordered
+      // 3. Update sibling_order for ALL existing children if reordered
       if (hasReordered) {
         const existingChildren = allChildren.filter((c) => c.isExisting);
         for (const child of existingChildren) {
-          if (!editedChildren.find((ec) => ec.id === child.id)) {
-            promises.push(
-              profilesService.updateProfile(child.id, 1, {
-                sibling_order: child.sibling_order,
-              })
-            );
-          }
+          promises.push(
+            profilesService.updateProfile(child.id, child.version || 1, {
+              sibling_order: child.sibling_order,
+            })
+          );
         }
       }
 

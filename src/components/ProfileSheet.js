@@ -286,14 +286,13 @@ const ProfileSheet = ({ editMode = false }) => {
     return getChildren(person.id, dataSource);
   }, [person, treeData]);
 
-  // Oldest to youngest based on hierarchical HID suffix (higher number = older)
+  // Sort by sibling_order (0 = oldest)
   const sortedChildren = useMemo(() => {
-    const getOrder = (p) => {
-      const parts = String(p.hid || "").split(".");
-      const last = parts.length > 0 ? Number(parts[parts.length - 1]) : 0;
-      return isNaN(last) ? 0 : last;
-    };
-    return [...children].sort((a, b) => getOrder(b) - getOrder(a));
+    return [...children].sort((a, b) => {
+      const orderA = a.sibling_order ?? 999;
+      const orderB = b.sibling_order ?? 999;
+      return orderA - orderB; // Ascending: 0 = oldest
+    });
   }, [children]);
 
   // Calculate metrics

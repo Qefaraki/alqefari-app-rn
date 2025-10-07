@@ -44,12 +44,11 @@ export const useProfileMetrics = (person) => {
   }, [dataSource, person, treeData.length]);
 
   const sortedChildren = useMemo(() => {
-    const getOrder = (p) => {
-      const parts = String(p?.hid || '').split('.');
-      const last = parts.length > 0 ? Number(parts[parts.length - 1]) : 0;
-      return Number.isNaN(last) ? 0 : last;
-    };
-    return [...children].sort((a, b) => getOrder(b) - getOrder(a));
+    return [...children].sort((a, b) => {
+      const orderA = a.sibling_order ?? 999;
+      const orderB = b.sibling_order ?? 999;
+      return orderA - orderB; // Ascending: 0 = oldest
+    });
   }, [children]);
 
   const descendantsCount = useMemo(() => {
