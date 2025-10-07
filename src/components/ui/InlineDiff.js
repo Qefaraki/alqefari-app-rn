@@ -9,11 +9,62 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from './tokens';
 import { formatFieldValue } from '../../services/activityLogTranslations';
+import { useSettings } from '../../contexts/SettingsContext';
+import { formatDateByPreference } from '../../utils/dateDisplay';
+import { gregorianToHijri } from '../../utils/hijriConverter';
+import { toArabicNumerals } from '../../utils/dateUtils';
 
 const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
+  const { settings } = useSettings();
+
+  // Format timestamp fields with user's date preferences + time
+  const formatTimestamp = (value) => {
+    if (!value) return '—';
+    try {
+      const date = new Date(value);
+
+      // Format date with user preferences
+      const gregorian = {
+        day: date.getDate(),
+        month: date.getMonth() + 1,
+        year: date.getFullYear(),
+      };
+      const hijri = gregorianToHijri(gregorian.year, gregorian.month, gregorian.day);
+      const formattedDate = formatDateByPreference({ gregorian, hijri }, settings);
+
+      // Add time (12-hour format with Arabic AM/PM)
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const isPM = hours >= 12;
+
+      // Convert to 12-hour format
+      if (hours > 12) hours -= 12;
+      if (hours === 0) hours = 12;
+
+      // Format time string
+      const minutesStr = minutes.toString().padStart(2, '0');
+      let timeStr = `${hours}:${minutesStr} ${isPM ? 'م' : 'ص'}`;
+
+      // Convert to Arabic numerals if enabled
+      if (settings?.arabicNumerals) {
+        timeStr = toArabicNumerals(timeStr);
+      }
+
+      return `${formattedDate} - ${timeStr}`;
+    } catch {
+      return value;
+    }
+  };
+
   // Format values for display
-  const oldStr = formatFieldValue(field, oldValue);
-  const newStr = formatFieldValue(field, newValue);
+  let oldStr, newStr;
+  if (field === 'created_at' || field === 'updated_at') {
+    oldStr = formatTimestamp(oldValue);
+    newStr = formatTimestamp(newValue);
+  } else {
+    oldStr = formatFieldValue(field, oldValue);
+    newStr = formatFieldValue(field, newValue);
+  }
 
   // Determine change type
   const changeType = !oldValue ? 'added' : !newValue ? 'removed' : 'modified';

@@ -20,8 +20,8 @@ const ChildListCard = ({
   totalChildren,
   onUpdate,
   onDelete,
-  onDrag,
-  isActive,
+  onMoveUp,
+  onMoveDown,
   mothers = [],
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -146,18 +146,39 @@ const ChildListCard = ({
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
-        isActive && styles.cardActive,
       ]}
     >
       <View style={[styles.card, getCardStyle()]}>
-        {/* Drag Handle */}
-        <TouchableOpacity
-          style={styles.dragHandle}
-          onLongPress={onDrag}
-          delayLongPress={300}
-        >
-          <Ionicons name="reorder-two" size={20} color={COLORS.textMuted} />
-        </TouchableOpacity>
+        {/* Reorder Buttons */}
+        <View style={styles.reorderButtons}>
+          <TouchableOpacity
+            style={[styles.reorderButton, index === 0 && styles.reorderButtonDisabled]}
+            onPress={() => onMoveUp(child.id)}
+            disabled={index === 0}
+          >
+            <Ionicons
+              name="chevron-up"
+              size={16}
+              color={index === 0 ? COLORS.textMuted + "40" : COLORS.text}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.reorderButton,
+              index === totalChildren - 1 && styles.reorderButtonDisabled,
+            ]}
+            onPress={() => onMoveDown(child.id)}
+            disabled={index === totalChildren - 1}
+          >
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={
+                index === totalChildren - 1 ? COLORS.textMuted + "40" : COLORS.text
+              }
+            />
+          </TouchableOpacity>
+        </View>
 
           {/* Order Badge */}
           <View style={styles.orderBadge}>
@@ -297,10 +318,6 @@ const styles = StyleSheet.create({
     marginHorizontal: tokens.spacing.md, // 16px
     marginVertical: tokens.spacing.xxs, // 4px gap between cards
   },
-  cardActive: {
-    opacity: 0.9,
-    shadowOpacity: 0.2,
-  },
   card: {
     flexDirection: "row",
     alignItems: "center",
@@ -328,12 +345,21 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#FF9500",
   },
-  dragHandle: {
-    width: 32,
-    height: "100%",
+  reorderButtons: {
+    flexDirection: "column",
+    marginRight: tokens.spacing.xs, // 8px
+    gap: 2,
+  },
+  reorderButton: {
+    width: 28,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: tokens.spacing.xs, // 8px
+    backgroundColor: COLORS.container + "20",
+    borderRadius: 4,
+  },
+  reorderButtonDisabled: {
+    opacity: 0.3,
   },
   orderBadge: {
     width: 28,

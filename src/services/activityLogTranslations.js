@@ -221,6 +221,9 @@ export const VALUE_FORMATTERS = {
       return value;
     }
   },
+
+  // NOTE: created_at and updated_at are now formatted in InlineDiff component
+  // using formatDateByPreference() to respect user's calendar/format settings
 };
 
 // Format a field value for display

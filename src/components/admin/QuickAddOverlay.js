@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -14,7 +15,6 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import DraggableFlatList from "react-native-draggable-flatlist";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
@@ -156,9 +156,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // Handle reordering children (called by DraggableFlatList)
-  const handleDragEnd = useCallback(({ data }) => {
-    const updatedChildren = data.map((child, index) => ({
+  // Handle moving child up
+  const handleMoveUp = useCallback((childId) => {
+    const currentIndex = allChildren.findIndex((c) => c.id === childId);
+    if (currentIndex <= 0) return; // Already at top
+
+    const newChildren = [...allChildren];
+    const [movedChild] = newChildren.splice(currentIndex, 1);
+    newChildren.splice(currentIndex - 1, 0, movedChild);
+
+    const updatedChildren = newChildren.map((child, index) => ({
       ...child,
       sibling_order: index,
       isEdited: child.isExisting ? true : child.isEdited,
@@ -166,8 +173,28 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
     setAllChildren(updatedChildren);
     setHasReordered(true);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, []);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [allChildren]);
+
+  // Handle moving child down
+  const handleMoveDown = useCallback((childId) => {
+    const currentIndex = allChildren.findIndex((c) => c.id === childId);
+    if (currentIndex >= allChildren.length - 1) return; // Already at bottom
+
+    const newChildren = [...allChildren];
+    const [movedChild] = newChildren.splice(currentIndex, 1);
+    newChildren.splice(currentIndex + 1, 0, movedChild);
+
+    const updatedChildren = newChildren.map((child, index) => ({
+      ...child,
+      sibling_order: index,
+      isEdited: child.isExisting ? true : child.isEdited,
+    }));
+
+    setAllChildren(updatedChildren);
+    setHasReordered(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [allChildren]);
 
   // Save all changes
   const handleSave = async () => {
@@ -309,21 +336,21 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     return "حفظ";
   };
 
-  // Memoized render function for DraggableFlatList
+  // Memoized render function for FlatList
   const renderChild = useCallback(
-    ({ item, drag, isActive }) => (
+    ({ item, index }) => (
       <ChildListCard
         child={item}
-        index={allChildren.findIndex((c) => c.id === item.id)}
+        index={index}
         totalChildren={allChildren.length}
         onUpdate={handleUpdateChild}
         onDelete={handleDeleteChild}
-        onDrag={drag}
-        isActive={isActive}
+        onMoveUp={handleMoveUp}
+        onMoveDown={handleMoveDown}
         mothers={mothers}
       />
     ),
-    [allChildren, mothers, handleUpdateChild, handleDeleteChild]
+    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown]
   );
 
   if (!visible) return null;
@@ -450,9 +477,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     </Text>
                   </View>
                 ) : (
-                  <DraggableFlatList
+                  <FlatList
                     data={allChildren}
-                    onDragEnd={handleDragEnd}
                     keyExtractor={(item) => item.id}
                     renderItem={renderChild}
                     contentContainerStyle={styles.listContent}
