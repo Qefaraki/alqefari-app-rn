@@ -17,6 +17,7 @@ import SpouseManager from '../../admin/SpouseManager';
 import QuickAddOverlay from '../../admin/QuickAddOverlay';
 import EditChildModal from './EditChildModal';
 import EditMarriageModal from './EditMarriageModal';
+import SelectMotherModal from './SelectMotherModal';
 import useStore from '../../../hooks/useStore';
 
 const SectionCard = ({
@@ -152,6 +153,7 @@ const TabFamily = ({ person, onDataChanged }) => {
   const [selectedChild, setSelectedChild] = useState(null);
   const [editMarriageModalVisible, setEditMarriageModalVisible] = useState(false);
   const [selectedMarriage, setSelectedMarriage] = useState(null);
+  const [selectMotherModalVisible, setSelectMotherModalVisible] = useState(false);
   const { refreshProfile } = useStore();
 
   useEffect(() => {
@@ -358,28 +360,19 @@ const TabFamily = ({ person, onDataChanged }) => {
 
   const handleChangeMother = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const fatherSpouses = spouses.filter((s) => s.status === 'married');
+    setSelectMotherModalVisible(true);
+  };
 
-    if (fatherSpouses.length === 0) {
-      Alert.alert(
-        'لا توجد زوجات',
-        `الأب ${father?.name || 'غير محدد'} ليس لديه زوجات مسجلات. يرجى إضافة زوجة أولاً.`,
-        [
-          { text: 'حسناً', style: 'cancel' },
-          {
-            text: 'انتقل للأب',
-            onPress: () => {
-              // TODO: Navigate to father's profile
-              Alert.alert('انتقال', 'سيتم الانتقال لملف الأب (قيد التطوير)');
-            },
-          },
-        ]
-      );
-      return;
+  const handleMotherSelected = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await loadFamilyData();
+    if (refreshProfile) {
+      await refreshProfile(person.id);
     }
-
-    // TODO: Open SelectMotherModal
-    Alert.alert('اختيار الأم', 'سيتم فتح نافذة اختيار الأم (قيد التطوير)');
+    if (onDataChanged) {
+      onDataChanged();
+    }
+    setSelectMotherModalVisible(false);
   };
 
   if (loading) {
@@ -578,6 +571,14 @@ const TabFamily = ({ person, onDataChanged }) => {
           setSelectedMarriage(null);
         }}
         onSaved={handleEditMarriageSaved}
+      />
+
+      <SelectMotherModal
+        visible={selectMotherModalVisible}
+        person={person}
+        father={familyData?.father}
+        onClose={() => setSelectMotherModalVisible(false)}
+        onSaved={handleMotherSelected}
       />
     </ScrollView>
   );
