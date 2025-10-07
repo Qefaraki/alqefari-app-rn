@@ -42,17 +42,11 @@ SELECT
   -- Falls back to current name for old entries before migration
   COALESCE(
     al.actor_name_snapshot,
-    TRIM(CONCAT_WS(' ', actor_p.name, actor_p.father_name, actor_p.grandfather_name))
+    TRIM(CONCAT_WS(' ', actor_p.name, actor_f.name, actor_gf.name))
   ) as actor_name_historical,
 
   -- CURRENT Actor name (live JOIN with profiles table)
-  TRIM(
-    CONCAT_WS(' ',
-      actor_p.name,
-      actor_p.father_name,
-      actor_p.grandfather_name
-    )
-  ) as actor_name_current,
+  TRIM(CONCAT_WS(' ', actor_p.name, actor_f.name, actor_gf.name)) as actor_name_current,
 
   actor_p.phone as actor_phone,
   actor_p.hid as actor_hid,
@@ -62,17 +56,11 @@ SELECT
   -- HISTORICAL Target name (snapshot at time of activity)
   COALESCE(
     al.target_name_snapshot,
-    TRIM(CONCAT_WS(' ', target_p.name, target_p.father_name, target_p.grandfather_name))
+    TRIM(CONCAT_WS(' ', target_p.name, target_f.name, target_gf.name))
   ) as target_name_historical,
 
   -- CURRENT Target name (live JOIN with profiles table)
-  TRIM(
-    CONCAT_WS(' ',
-      target_p.name,
-      target_p.father_name,
-      target_p.grandfather_name
-    )
-  ) as target_name_current,
+  TRIM(CONCAT_WS(' ', target_p.name, target_f.name, target_gf.name)) as target_name_current,
 
   target_p.phone as target_phone,
   target_p.hid as target_hid,
@@ -80,14 +68,15 @@ SELECT
 
 FROM audit_log_enhanced al
 
--- JOIN to get CURRENT actor details
-LEFT JOIN profiles actor_p
-  ON al.actor_id = actor_p.user_id
+-- JOIN to get CURRENT actor details (with father/grandfather chain)
+LEFT JOIN profiles actor_p ON al.actor_id = actor_p.user_id
+LEFT JOIN profiles actor_f ON actor_p.father_id = actor_f.id
+LEFT JOIN profiles actor_gf ON actor_f.father_id = actor_gf.id
 
--- JOIN to get CURRENT target profile details
-LEFT JOIN profiles target_p
-  ON al.record_id = target_p.id
-  AND al.table_name = 'profiles';
+-- JOIN to get CURRENT target profile details (with father/grandfather chain)
+LEFT JOIN profiles target_p ON al.record_id = target_p.id AND al.table_name = 'profiles'
+LEFT JOIN profiles target_f ON target_p.father_id = target_f.id
+LEFT JOIN profiles target_gf ON target_f.father_id = target_gf.id;
 
 COMMENT ON VIEW activity_log_detailed IS
   'Enhanced audit log view with BOTH historical (snapshot) and current names.
@@ -104,11 +93,13 @@ DECLARE
   actor_name TEXT;
   target_name TEXT;
 BEGIN
-  -- Capture actor name at time of activity
+  -- Capture actor name at time of activity (build from relationships)
   IF NEW.actor_id IS NOT NULL THEN
-    SELECT TRIM(CONCAT_WS(' ', p.name, p.father_name, p.grandfather_name))
+    SELECT TRIM(CONCAT_WS(' ', p.name, f.name, gf.name))
     INTO actor_name
     FROM profiles p
+    LEFT JOIN profiles f ON p.father_id = f.id
+    LEFT JOIN profiles gf ON f.father_id = gf.id
     WHERE p.user_id = NEW.actor_id;
 
     NEW.actor_name_snapshot := actor_name;
@@ -116,9 +107,11 @@ BEGIN
 
   -- Capture target name at time of activity (if target is a profile)
   IF NEW.table_name = 'profiles' AND NEW.record_id IS NOT NULL THEN
-    SELECT TRIM(CONCAT_WS(' ', p.name, p.father_name, p.grandfather_name))
+    SELECT TRIM(CONCAT_WS(' ', p.name, f.name, gf.name))
     INTO target_name
     FROM profiles p
+    LEFT JOIN profiles f ON p.father_id = f.id
+    LEFT JOIN profiles gf ON f.father_id = gf.id
     WHERE p.id = NEW.record_id;
 
     NEW.target_name_snapshot := target_name;
@@ -144,9 +137,16 @@ DECLARE
 BEGIN
   -- Update actor snapshots for recent logs
   UPDATE audit_log_enhanced al
-  SET actor_name_snapshot = TRIM(CONCAT_WS(' ', p.name, p.father_name, p.grandfather_name))
-  FROM profiles p
-  WHERE al.actor_id = p.user_id
+  SET actor_name_snapshot = subq.name_chain
+  FROM (
+    SELECT
+      p.user_id,
+      TRIM(CONCAT_WS(' ', p.name, f.name, gf.name)) as name_chain
+    FROM profiles p
+    LEFT JOIN profiles f ON p.father_id = f.id
+    LEFT JOIN profiles gf ON f.father_id = gf.id
+  ) subq
+  WHERE al.actor_id = subq.user_id
     AND al.actor_name_snapshot IS NULL
     AND al.created_at > NOW() - INTERVAL '30 days';
 
@@ -155,16 +155,22 @@ BEGIN
 
   -- Update target snapshots for recent logs
   UPDATE audit_log_enhanced al
-  SET target_name_snapshot = TRIM(CONCAT_WS(' ', p.name, p.father_name, p.grandfather_name))
-  FROM profiles p
+  SET target_name_snapshot = subq.name_chain
+  FROM (
+    SELECT
+      p.id,
+      TRIM(CONCAT_WS(' ', p.name, f.name, gf.name)) as name_chain
+    FROM profiles p
+    LEFT JOIN profiles f ON p.father_id = f.id
+    LEFT JOIN profiles gf ON f.father_id = gf.id
+  ) subq
   WHERE al.table_name = 'profiles'
-    AND al.record_id = p.id
+    AND al.record_id = subq.id
     AND al.target_name_snapshot IS NULL
     AND al.created_at > NOW() - INTERVAL '30 days';
 
   GET DIAGNOSTICS updated_count = ROW_COUNT;
   RAISE NOTICE 'Backfilled % target name snapshots', updated_count;
-END $$;
 
--- Log completion
-RAISE NOTICE 'Migration 075: Name snapshot system deployed successfully';
+  RAISE NOTICE 'Migration 075: Name snapshot system deployed successfully';
+END $$;
