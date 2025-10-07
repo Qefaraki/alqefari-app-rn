@@ -8,20 +8,22 @@ import {
 } from "react-native";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 
+const ICON_SIZE = 20; // Design system standard
+
 const socialPlatforms = [
   {
     key: "twitter",
     label: "X (Twitter سابقاً)",
     icon: "x-twitter",
     iconFamily: "FontAwesome6",
-    placeholder: "https://x.com/username or @username",
+    placeholder: "https://x.com/username أو @username",
   },
   {
     key: "instagram",
     label: "Instagram",
     icon: "logo-instagram",
     iconFamily: "Ionicons",
-    placeholder: "https://instagram.com/username or @username",
+    placeholder: "https://instagram.com/username أو @username",
   },
   {
     key: "linkedin",
@@ -107,34 +109,90 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
   };
 
   const isValidUrl = (url) => {
-    // Match database constraint regex: ^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
-    const urlPattern = /^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    // Match database constraint PLUS allow paths, query params, fragments
+    // ^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,} (database requirement)
+    // Plus: /, ?, #, -, _, @, and other URL-safe characters
+    const urlPattern = /^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/[a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=%]*)?$/;
     return urlPattern.test(url);
+  };
+
+  const PLATFORM_DOMAINS = {
+    twitter: ['x.com', 'twitter.com'],
+    instagram: ['instagram.com'],
+    linkedin: ['linkedin.com'],
+    youtube: ['youtube.com', 'youtu.be'],
+    website: null, // Any domain allowed
+  };
+
+  const validatePlatformMatch = (platform, url) => {
+    if (!url) return true; // Empty is valid
+
+    const allowedDomains = PLATFORM_DOMAINS[platform];
+    if (!allowedDomains) return true; // No restrictions for this platform
+
+    const domain = url.match(/https?:\/\/([^\/]+)/)?.[1]?.toLowerCase();
+    return allowedDomains.some(allowed => domain?.includes(allowed));
+  };
+
+  const checkDuplicateUrls = (links) => {
+    const urls = Object.values(links).filter(url => url && url.trim() !== '');
+    const uniqueUrls = new Set(urls.map(u => u.toLowerCase()));
+    return urls.length === uniqueUrls.size;
   };
 
   const handleBlur = (platform) => {
     const value = localValues[platform];
-    const newLinks = { ...socialLinks };
+
+    // Build new links object with proper NULL handling
+    const newLinks = {};
+
+    // Copy existing links
+    Object.keys(socialLinks).forEach(key => {
+      if (socialLinks[key] && socialLinks[key].trim() !== '') {
+        newLinks[key] = socialLinks[key];
+      }
+      // Omit empty/null values (store as NULL in database)
+    });
 
     if (value && value.trim()) {
       // Format when user finishes typing
       const formattedLink = formatSocialLink(platform, value);
 
-      // Only save if it's a valid URL
-      if (formattedLink && isValidUrl(formattedLink)) {
-        newLinks[platform] = formattedLink;
-      } else {
-        // Remove invalid URLs
-        delete newLinks[platform];
-        // Reset local state to empty
+      // Validate URL format
+      if (!formattedLink || !isValidUrl(formattedLink)) {
+        // Reset local state to empty for invalid URLs
         setLocalValues(prev => ({
           ...prev,
           [platform]: ''
         }));
+        delete newLinks[platform];
+      }
+      // Validate platform-specific domain
+      else if (!validatePlatformMatch(platform, formattedLink)) {
+        // Reset for wrong platform
+        setLocalValues(prev => ({
+          ...prev,
+          [platform]: ''
+        }));
+        delete newLinks[platform];
+      }
+      // Valid URL
+      else {
+        newLinks[platform] = formattedLink;
       }
     } else {
-      // Remove empty values
+      // Empty value - remove from object (store as NULL)
       delete newLinks[platform];
+    }
+
+    // Check for duplicate URLs
+    if (!checkDuplicateUrls(newLinks)) {
+      // If duplicates found, don't save the new value
+      setLocalValues(prev => ({
+        ...prev,
+        [platform]: socialLinks[platform] || ''
+      }));
+      return;
     }
 
     // Update parent state only on blur
@@ -149,7 +207,7 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
         return (
           <View key={platform.key} style={styles.platformRow}>
             <View style={styles.platformHeader}>
-              <IconComponent name={platform.icon} size={20} color="#666" />
+              <IconComponent name={platform.icon} size={ICON_SIZE} color="#666" />
               <Text style={styles.platformLabel}>{platform.label}</Text>
             </View>
             <TextInput
@@ -160,7 +218,9 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
               placeholder={platform.placeholder}
               placeholderTextColor="#999"
               autoCapitalize="none"
+              autoCorrect={false}
               keyboardType="url"
+              returnKeyType="done"
             />
           </View>
         );
