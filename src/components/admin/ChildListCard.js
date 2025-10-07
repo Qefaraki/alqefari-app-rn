@@ -30,6 +30,7 @@ const ChildListCard = ({
   const [localGender, setLocalGender] = useState(child.gender);
   const [localMotherId, setLocalMotherId] = useState(child.mother_id);
   const [showPositionPicker, setShowPositionPicker] = useState(false);
+  const [isPickerOpening, setIsPickerOpening] = useState(false);
 
   // Animation values for entrance only
   const fadeAnim = useRef(new Animated.Value(child.isNew ? 0 : 1)).current;
@@ -84,6 +85,10 @@ const ChildListCard = ({
       if (animation) {
         animation.stop();
       }
+      // Explicit cleanup for all animated values
+      fadeAnim.stopAnimation();
+      slideAnim.stopAnimation();
+      highlightAnim.stopAnimation();
     };
   }, []);
 
@@ -204,9 +209,12 @@ const ChildListCard = ({
         <TouchableOpacity
           style={styles.reorderButton}
           onPress={() => {
+            if (isPickerOpening) return; // Guard against rapid taps
+            setIsPickerOpening(true);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             setShowPositionPicker(true);
           }}
+          disabled={isPickerOpening}
         >
           <Ionicons name="swap-vertical" size={20} color={COLORS.text} />
         </TouchableOpacity>
@@ -348,7 +356,10 @@ const ChildListCard = ({
         currentPosition={index + 1}
         totalPositions={totalChildren}
         onSelect={handlePositionSelect}
-        onClose={() => setShowPositionPicker(false)}
+        onClose={() => {
+          setShowPositionPicker(false);
+          setTimeout(() => setIsPickerOpening(false), 300); // Reset after modal animation
+        }}
       />
     </>
   );
