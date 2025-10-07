@@ -22,7 +22,7 @@ export function buildNameChain(profile, allProfiles = []) {
 
   // Try to build from father chain if available
   if (profile.father_name) {
-    chain = `${profile.name} بن ${profile.father_name}`;
+    chain = `${profile.name} ${profile.father_name}`;
 
     if (profile.grandfather_name) {
       chain += ` ${profile.grandfather_name}`;
@@ -31,7 +31,7 @@ export function buildNameChain(profile, allProfiles = []) {
     // Try to find father in profiles array
     const father = allProfiles.find((p) => p.id === profile.father_id);
     if (father) {
-      chain = `${profile.name} بن ${father.name}`;
+      chain = `${profile.name} ${father.name}`;
 
       // Try to find grandfather
       if (father.father_id) {
