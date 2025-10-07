@@ -17,6 +17,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from "@expo/vector-icons";
@@ -242,6 +243,23 @@ export default function ActivityLogDashboard({ onClose }) {
     customDateRangeRef.current = customDateRange;
     activeFilterRef.current = activeFilter;
   }, [selectedUser, datePreset, customDateRange, activeFilter]);
+
+  // Fade-in animation for smooth transition from loading to loaded
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!loading) {
+      // Fade in when loading finishes
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      // Reset opacity when loading starts
+      fadeAnim.setValue(0);
+    }
+  }, [loading, fadeAnim]);
 
   const PAGE_SIZE = 50;
 
@@ -1217,10 +1235,11 @@ export default function ActivityLogDashboard({ onClose }) {
   // Main render with single FlatList
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <FlatList
-        ref={flatListRef}
-        data={groupedActivities}
-        renderItem={renderDateGroup}
+      <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <FlatList
+          ref={flatListRef}
+          data={groupedActivities}
+          renderItem={renderDateGroup}
         keyExtractor={(item) => item.dateLabel}
         ListHeaderComponent={ListHeader}
         contentContainerStyle={styles.listContent}
@@ -1285,6 +1304,7 @@ export default function ActivityLogDashboard({ onClose }) {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
       />
+      </Animated.View>
 
       {/* User Filter Modal */}
       <UserFilterModal
