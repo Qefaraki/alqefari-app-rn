@@ -249,19 +249,19 @@ const SelectMotherModal = ({ visible, person, father, onClose, onSaved }) => {
                                 {spouseData.children_count} {spouseData.children_count === 1 ? 'طفل' : 'أطفال'}
                               </Text>
                             )}
-                            {spouseData.status !== 'married' && (
+                            {spouseData.status !== 'married' && spouseData.status !== 'current' && (
                               <View style={[styles.munasibBadge, {
-                                backgroundColor: spouseData.status === 'divorced' ? '#D58C4A15' : '#24212115'
+                                backgroundColor: tokens.colors.najdi.textMuted + '15'
                               }]}>
                                 <Ionicons
-                                  name={spouseData.status === 'divorced' ? 'close-circle-outline' : 'flower-outline'}
+                                  name="time-outline"
                                   size={10}
-                                  color={spouseData.status === 'divorced' ? tokens.colors.warning : tokens.colors.najdi.textSecondary}
+                                  color={tokens.colors.najdi.textSecondary}
                                 />
                                 <Text style={[styles.munasibText, {
-                                  color: spouseData.status === 'divorced' ? tokens.colors.warning : tokens.colors.najdi.textSecondary
+                                  color: tokens.colors.najdi.textSecondary
                                 }]}>
-                                  {spouseData.status === 'divorced' ? 'مطلق' : 'أرمل'}
+                                  سابق
                                 </Text>
                               </View>
                             )}

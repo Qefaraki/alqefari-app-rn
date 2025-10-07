@@ -20,7 +20,7 @@ import tokens from '../../ui/tokens';
 const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [status, setStatus] = useState('married');
+  const [status, setStatus] = useState('current');
   const [saving, setSaving] = useState(false);
 
   // Initialize form when marriage changes
@@ -29,7 +29,11 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
       // marriage_date is aliased from start_date in the RPC
       setStartDate(marriage.start_date || marriage.marriage_date || '');
       setEndDate(marriage.end_date || '');
-      setStatus(marriage.status || 'married');
+
+      // Map old status values to new simplified values
+      const oldStatus = marriage.status || 'married';
+      const newStatus = oldStatus === 'married' ? 'current' : 'past';
+      setStatus(newStatus);
     }
   }, [marriage]);
 
@@ -78,8 +82,8 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
       }
     }
 
-    // If status is married, end date should be null
-    if (status === 'married' && endDate) {
+    // If status is current, end date should be null
+    if (status === 'current' && endDate) {
       Alert.alert(
         'تأكيد',
         'الزواج الحالي لا يحتاج لتاريخ نهاية. هل تريد المتابعة وإزالة تاريخ النهاية؟',
@@ -174,69 +178,46 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
               <TouchableOpacity
                 style={[
                   styles.statusOption,
-                  status === 'married' && styles.statusOptionActive,
+                  status === 'current' && styles.statusOptionActive,
                 ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setStatus('married');
+                  setStatus('current');
                 }}
               >
-                <View style={[styles.radioButton, status === 'married' && styles.radioButtonActive]}>
-                  {status === 'married' && <View style={styles.radioButtonInner} />}
+                <View style={[styles.radioButton, status === 'current' && styles.radioButtonActive]}>
+                  {status === 'current' && <View style={styles.radioButtonInner} />}
                 </View>
                 <Ionicons
                   name="heart"
                   size={18}
-                  color={status === 'married' ? tokens.colors.success : tokens.colors.najdi.textSecondary}
+                  color={status === 'current' ? tokens.colors.success : tokens.colors.najdi.textSecondary}
                 />
-                <Text style={[styles.statusOptionText, status === 'married' && styles.statusOptionTextActive]}>
-                  متزوج
+                <Text style={[styles.statusOptionText, status === 'current' && styles.statusOptionTextActive]}>
+                  حالي
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
                   styles.statusOption,
-                  status === 'divorced' && styles.statusOptionActive,
+                  status === 'past' && styles.statusOptionActive,
                 ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setStatus('divorced');
+                  setStatus('past');
                 }}
               >
-                <View style={[styles.radioButton, status === 'divorced' && styles.radioButtonActive]}>
-                  {status === 'divorced' && <View style={styles.radioButtonInner} />}
+                <View style={[styles.radioButton, status === 'past' && styles.radioButtonActive]}>
+                  {status === 'past' && <View style={styles.radioButtonInner} />}
                 </View>
                 <Ionicons
-                  name="close-circle-outline"
+                  name="time-outline"
                   size={18}
-                  color={status === 'divorced' ? tokens.colors.warning : tokens.colors.najdi.textSecondary}
+                  color={status === 'past' ? tokens.colors.najdi.textSecondary : tokens.colors.najdi.textSecondary}
                 />
-                <Text style={[styles.statusOptionText, status === 'divorced' && styles.statusOptionTextActive]}>
-                  مطلق
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.statusOption,
-                  status === 'widowed' && styles.statusOptionActive,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setStatus('widowed');
-                }}
-              >
-                <View style={[styles.radioButton, status === 'widowed' && styles.radioButtonActive]}>
-                  {status === 'widowed' && <View style={styles.radioButtonInner} />}
-                </View>
-                <Ionicons
-                  name="flower-outline"
-                  size={18}
-                  color={status === 'widowed' ? tokens.colors.najdi.textSecondary : tokens.colors.najdi.textSecondary}
-                />
-                <Text style={[styles.statusOptionText, status === 'widowed' && styles.statusOptionTextActive]}>
-                  أرمل
+                <Text style={[styles.statusOptionText, status === 'past' && styles.statusOptionTextActive]}>
+                  سابق
                 </Text>
               </TouchableOpacity>
             </View>
@@ -262,11 +243,9 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
               <Text style={styles.fieldHint}>الصيغة: السنة-الشهر-اليوم (2020-01-15)</Text>
             </View>
 
-            {status !== 'married' && (
+            {status !== 'current' && (
               <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>
-                  تاريخ {status === 'divorced' ? 'الطلاق' : 'الوفاة'}
-                </Text>
+                <Text style={styles.fieldLabel}>تاريخ انتهاء الزواج</Text>
                 <TextInput
                   style={styles.textInput}
                   value={endDate}

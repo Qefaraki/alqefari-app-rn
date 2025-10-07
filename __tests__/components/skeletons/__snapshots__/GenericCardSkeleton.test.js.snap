@@ -1,0 +1,289 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`GenericCardSkeleton Component Snapshot Tests matches snapshot with 5 rows 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#F9F7F3",
+      "borderColor": "#D1BBA340",
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "marginBottom": 16,
+      "paddingBottom": 20,
+      "paddingHorizontal": 16,
+      "paddingTop": 16,
+      "shadowColor": "#000",
+      "shadowOffset": {
+        "height": 8,
+        "width": 0,
+      },
+      "shadowOpacity": 0.07,
+      "shadowRadius": 12,
+    }
+  }
+>
+  <Shimmer
+    borderRadius={10}
+    height={22}
+    style={
+      {
+        "marginBottom": 12,
+      }
+    }
+    width={120}
+  />
+  <View
+    style={
+      {
+        "backgroundColor": "#D1BBA320",
+        "height": 1,
+        "marginVertical": 12,
+      }
+    }
+  />
+  <View
+    style={
+      {
+        "gap": 16,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={80}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={90}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={100}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={110}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={120}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+  </View>
+</View>
+`;
+
+exports[`GenericCardSkeleton Component Snapshot Tests matches snapshot with default props 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#F9F7F3",
+      "borderColor": "#D1BBA340",
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "marginBottom": 16,
+      "paddingBottom": 20,
+      "paddingHorizontal": 16,
+      "paddingTop": 16,
+      "shadowColor": "#000",
+      "shadowOffset": {
+        "height": 8,
+        "width": 0,
+      },
+      "shadowOpacity": 0.07,
+      "shadowRadius": 12,
+    }
+  }
+>
+  <Shimmer
+    borderRadius={10}
+    height={22}
+    style={
+      {
+        "marginBottom": 12,
+      }
+    }
+    width={100}
+  />
+  <View
+    style={
+      {
+        "backgroundColor": "#D1BBA320",
+        "height": 1,
+        "marginVertical": 12,
+      }
+    }
+  />
+  <View
+    style={
+      {
+        "gap": 16,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={80}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={90}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+    <View
+      style={
+        {
+          "gap": 8,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        width={100}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={17}
+        style={
+          {
+            "marginTop": 4,
+          }
+        }
+        width="100%"
+      />
+    </View>
+  </View>
+</View>
+`;

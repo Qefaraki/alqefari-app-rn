@@ -1,0 +1,431 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FamilyCardSkeleton Component Snapshot Tests matches snapshot with 6 tiles 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#F9F7F3",
+      "borderColor": "#D1BBA340",
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "marginBottom": 16,
+      "paddingBottom": 20,
+      "paddingHorizontal": 16,
+      "paddingTop": 16,
+      "shadowColor": "#000",
+      "shadowOffset": {
+        "height": 8,
+        "width": 0,
+      },
+      "shadowOpacity": 0.07,
+      "shadowRadius": 12,
+    }
+  }
+>
+  <Shimmer
+    borderRadius={10}
+    height={22}
+    style={
+      {
+        "marginBottom": 12,
+      }
+    }
+    width={80}
+  />
+  <View
+    style={
+      {
+        "backgroundColor": "#D1BBA320",
+        "height": 1,
+        "marginVertical": 12,
+      }
+    }
+  />
+  <View
+    style={
+      {
+        "flexDirection": "row",
+        "gap": 12,
+        "paddingHorizontal": 2,
+        "paddingVertical": 4,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={14}
+        width={50}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={14}
+        width={50}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+    </View>
+  </View>
+</View>
+`;
+
+exports[`FamilyCardSkeleton Component Snapshot Tests matches snapshot with default props 1`] = `
+<View
+  style={
+    {
+      "backgroundColor": "#F9F7F3",
+      "borderColor": "#D1BBA340",
+      "borderRadius": 12,
+      "borderWidth": 1,
+      "marginBottom": 16,
+      "paddingBottom": 20,
+      "paddingHorizontal": 16,
+      "paddingTop": 16,
+      "shadowColor": "#000",
+      "shadowOffset": {
+        "height": 8,
+        "width": 0,
+      },
+      "shadowOpacity": 0.07,
+      "shadowRadius": 12,
+    }
+  }
+>
+  <Shimmer
+    borderRadius={10}
+    height={22}
+    style={
+      {
+        "marginBottom": 12,
+      }
+    }
+    width={80}
+  />
+  <View
+    style={
+      {
+        "backgroundColor": "#D1BBA320",
+        "height": 1,
+        "marginVertical": 12,
+      }
+    }
+  />
+  <View
+    style={
+      {
+        "flexDirection": "row",
+        "gap": 12,
+        "paddingHorizontal": 2,
+        "paddingVertical": 4,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={14}
+        width={50}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+    </View>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "gap": 8,
+          "width": 80,
+        }
+      }
+    >
+      <Shimmer
+        borderRadius={20}
+        height={40}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={40}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={16}
+        style={
+          {
+            "marginBottom": 4,
+          }
+        }
+        width={70}
+      />
+      <Shimmer
+        borderRadius={10}
+        height={14}
+        width={50}
+      />
+    </View>
+  </View>
+</View>
+`;

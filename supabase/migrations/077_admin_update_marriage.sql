@@ -58,6 +58,13 @@ BEGIN
         END IF;
     END IF;
 
+    -- Validate status value (only 'current' or 'past' allowed)
+    IF p_updates ? 'status' THEN
+        IF (p_updates->>'status') NOT IN ('current', 'past') THEN
+            RAISE EXCEPTION 'Invalid status value: %. Must be ''current'' or ''past''', p_updates->>'status';
+        END IF;
+    END IF;
+
     -- Apply updates (whitelist approach for security)
     UPDATE marriages
     SET
