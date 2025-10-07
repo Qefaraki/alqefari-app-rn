@@ -34,15 +34,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [selectedMotherId, setSelectedMotherId] = useState(null);
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
-  const [showMotherSelector, setShowMotherSelector] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [averageCardHeight, setAverageCardHeight] = useState(80);
   const inputRef = useRef(null);
   const cardHeights = useRef(new Map()).current;
   const { refreshProfile } = useStore();
   const insets = useSafeAreaInsets();
-
-  const motherSelectorHeight = useRef(new Animated.Value(0)).current;
 
   // Initialize with existing siblings
   useEffect(() => {
@@ -74,7 +71,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       setCurrentGender("male");
       setSelectedMotherId(null);
       setHasReordered(false);
-      setShowMotherSelector(false);
 
       // Auto-focus after modal animation
       setTimeout(() => {
@@ -82,15 +78,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       }, 400);
     }
   }, [visible, parentNode, siblings]);
-
-  // Animate mother selector
-  useEffect(() => {
-    Animated.timing(motherSelectorHeight, {
-      toValue: showMotherSelector ? 60 : 0,
-      duration: 250,
-      useNativeDriver: false,
-    }).start();
-  }, [showMotherSelector]);
 
   // Auto-add child on Return key
   const handleAutoAdd = () => {
@@ -467,54 +454,20 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   </View>
                 </View>
 
-                {/* Mother Selector Toggle (for male parents) */}
+                {/* Mother Selector (for male parents) */}
                 {parentNode?.gender === "male" && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.motherToggleButton}
-                      onPress={() => {
-                        setShowMotherSelector(!showMotherSelector);
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  <View style={styles.motherSelectorSection}>
+                    <MotherSelectorSimple
+                      fatherId={parentNode.id}
+                      value={selectedMotherId}
+                      onChange={(id, mothersData) => {
+                        setSelectedMotherId(id);
+                        if (mothersData) setMothers(mothersData);
                       }}
-                    >
-                      <Ionicons
-                        name={
-                          showMotherSelector
-                            ? "chevron-up"
-                            : "chevron-down"
-                        }
-                        size={16}
-                        color={COLORS.textMuted}
-                      />
-                      <Text style={styles.motherToggleText}>
-                        {selectedMotherId
-                          ? `الأم: ${mothers.find((m) => m.id === selectedMotherId)?.name || "محددة"}`
-                          : "تحديد الأم (اختياري)"}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <Animated.View
-                      style={[
-                        styles.motherSelectorContainer,
-                        { height: motherSelectorHeight, opacity: showMotherSelector ? 1 : 0 },
-                      ]}
-                    >
-                      <MotherSelectorSimple
-                        fatherId={parentNode.id}
-                        value={selectedMotherId}
-                        onChange={(id, mothersData) => {
-                          setSelectedMotherId(id);
-                          if (mothersData) setMothers(mothersData);
-                        }}
-                        label=""
-                      />
-                    </Animated.View>
-                  </>
+                      label="الأم (اختياري)"
+                    />
+                  </View>
                 )}
-
-                <Text style={styles.quickAddHint}>
-                  اكتب الاسم واضغط Enter للإضافة السريعة
-                </Text>
               </View>
 
               {/* Children List */}
@@ -701,20 +654,9 @@ const styles = StyleSheet.create({
   genderToggleTextActive: {
     color: COLORS.background,
   },
-  motherToggleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: tokens.spacing.xs, // 8px
-    marginTop: tokens.spacing.xs, // 8px
-    gap: 4,
-  },
-  motherToggleText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    fontWeight: "500",
-  },
-  motherSelectorContainer: {
-    overflow: "hidden",
+  motherSelectorSection: {
+    marginTop: tokens.spacing.sm, // 12px
+    width: "100%",
   },
   quickAddHint: {
     fontSize: 11,

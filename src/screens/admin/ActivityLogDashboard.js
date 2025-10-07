@@ -17,7 +17,6 @@ import {
   Alert,
   Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import {
@@ -731,7 +730,7 @@ export default function ActivityLogDashboard({ onClose }) {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
+      <View style={styles.container}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Image
@@ -783,13 +782,13 @@ export default function ActivityLogDashboard({ onClose }) {
         <DateGroupSkeleton />
         <DateGroupSkeleton />
         <DateGroupSkeleton />
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Main render with single FlatList
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
+    <View style={styles.container}>
       <FlatList
         ref={flatListRef}
         data={groupedActivities}
@@ -825,7 +824,7 @@ export default function ActivityLogDashboard({ onClose }) {
         windowSize={7}
         removeClippedSubviews={true}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
