@@ -3245,7 +3245,7 @@ const TreeView = ({
 
       <SearchBar
         onSelectResult={handleSearchResultSelect}
-        onClearHighlight={clearPathHighlight}
+        onClearHighlight={clearAllHighlights}
       />
 
       <NavigateToRootButton
