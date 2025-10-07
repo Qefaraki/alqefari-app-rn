@@ -44,16 +44,16 @@ const ChildListCard = ({
   // Trigger highlight animation when position changes
   useEffect(() => {
     if (prevIndex.current !== index && prevIndex.current !== undefined) {
-      // Flash highlight
+      // Flash highlight - stronger and slower for better visibility
       Animated.sequence([
         Animated.timing(highlightAnim, {
           toValue: 1,
-          duration: 100,
+          duration: 150,
           useNativeDriver: false,
         }),
         Animated.timing(highlightAnim, {
           toValue: 0,
-          duration: 200,
+          duration: 400,
           useNativeDriver: false,
         }),
       ]).start();
@@ -197,10 +197,10 @@ const ChildListCard = ({
 
   const motherName = getMotherName();
 
-  // Interpolate highlight color
+  // Interpolate highlight color - stronger opacity for better visibility
   const highlightColor = highlightAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [COLORS.background, COLORS.secondary + "20"],
+    outputRange: [COLORS.background, COLORS.secondary + "40"],
   });
 
   return (
@@ -215,23 +215,65 @@ const ChildListCard = ({
         ]}
       >
         <Animated.View style={[styles.card, getCardStyle(), { backgroundColor: highlightColor }]}>
-          {/* Reorder Button */}
-        <TouchableOpacity
-          style={styles.reorderButton}
-          onPress={() => {
-            if (isPickerOpening) return; // Guard against rapid taps
-            setIsPickerOpening(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setShowPositionPicker(true);
-          }}
-          disabled={isPickerOpening}
-        >
-          <Ionicons name="swap-vertical" size={20} color={COLORS.text} />
-        </TouchableOpacity>
+          {/* Reorder Controls */}
+          <View style={styles.reorderControls}>
+            {/* Up Arrow */}
+            <TouchableOpacity
+              style={[
+                styles.arrowButton,
+                index === 0 && styles.arrowButtonDisabled
+              ]}
+              onPress={() => {
+                onMoveUp(child.id);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
+              disabled={index === 0}
+            >
+              <Ionicons
+                name="chevron-up"
+                size={16}
+                color={index === 0 ? COLORS.textMuted : COLORS.text}
+              />
+            </TouchableOpacity>
 
-          {/* Order Badge */}
-          <View style={styles.orderBadge}>
-            <Text style={styles.orderText}>{index + 1}</Text>
+            {/* Position Badge - tap for full picker */}
+            <TouchableOpacity
+              style={styles.positionBadge}
+              onPress={() => {
+                if (isPickerOpening) return;
+                setIsPickerOpening(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowPositionPicker(true);
+              }}
+              disabled={isPickerOpening}
+            >
+              <Text style={styles.orderText}>{index + 1}</Text>
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={10}
+                color={COLORS.textMuted}
+                style={styles.moreIcon}
+              />
+            </TouchableOpacity>
+
+            {/* Down Arrow */}
+            <TouchableOpacity
+              style={[
+                styles.arrowButton,
+                index === totalChildren - 1 && styles.arrowButtonDisabled
+              ]}
+              onPress={() => {
+                onMoveDown(child.id);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
+              disabled={index === totalChildren - 1}
+            >
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.text}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Card Content */}
@@ -407,33 +449,41 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#FF9500",
   },
-  reorderButton: {
-    width: 44, // iOS minimum touch target
-    height: 44, // iOS minimum touch target
+  reorderControls: {
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 4,
+    marginRight: tokens.spacing.xs, // 8px
+  },
+  arrowButton: {
+    width: 32,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.container + "20",
-    borderRadius: 8,
-    marginRight: tokens.spacing.xs, // 8px
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    borderRadius: 6,
   },
-  orderBadge: {
-    width: 32, // Increased from 28px
-    height: 32, // Increased from 28px
+  arrowButtonDisabled: {
+    opacity: 0.3,
+  },
+  positionBadge: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
     backgroundColor: COLORS.container + "30",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: tokens.spacing.xs, // 8px
+    position: "relative",
   },
   orderText: {
-    fontSize: 15, // Increased from 13px for better readability
+    fontSize: 15,
     fontWeight: "600",
     color: COLORS.text,
+  },
+  moreIcon: {
+    position: "absolute",
+    bottom: 2,
+    opacity: 0.6,
   },
   content: {
     flex: 1,
