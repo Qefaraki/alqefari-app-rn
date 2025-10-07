@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,14 +14,14 @@ const socialPlatforms = [
     label: "X (Twitter سابقاً)",
     icon: "x-twitter",
     iconFamily: "FontAwesome6",
-    placeholder: "https://x.com/username",
+    placeholder: "https://x.com/username or @username",
   },
   {
     key: "instagram",
     label: "Instagram",
     icon: "logo-instagram",
     iconFamily: "Ionicons",
-    placeholder: "https://instagram.com/username",
+    placeholder: "https://instagram.com/username or @username",
   },
   {
     key: "linkedin",
@@ -49,6 +49,14 @@ const socialPlatforms = [
 const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
   // Support both 'links' and 'values' prop names for backward compatibility
   const socialLinks = links || values || {};
+
+  // Local state to manage input values while typing
+  const [localValues, setLocalValues] = useState({});
+
+  // Initialize local state from props
+  useEffect(() => {
+    setLocalValues({ ...socialLinks });
+  }, [JSON.stringify(socialLinks)]);
   // Helper to convert username to full URL if needed
   const formatSocialLink = (platform, value) => {
     if (!value || !value.trim()) return '';
@@ -91,25 +99,29 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
   };
 
   const handleLinkChange = (platform, value) => {
-    const newLinks = { ...socialLinks };
-    if (value) {
-      // Store raw value as user types (don't trim while typing!)
-      newLinks[platform] = value;
-    } else {
-      delete newLinks[platform];
-    }
-    onChange(newLinks);
+    // Update local state only while typing
+    setLocalValues(prev => ({
+      ...prev,
+      [platform]: value
+    }));
   };
 
-  const handleBlur = (platform, value) => {
-    // Format only when user finishes typing
+  const handleBlur = (platform) => {
+    const value = localValues[platform];
     const newLinks = { ...socialLinks };
-    if (value.trim()) {
+
+    if (value && value.trim()) {
+      // Format when user finishes typing
       const formattedLink = formatSocialLink(platform, value);
       if (formattedLink) {
         newLinks[platform] = formattedLink;
       }
+    } else {
+      // Remove empty values
+      delete newLinks[platform];
     }
+
+    // Update parent state only on blur
     onChange(newLinks);
   };
 
@@ -126,10 +138,11 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
             </View>
             <TextInput
               style={styles.platformInput}
-              value={socialLinks?.[platform.key] || ''}
+              value={localValues[platform.key] || ''}
               onChangeText={(value) => handleLinkChange(platform.key, value)}
-              onBlur={(e) => handleBlur(platform.key, e.nativeEvent.text)}
+              onBlur={() => handleBlur(platform.key)}
               placeholder={platform.placeholder}
+              placeholderTextColor="#999"
               autoCapitalize="none"
               keyboardType="url"
             />
