@@ -1150,7 +1150,7 @@ export default function ActivityLogDashboard({ onClose }) {
   if (loading) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={styles.headerLoading}>
           <View style={styles.headerRow}>
             <Image
               source={require('../../../assets/logo/AlqefariEmblem.png')}
@@ -1321,8 +1321,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3",
   },
 
-  // Header
+  // Header (main render - FlatList handles safe area)
   header: {
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 10 : 20,
+    paddingBottom: 8,
+  },
+  // Header for loading skeleton - needs safe area padding
+  headerLoading: {
     paddingHorizontal: 16,
     paddingTop: Platform.OS === "ios" ? 60 : 20, // Safe area for iOS notch/Dynamic Island
     paddingBottom: 8,

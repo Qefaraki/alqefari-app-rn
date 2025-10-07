@@ -314,11 +314,6 @@ const ChildListCard = ({
                         Haptics.selectionAsync();
                       }}
                     >
-                      <Ionicons
-                        name="male"
-                        size={16}
-                        color={localGender === "male" ? COLORS.primary : COLORS.textMuted}
-                      />
                       <Text
                         style={[
                           styles.segmentText,
@@ -338,11 +333,6 @@ const ChildListCard = ({
                         Haptics.selectionAsync();
                       }}
                     >
-                      <Ionicons
-                        name="female"
-                        size={16}
-                        color={localGender === "female" ? COLORS.primary : COLORS.textMuted}
-                      />
                       <Text
                         style={[
                           styles.segmentText,
