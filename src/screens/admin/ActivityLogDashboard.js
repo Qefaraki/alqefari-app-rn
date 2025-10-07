@@ -1443,9 +1443,9 @@ const styles = StyleSheet.create({
   },
   filterDivider: {
     width: 1,
-    height: 32,
-    backgroundColor: tokens.colors.najdi.camelHair + '60',
-    marginHorizontal: 4,
+    height: 36,
+    backgroundColor: tokens.colors.najdi.camelHair,
+    marginHorizontal: 8,
   },
   filterButton: {
     flexDirection: "row",

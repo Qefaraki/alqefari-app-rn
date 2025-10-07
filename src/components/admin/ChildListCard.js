@@ -767,6 +767,134 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: COLORS.primary + "10",
   },
+
+  // iOS Bottom Sheet Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)", // iOS standard overlay
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: COLORS.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 34, // iOS safe area bottom
+    maxHeight: "70%", // Don't cover entire screen
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 5,
+    backgroundColor: COLORS.container,
+    borderRadius: 3,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  sheetHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.container + "30",
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COLORS.text,
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  sheetSubtitle: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: "center",
+  },
+  currentSelectionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary + "10",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 10,
+    gap: 8,
+  },
+  currentSelectionText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  sheetScrollView: {
+    maxHeight: 320, // Max 7 items visible at 44px each
+  },
+  sheetScrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  sheetOption: {
+    backgroundColor: COLORS.container + "15",
+    minHeight: 52, // Generous touch target
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.container + "30",
+  },
+  sheetOptionFirst: {
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  sheetOptionLast: {
+    borderBottomWidth: 0,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  sheetOptionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sheetOptionText: {
+    fontSize: 17,
+    fontWeight: "500",
+    color: COLORS.text,
+  },
+  clearButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.primary + "10",
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  clearButtonText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  cancelButton: {
+    backgroundColor: COLORS.container + "20",
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
 });
 
 export default ChildListCard;
