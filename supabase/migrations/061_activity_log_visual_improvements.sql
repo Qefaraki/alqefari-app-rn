@@ -7,7 +7,8 @@
 -- PART 1: Fix Audit Trigger to Populate changed_fields
 -- ============================================
 
--- Drop existing trigger to recreate with changed_fields logic
+-- Drop both old and new trigger names to prevent duplicates
+DROP TRIGGER IF EXISTS trigger_log_profile_changes ON profiles;
 DROP TRIGGER IF EXISTS audit_profile_changes ON profiles;
 
 -- Recreate the trigger function with changed_fields calculation

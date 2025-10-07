@@ -3,7 +3,8 @@
 -- Purpose: Update log_profile_changes() trigger to calculate which fields changed
 -- This enables field-by-field diff display in Activity Log Dashboard
 
--- Drop existing trigger to recreate with changed_fields logic
+-- Drop both old and new trigger names to prevent duplicates
+DROP TRIGGER IF EXISTS trigger_log_profile_changes ON profiles;
 DROP TRIGGER IF EXISTS audit_profile_changes ON profiles;
 
 -- Recreate the trigger function with changed_fields calculation
