@@ -217,6 +217,7 @@ export default function ActivityLogDashboard({ onClose }) {
   const subscriptionRef = useRef(null);
   const flatListRef = useRef(null);
   const requestIdRef = useRef(0); // Track latest request to discard stale responses
+  const statsRequestIdRef = useRef(0); // Track latest stats request to discard stale responses
 
   // Refs for filter values (so subscription can access current values without recreating)
   const selectedUserRef = useRef(selectedUser);
@@ -324,6 +325,10 @@ export default function ActivityLogDashboard({ onClose }) {
 
   // Fetch stats from server (O(1) memory vs O(n) client-side calculation)
   const fetchStats = useCallback(async () => {
+    // Increment request ID to track this request
+    statsRequestIdRef.current += 1;
+    const currentRequestId = statsRequestIdRef.current;
+
     try {
       // Build parameters for RPC function
       const dateRange = datePreset === 'custom'
@@ -337,6 +342,12 @@ export default function ActivityLogDashboard({ onClose }) {
         p_action_filter: null, // Not filtering by action type in stats
       });
 
+      // Check if this request is stale (a newer request was initiated)
+      if (currentRequestId !== statsRequestIdRef.current) {
+        console.log('[fetchStats] Discarding stale stats request', currentRequestId, 'current:', statsRequestIdRef.current);
+        return; // Discard this response
+      }
+
       if (error) throw error;
 
       if (data && data.length > 0) {
@@ -349,8 +360,11 @@ export default function ActivityLogDashboard({ onClose }) {
         });
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
-      // Keep previous stats on error, don't show alert (non-critical)
+      // Only log error if this is still the latest request
+      if (currentRequestId === statsRequestIdRef.current) {
+        console.error('Error fetching stats:', error);
+        // Keep previous stats on error, don't show alert (non-critical)
+      }
     }
   }, [selectedUser, datePreset, customDateRange]);
 
@@ -373,6 +387,7 @@ export default function ActivityLogDashboard({ onClose }) {
   // Set up real-time subscription (fixed race condition)
   useEffect(() => {
     fetchActivities(false);
+    fetchStats(); // Load stats on initial mount
 
     // Subscribe to real-time changes with optimistic update
     const channel = supabase
@@ -459,7 +474,7 @@ export default function ActivityLogDashboard({ onClose }) {
         supabase.removeChannel(subscriptionRef.current);
       }
     };
-  }, []); // Empty deps - run once on mount
+  }, [fetchStats]); // Include fetchStats (stable via useCallback)
 
   // Refetch activities and stats when filters change
   useEffect(() => {
@@ -653,8 +668,8 @@ export default function ActivityLogDashboard({ onClose }) {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{stats.pending}</Text>
-          <Text style={styles.statLabel}>معلق</Text>
+          <Text style={styles.statValue}>{stats.users}</Text>
+          <Text style={styles.statLabel}>مستخدمون</Text>
         </View>
       </View>
     </View>
