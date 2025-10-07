@@ -33,6 +33,7 @@ import {
   useSharedValue,
   useAnimatedReaction,
   runOnJS,
+  runOnUI,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -955,7 +956,10 @@ const ProfileSheet = ({ editMode = false }) => {
           setSelectedPersonId(null);
           // Reset the shared value properly, don't overwrite it
           if (profileSheetProgress) {
-            profileSheetProgress.value = 0;
+            runOnUI(() => {
+              'worklet';
+              profileSheetProgress.value = 0;
+            })();
           }
           useTreeStore.setState({
             profileSheetIndex: -1,

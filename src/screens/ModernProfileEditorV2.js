@@ -20,6 +20,7 @@ import {
   useSharedValue,
   useAnimatedReaction,
   runOnJS,
+  runOnUI,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -574,7 +575,12 @@ const ModernProfileEditorV2 = ({ visible, profile, onClose, onSave }) => {
       onChange={handleSheetChange}
       onClose={() => {
         if (onClose) onClose();
-        if (profileSheetProgress) profileSheetProgress.value = 0;
+        if (profileSheetProgress) {
+          runOnUI(() => {
+            'worklet';
+            profileSheetProgress.value = 0;
+          })();
+        }
         useTreeStore.setState({ profileSheetIndex: -1 });
       }}
       backdropComponent={renderBackdrop}

@@ -20,6 +20,7 @@ import {
   useSharedValue,
   useAnimatedReaction,
   runOnJS,
+  runOnUI,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -346,7 +347,10 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         }
         // Reset the shared value properly, don't overwrite it
         if (profileSheetProgress) {
-          profileSheetProgress.value = 0;
+          runOnUI(() => {
+            'worklet';
+            profileSheetProgress.value = 0;
+          })();
         }
         useTreeStore.setState({
           profileSheetIndex: -1,
