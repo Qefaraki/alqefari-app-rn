@@ -1,6 +1,9 @@
--- Migration 076: Admin Update Marriage RPC
+-- Migration 077: Admin Update Marriage RPC
 -- Purpose: Secure RPC function for updating marriage records with permission checks
 -- Replaces: Direct UPDATE on marriages table (blocked by RLS)
+
+-- Drop old function if exists (to avoid parameter name conflict)
+DROP FUNCTION IF EXISTS admin_update_marriage(UUID, JSONB);
 
 CREATE OR REPLACE FUNCTION admin_update_marriage(
     p_marriage_id UUID,

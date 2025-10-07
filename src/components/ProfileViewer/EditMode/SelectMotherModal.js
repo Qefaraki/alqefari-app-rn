@@ -47,10 +47,9 @@ const SelectMotherModal = ({ visible, person, father, onClose, onSaved }) => {
 
       if (error) throw error;
 
-      // Get father's active spouses
+      // Get ALL father's spouses (including divorced/widowed - they could be mothers)
       const spouses = data?.spouses || [];
-      const activeSpouses = spouses.filter((s) => s.status === 'married');
-      setFatherSpouses(activeSpouses);
+      setFatherSpouses(spouses);
     } catch (error) {
       if (__DEV__) {
         console.error('Error loading father spouses:', error);
@@ -236,19 +235,37 @@ const SelectMotherModal = ({ visible, person, father, onClose, onSaved }) => {
                           <Text style={[styles.motherName, isSelected && styles.motherNameSelected]}>
                             {mother.name}
                           </Text>
-                          {mother.hid ? (
-                            <Text style={styles.motherDetail}>HID: {mother.hid}</Text>
-                          ) : (
-                            <View style={styles.munasibBadge}>
-                              <Ionicons name="globe-outline" size={10} color={tokens.colors.najdi.secondary} />
-                              <Text style={styles.munasibText}>من خارج العائلة</Text>
-                            </View>
-                          )}
-                          {spouseData.children_count > 0 && (
-                            <Text style={styles.motherDetail}>
-                              {spouseData.children_count} {spouseData.children_count === 1 ? 'طفل' : 'أطفال'}
-                            </Text>
-                          )}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            {mother.hid ? (
+                              <Text style={styles.motherDetail}>HID: {mother.hid}</Text>
+                            ) : (
+                              <View style={styles.munasibBadge}>
+                                <Ionicons name="globe-outline" size={10} color={tokens.colors.najdi.secondary} />
+                                <Text style={styles.munasibText}>من خارج العائلة</Text>
+                              </View>
+                            )}
+                            {spouseData.children_count > 0 && (
+                              <Text style={styles.motherDetail}>
+                                {spouseData.children_count} {spouseData.children_count === 1 ? 'طفل' : 'أطفال'}
+                              </Text>
+                            )}
+                            {spouseData.status !== 'married' && (
+                              <View style={[styles.munasibBadge, {
+                                backgroundColor: spouseData.status === 'divorced' ? '#D58C4A15' : '#24212115'
+                              }]}>
+                                <Ionicons
+                                  name={spouseData.status === 'divorced' ? 'close-circle-outline' : 'flower-outline'}
+                                  size={10}
+                                  color={spouseData.status === 'divorced' ? tokens.colors.warning : tokens.colors.najdi.textSecondary}
+                                />
+                                <Text style={[styles.munasibText, {
+                                  color: spouseData.status === 'divorced' ? tokens.colors.warning : tokens.colors.najdi.textSecondary
+                                }]}>
+                                  {spouseData.status === 'divorced' ? 'مطلق' : 'أرمل'}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
                       </View>
                       {isSelected && (
