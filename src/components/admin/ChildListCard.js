@@ -230,60 +230,62 @@ const ChildListCard = ({
         ]}
       >
         <Animated.View style={[styles.card, getCardStyle(), { backgroundColor: highlightColor }]}>
-          {/* Reorder Controls */}
-          <View style={styles.reorderControls}>
-            {/* Up Arrow */}
-            <TouchableOpacity
-              style={[
-                styles.arrowButton,
-                (index === 0 || isMoving) && styles.arrowButtonDisabled
-              ]}
-              onPress={() => handleArrowPress('up')}
-              disabled={index === 0 || isMoving}
-            >
-              <Ionicons
-                name="chevron-up"
-                size={16}
-                color={index === 0 ? COLORS.textMuted : COLORS.text}
-              />
-            </TouchableOpacity>
+          {/* Reorder Controls - only show if more than 1 child */}
+          {totalChildren > 1 && (
+            <View style={styles.reorderControls}>
+              {/* Up Arrow */}
+              <TouchableOpacity
+                style={[
+                  styles.arrowButton,
+                  (index === 0 || isMoving) && styles.arrowButtonDisabled
+                ]}
+                onPress={() => handleArrowPress('up')}
+                disabled={index === 0 || isMoving}
+              >
+                <Ionicons
+                  name="chevron-up"
+                  size={16}
+                  color={index === 0 ? COLORS.textMuted : COLORS.text}
+                />
+              </TouchableOpacity>
 
-            {/* Position Badge - tap for full picker */}
-            <TouchableOpacity
-              style={styles.positionBadge}
-              onPress={() => {
-                if (isPickerOpening) return;
-                setIsPickerOpening(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowPositionPicker(true);
-              }}
-              disabled={isPickerOpening}
-            >
-              <Text style={styles.orderText}>{index + 1}</Text>
-              <Ionicons
-                name="ellipsis-horizontal"
-                size={10}
-                color={COLORS.textMuted}
-                style={styles.moreIcon}
-              />
-            </TouchableOpacity>
+              {/* Position Badge - tap for full picker */}
+              <TouchableOpacity
+                style={styles.positionBadge}
+                onPress={() => {
+                  if (isPickerOpening) return;
+                  setIsPickerOpening(true);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowPositionPicker(true);
+                }}
+                disabled={isPickerOpening}
+              >
+                <Text style={styles.orderText}>{index + 1}</Text>
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={12}
+                  color={COLORS.textMuted}
+                  style={styles.moreIcon}
+                />
+              </TouchableOpacity>
 
-            {/* Down Arrow */}
-            <TouchableOpacity
-              style={[
-                styles.arrowButton,
-                (index === totalChildren - 1 || isMoving) && styles.arrowButtonDisabled
-              ]}
-              onPress={() => handleArrowPress('down')}
-              disabled={index === totalChildren - 1 || isMoving}
-            >
-              <Ionicons
-                name="chevron-down"
-                size={16}
-                color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.text}
-              />
-            </TouchableOpacity>
-          </View>
+              {/* Down Arrow */}
+              <TouchableOpacity
+                style={[
+                  styles.arrowButton,
+                  (index === totalChildren - 1 || isMoving) && styles.arrowButtonDisabled
+                ]}
+                onPress={() => handleArrowPress('down')}
+                disabled={index === totalChildren - 1 || isMoving}
+              >
+                <Ionicons
+                  name="chevron-down"
+                  size={16}
+                  color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.text}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Card Content */}
           <View style={styles.content}>
@@ -466,7 +468,7 @@ const styles = StyleSheet.create({
   },
   arrowButton: {
     width: 32,
-    height: 20,
+    height: 22,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.container + "20",
