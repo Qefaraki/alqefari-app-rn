@@ -13,7 +13,7 @@ import {
   Modal,
   Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
@@ -98,6 +98,9 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+
+  // Get safe area insets for dynamic bottom padding
+  const insets = useSafeAreaInsets();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -496,6 +499,9 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 20) + 40, // Dynamic bottom padding: safe area + extra space
+        }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }

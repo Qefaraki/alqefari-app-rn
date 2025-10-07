@@ -383,7 +383,7 @@ const ChildListCard = ({
 const styles = StyleSheet.create({
   cardContainer: {
     marginHorizontal: tokens.spacing.md, // 16px
-    marginVertical: CARD_VERTICAL_MARGIN, // Dynamic based on screen height
+    marginVertical: 0, // No margin - spacing handled by ItemSeparatorComponent
   },
   card: {
     flexDirection: "row",

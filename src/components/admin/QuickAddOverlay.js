@@ -25,6 +25,7 @@ import ChildListCard from "./ChildListCard";
 import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
+const SEPARATOR_HEIGHT = 2; // 2px gap between cards
 
 const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [currentName, setCurrentName] = useState("");
@@ -696,7 +697,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   listContent: {
-    paddingVertical: tokens.spacing.xs, // 8px (was 12px - tighter)
+    paddingVertical: 0, // No padding - cards stick together with separator
   },
   bottomActions: {
     flexDirection: "row",
