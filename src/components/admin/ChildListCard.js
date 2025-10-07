@@ -315,37 +315,52 @@ const ChildListCard = ({
                 {/* Mother Selector (if mothers available) */}
                 {mothers.length > 0 && (
                   <View style={styles.motherSelector}>
-                    <Text style={styles.motherLabel}>الأم:</Text>
-                    <View style={styles.motherButtons}>
+                    <Text style={styles.motherLabel}>الأم</Text>
+                    <View style={styles.motherList}>
+                      {/* None option */}
+                      <TouchableOpacity
+                        style={[
+                          styles.motherOption,
+                          !localMotherId && styles.motherOptionActive,
+                        ]}
+                        onPress={() => {
+                          setLocalMotherId(null);
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                      >
+                        <View style={styles.motherOptionContent}>
+                          <Text style={styles.motherOptionText}>لا يوجد</Text>
+                          <Ionicons
+                            name={!localMotherId ? "radio-button-on" : "radio-button-off"}
+                            size={20}
+                            color={!localMotherId ? COLORS.primary : COLORS.textMuted}
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Mother options */}
                       {mothers.map((mother) => (
                         <TouchableOpacity
                           key={mother.id}
                           style={[
-                            styles.motherButton,
-                            localMotherId === mother.id && styles.motherButtonActive,
+                            styles.motherOption,
+                            localMotherId === mother.id && styles.motherOptionActive,
                           ]}
-                          onPress={() => setLocalMotherId(mother.id)}
+                          onPress={() => {
+                            setLocalMotherId(mother.id);
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }}
                         >
-                          <Text
-                            style={[
-                              styles.motherButtonText,
-                              localMotherId === mother.id && styles.motherButtonTextActive,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {mother.name}
-                          </Text>
+                          <View style={styles.motherOptionContent}>
+                            <Text style={styles.motherOptionText}>{mother.name}</Text>
+                            <Ionicons
+                              name={localMotherId === mother.id ? "radio-button-on" : "radio-button-off"}
+                              size={20}
+                              color={localMotherId === mother.id ? COLORS.primary : COLORS.textMuted}
+                            />
+                          </View>
                         </TouchableOpacity>
                       ))}
-                      {/* Clear button */}
-                      {localMotherId && (
-                        <TouchableOpacity
-                          style={styles.motherClearButton}
-                          onPress={() => setLocalMotherId(null)}
-                        >
-                          <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
-                        </TouchableOpacity>
-                      )}
                     </View>
                   </View>
                 )}
@@ -574,42 +589,37 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   motherLabel: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
     color: COLORS.textMuted,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  motherButtons: {
-    flexDirection: "row",
-    gap: 6,
-    flexWrap: "wrap",
-    alignItems: "center",
+  motherList: {
+    backgroundColor: COLORS.container + "15",
+    borderRadius: 8,
+    overflow: "hidden",
   },
-  motherButton: {
+  motherOption: {
+    minHeight: 44, // iOS minimum touch target
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: COLORS.container + "20",
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.container + "30",
   },
-  motherButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  motherOptionActive: {
+    backgroundColor: COLORS.primary + "08", // Subtle highlight
   },
-  motherButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.text,
-  },
-  motherButtonTextActive: {
-    color: COLORS.background,
-  },
-  motherClearButton: {
-    width: 28,
-    height: 28,
-    justifyContent: "center",
+  motherOptionContent: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+  },
+  motherOptionText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: COLORS.text,
+    flex: 1,
+    textAlign: "right",
   },
   stateBadge: {
     paddingHorizontal: 8,

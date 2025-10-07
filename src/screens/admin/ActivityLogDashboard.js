@@ -898,8 +898,9 @@ export default function ActivityLogDashboard({ onClose }) {
             >
               <Ionicons
                 name="person"
-                size={16}
-                color={selectedUser ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
+                size={14}
+                color={selectedUser ? "#F9F7F3" : "#242121"}
+                style={{ marginRight: 4 }}
               />
               <Text
                 style={[
@@ -911,6 +912,9 @@ export default function ActivityLogDashboard({ onClose }) {
               </Text>
             </TouchableOpacity>
 
+            {/* Divider between user and date buttons */}
+            <View style={styles.filterDivider} />
+
             <TouchableOpacity
               style={[
                 styles.filterModalButton,
@@ -921,8 +925,9 @@ export default function ActivityLogDashboard({ onClose }) {
             >
               <Ionicons
                 name="calendar"
-                size={16}
-                color={datePreset !== 'all' ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
+                size={14}
+                color={datePreset !== 'all' ? "#F9F7F3" : "#242121"}
+                style={{ marginRight: 4 }}
               />
               <Text
                 style={[
@@ -934,7 +939,7 @@ export default function ActivityLogDashboard({ onClose }) {
               </Text>
             </TouchableOpacity>
 
-            {/* Vertical Divider */}
+            {/* Divider before segment buttons */}
             <View style={styles.filterDivider} />
           </View>
         }
@@ -1765,27 +1770,29 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 
-  // Filter Modal Buttons
+  // Filter Modal Buttons (match segment button styling exactly)
   filterModalButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+    gap: 4,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 22,
     backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.camelHair,
+    borderWidth: 1,
+    borderColor: "#D1BBA340",
     minHeight: 44,
+    minWidth: 90,
   },
   filterModalButtonActive: {
-    backgroundColor: tokens.colors.najdi.crimson,
-    borderColor: tokens.colors.najdi.crimson,
+    backgroundColor: "#A13333",
+    borderColor: "#A13333",
   },
   filterModalButtonText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
-    color: tokens.colors.text,
+    color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterModalButtonTextActive: {
