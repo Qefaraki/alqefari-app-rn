@@ -399,10 +399,18 @@ export default function ActivityLogDashboard({ onClose }) {
         <View style={styles.titleContent}>
           <Text style={styles.title}>سجل النشاط</Text>
         </View>
-        <View style={{ width: 44, height: 44 }} />
+        {onClose && (
+          <TouchableOpacity
+            onPress={onClose}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons name="chevron-back" size={28} color="#242121" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
-  ), []);
+  ), [onClose]);
 
   // Memoized Stats Widget Component
   const StatsWidget = useMemo(() => (
@@ -621,7 +629,7 @@ export default function ActivityLogDashboard({ onClose }) {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Image
@@ -679,7 +687,7 @@ export default function ActivityLogDashboard({ onClose }) {
 
   // Main render with single FlatList
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
       <FlatList
         ref={flatListRef}
         data={groupedActivities}
@@ -728,7 +736,7 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: Platform.OS === "ios" ? 10 : 20, // Extra padding for iOS Dynamic Island
     paddingBottom: 8,
   },
   headerRow: {
@@ -750,6 +758,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: 8,
+    marginRight: -8,
   },
 
   // Stats Widget
