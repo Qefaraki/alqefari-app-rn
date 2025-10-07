@@ -879,54 +879,9 @@ export default function ActivityLogDashboard({ onClose }) {
     );
   }, [activeFilter]);
 
-  // Filter Buttons Component (horizontal FlatList)
+  // Filter Buttons Component (horizontal FlatList with integrated modal buttons)
   const FilterButtons = useMemo(() => (
-    <View>
-      <View style={styles.filterButtonsRow}>
-        <TouchableOpacity
-          style={[styles.filterModalButton, selectedUser && styles.filterModalButtonActive]}
-          onPress={() => setShowUserFilter(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="person"
-            size={16}
-            color={selectedUser ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
-          />
-          <Text
-            style={[
-              styles.filterModalButtonText,
-              selectedUser && styles.filterModalButtonTextActive,
-            ]}
-          >
-            المستخدم
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.filterModalButton,
-            datePreset !== 'all' && styles.filterModalButtonActive,
-          ]}
-          onPress={() => setShowDateFilter(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="calendar"
-            size={16}
-            color={datePreset !== 'all' ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
-          />
-          <Text
-            style={[
-              styles.filterModalButtonText,
-              datePreset !== 'all' && styles.filterModalButtonTextActive,
-            ]}
-          >
-            التاريخ
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+    <View style={styles.filterSection}>
       <FlatList
         horizontal
         data={FILTER_DATA}
@@ -934,7 +889,55 @@ export default function ActivityLogDashboard({ onClose }) {
         keyExtractor={(item) => item.key}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterContent}
-        style={styles.filterSection}
+        ListHeaderComponent={
+          <View style={styles.filterHeaderButtons}>
+            <TouchableOpacity
+              style={[styles.filterModalButton, selectedUser && styles.filterModalButtonActive]}
+              onPress={() => setShowUserFilter(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="person"
+                size={16}
+                color={selectedUser ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
+              />
+              <Text
+                style={[
+                  styles.filterModalButtonText,
+                  selectedUser && styles.filterModalButtonTextActive,
+                ]}
+              >
+                المستخدم
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterModalButton,
+                datePreset !== 'all' && styles.filterModalButtonActive,
+              ]}
+              onPress={() => setShowDateFilter(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="calendar"
+                size={16}
+                color={datePreset !== 'all' ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
+              />
+              <Text
+                style={[
+                  styles.filterModalButtonText,
+                  datePreset !== 'all' && styles.filterModalButtonTextActive,
+                ]}
+              >
+                التاريخ
+              </Text>
+            </TouchableOpacity>
+
+            {/* Vertical Divider */}
+            <View style={styles.filterDivider} />
+          </View>
+        }
         getItemLayout={(data, index) => ({
           length: 90,
           offset: 90 * index,
@@ -1430,6 +1433,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 8,
   },
+  filterHeaderButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingRight: 12, // Add spacing before divider (note: RTL, so paddingRight is on the left)
+  },
+  filterDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: tokens.colors.najdi.camelHair + '60',
+    marginHorizontal: 4,
+  },
   filterButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -1751,12 +1766,6 @@ const styles = StyleSheet.create({
   },
 
   // Filter Modal Buttons
-  filterButtonsRow: {
-    flexDirection: "row",
-    gap: tokens.spacing.xs,
-    paddingHorizontal: 16,
-    marginBottom: tokens.spacing.sm,
-  },
   filterModalButton: {
     flexDirection: "row",
     alignItems: "center",

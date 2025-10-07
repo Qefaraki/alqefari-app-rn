@@ -2,6 +2,7 @@
  * DateRangePickerModal Component
  * Modal for filtering activities by date range
  * Features: Preset ranges, custom date selection, calendar preference support
+ * Design: Najdi Sadu design system with iOS-standard patterns
  */
 
 import React, { useState, useRef } from 'react';
@@ -13,6 +14,7 @@ import {
   StyleSheet,
   Platform,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DateTimePicker, Host } from '@expo/ui/swift-ui';
@@ -30,6 +32,16 @@ import { useSettings } from '../../contexts/SettingsContext';
 import { formatDateByPreference } from '../../utils/dateDisplay';
 import { gregorianToHijri } from '../../utils/hijriConverter';
 import tokens from '../ui/tokens';
+
+// Najdi Sadu color shortcuts for consistency
+const colors = {
+  alJass: tokens.colors.najdi.background,
+  camelHair: tokens.colors.najdi.container,
+  saduNight: tokens.colors.najdi.text,
+  crimson: tokens.colors.najdi.primary,
+  ochre: tokens.colors.najdi.secondary,
+  textMuted: tokens.colors.najdi.textMuted,
+};
 
 const DATE_PRESETS = [
   { id: 'today', label: 'اليوم', icon: 'today' },
@@ -185,112 +197,131 @@ const DateRangePickerModal = ({
           <View style={styles.handleBar} />
           <Text style={styles.modalTitle}>تصفية حسب التاريخ</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={tokens.colors.text} />
+            <Ionicons name="close" size={24} color={colors.saduNight} />
           </TouchableOpacity>
         </View>
 
-        {/* Active Filter Display */}
-        {selectedPreset !== 'all' && (
-          <View style={styles.activeFilterDisplay}>
-            <Ionicons name="calendar" size={16} color={tokens.colors.najdi.crimson} />
-            <Text style={styles.activeFilterText}>النطاق: {getFilterLabel()}</Text>
-          </View>
-        )}
-
-        {/* Preset Buttons Grid */}
-        <View style={styles.presetGrid}>
-          {DATE_PRESETS.map(preset => (
-            <TouchableOpacity
-              key={preset.id}
-              style={[
-                styles.presetButton,
-                selectedPreset === preset.id && styles.presetButtonActive,
-              ]}
-              onPress={() => handlePresetSelect(preset.id)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name={preset.icon}
-                size={20}
-                color={
-                  selectedPreset === preset.id
-                    ? tokens.colors.najdi.alJass
-                    : tokens.colors.text
-                }
-              />
-              <Text
-                style={[
-                  styles.presetButtonText,
-                  selectedPreset === preset.id && styles.presetButtonTextActive,
-                ]}
-              >
-                {preset.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Custom Range Toggle */}
-        <TouchableOpacity
-          style={styles.customRangeToggle}
-          onPress={toggleCustomRange}
-          activeOpacity={0.7}
+        <ScrollView
+          style={styles.modalContent}
+          contentContainerStyle={styles.modalContentContainer}
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.customRangeToggleText}>نطاق مخصص</Text>
-          <Ionicons
-            name={showCustomRange ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={tokens.colors.text}
-          />
-        </TouchableOpacity>
+          {/* Active Filter Display */}
+          {selectedPreset !== 'all' && (
+            <View style={styles.activeFilterDisplay}>
+              <Ionicons name="calendar" size={17} color={colors.crimson} />
+              <Text style={styles.activeFilterText}>النطاق: {getFilterLabel()}</Text>
+            </View>
+          )}
 
-        {/* Custom Range Section (Collapsible) */}
-        <Animated.View style={[styles.customRangeSection, { height: customRangeHeight }]}>
-          <View style={styles.customRangeContent}>
-            {/* From Date */}
-            <View style={styles.dateInputGroup}>
-              <Text style={styles.dateLabel}>من تاريخ</Text>
+          {/* Preset Buttons Grid */}
+          <View style={styles.presetGrid}>
+            {DATE_PRESETS.map(preset => (
               <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowFromPicker(true)}
-                activeOpacity={0.8}
+                key={preset.id}
+                style={[
+                  styles.presetButton,
+                  selectedPreset === preset.id && styles.presetButtonActive,
+                ]}
+                onPress={() => handlePresetSelect(preset.id)}
+                activeOpacity={0.7}
               >
-                <Ionicons name="calendar-outline" size={20} color={tokens.colors.textMuted} />
-                <Text style={[styles.dateInputText, !fromDate && styles.dateInputPlaceholder]}>
-                  {formatDateForDisplay(fromDate)}
+                <Ionicons
+                  name={preset.icon}
+                  size={20}
+                  color={
+                    selectedPreset === preset.id
+                      ? colors.alJass
+                      : colors.saduNight
+                  }
+                />
+                <Text
+                  style={[
+                    styles.presetButtonText,
+                    selectedPreset === preset.id && styles.presetButtonTextActive,
+                  ]}
+                >
+                  {preset.label}
                 </Text>
               </TouchableOpacity>
-            </View>
-
-            {/* To Date */}
-            <View style={styles.dateInputGroup}>
-              <Text style={styles.dateLabel}>إلى تاريخ</Text>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowToPicker(true)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="calendar-outline" size={20} color={tokens.colors.textMuted} />
-                <Text style={[styles.dateInputText, !toDate && styles.dateInputPlaceholder]}>
-                  {formatDateForDisplay(toDate)}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Apply Button */}
-            <TouchableOpacity
-              style={[
-                styles.applyButton,
-                (!fromDate || !toDate) && styles.applyButtonDisabled,
-              ]}
-              onPress={handleApplyCustomRange}
-              disabled={!fromDate || !toDate}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.applyButtonText}>تطبيق</Text>
-            </TouchableOpacity>
+            ))}
           </View>
-        </Animated.View>
+
+          {/* Custom Range Toggle */}
+          <TouchableOpacity
+            style={styles.customRangeToggle}
+            onPress={toggleCustomRange}
+            activeOpacity={0.7}
+          >
+            <View style={styles.customRangeToggleLeft}>
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={showCustomRange ? colors.crimson : colors.saduNight}
+              />
+              <Text style={[
+                styles.customRangeToggleText,
+                showCustomRange && styles.customRangeToggleTextActive
+              ]}>نطاق مخصص</Text>
+            </View>
+            <Ionicons
+              name={showCustomRange ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={showCustomRange ? colors.crimson : colors.saduNight}
+            />
+          </TouchableOpacity>
+
+          {/* Custom Range Section (Collapsible) */}
+          <Animated.View style={[styles.customRangeSection, { height: customRangeHeight }]}>
+            <View style={styles.customRangeContent}>
+              {/* From Date */}
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.dateLabel}>من تاريخ</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowFromPicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
+                  <Text style={[styles.dateInputText, !fromDate && styles.dateInputPlaceholder]}>
+                    {formatDateForDisplay(fromDate)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* To Date */}
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.dateLabel}>إلى تاريخ</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowToPicker(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="calendar-outline" size={20} color={colors.textMuted} />
+                  <Text style={[styles.dateInputText, !toDate && styles.dateInputPlaceholder]}>
+                    {formatDateForDisplay(toDate)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Apply Button */}
+              <TouchableOpacity
+                style={[
+                  styles.applyButton,
+                  (!fromDate || !toDate) && styles.applyButtonDisabled,
+                ]}
+                onPress={handleApplyCustomRange}
+                disabled={!fromDate || !toDate}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.applyButtonText,
+                  (!fromDate || !toDate) && styles.applyButtonTextDisabled
+                ]}>تطبيق</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </ScrollView>
 
         {/* iOS Date Pickers */}
         {showFromPicker && (
@@ -302,7 +333,7 @@ const DateRangePickerModal = ({
             <View style={styles.pickerModalOverlay}>
               <View style={styles.pickerContainer}>
                 <View style={styles.pickerHeader}>
-                  <TouchableOpacity onPress={() => setShowFromPicker(false)}>
+                  <TouchableOpacity onPress={() => setShowFromPicker(false)} style={styles.pickerDoneButton}>
                     <Text style={styles.pickerDone}>تم</Text>
                   </TouchableOpacity>
                 </View>
@@ -328,7 +359,7 @@ const DateRangePickerModal = ({
             <View style={styles.pickerModalOverlay}>
               <View style={styles.pickerContainer}>
                 <View style={styles.pickerHeader}>
-                  <TouchableOpacity onPress={() => setShowToPicker(false)}>
+                  <TouchableOpacity onPress={() => setShowToPicker(false)} style={styles.pickerDoneButton}>
                     <Text style={styles.pickerDone}>تم</Text>
                   </TouchableOpacity>
                 </View>
@@ -366,7 +397,7 @@ const styles = StyleSheet.create({
   // Modal Container
   modalContainer: {
     flex: 1,
-    backgroundColor: tokens.colors.najdi.alJass,
+    backgroundColor: colors.alJass,
   },
 
   // Header
@@ -378,7 +409,7 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.md,
     paddingBottom: tokens.spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.colors.najdi.camelHair + '40',
+    borderBottomColor: colors.camelHair + '40',
   },
   handleBar: {
     position: 'absolute',
@@ -388,11 +419,11 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: tokens.colors.textMuted + '40',
+    backgroundColor: colors.textMuted + '40',
   },
   modalTitle: {
     ...tokens.typography.title2,
-    color: tokens.colors.text,
+    color: colors.saduNight,
     flex: 1,
     textAlign: 'center',
   },
@@ -403,6 +434,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  // Modal Content
+  modalContent: {
+    flex: 1,
+  },
+  modalContentContainer: {
+    paddingBottom: tokens.spacing.xl,
+  },
+
   // Active Filter Display
   activeFilterDisplay: {
     flexDirection: 'row',
@@ -410,15 +449,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: tokens.spacing.xs,
     paddingVertical: tokens.spacing.sm,
-    backgroundColor: tokens.colors.najdi.crimson + '08',
+    backgroundColor: colors.crimson + '08',
     borderRadius: 10,
     marginHorizontal: tokens.spacing.md,
+    marginTop: tokens.spacing.md,
     marginBottom: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
   },
   activeFilterText: {
     ...tokens.typography.subheadline,
-    color: tokens.colors.najdi.crimson,
+    color: colors.crimson,
     fontWeight: '600',
   },
 
@@ -428,7 +468,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
   },
   presetButton: {
     flex: 1,
@@ -437,25 +477,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: tokens.spacing.xs,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.camelHair + '15',
     borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.camelHair + '60',
+    borderColor: colors.camelHair + '60',
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: tokens.spacing.md,
-    minHeight: 56,
+    minHeight: 52,
   },
   presetButtonActive: {
-    backgroundColor: tokens.colors.najdi.crimson,
-    borderColor: tokens.colors.najdi.crimson,
+    backgroundColor: colors.crimson,
+    borderColor: colors.crimson,
   },
   presetButtonText: {
     ...tokens.typography.body,
-    color: tokens.colors.text,
+    color: colors.saduNight,
     fontWeight: '600',
   },
   presetButtonTextActive: {
-    color: tokens.colors.najdi.alJass,
+    color: colors.alJass,
   },
 
   // Custom Range Toggle
@@ -465,21 +505,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.najdi.camelHair + '40',
+    marginHorizontal: tokens.spacing.md,
+    marginTop: tokens.spacing.sm,
+    backgroundColor: colors.camelHair + '20',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.camelHair + '40',
+    minHeight: 52,
+  },
+  customRangeToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
   },
   customRangeToggleText: {
-    fontSize: 17,
+    ...tokens.typography.body,
     fontWeight: '600',
-    color: tokens.colors.text,
+    color: colors.saduNight,
+  },
+  customRangeToggleTextActive: {
+    color: colors.crimson,
   },
 
   // Custom Range Section
   customRangeSection: {
     overflow: 'hidden',
+    marginHorizontal: tokens.spacing.md,
   },
   customRangeContent: {
-    paddingHorizontal: tokens.spacing.md,
     paddingTop: tokens.spacing.md,
   },
   dateInputGroup: {
@@ -487,29 +540,31 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     ...tokens.typography.footnote,
-    color: tokens.colors.textMuted,
-    marginBottom: 4,
+    color: colors.textMuted,
+    marginBottom: tokens.spacing.xxs,
+    paddingHorizontal: tokens.spacing.xxs,
   },
   dateInput: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.sm,
-    backgroundColor: tokens.colors.najdi.camelHair + '20',
+    backgroundColor: colors.camelHair + '20',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.camelHair + '40',
+    borderColor: colors.camelHair + '40',
     paddingHorizontal: tokens.spacing.md,
-    height: 48,
+    minHeight: 48,
   },
   dateInputText: {
     ...tokens.typography.body,
-    color: tokens.colors.text,
+    color: colors.saduNight,
+    flex: 1,
   },
   dateInputPlaceholder: {
-    color: tokens.colors.textMuted,
+    color: colors.textMuted,
   },
   applyButton: {
-    backgroundColor: tokens.colors.najdi.crimson,
+    backgroundColor: colors.crimson,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -518,12 +573,16 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.sm,
   },
   applyButtonDisabled: {
-    backgroundColor: tokens.colors.najdi.camelHair + '40',
+    backgroundColor: colors.camelHair + '40',
+    opacity: 0.5,
   },
   applyButtonText: {
-    fontSize: 17,
+    ...tokens.typography.body,
     fontWeight: '600',
-    color: tokens.colors.najdi.alJass,
+    color: colors.alJass,
+  },
+  applyButtonTextDisabled: {
+    color: colors.textMuted,
   },
 
   // iOS Date Picker
@@ -533,25 +592,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   pickerContainer: {
-    backgroundColor: tokens.colors.najdi.alJass,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    backgroundColor: colors.alJass,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: tokens.spacing.lg,
   },
   pickerHeader: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    padding: tokens.spacing.md,
+    alignItems: 'center',
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.colors.najdi.camelHair + '40',
+    borderBottomColor: colors.camelHair + '40',
+    minHeight: 56,
+  },
+  pickerDoneButton: {
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   pickerDone: {
-    fontSize: 17,
+    ...tokens.typography.body,
     fontWeight: '600',
-    color: tokens.colors.najdi.crimson,
-  },
-  iosDatePicker: {
-    backgroundColor: tokens.colors.najdi.alJass,
-    height: 200,
+    color: colors.crimson,
   },
 
   // Footer
@@ -559,8 +624,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.najdi.camelHair + '40',
-    backgroundColor: tokens.colors.najdi.alJass,
+    borderTopColor: colors.camelHair + '40',
+    backgroundColor: colors.alJass,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -568,12 +633,15 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 8,
       },
+      android: {
+        elevation: 4,
+      },
     }),
   },
   clearButton: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.crimson,
+    borderColor: colors.crimson,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
@@ -581,9 +649,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   clearButtonText: {
-    fontSize: 17,
+    ...tokens.typography.body,
     fontWeight: '600',
-    color: tokens.colors.najdi.crimson,
+    color: colors.crimson,
   },
 });
 

@@ -116,13 +116,7 @@ const ChildListCard = ({
         </View>
       );
     }
-    if (child.isEdited) {
-      return (
-        <View style={[styles.stateBadge, styles.stateBadgeEdited]}>
-          <Text style={styles.stateBadgeText}>معدل</Text>
-        </View>
-      );
-    }
+    // No badge for edited - too much visual clutter
     return null;
   };
 
@@ -317,6 +311,44 @@ const ChildListCard = ({
                     </Text>
                   </TouchableOpacity>
                 </View>
+
+                {/* Mother Selector (if mothers available) */}
+                {mothers.length > 0 && (
+                  <View style={styles.motherSelector}>
+                    <Text style={styles.motherLabel}>الأم:</Text>
+                    <View style={styles.motherButtons}>
+                      {mothers.map((mother) => (
+                        <TouchableOpacity
+                          key={mother.id}
+                          style={[
+                            styles.motherButton,
+                            localMotherId === mother.id && styles.motherButtonActive,
+                          ]}
+                          onPress={() => setLocalMotherId(mother.id)}
+                        >
+                          <Text
+                            style={[
+                              styles.motherButtonText,
+                              localMotherId === mother.id && styles.motherButtonTextActive,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {mother.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                      {/* Clear button */}
+                      {localMotherId && (
+                        <TouchableOpacity
+                          style={styles.motherClearButton}
+                          onPress={() => setLocalMotherId(null)}
+                        >
+                          <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
             ) : (
               // View Mode
@@ -536,6 +568,48 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: COLORS.text,
+  },
+  // Mother Selector
+  motherSelector: {
+    marginTop: 8,
+  },
+  motherLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  motherButtons: {
+    flexDirection: "row",
+    gap: 6,
+    flexWrap: "wrap",
+    alignItems: "center",
+  },
+  motherButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: COLORS.container + "20",
+    borderWidth: 1,
+    borderColor: COLORS.container + "40",
+  },
+  motherButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  motherButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  motherButtonTextActive: {
+    color: COLORS.background,
+  },
+  motherClearButton: {
+    width: 28,
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
   },
   stateBadge: {
     paddingHorizontal: 8,

@@ -57,6 +57,8 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
       if (!error && data) {
         setWives(data);
+        // Pass wives data to parent immediately after loading
+        onChange(value, data);
       } else {
         // Fallback: try direct query
         const { data: marriages } = await supabase
@@ -67,6 +69,8 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
         if (marriages) {
           setWives(marriages);
+          // Pass wives data to parent immediately after loading
+          onChange(value, marriages);
         }
       }
     } catch (err) {
@@ -113,7 +117,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
   const handleSelect = (wife) => {
     setSelectedMother(wife);
-    onChange(wife?.wife_id || null);
+    onChange(wife?.wife_id || null, wives); // Pass wives data as second param
     toggleDropdown();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
@@ -121,7 +125,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   const handleClear = (e) => {
     if (e) e.stopPropagation();
     setSelectedMother(null);
-    onChange(null);
+    onChange(null, wives); // Pass wives data even when clearing
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -130,15 +134,15 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
     return null;
   }
 
-  // If loading
+  // If loading - show disabled state with text (no spinner)
   if (loading) {
     return (
       <View style={styles.container}>
         <View style={styles.labelRow}>
           <Text style={styles.label}>{label || "الأم"}</Text>
         </View>
-        <View style={styles.selector}>
-          <ActivityIndicator size="small" color="#000" />
+        <View style={[styles.selector, styles.disabledSelector]}>
+          <Text style={styles.disabledText}>جاري التحميل...</Text>
         </View>
       </View>
     );

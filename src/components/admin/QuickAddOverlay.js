@@ -276,12 +276,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         );
       }
 
-      // 2. Update edited children
+      // 2. Update edited children (with sibling_order if reordered)
       for (const child of editedChildren) {
         const updates = {
           name: child.name,
           gender: child.gender,
-          sibling_order: child.sibling_order,
+          sibling_order: child.sibling_order, // Always include sibling_order
         };
 
         if (child.mother_id !== undefined) {
@@ -291,10 +291,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         promises.push(profilesService.updateProfile(child.id, child.version || 1, updates));
       }
 
-      // 3. Update sibling_order for ALL existing children if reordered
+      // 3. Update sibling_order for children that were ONLY reordered (not edited)
       if (hasReordered) {
         const existingChildren = allChildren.filter((c) => c.isExisting);
         for (const child of existingChildren) {
+          // Skip if already updated as edited child (avoid duplicate update)
+          if (editedChildren.find(ec => ec.id === child.id)) {
+            continue;
+          }
           promises.push(
             profilesService.updateProfile(child.id, child.version || 1, {
               sibling_order: child.sibling_order,

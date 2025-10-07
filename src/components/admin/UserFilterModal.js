@@ -2,6 +2,7 @@
  * UserFilterModal Component
  * Bottom sheet-style modal for filtering activities by actor
  * Features: Quick "my edits" toggle, searchable actor list, edit counts
+ * Design: Najdi Sadu design system with iOS-standard patterns
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -21,6 +22,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../services/supabase';
 import tokens from '../ui/tokens';
+
+// Najdi Sadu color shortcuts for consistency
+const colors = {
+  alJass: tokens.colors.najdi.background,
+  camelHair: tokens.colors.najdi.container,
+  saduNight: tokens.colors.najdi.text,
+  crimson: tokens.colors.najdi.primary,
+  ochre: tokens.colors.najdi.secondary,
+  textMuted: tokens.colors.najdi.textMuted,
+};
 
 const UserFilterModal = ({ visible, onClose, onSelectUser, selectedUser, currentUserId }) => {
   const [actors, setActors] = useState([]);
@@ -170,7 +181,7 @@ const UserFilterModal = ({ visible, onClose, onSelectUser, selectedUser, current
           <View style={styles.handleBar} />
           <Text style={styles.modalTitle}>تصفية حسب المستخدم</Text>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={tokens.colors.text} />
+            <Ionicons name="close" size={24} color={colors.saduNight} />
           </TouchableOpacity>
         </View>
 
@@ -291,7 +302,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...tokens.typography.title2,
-    color: tokens.colors.text,
+    color: tokens.colors.najdi.text,
     flex: 1,
     textAlign: 'center',
   },
@@ -336,7 +347,7 @@ const styles = StyleSheet.create({
   },
   toggleLabel: {
     ...tokens.typography.body,
-    color: tokens.colors.text,
+    color: colors.saduNight,
     fontWeight: '600',
   },
   toggleSwitch: {
@@ -388,7 +399,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     ...tokens.typography.body,
-    color: tokens.colors.text,
+    color: colors.saduNight,
   },
 
   // Actor List
@@ -430,7 +441,7 @@ const styles = StyleSheet.create({
   },
   actorName: {
     ...tokens.typography.title3,
-    color: tokens.colors.text,
+    color: colors.saduNight,
   },
   roleBadge: {
     alignSelf: 'flex-start',
@@ -471,7 +482,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...tokens.typography.body,
-    color: tokens.colors.textMuted,
+    color: colors.textMuted,
   },
 
   // Empty State
@@ -484,7 +495,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...tokens.typography.body,
-    color: tokens.colors.textMuted,
+    color: colors.textMuted,
   },
 
   // Footer
