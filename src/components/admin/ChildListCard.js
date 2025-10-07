@@ -32,6 +32,7 @@ const ChildListCard = ({
   const [localMotherId, setLocalMotherId] = useState(child.mother_id);
   const [showPositionPicker, setShowPositionPicker] = useState(false);
   const [isPickerOpening, setIsPickerOpening] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
 
   // Animation values for entrance only
   const fadeAnim = useRef(new Animated.Value(child.isNew ? 0 : 1)).current;
@@ -162,6 +163,20 @@ const ChildListCard = ({
     setIsEditing(false);
   };
 
+  const handleArrowPress = (direction) => {
+    if (isMoving) return; // Debounce guard
+    setIsMoving(true);
+
+    if (direction === 'up') {
+      onMoveUp(child.id);
+    } else {
+      onMoveDown(child.id);
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setTimeout(() => setIsMoving(false), 300);
+  };
+
   const handleDelete = () => {
     if (child.isNew) {
       // Delete immediately for new children
@@ -221,13 +236,10 @@ const ChildListCard = ({
             <TouchableOpacity
               style={[
                 styles.arrowButton,
-                index === 0 && styles.arrowButtonDisabled
+                (index === 0 || isMoving) && styles.arrowButtonDisabled
               ]}
-              onPress={() => {
-                onMoveUp(child.id);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              }}
-              disabled={index === 0}
+              onPress={() => handleArrowPress('up')}
+              disabled={index === 0 || isMoving}
             >
               <Ionicons
                 name="chevron-up"
@@ -260,13 +272,10 @@ const ChildListCard = ({
             <TouchableOpacity
               style={[
                 styles.arrowButton,
-                index === totalChildren - 1 && styles.arrowButtonDisabled
+                (index === totalChildren - 1 || isMoving) && styles.arrowButtonDisabled
               ]}
-              onPress={() => {
-                onMoveDown(child.id);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              }}
-              disabled={index === totalChildren - 1}
+              onPress={() => handleArrowPress('down')}
+              disabled={index === totalChildren - 1 || isMoving}
             >
               <Ionicons
                 name="chevron-down"
@@ -444,10 +453,10 @@ const styles = StyleSheet.create({
     borderLeftColor: COLORS.secondary,
   },
   cardEdited: {
-    borderColor: "#FF9500",
-    backgroundColor: "#FF950008",
+    borderColor: COLORS.accent, // Desert Ochre
+    backgroundColor: COLORS.accent + "08",
     borderLeftWidth: 4,
-    borderLeftColor: "#FF9500",
+    borderLeftColor: COLORS.accent,
   },
   reorderControls: {
     flexDirection: "column",

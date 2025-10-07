@@ -183,7 +183,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     });
 
     setHasReordered(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   }, []); // Empty deps - stable reference!
 
   // Batch move to specific position (for PositionPicker)
@@ -479,7 +479,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                       value={selectedMotherId}
                       onChange={(id, mothersData) => {
                         setSelectedMotherId(id);
-                        if (mothersData) setMothers(mothersData);
+                        if (mothersData) {
+                          setMothers(mothersData);
+                        } else if (id) {
+                          // Mother ID selected but data failed to load
+                          Alert.alert("تنبيه", "تعذر تحميل بيانات الأم");
+                        }
                       }}
                       label="الأم (اختياري)"
                     />
@@ -506,6 +511,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     renderItem={renderChild}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={true}
+                    initialNumToRender={10}
                   />
                 )}
               </View>
