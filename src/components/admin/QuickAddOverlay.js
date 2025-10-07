@@ -36,7 +36,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [averageCardHeight, setAverageCardHeight] = useState(80);
+  const [averageCardHeight, setAverageCardHeight] = useState(56);
   const inputRef = useRef(null);
   const cardHeights = useRef(new Map()).current;
   const { refreshProfile } = useStore();
