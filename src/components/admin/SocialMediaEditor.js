@@ -6,14 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
 
 const socialPlatforms = [
   {
     key: "twitter",
     label: "X (Twitter سابقاً)",
     icon: "x-twitter",
-    iconFamily: "FontAwesome5",
+    iconFamily: "FontAwesome6",
     placeholder: "https://x.com/username",
   },
   {
@@ -46,7 +46,9 @@ const socialPlatforms = [
   },
 ];
 
-const SocialMediaEditor = ({ links = {}, onChange }) => {
+const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
+  // Support both 'links' and 'values' prop names for backward compatibility
+  const socialLinks = links || values || {};
   // Helper to convert username to full URL if needed
   const formatSocialLink = (platform, value) => {
     if (!value || !value.trim()) return '';
@@ -89,7 +91,7 @@ const SocialMediaEditor = ({ links = {}, onChange }) => {
   };
 
   const handleLinkChange = (platform, value) => {
-    const newLinks = { ...links };
+    const newLinks = { ...socialLinks };
     if (value.trim()) {
       // Format the link properly before saving
       const formattedLink = formatSocialLink(platform, value);
@@ -111,7 +113,7 @@ const SocialMediaEditor = ({ links = {}, onChange }) => {
   return (
     <View style={styles.container}>
       {socialPlatforms.map((platform) => {
-        const IconComponent = platform.iconFamily === "FontAwesome5" ? FontAwesome5 : Ionicons;
+        const IconComponent = platform.iconFamily === "FontAwesome6" ? FontAwesome6 : Ionicons;
 
         return (
           <View key={platform.key} style={styles.platformRow}>
@@ -121,7 +123,7 @@ const SocialMediaEditor = ({ links = {}, onChange }) => {
             </View>
             <TextInput
               style={styles.platformInput}
-              value={getDisplayValue(links?.[platform.key])}
+              value={getDisplayValue(socialLinks?.[platform.key])}
               onChangeText={(value) => handleLinkChange(platform.key, value)}
               placeholder={platform.placeholder}
               autoCapitalize="none"
