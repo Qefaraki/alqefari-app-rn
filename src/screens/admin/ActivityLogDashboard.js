@@ -206,6 +206,14 @@ export default function ActivityLogDashboard({ onClose }) {
   const [datePreset, setDatePreset] = useState('all');
   const [customDateRange, setCustomDateRange] = useState({ from: null, to: null });
 
+  // Stats state (fetched from server)
+  const [stats, setStats] = useState({
+    total: 0,
+    today: 0,
+    critical: 0,
+    users: 0,
+  });
+
   const subscriptionRef = useRef(null);
   const flatListRef = useRef(null);
   const requestIdRef = useRef(0); // Track latest request to discard stale responses
@@ -314,6 +322,38 @@ export default function ActivityLogDashboard({ onClose }) {
     }
   }, [page, PAGE_SIZE, selectedUser, datePreset, customDateRange]);
 
+  // Fetch stats from server (O(1) memory vs O(n) client-side calculation)
+  const fetchStats = useCallback(async () => {
+    try {
+      // Build parameters for RPC function
+      const dateRange = datePreset === 'custom'
+        ? { start: customDateRange.from, end: customDateRange.to }
+        : datePreset !== 'all' ? getDateRangeForPreset(datePreset) : { start: null, end: null };
+
+      const { data, error } = await supabase.rpc('get_activity_stats', {
+        p_user_filter: selectedUser?.actor_id || null,
+        p_date_from: dateRange.start?.toISOString() || null,
+        p_date_to: dateRange.end?.toISOString() || null,
+        p_action_filter: null, // Not filtering by action type in stats
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const result = data[0];
+        setStats({
+          total: parseInt(result.total_count) || 0,
+          today: parseInt(result.today_count) || 0,
+          critical: parseInt(result.critical_count) || 0,
+          users: parseInt(result.users_count) || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      // Keep previous stats on error, don't show alert (non-critical)
+    }
+  }, [selectedUser, datePreset, customDateRange]);
+
   // Helper function to get date range from preset
   const getDateRangeForPreset = (preset) => {
     const now = new Date();
@@ -421,31 +461,12 @@ export default function ActivityLogDashboard({ onClose }) {
     };
   }, []); // Empty deps - run once on mount
 
-  // Refetch when filters change
+  // Refetch activities and stats when filters change
   useEffect(() => {
     setPage(0);
     fetchActivities(false);
-  }, [selectedUser, datePreset, customDateRange, fetchActivities]);
-
-  // Calculate stats (memoized for performance)
-  const stats = useMemo(() => {
-    const now = new Date();
-    const todayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-    );
-
-    return {
-      total: activities.length || 0,
-      today:
-        activities.filter((a) => new Date(a.created_at) >= todayStart).length ||
-        0,
-      critical:
-        activities.filter((a) => a.severity === "critical").length || 0,
-      pending: activities.filter((a) => a.status === "pending").length || 0,
-    };
-  }, [activities]);
+    fetchStats(); // Fetch stats from server
+  }, [selectedUser, datePreset, customDateRange, fetchActivities, fetchStats]);
 
   // Group activities by date (memoized for performance)
   const groupedActivities = useMemo(() => {

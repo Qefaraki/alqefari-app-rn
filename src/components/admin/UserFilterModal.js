@@ -4,7 +4,7 @@
  * Features: Quick "my edits" toggle, searchable actor list, edit counts
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -29,13 +29,7 @@ const UserFilterModal = ({ visible, onClose, onSelectUser, selectedUser, current
   const [showMyEditsOnly, setShowMyEditsOnly] = useState(false);
 
   // Fetch actors with activity counts
-  useEffect(() => {
-    if (visible) {
-      fetchActors();
-    }
-  }, [visible]);
-
-  const fetchActors = async () => {
+  const fetchActors = useCallback(async () => {
     setLoading(true);
     try {
       // Call server-side aggregation function (O(1) client memory vs O(n) before)
@@ -52,7 +46,13 @@ const UserFilterModal = ({ visible, onClose, onSelectUser, selectedUser, current
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // No dependencies - setLoading/setActors are stable, supabase is module-level
+
+  useEffect(() => {
+    if (visible) {
+      fetchActors();
+    }
+  }, [visible, fetchActors]); // Added fetchActors to deps (now memoized)
 
   // Filter actors by search query
   const filteredActors = useMemo(() => {
