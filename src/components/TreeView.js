@@ -92,10 +92,27 @@ const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
 const LINE_WIDTH = 2;
 const CORNER_RADIUS = 8;
 
-// Ancestry path color palette - smooth 10-color cycle
+// Helper function to convert hex color to rgba with opacity
+const hexToRgba = (hex, alpha) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+// Ancestry path color palette - high-contrast 10-color cycle
+// Spans warm to cool spectrum for clear generational distinction
 const ANCESTRY_COLORS = [
-  '#A13333', '#B54538', '#C9573D', '#D58C4A', '#CCA25E',
-  '#C3B872', '#D1BBA3', '#C4A592', '#B78F81', '#AA7970',
+  '#C73E3E', // Bright crimson
+  '#E38740', // Vivid orange
+  '#F5C555', // Warm gold
+  '#9FB885', // Sage green (cool contrast)
+  '#6A9AA6', // Teal (cool)
+  '#8E7AB8', // Purple (brand focus family)
+  '#D58C4A', // Desert ochre
+  '#C3B872', // Olive
+  '#AA7970', // Dusty rose
+  '#B78F81', // Taupe
 ];
 
 // LOD Constants
@@ -1509,22 +1526,14 @@ const TreeView = ({
     // Immediately hide any existing glow
     glowOpacity.value = 0;
 
-    // Elegant animation: delay for camera flight, then quick burst, gentle hold, smooth fade
+    // Fade in and hold (matches path behavior - stays visible until X clicked)
     glowOpacity.value = withDelay(
-      350,
-      withSequence(
-        withTiming(0.6, { duration: 280, easing: Easing.bezier(0.42, 0, 0.2, 1) }),
-        withTiming(0.5, { duration: 240, easing: Easing.linear }),
-        withTiming(0.55, { duration: 420, easing: Easing.inOut(Easing.ease) }),
-        withTiming(0.45, { duration: 500, easing: Easing.linear }),
-        withTiming(0, { duration: 700, easing: Easing.bezier(0.6, 0.05, 0.8, 0.2) }),
-      ),
+      350, // Match camera flight delay
+      withTiming(0.55, {
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+      })
     );
-
-    // Clear highlight after animation completes (including delay)
-    setTimeout(() => {
-      highlightedNodeId.value = null;
-    }, 2550);
 
     // Haptic feedback with impact
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1580,7 +1589,26 @@ const TreeView = ({
     return path;
   }, []);
 
-  // Clear ancestry path highlight
+  // Clear all highlights (glow + path) - called when X button clicked
+  const clearAllHighlights = useCallback(() => {
+    // Clear glow
+    glowOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+    highlightedNodeId.value = null;
+
+    // Clear path
+    pathOpacity.value = withTiming(0, {
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+    });
+    setTimeout(() => {
+      setHighlightedPathNodeIds(null);
+    }, 300);
+  }, [glowOpacity, pathOpacity, highlightedNodeId]);
+
+  // Clear ancestry path highlight (legacy - use clearAllHighlights instead)
   const clearPathHighlight = useCallback(() => {
     // Animate out
     pathOpacity.value = withTiming(0, {
@@ -1631,7 +1659,7 @@ const TreeView = ({
           // Animate path in (after camera settles + glow appears)
           pathOpacity.value = withDelay(
             600, // After camera flight completes
-            withTiming(0.85, {
+            withTiming(0.52, { // 20% reduction for even softer appearance
               duration: 400,
               easing: Easing.out(Easing.ease)
             })
@@ -2299,22 +2327,63 @@ const TreeView = ({
       return null;
     }
 
-    // Render each depth level with its own color and glow
-    return Array.from(segmentsByDepth.entries()).map(([depthDiff, pathObj]) => {
+    // Render each depth level with 4-layer glow system (matches search highlight)
+    return Array.from(segmentsByDepth.entries()).flatMap(([depthDiff, pathObj]) => {
       const colorIndex = depthDiff % ANCESTRY_COLORS.length;
+      const baseColor = ANCESTRY_COLORS[colorIndex];
 
-      return (
+      return [
+        // Layer 4: Outer glow - soft halo (largest blur)
+        <Group key={`path-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.18)}
+            style="stroke"
+            strokeWidth={8}
+            opacity={pathOpacity}
+          >
+            <CornerPathEffect r={4} />
+          </Path>
+        </Group>,
+
+        // Layer 3: Middle glow - medium blur
+        <Group key={`path-${depthDiff}-middle`} layer={<Paint><Blur blur={10} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.24)}
+            style="stroke"
+            strokeWidth={5.5}
+            opacity={pathOpacity}
+          >
+            <CornerPathEffect r={4} />
+          </Path>
+        </Group>,
+
+        // Layer 2: Inner accent - subtle blur
+        <Group key={`path-${depthDiff}-inner`} layer={<Paint><Blur blur={5} /></Paint>}>
+          <Path
+            path={pathObj}
+            color={hexToRgba(baseColor, 0.32)}
+            style="stroke"
+            strokeWidth={4}
+            opacity={pathOpacity}
+          >
+            <CornerPathEffect r={4} />
+          </Path>
+        </Group>,
+
+        // Layer 1: Core line - crisp and vibrant (no blur)
         <Path
-          key={`path-depth-${depthDiff}`}
+          key={`path-${depthDiff}-core`}
           path={pathObj}
-          color={ANCESTRY_COLORS[colorIndex]}
+          color={baseColor}
           style="stroke"
-          strokeWidth={3.5}
+          strokeWidth={3}
           opacity={pathOpacity}
         >
-          <Blur blur={4} />
+          <CornerPathEffect r={4} />
         </Path>
-      );
+      ];
     });
   }, [highlightedPathNodeIds, pathOpacity, nodes, connections]);
 
