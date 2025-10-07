@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   filterSection: {
     marginBottom: 12,
   },
-  filterScrollContent: {
+  filterContent: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     gap: 8,
