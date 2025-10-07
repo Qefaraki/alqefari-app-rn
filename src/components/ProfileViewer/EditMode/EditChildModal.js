@@ -70,7 +70,7 @@ const EditChildModal = ({ visible, child, father, spouses = [], onClose, onSaved
       };
 
       const { error } = await supabase.rpc('admin_update_profile', {
-        p_profile_id: child.id,
+        p_id: child.id,
         p_updates: updates,
       });
 

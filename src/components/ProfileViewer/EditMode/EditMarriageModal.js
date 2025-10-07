@@ -106,10 +106,10 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
         status,
       };
 
-      const { error } = await supabase
-        .from('marriages')
-        .update(updates)
-        .eq('id', marriage.marriage_id);
+      const { error } = await supabase.rpc('admin_update_marriage', {
+        p_marriage_id: marriage.marriage_id,
+        p_updates: updates,
+      });
 
       if (error) throw error;
 

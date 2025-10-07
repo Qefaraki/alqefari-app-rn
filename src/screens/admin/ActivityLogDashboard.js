@@ -187,7 +187,7 @@ const formatValue = (value) => {
 };
 
 // Smart Name Display Component - Shows historical + current names with navigation
-const SmartNameDisplay = ({
+const SmartNameDisplay = React.memo(({
   historicalName,
   currentName,
   profileId,
@@ -196,28 +196,43 @@ const SmartNameDisplay = ({
   historicalStyle,
   currentStyle
 }) => {
-  const namesAreDifferent = historicalName && currentName && historicalName !== currentName;
+  // Normalize empty strings to null for consistent comparisons
+  const normalizedHistorical = historicalName?.trim() || null;
+  const normalizedCurrent = currentName?.trim() || null;
 
-  const handlePress = () => {
+  const namesAreDifferent =
+    normalizedHistorical &&
+    normalizedCurrent &&
+    normalizedHistorical !== normalizedCurrent;
+
+  const handlePress = useCallback(() => {
     if (onNavigate && profileId) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onNavigate(profileId);
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onNavigate(profileId);
+      } catch (error) {
+        console.error('[SmartNameDisplay] Navigation error:', error);
+      }
     }
-  };
+  }, [onNavigate, profileId]);
 
-  if (!historicalName && !currentName) {
+  // Both names are null or empty
+  if (!normalizedHistorical && !normalizedCurrent) {
     return <Text style={style}>مستخدم</Text>;
   }
 
   // Same name or only one available - show simple clickable name
   if (!namesAreDifferent) {
-    const displayName = historicalName || currentName;
+    const displayName = normalizedHistorical || normalizedCurrent;
     return (
       <TouchableOpacity
         onPress={handlePress}
         disabled={!onNavigate || !profileId}
         activeOpacity={0.7}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+        accessibilityLabel={`الانتقال إلى ملف ${displayName}`}
+        accessibilityRole="button"
+        accessibilityHint="اضغط للانتقال إلى الملف الشخصي في الشجرة"
       >
         <Ionicons name="person-circle-outline" size={14} color="#D58C4A" />
         <Text style={[style, historicalStyle]}>
@@ -238,10 +253,12 @@ const SmartNameDisplay = ({
         disabled={!onNavigate || !profileId}
         activeOpacity={0.7}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+        accessibilityLabel={`الاسم السابق: ${normalizedHistorical}`}
+        accessibilityRole="button"
       >
         <Ionicons name="person-circle-outline" size={14} color="#73637280" />
         <Text style={[style, historicalStyle]}>
-          {historicalName}
+          {normalizedHistorical}
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
@@ -249,6 +266,9 @@ const SmartNameDisplay = ({
         disabled={!onNavigate || !profileId}
         activeOpacity={0.7}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 18 }}
+        accessibilityLabel={`الاسم الحالي: ${normalizedCurrent}. اضغط للانتقال إلى الملف`}
+        accessibilityRole="button"
+        accessibilityHint="اضغط للانتقال إلى الملف الشخصي في الشجرة"
       >
         <View style={{
           paddingHorizontal: 6,
@@ -259,7 +279,7 @@ const SmartNameDisplay = ({
           <Text style={{ fontSize: 10, color: '#D58C4A', fontWeight: '600' }}>الآن</Text>
         </View>
         <Text style={[style, currentStyle, { color: '#D58C4A' }]}>
-          {currentName}
+          {normalizedCurrent}
         </Text>
         {onNavigate && profileId && (
           <Ionicons name="chevron-back" size={12} color="#D58C4A" />
@@ -267,7 +287,7 @@ const SmartNameDisplay = ({
       </TouchableOpacity>
     </View>
   );
-};
+});
 
 export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
   const { userProfile } = useAuth();

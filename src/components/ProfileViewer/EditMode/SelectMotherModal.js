@@ -94,7 +94,7 @@ const SelectMotherModal = ({ visible, person, father, onClose, onSaved }) => {
       };
 
       const { error } = await supabase.rpc('admin_update_profile', {
-        p_profile_id: person.id,
+        p_id: person.id,
         p_updates: updates,
       });
 
