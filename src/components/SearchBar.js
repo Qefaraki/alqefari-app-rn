@@ -121,6 +121,9 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   );
 
   // Use animated reaction to watch profileSheetProgress and update opacity
+  // Note: profileSheetProgress (shared value) not in dependency array.
+  // Per Reanimated docs, dependencies only needed without Babel plugin.
+  // Worklet tracks .value changes internally.
   useAnimatedReaction(
     () => {
       "worklet";
@@ -147,7 +150,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       // Always call the update function, let it handle the check
       runOnJS(updateOpacity)(result.opacity, result.progress);
     },
-    [profileSheetProgress],
+    [],
   );
 
   // CRITICAL FIX: Reset opacity when no person is selected (sheet closed)

@@ -172,6 +172,9 @@ const ProfileSheet = ({ editMode = false }) => {
   const screenHeight = Dimensions.get("window").height;
 
   // Track sheet position and update global store for SearchBar to react
+  // Note: profileSheetProgress (shared value) not in dependency array.
+  // Per Reanimated docs, dependencies only needed without Babel plugin.
+  // Worklet tracks .value changes internally.
   useAnimatedReaction(
     () => animatedPosition.value,
     (currentPosition, previousPosition) => {
@@ -181,7 +184,7 @@ const ProfileSheet = ({ editMode = false }) => {
         profileSheetProgress.value = progress;
       }
     },
-    [profileSheetProgress, screenHeight],
+    [screenHeight],
   );
 
   // Calculate status bar height based on platform

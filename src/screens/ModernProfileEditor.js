@@ -55,8 +55,11 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   
   // Create local animated position for the sheet - will be provided by BottomSheet
   const animatedPosition = useSharedValue(0);
-  
+
   // Track sheet position and update global store for SearchBar to react
+  // Note: profileSheetProgress (shared value) not in dependency array.
+  // Per Reanimated docs, dependencies only needed without Babel plugin.
+  // Worklet tracks .value changes internally.
   useAnimatedReaction(
     () => animatedPosition.value,
     (currentPosition, previousPosition) => {
@@ -66,7 +69,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         profileSheetProgress.value = progress;
       }
     },
-    [profileSheetProgress, screenHeight],
+    [screenHeight],
   );
   
   // Form data state - EXACTLY matching ProfileSheet structure

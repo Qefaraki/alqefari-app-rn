@@ -63,8 +63,11 @@ const ModernProfileEditorV2 = ({ visible, profile, onClose, onSave }) => {
   // Get the global profileSheetProgress from store
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
   const animatedPosition = useSharedValue(0);
-  
+
   // Track sheet position
+  // Note: profileSheetProgress (shared value) not in dependency array.
+  // Per Reanimated docs, dependencies only needed without Babel plugin.
+  // Worklet tracks .value changes internally.
   useAnimatedReaction(
     () => animatedPosition.value,
     (currentPosition, previousPosition) => {
@@ -73,7 +76,7 @@ const ModernProfileEditorV2 = ({ visible, profile, onClose, onSave }) => {
         profileSheetProgress.value = progress;
       }
     },
-    [profileSheetProgress, screenHeight],
+    [screenHeight],
   );
   
   // Form data state

@@ -149,6 +149,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     loadMarriages();
   }, [person?.id]);
 
+  // Note: profileSheetProgress (shared value) not in dependency array.
+  // Per Reanimated docs, dependencies only needed without Babel plugin.
+  // Worklet tracks .value changes internally.
   useAnimatedReaction(
     () => animatedPosition.value,
     (current, previous) => {
@@ -159,7 +162,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         profileSheetProgress.value = progress;
       }
     },
-    [profileSheetProgress, screenHeight],
+    [screenHeight],
   );
 
   // Fade animation when switching between view and edit modes
