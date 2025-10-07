@@ -1160,7 +1160,15 @@ export default function ActivityLogDashboard({ onClose }) {
             <View style={styles.titleContent}>
               <Text style={styles.title}>السجل</Text>
             </View>
-            <View style={{ width: 44, height: 44 }} />
+            {onClose && (
+              <TouchableOpacity
+                onPress={onClose}
+                style={styles.backButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="chevron-back" size={28} color="#242121" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -1316,7 +1324,7 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 10 : 20, // Extra padding for iOS Dynamic Island
+    paddingTop: Platform.OS === "ios" ? 60 : 20, // Safe area for iOS notch/Dynamic Island
     paddingBottom: 8,
   },
   headerRow: {
@@ -1442,11 +1450,10 @@ const styles = StyleSheet.create({
     paddingRight: 12, // Add spacing before divider (note: RTL, so paddingRight is on the left)
   },
   filterDivider: {
-    width: 2,
-    height: 40,
-    backgroundColor: "#D1BBA3",
-    marginHorizontal: 12,
-    borderRadius: 1,
+    width: StyleSheet.hairlineWidth,
+    height: 32,
+    backgroundColor: "#D1BBA340",
+    marginHorizontal: 8,
   },
   filterButton: {
     flexDirection: "row",

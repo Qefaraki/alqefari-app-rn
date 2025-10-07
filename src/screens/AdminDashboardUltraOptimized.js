@@ -259,17 +259,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   };
 
   // Handle other actions
-  const handleAutoFix = async () => {
-    try {
-      const { data } = await supabase.rpc("admin_auto_fix_issues");
-      if (data) {
-        Alert.alert("نجح", "تم إصلاح المشاكل بنجاح");
-        handleRefresh();
-      }
-    } catch (error) {
-      Alert.alert("خطأ", "فشل إصلاح المشاكل");
-    }
-  };
 
   const handleExportDatabase = async () => {
     try {
@@ -322,29 +311,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     }
   };
 
-  const handleRecalculateLayouts = () => {
-    Alert.alert(
-      "إعادة حساب التخطيط",
-      "سيتم إعادة حساب جميع مواضع العقد في الشجرة.",
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "متابعة",
-          onPress: async () => {
-            try {
-              const { error } = await supabase.rpc(
-                "queue_all_layouts_recalculation",
-              );
-              if (error) throw error;
-              Alert.alert("نجح", "تم إضافة المهمة إلى قائمة الانتظار");
-            } catch (error) {
-              Alert.alert("خطأ", "فشلت إعادة الحساب");
-            }
-          },
-        },
-      ],
-    );
-  };
 
   // Create refs at component level for modals
   const modalTranslateX = useRef(new Animated.Value(0)).current;
@@ -662,32 +628,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
                 <View style={styles.listItemContent}>
                   <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>السجل</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
-
-              <View style={styles.separator} />
-
-              <AnimatedTouchable
-                style={styles.listItem}
-                onPress={handleAutoFix}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="construct-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>إصلاح تلقائي</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
-
-              <View style={styles.separator} />
-
-              <AnimatedTouchable
-                style={styles.listItem}
-                onPress={handleRecalculateLayouts}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="refresh-outline" size={22} color="#242121" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>إعادة حساب</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>
