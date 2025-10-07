@@ -174,11 +174,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       const [movedChild] = newChildren.splice(currentIndex, 1);
       newChildren.splice(targetIndex, 0, movedChild);
 
-      // Update sibling_order and mark as edited
+      // Update sibling_order and mark ONLY moved child as edited
       return newChildren.map((child, index) => ({
         ...child,
         sibling_order: index,
-        isEdited: child.isExisting ? true : child.isEdited,
+        isEdited: (child.id === childId && child.isExisting) ? true : child.isEdited,
       }));
     });
 
@@ -202,11 +202,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       const [movedChild] = newChildren.splice(currentIndex, 1);
       newChildren.splice(targetIndex, 0, movedChild);
 
-      // Update sibling_order and mark as edited
+      // Update sibling_order and mark ONLY moved child as edited
       return newChildren.map((child, index) => ({
         ...child,
         sibling_order: index,
-        isEdited: child.isExisting ? true : child.isEdited,
+        isEdited: (child.id === childId && child.isExisting) ? true : child.isEdited,
       }));
     });
 

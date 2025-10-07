@@ -480,7 +480,7 @@ const ProfileSheet = ({ editMode = false }) => {
         .from("profiles")
         .select(
           `
-          id, name, gender, hid, birth_date, death_date, 
+          id, name, gender, hid, birth_date, death_date,
           status, sibling_order, dob_data, dod_data, father_id, mother_id,
           mother:profiles!mother_id(id, name)
         `,
@@ -497,13 +497,6 @@ const ProfileSheet = ({ editMode = false }) => {
       setLoadingRelationshipChildren(false);
     }
   };
-
-  // Check permissions when person changes
-  useEffect(() => {
-    if (person?.id) {
-      checkPermission();
-    }
-  }, [person?.id]);
 
   // Initialize edit data when entering edit mode
   useEffect(() => {
@@ -1122,7 +1115,7 @@ const ProfileSheet = ({ editMode = false }) => {
                     </View>
                     <View style={styles.nameActionsRow}>
                       {/* Permission indicator */}
-                      {permissionLevel === 'full' && !isAdminMode && (
+                      {(permissionLevel === 'inner' || permissionLevel === 'admin' || permissionLevel === 'moderator') && !isAdminMode && (
                         <View style={{
                           paddingHorizontal: 8,
                           paddingVertical: 4,
@@ -1138,7 +1131,7 @@ const ProfileSheet = ({ editMode = false }) => {
                           </Text>
                         </View>
                       )}
-                      {permissionLevel === 'suggest' && !isAdminMode && (
+                      {(permissionLevel === 'family' || permissionLevel === 'extended') && !isAdminMode && (
                         <View style={{
                           paddingHorizontal: 8,
                           paddingVertical: 4,

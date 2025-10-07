@@ -205,7 +205,14 @@ export default function ActivityLogDashboard({ onClose }) {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [datePreset, setDatePreset] = useState('all');
-  const [customDateRange, setCustomDateRange] = useState({ from: null, to: null });
+  const [customDateFrom, setCustomDateFrom] = useState(null);
+  const [customDateTo, setCustomDateTo] = useState(null);
+
+  // Memoize customDateRange object to prevent infinite loops
+  const customDateRange = useMemo(() => ({
+    from: customDateFrom,
+    to: customDateTo
+  }), [customDateFrom, customDateTo]);
 
   // Stats state (fetched from server)
   const [stats, setStats] = useState({
@@ -654,7 +661,8 @@ export default function ActivityLogDashboard({ onClose }) {
     setActiveFilter('all');
     setSelectedUser(null);
     setDatePreset('all');
-    setCustomDateRange({ from: null, to: null });
+    setCustomDateFrom(null);
+    setCustomDateTo(null);
     setSearchText('');
   }, []);
 
@@ -821,7 +829,8 @@ export default function ActivityLogDashboard({ onClose }) {
             </Text>
             <TouchableOpacity onPress={() => {
               setDatePreset('all');
-              setCustomDateRange({ from: null, to: null });
+              setCustomDateFrom(null);
+              setCustomDateTo(null);
               setPage(0);
             }}>
               <Ionicons name="close-circle" size={16} color={tokens.colors.najdi.alJass} />
@@ -1273,7 +1282,8 @@ export default function ActivityLogDashboard({ onClose }) {
         onApplyFilter={(preset, range) => {
           setDatePreset(preset);
           if (preset === 'custom') {
-            setCustomDateRange(range);
+            setCustomDateFrom(range.from);
+            setCustomDateTo(range.to);
           }
           setPage(0);
         }}
