@@ -40,9 +40,9 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
           </Text>
         </View>
 
-        {/* ARROW (pointing LEFT in RTL) */}
+        {/* ARROW (pointing RIGHT in RTL for natural reading flow) */}
         <Ionicons
-          name="arrow-back"
+          name="arrow-forward"
           size={20}
           color={tokens.colors.textMuted}
           style={styles.arrowIcon}
@@ -59,7 +59,7 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
     );
   }
 
-  // Collapsed view: inline diff (NEW ← OLD)
+  // Collapsed view: inline diff (reads right-to-left in RTL: OLD → NEW)
   return (
     <View style={styles.inlineDiff}>
       {/* Change type icon */}
@@ -75,9 +75,9 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
         {newStr}
       </Text>
 
-      {/* ARROW (pointing right in RTL = back) */}
+      {/* ARROW (pointing right in RTL for natural reading flow) */}
       <Ionicons
-        name="arrow-back"
+        name="arrow-forward"
         size={14}
         color={tokens.colors.textMuted}
       />

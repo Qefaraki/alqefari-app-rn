@@ -339,7 +339,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         onDelete={handleDeleteChild}
         onReorder={handleReorder}
         mothers={mothers}
-        cardHeight={averageCardHeight}
+        cardHeight={averageCardHeight + SEPARATOR_HEIGHT}
         onHeightMeasured={(height) => {
           cardHeights.set(item.id, height);
           updateAverageHeight();
@@ -358,6 +358,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       handleDeleteChild,
       handleReorder,
     ]
+  );
+
+  // Separator component for gaps between cards
+  const renderSeparator = useCallback(
+    () => <View style={{ height: SEPARATOR_HEIGHT }} />,
+    []
   );
 
   if (!visible) return null;
@@ -488,6 +494,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     data={allChildren}
                     keyExtractor={(item) => item.id}
                     renderItem={renderChild}
+                    ItemSeparatorComponent={renderSeparator}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
@@ -497,8 +504,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     initialNumToRender={10}
                     scrollEnabled={!isDragging}
                     getItemLayout={(data, index) => ({
-                      length: averageCardHeight,
-                      offset: averageCardHeight * index,
+                      length: averageCardHeight + SEPARATOR_HEIGHT,
+                      offset: (averageCardHeight + SEPARATOR_HEIGHT) * index,
                       index,
                     })}
                   />
