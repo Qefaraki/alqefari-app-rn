@@ -48,7 +48,7 @@ BEGIN
   INSERT INTO audit_log_enhanced (
     table_name,
     record_id,
-    action,
+    action_type,
     actor_id,
     old_data,
     new_data,

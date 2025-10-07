@@ -88,9 +88,17 @@ const Hero = ({
       <View style={styles.body}>
         <View style={styles.nameRow}>
           <View style={styles.nameAndStatus}>
-            <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>
-              {formatNameWithTitle(person)}
-            </Text>
+            <View style={styles.nameWithKunyaRow}>
+              <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>
+                {formatNameWithTitle(person)}
+              </Text>
+              {person.kunya && (
+                <>
+                  <Text style={styles.kunyaBullet}>•</Text>
+                  <Text style={styles.kunyaText}>{person.kunya}</Text>
+                </>
+              )}
+            </View>
             {person?.status === 'deceased' ? (
               <Text style={styles.deceasedTag} adjustsFontSizeToFit numberOfLines={1}>
                 الله يرحمه
@@ -190,6 +198,23 @@ const styles = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap',
     flex: 1,
+  },
+  nameWithKunyaRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  kunyaBullet: {
+    fontSize: 17,
+    color: '#736372',
+    marginHorizontal: 4,
+  },
+  kunyaText: {
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#736372',
+    fontStyle: 'italic',
   },
   actionsInline: {
     // Aligned with name row baseline

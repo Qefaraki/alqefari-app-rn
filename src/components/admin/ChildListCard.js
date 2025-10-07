@@ -23,7 +23,6 @@ import * as Haptics from "expo-haptics";
 import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
-const CARD_HEIGHT = 80;
 
 const ChildListCard = ({
   child,
@@ -33,6 +32,10 @@ const ChildListCard = ({
   onDelete,
   onReorder,
   mothers = [],
+  cardHeight = 80, // Dynamic height passed from parent
+  onHeightMeasured,
+  onDragStart,
+  onDragEnd,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localName, setLocalName] = useState(child.name);
@@ -44,6 +47,7 @@ const ChildListCard = ({
   const scale = useSharedValue(1);
   const zIndex = useSharedValue(0);
   const shadowOpacity = useSharedValue(0.04);
+  const rotation = useSharedValue(0);
 
   // Animation values for entrance
   const fadeAnim = useRef(new Animated.Value(child.isNew ? 0 : 1)).current;
@@ -80,12 +84,16 @@ const ChildListCard = ({
 
   // Drag gesture for reordering (vertical)
   const panGesture = Gesture.Pan()
-    .activateAfterLongPress(300)
+    .activateAfterLongPress(500) // Longer delay to prevent accidental drags
     .onStart(() => {
       "worklet";
-      scale.value = withSpring(1.05);
-      shadowOpacity.value = withSpring(0.12);
+      scale.value = withSpring(1.08);
+      shadowOpacity.value = withSpring(0.2);
       zIndex.value = 1000;
+      rotation.value = withSpring(2); // Slight rotation for natural feel
+      if (onDragStart) {
+        runOnJS(onDragStart)();
+      }
       runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
     })
     .onUpdate((e) => {
@@ -94,7 +102,8 @@ const ChildListCard = ({
     })
     .onEnd((e) => {
       "worklet";
-      const movement = Math.round(e.translationY / CARD_HEIGHT);
+      // Use dynamic cardHeight for accurate calculation
+      const movement = Math.round(e.translationY / cardHeight);
       const newIndex = Math.max(
         0,
         Math.min(totalChildren - 1, index + movement)
@@ -104,6 +113,11 @@ const ChildListCard = ({
       scale.value = withSpring(1);
       shadowOpacity.value = withSpring(0.04);
       zIndex.value = 0;
+      rotation.value = withSpring(0);
+
+      if (onDragEnd) {
+        runOnJS(onDragEnd)();
+      }
 
       if (newIndex !== index) {
         runOnJS(onReorder)(child.id, index, newIndex);
@@ -117,6 +131,7 @@ const ChildListCard = ({
     transform: [
       { translateY: translateY.value },
       { scale: scale.value },
+      { rotate: `${rotation.value}deg` },
     ],
     zIndex: zIndex.value,
     shadowOpacity: shadowOpacity.value,
@@ -199,6 +214,13 @@ const ChildListCard = ({
 
   const motherName = getMotherName();
 
+  const handleLayout = (e) => {
+    const { height } = e.nativeEvent.layout;
+    if (onHeightMeasured) {
+      onHeightMeasured(height);
+    }
+  };
+
   return (
     <GestureDetector gesture={panGesture}>
       <ReAnimated.View style={[styles.cardContainer, animatedStyle]}>
@@ -211,6 +233,7 @@ const ChildListCard = ({
               transform: [{ translateY: slideAnim }],
             },
           ]}
+          onLayout={handleLayout}
         >
           {/* Drag Handle */}
           <View style={styles.dragHandle}>
@@ -354,18 +377,18 @@ const ChildListCard = ({
 const styles = StyleSheet.create({
   cardContainer: {
     marginHorizontal: tokens.spacing.md, // 16px
-    marginVertical: tokens.spacing.xxs, // 4px
+    marginVertical: 2, // Minimal gap for compact layout
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
-    paddingVertical: tokens.spacing.sm, // 12px
+    paddingVertical: tokens.spacing.xxs, // 4px (was 12px - much tighter)
     paddingHorizontal: tokens.spacing.sm, // 12px
     borderRadius: tokens.radii.md, // 12px
     borderWidth: 1,
     borderColor: COLORS.container + "30",
-    minHeight: CARD_HEIGHT,
+    // No fixed minHeight - let content determine height
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
@@ -418,7 +441,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: COLORS.text,
-    marginBottom: tokens.spacing.xxs, // 4px
+    marginBottom: 2, // Minimal gap (was 4px)
   },
   metadata: {
     flexDirection: "row",

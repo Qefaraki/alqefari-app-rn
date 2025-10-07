@@ -35,7 +35,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
   const [showMotherSelector, setShowMotherSelector] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [averageCardHeight, setAverageCardHeight] = useState(80);
   const inputRef = useRef(null);
+  const cardHeights = useRef(new Map()).current;
   const { refreshProfile } = useStore();
   const insets = useSafeAreaInsets();
 
@@ -328,6 +331,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     return "حفظ";
   };
 
+  // Calculate average height when card heights change
+  const updateAverageHeight = useCallback(() => {
+    const heights = Array.from(cardHeights.values());
+    if (heights.length > 0) {
+      const avg = heights.reduce((sum, h) => sum + h, 0) / heights.length;
+      setAverageCardHeight(Math.round(avg));
+    }
+  }, [cardHeights]);
+
   // Memoized render function for FlatList performance
   const renderChild = useCallback(
     ({ item, index }) => (
@@ -339,9 +351,25 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         onDelete={handleDeleteChild}
         onReorder={handleReorder}
         mothers={mothers}
+        cardHeight={averageCardHeight}
+        onHeightMeasured={(height) => {
+          cardHeights.set(item.id, height);
+          updateAverageHeight();
+        }}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={() => setIsDragging(false)}
       />
     ),
-    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleReorder]
+    [
+      allChildren.length,
+      mothers,
+      averageCardHeight,
+      cardHeights,
+      updateAverageHeight,
+      handleUpdateChild,
+      handleDeleteChild,
+      handleReorder,
+    ]
   );
 
   if (!visible) return null;
@@ -513,6 +541,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     maxToRenderPerBatch={10}
                     windowSize={10}
                     initialNumToRender={10}
+                    scrollEnabled={!isDragging}
+                    getItemLayout={(data, index) => ({
+                      length: averageCardHeight,
+                      offset: averageCardHeight * index,
+                      index,
+                    })}
                   />
                 )}
               </View>
@@ -719,7 +753,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   listContent: {
-    paddingVertical: tokens.spacing.sm, // 12px
+    paddingVertical: tokens.spacing.xs, // 8px (was 12px - tighter)
   },
   bottomActions: {
     flexDirection: "row",
