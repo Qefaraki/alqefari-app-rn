@@ -147,16 +147,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   // Reset loading states when bottom sheet opens (snap index changes)
   useEffect(() => {
     if (currentSnapIndex >= 0 && person?.id) {
-      // Small delay to let bottom sheet animate in smoothly
-      const timer = setTimeout(() => {
-        setLoadingStates({
-          marriages: true,
-          permissions: true,
-        });
-        setSkeletonStartTime(Date.now());
-      }, 50); // 50ms delay for smooth animation
-
-      return () => clearTimeout(timer);
+      setLoadingStates({
+        marriages: true,
+        permissions: true,
+      });
+      setSkeletonStartTime(Date.now());
     }
   }, [currentSnapIndex, person?.id]);
 

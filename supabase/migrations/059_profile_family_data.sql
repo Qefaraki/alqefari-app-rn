@@ -12,16 +12,16 @@ AS $$
 DECLARE
     v_result JSONB;
     v_profile profiles%ROWTYPE;
+    v_permission TEXT;
+    v_current_user_profile_id UUID;
 BEGIN
-    -- Permission check: Can view profile (either admin or family member)
-    IF NOT (
-        is_admin() OR
-        EXISTS (
-            SELECT 1 FROM profiles
-            WHERE user_id = auth.uid()
-        )
-    ) THEN
-        RAISE EXCEPTION 'Unauthorized: Must be authenticated';
+    -- Get current user's profile ID
+    SELECT id INTO v_current_user_profile_id
+    FROM profiles
+    WHERE user_id = auth.uid();
+
+    IF v_current_user_profile_id IS NULL THEN
+        RAISE EXCEPTION 'Unauthorized: Must be authenticated with valid profile';
     END IF;
 
     -- Get main profile
@@ -29,6 +29,15 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Profile not found: %', p_profile_id;
+    END IF;
+
+    -- Permission check using family permission system v4.2
+    -- Allows: admin, moderator, or family members (inner/family/extended)
+    SELECT check_family_permission_v4(v_current_user_profile_id, p_profile_id)
+    INTO v_permission;
+
+    IF v_permission NOT IN ('admin', 'moderator', 'inner', 'family', 'extended') THEN
+        RAISE EXCEPTION 'Unauthorized: Insufficient permissions to view profile %', p_profile_id;
     END IF;
 
     -- Build comprehensive result with all family relationships
@@ -56,19 +65,20 @@ BEGIN
             SELECT COALESCE(json_agg(spouse_data), '[]'::json)
             FROM (
                 SELECT
-                    -- Marriage record
+                    -- Marriage record metadata
                     mar.id as marriage_id,
                     mar.husband_id,
                     mar.wife_id,
                     mar.start_date as marriage_date,
                     mar.status,
-                    mar.munasib,
+                    mar.munasib,  -- TRUE if spouse is from outside Al Qefari family (hid IS NULL)
+                    -- Count children from this specific marriage (both parents must match)
                     (
                         SELECT COUNT(*)
                         FROM profiles p
                         WHERE p.father_id = mar.husband_id
                           AND p.mother_id = mar.wife_id
-                          AND p.deleted_at IS NULL
+                          AND p.deleted_at IS NULL  -- Exclude soft-deleted profiles
                     ) as children_count,
                     mar.created_at as marriage_created_at,
                     -- Spouse profile (the other person in the marriage)

@@ -86,13 +86,14 @@ CREATE TABLE IF NOT EXISTS marriages (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     deleted_at TIMESTAMPTZ,
-    created_by UUID REFERENCES auth.users(id),
-    updated_by UUID REFERENCES auth.users(id)
+    created_by UUID REFERENCES profiles(id),
+    updated_by UUID REFERENCES profiles(id)
 );
 
 -- Marriages Indexes
 CREATE INDEX idx_marriages_husband_id ON marriages(husband_id);
 CREATE INDEX idx_marriages_wife_id ON marriages(wife_id);
+CREATE INDEX idx_marriages_deleted_at ON marriages(deleted_at) WHERE deleted_at IS NULL;
 
 -- Enable RLS
 ALTER TABLE marriages ENABLE ROW LEVEL SECURITY;

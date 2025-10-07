@@ -62,18 +62,23 @@ const TabFamily = ({ person, onDataChanged }) => {
         p_profile_id: person.id,
       });
 
-      console.log('🔍 Family Tab RPC Response:', {
-        hasData: !!data,
-        hasError: !!error,
-        profileId: person.id,
-        spousesCount: data?.spouses?.length || 0,
-        childrenCount: data?.children?.length || 0,
-        hasFather: !!data?.father,
-        hasMother: !!data?.mother,
-      });
+      // Debug logging only in development
+      if (__DEV__) {
+        console.log('🔍 Family Tab RPC Response:', {
+          hasData: !!data,
+          hasError: !!error,
+          profileId: person.id,
+          spousesCount: data?.spouses?.length || 0,
+          childrenCount: data?.children?.length || 0,
+          hasFather: !!data?.father,
+          hasMother: !!data?.mother,
+        });
+      }
 
       if (error) {
-        console.error('❌ Failed to load family data:', error);
+        if (__DEV__) {
+          console.error('❌ Failed to load family data:', error);
+        }
         Alert.alert('خطأ', `فشل تحميل بيانات العائلة: ${error.message || error.code}`);
         setFamilyData(null);
         return;
@@ -81,7 +86,9 @@ const TabFamily = ({ person, onDataChanged }) => {
 
       // Check for SQL errors embedded in response
       if (data?.error) {
-        console.error('❌ SQL error in RPC result:', data.error);
+        if (__DEV__) {
+          console.error('❌ SQL error in RPC result:', data.error);
+        }
         Alert.alert('خطأ في قاعدة البيانات', data.error);
         setFamilyData(null);
         return;
@@ -89,7 +96,9 @@ const TabFamily = ({ person, onDataChanged }) => {
 
       setFamilyData(data);
     } catch (err) {
-      console.error('Error loading family data:', err);
+      if (__DEV__) {
+        console.error('Error loading family data:', err);
+      }
       Alert.alert('خطأ', `حدث خطأ أثناء تحميل البيانات: ${err.message}`);
       setFamilyData(null);
     } finally {
@@ -161,7 +170,9 @@ const TabFamily = ({ person, onDataChanged }) => {
               onDataChanged();
             }
           } catch (error) {
-            console.error('Error deleting marriage:', error);
+            if (__DEV__) {
+              console.error('Error deleting marriage:', error);
+            }
             Alert.alert('خطأ', 'فشل حذف الزواج');
           }
         },
@@ -214,52 +225,72 @@ const TabFamily = ({ person, onDataChanged }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons
-            name="people-outline"
-            size={20}
+            name="person-outline"
+            size={22}
             color={tokens.colors.najdi.crimson}
           />
           <Text style={styles.sectionTitle}>الوالدين</Text>
         </View>
 
-        {father ? (
-          <View style={styles.parentCard}>
-            <View style={styles.parentInfo}>
-              <Text style={styles.parentLabel}>الأب</Text>
-              <Text style={styles.parentName}>{father.name}</Text>
-              {father.hid && (
-                <Text style={styles.parentHid}>{father.hid}</Text>
-              )}
+        <View style={styles.formGroupContent}>
+          {father ? (
+            <View style={styles.parentCard}>
+              <View style={styles.parentIconContainer}>
+                <Ionicons
+                  name="man-outline"
+                  size={20}
+                  color={tokens.colors.najdi.secondary}
+                />
+              </View>
+              <View style={styles.parentInfo}>
+                <Text style={styles.parentLabel}>الأب</Text>
+                <Text style={styles.parentName}>{father.name}</Text>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>لا يوجد أب محدد</Text>
-          </View>
-        )}
+          ) : (
+            <View style={styles.emptyParentCard}>
+              <Ionicons
+                name="person-add-outline"
+                size={20}
+                color={tokens.colors.najdi.textMuted}
+              />
+              <Text style={styles.emptyText}>لا يوجد أب محدد</Text>
+            </View>
+          )}
 
-        {mother ? (
-          <View style={styles.parentCard}>
-            <View style={styles.parentInfo}>
-              <Text style={styles.parentLabel}>الأم</Text>
-              <Text style={styles.parentName}>{mother.name}</Text>
-              {mother.hid && (
-                <Text style={styles.parentHid}>{mother.hid}</Text>
-              )}
+          {mother ? (
+            <View style={styles.parentCard}>
+              <View style={styles.parentIconContainer}>
+                <Ionicons
+                  name="woman-outline"
+                  size={20}
+                  color={tokens.colors.najdi.secondary}
+                />
+              </View>
+              <View style={styles.parentInfo}>
+                <Text style={styles.parentLabel}>الأم</Text>
+                <Text style={styles.parentName}>{mother.name}</Text>
+              </View>
             </View>
-          </View>
-        ) : (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>لا يوجد أم محددة</Text>
-          </View>
-        )}
+          ) : (
+            <View style={styles.emptyParentCard}>
+              <Ionicons
+                name="person-add-outline"
+                size={20}
+                color={tokens.colors.najdi.textMuted}
+              />
+              <Text style={styles.emptyText}>لا يوجد أم محددة</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Spouses Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons
-            name="heart-outline"
-            size={20}
+            name="people-outline"
+            size={22}
             color={tokens.colors.najdi.crimson}
           />
           <Text style={styles.sectionTitle}>
@@ -324,8 +355,8 @@ const TabFamily = ({ person, onDataChanged }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Ionicons
-            name="people-circle-outline"
-            size={20}
+            name="heart-outline"
+            size={22}
             color={tokens.colors.najdi.crimson}
           />
           <Text style={styles.sectionTitle}>الأبناء</Text>
@@ -335,19 +366,22 @@ const TabFamily = ({ person, onDataChanged }) => {
         </View>
 
         {children.length > 0 ? (
-          <>
+          <View style={styles.formGroupContent}>
             {children.map((child) => (
               <ChildCard key={child.id} child={child} />
             ))}
-          </>
+          </View>
         ) : (
           <View style={styles.emptyCard}>
             <Ionicons
               name="person-add-outline"
-              size={32}
-              color={tokens.colors.najdi.textMuted}
+              size={28}
+              color={tokens.colors.najdi.secondary}
             />
-            <Text style={styles.emptyText}>لا يوجد أبناء</Text>
+            <Text style={styles.emptyText}>لا يوجد أبناء مسجلين</Text>
+            <Text style={styles.emptyHint}>
+              انقر على "إضافة ابن/ابنة" أدناه
+            </Text>
           </View>
         )}
 
@@ -407,41 +441,53 @@ const SpouseCard = ({ spouseData, personGender, onDelete, inactive = false }) =>
   const spouse = spouseData.spouse_profile;
   if (!spouse) return null;
 
+  const isMunasib = !spouse.hid;
+
   return (
-    <View style={[styles.card, inactive && styles.inactiveCard]}>
+    <View style={[styles.spouseCard, inactive && styles.inactiveCard]}>
       <View style={styles.cardContent}>
+        <View style={styles.spouseIconContainer}>
+          <Ionicons
+            name={isMunasib ? 'people' : 'person'}
+            size={20}
+            color={isMunasib ? tokens.colors.najdi.secondary : tokens.colors.najdi.primary}
+          />
+        </View>
         <View style={styles.cardInfo}>
-          <Text style={styles.cardName}>{spouse.name}</Text>
-          {spouse.hid && (
-            <Text style={styles.cardHid}>HID: {spouse.hid}</Text>
-          )}
-          {!spouse.hid && (
-            <View style={styles.munasibBadge}>
-              <Text style={styles.munasibText}>منسب</Text>
-            </View>
-          )}
-          {spouseData.status && spouseData.status !== 'married' && (
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>
-                {spouseData.status === 'divorced' ? 'مطلق' : 'متوفى'}
+          <View style={styles.spouseNameRow}>
+            <Text style={styles.cardName}>{spouse.name}</Text>
+            {isMunasib && (
+              <View style={styles.munasibBadge}>
+                <Text style={styles.munasibText}>منسب</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.spouseMetaRow}>
+            {spouseData.children_count > 0 && (
+              <Text style={styles.childrenCountText}>
+                {spouseData.children_count}{' '}
+                {spouseData.children_count === 1 ? 'طفل' : 'أطفال'}
               </Text>
-            </View>
-          )}
+            )}
+            {spouseData.status && spouseData.status !== 'married' && (
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>
+                  {spouseData.status === 'divorced' ? 'مطلق' : 'متوفى'}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
         <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => onDelete(spouseData)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="حذف الزواج"
+          accessibilityRole="button"
         >
-          <Ionicons name="trash-outline" size={18} color="#A13333" />
+          <Ionicons name="trash-outline" size={20} color={tokens.colors.najdi.primary} />
         </TouchableOpacity>
       </View>
-      {spouseData.children_count > 0 && (
-        <Text style={styles.childrenCount}>
-          {spouseData.children_count}{' '}
-          {spouseData.children_count === 1 ? 'طفل' : 'أطفال'}
-        </Text>
-      )}
     </View>
   );
 };
@@ -449,31 +495,45 @@ const SpouseCard = ({ spouseData, personGender, onDelete, inactive = false }) =>
 // Child Card Component
 const ChildCard = ({ child }) => {
   return (
-    <View style={styles.card}>
+    <View style={styles.childCard}>
       <View style={styles.cardContent}>
+        <View style={styles.childIconContainer}>
+          <Ionicons
+            name={child.gender === 'male' ? 'man-outline' : 'woman-outline'}
+            size={20}
+            color={tokens.colors.najdi.secondary}
+          />
+        </View>
         <View style={styles.cardInfo}>
           <View style={styles.childNameRow}>
             <Text style={styles.cardName}>{child.name}</Text>
             {child.shows_on_tree && (
-              <Ionicons
-                name="git-network-outline"
-                size={16}
-                color={tokens.colors.najdi.ochre}
-                style={styles.treeIcon}
-              />
+              <View style={styles.treeIndicator}>
+                <Ionicons
+                  name="analytics-outline"
+                  size={13}
+                  color={tokens.colors.najdi.secondary}
+                />
+              </View>
             )}
           </View>
           <View style={styles.childDetails}>
             <Text style={styles.childGender}>
-              {child.gender === 'male' ? '♂ ذكر' : '♀ أنثى'}
+              {child.gender === 'male' ? 'ذكر' : 'أنثى'}
             </Text>
             {child.mother_name && (
-              <Text style={styles.childMother}>• الأم: {child.mother_name}</Text>
+              <>
+                <Text style={styles.childDetailSeparator}>•</Text>
+                <Text style={styles.childMother}>الأم: {child.mother_name}</Text>
+              </>
+            )}
+            {child.sibling_order !== null && child.sibling_order !== undefined && (
+              <>
+                <Text style={styles.childDetailSeparator}>•</Text>
+                <Text style={styles.siblingOrder}>الترتيب: {child.sibling_order + 1}</Text>
+              </>
             )}
           </View>
-          {child.sibling_order !== null && child.sibling_order !== undefined && (
-            <Text style={styles.siblingOrder}>الترتيب: {child.sibling_order + 1}</Text>
-          )}
         </View>
       </View>
     </View>
@@ -533,7 +593,7 @@ const styles = StyleSheet.create({
 
   // Section Styles
   section: {
-    marginBottom: tokens.spacing.xl,
+    marginBottom: tokens.spacing.xxl,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -545,30 +605,47 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: tokens.colors.najdi.text,
+    flex: 1,
   },
   countBadge: {
-    backgroundColor: tokens.colors.najdi.container,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    backgroundColor: tokens.colors.najdi.container + '40',
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xxs,
     borderRadius: 12,
-    marginLeft: tokens.spacing.xs,
   },
   countBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-    color: tokens.colors.najdi.crimson,
+    color: tokens.colors.najdi.primary,
+  },
+
+  // FormGroup (iOS-style grouped content)
+  formGroupContent: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
 
   // Parent Cards
   parentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: tokens.colors.najdi.background,
-    borderRadius: 12,
     padding: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.najdi.container + '30',
+    gap: tokens.spacing.sm,
+  },
+  parentIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: tokens.colors.najdi.secondary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   parentInfo: {
+    flex: 1,
     gap: tokens.spacing.xxs,
   },
   parentLabel: {
@@ -581,105 +658,151 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  parentHid: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+  emptyParentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tokens.colors.najdi.container + '20',
+    padding: tokens.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.najdi.container + '30',
+    gap: tokens.spacing.sm,
   },
 
-  // Generic Card
-  card: {
+  // Spouse Cards
+  spouseCard: {
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: 12,
     padding: tokens.spacing.md,
     marginBottom: tokens.spacing.sm,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
+    borderColor: tokens.colors.najdi.container + '40',
   },
   inactiveCard: {
     opacity: 0.6,
   },
   cardContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+  },
+  spouseIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: tokens.colors.najdi.container + '30',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardInfo: {
     flex: 1,
     gap: tokens.spacing.xxs,
+  },
+  spouseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    flexWrap: 'wrap',
+  },
+  spouseMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    flexWrap: 'wrap',
   },
   cardName: {
     fontSize: 17,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  cardHid: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-  },
   deleteButton: {
-    padding: tokens.spacing.xs,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: tokens.colors.najdi.container + '20',
   },
 
   // Badges
   munasibBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: tokens.colors.najdi.ochre + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: tokens.colors.najdi.secondary + '20',
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 2,
     borderRadius: 6,
-    marginTop: 4,
   },
   munasibText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: tokens.colors.najdi.ochre,
+    fontWeight: '700',
+    color: tokens.colors.najdi.secondary,
   },
   statusBadge: {
-    alignSelf: 'flex-start',
     backgroundColor: tokens.colors.najdi.textMuted + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 2,
     borderRadius: 6,
-    marginTop: 4,
   },
   statusText: {
     fontSize: 11,
     fontWeight: '600',
     color: tokens.colors.najdi.textMuted,
   },
-  childrenCount: {
+  childrenCountText: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
-    marginTop: tokens.spacing.xs,
+    fontWeight: '500',
   },
 
-  // Child Card Specific
+  // Child Cards
+  childCard: {
+    backgroundColor: tokens.colors.najdi.background,
+    padding: tokens.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.najdi.container + '30',
+  },
+  childIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: tokens.colors.najdi.secondary + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   childNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.xs,
   },
-  treeIcon: {
-    marginLeft: 4,
+  treeIndicator: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: tokens.colors.najdi.secondary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   childDetails: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.spacing.sm,
-    marginTop: 2,
+    gap: tokens.spacing.xs,
+    flexWrap: 'wrap',
   },
   childGender: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
+    fontWeight: '500',
+  },
+  childDetailSeparator: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    opacity: 0.5,
   },
   childMother: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
   },
   siblingOrder: {
-    fontSize: 12,
+    fontSize: 13,
     color: tokens.colors.najdi.textMuted,
-    marginTop: 2,
   },
 
   // Inactive Spouses Section
@@ -698,16 +821,25 @@ const styles = StyleSheet.create({
 
   // Empty States
   emptyCard: {
-    backgroundColor: tokens.colors.najdi.container + '30',
+    backgroundColor: tokens.colors.najdi.secondary + '08',
     borderRadius: 12,
-    padding: tokens.spacing.xl,
+    padding: tokens.spacing.xxl,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: tokens.spacing.sm,
-    gap: tokens.spacing.sm,
+    gap: tokens.spacing.xs,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.secondary + '20',
+    borderStyle: 'dashed',
   },
   emptyText: {
     fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+    textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
   },
@@ -720,15 +852,16 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: 12,
     padding: tokens.spacing.md,
+    minHeight: 48,
     borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.crimson,
+    borderColor: tokens.colors.najdi.primary,
     borderStyle: 'dashed',
     gap: tokens.spacing.sm,
   },
   addButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: tokens.colors.najdi.crimson,
+    color: tokens.colors.najdi.primary,
   },
 });
 
