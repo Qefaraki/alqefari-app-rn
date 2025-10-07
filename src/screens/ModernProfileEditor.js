@@ -65,7 +65,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
     (currentPosition, previousPosition) => {
       if (currentPosition !== previousPosition && profileSheetProgress) {
         // The animatedPosition is the top of the sheet from the BOTTOM of the screen.
-        const progress = 1 - currentPosition / screenHeight;
+        const progress = Math.max(0, Math.min(1, 1 - currentPosition / screenHeight));
         profileSheetProgress.value = progress;
       }
     },
@@ -352,7 +352,9 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         if (profileSheetProgress) {
           runOnUI(() => {
             'worklet';
-            profileSheetProgress.value = 0;
+            if (profileSheetProgress.value !== 0) {
+              profileSheetProgress.value = 0;
+            }
           })();
         }
         useTreeStore.setState({

@@ -181,7 +181,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
         })();
       }
     }
-  }, [selectedPersonId, searchBarOpacity, profileSheetProgress]);
+  }, [selectedPersonId]);
 
   const showBackdrop = useCallback(() => {
     Animated.timing(backdropOpacity, {

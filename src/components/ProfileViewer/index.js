@@ -155,12 +155,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   useAnimatedReaction(
     () => animatedPosition.value,
     (current, previous) => {
-      if (current === previous) return;
+      if (current === previous || !profileSheetProgress) return;
       const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
-
-      if (profileSheetProgress) {
-        profileSheetProgress.value = progress;
-      }
+      profileSheetProgress.value = progress;
     },
     [screenHeight],
   );

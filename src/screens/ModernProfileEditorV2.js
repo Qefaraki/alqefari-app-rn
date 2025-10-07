@@ -72,7 +72,7 @@ const ModernProfileEditorV2 = ({ visible, profile, onClose, onSave }) => {
     () => animatedPosition.value,
     (currentPosition, previousPosition) => {
       if (currentPosition !== previousPosition && profileSheetProgress) {
-        const progress = 1 - currentPosition / screenHeight;
+        const progress = Math.max(0, Math.min(1, 1 - currentPosition / screenHeight));
         profileSheetProgress.value = progress;
       }
     },
@@ -581,7 +581,9 @@ const ModernProfileEditorV2 = ({ visible, profile, onClose, onSave }) => {
         if (profileSheetProgress) {
           runOnUI(() => {
             'worklet';
-            profileSheetProgress.value = 0;
+            if (profileSheetProgress.value !== 0) {
+              profileSheetProgress.value = 0;
+            }
           })();
         }
         useTreeStore.setState({ profileSheetIndex: -1 });

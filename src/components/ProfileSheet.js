@@ -180,7 +180,7 @@ const ProfileSheet = ({ editMode = false }) => {
     (currentPosition, previousPosition) => {
       if (currentPosition !== previousPosition && profileSheetProgress) {
         // The animatedPosition is the top of the sheet from the BOTTOM of the screen.
-        const progress = 1 - currentPosition / screenHeight;
+        const progress = Math.max(0, Math.min(1, 1 - currentPosition / screenHeight));
         profileSheetProgress.value = progress;
       }
     },
@@ -228,7 +228,18 @@ const ProfileSheet = ({ editMode = false }) => {
   // Get person data - try tree data first, fall back to familyData
   const person = useMemo(() => {
     if (treeData && treeData.length > 0) {
-      return treeData.find((p) => p.id === selectedPersonId);
+      const foundPerson = treeData.find((p) => p.id === selectedPersonId);
+      // DEBUG: Log to verify kunya field exists
+      if (foundPerson) {
+        console.log('🔍 [ProfileSheet] Person data:', {
+          id: foundPerson.id,
+          name: foundPerson.name,
+          kunya: foundPerson.kunya,
+          hasKunya: !!foundPerson.kunya,
+          allKeys: Object.keys(foundPerson).filter(k => k.includes('kun'))
+        });
+      }
+      return foundPerson;
     }
     return familyData.find((p) => p.id === selectedPersonId);
   }, [selectedPersonId, treeData]);
@@ -961,7 +972,9 @@ const ProfileSheet = ({ editMode = false }) => {
           if (profileSheetProgress) {
             runOnUI(() => {
               'worklet';
-              profileSheetProgress.value = 0;
+              if (profileSheetProgress.value !== 0) {
+                profileSheetProgress.value = 0;
+              }
             })();
           }
           useTreeStore.setState({
@@ -1094,7 +1107,15 @@ const ProfileSheet = ({ editMode = false }) => {
                   />
                 ) : (
                   <View style={styles.nameContainer}>
-                    <Text style={styles.nameText}>{person.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Text style={styles.nameText}>{person.name}</Text>
+                      {person.kunya && (
+                        <>
+                          <Text style={styles.kunyaBullet}>•</Text>
+                          <Text style={styles.kunyaText}>{person.kunya}</Text>
+                        </>
+                      )}
+                    </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       {/* Permission indicator */}
                       {permissionLevel === 'full' && !isAdminMode && (
@@ -2389,6 +2410,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
   },
   nameText: {
     fontSize: 36,
@@ -2398,6 +2420,17 @@ const styles = StyleSheet.create({
     textAlign: "right",
     writingDirection: "rtl",
     flex: 1,
+  },
+  kunyaBullet: {
+    fontSize: 17,
+    color: "#736372",
+    marginHorizontal: 4,
+  },
+  kunyaText: {
+    fontSize: 17,
+    fontWeight: "400",
+    color: "#736372",
+    fontStyle: "italic",
   },
   moreButton: {
     padding: 8,
