@@ -208,6 +208,21 @@ export default function ActivityLogDashboard({ onClose }) {
 
   const subscriptionRef = useRef(null);
   const flatListRef = useRef(null);
+  const requestIdRef = useRef(0); // Track latest request to discard stale responses
+
+  // Refs for filter values (so subscription can access current values without recreating)
+  const selectedUserRef = useRef(selectedUser);
+  const datePresetRef = useRef(datePreset);
+  const customDateRangeRef = useRef(customDateRange);
+  const activeFilterRef = useRef(activeFilter);
+
+  // Update refs when filter state changes
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+    datePresetRef.current = datePreset;
+    customDateRangeRef.current = customDateRange;
+    activeFilterRef.current = activeFilter;
+  }, [selectedUser, datePreset, customDateRange, activeFilter]);
 
   const PAGE_SIZE = 50;
 
@@ -222,6 +237,10 @@ export default function ActivityLogDashboard({ onClose }) {
 
   // Fetch activities from database with pagination
   const fetchActivities = useCallback(async (isLoadMore = false) => {
+    // Increment request ID to track this request
+    requestIdRef.current += 1;
+    const currentRequestId = requestIdRef.current;
+
     try {
       if (isLoadMore) {
         setLoadingMore(true);
@@ -263,6 +282,12 @@ export default function ActivityLogDashboard({ onClose }) {
 
       const { data, error, count } = await query;
 
+      // Check if this request is stale (a newer request was initiated)
+      if (currentRequestId !== requestIdRef.current) {
+        console.log('Discarding stale request', currentRequestId, 'current:', requestIdRef.current);
+        return; // Discard this response
+      }
+
       if (error) throw error;
 
       if (isLoadMore) {
@@ -274,12 +299,18 @@ export default function ActivityLogDashboard({ onClose }) {
       setPage(currentPage + 1);
       setHasMore((data?.length || 0) === PAGE_SIZE);
     } catch (error) {
-      console.error("Error fetching activities:", error);
-      Alert.alert("خطأ", "فشل تحميل السجل");
+      // Only show error if this is still the latest request
+      if (currentRequestId === requestIdRef.current) {
+        console.error("Error fetching activities:", error);
+        Alert.alert("خطأ", "فشل تحميل السجل");
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
+      // Only update loading states if this is still the latest request
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
     }
   }, [page, PAGE_SIZE, selectedUser, datePreset, customDateRange]);
 
@@ -314,13 +345,64 @@ export default function ActivityLogDashboard({ onClose }) {
           table: "audit_log_enhanced",
         },
         (payload) => {
-          // Optimistic update: prepend new item
+          // Optimistic update: prepend new item with filter checks
           setActivities((prev) => {
+            const newActivity = payload.new;
+
             // Avoid duplicates
-            if (prev.some((item) => item.id === payload.new.id)) {
+            if (prev.some((item) => item.id === newActivity.id)) {
               return prev;
             }
-            return [payload.new, ...prev];
+
+            // Apply user filter (using ref to get current value)
+            if (selectedUserRef.current && newActivity.actor_id !== selectedUserRef.current.actor_id) {
+              return prev; // Skip - doesn't match user filter
+            }
+
+            // Apply date range filter (using refs)
+            if (datePresetRef.current !== 'all') {
+              const activityDate = new Date(newActivity.created_at);
+              const range = datePresetRef.current === 'custom'
+                ? { start: customDateRangeRef.current.from, end: customDateRangeRef.current.to }
+                : getDateRangeForPreset(datePresetRef.current);
+
+              if (range.start && activityDate < range.start) return prev;
+              if (range.end && activityDate > range.end) return prev;
+            }
+
+            // Apply category filter (using ref)
+            if (activeFilterRef.current !== 'all') {
+              switch (activeFilterRef.current) {
+                case 'tree':
+                  if (!['create_node', 'update_node', 'delete_node', 'merge_nodes'].includes(newActivity.action_type)) {
+                    return prev;
+                  }
+                  break;
+                case 'admin':
+                  if (!['grant_admin', 'revoke_admin', 'update_settings'].includes(newActivity.action_type) &&
+                      !['super_admin', 'admin'].includes(newActivity.actor_role)) {
+                    return prev;
+                  }
+                  break;
+                case 'critical':
+                  if (!['critical', 'high'].includes(newActivity.severity)) {
+                    return prev;
+                  }
+                  break;
+                case 'photos':
+                  if (!['upload_photo', 'delete_photo', 'update_photo'].includes(newActivity.action_type)) {
+                    return prev;
+                  }
+                  break;
+                case 'marriages':
+                  if (!['add_marriage', 'update_marriage', 'delete_marriage'].includes(newActivity.action_type)) {
+                    return prev;
+                  }
+                  break;
+              }
+            }
+
+            return [newActivity, ...prev];
           });
         },
       )
@@ -343,7 +425,7 @@ export default function ActivityLogDashboard({ onClose }) {
   useEffect(() => {
     setPage(0);
     fetchActivities(false);
-  }, [selectedUser, datePreset, customDateRange]);
+  }, [selectedUser, datePreset, customDateRange, fetchActivities]);
 
   // Calculate stats (memoized for performance)
   const stats = useMemo(() => {
