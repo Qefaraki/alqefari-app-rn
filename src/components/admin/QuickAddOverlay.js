@@ -5,17 +5,16 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Modal,
-  Animated,
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import DraggableFlatList from "react-native-draggable-flatlist";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
@@ -25,7 +24,6 @@ import ChildListCard from "./ChildListCard";
 import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
-const SEPARATOR_HEIGHT = 2; // 2px gap between cards
 
 const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [currentName, setCurrentName] = useState("");
@@ -35,10 +33,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [selectedMotherId, setSelectedMotherId] = useState(null);
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
-  const [averageCardHeight, setAverageCardHeight] = useState(56);
   const inputRef = useRef(null);
-  const cardHeights = useRef(new Map()).current;
   const { refreshProfile } = useStore();
   const insets = useSafeAreaInsets();
 
@@ -161,15 +156,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // Handle reordering children
-  const handleReorder = (childId, fromIndex, toIndex) => {
-    if (fromIndex === toIndex) return;
-
-    const newChildren = [...allChildren];
-    const [movedChild] = newChildren.splice(fromIndex, 1);
-    newChildren.splice(toIndex, 0, movedChild);
-
-    const updatedChildren = newChildren.map((child, index) => ({
+  // Handle reordering children (called by DraggableFlatList)
+  const handleDragEnd = useCallback(({ data }) => {
+    const updatedChildren = data.map((child, index) => ({
       ...child,
       sibling_order: index,
       isEdited: child.isExisting ? true : child.isEdited,
@@ -177,7 +166,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
     setAllChildren(updatedChildren);
     setHasReordered(true);
-  };
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
 
   // Save all changes
   const handleSave = async () => {
@@ -319,51 +309,21 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     return "حفظ";
   };
 
-  // Calculate average height when card heights change
-  const updateAverageHeight = useCallback(() => {
-    const heights = Array.from(cardHeights.values());
-    if (heights.length > 0) {
-      const avg = heights.reduce((sum, h) => sum + h, 0) / heights.length;
-      setAverageCardHeight(Math.round(avg));
-    }
-  }, [cardHeights]);
-
-  // Memoized render function for FlatList performance
+  // Memoized render function for DraggableFlatList
   const renderChild = useCallback(
-    ({ item, index }) => (
+    ({ item, drag, isActive }) => (
       <ChildListCard
         child={item}
-        index={index}
+        index={allChildren.findIndex((c) => c.id === item.id)}
         totalChildren={allChildren.length}
         onUpdate={handleUpdateChild}
         onDelete={handleDeleteChild}
-        onReorder={handleReorder}
+        onDrag={drag}
+        isActive={isActive}
         mothers={mothers}
-        cardHeight={averageCardHeight + SEPARATOR_HEIGHT}
-        onHeightMeasured={(height) => {
-          cardHeights.set(item.id, height);
-          updateAverageHeight();
-        }}
-        onDragStart={() => setIsDragging(true)}
-        onDragEnd={() => setIsDragging(false)}
       />
     ),
-    [
-      allChildren.length,
-      mothers,
-      averageCardHeight,
-      cardHeights,
-      updateAverageHeight,
-      handleUpdateChild,
-      handleDeleteChild,
-      handleReorder,
-    ]
-  );
-
-  // Separator component for gaps between cards
-  const renderSeparator = useCallback(
-    () => <View style={{ height: SEPARATOR_HEIGHT }} />,
-    []
+    [allChildren, mothers, handleUpdateChild, handleDeleteChild]
   );
 
   if (!visible) return null;
@@ -490,24 +450,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     </Text>
                   </View>
                 ) : (
-                  <FlatList
+                  <DraggableFlatList
                     data={allChildren}
+                    onDragEnd={handleDragEnd}
                     keyExtractor={(item) => item.id}
                     renderItem={renderChild}
-                    ItemSeparatorComponent={renderSeparator}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                    removeClippedSubviews={Platform.OS === "android"}
-                    maxToRenderPerBatch={10}
-                    windowSize={10}
-                    initialNumToRender={10}
-                    scrollEnabled={!isDragging}
-                    getItemLayout={(data, index) => ({
-                      length: averageCardHeight + SEPARATOR_HEIGHT,
-                      offset: (averageCardHeight + SEPARATOR_HEIGHT) * index,
-                      index,
-                    })}
                   />
                 )}
               </View>
@@ -704,7 +653,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   listContent: {
-    paddingVertical: 0, // No padding - cards stick together with separator
+    paddingVertical: tokens.spacing.xs, // 8px
   },
   bottomActions: {
     flexDirection: "row",

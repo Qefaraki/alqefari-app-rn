@@ -61,7 +61,42 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
   }
 
   // Collapsed view: inline diff (reads right-to-left in RTL: OLD → NEW)
-  // Order: ICON → OLD → ARROW → NEW (appears as NEW ← OLD [ICON] in RTL reading)
+
+  // ADDED: Show only new value with add icon
+  if (changeType === 'added') {
+    return (
+      <View style={styles.inlineDiff}>
+        <Ionicons
+          name="add-circle"
+          size={16}
+          color={tokens.colors.diff.added}
+          style={styles.diffIcon}
+        />
+        <Text style={styles.newValueInline} numberOfLines={1}>
+          {newStr}
+        </Text>
+      </View>
+    );
+  }
+
+  // REMOVED: Show only old value with remove icon
+  if (changeType === 'removed') {
+    return (
+      <View style={styles.inlineDiff}>
+        <Ionicons
+          name="remove-circle"
+          size={16}
+          color={tokens.colors.diff.removed}
+          style={styles.diffIcon}
+        />
+        <Text style={styles.oldValueInline} numberOfLines={1}>
+          {oldStr}
+        </Text>
+      </View>
+    );
+  }
+
+  // MODIFIED: Full comparison (NEW → ARROW → OLD reads as OLD → NEW in RTL)
   return (
     <View style={styles.inlineDiff}>
       {/* Change type icon (appears on RIGHT in RTL) */}
@@ -72,9 +107,9 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
         style={styles.diffIcon}
       />
 
-      {/* OLD VALUE (strikethrough, muted - appears second from right) */}
-      <Text style={styles.oldValueInline} numberOfLines={1}>
-        {oldStr}
+      {/* NEW VALUE (bold, green - appears second from right) */}
+      <Text style={styles.newValueInline} numberOfLines={1}>
+        {newStr}
       </Text>
 
       {/* ARROW (pointing right: from OLD to NEW) */}
@@ -84,9 +119,9 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
         color={tokens.colors.textMuted}
       />
 
-      {/* NEW VALUE (bold, green - appears on LEFT) */}
-      <Text style={styles.newValueInline} numberOfLines={1}>
-        {newStr}
+      {/* OLD VALUE (strikethrough, muted - appears on LEFT) */}
+      <Text style={styles.oldValueInline} numberOfLines={1}>
+        {oldStr}
       </Text>
     </View>
   );

@@ -7,28 +7,12 @@ import {
   StyleSheet,
   Animated,
   Alert,
-  Dimensions,
 } from "react-native";
-import {
-  GestureDetector,
-  Gesture,
-} from "react-native-gesture-handler";
-import ReAnimated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-// Dynamic spacing based on screen height
-const CARD_VERTICAL_MARGIN = SCREEN_HEIGHT > 800 ? 2 : 0; // Larger screens get tiny gap, small screens = no gap
-const CARD_VERTICAL_PADDING = SCREEN_HEIGHT > 800 ? 6 : 4; // Adjust padding based on screen size
 
 const ChildListCard = ({
   child,
@@ -36,26 +20,16 @@ const ChildListCard = ({
   totalChildren,
   onUpdate,
   onDelete,
-  onReorder,
+  onDrag,
+  isActive,
   mothers = [],
-  cardHeight = 80, // Dynamic height passed from parent
-  onHeightMeasured,
-  onDragStart,
-  onDragEnd,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localName, setLocalName] = useState(child.name);
   const [localGender, setLocalGender] = useState(child.gender);
   const [localMotherId, setLocalMotherId] = useState(child.mother_id);
 
-  // Animation values for drag
-  const translateY = useSharedValue(0);
-  const scale = useSharedValue(1);
-  const zIndex = useSharedValue(0);
-  const shadowOpacity = useSharedValue(0.04);
-  const rotation = useSharedValue(0);
-
-  // Animation values for entrance
+  // Animation values for entrance only
   const fadeAnim = useRef(new Animated.Value(child.isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(child.isNew ? 20 : 0)).current;
 
@@ -80,68 +54,12 @@ const ChildListCard = ({
       animation.start();
     }
 
-    // Cleanup function to stop animation if component unmounts
     return () => {
       if (animation) {
         animation.stop();
       }
     };
   }, []);
-
-  // Drag gesture for reordering (vertical)
-  const panGesture = Gesture.Pan()
-    .activateAfterLongPress(500) // Longer delay to prevent accidental drags
-    .onStart(() => {
-      "worklet";
-      scale.value = withSpring(1.08);
-      shadowOpacity.value = withSpring(0.2);
-      zIndex.value = 1000;
-      rotation.value = withSpring(2); // Slight rotation for natural feel
-      if (onDragStart) {
-        runOnJS(onDragStart)();
-      }
-      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-    })
-    .onUpdate((e) => {
-      "worklet";
-      translateY.value = e.translationY;
-    })
-    .onEnd((e) => {
-      "worklet";
-      // Use dynamic cardHeight for accurate calculation
-      const movement = Math.round(e.translationY / cardHeight);
-      const newIndex = Math.max(
-        0,
-        Math.min(totalChildren - 1, index + movement)
-      );
-
-      translateY.value = withSpring(0);
-      scale.value = withSpring(1);
-      shadowOpacity.value = withSpring(0.04);
-      zIndex.value = 0;
-      rotation.value = withSpring(0);
-
-      if (onDragEnd) {
-        runOnJS(onDragEnd)();
-      }
-
-      if (newIndex !== index) {
-        runOnJS(onReorder)(child.id, index, newIndex);
-        runOnJS(Haptics.notificationAsync)(
-          Haptics.NotificationFeedbackType.Success
-        );
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-      { rotate: `${rotation.value}deg` },
-    ],
-    zIndex: zIndex.value,
-    shadowOpacity: shadowOpacity.value,
-  }));
 
   const getCardStyle = () => {
     if (child.isNew) return styles.cardNew;
@@ -220,31 +138,26 @@ const ChildListCard = ({
 
   const motherName = getMotherName();
 
-  const handleLayout = (e) => {
-    const { height } = e.nativeEvent.layout;
-    if (onHeightMeasured) {
-      onHeightMeasured(height);
-    }
-  };
-
   return (
-    <GestureDetector gesture={panGesture}>
-      <ReAnimated.View style={[styles.cardContainer, animatedStyle]}>
-        <Animated.View
-          style={[
-            styles.card,
-            getCardStyle(),
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-          onLayout={handleLayout}
+    <Animated.View
+      style={[
+        styles.cardContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+        isActive && styles.cardActive,
+      ]}
+    >
+      <View style={[styles.card, getCardStyle()]}>
+        {/* Drag Handle */}
+        <TouchableOpacity
+          style={styles.dragHandle}
+          onLongPress={onDrag}
+          delayLongPress={300}
         >
-          {/* Drag Handle */}
-          <View style={styles.dragHandle}>
-            <Ionicons name="reorder-two" size={20} color={COLORS.textMuted} />
-          </View>
+          <Ionicons name="reorder-two" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
 
           {/* Order Badge */}
           <View style={styles.orderBadge}>
@@ -374,27 +287,29 @@ const ChildListCard = ({
               </>
             )}
           </View>
-        </Animated.View>
-      </ReAnimated.View>
-    </GestureDetector>
+        </View>
+      </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   cardContainer: {
     marginHorizontal: tokens.spacing.md, // 16px
-    marginVertical: 0, // No margin - spacing handled by ItemSeparatorComponent
+    marginVertical: tokens.spacing.xxs, // 4px gap between cards
+  },
+  cardActive: {
+    opacity: 0.9,
+    shadowOpacity: 0.2,
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
-    paddingVertical: CARD_VERTICAL_PADDING, // Dynamic based on screen height
+    paddingVertical: tokens.spacing.xs, // 8px
     paddingHorizontal: tokens.spacing.sm, // 12px
-    borderRadius: 8, // Smaller radius for tighter look
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.container + "30",
-    // No fixed minHeight - let content determine height
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
