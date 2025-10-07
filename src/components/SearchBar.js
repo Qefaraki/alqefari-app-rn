@@ -169,10 +169,12 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       searchBarOpacity.setValue(1);
 
       // Reset the profileSheetProgress immediately if it exists
-      if (profileSheetProgress && profileSheetProgress.value !== 0) {
+      if (profileSheetProgress) {
         runOnUI(() => {
           'worklet';
-          profileSheetProgress.value = 0;
+          if (profileSheetProgress.value !== 0) {
+            profileSheetProgress.value = 0;
+          }
         })();
       }
     }
