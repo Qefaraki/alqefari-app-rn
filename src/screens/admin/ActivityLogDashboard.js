@@ -552,11 +552,14 @@ export default function ActivityLogDashboard({ onClose }) {
                 </View>
                 <View style={styles.activityContent}>
                   <Text style={styles.activityTitle} numberOfLines={1}>
-                    {config.label}
+                    {generateActionDescription(
+                      activity.action_type,
+                      activity.changed_fields,
+                      activity.target_name
+                    )}
                   </Text>
                   <Text style={styles.activitySubtitle} numberOfLines={1}>
                     {activity.actor_name || "مستخدم"}
-                    {activity.target_name && ` → ${activity.target_name}`}
                   </Text>
                   {/* Show inline diff when collapsed */}
                   {!isExpanded && activity.changed_fields && activity.changed_fields.length > 0 && (
