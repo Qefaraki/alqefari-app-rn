@@ -54,6 +54,23 @@ export const FIELD_LABELS = {
   // Metadata
   created_at: 'تاريخ الإنشاء',
   updated_at: 'آخر تحديث',
+
+  // Additional fields from recent migrations
+  dob_data: 'بيانات الميلاد',
+  dod_data: 'بيانات الوفاة',
+  social_media_links: 'روابط التواصل الاجتماعي',
+  nickname: 'اللقب',
+  profile_visibility: 'خصوصية الملف',
+  dob_is_public: 'نشر تاريخ الميلاد',
+  birth_date: 'تاريخ الميلاد',
+  death_date: 'تاريخ الوفاة',
+  biography: 'السيرة الذاتية',
+  claim_status: 'حالة المطالبة',
+  search_vector: 'فهرس البحث',
+  layout_position: 'موقع في الشجرة',
+  occupation: 'المهنة',
+  education: 'التعليم',
+  user_id: 'معرف المستخدم',
 };
 
 // Field categories for grouping

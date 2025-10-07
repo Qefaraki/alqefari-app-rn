@@ -35,6 +35,12 @@ import {
   generateActionDescription,
   groupFieldsByCategory,
 } from "../../services/activityLogTranslations";
+import { formatRelativeTime } from "../../utils/formatTimestamp";
+import {
+  groupConsecutiveActivities,
+  isActivityGroup,
+  getGroupDisplayText,
+} from "../../utils/activityGrouping";
 
 // Use Najdi Sadu Color Palette from tokens
 const colors = {
@@ -177,8 +183,15 @@ export default function ActivityLogDashboard({ onClose }) {
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedCards, setExpandedCards] = useState(new Set());
 
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const subscriptionRef = useRef(null);
   const flatListRef = useRef(null);
+
+  const PAGE_SIZE = 50;
 
   // Debounce search input
   useEffect(() => {
@@ -189,45 +202,68 @@ export default function ActivityLogDashboard({ onClose }) {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // Fetch activities from database
-  const fetchActivities = useCallback(async () => {
+  // Fetch activities from database with pagination
+  const fetchActivities = useCallback(async (isLoadMore = false) => {
     try {
-      const { data, error } = await supabase
+      if (isLoadMore) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      const currentPage = isLoadMore ? page : 0;
+      const start = currentPage * PAGE_SIZE;
+      const end = start + PAGE_SIZE - 1;
+
+      const { data, error, count } = await supabase
         .from("activity_log_detailed")
-        .select("*")
+        .select("*", { count: 'exact' })
         .order("created_at", { ascending: false })
-        .limit(500);
+        .range(start, end);
 
       if (error) throw error;
 
-      setActivities(data || []);
+      if (isLoadMore) {
+        setActivities(prev => [...prev, ...(data || [])]);
+      } else {
+        setActivities(data || []);
+      }
+
+      setPage(currentPage + 1);
+      setHasMore((data?.length || 0) === PAGE_SIZE);
     } catch (error) {
       console.error("Error fetching activities:", error);
       Alert.alert("خطأ", "فشل تحميل السجل");
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [page, PAGE_SIZE]);
 
-  // Set up real-time subscription
+  // Set up real-time subscription (fixed race condition)
   useEffect(() => {
-    fetchActivities();
+    fetchActivities(false);
 
-    // Subscribe to real-time changes
-    subscriptionRef.current = supabase
+    // Subscribe to real-time changes with optimistic update
+    const channel = supabase
       .channel("activity_log_changes")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "audit_log_enhanced",
         },
         (payload) => {
-          if (payload.eventType === "INSERT") {
-            fetchActivities();
-          }
+          // Optimistic update: prepend new item
+          setActivities((prev) => {
+            // Avoid duplicates
+            if (prev.some((item) => item.id === payload.new.id)) {
+              return prev;
+            }
+            return [payload.new, ...prev];
+          });
         },
       )
       .subscribe((status) => {
@@ -236,12 +272,14 @@ export default function ActivityLogDashboard({ onClose }) {
         }
       });
 
+    subscriptionRef.current = channel;
+
     return () => {
       if (subscriptionRef.current) {
         supabase.removeChannel(subscriptionRef.current);
       }
     };
-  }, [fetchActivities]);
+  }, []); // Empty deps - run once on mount
 
   // Calculate stats (memoized for performance)
   const stats = useMemo(() => {
@@ -690,29 +728,6 @@ export default function ActivityLogDashboard({ onClose }) {
                       ))}
                     </View>
                   )}
-
-                  {/* Full JSON diff as fallback */}
-                  {(activity.old_data || activity.new_data) && (
-                    <View style={styles.diffContainer}>
-                      {activity.old_data && (
-                        <View style={styles.diffSection}>
-                          <Text style={styles.diffLabel}>البيانات الكاملة (قبل)</Text>
-                          <Text style={styles.diffContent} numberOfLines={5}>
-                            {JSON.stringify(activity.old_data, null, 2)}
-                          </Text>
-                        </View>
-                      )}
-
-                      {activity.new_data && (
-                        <View style={styles.diffSection}>
-                          <Text style={styles.diffLabel}>البيانات الكاملة (بعد)</Text>
-                          <Text style={styles.diffContent} numberOfLines={5}>
-                            {JSON.stringify(activity.new_data, null, 2)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
                 </View>
               )}
 
@@ -823,6 +838,21 @@ export default function ActivityLogDashboard({ onClose }) {
         maxToRenderPerBatch={5}
         windowSize={7}
         removeClippedSubviews={true}
+        onEndReached={() => {
+          if (hasMore && !loading && !loadingMore) {
+            fetchActivities(true);
+          }
+        }}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoader}>
+              <Text style={styles.footerText}>جارٍ التحميل...</Text>
+            </View>
+          ) : null
+        }
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
       />
     </View>
   );
@@ -1022,11 +1052,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 20, // Increased from 17 for better hierarchy
+    fontWeight: "700", // Increased from 600 for more prominence
     color: "#242121",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-    marginBottom: 2,
+    marginBottom: 4, // Increased spacing
   },
   activitySubtitle: {
     fontSize: 15,
@@ -1218,6 +1248,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#736372",
     marginTop: 8,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+
+  // Footer Loader
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  footerText: {
+    fontSize: 13,
+    color: "#736372",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 });

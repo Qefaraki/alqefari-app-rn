@@ -94,7 +94,7 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
 
         {/* ARROW (pointing RIGHT for RTL flow: from OLD to NEW) */}
         <Ionicons
-          name="arrow-forward"
+          name="arrow-back"
           size={20}
           color={tokens.colors.textMuted}
           style={styles.arrowIcon}
@@ -165,7 +165,7 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
 
       {/* ARROW (pointing right: from OLD to NEW) */}
       <Ionicons
-        name="arrow-forward"
+        name="arrow-back"
         size={14}
         color={tokens.colors.textMuted}
       />
