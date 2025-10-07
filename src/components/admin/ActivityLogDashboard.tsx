@@ -84,7 +84,7 @@ const Header = memo<HeaderProps>(({ onRefresh, isRefreshing }) => (
 
       {/* Title Section - LEFT-ALIGNED */}
       <View style={styles.titleSection}>
-        <Text style={styles.title}>سجل النشاط</Text>
+        <Text style={styles.title}>السجل</Text>
         <Text style={styles.subtitle}>تتبع التغييرات والعمليات</Text>
       </View>
     </View>

@@ -645,7 +645,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>سجل النشاط</Text>
+                  <Text style={styles.listItemText}>السجل</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>

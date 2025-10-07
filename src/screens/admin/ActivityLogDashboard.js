@@ -203,7 +203,7 @@ export default function ActivityLogDashboard({ onClose }) {
       setActivities(data || []);
     } catch (error) {
       console.error("Error fetching activities:", error);
-      Alert.alert("خطأ", "فشل تحميل سجل النشاط");
+      Alert.alert("خطأ", "فشل تحميل السجل");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -413,7 +413,7 @@ export default function ActivityLogDashboard({ onClose }) {
           resizeMode="contain"
         />
         <View style={styles.titleContent}>
-          <Text style={styles.title}>سجل النشاط</Text>
+          <Text style={styles.title}>السجل</Text>
         </View>
         {onClose && (
           <TouchableOpacity
@@ -739,7 +739,7 @@ export default function ActivityLogDashboard({ onClose }) {
               resizeMode="contain"
             />
             <View style={styles.titleContent}>
-              <Text style={styles.title}>سجل النشاط</Text>
+              <Text style={styles.title}>السجل</Text>
             </View>
             <View style={{ width: 44, height: 44 }} />
           </View>
