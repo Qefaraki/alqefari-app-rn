@@ -991,28 +991,26 @@ export default function ActivityLogDashboard({ onClose }) {
                   <Text style={styles.activitySubtitle} numberOfLines={1}>
                     {activity.actor_name || "مستخدم"}
                   </Text>
-                  {/* Show inline diff when collapsed */}
-                  {!isExpanded && activity.changed_fields && activity.changed_fields.length > 0 && (() => {
+                  {/* Show inline diff ONLY for single-field changes (reduce clutter) */}
+                  {!isExpanded && activity.changed_fields && activity.changed_fields.length === 1 && (() => {
                     const displayField = getDisplayField(activity.changed_fields);
                     return (
-                      <>
-                        <InlineDiff
-                          field={displayField}
-                          oldValue={activity.old_data?.[displayField]}
-                          newValue={activity.new_data?.[displayField]}
-                          showLabels={false}
-                        />
-                        {/* Field count badge for multiple changes */}
-                        {activity.changed_fields.length > 1 && (
-                          <View style={styles.fieldCountBadge}>
-                            <Text style={styles.fieldCountText}>
-                              +{activity.changed_fields.length - 1} حقول
-                            </Text>
-                          </View>
-                        )}
-                      </>
+                      <InlineDiff
+                        field={displayField}
+                        oldValue={activity.old_data?.[displayField]}
+                        newValue={activity.new_data?.[displayField]}
+                        showLabels={false}
+                      />
                     );
                   })()}
+                  {/* Show field count badge for multi-field changes */}
+                  {!isExpanded && activity.changed_fields && activity.changed_fields.length > 1 && (
+                    <View style={styles.fieldCountBadge}>
+                      <Text style={styles.fieldCountText}>
+                        {activity.changed_fields.length} حقول
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.activityTime}>
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
@@ -1764,21 +1762,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: tokens.colors.najdi.crimson + "15",
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.crimson + "40",
-    minHeight: 36,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: tokens.colors.najdi.camelHair,
+    minHeight: 44,
   },
   filterModalButtonActive: {
     backgroundColor: tokens.colors.najdi.crimson,
     borderColor: tokens.colors.najdi.crimson,
   },
   filterModalButtonText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "600",
-    color: tokens.colors.najdi.crimson,
+    color: tokens.colors.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterModalButtonTextActive: {

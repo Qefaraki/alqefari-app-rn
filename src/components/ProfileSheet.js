@@ -470,6 +470,13 @@ const ProfileSheet = ({ editMode = false }) => {
     }
   }, [selectedPersonId]);
 
+  // Re-check permission when person data finishes loading
+  useEffect(() => {
+    if (selectedPersonId && person?.id && person.id === selectedPersonId) {
+      checkPermission();
+    }
+  }, [person?.id]);
+
   // Load relationship children for editing
   const loadRelationshipChildren = async () => {
     if (!person?.id) return;

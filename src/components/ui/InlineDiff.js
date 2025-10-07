@@ -92,9 +92,9 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
           </Text>
         </View>
 
-        {/* ARROW (pointing LEFT: from OLD to NEW in visual layout) */}
+        {/* ARROW (pointing LEFT: from OLD to NEW) */}
         <Ionicons
-          name="arrow-forward"
+          name="arrow-back"
           size={20}
           color={tokens.colors.textMuted}
           style={styles.arrowIcon}
@@ -164,9 +164,9 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
         {oldStr}
       </Text>
 
-      {/* ARROW (pointing left: from OLD to NEW in visual layout) */}
+      {/* ARROW (pointing left: from OLD to NEW) */}
       <Ionicons
-        name="arrow-forward"
+        name="arrow-back"
         size={14}
         color={tokens.colors.textMuted}
       />

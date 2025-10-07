@@ -34,6 +34,7 @@ import { validateDates } from "../utils/dateUtils";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useSettings } from "../contexts/SettingsContext";
+import { useAuth } from "../contexts/AuthContextSimple";
 
 const { height: screenHeight } = Dimensions.get("window");
 
@@ -41,6 +42,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const bottomSheetRef = useRef(null);
   const { isAdmin } = useAdminMode();
   const { settings } = useSettings();
+  const { userProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("basics");
   const [errors, setErrors] = useState({});
@@ -172,6 +174,27 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
 
     setSaving(true);
     try {
+      // CRITICAL: Check permission level for this specific profile
+      if (userProfile?.id) {
+        const { data: permissionCheck, error: permError } = await supabase.rpc('check_family_permission_v4', {
+          p_user_id: userProfile.id,
+          p_target_id: profile.id
+        });
+
+        if (permError) {
+          console.error('Permission check error:', permError);
+          Alert.alert("خطأ", "حدث خطأ في التحقق من الصلاحيات");
+          setSaving(false);
+          return;
+        }
+
+        if (!['inner', 'admin', 'moderator'].includes(permissionCheck)) {
+          Alert.alert("خطأ", "ليس لديك صلاحية لتعديل هذا الملف");
+          setSaving(false);
+          return;
+        }
+      }
+
       // Validate dates before saving
       const dateValidation = validateDates(editedData.dob_data, editedData.dod_data);
       if (!dateValidation.isValid) {

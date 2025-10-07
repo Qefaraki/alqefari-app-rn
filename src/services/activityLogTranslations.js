@@ -253,9 +253,23 @@ export function formatFieldValue(fieldName, value) {
   // Default formatters
   if (value === null || value === undefined) return '—';
   if (typeof value === 'boolean') return value ? 'نعم' : 'لا';
-  if (typeof value === 'object') return JSON.stringify(value);
-  if (typeof value === 'string' && value.length > 100) {
-    return value.substring(0, 100) + '...';
+
+  // Format complex objects nicely (don't show raw JSON)
+  if (typeof value === 'object') {
+    // birthdate_data: {hijri: {...}, gregorian: {...}}
+    if (value.hijri && value.gregorian) {
+      return 'تاريخ محدث'; // Just say "date updated" instead of showing JSON
+    }
+    // Array
+    if (Array.isArray(value)) {
+      return `${value.length} عنصر`;
+    }
+    // Generic object - count properties
+    return `كائن (${Object.keys(value).length} حقل)`;
+  }
+
+  if (typeof value === 'string' && value.length > 50) {
+    return value.substring(0, 50) + '...';
   }
 
   return String(value);
@@ -264,36 +278,36 @@ export function formatFieldValue(fieldName, value) {
 // Generate smart action description from changed fields
 export function generateActionDescription(actionType, changedFields, targetName) {
   if (!changedFields || changedFields.length === 0) {
-    return `حدّث معلومات ${targetName || 'الملف'}`;
+    return `تحديث بيانات`;
   }
 
   const primaryField = changedFields[0];
   const fieldLabel = getFieldLabel(primaryField);
 
-  // Multiple fields changed
+  // Multiple fields changed - keep it short, name is shown below
   if (changedFields.length > 1) {
-    return `حدّث ${changedFields.length} حقول لـ ${targetName || 'الملف'}`;
+    return `تحديث ${changedFields.length} حقول`;
   }
 
-  // Single field changed - be specific
+  // Single field changed - short label (name shown separately)
   switch (primaryField) {
     case 'phone':
-      return `غيّر رقم الجوال لـ ${targetName}`;
+      return `تحديث: رقم الجوال`;
     case 'name':
-      return `غيّر اسم ${targetName}`;
+      return `تحديث: الاسم`;
     case 'professional_title':
-      return `حدّث المسمى الوظيفي لـ ${targetName}`;
+      return `تحديث: المسمى الوظيفي`;
     case 'kunya':
-      return `أضاف كنية لـ ${targetName}`;
+      return `تحديث: الكنية`;
     case 'achievements':
-      return `حدّث الإنجازات لـ ${targetName}`;
+      return `تحديث: الإنجازات`;
     case 'photo_url':
-      return `غيّر الصورة الشخصية لـ ${targetName}`;
+      return `تحديث: الصورة`;
     case 'date_of_birth':
-      return `حدّث تاريخ الميلاد لـ ${targetName}`;
+      return `تحديث: تاريخ الميلاد`;
     case 'email':
-      return `غيّر البريد الإلكتروني لـ ${targetName}`;
+      return `تحديث: البريد الإلكتروني`;
     default:
-      return `غيّر ${fieldLabel} لـ ${targetName}`;
+      return `تحديث: ${fieldLabel}`;
   }
 }
