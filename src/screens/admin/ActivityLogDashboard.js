@@ -18,6 +18,7 @@ import {
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from 'expo-haptics';
 import { supabase } from "../../services/supabase";
 import {
   format,
@@ -623,6 +624,40 @@ export default function ActivityLogDashboard({ onClose }) {
     });
   }, []);
 
+  // Handle stat widget taps to apply filters
+  const handleStatPress = useCallback((filterType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    switch (filterType) {
+      case 'all':
+        setActiveFilter('all');
+        break;
+      case 'critical':
+        setActiveFilter('critical');
+        break;
+      case 'today':
+        // Set date filter to today
+        setDatePreset('today');
+        break;
+      case 'users':
+        // Open user filter modal
+        setShowUserFilter(true);
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  // Clear all active filters
+  const handleClearAllFilters = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setActiveFilter('all');
+    setSelectedUser(null);
+    setDatePreset('all');
+    setCustomDateRange({ from: null, to: null });
+    setSearchText('');
+  }, []);
+
   // Memoized Header Component
   const Header = useMemo(() => (
     <View style={styles.header}>
@@ -648,32 +683,76 @@ export default function ActivityLogDashboard({ onClose }) {
     </View>
   ), [onClose]);
 
-  // Memoized Stats Widget Component
+  // Memoized Stats Widget Component (now interactive)
   const StatsWidget = useMemo(() => (
     <View style={styles.statsWidget}>
       <View style={styles.statsRow}>
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={[
+            styles.statItem,
+            activeFilter === 'all' && datePreset === 'all' && !selectedUser && styles.statItemActive
+          ]}
+          onPress={() => handleStatPress('all')}
+          activeOpacity={0.7}
+          accessibilityLabel="إجمالي الأنشطة"
+          accessibilityHint="اضغط لعرض جميع الأنشطة"
+          accessibilityRole="button"
+        >
           <Text style={styles.statValue}>{stats.total}</Text>
           <Text style={styles.statLabel}>إجمالي</Text>
-        </View>
+          <Ionicons name="chevron-back" size={12} color={tokens.colors.textMuted} style={styles.statChevron} />
+        </TouchableOpacity>
         <View style={styles.statDivider} />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={[
+            styles.statItem,
+            datePreset === 'today' && styles.statItemActive
+          ]}
+          onPress={() => handleStatPress('today')}
+          activeOpacity={0.7}
+          accessibilityLabel="أنشطة اليوم"
+          accessibilityHint="اضغط لتصفية أنشطة اليوم فقط"
+          accessibilityRole="button"
+        >
           <Text style={styles.statValue}>{stats.today}</Text>
           <Text style={styles.statLabel}>اليوم</Text>
-        </View>
+          <Ionicons name="chevron-back" size={12} color={tokens.colors.textMuted} style={styles.statChevron} />
+        </TouchableOpacity>
         <View style={styles.statDivider} />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={[
+            styles.statItem,
+            activeFilter === 'critical' && styles.statItemActive
+          ]}
+          onPress={() => handleStatPress('critical')}
+          activeOpacity={0.7}
+          accessibilityLabel="أنشطة حرجة"
+          accessibilityHint="اضغط لتصفية الأنشطة الحرجة فقط"
+          accessibilityRole="button"
+        >
           <Text style={styles.statValue}>{stats.critical}</Text>
           <Text style={styles.statLabel}>حرج</Text>
-        </View>
+          <Ionicons name="chevron-back" size={12} color={tokens.colors.textMuted} style={styles.statChevron} />
+        </TouchableOpacity>
         <View style={styles.statDivider} />
-        <View style={styles.statItem}>
+        <TouchableOpacity
+          style={[
+            styles.statItem,
+            selectedUser && styles.statItemActive
+          ]}
+          onPress={() => handleStatPress('users')}
+          activeOpacity={0.7}
+          accessibilityLabel="تصفية حسب المستخدم"
+          accessibilityHint="اضغط لفتح تصفية المستخدمين"
+          accessibilityRole="button"
+        >
           <Text style={styles.statValue}>{stats.users}</Text>
           <Text style={styles.statLabel}>مستخدمون</Text>
-        </View>
+          <Ionicons name="chevron-back" size={12} color={tokens.colors.textMuted} style={styles.statChevron} />
+        </TouchableOpacity>
       </View>
     </View>
-  ), [stats]);
+  ), [stats, activeFilter, datePreset, selectedUser, handleStatPress]);
 
   // Memoized Search Bar Component
   const SearchBar = useMemo(() => (
@@ -690,17 +769,28 @@ export default function ActivityLogDashboard({ onClose }) {
         onChangeText={setSearchText}
         returnKeyType="search"
       />
-      {searchText.length > 0 && (
+      {/* Show loading indicator during debounce */}
+      {searchText !== debouncedSearch && searchText.length > 0 && (
+        <ActivityIndicator size="small" color={tokens.colors.najdi.crimson} />
+      )}
+      {searchText.length > 0 && searchText === debouncedSearch && (
         <TouchableOpacity onPress={() => setSearchText("")}>
           <Ionicons name="close-circle" size={20} color="#24212160" />
         </TouchableOpacity>
       )}
     </View>
-  ), [searchText]);
+  ), [searchText, debouncedSearch]);
 
   // Filter Chips Component
   const FilterChips = useMemo(() => {
-    const hasFilters = selectedUser || datePreset !== 'all';
+    const activeFilterCount = [
+      activeFilter !== 'all' ? 1 : 0,
+      selectedUser ? 1 : 0,
+      datePreset !== 'all' ? 1 : 0,
+      searchText.length > 0 ? 1 : 0,
+    ].reduce((a, b) => a + b, 0);
+
+    const hasFilters = activeFilterCount > 0;
 
     if (!hasFilters) return null;
 
@@ -738,9 +828,22 @@ export default function ActivityLogDashboard({ onClose }) {
             </TouchableOpacity>
           </View>
         )}
+        {activeFilterCount > 1 && (
+          <TouchableOpacity
+            style={styles.clearAllButton}
+            onPress={handleClearAllFilters}
+            activeOpacity={0.7}
+            accessibilityLabel="مسح جميع الفلاتر"
+            accessibilityHint="اضغط لإزالة جميع الفلاتر النشطة"
+            accessibilityRole="button"
+          >
+            <Text style={styles.clearAllText}>مسح الكل</Text>
+            <Ionicons name="close-circle" size={14} color={tokens.colors.najdi.crimson} />
+          </TouchableOpacity>
+        )}
       </View>
     );
-  }, [selectedUser, datePreset]);
+  }, [selectedUser, datePreset, activeFilter, searchText, handleClearAllFilters]);
 
   // Render filter button (for horizontal FlatList)
   const renderFilterButton = useCallback(({ item }) => {
@@ -874,12 +977,22 @@ export default function ActivityLogDashboard({ onClose }) {
                   </Text>
                   {/* Show inline diff when collapsed */}
                   {!isExpanded && activity.changed_fields && activity.changed_fields.length > 0 && (
-                    <InlineDiff
-                      field={activity.changed_fields[0]}
-                      oldValue={activity.old_data?.[activity.changed_fields[0]]}
-                      newValue={activity.new_data?.[activity.changed_fields[0]]}
-                      showLabels={false}
-                    />
+                    <>
+                      <InlineDiff
+                        field={activity.changed_fields[0]}
+                        oldValue={activity.old_data?.[activity.changed_fields[0]]}
+                        newValue={activity.new_data?.[activity.changed_fields[0]]}
+                        showLabels={false}
+                      />
+                      {/* Field count badge for multiple changes */}
+                      {activity.changed_fields.length > 1 && (
+                        <View style={styles.fieldCountBadge}>
+                          <Text style={styles.fieldCountText}>
+                            +{activity.changed_fields.length - 1} حقول
+                          </Text>
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
                 <Text style={styles.activityTime}>
@@ -959,16 +1072,11 @@ export default function ActivityLogDashboard({ onClose }) {
                             style={[
                               styles.severityBadge,
                               {
-                                backgroundColor: SEVERITY_COLORS[activity.severity] + "20",
+                                backgroundColor: SEVERITY_COLORS[activity.severity],
                               },
                             ]}
                           >
-                            <Text
-                              style={[
-                                styles.severityBadgeText,
-                                { color: SEVERITY_COLORS[activity.severity] },
-                              ]}
-                            >
+                            <Text style={styles.severityBadgeText}>
                               {activity.severity}
                             </Text>
                           </View>
@@ -1099,12 +1207,28 @@ export default function ActivityLogDashboard({ onClose }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text" size={64} color="#73637280" />
-            <Text style={styles.emptyText}>لا توجد أنشطة</Text>
-            <Text style={styles.emptySubtext}>
-              {searchText
-                ? "جرب تغيير كلمات البحث"
-                : "لم يتم تسجيل أي أنشطة بعد"}
-            </Text>
+            {(selectedUser || datePreset !== 'all' || activeFilter !== 'all' || searchText) ? (
+              <>
+                <Text style={styles.emptyText}>لا توجد نتائج تطابق الفلاتر</Text>
+                <Text style={styles.emptySubtext}>
+                  جرب تعديل الفلاتر أو البحث
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyActionButton}
+                  onPress={handleClearAllFilters}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.emptyActionText}>مسح الفلاتر</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyText}>لا توجد أنشطة</Text>
+                <Text style={styles.emptySubtext}>
+                  لم يتم تسجيل أي أنشطة بعد
+                </Text>
+              </>
+            )}
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -1200,7 +1324,7 @@ const styles = StyleSheet.create({
 
   // Stats Widget
   statsWidget: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9F7F3", // Al-Jass White (changed from #FFFFFF)
     marginHorizontal: 16,
     marginTop: 8,
     marginBottom: 16,
@@ -1226,6 +1350,13 @@ const styles = StyleSheet.create({
   statItem: {
     flex: 1,
     alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    minHeight: 44, // Accessibility touch target
+  },
+  statItemActive: {
+    backgroundColor: "#A1333315", // Najdi Crimson 8% opacity
   },
   statValue: {
     fontSize: 28,
@@ -1238,6 +1369,10 @@ const styles = StyleSheet.create({
     color: "#736372",
     marginTop: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  statChevron: {
+    marginTop: 4,
+    opacity: 0.6,
   },
   statDivider: {
     width: 1,
@@ -1282,8 +1417,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
-    height: 36,
-    borderRadius: 18,
+    minHeight: 44, // Changed from 36px to meet iOS minimum touch target
+    paddingVertical: 10,
+    borderRadius: 22,
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#D1BBA340",
@@ -1365,6 +1501,22 @@ const styles = StyleSheet.create({
     color: "#736372",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
+  fieldCountBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: tokens.colors.najdi.ochre + "20",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.ochre + "40",
+  },
+  fieldCountText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: tokens.colors.najdi.ochre,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
   activityTime: {
     fontSize: 13,
     color: "#736372",
@@ -1411,8 +1563,9 @@ const styles = StyleSheet.create({
   },
   severityBadgeText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "700",
     textTransform: "uppercase",
+    color: "#FFFFFF", // White text for better contrast on solid backgrounds
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityDescription: {
@@ -1552,6 +1705,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
+  emptyActionButton: {
+    marginTop: 24,
+    backgroundColor: tokens.colors.najdi.crimson,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    minHeight: 44,
+  },
+  emptyActionText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: tokens.colors.najdi.alJass,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
 
   // Footer Loader
   footerLoader: {
@@ -1622,5 +1789,23 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.alJass,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     flexShrink: 1,
+  },
+  clearAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: tokens.colors.najdi.crimson,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    minHeight: 32,
+  },
+  clearAllText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: tokens.colors.najdi.crimson,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 });
