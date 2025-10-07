@@ -106,6 +106,12 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
     }));
   };
 
+  const isValidUrl = (url) => {
+    // Match database constraint regex: ^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
+    const urlPattern = /^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    return urlPattern.test(url);
+  };
+
   const handleBlur = (platform) => {
     const value = localValues[platform];
     const newLinks = { ...socialLinks };
@@ -113,8 +119,18 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
     if (value && value.trim()) {
       // Format when user finishes typing
       const formattedLink = formatSocialLink(platform, value);
-      if (formattedLink) {
+
+      // Only save if it's a valid URL
+      if (formattedLink && isValidUrl(formattedLink)) {
         newLinks[platform] = formattedLink;
+      } else {
+        // Remove invalid URLs
+        delete newLinks[platform];
+        // Reset local state to empty
+        setLocalValues(prev => ({
+          ...prev,
+          [platform]: ''
+        }));
       }
     } else {
       // Remove empty values
