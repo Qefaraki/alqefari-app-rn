@@ -1442,10 +1442,11 @@ const styles = StyleSheet.create({
     paddingRight: 12, // Add spacing before divider (note: RTL, so paddingRight is on the left)
   },
   filterDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: tokens.colors.najdi.camelHair,
-    marginHorizontal: 8,
+    width: 2,
+    height: 40,
+    backgroundColor: "#D1BBA3",
+    marginHorizontal: 12,
+    borderRadius: 1,
   },
   filterButton: {
     flexDirection: "row",
