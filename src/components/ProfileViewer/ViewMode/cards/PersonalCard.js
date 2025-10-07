@@ -7,13 +7,6 @@ const PersonalCard = ({ person }) => {
   if (!person) return null;
 
   const rows = [
-    person.kunya ? { label: 'الكنية', value: person.kunya } : null,
-    person.professional_title
-      ? {
-          label: 'اللقب المهني',
-          value: getTitleLabel(person.professional_title) || person.title_abbreviation,
-        }
-      : null,
     person.birth_place ? { label: 'مكان الميلاد', value: person.birth_place } : null,
     person.family_origin ? { label: 'الأصل العائلي', value: person.family_origin } : null,
   ].filter(Boolean);

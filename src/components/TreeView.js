@@ -62,7 +62,7 @@ import Animated, {
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
-import { useTreeStore } from "../stores/useTreeStore";
+import { useTreeStore, TREE_DATA_SCHEMA_VERSION } from "../stores/useTreeStore";
 import profilesService from "../services/profiles";
 import { formatDateDisplay } from "../services/migrationHelpers";
 import { useSettings } from "../contexts/SettingsContext";
@@ -83,7 +83,9 @@ import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkErrorView from "./NetworkErrorView";
 
-const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
+// Asymmetric margins to match tree layout: horizontal spacing is 2-3x wider than vertical
+const VIEWPORT_MARGIN_X = 2000; // Covers ~20 siblings + collision expansion (max in DB: 10)
+const VIEWPORT_MARGIN_Y = 800;  // Covers ~7 generations (sufficient for viewing)
 const NODE_WIDTH_WITH_PHOTO = 85;
 const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;
@@ -121,7 +123,7 @@ const SCALE_QUANTUM = 0.05; // 5% quantization steps
 const HYSTERESIS = 0.15; // ±15% hysteresis
 const T1_BASE = 48; // Full card threshold (px)
 const T2_BASE = 24; // Text pill threshold (px)
-const MAX_VISIBLE_NODES = 350; // Hard cap per frame
+const MAX_VISIBLE_NODES = 500; // 10% safety buffer for asymmetric margins at extreme zoom
 const MAX_VISIBLE_EDGES = 300; // Hard cap per frame
 const LOD_ENABLED = true; // Kill switch
 const AGGREGATION_ENABLED = true; // T3 chips toggle
@@ -723,14 +725,20 @@ const TreeView = ({
     const startTime = Date.now();
 
     // Check if we already have adequate data (at least 400 nodes means we have the full tree)
-    const existingData = useTreeStore.getState().treeData;
-    if (existingData && existingData.length >= 400) {
+    const storeState = useTreeStore.getState();
+    const existingData = storeState.treeData;
+    const cachedVersion = storeState.cachedSchemaVersion;
+
+    // Use cache only if version matches current schema
+    if (existingData && existingData.length >= 400 && cachedVersion === TREE_DATA_SCHEMA_VERSION) {
       const loadTime = Date.now() - startTime;
-      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (adequate), instant load in', loadTime, 'ms');
-      // Don't reload - we have enough data
+      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (schema v' + TREE_DATA_SCHEMA_VERSION + '), instant load in', loadTime, 'ms');
+      // Don't reload - we have enough data with correct schema
       setShowSkeleton(false);
       setIsLoading(false);
       return;
+    } else if (existingData && existingData.length >= 400 && cachedVersion !== TREE_DATA_SCHEMA_VERSION) {
+      console.log('⚠️ Schema version mismatch (cached: v' + cachedVersion + ', current: v' + TREE_DATA_SCHEMA_VERSION + '), reloading tree...');
     } else if (existingData && existingData.length > 0) {
       console.log('⚠️ Partial tree data exists:', existingData.length, 'nodes, loading full tree...');
     }
@@ -1164,10 +1172,10 @@ const TreeView = ({
 
   // Visible bounds for culling
   const [visibleBounds, setVisibleBounds] = useState({
-    minX: -VIEWPORT_MARGIN,
-    maxX: dimensions.width + VIEWPORT_MARGIN,
-    minY: -VIEWPORT_MARGIN,
-    maxY: dimensions.height + VIEWPORT_MARGIN,
+    minX: -VIEWPORT_MARGIN_X,
+    maxX: dimensions.width + VIEWPORT_MARGIN_X,
+    minY: -VIEWPORT_MARGIN_Y,
+    maxY: dimensions.height + VIEWPORT_MARGIN_Y,
   });
 
   // Track last stable scale to detect significant changes
@@ -1181,14 +1189,15 @@ const TreeView = ({
       scale: scale.value,
     }),
     (current) => {
-      // Scale-dependent margin: larger margin when zoomed out
-      const dynamicMargin = VIEWPORT_MARGIN / current.scale;
+      // Scale-dependent margins: larger when zoomed out, asymmetric to match tree layout
+      const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
+      const dynamicMarginY = VIEWPORT_MARGIN_Y / current.scale;
 
       const newBounds = {
-        minX: (-current.x - dynamicMargin) / current.scale,
-        maxX: (-current.x + dimensions.width + dynamicMargin) / current.scale,
-        minY: (-current.y - dynamicMargin) / current.scale,
-        maxY: (-current.y + dimensions.height + dynamicMargin) / current.scale,
+        minX: (-current.x - dynamicMarginX) / current.scale,
+        maxX: (-current.x + dimensions.width + dynamicMarginX) / current.scale,
+        minY: (-current.y - dynamicMarginY) / current.scale,
+        maxY: (-current.y + dimensions.height + dynamicMarginY) / current.scale,
       };
 
       runOnJS(setVisibleBounds)(newBounds);

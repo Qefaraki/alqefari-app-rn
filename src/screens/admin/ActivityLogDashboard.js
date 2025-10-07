@@ -151,6 +151,17 @@ const DateGroupSkeleton = () => (
   </View>
 );
 
+// Helper function to format field values for display
+const formatValue = (value) => {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "نعم" : "لا";
+  if (typeof value === "object") return JSON.stringify(value);
+  if (typeof value === "string" && value.length > 50) {
+    return value.substring(0, 50) + "...";
+  }
+  return String(value);
+};
+
 export default function ActivityLogDashboard({ onClose }) {
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
@@ -177,7 +188,7 @@ export default function ActivityLogDashboard({ onClose }) {
   const fetchActivities = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from("audit_log_enhanced")
+        .from("activity_log_detailed")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(500);
@@ -551,52 +562,150 @@ export default function ActivityLogDashboard({ onClose }) {
               {/* Expanded details */}
               {isExpanded && (
                 <View style={styles.expandedContent}>
-                  {/* Metadata */}
-                  <View style={styles.metadataRow}>
-                    <View style={styles.metadataItem}>
-                      <Text style={styles.metadataLabel}>الوقت الكامل</Text>
-                      <Text style={styles.metadataValue}>
-                        {formatTimestamp(activity.created_at)}
-                      </Text>
-                    </View>
-
-                    {activity.severity && (
-                      <View style={styles.metadataItem}>
-                        <Text style={styles.metadataLabel}>الأهمية</Text>
-                        <View
-                          style={[
-                            styles.severityBadge,
-                            {
-                              backgroundColor: SEVERITY_COLORS[activity.severity] + "20",
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.severityBadgeText,
-                              { color: SEVERITY_COLORS[activity.severity] },
-                            ]}
-                          >
-                            {activity.severity}
-                          </Text>
+                  {/* Actor Information */}
+                  {activity.actor_name && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>المستخدم المنفذ</Text>
+                      <View style={styles.detailGrid}>
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>الاسم</Text>
+                          <Text style={styles.detailValue}>{activity.actor_name}</Text>
                         </View>
+                        {activity.actor_phone && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>الجوال</Text>
+                            <Text style={styles.detailValue}>
+                              {'\u202A' + activity.actor_phone + '\u202C'}
+                            </Text>
+                          </View>
+                        )}
+                        {activity.actor_hid && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>HID</Text>
+                            <Text style={styles.detailValue}>
+                              {'\u202A' + activity.actor_hid + '\u202C'}
+                            </Text>
+                          </View>
+                        )}
+                        {activity.actor_role && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>الدور</Text>
+                            <Text style={styles.detailValue}>
+                              {activity.actor_role === 'super_admin' ? 'مشرف عام' :
+                               activity.actor_role === 'admin' ? 'مشرف' : 'مستخدم'}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    )}
-                  </View>
-
-                  {activity.description && (
-                    <Text style={styles.activityDescription}>
-                      {activity.description}
-                    </Text>
+                    </View>
                   )}
 
-                  {/* Before/After diff if available */}
+                  {/* Target Information */}
+                  {activity.target_name && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>الملف المتأثر</Text>
+                      <View style={styles.detailGrid}>
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>الاسم</Text>
+                          <Text style={styles.detailValue}>{activity.target_name}</Text>
+                        </View>
+                        {activity.target_phone && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>الجوال</Text>
+                            <Text style={styles.detailValue}>
+                              {'\u202A' + activity.target_phone + '\u202C'}
+                            </Text>
+                          </View>
+                        )}
+                        {activity.target_hid && (
+                          <View style={styles.detailItem}>
+                            <Text style={styles.detailLabel}>HID</Text>
+                            <Text style={styles.detailValue}>
+                              {'\u202A' + activity.target_hid + '\u202C'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* System Metadata */}
+                  <View style={styles.detailSection}>
+                    <Text style={styles.detailSectionTitle}>معلومات النظام</Text>
+                    <View style={styles.detailGrid}>
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailLabel}>الوقت الكامل</Text>
+                        <Text style={styles.detailValue}>
+                          {formatTimestamp(activity.created_at)}
+                        </Text>
+                      </View>
+                      {activity.severity && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>الأهمية</Text>
+                          <View
+                            style={[
+                              styles.severityBadge,
+                              {
+                                backgroundColor: SEVERITY_COLORS[activity.severity] + "20",
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.severityBadgeText,
+                                { color: SEVERITY_COLORS[activity.severity] },
+                              ]}
+                            >
+                              {activity.severity}
+                            </Text>
+                          </View>
+                        </View>
+                      )}
+                      {activity.description && (
+                        <View style={styles.detailItem}>
+                          <Text style={styles.detailLabel}>الوصف</Text>
+                          <Text style={styles.detailValue}>{activity.description}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Field-by-field diff if changed_fields available */}
+                  {activity.changed_fields && activity.changed_fields.length > 0 && (
+                    <View style={styles.detailSection}>
+                      <Text style={styles.detailSectionTitle}>
+                        الحقول المتغيرة ({activity.changed_fields.length})
+                      </Text>
+                      {activity.changed_fields.map((field, idx) => (
+                        <View key={idx} style={styles.fieldChangeRow}>
+                          <Text style={styles.fieldChangeName}>{field}</Text>
+                          <View style={styles.fieldChangeValues}>
+                            <View style={styles.fieldChangeOld}>
+                              <Text style={styles.fieldChangeLabel}>قبل</Text>
+                              <Text style={styles.fieldChangeValue} numberOfLines={2}>
+                                {formatValue(activity.old_data?.[field])}
+                              </Text>
+                            </View>
+                            <Ionicons name="arrow-back" size={16} color="#24212160" />
+                            <View style={styles.fieldChangeNew}>
+                              <Text style={styles.fieldChangeLabel}>بعد</Text>
+                              <Text style={styles.fieldChangeValue} numberOfLines={2}>
+                                {formatValue(activity.new_data?.[field])}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Full JSON diff as fallback */}
                   {(activity.old_data || activity.new_data) && (
                     <View style={styles.diffContainer}>
                       {activity.old_data && (
                         <View style={styles.diffSection}>
-                          <Text style={styles.diffLabel}>قبل التغيير</Text>
-                          <Text style={styles.diffContent} numberOfLines={3}>
+                          <Text style={styles.diffLabel}>البيانات الكاملة (قبل)</Text>
+                          <Text style={styles.diffContent} numberOfLines={5}>
                             {JSON.stringify(activity.old_data, null, 2)}
                           </Text>
                         </View>
@@ -604,8 +713,8 @@ export default function ActivityLogDashboard({ onClose }) {
 
                       {activity.new_data && (
                         <View style={styles.diffSection}>
-                          <Text style={styles.diffLabel}>بعد التغيير</Text>
-                          <Text style={styles.diffContent} numberOfLines={3}>
+                          <Text style={styles.diffLabel}>البيانات الكاملة (بعد)</Text>
+                          <Text style={styles.diffContent} numberOfLines={5}>
                             {JSON.stringify(activity.new_data, null, 2)}
                           </Text>
                         </View>
@@ -989,6 +1098,92 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
+  // Detail sections
+  detailSection: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#D1BBA320",
+  },
+  detailSectionTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#A13333",
+    marginBottom: 12,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  detailGrid: {
+    gap: 12,
+  },
+  detailItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#736372",
+    minWidth: 80,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  detailValue: {
+    flex: 1,
+    fontSize: 15,
+    color: "#242121",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+
+  // Field-by-field diff
+  fieldChangeRow: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#D1BBA315",
+  },
+  fieldChangeName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#D58C4A",
+    marginBottom: 8,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  fieldChangeValues: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  fieldChangeOld: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: "#FF3B3010",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FF3B3020",
+  },
+  fieldChangeNew: {
+    flex: 1,
+    padding: 12,
+    backgroundColor: "#34C75910",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#34C75920",
+  },
+  fieldChangeLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#736372",
+    marginBottom: 4,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    textTransform: "uppercase",
+  },
+  fieldChangeValue: {
+    fontSize: 13,
+    color: "#242121",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+
+  // Full JSON diff
   diffContainer: {
     marginTop: 8,
   },

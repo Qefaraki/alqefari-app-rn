@@ -10,8 +10,6 @@ import {
   Platform,
   Alert,
   Modal,
-  
-  I18nManager,
   Animated,
   TouchableWithoutFeedback,
   Keyboard,
@@ -34,20 +32,10 @@ import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
 import MotherSelectorSimple from "./fields/MotherSelectorSimple";
+import tokens from "../ui/tokens";
 
-// Enable RTL
-I18nManager.forceRTL(true);
-
-// Design System Colors from CLAUDE.md
-const COLORS = {
-  background: "#F9F7F3", // Al-Jass White
-  container: "#D1BBA3", // Camel Hair Beige
-  text: "#242121", // Sadu Night
-  primary: "#A13333", // Najdi Crimson
-  secondary: "#D58C4A", // Desert Ochre
-  textLight: "#24212199", // Sadu Night 60%
-  textMedium: "#242121CC", // Sadu Night 80%
-};
+// Use Najdi Sadu color palette from tokens
+const COLORS = tokens.colors.najdi;
 
 // Card dimensions - thinner
 const CARD_WIDTH = 75;
@@ -93,6 +81,8 @@ const DraggableChildCard = ({
     })
     .onUpdate((e) => {
       "worklet";
+      // No RTL adjustment needed: array is already reversed on init,
+      // so indices naturally map to visual positions (0=LEFT, higher=RIGHT)
       translateX.value = e.translationX;
       translateY.value = e.translationY;
     })
@@ -115,6 +105,9 @@ const DraggableChildCard = ({
       if (newIndex !== index) {
         runOnJS(onReorder)(child.id, index, newIndex);
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        // Add subtle haptic when drag cancelled
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
       }
     });
 
@@ -165,12 +158,11 @@ const DraggableChildCard = ({
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => onDelete(child)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons
                 name="close-circle"
-                size={18}
-                color="rgba(36, 33, 33, 0.3)"
+                size={20}
+                color="rgba(36, 33, 33, 0.4)"
               />
             </TouchableOpacity>
 
@@ -198,7 +190,7 @@ const DraggableChildCard = ({
 
             {isActive && (
               <View style={styles.editIndicator}>
-                <Ionicons name="pencil" size={10} color="#FFF" />
+                <Ionicons name="pencil" size={10} color={COLORS.background} />
               </View>
             )}
           </TouchableOpacity>
@@ -248,10 +240,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           sibling_order: index, // Fix duplicate orders by using index
         }));
 
-      // For RTL: Reverse array so oldest (index 0) appears on the right
-      const rtlSiblings = I18nManager.isRTL
-        ? [...sortedSiblings].reverse()
-        : sortedSiblings;
+      // RTL: Reverse array so oldest (sibling_order 0) appears on the RIGHT
+      // Array renders left-to-right, so [2,1,0] displays as: RIGHT=0, MIDDLE=1, LEFT=2
+      const rtlSiblings = [...sortedSiblings].reverse();
       setAllChildren(rtlSiblings);
       setCurrentChild({ name: "", gender: "male", id: null, mother_id: null });
       setEditingChildId(null);
@@ -273,6 +264,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     // Don't require name if just dismissing keyboard
     if (!trimmedName && !editingChildId) {
       Keyboard.dismiss();
+      return;
+    }
+
+    // Validate name length (inline validation)
+    if (trimmedName && trimmedName.length < 2) {
+      Alert.alert("خطأ", "يرجى إدخال اسم صحيح (حرفين على الأقل)");
+      return;
+    }
+    if (trimmedName && trimmedName.length > 100) {
+      Alert.alert("خطأ", "الاسم طويل جداً (100 حرف كحد أقصى)");
       return;
     }
 
@@ -311,20 +312,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         sibling_order: maxOrder + 1, // Will be youngest (highest sibling_order)
       };
 
-      // In RTL: Add to beginning of array (leftmost position for youngest)
-      if (I18nManager.isRTL) {
-        setAllChildren((prev) => [newChild, ...prev]);
-        // Scroll to start for RTL
-        setTimeout(() => {
-          scrollViewRef.current?.scrollTo({ x: 0, animated: true });
-        }, 100);
-      } else {
-        setAllChildren((prev) => [...prev, newChild]);
-        // Scroll to end for LTR
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 100);
-      }
+      // RTL: Add to beginning of array (leftmost position for youngest)
+      // Youngest child (highest sibling_order) appears on LEFT in RTL
+      setAllChildren((prev) => [newChild, ...prev]);
+      // Scroll to start to show new child
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({ x: 0, animated: true });
+      }, 100);
     }
 
     // Reset form
@@ -384,12 +378,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     const [movedChild] = newChildren.splice(fromIndex, 1);
     newChildren.splice(toIndex, 0, movedChild);
 
-    // For RTL: Since display is reversed, we need to reverse the sibling_order
+    // RTL: Calculate sibling_order from visual position
+    // Array[0] (leftmost) = youngest = highest sibling_order
+    // Array[last] (rightmost) = oldest = lowest sibling_order (0)
     const updatedChildren = newChildren.map((child, index) => {
-      // In RTL, the rightmost card (index 0) should have lowest sibling_order
-      const actualOrder = I18nManager.isRTL
-        ? newChildren.length - 1 - index
-        : index;
+      const actualOrder = newChildren.length - 1 - index;
       return {
         ...child,
         sibling_order: actualOrder,
@@ -425,6 +418,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       // 1. Create new children
       for (const child of newChildren) {
+        // Validate parent has generation (CRITICAL - generation is NOT NULL)
+        if (parentNode.generation === null || parentNode.generation === undefined) {
+          Alert.alert(
+            "خطأ",
+            "لا يمكن إضافة أطفال لملف غير مكتمل. يرجى تعيين جيل الوالد أولاً."
+          );
+          setLoading(false);
+          return;
+        }
+
         const profileData = {
           name: child.name,
           gender: child.gender,
@@ -432,6 +435,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           mother_id:
             parentNode.gender === "female" ? parentNode.id : child.mother_id,
           sibling_order: child.sibling_order,
+          generation: (parentNode.generation || 0) + 1,  // CRITICAL: Calculate generation
           status: "alive",
         };
 
@@ -460,7 +464,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           updates.mother_id = child.mother_id;
         }
 
-        promises.push(profilesService.updateProfile(child.id, updates));
+        promises.push(profilesService.updateProfile(child.id, 1, updates));
       }
 
       // 3. Update sibling orders for ALL existing children if reordered
@@ -470,7 +474,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           // Skip if already handled in edited children
           if (!editedChildren.find((ec) => ec.id === child.id)) {
             promises.push(
-              profilesService.updateProfile(child.id, {
+              profilesService.updateProfile(child.id, 1, {
                 sibling_order: child.sibling_order,
               }),
             );
@@ -478,12 +482,37 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         }
       }
 
-      await Promise.all(promises);
+      // Use Promise.allSettled for partial success handling
+      const results = await Promise.allSettled(promises);
+
+      // Count successful and failed operations
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      // Refresh profile data
       await refreshProfile(parentNode.id);
 
-      Alert.alert("نجاح", "تم حفظ التغييرات بنجاح", [
-        { text: "حسناً", onPress: onClose },
-      ]);
+      // Show appropriate message based on results
+      if (failed === 0) {
+        // All operations succeeded
+        Alert.alert("نجاح", "تم حفظ التغييرات بنجاح", [
+          { text: "حسناً", onPress: onClose },
+        ]);
+      } else if (successful > 0) {
+        // Partial success
+        Alert.alert(
+          "تحديث جزئي",
+          `تم حفظ ${successful} من ${results.length} بنجاح. فشل ${failed} عملية.`,
+          [{ text: "حسناً", onPress: onClose }]
+        );
+      } else {
+        // All operations failed
+        Alert.alert(
+          "خطأ",
+          "فشل حفظ جميع التعديلات. يرجى المحاولة مرة أخرى.",
+          [{ text: "حسناً" }]
+        );
+      }
     } catch (error) {
       console.error("Error saving children:", error);
       Alert.alert("خطأ", "فشل حفظ التغييرات. يرجى المحاولة مرة أخرى.");
@@ -675,7 +704,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   <Ionicons
                     name={editingChildId ? "checkmark" : "add"}
                     size={20}
-                    color="#FFF"
+                    color={COLORS.background}
                   />
                   <Text style={styles.addButtonText}>
                     {editingChildId ? "تحديث" : "إضافة طفل"}
@@ -734,9 +763,9 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FFF",
+    paddingHorizontal: tokens.spacing.md,  // 16px
+    paddingVertical: tokens.spacing.sm,    // 12px
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.container + "40",
   },
@@ -756,9 +785,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: COLORS.textMedium,
-    marginTop: 2,
+    fontSize: 13,  // iOS-standard (footnote)
+    color: COLORS.textMuted,
+    marginTop: tokens.spacing.xxs,  // 4px (8px grid)
   },
   headerStats: {
     alignItems: "center",
@@ -771,25 +800,25 @@ const styles = StyleSheet.create({
   },
   statsLabel: {
     fontSize: 11,
-    color: COLORS.textLight,
-    marginTop: 2,
+    color: COLORS.textMuted,
+    marginTop: tokens.spacing.xxs,  // 4px (8px grid)
   },
   cardsSection: {
-    backgroundColor: "#FFF",
-    marginTop: 8,
-    paddingVertical: 16,
+    backgroundColor: COLORS.background,
+    marginTop: tokens.spacing.xs,   // 8px
+    paddingVertical: tokens.spacing.md,  // 16px
   },
   sectionHeader: {
     paddingHorizontal: 16,
-    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+    flexDirection: "row",  // React Native handles RTL automatically
     justifyContent: "flex-start",
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 13,  // iOS-standard (footnote)
     fontWeight: "500",
-    color: COLORS.textMedium,
-    marginBottom: 12,
-    textAlign: I18nManager.isRTL ? "right" : "left",
+    color: COLORS.textMuted,
+    marginBottom: tokens.spacing.sm,  // 12px
+    textAlign: "left",  // React Native handles RTL automatically
   },
   cardsScroll: {
     height: CARD_HEIGHT + 20,
@@ -797,7 +826,7 @@ const styles = StyleSheet.create({
   cardsScrollContent: {
     paddingHorizontal: 16,
     alignItems: "center",
-    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+    flexDirection: "row",  // React Native handles RTL automatically
   },
   emptyCard: {
     width: CARD_WIDTH,
@@ -812,8 +841,8 @@ const styles = StyleSheet.create({
   },
   emptyCardText: {
     fontSize: 13,
-    color: COLORS.textLight,
-    marginTop: 8,
+    color: COLORS.textMuted,
+    marginTop: tokens.spacing.xs,  // 8px
   },
   cardWrapper: {
     marginHorizontal: CARD_SPACING / 2,
@@ -821,8 +850,8 @@ const styles = StyleSheet.create({
   childCard: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    backgroundColor: "#FFF",
-    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.sm,  // 10px
     padding: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -847,6 +876,10 @@ const styles = StyleSheet.create({
     top: 4,
     left: 4,
     zIndex: 10,
+    width: 32,   // Minimum touch target
+    height: 32,  // Minimum touch target
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   orderBadge: {
     position: "absolute",
@@ -858,7 +891,7 @@ const styles = StyleSheet.create({
   orderBadgeText: {
     fontSize: 11,
     fontWeight: "600",
-    color: COLORS.textLight,
+    color: COLORS.textMuted,
   },
   childName: {
     fontSize: 13,
@@ -905,13 +938,13 @@ const styles = StyleSheet.create({
   },
   inputForm: {
     flex: 1,
-    backgroundColor: "#FFF",
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    backgroundColor: COLORS.background,
+    marginTop: tokens.spacing.xs,  // 8px
+    paddingHorizontal: tokens.spacing.md,  // 16px
+    paddingTop: tokens.spacing.md,  // 16px
   },
   formHeader: {
-    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+    flexDirection: "row",  // React Native handles RTL automatically
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
@@ -934,13 +967,13 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     backgroundColor: COLORS.container + "20",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    borderRadius: tokens.radii.md,  // 12px
+    paddingHorizontal: tokens.spacing.md,  // 16px
+    paddingVertical: tokens.spacing.sm + 2,  // 14px
+    fontSize: 17,  // iOS-standard (body)
     color: COLORS.text,
-    textAlign: I18nManager.isRTL ? "right" : "left",
-    marginBottom: 12,
+    textAlign: "left",  // React Native handles RTL automatically
+    marginBottom: tokens.spacing.sm,  // 12px
     borderWidth: 1,
     borderColor: COLORS.container + "40",
   },
@@ -962,12 +995,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary,
   },
   genderButtonText: {
-    fontSize: 15,
+    fontSize: 15,  // iOS-standard (subheadline)
     fontWeight: "500",
     color: COLORS.text,
   },
   genderButtonTextActive: {
-    color: "#FFF",
+    color: COLORS.background,
   },
   addButton: {
     flexDirection: "row",
@@ -983,9 +1016,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.container + "40",
   },
   addButtonText: {
-    fontSize: 16,
+    fontSize: 17,  // iOS-standard (body)
     fontWeight: "600",
-    color: "#FFF",
+    color: COLORS.background,  // Use background color instead of #FFF
   },
   motherSelectorContainer: {
     width: "100%",
@@ -993,12 +1026,12 @@ const styles = StyleSheet.create({
   },
   bottomActions: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#FFF",
+    paddingHorizontal: tokens.spacing.md,  // 16px
+    paddingVertical: tokens.spacing.sm,    // 12px
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
     borderTopColor: COLORS.container + "40",
-    gap: 12,
+    gap: tokens.spacing.sm,  // 12px
   },
   cancelButton: {
     flex: 1,
@@ -1008,7 +1041,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.container + "20",
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: 17,  // iOS-standard (body)
     fontWeight: "500",
     color: COLORS.text,
   },
@@ -1026,9 +1059,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   saveButtonText: {
-    fontSize: 16,
+    fontSize: 17,  // iOS-standard (body)
     fontWeight: "600",
-    color: "#FFF",
+    color: COLORS.background,  // Use background color instead of #FFF
   },
 });
 

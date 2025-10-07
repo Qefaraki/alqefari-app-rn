@@ -228,18 +228,7 @@ const ProfileSheet = ({ editMode = false }) => {
   // Get person data - try tree data first, fall back to familyData
   const person = useMemo(() => {
     if (treeData && treeData.length > 0) {
-      const foundPerson = treeData.find((p) => p.id === selectedPersonId);
-      // DEBUG: Log to verify kunya field exists
-      if (foundPerson) {
-        console.log('🔍 [ProfileSheet] Person data:', {
-          id: foundPerson.id,
-          name: foundPerson.name,
-          kunya: foundPerson.kunya,
-          hasKunya: !!foundPerson.kunya,
-          allKeys: Object.keys(foundPerson).filter(k => k.includes('kun'))
-        });
-      }
-      return foundPerson;
+      return treeData.find((p) => p.id === selectedPersonId);
     }
     return familyData.find((p) => p.id === selectedPersonId);
   }, [selectedPersonId, treeData]);

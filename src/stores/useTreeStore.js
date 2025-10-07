@@ -4,6 +4,10 @@ import {
   clampStageToBounds,
 } from "../utils/cameraConstraints";
 
+// Schema version - increment when adding new fields to profiles table
+// This forces cache invalidation after migrations
+export const TREE_DATA_SCHEMA_VERSION = 2; // v2: Added kunya field (Migration 015)
+
 export const useTreeStore = create((set, get) => ({
   // Camera State
   stage: {
@@ -37,6 +41,9 @@ export const useTreeStore = create((set, get) => ({
   // High-performance Map for instant node lookups
   nodesMap: new Map(),
 
+  // Cache schema version tracking
+  cachedSchemaVersion: null,
+
   // Actions to update the state
   setStage: (newStage) => set({ stage: newStage }),
 
@@ -53,6 +60,15 @@ export const useTreeStore = create((set, get) => ({
     set({
       treeData: data || [],
       nodesMap: new Map((data || []).map((node) => [node.id, node])),
+      cachedSchemaVersion: TREE_DATA_SCHEMA_VERSION,
+    }),
+
+  // Clear tree data and force refetch (useful after migrations)
+  clearTreeData: () =>
+    set({
+      treeData: [],
+      nodesMap: new Map(),
+      cachedSchemaVersion: null,
     }),
 
   // Update a single node without reloading the entire tree

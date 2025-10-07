@@ -68,7 +68,9 @@ import { supabase } from "../services/supabase";
 // Haptics and LottieGlow removed - no interaction in simplified view
 import NetworkErrorView from "./NetworkErrorView";
 
-const VIEWPORT_MARGIN = 800; // Increased to reduce culling jumps on zoom
+// Asymmetric margins to match tree layout: horizontal spacing is 2-3x wider than vertical
+const VIEWPORT_MARGIN_X = 2000; // Covers ~20 siblings + collision expansion (max in DB: 10)
+const VIEWPORT_MARGIN_Y = 800;  // Covers ~7 generations (sufficient for viewing)
 const NODE_WIDTH_WITH_PHOTO = 85;
 const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;
@@ -994,10 +996,10 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
   // Visible bounds for culling
   const [visibleBounds, setVisibleBounds] = useState({
-    minX: -VIEWPORT_MARGIN,
-    maxX: dimensions.width + VIEWPORT_MARGIN,
-    minY: -VIEWPORT_MARGIN,
-    maxY: dimensions.height + VIEWPORT_MARGIN,
+    minX: -VIEWPORT_MARGIN_X,
+    maxX: dimensions.width + VIEWPORT_MARGIN_X,
+    minY: -VIEWPORT_MARGIN_Y,
+    maxY: dimensions.height + VIEWPORT_MARGIN_Y,
   });
 
   // Track last stable scale to detect significant changes
@@ -1011,14 +1013,15 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       scale: scale.value,
     }),
     (current) => {
-      // Scale-dependent margin: larger margin when zoomed out
-      const dynamicMargin = VIEWPORT_MARGIN / current.scale;
+      // Scale-dependent margins: larger when zoomed out, asymmetric to match tree layout
+      const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
+      const dynamicMarginY = VIEWPORT_MARGIN_Y / current.scale;
 
       const newBounds = {
-        minX: (-current.x - dynamicMargin) / current.scale,
-        maxX: (-current.x + dimensions.width + dynamicMargin) / current.scale,
-        minY: (-current.y - dynamicMargin) / current.scale,
-        maxY: (-current.y + dimensions.height + dynamicMargin) / current.scale,
+        minX: (-current.x - dynamicMarginX) / current.scale,
+        maxX: (-current.x + dimensions.width + dynamicMarginX) / current.scale,
+        minY: (-current.y - dynamicMarginY) / current.scale,
+        maxY: (-current.y + dimensions.height + dynamicMarginY) / current.scale,
       };
 
       runOnJS(setVisibleBounds)(newBounds);

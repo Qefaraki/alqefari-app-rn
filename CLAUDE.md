@@ -769,13 +769,58 @@ node scripts/execute-sql.js scripts/deploy-missing-admin-migrations.sql
 3. **MCP Read-Only**: Cannot deploy via MCP, must use clipboard method
 4. **Search Function Collision**: Fixed by renaming to `super_admin_search_by_name_chain`
 
+### ⚠️ CRITICAL: Field Mapping Maintenance
+
+**Full Documentation**: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md)
+
+#### The Problem
+When you add a new field to the `profiles` table, it will **save correctly but disappear on reload** unless you update ALL relevant RPC functions.
+
+#### The "Weird Dance" (Now Fixed!)
+This happened **3 times**:
+1. **Titles**: Added `professional_title` → had to update 3 functions (migrations 012, 013)
+2. **Achievements**: Added `achievements` & `timeline` → had to update 3 functions (migration 015)
+3. **Next field?** → Use the checklist below!
+
+#### The Checklist: "Add Once, Update Everywhere"
+
+When adding a **new column** to `profiles` table:
+
+- [ ] **1. profiles table** - `ALTER TABLE profiles ADD COLUMN new_field TYPE`
+- [ ] **2. get_branch_data()** - Add to RETURNS TABLE + all 3 SELECT statements
+- [ ] **3. search_name_chain()** - Add to RETURNS TABLE + all 3 SELECT statements
+- [ ] **4. admin_update_profile()** - Add to UPDATE statement whitelist
+- [ ] **5. Test in app** - Verify field persists across save/reload
+
+#### Quick Test
+```javascript
+// 1. Save a field
+await supabase.rpc('admin_update_profile', {
+  p_updates: { your_new_field: 'test value' }
+});
+
+// 2. Reload profile
+const profile = await supabase.rpc('get_branch_data', {...});
+
+// 3. Check it's there
+console.log(profile.your_new_field);  // Should NOT be undefined!
+```
+
+#### Reference Migrations
+- **Migration 012**: `migrations/012_add_titles_to_rpc_functions.sql` - Title fields example
+- **Migration 013**: `migrations/013_add_titles_to_admin_update_profile.sql` - Update function example
+- **Migration 015**: `migrations/015_comprehensive_profile_fields.sql` - Complete coverage
+
+**See [`docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md) for step-by-step guide and examples.**
+
 ### Current System Status (January 2025)
 
 - **Super Admin**: علي (phone: 966501669043, ID: ff239ed7-24d5-4298-a135-79dc0f70e5b8)
 - **Authentication**: Phone-based only (no email logins)
-- **Migrations Deployed**: 005 and 006 (permission system)
+- **Migrations Deployed**: 005, 006 (permission system), 012, 013, 015 (field mapping)
 - **Admin Functions**: All 10 core functions deployed and operational
 - **Constraint Status**: Fixed - only `check_valid_role` active
+- **Field Coverage**: Migration 015 ensures all 41 profile fields are returned by RPC functions
 
 ## 📚 Reference
 
