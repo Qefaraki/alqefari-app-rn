@@ -912,9 +912,6 @@ export default function ActivityLogDashboard({ onClose }) {
               </Text>
             </TouchableOpacity>
 
-            {/* Divider between user and date buttons */}
-            <View style={styles.filterDivider} />
-
             <TouchableOpacity
               style={[
                 styles.filterModalButton,

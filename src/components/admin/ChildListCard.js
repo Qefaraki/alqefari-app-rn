@@ -7,6 +7,9 @@ import {
   StyleSheet,
   Animated,
   Alert,
+  Modal,
+  ScrollView,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -30,6 +33,7 @@ const ChildListCard = ({
   const [localGender, setLocalGender] = useState(child.gender);
   const [localMotherId, setLocalMotherId] = useState(child.mother_id);
   const [isMoving, setIsMoving] = useState(false);
+  const [motherSheetVisible, setMotherSheetVisible] = useState(false);
 
   // Animation values for entrance only
   const fadeAnim = useRef(new Animated.Value(child.isNew ? 0 : 1)).current;
@@ -196,6 +200,24 @@ const ChildListCard = ({
     return mother?.name || child.mother_name;
   };
 
+  const getLocalMotherName = () => {
+    if (!localMotherId) return "غير محدد";
+    const mother = mothers.find((m) => m.id === localMotherId);
+    return mother?.name || "غير محدد";
+  };
+
+  const handleMotherSelect = (motherId) => {
+    setLocalMotherId(motherId);
+    setMotherSheetVisible(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleClearMother = () => {
+    setLocalMotherId(null);
+    setMotherSheetVisible(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   const motherName = getMotherName();
 
   // Interpolate highlight color - stronger opacity for better visibility
@@ -263,8 +285,9 @@ const ChildListCard = ({
           {/* Card Content */}
           <View style={styles.content}>
             {isEditing ? (
-              // Edit Mode - iOS-style with segmented control
+              // Edit Mode - iOS-native compact design
               <View style={styles.editContainer}>
+                {/* Name Input */}
                 <TextInput
                   style={styles.nameInputInline}
                   value={localName}
@@ -272,98 +295,99 @@ const ChildListCard = ({
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={handleSaveEdit}
+                  placeholder="اسم الطفل"
+                  placeholderTextColor={COLORS.textMuted}
                   textAlign="left"
                 />
-                {/* iOS-style Segmented Control for Gender */}
-                <View style={styles.segmentedControl}>
-                  <TouchableOpacity
-                    style={[
-                      styles.segmentButton,
-                      styles.segmentButtonRight,
-                      localGender === "male" && styles.segmentButtonActive,
-                    ]}
-                    onPress={() => setLocalGender("male")}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        localGender === "male" && styles.segmentTextActive,
-                      ]}
-                    >
-                      ذكر
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.segmentButton,
-                      styles.segmentButtonLeft,
-                      localGender === "female" && styles.segmentButtonActive,
-                    ]}
-                    onPress={() => setLocalGender("female")}
-                  >
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        localGender === "female" && styles.segmentTextActive,
-                      ]}
-                    >
-                      أنثى
-                    </Text>
-                  </TouchableOpacity>
-                </View>
 
-                {/* Mother Selector (if mothers available) */}
-                {mothers.length > 0 && (
-                  <View style={styles.motherSelector}>
-                    <Text style={styles.motherLabel}>الأم</Text>
-                    <View style={styles.motherList}>
-                      {/* None option */}
-                      <TouchableOpacity
+                {/* Gender + Mother Row */}
+                <View style={styles.editRow}>
+                  {/* Gender Segmented Control */}
+                  <View style={styles.segmentedControl}>
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentButton,
+                        localGender === "male" && styles.segmentButtonActive,
+                      ]}
+                      onPress={() => {
+                        setLocalGender("male");
+                        Haptics.selectionAsync();
+                      }}
+                    >
+                      <Ionicons
+                        name="male"
+                        size={16}
+                        color={localGender === "male" ? COLORS.primary : COLORS.textMuted}
+                      />
+                      <Text
                         style={[
-                          styles.motherOption,
-                          !localMotherId && styles.motherOptionActive,
+                          styles.segmentText,
+                          localGender === "male" && styles.segmentTextActive,
                         ]}
-                        onPress={() => {
-                          setLocalMotherId(null);
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
                       >
-                        <View style={styles.motherOptionContent}>
-                          <Text style={styles.motherOptionText}>لا يوجد</Text>
-                          <Ionicons
-                            name={!localMotherId ? "radio-button-on" : "radio-button-off"}
-                            size={20}
-                            color={!localMotherId ? COLORS.primary : COLORS.textMuted}
-                          />
-                        </View>
-                      </TouchableOpacity>
-
-                      {/* Mother options */}
-                      {mothers.map((mother) => (
-                        <TouchableOpacity
-                          key={mother.id}
-                          style={[
-                            styles.motherOption,
-                            localMotherId === mother.id && styles.motherOptionActive,
-                          ]}
-                          onPress={() => {
-                            setLocalMotherId(mother.id);
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          }}
-                        >
-                          <View style={styles.motherOptionContent}>
-                            <Text style={styles.motherOptionText}>{mother.name}</Text>
-                            <Ionicons
-                              name={localMotherId === mother.id ? "radio-button-on" : "radio-button-off"}
-                              size={20}
-                              color={localMotherId === mother.id ? COLORS.primary : COLORS.textMuted}
-                            />
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                        ذكر
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentButton,
+                        localGender === "female" && styles.segmentButtonActive,
+                      ]}
+                      onPress={() => {
+                        setLocalGender("female");
+                        Haptics.selectionAsync();
+                      }}
+                    >
+                      <Ionicons
+                        name="female"
+                        size={16}
+                        color={localGender === "female" ? COLORS.primary : COLORS.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentText,
+                          localGender === "female" && styles.segmentTextActive,
+                        ]}
+                      >
+                        أنثى
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                )}
+
+                  {/* Mother Selector Button (if mothers available) */}
+                  {mothers.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.motherButton}
+                      onPress={() => {
+                        setMotherSheetVisible(true);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.motherButtonContent}>
+                        <Ionicons
+                          name="person"
+                          size={16}
+                          color={localMotherId ? COLORS.primary : COLORS.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.motherButtonText,
+                            localMotherId && styles.motherButtonTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {getLocalMotherName()}
+                        </Text>
+                        <Ionicons
+                          name="chevron-down"
+                          size={14}
+                          color={COLORS.textMuted}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             ) : (
               // View Mode
@@ -438,6 +462,97 @@ const ChildListCard = ({
           </View>
         </Animated.View>
       </Animated.View>
+
+      {/* iOS-Native Bottom Sheet for Mother Selection */}
+      <Modal
+        visible={motherSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMotherSheetVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setMotherSheetVisible(false)}
+        >
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            {/* Sheet Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Sheet Header */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>اختيار الأم</Text>
+              <Text style={styles.sheetSubtitle}>
+                اختر الأم من القائمة أدناه
+              </Text>
+            </View>
+
+            {/* Current Selection Indicator */}
+            {localMotherId && (
+              <View style={styles.currentSelectionBanner}>
+                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                <Text style={styles.currentSelectionText}>
+                  الأم الحالية: {getLocalMotherName()}
+                </Text>
+              </View>
+            )}
+
+            {/* Mother List */}
+            <ScrollView
+              style={styles.sheetScrollView}
+              contentContainerStyle={styles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {mothers.map((mother, index) => {
+                const isSelected = localMotherId === mother.id;
+                return (
+                  <TouchableOpacity
+                    key={mother.id}
+                    style={[
+                      styles.sheetOption,
+                      index === 0 && styles.sheetOptionFirst,
+                      index === mothers.length - 1 && styles.sheetOptionLast,
+                    ]}
+                    onPress={() => handleMotherSelect(mother.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.sheetOptionContent}>
+                      <Text style={styles.sheetOptionText}>{mother.name}</Text>
+                      {isSelected && (
+                        <Ionicons
+                          name="checkmark"
+                          size={22}
+                          color={COLORS.primary}
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Clear Selection Button (iOS destructive style) */}
+            {localMotherId && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={handleClearMother}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle" size={20} color={COLORS.primary} />
+                <Text style={styles.clearButtonText}>إلغاء التحديد</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Cancel Button */}
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setMotherSheetVisible(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelButtonText}>إغلاق</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </>
   );
 };
@@ -534,6 +649,7 @@ const styles = StyleSheet.create({
   },
   editContainer: {
     flex: 1,
+    gap: 8, // iOS-standard spacing between name input and gender/mother row
   },
   nameInputInline: {
     fontSize: 17,
@@ -543,38 +659,40 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: tokens.spacing.sm, // 12px
     paddingVertical: tokens.spacing.xs, // 8px
-    marginBottom: tokens.spacing.xs, // 8px
     borderWidth: 1,
     borderColor: COLORS.primary + "40",
     textAlign: "left", // Native RTL mode flips this automatically
   },
-  // iOS-style Segmented Control
+  // Gender + Mother Row
+  editRow: {
+    flexDirection: "row",
+    gap: 8, // Space between gender control and mother button
+    alignItems: "center",
+  },
+  // iOS-style Segmented Control (compact with icons)
   segmentedControl: {
     flexDirection: "row",
     backgroundColor: COLORS.container + "20",
     borderRadius: 8,
     padding: 2,
-    height: 32,
+    height: 36,
+    flex: 1, // Take available space
   },
   segmentButton: {
     flex: 1,
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 6,
-  },
-  segmentButtonLeft: {
-    // No additional style needed, flex handles layout
-  },
-  segmentButtonRight: {
-    // No additional style needed, flex handles layout
+    gap: 4, // Space between icon and text
   },
   segmentButtonActive: {
     backgroundColor: COLORS.background,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   segmentText: {
     fontSize: 13,
@@ -582,44 +700,33 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
   segmentTextActive: {
-    color: COLORS.text,
+    color: COLORS.primary,
   },
-  // Mother Selector
-  motherSelector: {
-    marginTop: 8,
-  },
-  motherLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-    marginBottom: 6,
-  },
-  motherList: {
+  // Mother Button (iOS tappable row style)
+  motherButton: {
     backgroundColor: COLORS.container + "15",
     borderRadius: 8,
-    overflow: "hidden",
-  },
-  motherOption: {
-    minHeight: 44, // iOS minimum touch target
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.container + "30",
+    height: 36,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.container + "40",
+    flex: 1.2, // Slightly wider than gender control
   },
-  motherOptionActive: {
-    backgroundColor: COLORS.primary + "08", // Subtle highlight
-  },
-  motherOptionContent: {
+  motherButtonContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
   },
-  motherOptionText: {
-    fontSize: 15,
+  motherButtonText: {
+    fontSize: 13,
     fontWeight: "500",
-    color: COLORS.text,
+    color: COLORS.textMuted,
     flex: 1,
-    textAlign: "right",
+  },
+  motherButtonTextActive: {
+    color: COLORS.text,
+    fontWeight: "600",
   },
   stateBadge: {
     paddingHorizontal: 8,
