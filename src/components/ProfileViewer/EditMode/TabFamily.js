@@ -15,18 +15,126 @@ import tokens from '../../ui/tokens';
 import { supabase } from '../../../services/supabase';
 import SpouseManager from '../../admin/SpouseManager';
 import QuickAddOverlay from '../../admin/QuickAddOverlay';
+import EditChildModal from './EditChildModal';
+import EditMarriageModal from './EditMarriageModal';
 import useStore from '../../../hooks/useStore';
+
+const SectionCard = ({
+  icon,
+  iconTint = tokens.colors.najdi.primary,
+  badge,
+  title,
+  subtitle,
+  children,
+  footer,
+  style,
+}) => (
+  <View style={[styles.sectionCard, style]}>
+    <View style={styles.sectionHeader}>
+      <View style={[styles.sectionIcon, { backgroundColor: `${iconTint}15` }]}>
+        <Ionicons name={icon} size={20} color={iconTint} />
+      </View>
+      <View style={styles.sectionTitleContainer}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {badge ? (
+        <View style={styles.sectionBadge}>
+          <Text style={styles.sectionBadgeText}>{badge}</Text>
+        </View>
+      ) : null}
+    </View>
+    <View style={styles.sectionBody}>{children}</View>
+    {footer ? <View style={styles.sectionFooter}>{footer}</View> : null}
+  </View>
+);
+
+const ParentCell = ({ label, value, icon, emptyLabel = 'غير محدد', onAction, actionLabel }) => (
+  <View style={styles.parentCell}>
+    <View style={styles.parentLabelRow}>
+      <Ionicons name={icon} size={18} color={tokens.colors.najdi.secondary} />
+      <Text style={styles.parentLabel}>{label}</Text>
+    </View>
+    <View style={styles.parentValueRow}>
+      <Text style={[styles.parentValue, !value && styles.parentValueMuted]}>
+        {value || emptyLabel}
+      </Text>
+      {onAction && (
+        <TouchableOpacity
+          style={styles.parentActionButton}
+          onPress={onAction}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.parentActionButtonText}>{actionLabel || 'تغيير'}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  </View>
+);
+
+const EmptyState = ({ icon, title, caption }) => (
+  <View style={styles.emptyState}>
+    <View style={styles.emptyStateIconWrapper}>
+      <Ionicons name={icon} size={24} color={tokens.colors.najdi.textMuted} />
+    </View>
+    <Text style={styles.emptyStateTitle}>{title}</Text>
+    {caption ? <Text style={styles.emptyStateCaption}>{caption}</Text> : null}
+  </View>
+);
+
+const MetaPill = ({ label, icon, tone = 'neutral' }) => {
+  const toneStyles = {
+    positive: {
+      container: styles.metaPillPositive,
+      text: styles.metaPillPositiveText,
+      iconColor: tokens.colors.success,
+    },
+    warning: {
+      container: styles.metaPillWarning,
+      text: styles.metaPillWarningText,
+      iconColor: tokens.colors.najdi.secondary,
+    },
+    danger: {
+      container: styles.metaPillDanger,
+      text: styles.metaPillDangerText,
+      iconColor: tokens.colors.danger,
+    },
+  }[tone];
+
+  const iconColor = toneStyles?.iconColor || tokens.colors.najdi.textMuted;
+
+  return (
+    <View style={[styles.metaPill, toneStyles?.container]}>
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={13}
+          color={iconColor}
+          style={styles.metaPillIcon}
+        />
+      ) : null}
+      <Text style={[styles.metaPillText, toneStyles?.text]}>{label}</Text>
+    </View>
+  );
+};
+
+const AddActionButton = ({ label, onPress, icon = 'add-circle-outline' }) => (
+  <TouchableOpacity
+    style={styles.addActionButton}
+    onPress={onPress}
+    activeOpacity={0.85}
+  >
+    <Ionicons name={icon} size={18} color={tokens.colors.najdi.primary} />
+    <Text style={styles.addActionButtonText}>{label}</Text>
+  </TouchableOpacity>
+);
 
 const TabFamily = ({ person, onDataChanged }) => {
   // Early validation - show error if person not provided
   if (!person) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons
-          name="alert-circle-outline"
-          size={48}
-          color={tokens.colors.najdi.textMuted}
-        />
         <Text style={styles.errorText}>لم يتم توفير معلومات الملف الشخصي</Text>
         <Text style={styles.errorSubtext}>
           يرجى إغلاق هذه الصفحة والمحاولة مرة أخرى
@@ -40,6 +148,10 @@ const TabFamily = ({ person, onDataChanged }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [spouseModalVisible, setSpouseModalVisible] = useState(false);
   const [childModalVisible, setChildModalVisible] = useState(false);
+  const [editChildModalVisible, setEditChildModalVisible] = useState(false);
+  const [selectedChild, setSelectedChild] = useState(null);
+  const [editMarriageModalVisible, setEditMarriageModalVisible] = useState(false);
+  const [selectedMarriage, setSelectedMarriage] = useState(null);
   const { refreshProfile } = useStore();
 
   useEffect(() => {
@@ -62,19 +174,6 @@ const TabFamily = ({ person, onDataChanged }) => {
         p_profile_id: person.id,
       });
 
-      // Debug logging only in development
-      if (__DEV__) {
-        console.log('🔍 Family Tab RPC Response:', {
-          hasData: !!data,
-          hasError: !!error,
-          profileId: person.id,
-          spousesCount: data?.spouses?.length || 0,
-          childrenCount: data?.children?.length || 0,
-          hasFather: !!data?.father,
-          hasMother: !!data?.mother,
-        });
-      }
-
       if (error) {
         if (__DEV__) {
           console.error('❌ Failed to load family data:', error);
@@ -84,7 +183,6 @@ const TabFamily = ({ person, onDataChanged }) => {
         return;
       }
 
-      // Check for SQL errors embedded in response
       if (data?.error) {
         if (__DEV__) {
           console.error('❌ SQL error in RPC result:', data.error);
@@ -113,12 +211,12 @@ const TabFamily = ({ person, onDataChanged }) => {
 
   const handleSpouseAdded = async (marriage) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await loadFamilyData(); // Refresh family data
+    await loadFamilyData();
     if (refreshProfile) {
-      await refreshProfile(person.id); // Refresh global cache
+      await refreshProfile(person.id);
     }
     if (onDataChanged) {
-      onDataChanged(); // Notify parent component
+      onDataChanged();
     }
     setSpouseModalVisible(false);
   };
@@ -180,10 +278,114 @@ const TabFamily = ({ person, onDataChanged }) => {
     ]);
   };
 
+  const handleEditMarriage = (marriage) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedMarriage(marriage);
+    setEditMarriageModalVisible(true);
+  };
+
+  const handleEditMarriageSaved = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await loadFamilyData();
+    if (refreshProfile) {
+      await refreshProfile(person.id);
+    }
+    if (onDataChanged) {
+      onDataChanged();
+    }
+    setEditMarriageModalVisible(false);
+    setSelectedMarriage(null);
+  };
+
+  const handleEditChild = (child) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedChild(child);
+    setEditChildModalVisible(true);
+  };
+
+  const handleEditChildSaved = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await loadFamilyData();
+    if (refreshProfile) {
+      await refreshProfile(person.id);
+    }
+    if (onDataChanged) {
+      onDataChanged();
+    }
+    setEditChildModalVisible(false);
+    setSelectedChild(null);
+  };
+
+  const handleDeleteChild = async (child) => {
+    Alert.alert(
+      'تأكيد الحذف',
+      `هل أنت متأكد من حذف ${child.name} من العائلة؟`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', child.id);
+
+              if (error) throw error;
+
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+              await loadFamilyData();
+              if (refreshProfile) {
+                await refreshProfile(person.id);
+              }
+              if (onDataChanged) {
+                onDataChanged();
+              }
+            } catch (error) {
+              if (__DEV__) {
+                console.error('Error deleting child:', error);
+              }
+              Alert.alert('خطأ', 'فشل حذف الملف الشخصي');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleChangeMother = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const fatherSpouses = spouses.filter((s) => s.status === 'married');
+
+    if (fatherSpouses.length === 0) {
+      Alert.alert(
+        'لا توجد زوجات',
+        `الأب ${father?.name || 'غير محدد'} ليس لديه زوجات مسجلات. يرجى إضافة زوجة أولاً.`,
+        [
+          { text: 'حسناً', style: 'cancel' },
+          {
+            text: 'انتقل للأب',
+            onPress: () => {
+              // TODO: Navigate to father's profile
+              Alert.alert('انتقال', 'سيتم الانتقال لملف الأب (قيد التطوير)');
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // TODO: Open SelectMotherModal
+    Alert.alert('اختيار الأم', 'سيتم فتح نافذة اختيار الأم (قيد التطوير)');
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={tokens.colors.najdi.crimson} />
+        <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
         <Text style={styles.loadingText}>جاري تحميل بيانات العائلة...</Text>
       </View>
     );
@@ -192,11 +394,6 @@ const TabFamily = ({ person, onDataChanged }) => {
   if (!familyData) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons
-          name="alert-circle-outline"
-          size={48}
-          color={tokens.colors.najdi.textMuted}
-        />
         <Text style={styles.errorText}>فشل تحميل بيانات العائلة</Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => loadFamilyData()}>
           <Text style={styles.retryButtonText}>إعادة المحاولة</Text>
@@ -208,6 +405,35 @@ const TabFamily = ({ person, onDataChanged }) => {
   const { father, mother, spouses = [], children = [] } = familyData;
   const activeSpouses = spouses.filter((s) => s.status === 'married');
   const inactiveSpouses = spouses.filter((s) => s.status !== 'married');
+  const parentCount = [father, mother].filter(Boolean).length;
+  const spousesTitle = person.gender === 'male' ? 'الزوجات' : 'الأزواج';
+  const addSpouseLabel = person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج';
+  const spouseEmptyTitle =
+    person.gender === 'male' ? 'لم تتم إضافة زوجات بعد' : 'لم تتم إضافة أزواج بعد';
+  const spouseEmptyCaption =
+    person.gender === 'male'
+      ? 'أضف شريكة حياة لتظهر هنا مع تفاصيل الزواج'
+      : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج';
+
+  const handleAddSpousePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSpouseModalVisible(true);
+  };
+
+  const handleAddChildPress = () => {
+    if (person.gender === 'female' && spouses.length === 0) {
+      Alert.alert('تنبيه', 'يجب إضافة زوج أولاً قبل إضافة الأبناء', [
+        {
+          text: 'إضافة زوج',
+          onPress: () => setSpouseModalVisible(true),
+        },
+        { text: 'إلغاء', style: 'cancel' },
+      ]);
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setChildModalVisible(true);
+  };
 
   return (
     <ScrollView
@@ -217,208 +443,107 @@ const TabFamily = ({ person, onDataChanged }) => {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          tintColor={tokens.colors.najdi.crimson}
+          tintColor={tokens.colors.najdi.primary}
         />
       }
     >
-      {/* Parents Section (Read-Only) */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons
-            name="person-outline"
-            size={22}
-            color={tokens.colors.najdi.crimson}
+      <SectionCard
+        icon="people-circle-outline"
+        iconTint={tokens.colors.najdi.secondary}
+        title="الوالدان"
+        subtitle="المراجع الأساسية لشجرة العائلة"
+        badge={`${parentCount}/2`}
+      >
+        <View style={styles.parentGrid}>
+          <ParentCell
+            label="الأب"
+            value={father?.name}
+            icon="man-outline"
+            emptyLabel="غير محدد"
           />
-          <Text style={styles.sectionTitle}>الوالدين</Text>
-        </View>
-
-        <View style={styles.formGroupContent}>
-          {father ? (
-            <View style={styles.parentCard}>
-              <View style={styles.parentIconContainer}>
-                <Ionicons
-                  name="man-outline"
-                  size={20}
-                  color={tokens.colors.najdi.secondary}
-                />
-              </View>
-              <View style={styles.parentInfo}>
-                <Text style={styles.parentLabel}>الأب</Text>
-                <Text style={styles.parentName}>{father.name}</Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.emptyParentCard}>
-              <Ionicons
-                name="person-add-outline"
-                size={20}
-                color={tokens.colors.najdi.textMuted}
-              />
-              <Text style={styles.emptyText}>لا يوجد أب محدد</Text>
-            </View>
-          )}
-
-          {mother ? (
-            <View style={styles.parentCard}>
-              <View style={styles.parentIconContainer}>
-                <Ionicons
-                  name="woman-outline"
-                  size={20}
-                  color={tokens.colors.najdi.secondary}
-                />
-              </View>
-              <View style={styles.parentInfo}>
-                <Text style={styles.parentLabel}>الأم</Text>
-                <Text style={styles.parentName}>{mother.name}</Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.emptyParentCard}>
-              <Ionicons
-                name="person-add-outline"
-                size={20}
-                color={tokens.colors.najdi.textMuted}
-              />
-              <Text style={styles.emptyText}>لا يوجد أم محددة</Text>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Spouses Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons
-            name="people-outline"
-            size={22}
-            color={tokens.colors.najdi.crimson}
+          <ParentCell
+            label="الأم"
+            value={mother?.name}
+            icon="woman-outline"
+            emptyLabel="غير محددة"
+            onAction={father ? handleChangeMother : null}
+            actionLabel="تغيير"
           />
-          <Text style={styles.sectionTitle}>
-            {person.gender === 'male' ? 'الزوجات' : 'الأزواج'}
-          </Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{spouses.length}</Text>
-          </View>
         </View>
+      </SectionCard>
 
-        {/* Active Spouses */}
-        {activeSpouses.length > 0 && (
-          <>
+      <SectionCard
+        icon="heart-outline"
+        title={spousesTitle}
+        subtitle="تفاصيل العلاقات الحالية والسابقة"
+        badge={`${spouses.length}`}
+        footer={<AddActionButton label={addSpouseLabel} onPress={handleAddSpousePress} />}
+      >
+        {activeSpouses.length > 0 ? (
+          <View style={styles.sectionStack}>
             {activeSpouses.map((spouseData) => (
-              <SpouseCard
+              <SpouseRow
                 key={spouseData.marriage_id}
                 spouseData={spouseData}
-                personGender={person.gender}
+                onEdit={handleEditMarriage}
                 onDelete={handleDeleteSpouse}
               />
-            ))}
-          </>
-        )}
-
-        {/* Inactive Spouses (divorced/widowed) */}
-        {inactiveSpouses.length > 0 && (
-          <View style={styles.inactiveSpousesSection}>
-            <Text style={styles.inactiveSectionTitle}>زيجات سابقة</Text>
-            {inactiveSpouses.map((spouseData) => (
-              <SpouseCard
-                key={spouseData.marriage_id}
-                spouseData={spouseData}
-                personGender={person.gender}
-                onDelete={handleDeleteSpouse}
-                inactive
-              />
-            ))}
-          </View>
-        )}
-
-        {/* Add Spouse Button */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setSpouseModalVisible(true);
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="add-circle-outline"
-            size={22}
-            color={tokens.colors.najdi.crimson}
-          />
-          <Text style={styles.addButtonText}>
-            {person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Children Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Ionicons
-            name="heart-outline"
-            size={22}
-            color={tokens.colors.najdi.crimson}
-          />
-          <Text style={styles.sectionTitle}>الأبناء</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{children.length}</Text>
-          </View>
-        </View>
-
-        {children.length > 0 ? (
-          <View style={styles.formGroupContent}>
-            {children.map((child) => (
-              <ChildCard key={child.id} child={child} />
             ))}
           </View>
         ) : (
-          <View style={styles.emptyCard}>
-            <Ionicons
-              name="person-add-outline"
-              size={28}
-              color={tokens.colors.najdi.secondary}
-            />
-            <Text style={styles.emptyText}>لا يوجد أبناء مسجلين</Text>
-            <Text style={styles.emptyHint}>
-              انقر على "إضافة ابن/ابنة" أدناه
-            </Text>
-          </View>
+          <EmptyState
+            icon="heart-dislike-outline"
+            title={spouseEmptyTitle}
+            caption={spouseEmptyCaption}
+          />
         )}
 
-        {/* Add Child Button */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            // Validate for women: Must have at least one husband
-            if (person.gender === 'female' && spouses.length === 0) {
-              Alert.alert(
-                'تنبيه',
-                'يجب إضافة زوج أولاً قبل إضافة الأبناء',
-                [
-                  {
-                    text: 'إضافة زوج',
-                    onPress: () => setSpouseModalVisible(true),
-                  },
-                  { text: 'إلغاء', style: 'cancel' },
-                ]
-              );
-              return;
-            }
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setChildModalVisible(true);
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="add-circle-outline"
-            size={22}
-            color={tokens.colors.najdi.crimson}
-          />
-          <Text style={styles.addButtonText}>إضافة ابن/ابنة</Text>
-        </TouchableOpacity>
-      </View>
+        {inactiveSpouses.length > 0 && (
+          <View style={styles.sectionTrailingBlock}>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionSubheader}>زيجات سابقة</Text>
+            <View style={styles.sectionStack}>
+              {inactiveSpouses.map((spouseData) => (
+                <SpouseRow
+                  key={spouseData.marriage_id}
+                  spouseData={spouseData}
+                  onEdit={handleEditMarriage}
+                  onDelete={handleDeleteSpouse}
+                  inactive
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </SectionCard>
 
-      {/* Modals */}
+      <SectionCard
+        icon="people-outline"
+        title="الأبناء"
+        subtitle="الأبناء عبر جميع الزيجات"
+        badge={`${children.length}`}
+        footer={<AddActionButton label="إضافة ابن/ابنة" onPress={handleAddChildPress} />}
+      >
+        {children.length > 0 ? (
+          <View style={styles.sectionStack}>
+            {children.map((child) => (
+              <ChildRow
+                key={child.id}
+                child={child}
+                onEdit={handleEditChild}
+                onDelete={handleDeleteChild}
+              />
+            ))}
+          </View>
+        ) : (
+          <EmptyState
+            icon="sparkles-outline"
+            title="لا يوجد أبناء بعد"
+            caption="أضف الأبناء لتظهر العلاقات العائلية هنا فورًا"
+          />
+        )}
+      </SectionCard>
+
       <SpouseManager
         visible={spouseModalVisible}
         person={person}
@@ -432,109 +557,156 @@ const TabFamily = ({ person, onDataChanged }) => {
         siblings={children}
         onClose={handleChildAdded}
       />
+
+      <EditChildModal
+        visible={editChildModalVisible}
+        child={selectedChild}
+        father={familyData?.father}
+        spouses={familyData?.spouses || []}
+        onClose={() => {
+          setEditChildModalVisible(false);
+          setSelectedChild(null);
+        }}
+        onSaved={handleEditChildSaved}
+      />
+
+      <EditMarriageModal
+        visible={editMarriageModalVisible}
+        marriage={selectedMarriage}
+        onClose={() => {
+          setEditMarriageModalVisible(false);
+          setSelectedMarriage(null);
+        }}
+        onSaved={handleEditMarriageSaved}
+      />
     </ScrollView>
   );
 };
 
-// Spouse Card Component
-const SpouseCard = ({ spouseData, personGender, onDelete, inactive = false }) => {
+// Spouse Row Component with rich metadata
+const SpouseRow = ({ spouseData, onEdit, onDelete, inactive = false }) => {
   const spouse = spouseData.spouse_profile;
   if (!spouse) return null;
 
   const isMunasib = !spouse.hid;
+  const hasChildren = spouseData.children_count > 0;
+  const status = spouseData.status;
+  const isMaleSpouse = spouse.gender === 'male';
+
+  let statusMeta = null;
+  if (status && status !== 'married') {
+    statusMeta =
+      status === 'divorced'
+        ? { label: 'منفصل', tone: 'warning', icon: 'swap-horizontal-outline' }
+        : { label: 'متوفى', tone: 'danger', icon: 'heart-dislike-outline' };
+  }
 
   return (
-    <View style={[styles.spouseCard, inactive && styles.inactiveCard]}>
-      <View style={styles.cardContent}>
-        <View style={styles.spouseIconContainer}>
+    <View style={[styles.itemRow, inactive && styles.itemRowInactive]}>
+      <View style={styles.itemLeading}>
+        <View
+          style={[
+            styles.itemAvatar,
+            isMaleSpouse ? styles.itemAvatarMale : styles.itemAvatarFemale,
+          ]}
+        >
           <Ionicons
-            name={isMunasib ? 'people' : 'person'}
-            size={20}
-            color={isMunasib ? tokens.colors.najdi.secondary : tokens.colors.najdi.primary}
+            name={isMaleSpouse ? 'male-outline' : 'female-outline'}
+            size={18}
+            color={isMaleSpouse ? tokens.colors.najdi.primary : tokens.colors.najdi.secondary}
           />
         </View>
-        <View style={styles.cardInfo}>
-          <View style={styles.spouseNameRow}>
-            <Text style={styles.cardName}>{spouse.name}</Text>
-            {isMunasib && (
-              <View style={styles.munasibBadge}>
-                <Text style={styles.munasibText}>منسب</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.spouseMetaRow}>
-            {spouseData.children_count > 0 && (
-              <Text style={styles.childrenCountText}>
-                {spouseData.children_count}{' '}
-                {spouseData.children_count === 1 ? 'طفل' : 'أطفال'}
-              </Text>
-            )}
-            {spouseData.status && spouseData.status !== 'married' && (
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>
-                  {spouseData.status === 'divorced' ? 'مطلق' : 'متوفى'}
-                </Text>
-              </View>
-            )}
+        <View style={styles.itemContent}>
+          <Text style={styles.itemTitle}>{spouse.name}</Text>
+          <View style={styles.metaRow}>
+            {isMunasib ? (
+              <MetaPill
+                label="منسب"
+                tone="positive"
+                icon="shield-checkmark-outline"
+              />
+            ) : null}
+            {hasChildren ? (
+              <MetaPill
+                label={`${spouseData.children_count} ${
+                  spouseData.children_count === 1 ? 'طفل' : 'أطفال'
+                }`}
+                icon="people-outline"
+              />
+            ) : null}
+            {statusMeta ? <MetaPill {...statusMeta} /> : null}
           </View>
         </View>
+      </View>
+      <View style={styles.itemActions}>
         <TouchableOpacity
-          style={styles.deleteButton}
+          style={styles.itemActionButton}
+          onPress={() => onEdit(spouseData)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.6}
+        >
+          <Ionicons name="create-outline" size={18} color={tokens.colors.najdi.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.itemActionButton}
           onPress={() => onDelete(spouseData)}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          accessibilityLabel="حذف الزواج"
-          accessibilityRole="button"
+          activeOpacity={0.6}
         >
-          <Ionicons name="trash-outline" size={20} color={tokens.colors.najdi.primary} />
+          <Ionicons name="trash-outline" size={18} color={tokens.colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-// Child Card Component
-const ChildCard = ({ child }) => {
+// Child Row Component with contextual chips
+const ChildRow = ({ child, onEdit, onDelete }) => {
+  const isMale = child.gender === 'male';
+  const genderIcon = isMale ? 'male-outline' : 'female-outline';
+
   return (
-    <View style={styles.childCard}>
-      <View style={styles.cardContent}>
-        <View style={styles.childIconContainer}>
+    <View style={styles.itemRow}>
+      <View style={styles.itemLeading}>
+        <View
+          style={[
+            styles.itemAvatar,
+            isMale ? styles.itemAvatarMale : styles.itemAvatarFemale,
+          ]}
+        >
           <Ionicons
-            name={child.gender === 'male' ? 'man-outline' : 'woman-outline'}
-            size={20}
-            color={tokens.colors.najdi.secondary}
+            name={genderIcon}
+            size={18}
+            color={isMale ? tokens.colors.najdi.primary : tokens.colors.najdi.secondary}
           />
         </View>
-        <View style={styles.cardInfo}>
-          <View style={styles.childNameRow}>
-            <Text style={styles.cardName}>{child.name}</Text>
-            {child.shows_on_tree && (
-              <View style={styles.treeIndicator}>
-                <Ionicons
-                  name="analytics-outline"
-                  size={13}
-                  color={tokens.colors.najdi.secondary}
-                />
-              </View>
-            )}
-          </View>
-          <View style={styles.childDetails}>
-            <Text style={styles.childGender}>
-              {child.gender === 'male' ? 'ذكر' : 'أنثى'}
-            </Text>
-            {child.mother_name && (
-              <>
-                <Text style={styles.childDetailSeparator}>•</Text>
-                <Text style={styles.childMother}>الأم: {child.mother_name}</Text>
-              </>
-            )}
-            {child.sibling_order !== null && child.sibling_order !== undefined && (
-              <>
-                <Text style={styles.childDetailSeparator}>•</Text>
-                <Text style={styles.siblingOrder}>الترتيب: {child.sibling_order + 1}</Text>
-              </>
-            )}
+        <View style={styles.itemContent}>
+          <Text style={styles.itemTitle}>{child.name}</Text>
+          <View style={styles.metaRow}>
+            <MetaPill label={isMale ? 'ذكر' : 'أنثى'} icon={genderIcon} />
+            {child.mother_name ? (
+              <MetaPill label={`من ${child.mother_name}`} icon="person-outline" />
+            ) : null}
           </View>
         </View>
+      </View>
+      <View style={styles.itemActions}>
+        <TouchableOpacity
+          style={styles.itemActionButton}
+          onPress={() => onEdit(child)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.6}
+        >
+          <Ionicons name="create-outline" size={18} color={tokens.colors.najdi.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.itemActionButton}
+          onPress={() => onDelete(child)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          activeOpacity={0.6}
+        >
+          <Ionicons name="trash-outline" size={18} color={tokens.colors.danger} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -546,7 +718,8 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
   },
   content: {
-    padding: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xxl,
   },
   loadingContainer: {
@@ -568,8 +741,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 17,
-    color: tokens.colors.najdi.textMuted,
-    marginTop: tokens.spacing.md,
+    color: tokens.colors.najdi.text,
     marginBottom: tokens.spacing.sm,
     textAlign: 'center',
   },
@@ -580,10 +752,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: tokens.colors.najdi.crimson,
+    backgroundColor: tokens.colors.najdi.primary,
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
-    borderRadius: 8,
+    borderRadius: tokens.radii.md,
   },
   retryButtonText: {
     color: tokens.colors.najdi.background,
@@ -591,277 +763,283 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Section Styles
-  section: {
+  sectionCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.lg,
     marginBottom: tokens.spacing.xxl,
+    ...tokens.shadow.ios,
+    ...tokens.shadow.android,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: tokens.spacing.md,
-    gap: tokens.spacing.xs,
+  },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginEnd: tokens.spacing.md,
+  },
+  sectionTitleContainer: {
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: tokens.colors.najdi.text,
-    flex: 1,
   },
-  countBadge: {
-    backgroundColor: tokens.colors.najdi.container + '40',
+  sectionSubtitle: {
+    marginTop: tokens.spacing.xxs,
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+  },
+  sectionBadge: {
+    borderRadius: tokens.radii.sm,
+    backgroundColor: tokens.colors.najdi.background,
     paddingHorizontal: tokens.spacing.sm,
     paddingVertical: tokens.spacing.xxs,
-    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
   },
-  countBadgeText: {
+  sectionBadgeText: {
     fontSize: 13,
     fontWeight: '700',
     color: tokens.colors.najdi.primary,
   },
-
-  // FormGroup (iOS-style grouped content)
-  formGroupContent: {
-    backgroundColor: tokens.colors.najdi.background,
-    borderRadius: 12,
-    overflow: 'hidden',
+  sectionBody: {
+    marginTop: tokens.spacing.lg,
   },
-
-  // Parent Cards
-  parentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tokens.colors.najdi.background,
-    padding: tokens.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.najdi.container + '30',
+  sectionFooter: {
+    marginTop: tokens.spacing.lg,
+    paddingTop: tokens.spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.colors.divider,
+  },
+  sectionStack: {
     gap: tokens.spacing.sm,
   },
-  parentIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: tokens.colors.najdi.secondary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
+  sectionTrailingBlock: {
+    marginTop: tokens.spacing.lg,
   },
-  parentInfo: {
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: tokens.colors.divider,
+    marginVertical: tokens.spacing.md,
+  },
+  sectionSubheader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.textMuted,
+    marginBottom: tokens.spacing.sm,
+  },
+
+  parentGrid: {
+    flexDirection: 'row',
+    gap: tokens.spacing.md,
+  },
+  parentCell: {
     flex: 1,
-    gap: tokens.spacing.xxs,
+    borderRadius: tokens.radii.md,
+    backgroundColor: tokens.colors.najdi.background,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+  },
+  parentLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: tokens.spacing.xs,
+    gap: tokens.spacing.xs,
   },
   parentLabel: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  parentName: {
+  parentValue: {
     fontSize: 17,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  emptyParentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tokens.colors.najdi.container + '20',
-    padding: tokens.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.najdi.container + '30',
-    gap: tokens.spacing.sm,
+  parentValueMuted: {
+    color: tokens.colors.najdi.textMuted,
   },
 
-  // Spouse Cards
-  spouseCard: {
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: tokens.spacing.xxl,
+  },
+  emptyStateIconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: tokens.colors.najdi.background,
-    borderRadius: 12,
-    padding: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
-  },
-  inactiveCard: {
-    opacity: 0.6,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.sm,
-  },
-  spouseIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: tokens.colors.najdi.container + '30',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
   },
-  cardInfo: {
-    flex: 1,
-    gap: tokens.spacing.xxs,
-  },
-  spouseNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.xs,
-    flexWrap: 'wrap',
-  },
-  spouseMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.sm,
-    flexWrap: 'wrap',
-  },
-  cardName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
-  },
-  deleteButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 22,
-    backgroundColor: tokens.colors.najdi.container + '20',
-  },
-
-  // Badges
-  munasibBadge: {
-    backgroundColor: tokens.colors.najdi.secondary + '20',
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  munasibText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.colors.najdi.secondary,
-  },
-  statusBadge: {
-    backgroundColor: tokens.colors.najdi.textMuted + '20',
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: tokens.colors.najdi.textMuted,
-  },
-  childrenCountText: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-    fontWeight: '500',
-  },
-
-  // Child Cards
-  childCard: {
-    backgroundColor: tokens.colors.najdi.background,
-    padding: tokens.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.najdi.container + '30',
-  },
-  childIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: tokens.colors.najdi.secondary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  childNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.xs,
-  },
-  treeIndicator: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: tokens.colors.najdi.secondary + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  childDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.xs,
-    flexWrap: 'wrap',
-  },
-  childGender: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-    fontWeight: '500',
-  },
-  childDetailSeparator: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-    opacity: 0.5,
-  },
-  childMother: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-  },
-  siblingOrder: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-  },
-
-  // Inactive Spouses Section
-  inactiveSpousesSection: {
-    marginTop: tokens.spacing.md,
-    paddingTop: tokens.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: tokens.colors.najdi.container,
-  },
-  inactiveSectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: tokens.colors.najdi.textMuted,
-    marginBottom: tokens.spacing.sm,
-  },
-
-  // Empty States
-  emptyCard: {
-    backgroundColor: tokens.colors.najdi.secondary + '08',
-    borderRadius: 12,
-    padding: tokens.spacing.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: tokens.spacing.sm,
-    gap: tokens.spacing.xs,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.secondary + '20',
-    borderStyle: 'dashed',
-  },
-  emptyText: {
+  emptyStateTitle: {
+    marginTop: tokens.spacing.sm,
     fontSize: 15,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
     textAlign: 'center',
   },
-  emptyHint: {
+  emptyStateCaption: {
+    marginTop: tokens.spacing.xxs,
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 220,
   },
 
-  // Add Button
-  addButton: {
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: tokens.colors.bg,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radii.md,
+  },
+  itemRowInactive: {
+    opacity: 0.6,
+  },
+  itemLeading: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginEnd: tokens.spacing.sm,
+  },
+  itemAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+    marginEnd: tokens.spacing.md,
+  },
+  itemAvatarMale: {
+    backgroundColor: 'rgba(161, 51, 51, 0.12)',
+    borderColor: 'rgba(161, 51, 51, 0.26)',
+  },
+  itemAvatarFemale: {
+    backgroundColor: 'rgba(213, 140, 74, 0.14)',
+    borderColor: 'rgba(213, 140, 74, 0.3)',
+  },
+  itemContent: {
+    flex: 1,
+  },
+  itemTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: tokens.spacing.xs,
+  },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: tokens.radii.sm,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xxs,
+    backgroundColor: tokens.colors.najdi.background,
+    marginEnd: tokens.spacing.xs,
+    marginBottom: tokens.spacing.xs,
+  },
+  metaPillPositive: {
+    backgroundColor: 'rgba(52, 199, 89, 0.16)',
+  },
+  metaPillWarning: {
+    backgroundColor: 'rgba(213, 140, 74, 0.18)',
+  },
+  metaPillDanger: {
+    backgroundColor: 'rgba(255, 59, 48, 0.16)',
+  },
+  metaPillIcon: {
+    marginEnd: 4,
+  },
+  metaPillText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    fontWeight: '500',
+  },
+  metaPillPositiveText: {
+    color: tokens.colors.success,
+  },
+  metaPillWarningText: {
+    color: tokens.colors.najdi.secondary,
+  },
+  metaPillDangerText: {
+    color: tokens.colors.danger,
+  },
+
+  itemActionButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+  },
+
+  itemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+  },
+
+  parentValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: tokens.spacing.xs,
+  },
+
+  parentActionButton: {
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.sm,
+    backgroundColor: 'rgba(161, 51, 51, 0.08)',
+  },
+
+  parentActionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
+  },
+
+  addActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: tokens.colors.najdi.background,
-    borderRadius: 12,
-    padding: tokens.spacing.md,
-    minHeight: 48,
-    borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.primary,
-    borderStyle: 'dashed',
-    gap: tokens.spacing.sm,
+    minHeight: tokens.touchTarget.minimum,
+    backgroundColor: 'rgba(161, 51, 51, 0.08)',
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(161, 51, 51, 0.24)',
+    paddingHorizontal: tokens.spacing.lg,
   },
-  addButtonText: {
+  addActionButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: tokens.colors.najdi.primary,
+    marginStart: tokens.spacing.xs,
   },
 });
 

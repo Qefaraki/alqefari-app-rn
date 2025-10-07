@@ -704,7 +704,15 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       {renderIOSModal(
         showActivityLog,
         () => setShowActivityLog(false),
-        ActivityLogDashboard
+        ActivityLogDashboard,
+        {
+          onNavigateToProfile: (profileId) => {
+            // TODO: Implement tree navigation - close modal and open tree at person
+            // For now, just log the navigation intent
+            console.log('[ActivityLog] Navigate to profile:', profileId);
+            Alert.alert('التنقل', `قريباً: الانتقال إلى الملف في الشجرة`);
+          }
+        }
       )}
 
       {renderIOSModal(

@@ -186,7 +186,90 @@ const formatValue = (value) => {
   return String(value);
 };
 
-export default function ActivityLogDashboard({ onClose }) {
+// Smart Name Display Component - Shows historical + current names with navigation
+const SmartNameDisplay = ({
+  historicalName,
+  currentName,
+  profileId,
+  onNavigate,
+  style,
+  historicalStyle,
+  currentStyle
+}) => {
+  const namesAreDifferent = historicalName && currentName && historicalName !== currentName;
+
+  const handlePress = () => {
+    if (onNavigate && profileId) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onNavigate(profileId);
+    }
+  };
+
+  if (!historicalName && !currentName) {
+    return <Text style={style}>مستخدم</Text>;
+  }
+
+  // Same name or only one available - show simple clickable name
+  if (!namesAreDifferent) {
+    const displayName = historicalName || currentName;
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        disabled={!onNavigate || !profileId}
+        activeOpacity={0.7}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      >
+        <Ionicons name="person-circle-outline" size={14} color="#D58C4A" />
+        <Text style={[style, historicalStyle]}>
+          {displayName}
+        </Text>
+        {onNavigate && profileId && (
+          <Ionicons name="chevron-back" size={12} color="#D58C4A" />
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  // Names are different - show both with visual distinction
+  return (
+    <View style={{ gap: 4 }}>
+      <TouchableOpacity
+        onPress={handlePress}
+        disabled={!onNavigate || !profileId}
+        activeOpacity={0.7}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+      >
+        <Ionicons name="person-circle-outline" size={14} color="#73637280" />
+        <Text style={[style, historicalStyle]}>
+          {historicalName}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        onPress={handlePress}
+        disabled={!onNavigate || !profileId}
+        activeOpacity={0.7}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 18 }}
+      >
+        <View style={{
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 4,
+          backgroundColor: '#D58C4A15'
+        }}>
+          <Text style={{ fontSize: 10, color: '#D58C4A', fontWeight: '600' }}>الآن</Text>
+        </View>
+        <Text style={[style, currentStyle, { color: '#D58C4A' }]}>
+          {currentName}
+        </Text>
+        {onNavigate && profileId && (
+          <Ionicons name="chevron-back" size={12} color="#D58C4A" />
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
   const { userProfile } = useAuth();
 
   const [activities, setActivities] = useState([]);
@@ -1009,12 +1092,16 @@ export default function ActivityLogDashboard({ onClose }) {
                     {generateActionDescription(
                       activity.action_type,
                       activity.changed_fields,
-                      activity.target_name
+                      activity.target_name_historical || activity.target_name_current
                     )}
                   </Text>
-                  <Text style={styles.activitySubtitle} numberOfLines={1}>
-                    {activity.actor_name || "مستخدم"}
-                  </Text>
+                  <SmartNameDisplay
+                    historicalName={activity.actor_name_historical}
+                    currentName={activity.actor_name_current}
+                    profileId={activity.actor_profile_id}
+                    onNavigate={onNavigateToProfile}
+                    style={styles.activitySubtitle}
+                  />
                   {/* Show inline diff ONLY for single-field changes (reduce clutter) */}
                   {!isExpanded && activity.changed_fields && activity.changed_fields.length === 1 && (() => {
                     const displayField = getDisplayField(activity.changed_fields);
@@ -1046,13 +1133,19 @@ export default function ActivityLogDashboard({ onClose }) {
               {isExpanded && (
                 <View style={styles.expandedContent}>
                   {/* Actor Information */}
-                  {activity.actor_name && (
+                  {(activity.actor_name_historical || activity.actor_name_current) && (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>المستخدم المنفذ</Text>
                       <View style={styles.detailGrid}>
                         <View style={styles.detailItem}>
                           <Text style={styles.detailLabel}>الاسم</Text>
-                          <Text style={styles.detailValue}>{activity.actor_name}</Text>
+                          <SmartNameDisplay
+                            historicalName={activity.actor_name_historical}
+                            currentName={activity.actor_name_current}
+                            profileId={activity.actor_profile_id}
+                            onNavigate={onNavigateToProfile}
+                            style={styles.detailValue}
+                          />
                         </View>
                         {activity.actor_phone && (
                           <View style={styles.detailItem}>
@@ -1076,13 +1169,19 @@ export default function ActivityLogDashboard({ onClose }) {
                   )}
 
                   {/* Target Information */}
-                  {activity.target_name && (
+                  {(activity.target_name_historical || activity.target_name_current) && (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>الملف المتأثر</Text>
                       <View style={styles.detailGrid}>
                         <View style={styles.detailItem}>
                           <Text style={styles.detailLabel}>الاسم</Text>
-                          <Text style={styles.detailValue}>{activity.target_name}</Text>
+                          <SmartNameDisplay
+                            historicalName={activity.target_name_historical}
+                            currentName={activity.target_name_current}
+                            profileId={activity.target_profile_id}
+                            onNavigate={onNavigateToProfile}
+                            style={styles.detailValue}
+                          />
                         </View>
                         {activity.target_phone && (
                           <View style={styles.detailItem}>
