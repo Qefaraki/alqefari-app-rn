@@ -156,45 +156,39 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
-  // Handle moving child up
-  const handleMoveUp = useCallback((childId) => {
-    const currentIndex = allChildren.findIndex((c) => c.id === childId);
-    if (currentIndex <= 0) return; // Already at top
+  // Handle moving child (unified function with functional setState for performance)
+  const handleMove = useCallback((childId, direction) => {
+    setAllChildren(prev => {
+      const currentIndex = prev.findIndex((c) => c.id === childId);
 
-    const newChildren = [...allChildren];
-    const [movedChild] = newChildren.splice(currentIndex, 1);
-    newChildren.splice(currentIndex - 1, 0, movedChild);
+      // Calculate target index based on direction
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
 
-    const updatedChildren = newChildren.map((child, index) => ({
-      ...child,
-      sibling_order: index,
-      isEdited: child.isExisting ? true : child.isEdited,
-    }));
+      // Boundary checks
+      if (targetIndex < 0 || targetIndex >= prev.length) {
+        return prev; // No change, prevents unnecessary re-render
+      }
 
-    setAllChildren(updatedChildren);
+      // Perform the swap
+      const newChildren = [...prev];
+      const [movedChild] = newChildren.splice(currentIndex, 1);
+      newChildren.splice(targetIndex, 0, movedChild);
+
+      // Update sibling_order and mark as edited
+      return newChildren.map((child, index) => ({
+        ...child,
+        sibling_order: index,
+        isEdited: child.isExisting ? true : child.isEdited,
+      }));
+    });
+
     setHasReordered(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [allChildren]);
+  }, []); // Empty deps - stable reference!
 
-  // Handle moving child down
-  const handleMoveDown = useCallback((childId) => {
-    const currentIndex = allChildren.findIndex((c) => c.id === childId);
-    if (currentIndex >= allChildren.length - 1) return; // Already at bottom
-
-    const newChildren = [...allChildren];
-    const [movedChild] = newChildren.splice(currentIndex, 1);
-    newChildren.splice(currentIndex + 1, 0, movedChild);
-
-    const updatedChildren = newChildren.map((child, index) => ({
-      ...child,
-      sibling_order: index,
-      isEdited: child.isExisting ? true : child.isEdited,
-    }));
-
-    setAllChildren(updatedChildren);
-    setHasReordered(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [allChildren]);
+  // Convenience wrappers for backward compatibility
+  const handleMoveUp = useCallback((childId) => handleMove(childId, 'up'), [handleMove]);
+  const handleMoveDown = useCallback((childId) => handleMove(childId, 'down'), [handleMove]);
 
   // Save all changes
   const handleSave = async () => {

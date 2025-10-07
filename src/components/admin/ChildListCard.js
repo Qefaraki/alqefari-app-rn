@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import tokens from "../ui/tokens";
+import PositionPicker from "./PositionPicker";
 
 const COLORS = tokens.colors.najdi;
 
@@ -28,10 +29,35 @@ const ChildListCard = ({
   const [localName, setLocalName] = useState(child.name);
   const [localGender, setLocalGender] = useState(child.gender);
   const [localMotherId, setLocalMotherId] = useState(child.mother_id);
+  const [showPositionPicker, setShowPositionPicker] = useState(false);
 
   // Animation values for entrance only
   const fadeAnim = useRef(new Animated.Value(child.isNew ? 0 : 1)).current;
   const slideAnim = useRef(new Animated.Value(child.isNew ? 20 : 0)).current;
+
+  // Highlight animation for reorder
+  const highlightAnim = useRef(new Animated.Value(0)).current;
+  const prevIndex = useRef(index);
+
+  // Trigger highlight animation when position changes
+  useEffect(() => {
+    if (prevIndex.current !== index && prevIndex.current !== undefined) {
+      // Flash highlight
+      Animated.sequence([
+        Animated.timing(highlightAnim, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: false,
+        }),
+        Animated.timing(highlightAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    }
+    prevIndex.current = index;
+  }, [index, highlightAnim]);
 
   // Entrance animation for new cards
   useEffect(() => {
@@ -130,6 +156,24 @@ const ChildListCard = ({
     }
   };
 
+  const handlePositionSelect = (newPosition) => {
+    const targetIndex = newPosition - 1; // Convert 1-based to 0-based
+    const currentIndex = index;
+
+    // Move item to new position
+    if (targetIndex > currentIndex) {
+      // Moving down - call onMoveDown repeatedly
+      for (let i = currentIndex; i < targetIndex; i++) {
+        onMoveDown(child.id);
+      }
+    } else if (targetIndex < currentIndex) {
+      // Moving up - call onMoveUp repeatedly
+      for (let i = currentIndex; i > targetIndex; i--) {
+        onMoveUp(child.id);
+      }
+    }
+  };
+
   const getMotherName = () => {
     if (!child.mother_id) return null;
     const mother = mothers.find((m) => m.id === child.mother_id);
@@ -138,47 +182,34 @@ const ChildListCard = ({
 
   const motherName = getMotherName();
 
+  // Interpolate highlight color
+  const highlightColor = highlightAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.background, COLORS.secondary + "20"],
+  });
+
   return (
-    <Animated.View
-      style={[
-        styles.cardContainer,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={[styles.card, getCardStyle()]}>
-        {/* Reorder Buttons */}
-        <View style={styles.reorderButtons}>
-          <TouchableOpacity
-            style={[styles.reorderButton, index === 0 && styles.reorderButtonDisabled]}
-            onPress={() => onMoveUp(child.id)}
-            disabled={index === 0}
-          >
-            <Ionicons
-              name="chevron-up"
-              size={16}
-              color={index === 0 ? COLORS.textMuted + "40" : COLORS.text}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.reorderButton,
-              index === totalChildren - 1 && styles.reorderButtonDisabled,
-            ]}
-            onPress={() => onMoveDown(child.id)}
-            disabled={index === totalChildren - 1}
-          >
-            <Ionicons
-              name="chevron-down"
-              size={16}
-              color={
-                index === totalChildren - 1 ? COLORS.textMuted + "40" : COLORS.text
-              }
-            />
-          </TouchableOpacity>
-        </View>
+    <>
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <Animated.View style={[styles.card, getCardStyle(), { backgroundColor: highlightColor }]}>
+          {/* Reorder Button */}
+        <TouchableOpacity
+          style={styles.reorderButton}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowPositionPicker(true);
+          }}
+        >
+          <Ionicons name="swap-vertical" size={20} color={COLORS.text} />
+        </TouchableOpacity>
 
           {/* Order Badge */}
           <View style={styles.orderBadge}>
@@ -308,8 +339,18 @@ const ChildListCard = ({
               </>
             )}
           </View>
-        </View>
+        </Animated.View>
       </Animated.View>
+
+      {/* Position Picker Modal */}
+      <PositionPicker
+        visible={showPositionPicker}
+        currentPosition={index + 1}
+        totalPositions={totalChildren}
+        onSelect={handlePositionSelect}
+        onClose={() => setShowPositionPicker(false)}
+      />
+    </>
   );
 };
 
@@ -345,33 +386,31 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: "#FF9500",
   },
-  reorderButtons: {
-    flexDirection: "column",
-    marginRight: tokens.spacing.xs, // 8px
-    gap: 2,
-  },
   reorderButton: {
-    width: 28,
-    height: 20,
+    width: 44, // iOS minimum touch target
+    height: 44, // iOS minimum touch target
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.container + "20",
-    borderRadius: 4,
-  },
-  reorderButtonDisabled: {
-    opacity: 0.3,
+    borderRadius: 8,
+    marginRight: tokens.spacing.xs, // 8px
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   orderBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32, // Increased from 28px
+    height: 32, // Increased from 28px
+    borderRadius: 16,
     backgroundColor: COLORS.container + "30",
     justifyContent: "center",
     alignItems: "center",
     marginRight: tokens.spacing.xs, // 8px
   },
   orderText: {
-    fontSize: 13,
+    fontSize: 15, // Increased from 13px for better readability
     fontWeight: "600",
     color: COLORS.text,
   },
