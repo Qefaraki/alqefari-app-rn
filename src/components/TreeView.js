@@ -3347,12 +3347,15 @@ const TreeView = ({
             ? quickAddParent.children
             : [];
 
-          console.log("Passing siblings to QuickAddOverlay:", children.length);
-          if (children.length > 0) {
-            console.log("Siblings:", children);
+          // Filter out any undefined/null entries
+          const validChildren = children.filter(child => child && child.id);
+
+          console.log("Passing siblings to QuickAddOverlay:", validChildren.length);
+          if (validChildren.length > 0) {
+            console.log("Siblings:", validChildren);
           }
 
-          return children.sort(
+          return validChildren.sort(
             (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),
           );
         })()}

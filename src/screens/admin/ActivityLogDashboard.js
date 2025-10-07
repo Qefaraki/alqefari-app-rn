@@ -30,6 +30,12 @@ import {
 import { ar } from "date-fns/locale";
 import tokens from "../../components/ui/tokens";
 import SkeletonLoader from "../../components/ui/SkeletonLoader";
+import InlineDiff from "../../components/ui/InlineDiff";
+import {
+  getFieldLabel,
+  generateActionDescription,
+  groupFieldsByCategory,
+} from "../../services/activityLogTranslations";
 
 // Use Najdi Sadu Color Palette from tokens
 const colors = {
@@ -552,11 +558,20 @@ export default function ActivityLogDashboard({ onClose }) {
                     {activity.actor_name || "مستخدم"}
                     {activity.target_name && ` → ${activity.target_name}`}
                   </Text>
+                  {/* Show inline diff when collapsed */}
+                  {!isExpanded && activity.changed_fields && activity.changed_fields.length > 0 && (
+                    <InlineDiff
+                      field={activity.changed_fields[0]}
+                      oldValue={activity.old_data?.[activity.changed_fields[0]]}
+                      newValue={activity.new_data?.[activity.changed_fields[0]]}
+                      showLabels={false}
+                    />
+                  )}
                 </View>
                 <Text style={styles.activityTime}>
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
                 </Text>
-                <Ionicons name="chevron-forward" size={18} color="#24212140" />
+                <Ionicons name="chevron-back" size={18} color="#24212140" />
               </TouchableOpacity>
 
               {/* Expanded details */}
@@ -576,14 +591,6 @@ export default function ActivityLogDashboard({ onClose }) {
                             <Text style={styles.detailLabel}>الجوال</Text>
                             <Text style={styles.detailValue}>
                               {'\u202A' + activity.actor_phone + '\u202C'}
-                            </Text>
-                          </View>
-                        )}
-                        {activity.actor_hid && (
-                          <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>HID</Text>
-                            <Text style={styles.detailValue}>
-                              {'\u202A' + activity.actor_hid + '\u202C'}
                             </Text>
                           </View>
                         )}
@@ -614,14 +621,6 @@ export default function ActivityLogDashboard({ onClose }) {
                             <Text style={styles.detailLabel}>الجوال</Text>
                             <Text style={styles.detailValue}>
                               {'\u202A' + activity.target_phone + '\u202C'}
-                            </Text>
-                          </View>
-                        )}
-                        {activity.target_hid && (
-                          <View style={styles.detailItem}>
-                            <Text style={styles.detailLabel}>HID</Text>
-                            <Text style={styles.detailValue}>
-                              {'\u202A' + activity.target_hid + '\u202C'}
                             </Text>
                           </View>
                         )}
@@ -670,7 +669,7 @@ export default function ActivityLogDashboard({ onClose }) {
                     </View>
                   </View>
 
-                  {/* Field-by-field diff if changed_fields available */}
+                  {/* Field-by-field diff with proper labels */}
                   {activity.changed_fields && activity.changed_fields.length > 0 && (
                     <View style={styles.detailSection}>
                       <Text style={styles.detailSectionTitle}>
@@ -678,22 +677,13 @@ export default function ActivityLogDashboard({ onClose }) {
                       </Text>
                       {activity.changed_fields.map((field, idx) => (
                         <View key={idx} style={styles.fieldChangeRow}>
-                          <Text style={styles.fieldChangeName}>{field}</Text>
-                          <View style={styles.fieldChangeValues}>
-                            <View style={styles.fieldChangeOld}>
-                              <Text style={styles.fieldChangeLabel}>قبل</Text>
-                              <Text style={styles.fieldChangeValue} numberOfLines={2}>
-                                {formatValue(activity.old_data?.[field])}
-                              </Text>
-                            </View>
-                            <Ionicons name="arrow-back" size={16} color="#24212160" />
-                            <View style={styles.fieldChangeNew}>
-                              <Text style={styles.fieldChangeLabel}>بعد</Text>
-                              <Text style={styles.fieldChangeValue} numberOfLines={2}>
-                                {formatValue(activity.new_data?.[field])}
-                              </Text>
-                            </View>
-                          </View>
+                          <Text style={styles.fieldChangeName}>{getFieldLabel(field)}</Text>
+                          <InlineDiff
+                            field={field}
+                            oldValue={activity.old_data?.[field]}
+                            newValue={activity.new_data?.[field]}
+                            showLabels={true}
+                          />
                         </View>
                       ))}
                     </View>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
@@ -37,14 +37,17 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [showMotherSelector, setShowMotherSelector] = useState(false);
   const inputRef = useRef(null);
   const { refreshProfile } = useStore();
+  const insets = useSafeAreaInsets();
 
   const motherSelectorHeight = useRef(new Animated.Value(0)).current;
 
   // Initialize with existing siblings
   useEffect(() => {
     if (visible && parentNode) {
-      // Sort by sibling_order
-      const sortedSiblings = [...siblings]
+      // Sort by sibling_order - filter out any undefined/null entries first
+      const validSiblings = (siblings || []).filter(s => s && s.id);
+
+      const sortedSiblings = [...validSiblings]
         .sort((a, b) => {
           const orderA = a.sibling_order ?? 999;
           const orderB = b.sibling_order ?? 999;
@@ -58,8 +61,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           isNew: false,
           isExisting: true,
           isEdited: false,
-          mother_id: s.mother_id || s.parent2,
-          mother_name: s.mother_name,
+          mother_id: s?.mother_id || s?.parent2 || null,
+          mother_name: s?.mother_name || null,
           sibling_order: index,
         }));
 
@@ -325,6 +328,22 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     return "حفظ";
   };
 
+  // Memoized render function for FlatList performance
+  const renderChild = useCallback(
+    ({ item, index }) => (
+      <ChildListCard
+        child={item}
+        index={index}
+        totalChildren={allChildren.length}
+        onUpdate={handleUpdateChild}
+        onDelete={handleDeleteChild}
+        onReorder={handleReorder}
+        mothers={mothers}
+      />
+    ),
+    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleReorder]
+  );
+
   if (!visible) return null;
 
   return (
@@ -386,15 +405,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
                     >
-                      <Ionicons
-                        name="male"
-                        size={18}
-                        color={
-                          currentGender === "male"
-                            ? COLORS.background
-                            : COLORS.text
-                        }
-                      />
+                      <Text
+                        style={[
+                          styles.genderToggleText,
+                          currentGender === "male" &&
+                            styles.genderToggleTextActive,
+                        ]}
+                      >
+                        ذكر
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[
@@ -407,15 +426,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }}
                     >
-                      <Ionicons
-                        name="female"
-                        size={18}
-                        color={
-                          currentGender === "female"
-                            ? COLORS.background
-                            : COLORS.text
-                        }
-                      />
+                      <Text
+                        style={[
+                          styles.genderToggleText,
+                          currentGender === "female" &&
+                            styles.genderToggleTextActive,
+                        ]}
+                      >
+                        أنثى
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -486,26 +505,25 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   <FlatList
                     data={allChildren}
                     keyExtractor={(item) => item.id}
-                    renderItem={({ item, index }) => (
-                      <ChildListCard
-                        child={item}
-                        index={index}
-                        totalChildren={allChildren.length}
-                        onUpdate={handleUpdateChild}
-                        onDelete={handleDeleteChild}
-                        onReorder={handleReorder}
-                        mothers={mothers}
-                      />
-                    )}
+                    renderItem={renderChild}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
+                    removeClippedSubviews={Platform.OS === "android"}
+                    maxToRenderPerBatch={10}
+                    windowSize={10}
+                    initialNumToRender={10}
                   />
                 )}
               </View>
 
               {/* Bottom Actions */}
-              <View style={styles.bottomActions}>
+              <View
+                style={[
+                  styles.bottomActions,
+                  { paddingBottom: Math.max(insets.bottom, tokens.spacing.sm) },
+                ]}
+              >
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={onClose}
@@ -623,22 +641,31 @@ const styles = StyleSheet.create({
   },
   genderToggleContainer: {
     flexDirection: "row",
-    gap: 4,
+    gap: tokens.spacing.xxs, // 4px
     marginLeft: tokens.spacing.xs, // 8px
   },
   genderToggle: {
-    width: 32,
-    height: 32,
+    minWidth: 44, // iOS minimum touch target
+    height: 44, // iOS minimum touch target
     borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: COLORS.container + "40",
+    paddingHorizontal: tokens.spacing.xs, // 8px for text
   },
   genderToggleActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+  },
+  genderToggleText: {
+    fontSize: 15, // iOS subheadline
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  genderToggleTextActive: {
+    color: COLORS.background,
   },
   motherToggleButton: {
     flexDirection: "row",

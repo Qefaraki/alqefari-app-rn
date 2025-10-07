@@ -79,13 +79,11 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [statsLoading, setStatsLoading] = useState(true);
   const [enhancedLoading, setEnhancedLoading] = useState(true);
   const [validationLoading, setValidationLoading] = useState(true);
-  const [activityLoading, setActivityLoading] = useState(true);
 
   // Data states
   const [stats, setStats] = useState(null);
   const [validationIssues, setValidationIssues] = useState([]);
   const [dataHealth, setDataHealth] = useState(100);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
   // Modal states
@@ -148,7 +146,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     // Load other sections with delays
     setTimeout(() => loadEnhancedStats(), 300);
     setTimeout(() => loadValidationData(), 600);
-    setTimeout(() => loadActivityFeed(), 900);
   };
 
   const loadPendingRequestsCount = async () => {
@@ -238,43 +235,14 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     }
   };
 
-  const loadActivityFeed = async () => {
-    try {
-      const { data } = await supabase
-        .from("activity_log_detailed")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (data) {
-        setRecentActivity(data);
-      }
-    } catch (error) {
-      console.error("Activity feed failed:", error);
-    } finally {
-      setActivityLoading(false);
-    }
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     setStatsLoading(true);
     setEnhancedLoading(true);
     setValidationLoading(true);
-    setActivityLoading(true);
 
     await loadDataProgressively();
     setRefreshing(false);
-  };
-
-  const formatTimeAgo = (timestamp) => {
-    const now = new Date();
-    const date = new Date(timestamp);
-    const diff = Math.floor((now - date) / 60000);
-    if (diff < 1) return "الآن";
-    if (diff < 60) return `منذ ${diff}د`;
-    if (diff < 1440) return `منذ ${Math.floor(diff / 60)}س`;
-    return `منذ ${Math.floor(diff / 1440)}ي`;
   };
 
   // Handle other actions
@@ -594,61 +562,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         </Animated.View>
 
 
-
-        {/* Recent Activity */}
-        {activityLoading ? (
-          <View style={{ marginTop: 16 }}>
-            <Text style={styles.sectionTitle}>النشاط الأخير</Text>
-            <ActivitySkeleton />
-          </View>
-        ) : recentActivity.length > 0 ? (
-          <Animated.View
-            style={[
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-                marginTop: 16,
-              },
-            ]}
-          >
-            <Text style={styles.sectionTitle}>النشاط الأخير</Text>
-            <View style={styles.card}>
-              {recentActivity.slice(0, 2).map((activity, index) => (
-                <View
-                  key={activity.id}
-                  style={[
-                    styles.activityItem,
-                    index === 0 && styles.activityItemBorder,
-                  ]}
-                >
-                  <View style={styles.activityContent}>
-                    <Text style={styles.activityName}>
-                      {activity.actor_name || "مجهول"}
-                    </Text>
-                    <Text style={styles.activityDescription}>
-                      {activity.action === "INSERT"
-                        ? "إضافة ملف جديد"
-                        : activity.action === "UPDATE"
-                          ? "تعديل الملف الشخصي"
-                          : "حذف ملف"}
-                    </Text>
-                  </View>
-                  <Text style={styles.activityTime}>
-                    {formatTimeAgo(activity.created_at)}
-                  </Text>
-                </View>
-              ))}
-
-              <TouchableOpacity
-                style={styles.viewAllButton}
-                onPress={() => setShowActivityLog(true)}
-              >
-                <Text style={styles.viewAllText}>عرض الكل</Text>
-                <Ionicons name="chevron-back" size={16} color="#6366f1" />
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        ) : null}
 
         {/* iOS-Style Grouped List Sections */}
         <View style={styles.listSectionsContainer}>

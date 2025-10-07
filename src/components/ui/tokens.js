@@ -22,6 +22,14 @@ const tokens = {
       secondary: '#D58C4A', // Desert Ochre
       focus: '#957EB5',
     },
+    diff: {
+      added: '#34C759',       // iOS green for new values
+      addedBg: '#34C75915',   // 8% opacity
+      removed: '#FF3B30',     // iOS red for old values
+      removedBg: '#FF3B3015', // 8% opacity
+      modified: '#007AFF',    // iOS blue for changes
+      modifiedBg: '#007AFF15', // 8% opacity
+    },
   },
   // iOS-standard typography scale
   typography: {

@@ -51,8 +51,9 @@ const ChildListCard = ({
 
   // Entrance animation for new cards
   useEffect(() => {
+    let animation;
     if (child.isNew) {
-      Animated.parallel([
+      animation = Animated.parallel([
         Animated.spring(fadeAnim, {
           toValue: 1,
           tension: 50,
@@ -65,8 +66,16 @@ const ChildListCard = ({
           friction: 7,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]);
+      animation.start();
     }
+
+    // Cleanup function to stop animation if component unmounts
+    return () => {
+      if (animation) {
+        animation.stop();
+      }
+    };
   }, []);
 
   // Drag gesture for reordering (vertical)
@@ -225,7 +234,7 @@ const ChildListCard = ({
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={handleSaveEdit}
-                  textAlign="right"
+                  textAlign="left"
                 />
                 <View style={styles.editControls}>
                   <TouchableOpacity
@@ -235,15 +244,15 @@ const ChildListCard = ({
                     ]}
                     onPress={() => setLocalGender("male")}
                   >
-                    <Ionicons
-                      name="male"
-                      size={16}
-                      color={
-                        localGender === "male"
-                          ? COLORS.background
-                          : COLORS.text
-                      }
-                    />
+                    <Text
+                      style={[
+                        styles.genderToggleMiniText,
+                        localGender === "male" &&
+                          styles.genderToggleMiniTextActive,
+                      ]}
+                    >
+                      ذكر
+                    </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
@@ -253,15 +262,15 @@ const ChildListCard = ({
                     ]}
                     onPress={() => setLocalGender("female")}
                   >
-                    <Ionicons
-                      name="female"
-                      size={16}
-                      color={
-                        localGender === "female"
-                          ? COLORS.background
-                          : COLORS.text
-                      }
-                    />
+                    <Text
+                      style={[
+                        styles.genderToggleMiniText,
+                        localGender === "female" &&
+                          styles.genderToggleMiniTextActive,
+                      ]}
+                    >
+                      أنثى
+                    </Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -443,21 +452,30 @@ const styles = StyleSheet.create({
   },
   editControls: {
     flexDirection: "row",
-    gap: 8,
+    gap: tokens.spacing.xs, // 8px
   },
   genderToggleMini: {
-    width: 36,
-    height: 32,
+    minWidth: 44, // iOS minimum touch target
+    height: 44, // iOS minimum touch target
     borderRadius: 8,
     backgroundColor: COLORS.container + "20",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: COLORS.container + "40",
+    paddingHorizontal: tokens.spacing.xs, // 8px for text
   },
   genderToggleMiniActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
+  },
+  genderToggleMiniText: {
+    fontSize: 13, // iOS footnote
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  genderToggleMiniTextActive: {
+    color: COLORS.background,
   },
   stateBadge: {
     paddingHorizontal: 8,
@@ -478,12 +496,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
-    gap: 8,
+    gap: tokens.spacing.xs, // 8px
     marginLeft: tokens.spacing.xs, // 8px
   },
   iconButton: {
-    width: 36,
-    height: 36,
+    width: 44, // iOS minimum touch target
+    height: 44, // iOS minimum touch target
     borderRadius: 8,
     backgroundColor: COLORS.container + "20",
     justifyContent: "center",
