@@ -486,7 +486,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                       onChange={(id, mothersData) => {
                         setSelectedMotherId(id);
                         if (mothersData) {
-                          setMothers(mothersData);
+                          // Transform wives data to format expected by ChildListCard
+                          const formattedMothers = mothersData.map(w => ({
+                            id: w.wife_id,
+                            name: w.wife_name,
+                          }));
+                          setMothers(formattedMothers);
                         } else if (id) {
                           // Mother ID selected but data failed to load
                           Alert.alert("تنبيه", "تعذر تحميل بيانات الأم");
