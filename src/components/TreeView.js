@@ -41,6 +41,7 @@ import {
   BoxShadow,
   rrect,
   rect,
+  CornerPathEffect,
 } from "@shopify/react-native-skia";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import Animated, {
