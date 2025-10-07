@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useTreeStore } from '../../../stores/useTreeStore';
 import { familyData, getChildren } from '../../../data/family-data';
+import { supabase } from '../../../services/supabase';
 
 const generationNames = [
   'الأول',
@@ -27,19 +28,63 @@ export const useProfileMetrics = (person) => {
     return nodesMap.get(person.father_id) || null;
   }, [dataSource, nodesMap, person, treeData.length]);
 
-  const mother = useMemo(() => {
-    if (!person) return null;
-    if (person.mother_id && treeData.length > 0) {
-      return dataSource.find((node) => node.id === person.mother_id) || null;
+  // Mother state with async fallback for Munasib mothers
+  const [mother, setMother] = useState(null);
+  const [motherLoading, setMotherLoading] = useState(false);
+
+  useEffect(() => {
+    if (!person?.mother_id) {
+      setMother(null);
+      return;
     }
-    return null;
-  }, [dataSource, person, treeData.length]);
+
+    // Try tree data first (fast path - already loaded)
+    const fromTree = dataSource.find((node) => node.id === person.mother_id);
+    if (fromTree) {
+      setMother(fromTree);
+      return;
+    }
+
+    // Fallback: Fetch from database (for Munasib mothers not in tree)
+    setMotherLoading(true);
+    const fetchMother = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', person.mother_id)
+          .single();
+
+        if (error) {
+          console.error('Failed to fetch mother profile:', error);
+          setMother(null);
+        } else {
+          setMother(data);
+        }
+      } catch (err) {
+        console.error('Error fetching mother:', err);
+        setMother(null);
+      } finally {
+        setMotherLoading(false);
+      }
+    };
+
+    fetchMother();
+  }, [person?.mother_id, dataSource]);
 
   const children = useMemo(() => {
     if (!person) return [];
-    if (treeData.length > 0 && person.gender === 'male') {
-      return dataSource.filter((node) => node.father_id === person.id);
+
+    if (treeData.length > 0) {
+      // For men: children where person is father
+      // For women: children where person is mother
+      if (person.gender === 'male') {
+        return dataSource.filter((node) => node.father_id === person.id);
+      } else {
+        return dataSource.filter((node) => node.mother_id === person.id);
+      }
     }
+
     return getChildren(person.id, dataSource) || [];
   }, [dataSource, person, treeData.length]);
 
@@ -80,6 +125,7 @@ export const useProfileMetrics = (person) => {
   return {
     father,
     mother,
+    motherLoading,
     children: sortedChildren,
     rawChildren: children,
     descendantsCount,

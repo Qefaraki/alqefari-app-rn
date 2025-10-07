@@ -97,9 +97,14 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
       const husband_id = person.gender === "male" ? person.id : selectedSpouse.id;
       const wife_id = person.gender === "female" ? person.id : selectedSpouse.id;
 
+      // Determine munasib value: If spouse has hid (Al-Qefari), munasib is null
+      // If spouse doesn't have hid (Munasib), use their family_origin
+      const munasibValue = selectedSpouse.hid ? null : (selectedSpouse.family_origin || null);
+
       const { data, error } = await profilesService.createMarriage({
         husband_id,
         wife_id,
+        munasib: munasibValue,
       });
 
       if (error) throw error;
@@ -152,7 +157,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
         await profilesService.createMarriage({
           husband_id,
           wife_id,
-          munasib: true, // Mark as Munasib marriage
+          munasib: familyOrigin, // Store family origin for Munasib
         });
 
       if (marriageError) throw marriageError;

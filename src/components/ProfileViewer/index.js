@@ -33,6 +33,9 @@ import ContactCard from './ViewMode/cards/ContactCard';
 import FamilyCard from './ViewMode/cards/FamilyCard';
 import TimelineCard from './ViewMode/cards/TimelineCard';
 import PhotosCard from './ViewMode/cards/PhotosCard';
+import HeroSkeleton from '../ui/skeletons/HeroSkeleton';
+import FamilyCardSkeleton from '../ui/skeletons/FamilyCardSkeleton';
+import GenericCardSkeleton from '../ui/skeletons/GenericCardSkeleton';
 import TabsHost from './EditMode/TabsHost';
 import TabGeneral from './EditMode/TabGeneral';
 import TabDetails from './EditMode/TabDetails';
@@ -57,6 +60,7 @@ import { useTreeStore } from '../../stores/useTreeStore';
 import { useAdminMode } from '../../contexts/AdminModeContext';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
+const MIN_SKELETON_TIME = 200; // Minimum skeleton display time in ms (prevents flash)
 
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const insets = useSafeAreaInsets();
@@ -97,6 +101,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
   const [saving, setSaving] = useState(false);
   const [marriages, setMarriages] = useState([]);
+
+  // Loading states for progressive skeleton rendering
+  const [loadingStates, setLoadingStates] = useState({
+    marriages: true,
+    permissions: true,
+  });
+  const [skeletonStartTime, setSkeletonStartTime] = useState(Date.now());
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const viewOpacity = useRef(new Animated.Value(1)).current;
   const editOpacity = useRef(new Animated.Value(0)).current;
@@ -132,22 +144,65 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     bottomSheetRef.current?.snapToIndex?.(0);
   }, [person?.id]);
 
+  // Reset loading states when bottom sheet opens (snap index changes)
   useEffect(() => {
+    if (currentSnapIndex >= 0 && person?.id) {
+      // Small delay to let bottom sheet animate in smoothly
+      const timer = setTimeout(() => {
+        setLoadingStates({
+          marriages: true,
+          permissions: true,
+        });
+        setSkeletonStartTime(Date.now());
+      }, 50); // 50ms delay for smooth animation
+
+      return () => clearTimeout(timer);
+    }
+  }, [currentSnapIndex, person?.id]);
+
+  useEffect(() => {
+    let isCancelled = false; // Prevents race conditions on rapid profile switches
+
     const loadMarriages = async () => {
       if (!person?.id || typeof profilesService?.getPersonMarriages !== 'function') {
-        setMarriages([]);
+        if (!isCancelled) {
+          setMarriages([]);
+          await hideSkeletonWithDelay('marriages');
+        }
         return;
       }
+
       try {
+        // Reset loading state when person changes
+        setLoadingStates((prev) => ({ ...prev, marriages: true }));
+
         const data = await profilesService.getPersonMarriages(person.id);
-        setMarriages(data || []);
+
+        if (!isCancelled) {
+          setMarriages(data || []);
+          await hideSkeletonWithDelay('marriages');
+        }
       } catch (error) {
         console.warn('Failed to load marriages', error);
-        setMarriages([]);
+        if (!isCancelled) {
+          setMarriages([]);
+          await hideSkeletonWithDelay('marriages');
+        }
       }
     };
+
     loadMarriages();
-  }, [person?.id]);
+    return () => {
+      isCancelled = true; // Cleanup: cancel pending updates
+    };
+  }, [person?.id, hideSkeletonWithDelay]);
+
+  // Track permission loading state
+  useEffect(() => {
+    if (!permissionLoading) {
+      hideSkeletonWithDelay('permissions');
+    }
+  }, [permissionLoading, hideSkeletonWithDelay]);
 
   // Note: profileSheetProgress (shared value) not in dependency array.
   // Per Reanimated docs, dependencies only needed without Babel plugin.
@@ -181,6 +236,20 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   // Cleanup handled by parent component
 
   const canEdit = accessMode !== 'readonly';
+
+  // Helper to hide skeleton with minimum display time (prevents flash)
+  const hideSkeletonWithDelay = useCallback(
+    async (key) => {
+      const elapsed = Date.now() - skeletonStartTime;
+      if (elapsed < MIN_SKELETON_TIME) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, MIN_SKELETON_TIME - elapsed)
+        );
+      }
+      setLoadingStates((prev) => ({ ...prev, [key]: false }));
+    },
+    [skeletonStartTime]
+  );
 
   const closeSheet = useCallback(() => {
     setMode('view');
@@ -534,19 +603,38 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           onPress={() => Alert.alert('التغييرات المعلقة', pendingSummary)}
         />
 
-        <PersonalCard person={person} />
-        <DatesCard person={person} />
-        <ProfessionalCard person={person} />
-        <ContactCard person={person} />
-        <FamilyCard
-          father={metrics.father}
-          mother={metrics.mother}
-          marriages={marriages}
-          children={metrics.children}
-          person={person}
-          onNavigate={onNavigateToProfile}
-          showMarriages={isAdminMode}
-        />
+        {/* Show skeletons while permissions loading */}
+        {loadingStates.permissions ? (
+          <>
+            <GenericCardSkeleton rows={3} titleWidth={80} />
+            <GenericCardSkeleton rows={2} titleWidth={100} />
+            <GenericCardSkeleton rows={3} titleWidth={90} />
+            <GenericCardSkeleton rows={2} titleWidth={100} />
+          </>
+        ) : (
+          <>
+            <PersonalCard person={person} />
+            <DatesCard person={person} />
+            <ProfessionalCard person={person} />
+            <ContactCard person={person} />
+          </>
+        )}
+
+        {/* Family card with marriage data */}
+        {loadingStates.marriages ? (
+          <FamilyCardSkeleton tileCount={4} />
+        ) : (
+          <FamilyCard
+            father={metrics.father}
+            mother={metrics.mother}
+            marriages={marriages}
+            children={metrics.children}
+            person={person}
+            onNavigate={onNavigateToProfile}
+            showMarriages={isAdminMode}
+          />
+        )}
+
         <TimelineCard timeline={person?.timeline} />
         <PhotosCard person={person} accessMode={accessMode} />
     </BottomSheetScrollView>
@@ -589,10 +677,16 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           ) : null}
           {activeTab === 'family' ? (
             <TabFamily
-              father={metrics.father}
-              mother={metrics.mother}
-              children={metrics.children}
-              marriages={marriages}
+              person={person}
+              onDataChanged={() => {
+                // Reload marriages data in parent
+                if (person?.id) {
+                  profilesService
+                    .getPersonMarriages(person.id)
+                    .then((data) => setMarriages(data || []))
+                    .catch((err) => console.warn('Failed to reload marriages:', err));
+                }
+              }}
             />
           ) : null}
           {activeTab === 'contact' ? (

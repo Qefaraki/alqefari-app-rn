@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
 import MotherSelectorSimple from "./fields/MotherSelectorSimple";
+import FatherSelectorSimple from "./fields/FatherSelectorSimple";
 import ChildListCard from "./ChildListCard";
 import tokens from "../ui/tokens";
 
@@ -31,8 +32,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [allChildren, setAllChildren] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedMotherId, setSelectedMotherId] = useState(null);
+  const [selectedFatherId, setSelectedFatherId] = useState(null);
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
+  const [husbands, setHusbands] = useState([]);
   const inputRef = useRef(null);
   const { refreshProfile } = useStore();
   const insets = useSafeAreaInsets();
@@ -253,19 +256,33 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           return;
         }
 
+        // Validate father selection for female parents
+        if (parentNode.gender === "female" && !selectedFatherId) {
+          Alert.alert(
+            "خطأ",
+            "يجب اختيار والد الطفل. يرجى تحديد الزوج من القائمة."
+          );
+          setLoading(false);
+          return;
+        }
+
         const profileData = {
           name: child.name,
           gender: child.gender,
-          father_id: parentNode.gender === "male" ? parentNode.id : null,
-          mother_id:
-            parentNode.gender === "female" ? parentNode.id : child.mother_id,
           sibling_order: child.sibling_order,
           generation: (parentNode.generation || 0) + 1,
           status: "alive",
         };
 
-        if (parentNode.gender === "male" && child.mother_id) {
-          profileData.mother_id = child.mother_id;
+        // Set parent IDs based on parent gender
+        if (parentNode.gender === "male") {
+          // For male parents: They are the father
+          profileData.father_id = parentNode.id;
+          profileData.mother_id = child.mother_id || selectedMotherId || null;
+        } else {
+          // For female parents: They are the mother
+          profileData.father_id = selectedFatherId; // Required for women
+          profileData.mother_id = parentNode.id;
         }
 
         promises.push(
@@ -501,6 +518,26 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     />
                   </View>
                 )}
+
+                {/* Father Selector (for female parents) */}
+                {parentNode?.gender === "female" && (
+                  <View style={styles.fatherSelectorSection}>
+                    <FatherSelectorSimple
+                      motherId={parentNode.id}
+                      value={selectedFatherId}
+                      onChange={(id, husbandsData) => {
+                        setSelectedFatherId(id);
+                        if (husbandsData) {
+                          setHusbands(husbandsData);
+                        } else if (id) {
+                          Alert.alert("تنبيه", "تعذر تحميل بيانات الزوج");
+                        }
+                      }}
+                      label="الأب (مطلوب)"
+                      required={true}
+                    />
+                  </View>
+                )}
               </View>
 
               {/* Children List */}
@@ -682,6 +719,10 @@ const styles = StyleSheet.create({
     color: COLORS.background,
   },
   motherSelectorSection: {
+    marginTop: tokens.spacing.sm, // 12px
+    width: "100%",
+  },
+  fatherSelectorSection: {
     marginTop: tokens.spacing.sm, // 12px
     width: "100%",
   },

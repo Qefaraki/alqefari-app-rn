@@ -569,9 +569,9 @@ const styles = StyleSheet.create({
   reorderControls: {
     flexDirection: "row", // Horizontal iOS layout
     alignItems: "center",
-    gap: 4,
+    gap: 6,
     marginRight: 8,
-    minWidth: 88, // Fixed width: badge (28) + 2 arrows (28+28) + gaps (4*2) = 88px
+    minWidth: 96, // Fixed width: badge (28) + 2 arrows (28+28) + gaps (6*2) = 96px
   },
   arrowSlot: {
     width: 28,
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     marginLeft: 8,
   },
   iconButton: {
