@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Animated,
   Alert,
+  Dimensions,
 } from "react-native";
 import {
   GestureDetector,
@@ -23,6 +24,11 @@ import * as Haptics from "expo-haptics";
 import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Dynamic spacing based on screen height
+const CARD_VERTICAL_MARGIN = SCREEN_HEIGHT > 800 ? 2 : 0; // Larger screens get tiny gap, small screens = no gap
+const CARD_VERTICAL_PADDING = SCREEN_HEIGHT > 800 ? 6 : 4; // Adjust padding based on screen size
 
 const ChildListCard = ({
   child,
@@ -377,15 +383,15 @@ const ChildListCard = ({
 const styles = StyleSheet.create({
   cardContainer: {
     marginHorizontal: tokens.spacing.md, // 16px
-    marginVertical: 2, // Minimal gap for compact layout
+    marginVertical: CARD_VERTICAL_MARGIN, // Dynamic based on screen height
   },
   card: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
-    paddingVertical: tokens.spacing.xxs, // 4px (was 12px - much tighter)
+    paddingVertical: CARD_VERTICAL_PADDING, // Dynamic based on screen height
     paddingHorizontal: tokens.spacing.sm, // 12px
-    borderRadius: tokens.radii.md, // 12px
+    borderRadius: 8, // Smaller radius for tighter look
     borderWidth: 1,
     borderColor: COLORS.container + "30",
     // No fixed minHeight - let content determine height

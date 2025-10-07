@@ -1523,7 +1523,7 @@ const TreeView = ({
       // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
-    [nodes, dimensions, translateX, translateY, scale],
+    [nodes, dimensions, highlightNode],
   );
 
   // Highlight node with elegant golden effect using Reanimated

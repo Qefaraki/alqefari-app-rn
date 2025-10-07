@@ -607,6 +607,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 2,
+    zIndex: 100, // Ensure dropdown appears above cards below
   },
   nameInputContainer: {
     flexDirection: "row",
