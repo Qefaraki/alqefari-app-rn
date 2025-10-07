@@ -92,22 +92,25 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
 
   const handleLinkChange = (platform, value) => {
     const newLinks = { ...socialLinks };
-    if (value.trim()) {
-      // Format the link properly before saving
-      const formattedLink = formatSocialLink(platform, value);
-      if (formattedLink) {
-        newLinks[platform] = formattedLink;
-      }
+    if (value) {
+      // Store raw value as user types (don't trim while typing!)
+      newLinks[platform] = value;
     } else {
       delete newLinks[platform];
     }
     onChange(newLinks);
   };
 
-  // Helper to display URL in input field
-  const getDisplayValue = (url) => {
-    // Simply return the full URL for clarity and easier editing
-    return url || '';
+  const handleBlur = (platform, value) => {
+    // Format only when user finishes typing
+    const newLinks = { ...socialLinks };
+    if (value.trim()) {
+      const formattedLink = formatSocialLink(platform, value);
+      if (formattedLink) {
+        newLinks[platform] = formattedLink;
+      }
+    }
+    onChange(newLinks);
   };
 
   return (
@@ -123,8 +126,9 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
             </View>
             <TextInput
               style={styles.platformInput}
-              value={getDisplayValue(socialLinks?.[platform.key])}
+              value={socialLinks?.[platform.key] || ''}
               onChangeText={(value) => handleLinkChange(platform.key, value)}
+              onBlur={(e) => handleBlur(platform.key, e.nativeEvent.text)}
               placeholder={platform.placeholder}
               autoCapitalize="none"
               keyboardType="url"
