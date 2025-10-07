@@ -11,10 +11,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
-  ActivityIndicator,
   FlatList,
   TextInput,
-  ScrollView,
   RefreshControl,
   Alert,
   Image,
@@ -31,7 +29,7 @@ import {
 } from "date-fns";
 import { ar } from "date-fns/locale";
 import tokens from "../../components/ui/tokens";
-import SkeletonLoader, { SkeletonStatBox } from "../../components/ui/SkeletonLoader";
+import SkeletonLoader from "../../components/ui/SkeletonLoader";
 
 // Use Najdi Sadu Color Palette from tokens
 const colors = {
@@ -41,7 +39,7 @@ const colors = {
   warning: "#FF9800",
   error: "#FF3B30",
   info: tokens.colors.accent,
-  textLight: tokens.colors.najdi.textMuted, // Add missing color definition
+  textLight: tokens.colors.najdi.textMuted,
 };
 
 // Action type configurations
@@ -108,7 +106,17 @@ const SEVERITY_COLORS = {
   critical: colors.error,
 };
 
-// Shimmer Skeleton Components
+// Filter data
+const FILTER_DATA = [
+  { key: "all", label: "الكل", icon: null },
+  { key: "tree", label: "الشجرة", icon: "git-branch" },
+  { key: "marriages", label: "الأزواج", icon: "heart" },
+  { key: "photos", label: "الصور", icon: "image" },
+  { key: "admin", label: "الإدارة", icon: "shield" },
+  { key: "critical", label: "حرج", icon: "warning" },
+];
+
+// Shimmer Skeleton Components (for loading state)
 const ActivityRowSkeleton = () => (
   <View style={styles.activityRow}>
     <SkeletonLoader width={36} height={36} borderRadius={18} />
@@ -202,7 +210,6 @@ export default function ActivityLogDashboard({ onClose }) {
         },
         (payload) => {
           if (payload.eventType === "INSERT") {
-            // Fetch the new activity with full details
             fetchActivities();
           }
         },
@@ -210,7 +217,6 @@ export default function ActivityLogDashboard({ onClose }) {
       .subscribe((status) => {
         if (status === 'CHANNEL_ERROR') {
           console.error('Failed to subscribe to audit log changes');
-          Alert.alert("خطأ", "فشل الاتصال بالتحديثات الفورية");
         }
       });
 
@@ -219,7 +225,7 @@ export default function ActivityLogDashboard({ onClose }) {
         supabase.removeChannel(subscriptionRef.current);
       }
     };
-  }, []);
+  }, [fetchActivities]);
 
   // Calculate stats (memoized for performance)
   const stats = useMemo(() => {
@@ -245,7 +251,6 @@ export default function ActivityLogDashboard({ onClose }) {
   const groupedActivities = useMemo(() => {
     const groups = {};
 
-    // Group by date and track timestamp for sorting
     filteredActivities.forEach(activity => {
       const date = parseISO(activity.created_at);
       let dateLabel;
@@ -268,7 +273,6 @@ export default function ActivityLogDashboard({ onClose }) {
     });
 
     // Sort groups by date descending (newest first)
-    // Sort activities within each group by time descending (newest first)
     return Object.entries(groups)
       .map(([dateLabel, { activities, timestamp }]) => ({
         dateLabel,
@@ -365,21 +369,7 @@ export default function ActivityLogDashboard({ onClose }) {
     }
   };
 
-  // Format relative time
-  const formatRelativeTime = (timestamp) => {
-    if (!timestamp) return "";
-
-    try {
-      return formatDistanceToNow(parseISO(timestamp), {
-        addSuffix: true,
-        locale: ar,
-      });
-    } catch {
-      return "";
-    }
-  };
-
-  // Toggle card expansion (limit to 5 cards to prevent memory issues)
+  // Toggle card expansion
   const toggleCardExpansion = useCallback((id) => {
     setExpandedCards((prev) => {
       const newExpanded = new Set(prev);
@@ -397,49 +387,127 @@ export default function ActivityLogDashboard({ onClose }) {
     });
   }, []);
 
-  // Handle revert action
-  const handleRevert = async (activity) => {
-    Alert.alert(
-      "تأكيد التراجع",
-      `هل تريد التراجع عن: ${ACTION_CONFIGS[activity.action_type]?.label || activity.action_type}؟`,
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "تراجع",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Here you would implement the actual revert logic
-              // based on the action type and old_data
-              Alert.alert("نجح", "تم التراجع عن العملية بنجاح");
-              fetchActivities();
-            } catch (error) {
-              Alert.alert("خطأ", "فشل التراجع عن العملية");
-            }
-          },
-        },
-      ],
+  // Memoized Header Component
+  const Header = useMemo(() => (
+    <View style={styles.header}>
+      <View style={styles.headerRow}>
+        <Image
+          source={require('../../../assets/logo/AlqefariEmblem.png')}
+          style={styles.emblem}
+          resizeMode="contain"
+        />
+        <View style={styles.titleContent}>
+          <Text style={styles.title}>سجل النشاط</Text>
+        </View>
+        <View style={{ width: 44, height: 44 }} />
+      </View>
+    </View>
+  ), []);
+
+  // Memoized Stats Widget Component
+  const StatsWidget = useMemo(() => (
+    <View style={styles.statsWidget}>
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{stats.total}</Text>
+          <Text style={styles.statLabel}>إجمالي</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{stats.today}</Text>
+          <Text style={styles.statLabel}>اليوم</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{stats.critical}</Text>
+          <Text style={styles.statLabel}>حرج</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{stats.pending}</Text>
+          <Text style={styles.statLabel}>معلق</Text>
+        </View>
+      </View>
+    </View>
+  ), [stats]);
+
+  // Memoized Search Bar Component
+  const SearchBar = useMemo(() => (
+    <View style={[
+      styles.searchBar,
+      searchText.length > 0 && styles.searchBarFocused
+    ]}>
+      <Ionicons name="search" size={20} color="#24212160" />
+      <TextInput
+        style={styles.searchInput}
+        placeholder="ابحث بالاسم، الهاتف، أو النشاط..."
+        placeholderTextColor="#24212199"
+        value={searchText}
+        onChangeText={setSearchText}
+        returnKeyType="search"
+      />
+      {searchText.length > 0 && (
+        <TouchableOpacity onPress={() => setSearchText("")}>
+          <Ionicons name="close-circle" size={20} color="#24212160" />
+        </TouchableOpacity>
+      )}
+    </View>
+  ), [searchText]);
+
+  // Render filter button (for horizontal FlatList)
+  const renderFilterButton = useCallback(({ item }) => {
+    const isActive = activeFilter === item.key;
+    return (
+      <TouchableOpacity
+        style={[styles.filterButton, isActive && styles.filterButtonActive]}
+        onPress={() => setActiveFilter(item.key)}
+        activeOpacity={0.7}
+      >
+        {item.icon && (
+          <Ionicons
+            name={item.icon}
+            size={14}
+            color={isActive ? "#F9F7F3" : "#242121"}
+            style={{ marginRight: 4 }}
+          />
+        )}
+        <Text style={[styles.filterButtonText, isActive && styles.filterButtonTextActive]}>
+          {item.label}
+        </Text>
+      </TouchableOpacity>
     );
-  };
+  }, [activeFilter]);
 
-  // Get action icon and color
-  const getActionIcon = (activity) => {
-    const config = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
-    return config.icon;
-  };
+  // Filter Buttons Component (horizontal FlatList)
+  const FilterButtons = useMemo(() => (
+    <FlatList
+      horizontal
+      data={FILTER_DATA}
+      renderItem={renderFilterButton}
+      keyExtractor={(item) => item.key}
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.filterContent}
+      style={styles.filterSection}
+      getItemLayout={(data, index) => ({
+        length: 90,
+        offset: 90 * index,
+        index,
+      })}
+    />
+  ), [renderFilterButton]);
 
-  const getActionColor = (activity) => {
-    const config = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
-    return config.color;
-  };
+  // ListHeaderComponent: Contains all header elements
+  const ListHeader = useMemo(() => (
+    <View>
+      {Header}
+      {StatsWidget}
+      {SearchBar}
+      {FilterButtons}
+    </View>
+  ), [Header, StatsWidget, SearchBar, FilterButtons]);
 
-  // Handle activity press (show detailed modal)
-  const handleActivityPress = (activity) => {
-    toggleCardExpansion(activity.id);
-  };
-
-  // Render date group with activities as rows
-  const renderDateGroup = ({ item }) => (
+  // Render date group with activities
+  const renderDateGroup = useCallback(({ item }) => (
     <View style={styles.dateGroup}>
       <Text style={styles.dateLabel}>{item.dateLabel}</Text>
       <View style={styles.activityCard}>
@@ -451,7 +519,7 @@ export default function ActivityLogDashboard({ onClose }) {
             <View key={activity.id}>
               <TouchableOpacity
                 style={styles.activityRow}
-                onPress={() => handleActivityPress(activity)}
+                onPress={() => toggleCardExpansion(activity.id)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.activityIcon, { backgroundColor: config.color + "15" }]}>
@@ -520,28 +588,18 @@ export default function ActivityLogDashboard({ onClose }) {
                       {activity.old_data && (
                         <View style={styles.diffSection}>
                           <Text style={styles.diffLabel}>قبل التغيير</Text>
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                          >
-                            <Text style={styles.diffContent}>
-                              {JSON.stringify(activity.old_data, null, 2)}
-                            </Text>
-                          </ScrollView>
+                          <Text style={styles.diffContent} numberOfLines={3}>
+                            {JSON.stringify(activity.old_data, null, 2)}
+                          </Text>
                         </View>
                       )}
 
                       {activity.new_data && (
                         <View style={styles.diffSection}>
                           <Text style={styles.diffLabel}>بعد التغيير</Text>
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                          >
-                            <Text style={styles.diffContent}>
-                              {JSON.stringify(activity.new_data, null, 2)}
-                            </Text>
-                          </ScrollView>
+                          <Text style={styles.diffContent} numberOfLines={3}>
+                            {JSON.stringify(activity.new_data, null, 2)}
+                          </Text>
                         </View>
                       )}
                     </View>
@@ -558,8 +616,9 @@ export default function ActivityLogDashboard({ onClose }) {
         })}
       </View>
     </View>
-  );
+  ), [expandedCards, toggleCardExpansion, formatTimestamp]);
 
+  // Loading state
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -577,227 +636,57 @@ export default function ActivityLogDashboard({ onClose }) {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Stats Widget Skeleton */}
-          <View style={styles.statsWidget}>
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
-                <SkeletonLoader width="80%" height={12} borderRadius={4} />
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
-                <SkeletonLoader width="80%" height={12} borderRadius={4} />
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
-                <SkeletonLoader width="80%" height={12} borderRadius={4} />
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
-                <SkeletonLoader width="80%" height={12} borderRadius={4} />
-              </View>
+        {/* Stats Widget Skeleton */}
+        <View style={styles.statsWidget}>
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+              <SkeletonLoader width="80%" height={12} borderRadius={4} />
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+              <SkeletonLoader width="80%" height={12} borderRadius={4} />
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+              <SkeletonLoader width="80%" height={12} borderRadius={4} />
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <SkeletonLoader width={60} height={28} borderRadius={4} style={{ marginBottom: 4 }} />
+              <SkeletonLoader width="80%" height={12} borderRadius={4} />
             </View>
           </View>
+        </View>
 
-          {/* Search Bar Skeleton */}
-          <SkeletonLoader
-            width="auto"
-            height={48}
-            borderRadius={12}
-            style={{ marginHorizontal: 16, marginBottom: 16 }}
-          />
+        {/* Search Bar Skeleton */}
+        <SkeletonLoader
+          width="auto"
+          height={48}
+          borderRadius={12}
+          style={{ marginHorizontal: 16, marginBottom: 16 }}
+        />
 
-          {/* Section Title Skeleton */}
-          <SkeletonLoader
-            width={120}
-            height={20}
-            borderRadius={4}
-            style={{ marginHorizontal: 16, marginBottom: 12 }}
-          />
-
-          {/* Activity Cards Skeletons */}
-          <DateGroupSkeleton />
-          <DateGroupSkeleton />
-          <DateGroupSkeleton />
-        </ScrollView>
+        {/* Activity Cards Skeletons */}
+        <DateGroupSkeleton />
+        <DateGroupSkeleton />
+        <DateGroupSkeleton />
       </SafeAreaView>
     );
   }
 
+  // Main render with single FlatList
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header - Emblem + Large Title Pattern */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Image
-            source={require('../../../assets/logo/AlqefariEmblem.png')}
-            style={styles.emblem}
-            resizeMode="contain"
-          />
-          <View style={styles.titleContent}>
-            <Text style={styles.title}>سجل النشاط</Text>
-          </View>
-          <View style={{ width: 44, height: 44 }} />
-        </View>
-      </View>
-
-      {/* Stats Widget - White card with dividers */}
-      <View style={styles.statsWidget}>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.total}</Text>
-            <Text style={styles.statLabel}>إجمالي</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.today}</Text>
-            <Text style={styles.statLabel}>اليوم</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.critical}</Text>
-            <Text style={styles.statLabel}>حرج</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{stats.pending}</Text>
-            <Text style={styles.statLabel}>معلق</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Search Bar - Clean ProfileLinker style */}
-      <View style={[
-        styles.searchBar,
-        searchText.length > 0 && styles.searchBarFocused
-      ]}>
-        <Ionicons name="search" size={20} color="#24212160" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="ابحث بالاسم، الهاتف، أو النشاط..."
-          placeholderTextColor="#24212199"
-          value={searchText}
-          onChangeText={setSearchText}
-          returnKeyType="search"
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchText("")}>
-            <Ionicons name="close-circle" size={20} color="#24212160" />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filter Category Buttons */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScrollContent}
-        style={styles.filterSection}
-      >
-        <TouchableOpacity
-          style={[styles.filterButton, activeFilter === "all" && styles.filterButtonActive]}
-          onPress={() => setActiveFilter("all")}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.filterButtonText, activeFilter === "all" && styles.filterButtonTextActive]}>
-            الكل
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterButton, activeFilter === "tree" && styles.filterButtonActive]}
-          onPress={() => setActiveFilter("tree")}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="git-branch"
-            size={14}
-            color={activeFilter === "tree" ? "#F9F7F3" : "#242121"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.filterButtonText, activeFilter === "tree" && styles.filterButtonTextActive]}>
-            الشجرة
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterButton, activeFilter === "marriages" && styles.filterButtonActive]}
-          onPress={() => setActiveFilter("marriages")}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="heart"
-            size={14}
-            color={activeFilter === "marriages" ? "#F9F7F3" : "#242121"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.filterButtonText, activeFilter === "marriages" && styles.filterButtonTextActive]}>
-            الأزواج
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterButton, activeFilter === "photos" && styles.filterButtonActive]}
-          onPress={() => setActiveFilter("photos")}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="image"
-            size={14}
-            color={activeFilter === "photos" ? "#F9F7F3" : "#242121"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.filterButtonText, activeFilter === "photos" && styles.filterButtonTextActive]}>
-            الصور
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterButton, activeFilter === "admin" && styles.filterButtonActive]}
-          onPress={() => setActiveFilter("admin")}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="shield"
-            size={14}
-            color={activeFilter === "admin" ? "#F9F7F3" : "#242121"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.filterButtonText, activeFilter === "admin" && styles.filterButtonTextActive]}>
-            الإدارة
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterButton, activeFilter === "critical" && styles.filterButtonActive]}
-          onPress={() => setActiveFilter("critical")}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="warning"
-            size={14}
-            color={activeFilter === "critical" ? "#F9F7F3" : "#242121"}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={[styles.filterButtonText, activeFilter === "critical" && styles.filterButtonTextActive]}>
-            حرج
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* Activities List - Date-grouped rows */}
       <FlatList
         ref={flatListRef}
         data={groupedActivities}
         renderItem={renderDateGroup}
         keyExtractor={(item) => item.dateLabel}
+        ListHeaderComponent={ListHeader}
         contentContainerStyle={styles.listContent}
-        contentInsetAdjustmentBehavior="never"
-        automaticallyAdjustContentInsets={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -836,10 +725,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3",
   },
 
-  // Header - NewsScreen/ProfileLinker pattern
+  // Header
   header: {
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   headerRow: {
@@ -863,27 +752,13 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-  },
-  loadingText: {
-    fontSize: 17,
-    color: "#242121",
-    marginTop: 16,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-
-  // Stats Widget - AdminDash pattern
+  // Stats Widget
   statsWidget: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 8,
     marginBottom: 16,
-    borderRadius: 13,
+    borderRadius: 12,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -924,7 +799,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#D1BBA320",
   },
 
-  // Search Bar - ProfileLinker pattern
+  // Search Bar
   searchBar: {
     backgroundColor: "#D1BBA320",
     borderRadius: 12,
@@ -950,11 +825,10 @@ const styles = StyleSheet.create({
 
   // Filter Buttons
   filterSection: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   filterContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
     gap: 8,
   },
   filterButton: {
@@ -967,7 +841,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: "#D1BBA340",
-    minWidth: 60,
+    minWidth: 90,
   },
   filterButtonActive: {
     backgroundColor: "#A13333",
@@ -985,9 +859,7 @@ const styles = StyleSheet.create({
 
   // Activities List
   listContent: {
-    paddingTop: 0,
     paddingBottom: 16,
-    flexGrow: 1,
   },
   dateGroup: {
     marginBottom: 16,
@@ -1002,7 +874,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // Activity Card - AdminDash pattern (card with rows)
+  // Activity Card
   activityCard: {
     backgroundColor: "#F9F7F3",
     borderRadius: 12,
@@ -1133,7 +1005,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 32,
+    paddingVertical: 64,
   },
   emptyText: {
     fontSize: 17,
