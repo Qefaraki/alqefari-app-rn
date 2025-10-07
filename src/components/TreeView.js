@@ -1597,14 +1597,16 @@ const TreeView = ({
       duration: 300,
       easing: Easing.in(Easing.ease),
     });
-    highlightedNodeId.value = null;
 
     // Clear path
     pathOpacity.value = withTiming(0, {
       duration: 300,
       easing: Easing.in(Easing.ease),
     });
+
+    // Clear state after animation completes
     setTimeout(() => {
+      highlightedNodeId.value = null;
       setHighlightedPathNodeIds(null);
     }, 300);
   }, [glowOpacity, pathOpacity, highlightedNodeId]);
