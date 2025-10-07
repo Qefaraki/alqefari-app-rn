@@ -23,6 +23,7 @@ const ChildListCard = ({
   onDelete,
   onMoveUp,
   onMoveDown,
+  onMoveToPosition,
   mothers = [],
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -63,6 +64,8 @@ const ChildListCard = ({
   // Entrance animation for new cards
   useEffect(() => {
     let animation;
+    let isMounted = true;
+
     if (child.isNew) {
       animation = Animated.parallel([
         Animated.spring(fadeAnim, {
@@ -82,13 +85,22 @@ const ChildListCard = ({
     }
 
     return () => {
+      isMounted = false;
       if (animation) {
-        animation.stop();
+        try {
+          animation.stop();
+        } catch (e) {
+          console.warn('Animation cleanup error:', e);
+        }
       }
       // Explicit cleanup for all animated values
-      fadeAnim.stopAnimation();
-      slideAnim.stopAnimation();
-      highlightAnim.stopAnimation();
+      try {
+        fadeAnim.stopAnimation();
+        slideAnim.stopAnimation();
+        highlightAnim.stopAnimation();
+      } catch (e) {
+        console.warn('Explicit animation cleanup error:', e);
+      }
     };
   }, []);
 
@@ -117,13 +129,24 @@ const ChildListCard = ({
   };
 
   const handleSaveEdit = () => {
-    if (localName.trim().length < 2) {
-      Alert.alert("خطأ", "يرجى إدخال اسم صحيح (حرفين على الأقل)");
+    const trimmedName = localName.trim();
+
+    // Comprehensive validation
+    if (trimmedName.length === 0) {
+      Alert.alert("خطأ", "الاسم مطلوب");
+      return;
+    }
+    if (trimmedName.length < 2) {
+      Alert.alert("خطأ", "الاسم يجب أن يكون حرفين على الأقل");
+      return;
+    }
+    if (trimmedName.length > 100) {
+      Alert.alert("خطأ", "الاسم طويل جداً (100 حرف كحد أقصى)");
       return;
     }
 
     onUpdate(child.id, {
-      name: localName.trim(),
+      name: trimmedName,
       gender: localGender,
       mother_id: localMotherId,
     });
@@ -162,21 +185,8 @@ const ChildListCard = ({
   };
 
   const handlePositionSelect = (newPosition) => {
-    const targetIndex = newPosition - 1; // Convert 1-based to 0-based
-    const currentIndex = index;
-
-    // Move item to new position
-    if (targetIndex > currentIndex) {
-      // Moving down - call onMoveDown repeatedly
-      for (let i = currentIndex; i < targetIndex; i++) {
-        onMoveDown(child.id);
-      }
-    } else if (targetIndex < currentIndex) {
-      // Moving up - call onMoveUp repeatedly
-      for (let i = currentIndex; i > targetIndex; i--) {
-        onMoveUp(child.id);
-      }
-    }
+    // Use batch move function to avoid race conditions
+    onMoveToPosition(child.id, newPosition);
   };
 
   const getMotherName = () => {

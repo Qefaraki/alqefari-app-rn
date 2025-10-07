@@ -86,7 +86,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
     // Validate name length
     if (trimmedName.length < 2) {
-      Alert.alert("خطأ", "يرجى إدخال اسم صحيح (حرفين على الأقل)");
+      Alert.alert("خطأ", "الاسم يجب أن يكون حرفين على الأقل");
       return;
     }
     if (trimmedName.length > 100) {
@@ -185,6 +185,34 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     setHasReordered(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, []); // Empty deps - stable reference!
+
+  // Batch move to specific position (for PositionPicker)
+  const handleMoveToPosition = useCallback((childId, targetPosition) => {
+    setAllChildren(prev => {
+      const currentIndex = prev.findIndex((c) => c.id === childId);
+      const targetIndex = targetPosition - 1; // Convert 1-based to 0-based
+
+      // No move needed
+      if (currentIndex === targetIndex || currentIndex === -1) {
+        return prev;
+      }
+
+      // Perform the move
+      const newChildren = [...prev];
+      const [movedChild] = newChildren.splice(currentIndex, 1);
+      newChildren.splice(targetIndex, 0, movedChild);
+
+      // Update sibling_order and mark as edited
+      return newChildren.map((child, index) => ({
+        ...child,
+        sibling_order: index,
+        isEdited: child.isExisting ? true : child.isEdited,
+      }));
+    });
+
+    setHasReordered(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
 
   // Convenience wrappers for backward compatibility
   const handleMoveUp = useCallback((childId) => handleMove(childId, 'up'), [handleMove]);
@@ -341,10 +369,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         onDelete={handleDeleteChild}
         onMoveUp={handleMoveUp}
         onMoveDown={handleMoveDown}
+        onMoveToPosition={handleMoveToPosition}
         mothers={mothers}
       />
     ),
-    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown]
+    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown, handleMoveToPosition]
   );
 
   if (!visible) return null;
