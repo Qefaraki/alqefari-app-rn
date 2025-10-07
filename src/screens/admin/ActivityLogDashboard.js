@@ -25,6 +25,12 @@ import {
   isToday,
   isYesterday,
   formatDistanceToNow,
+  startOfDay,
+  endOfDay,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
 } from "date-fns";
 import { ar } from "date-fns/locale";
 import tokens from "../../components/ui/tokens";
@@ -41,6 +47,9 @@ import {
   isActivityGroup,
   getGroupDisplayText,
 } from "../../utils/activityGrouping";
+import UserFilterModal from "../../components/admin/UserFilterModal";
+import DateRangePickerModal from "../../components/admin/DateRangePickerModal";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Use Najdi Sadu Color Palette from tokens
 const colors = {
@@ -174,6 +183,8 @@ const formatValue = (value) => {
 };
 
 export default function ActivityLogDashboard({ onClose }) {
+  const { userProfile } = useAuth();
+
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -187,6 +198,13 @@ export default function ActivityLogDashboard({ onClose }) {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Filter modal state
+  const [showUserFilter, setShowUserFilter] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [datePreset, setDatePreset] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState({ from: null, to: null });
 
   const subscriptionRef = useRef(null);
   const flatListRef = useRef(null);
@@ -215,11 +233,35 @@ export default function ActivityLogDashboard({ onClose }) {
       const start = currentPage * PAGE_SIZE;
       const end = start + PAGE_SIZE - 1;
 
-      const { data, error, count } = await supabase
+      // Build query with filters
+      let query = supabase
         .from("activity_log_detailed")
-        .select("*", { count: 'exact' })
+        .select("*", { count: 'exact' });
+
+      // Apply user filter
+      if (selectedUser) {
+        query = query.eq('actor_id', selectedUser.actor_id);
+      }
+
+      // Apply date range filter
+      if (datePreset !== 'all') {
+        const range = datePreset === 'custom'
+          ? { start: customDateRange.from, end: customDateRange.to }
+          : getDateRangeForPreset(datePreset);
+
+        if (range.start) {
+          query = query.gte('created_at', range.start.toISOString());
+        }
+        if (range.end) {
+          query = query.lte('created_at', range.end.toISOString());
+        }
+      }
+
+      query = query
         .order("created_at", { ascending: false })
         .range(start, end);
+
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
@@ -239,7 +281,23 @@ export default function ActivityLogDashboard({ onClose }) {
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, [page, PAGE_SIZE]);
+  }, [page, PAGE_SIZE, selectedUser, datePreset, customDateRange]);
+
+  // Helper function to get date range from preset
+  const getDateRangeForPreset = (preset) => {
+    const now = new Date();
+
+    switch (preset) {
+      case 'today':
+        return { start: startOfDay(now), end: endOfDay(now) };
+      case 'week':
+        return { start: startOfWeek(now), end: endOfWeek(now) };
+      case 'month':
+        return { start: startOfMonth(now), end: endOfMonth(now) };
+      default:
+        return { start: null, end: null };
+    }
+  };
 
   // Set up real-time subscription (fixed race condition)
   useEffect(() => {
@@ -280,6 +338,12 @@ export default function ActivityLogDashboard({ onClose }) {
       }
     };
   }, []); // Empty deps - run once on mount
+
+  // Refetch when filters change
+  useEffect(() => {
+    setPage(0);
+    fetchActivities(false);
+  }, [selectedUser, datePreset, customDateRange]);
 
   // Calculate stats (memoized for performance)
   const stats = useMemo(() => {
@@ -516,6 +580,50 @@ export default function ActivityLogDashboard({ onClose }) {
     </View>
   ), [searchText]);
 
+  // Filter Chips Component
+  const FilterChips = useMemo(() => {
+    const hasFilters = selectedUser || datePreset !== 'all';
+
+    if (!hasFilters) return null;
+
+    return (
+      <View style={styles.filterChipsContainer}>
+        {selectedUser && (
+          <View style={styles.filterChip}>
+            <Ionicons name="person" size={14} color={tokens.colors.najdi.alJass} />
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              {selectedUser.actor_name}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setSelectedUser(null);
+              setPage(0);
+            }}>
+              <Ionicons name="close-circle" size={16} color={tokens.colors.najdi.alJass} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {datePreset !== 'all' && (
+          <View style={styles.filterChip}>
+            <Ionicons name="calendar" size={14} color={tokens.colors.najdi.alJass} />
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              {datePreset === 'today' ? 'اليوم' :
+               datePreset === 'week' ? 'هذا الأسبوع' :
+               datePreset === 'month' ? 'هذا الشهر' :
+               datePreset === 'custom' ? 'نطاق مخصص' : 'الكل'}
+            </Text>
+            <TouchableOpacity onPress={() => {
+              setDatePreset('all');
+              setCustomDateRange({ from: null, to: null });
+              setPage(0);
+            }}>
+              <Ionicons name="close-circle" size={16} color={tokens.colors.najdi.alJass} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    );
+  }, [selectedUser, datePreset]);
+
   // Render filter button (for horizontal FlatList)
   const renderFilterButton = useCallback(({ item }) => {
     const isActive = activeFilter === item.key;
@@ -542,21 +650,68 @@ export default function ActivityLogDashboard({ onClose }) {
 
   // Filter Buttons Component (horizontal FlatList)
   const FilterButtons = useMemo(() => (
-    <FlatList
-      horizontal
-      data={FILTER_DATA}
-      renderItem={renderFilterButton}
-      keyExtractor={(item) => item.key}
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filterContent}
-      style={styles.filterSection}
-      getItemLayout={(data, index) => ({
-        length: 90,
-        offset: 90 * index,
-        index,
-      })}
-    />
-  ), [renderFilterButton]);
+    <View>
+      <View style={styles.filterButtonsRow}>
+        <TouchableOpacity
+          style={[styles.filterModalButton, selectedUser && styles.filterModalButtonActive]}
+          onPress={() => setShowUserFilter(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="person"
+            size={16}
+            color={selectedUser ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
+          />
+          <Text
+            style={[
+              styles.filterModalButtonText,
+              selectedUser && styles.filterModalButtonTextActive,
+            ]}
+          >
+            المستخدم
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.filterModalButton,
+            datePreset !== 'all' && styles.filterModalButtonActive,
+          ]}
+          onPress={() => setShowDateFilter(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons
+            name="calendar"
+            size={16}
+            color={datePreset !== 'all' ? tokens.colors.najdi.alJass : tokens.colors.najdi.crimson}
+          />
+          <Text
+            style={[
+              styles.filterModalButtonText,
+              datePreset !== 'all' && styles.filterModalButtonTextActive,
+            ]}
+          >
+            التاريخ
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        horizontal
+        data={FILTER_DATA}
+        renderItem={renderFilterButton}
+        keyExtractor={(item) => item.key}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterContent}
+        style={styles.filterSection}
+        getItemLayout={(data, index) => ({
+          length: 90,
+          offset: 90 * index,
+          index,
+        })}
+      />
+    </View>
+  ), [renderFilterButton, selectedUser, datePreset]);
 
   // ListHeaderComponent: Contains all header elements
   const ListHeader = useMemo(() => (
@@ -564,9 +719,10 @@ export default function ActivityLogDashboard({ onClose }) {
       {Header}
       {StatsWidget}
       {SearchBar}
+      {FilterChips}
       {FilterButtons}
     </View>
-  ), [Header, StatsWidget, SearchBar, FilterButtons]);
+  ), [Header, StatsWidget, SearchBar, FilterChips, FilterButtons]);
 
   // Render date group with activities
   const renderDateGroup = useCallback(({ item }) => (
@@ -853,6 +1009,34 @@ export default function ActivityLogDashboard({ onClose }) {
         }
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
+      />
+
+      {/* User Filter Modal */}
+      <UserFilterModal
+        visible={showUserFilter}
+        onClose={() => setShowUserFilter(false)}
+        onSelectUser={(user) => {
+          setSelectedUser(user);
+          setPage(0);
+          setShowUserFilter(false);
+        }}
+        selectedUser={selectedUser}
+        currentUserId={userProfile?.id}
+      />
+
+      {/* Date Range Picker Modal */}
+      <DateRangePickerModal
+        visible={showDateFilter}
+        onClose={() => setShowDateFilter(false)}
+        onApplyFilter={(preset, range) => {
+          setDatePreset(preset);
+          if (preset === 'custom') {
+            setCustomDateRange(range);
+          }
+          setPage(0);
+        }}
+        activePreset={datePreset}
+        customRange={customDateRange}
       />
     </View>
   );
@@ -1261,5 +1445,64 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#736372",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+
+  // Filter Modal Buttons
+  filterButtonsRow: {
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
+    paddingHorizontal: 16,
+    marginBottom: tokens.spacing.sm,
+  },
+  filterModalButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: tokens.colors.najdi.crimson + "15",
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.crimson + "40",
+    minHeight: 36,
+  },
+  filterModalButtonActive: {
+    backgroundColor: tokens.colors.najdi.crimson,
+    borderColor: tokens.colors.najdi.crimson,
+  },
+  filterModalButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: tokens.colors.najdi.crimson,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filterModalButtonTextActive: {
+    color: tokens.colors.najdi.alJass,
+  },
+
+  // Filter Chips
+  filterChipsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: tokens.spacing.xs,
+    paddingHorizontal: 16,
+    marginBottom: tokens.spacing.sm,
+  },
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: tokens.colors.najdi.crimson,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    maxWidth: "48%",
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: tokens.colors.najdi.alJass,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    flexShrink: 1,
   },
 });
