@@ -164,8 +164,22 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const handleSave = async () => {
     if (!editedData || !profile) return;
 
+    // CRITICAL: Require admin mode to save
+    if (!isAdmin) {
+      Alert.alert("خطأ", "يجب تفعيل وضع المشرف لحفظ التعديلات");
+      return;
+    }
+
     setSaving(true);
     try {
+      // Validate dates before saving
+      const dateValidation = validateDates(editedData.dob_data, editedData.dod_data);
+      if (!dateValidation.isValid) {
+        Alert.alert("خطأ في التواريخ", dateValidation.error);
+        setSaving(false);
+        return;
+      }
+
       // Validate email if provided
       if (editedData.email && editedData.email.trim()) {
         const emailRegex = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -763,7 +777,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     color: "#007AFF",
   },
   saveText: {
@@ -773,7 +787,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
     color: "#1A1A1A",
   },
@@ -781,8 +795,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 24,
   },
   photoSection: {
     marginBottom: 24,
@@ -803,7 +817,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F8F8",
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     color: "#1A1A1A",
   },
@@ -815,7 +829,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "500",
     color: "#666",
     marginBottom: 8,
@@ -827,7 +841,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 16,
+    fontSize: 17,
     color: "#1A1A1A",
   },
   multilineInput: {
@@ -864,7 +878,7 @@ const styles = StyleSheet.create({
     borderColor: "#007AFF",
   },
   toggleButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#666",
   },
   toggleButtonTextActive: {
@@ -886,13 +900,13 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   switchLabel: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "500",
     color: "#1A1A1A",
     marginBottom: 4,
   },
   switchDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#666",
   },
   dateSection: {
@@ -912,7 +926,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F0F0F0",
   },
   dateSectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     color: "#1A1A1A",
   },
@@ -928,7 +942,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   addButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     color: "#007AFF",
   },
@@ -949,17 +963,17 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   marriageName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "600",
     color: "#1A1A1A",
     marginBottom: 4,
   },
   marriageStatus: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#666",
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#999",
     textAlign: "center",
     marginTop: 10,

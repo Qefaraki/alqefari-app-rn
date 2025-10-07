@@ -81,30 +81,30 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
 
   if (showLabels) {
     // Expanded view: side-by-side cards with labels
-    // Order: NEW → ARROW → OLD (appears as OLD → NEW in RTL reading)
+    // Native RTL: Code order [OLD, ARROW, NEW] displays as NEW←OLD and reads as OLD→NEW ✓
     return (
       <View style={styles.expandedDiff}>
-        {/* NEW VALUE CARD (appears on LEFT, reads first from RIGHT in RTL) */}
-        <View style={[styles.diffCard, styles.newValueCard]}>
-          <Text style={styles.diffLabel}>القيمة الجديدة</Text>
-          <Text style={styles.newValueText} numberOfLines={3}>
-            {newStr}
+        {/* OLD VALUE CARD (appears on RIGHT in RTL, reads first) */}
+        <View style={[styles.diffCard, styles.oldValueCard]}>
+          <Text style={styles.diffLabel}>القيمة القديمة</Text>
+          <Text style={styles.oldValueText} numberOfLines={3}>
+            {oldStr}
           </Text>
         </View>
 
-        {/* ARROW (pointing RIGHT for RTL flow: from OLD to NEW) */}
+        {/* ARROW (pointing LEFT: from OLD to NEW in visual layout) */}
         <Ionicons
-          name="arrow-back"
+          name="arrow-forward"
           size={20}
           color={tokens.colors.textMuted}
           style={styles.arrowIcon}
         />
 
-        {/* OLD VALUE CARD (appears on RIGHT, reads last in RTL) */}
-        <View style={[styles.diffCard, styles.oldValueCard]}>
-          <Text style={styles.diffLabel}>القيمة القديمة</Text>
-          <Text style={styles.oldValueText} numberOfLines={3}>
-            {oldStr}
+        {/* NEW VALUE CARD (appears on LEFT in RTL, reads last) */}
+        <View style={[styles.diffCard, styles.newValueCard]}>
+          <Text style={styles.diffLabel}>القيمة الجديدة</Text>
+          <Text style={styles.newValueText} numberOfLines={3}>
+            {newStr}
           </Text>
         </View>
       </View>
@@ -147,10 +147,11 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
     );
   }
 
-  // MODIFIED: Full comparison (NEW → ARROW → OLD reads as OLD → NEW in RTL)
+  // MODIFIED: Full comparison
+  // Native RTL: Code order [ICON, OLD, ARROW, NEW] reads as ICON→OLD→ARROW→NEW ✓
   return (
     <View style={styles.inlineDiff}>
-      {/* Change type icon (appears on RIGHT in RTL) */}
+      {/* Change type icon (appears on RIGHTMOST in RTL) */}
       <Ionicons
         name={icon}
         size={16}
@@ -158,21 +159,21 @@ const InlineDiff = ({ field, oldValue, newValue, showLabels = false }) => {
         style={styles.diffIcon}
       />
 
-      {/* NEW VALUE (bold, green - appears second from right) */}
-      <Text style={styles.newValueInline} numberOfLines={1}>
-        {newStr}
+      {/* OLD VALUE (strikethrough, muted - appears right-center) */}
+      <Text style={styles.oldValueInline} numberOfLines={1}>
+        {oldStr}
       </Text>
 
-      {/* ARROW (pointing right: from OLD to NEW) */}
+      {/* ARROW (pointing left: from OLD to NEW in visual layout) */}
       <Ionicons
-        name="arrow-back"
+        name="arrow-forward"
         size={14}
         color={tokens.colors.textMuted}
       />
 
-      {/* OLD VALUE (strikethrough, muted - appears on LEFT) */}
-      <Text style={styles.oldValueInline} numberOfLines={1}>
-        {oldStr}
+      {/* NEW VALUE (bold, green - appears on LEFT) */}
+      <Text style={styles.newValueInline} numberOfLines={1}>
+        {newStr}
       </Text>
     </View>
   );

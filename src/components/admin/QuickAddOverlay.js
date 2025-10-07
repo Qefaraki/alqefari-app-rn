@@ -52,15 +52,19 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           }
           return orderA - orderB;
         })
-        .map((s, index) => ({
-          ...s,
-          isNew: false,
-          isExisting: true,
-          isEdited: false,
-          mother_id: s?.mother_id || s?.parent2 || null,
-          mother_name: s?.mother_name || null,
-          sibling_order: index,
-        }));
+        .map((s, index) => {
+          // Preserve isEdited state from current allChildren if it exists
+          const existing = allChildren.find(c => c.id === s.id);
+          return {
+            ...s,
+            isNew: false,
+            isExisting: true,
+            isEdited: existing?.isEdited || false, // Preserve edited state
+            mother_id: s?.mother_id || s?.parent2 || null,
+            mother_name: s?.mother_name || null,
+            sibling_order: index,
+          };
+        });
 
       setAllChildren(sortedSiblings);
       setCurrentName("");

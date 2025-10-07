@@ -120,9 +120,8 @@ const segmentedStyles = StyleSheet.create({
   },
 });
 
-// Profile cache
-let profileCache = null;
-let cacheTimestamp = null;
+// User-specific profile cache (Map<userId, {profile, timestamp}>)
+const profileCaches = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export default function SettingsPageModern({ user }) {
@@ -169,20 +168,20 @@ export default function SettingsPageModern({ user }) {
   const loadUserProfile = async () => {
     setLoadingProfile(true);
 
-    // Check cache first
-    const now = Date.now();
-    if (profileCache && cacheTimestamp && now - cacheTimestamp < CACHE_DURATION) {
-      setCurrentUser(profileCache.user);
-      setUserProfile(profileCache.profile);
-      setLoadingProfile(false);
-      return;
-    }
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
 
       if (user) {
+        // Check user-specific cache first
+        const now = Date.now();
+        const cached = profileCaches.get(user.id);
+        if (cached && now - cached.timestamp < CACHE_DURATION) {
+          setUserProfile(cached.profile);
+          setLoadingProfile(false);
+          return;
+        }
+
         // Find profile linked to this user
         const { data: profile } = await supabase
           .from("profiles")
@@ -233,9 +232,8 @@ export default function SettingsPageModern({ user }) {
           }
         }
 
-        // Update cache
-        profileCache = { user, profile };
-        cacheTimestamp = Date.now();
+        // Update user-specific cache
+        profileCaches.set(user.id, { profile, timestamp: Date.now() });
       }
     } catch (error) {
       console.error("Error loading user profile:", error);
@@ -259,8 +257,9 @@ export default function SettingsPageModern({ user }) {
           try {
             // Clear local settings and caches first
             resetSettings();
-            profileCache = null;
-            cacheTimestamp = null;
+            if (currentUser?.id) {
+              profileCaches.delete(currentUser.id);
+            }
 
             // Clear any component-level stores
             try {

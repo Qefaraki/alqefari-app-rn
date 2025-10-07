@@ -138,7 +138,17 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
   // Load data progressively
   useEffect(() => {
-    loadDataProgressively();
+    const timer1 = setTimeout(() => loadEnhancedStats(), 300);
+    const timer2 = setTimeout(() => loadValidationData(), 600);
+
+    loadBasicStats();
+    loadPendingRequestsCount();
+
+    // Cleanup timers on unmount
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, []);
 
   const loadDataProgressively = async () => {
@@ -146,7 +156,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     loadBasicStats();
     loadPendingRequestsCount();
 
-    // Load other sections with delays
+    // Load other sections with delays (NO CLEANUP - only used in refresh)
     setTimeout(() => loadEnhancedStats(), 300);
     setTimeout(() => loadValidationData(), 600);
   };

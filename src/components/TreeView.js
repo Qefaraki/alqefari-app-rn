@@ -931,6 +931,8 @@ const TreeView = ({
           // Handle different event types
           if (payload.eventType === "UPDATE" && payload.new) {
             // Update just the affected node
+            // Get current settings from context
+            const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
             const updatedNode = {
               ...payload.new,
               name: payload.new.name || "بدون اسم",
@@ -940,7 +942,7 @@ const TreeView = ({
                   marriage_date: marriage.marriage_date
                     ? formatDateByPreference(
                         marriage.marriage_date,
-                        settings.defaultCalendar,
+                        currentSettings?.defaultCalendar || 'gregorian',
                       )
                     : null,
                 })) || [],
@@ -950,6 +952,7 @@ const TreeView = ({
             useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
           } else if (payload.eventType === "INSERT" && payload.new) {
             // Add new node
+            const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
             const newNode = {
               ...payload.new,
               name: payload.new.name || "بدون اسم",
@@ -959,7 +962,7 @@ const TreeView = ({
                   marriage_date: marriage.marriage_date
                     ? formatDateByPreference(
                         marriage.marriage_date,
-                        settings.defaultCalendar,
+                        currentSettings?.defaultCalendar || 'gregorian',
                       )
                     : null,
                 })) || [],
@@ -1440,6 +1443,30 @@ const TreeView = ({
     }
   }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
 
+  // Highlight node with elegant golden effect using Reanimated
+  const highlightNode = useCallback((nodeId) => {
+    // Force re-trigger by incrementing trigger counter
+    setGlowTrigger((prev) => prev + 1);
+
+    // Set the highlighted node
+    highlightedNodeId.value = nodeId;
+
+    // Immediately hide any existing glow
+    glowOpacity.value = 0;
+
+    // Fade in and hold (matches path behavior - stays visible until X clicked)
+    glowOpacity.value = withDelay(
+      350, // Match camera flight delay
+      withTiming(0.55, {
+        duration: 400,
+        easing: Easing.out(Easing.ease),
+      })
+    );
+
+    // Haptic feedback with impact
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }, []);
+
   // Navigate to a specific node with animation
   const navigateToNode = useCallback(
     (nodeId) => {
@@ -1525,30 +1552,6 @@ const TreeView = ({
     },
     [nodes, dimensions, highlightNode],
   );
-
-  // Highlight node with elegant golden effect using Reanimated
-  const highlightNode = useCallback((nodeId) => {
-    // Force re-trigger by incrementing trigger counter
-    setGlowTrigger((prev) => prev + 1);
-
-    // Set the highlighted node
-    highlightedNodeId.value = nodeId;
-
-    // Immediately hide any existing glow
-    glowOpacity.value = 0;
-
-    // Fade in and hold (matches path behavior - stays visible until X clicked)
-    glowOpacity.value = withDelay(
-      350, // Match camera flight delay
-      withTiming(0.55, {
-        duration: 400,
-        easing: Easing.out(Easing.ease),
-      })
-    );
-
-    // Haptic feedback with impact
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -1639,9 +1642,11 @@ const TreeView = ({
   useEffect(() => {
     if (highlightProfileId && focusOnProfile && nodes.length > 0) {
       // Small delay to ensure tree is fully rendered
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         navigateToNode(highlightProfileId);
       }, 500);
+
+      return () => clearTimeout(timer);
     }
   }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
 

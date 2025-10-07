@@ -11,7 +11,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import tokens from "../ui/tokens";
-import PositionPicker from "./PositionPicker";
 
 const COLORS = tokens.colors.najdi;
 
@@ -30,8 +29,6 @@ const ChildListCard = ({
   const [localName, setLocalName] = useState(child.name);
   const [localGender, setLocalGender] = useState(child.gender);
   const [localMotherId, setLocalMotherId] = useState(child.mother_id);
-  const [showPositionPicker, setShowPositionPicker] = useState(false);
-  const [isPickerOpening, setIsPickerOpening] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
 
   // Animation values for entrance only
@@ -199,11 +196,6 @@ const ChildListCard = ({
     }
   };
 
-  const handlePositionSelect = (newPosition) => {
-    // Use batch move function to avoid race conditions
-    onMoveToPosition(child.id, newPosition);
-  };
-
   const getMotherName = () => {
     if (!child.mother_id) return null;
     const mother = mothers.find((m) => m.id === child.mother_id);
@@ -230,67 +222,54 @@ const ChildListCard = ({
         ]}
       >
         <Animated.View style={[styles.card, getCardStyle(), { backgroundColor: highlightColor }]}>
-          {/* Reorder Controls - only show if more than 1 child */}
+          {/* Reorder Controls - horizontal iOS layout */}
           {totalChildren > 1 && (
             <View style={styles.reorderControls}>
-              {/* Up Arrow */}
-              <TouchableOpacity
-                style={[
-                  styles.arrowButton,
-                  (index === 0 || isMoving) && styles.arrowButtonDisabled
-                ]}
-                onPress={() => handleArrowPress('up')}
-                disabled={index === 0 || isMoving}
-              >
-                <Ionicons
-                  name="chevron-up"
-                  size={16}
-                  color={index === 0 ? COLORS.textMuted : COLORS.text}
-                />
-              </TouchableOpacity>
-
-              {/* Position Badge - tap for full picker */}
-              <TouchableOpacity
-                style={styles.positionBadge}
-                onPress={() => {
-                  if (isPickerOpening) return;
-                  setIsPickerOpening(true);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowPositionPicker(true);
-                }}
-                disabled={isPickerOpening}
-              >
+              {/* Position Badge */}
+              <View style={styles.positionBadge}>
                 <Text style={styles.orderText}>{index + 1}</Text>
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={12}
-                  color={COLORS.textMuted}
-                  style={styles.moreIcon}
-                />
-              </TouchableOpacity>
+              </View>
 
-              {/* Down Arrow */}
-              <TouchableOpacity
-                style={[
-                  styles.arrowButton,
-                  (index === totalChildren - 1 || isMoving) && styles.arrowButtonDisabled
-                ]}
-                onPress={() => handleArrowPress('down')}
-                disabled={index === totalChildren - 1 || isMoving}
-              >
-                <Ionicons
-                  name="chevron-down"
-                  size={16}
-                  color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.text}
-                />
-              </TouchableOpacity>
+              {/* Up Arrow slot - always reserve space */}
+              <View style={styles.arrowSlot}>
+                {index > 0 && (
+                  <TouchableOpacity
+                    style={styles.arrowButton}
+                    onPress={() => handleArrowPress('up')}
+                    disabled={isMoving}
+                  >
+                    <Ionicons
+                      name="chevron-up-circle-outline"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Down Arrow slot - always reserve space */}
+              <View style={styles.arrowSlot}>
+                {index < totalChildren - 1 && (
+                  <TouchableOpacity
+                    style={styles.arrowButton}
+                    onPress={() => handleArrowPress('down')}
+                    disabled={isMoving}
+                  >
+                    <Ionicons
+                      name="chevron-down-circle-outline"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
           )}
 
           {/* Card Content */}
           <View style={styles.content}>
             {isEditing ? (
-              // Edit Mode
+              // Edit Mode - iOS-style with segmented control
               <View style={styles.editContainer}>
                 <TextInput
                   style={styles.nameInputInline}
@@ -301,19 +280,20 @@ const ChildListCard = ({
                   onSubmitEditing={handleSaveEdit}
                   textAlign="left"
                 />
-                <View style={styles.editControls}>
+                {/* iOS-style Segmented Control for Gender */}
+                <View style={styles.segmentedControl}>
                   <TouchableOpacity
                     style={[
-                      styles.genderToggleMini,
-                      localGender === "male" && styles.genderToggleMiniActive,
+                      styles.segmentButton,
+                      styles.segmentButtonRight,
+                      localGender === "male" && styles.segmentButtonActive,
                     ]}
                     onPress={() => setLocalGender("male")}
                   >
                     <Text
                       style={[
-                        styles.genderToggleMiniText,
-                        localGender === "male" &&
-                          styles.genderToggleMiniTextActive,
+                        styles.segmentText,
+                        localGender === "male" && styles.segmentTextActive,
                       ]}
                     >
                       ذكر
@@ -321,17 +301,16 @@ const ChildListCard = ({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[
-                      styles.genderToggleMini,
-                      localGender === "female" &&
-                        styles.genderToggleMiniActive,
+                      styles.segmentButton,
+                      styles.segmentButtonLeft,
+                      localGender === "female" && styles.segmentButtonActive,
                     ]}
                     onPress={() => setLocalGender("female")}
                   >
                     <Text
                       style={[
-                        styles.genderToggleMiniText,
-                        localGender === "female" &&
-                          styles.genderToggleMiniTextActive,
+                        styles.segmentText,
+                        localGender === "female" && styles.segmentTextActive,
                       ]}
                     >
                       أنثى
@@ -412,18 +391,6 @@ const ChildListCard = ({
           </View>
         </Animated.View>
       </Animated.View>
-
-      {/* Position Picker Modal */}
-      <PositionPicker
-        visible={showPositionPicker}
-        currentPosition={index + 1}
-        totalPositions={totalChildren}
-        onSelect={handlePositionSelect}
-        onClose={() => {
-          setShowPositionPicker(false);
-          setTimeout(() => setIsPickerOpening(false), 300); // Reset after modal animation
-        }}
-      />
     </>
   );
 };
@@ -437,8 +404,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
-    paddingVertical: tokens.spacing.xs, // 8px
-    paddingHorizontal: tokens.spacing.sm, // 12px
+    paddingVertical: 6, // Reduced from 8px
+    paddingHorizontal: 10, // Reduced from 12px
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.container + "30",
@@ -455,46 +422,39 @@ const styles = StyleSheet.create({
     borderLeftColor: COLORS.secondary,
   },
   cardEdited: {
-    borderColor: COLORS.accent, // Desert Ochre
-    backgroundColor: COLORS.accent + "08",
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.accent,
+    backgroundColor: COLORS.accent + "03", // Subtle 3% tint only
   },
   reorderControls: {
-    flexDirection: "column",
+    flexDirection: "row", // Horizontal iOS layout
     alignItems: "center",
-    gap: 4,
-    marginRight: tokens.spacing.xs, // 8px
+    gap: 4, // Reduced from 6px
+    marginRight: 6, // Reduced from 8px
+    minWidth: 88, // Fixed width: badge (28) + 2 arrows (28+28) + gaps (4*2) = 88px
   },
-  arrowButton: {
-    width: 32,
-    height: 22,
+  arrowSlot: {
+    width: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.container + "20",
-    borderRadius: 6,
   },
-  arrowButtonDisabled: {
-    opacity: 0.3,
+  arrowButton: {
+    width: 28,
+    height: 28,
+    justifyContent: "center",
+    alignItems: "center",
   },
   positionBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: COLORS.container + "30",
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
   },
   orderText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
     color: COLORS.text,
-  },
-  moreIcon: {
-    position: "absolute",
-    bottom: 2,
-    opacity: 0.6,
   },
   content: {
     flex: 1,
@@ -514,7 +474,7 @@ const styles = StyleSheet.create({
   metadata: {
     flexDirection: "row",
     alignItems: "center",
-    gap: tokens.spacing.xs, // 8px
+    gap: 6, // Reduced from 8px
   },
   metadataText: {
     fontSize: 13,
@@ -541,32 +501,41 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary + "40",
     textAlign: "left", // Native RTL mode flips this automatically
   },
-  editControls: {
+  // iOS-style Segmented Control
+  segmentedControl: {
     flexDirection: "row",
-    gap: tokens.spacing.xs, // 8px
-  },
-  genderToggleMini: {
-    minWidth: 44, // iOS minimum touch target
-    height: 44, // iOS minimum touch target
-    borderRadius: 8,
     backgroundColor: COLORS.container + "20",
+    borderRadius: 8,
+    padding: 2,
+    height: 32,
+  },
+  segmentButton: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
-    paddingHorizontal: tokens.spacing.xs, // 8px for text
+    borderRadius: 6,
   },
-  genderToggleMiniActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  segmentButtonLeft: {
+    // No additional style needed, flex handles layout
   },
-  genderToggleMiniText: {
-    fontSize: 13, // iOS footnote
+  segmentButtonRight: {
+    // No additional style needed, flex handles layout
+  },
+  segmentButtonActive: {
+    backgroundColor: COLORS.background,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  segmentText: {
+    fontSize: 13,
     fontWeight: "600",
-    color: COLORS.text,
+    color: COLORS.textMuted,
   },
-  genderToggleMiniTextActive: {
-    color: COLORS.background,
+  segmentTextActive: {
+    color: COLORS.text,
   },
   stateBadge: {
     paddingHorizontal: 8,
@@ -587,8 +556,8 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
-    gap: tokens.spacing.xs, // 8px
-    marginLeft: tokens.spacing.xs, // 8px
+    gap: 4, // Reduced from 8px
+    marginLeft: 6, // Reduced from 8px
   },
   iconButton: {
     width: 44, // iOS minimum touch target

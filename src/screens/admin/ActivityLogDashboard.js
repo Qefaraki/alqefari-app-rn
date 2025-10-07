@@ -16,6 +16,7 @@ import {
   RefreshControl,
   Alert,
   Image,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
@@ -482,14 +483,14 @@ export default function ActivityLogDashboard({ onClose }) {
         supabase.removeChannel(subscriptionRef.current);
       }
     };
-  }, [fetchStats]); // Include fetchStats (stable via useCallback)
+  }, []); // Empty deps - subscription uses refs for filter values
 
   // Refetch activities and stats when filters change
   useEffect(() => {
     setPage(0);
     fetchActivities(false);
     fetchStats(); // Fetch stats from server
-  }, [selectedUser, datePreset, customDateRange, fetchActivities, fetchStats]);
+  }, [selectedUser, datePreset, customDateRange]); // Removed function deps - they're stable via useCallback
 
   // Group activities by date (memoized for performance)
   const groupedActivities = useMemo(() => {
@@ -954,6 +955,12 @@ export default function ActivityLogDashboard({ onClose }) {
     </View>
   ), [Header, StatsWidget, SearchBar, FilterChips, FilterButtons]);
 
+  // Get first meaningful field (skip metadata fields like version)
+  const getDisplayField = useCallback((changedFields) => {
+    const metadataFields = ['version', 'updated_at', 'created_at'];
+    return changedFields.find(field => !metadataFields.includes(field)) || changedFields[0];
+  }, []);
+
   // Render date group with activities
   const renderDateGroup = useCallback(({ item }) => (
     <View style={styles.dateGroup}>
@@ -985,24 +992,27 @@ export default function ActivityLogDashboard({ onClose }) {
                     {activity.actor_name || "مستخدم"}
                   </Text>
                   {/* Show inline diff when collapsed */}
-                  {!isExpanded && activity.changed_fields && activity.changed_fields.length > 0 && (
-                    <>
-                      <InlineDiff
-                        field={activity.changed_fields[0]}
-                        oldValue={activity.old_data?.[activity.changed_fields[0]]}
-                        newValue={activity.new_data?.[activity.changed_fields[0]]}
-                        showLabels={false}
-                      />
-                      {/* Field count badge for multiple changes */}
-                      {activity.changed_fields.length > 1 && (
-                        <View style={styles.fieldCountBadge}>
-                          <Text style={styles.fieldCountText}>
-                            +{activity.changed_fields.length - 1} حقول
-                          </Text>
-                        </View>
-                      )}
-                    </>
-                  )}
+                  {!isExpanded && activity.changed_fields && activity.changed_fields.length > 0 && (() => {
+                    const displayField = getDisplayField(activity.changed_fields);
+                    return (
+                      <>
+                        <InlineDiff
+                          field={displayField}
+                          oldValue={activity.old_data?.[displayField]}
+                          newValue={activity.new_data?.[displayField]}
+                          showLabels={false}
+                        />
+                        {/* Field count badge for multiple changes */}
+                        {activity.changed_fields.length > 1 && (
+                          <View style={styles.fieldCountBadge}>
+                            <Text style={styles.fieldCountText}>
+                              +{activity.changed_fields.length - 1} حقول
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    );
+                  })()}
                 </View>
                 <Text style={styles.activityTime}>
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
@@ -1131,7 +1141,7 @@ export default function ActivityLogDashboard({ onClose }) {
         })}
       </View>
     </View>
-  ), [expandedCards, toggleCardExpansion, formatTimestamp]);
+  ), [expandedCards, toggleCardExpansion, formatTimestamp, getDisplayField]);
 
   // Loading state
   if (loading) {
