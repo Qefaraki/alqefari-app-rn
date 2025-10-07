@@ -18,6 +18,7 @@ import {
   Image,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from 'expo-haptics';
 import { supabase } from "../../services/supabase";
@@ -1149,7 +1150,7 @@ export default function ActivityLogDashboard({ onClose }) {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Image
@@ -1209,13 +1210,13 @@ export default function ActivityLogDashboard({ onClose }) {
         <DateGroupSkeleton />
         <DateGroupSkeleton />
         <DateGroupSkeleton />
-      </View>
+      </SafeAreaView>
     );
   }
 
   // Main render with single FlatList
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
         ref={flatListRef}
         data={groupedActivities}
@@ -1313,7 +1314,7 @@ export default function ActivityLogDashboard({ onClose }) {
         activePreset={datePreset}
         customRange={customDateRange}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1323,10 +1324,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3",
   },
 
-  // Header (unified for both loading and main render)
+  // Header (SafeAreaView handles top inset automatically)
   header: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 60 : 20, // Safe area for iOS notch/Dynamic Island
+    paddingTop: 10,
     paddingBottom: 8,
   },
   headerRow: {

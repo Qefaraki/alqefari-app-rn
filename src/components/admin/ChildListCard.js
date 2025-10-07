@@ -302,86 +302,80 @@ const ChildListCard = ({
 
                 {/* Gender + Mother Section - Vertically Stacked */}
                 <View style={styles.editSection}>
-                  {/* Gender Field */}
-                  <View style={styles.fieldGroup}>
-                    <Text style={styles.fieldLabel}>الجنس</Text>
-                    <View style={styles.segmentedControl}>
-                      <TouchableOpacity
+                  {/* Gender Segmented Control */}
+                  <View style={styles.segmentedControl}>
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentButton,
+                        localGender === "male" && styles.segmentButtonActive,
+                      ]}
+                      onPress={() => {
+                        setLocalGender("male");
+                        Haptics.selectionAsync();
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.segmentButton,
-                          localGender === "male" && styles.segmentButtonActive,
+                          styles.segmentText,
+                          localGender === "male" && styles.segmentTextActive,
                         ]}
-                        onPress={() => {
-                          setLocalGender("male");
-                          Haptics.selectionAsync();
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.segmentText,
-                            localGender === "male" && styles.segmentTextActive,
-                          ]}
-                        >
-                          ذكر
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
+                        ذكر
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.segmentButton,
+                        localGender === "female" && styles.segmentButtonActive,
+                      ]}
+                      onPress={() => {
+                        setLocalGender("female");
+                        Haptics.selectionAsync();
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.segmentButton,
-                          localGender === "female" && styles.segmentButtonActive,
+                          styles.segmentText,
+                          localGender === "female" && styles.segmentTextActive,
                         ]}
-                        onPress={() => {
-                          setLocalGender("female");
-                          Haptics.selectionAsync();
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.segmentText,
-                            localGender === "female" && styles.segmentTextActive,
-                          ]}
-                        >
-                          أنثى
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                        أنثى
+                      </Text>
+                    </TouchableOpacity>
                   </View>
 
-                  {/* Mother Field */}
+                  {/* Mother Selector */}
                   {mothers.length > 0 && (
-                    <View style={styles.fieldGroup}>
-                      <Text style={styles.fieldLabel}>الأم</Text>
-                      <TouchableOpacity
-                        style={styles.motherButton}
-                        onPress={() => {
-                          setMotherSheetVisible(true);
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.motherButtonContent}>
-                          <Ionicons
-                            name="person"
-                            size={16}
-                            color={localMotherId ? COLORS.primary : COLORS.textMuted}
-                          />
-                          <Text
-                            style={[
-                              styles.motherButtonText,
-                              localMotherId && styles.motherButtonTextActive,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {getLocalMotherName()}
-                          </Text>
-                          <Ionicons
-                            name="chevron-down"
-                            size={14}
-                            color={COLORS.textMuted}
-                          />
-                        </View>
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.motherButton}
+                      onPress={() => {
+                        setMotherSheetVisible(true);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.motherButtonContent}>
+                        <Ionicons
+                          name="person"
+                          size={16}
+                          color={localMotherId ? COLORS.primary : COLORS.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.motherButtonText,
+                            localMotherId && styles.motherButtonTextActive,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {getLocalMotherName()}
+                        </Text>
+                        <Ionicons
+                          name="chevron-down"
+                          size={14}
+                          color={COLORS.textMuted}
+                        />
+                      </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               </View>
@@ -552,8 +546,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: COLORS.background,
-    paddingVertical: 6, // Reduced from 8px
-    paddingHorizontal: 10, // Reduced from 12px
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.container + "30",
@@ -575,8 +569,8 @@ const styles = StyleSheet.create({
   reorderControls: {
     flexDirection: "row", // Horizontal iOS layout
     alignItems: "center",
-    gap: 4, // Reduced from 6px
-    marginRight: 6, // Reduced from 8px
+    gap: 4,
+    marginRight: 8,
     minWidth: 88, // Fixed width: badge (28) + 2 arrows (28+28) + gaps (4*2) = 88px
   },
   arrowSlot: {
@@ -635,7 +629,7 @@ const styles = StyleSheet.create({
   },
   editContainer: {
     flex: 1,
-    gap: 8, // iOS-standard spacing between name input and gender/mother row
+    gap: 12,
   },
   nameInputInline: {
     fontSize: 17,
@@ -651,16 +645,7 @@ const styles = StyleSheet.create({
   },
   // Edit Section - Vertical Layout
   editSection: {
-    gap: 12, // Space between gender and mother fields
-  },
-  fieldGroup: {
-    gap: 6, // Space between label and control
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-    paddingLeft: 4, // Subtle indent (RTL flips to right)
+    gap: 8,
   },
   // iOS-style Segmented Control (full width)
   segmentedControl: {
@@ -738,8 +723,8 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
-    gap: 4, // Reduced from 8px
-    marginLeft: 6, // Reduced from 8px
+    gap: 6,
+    marginLeft: 8,
   },
   iconButton: {
     width: 44, // iOS minimum touch target
