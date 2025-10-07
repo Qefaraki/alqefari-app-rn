@@ -227,10 +227,25 @@ const ProfileSheet = ({ editMode = false }) => {
 
   // Get person data - try tree data first, fall back to familyData
   const person = useMemo(() => {
+    let foundPerson = null;
     if (treeData && treeData.length > 0) {
-      return treeData.find((p) => p.id === selectedPersonId);
+      foundPerson = treeData.find((p) => p.id === selectedPersonId);
+    } else {
+      foundPerson = familyData.find((p) => p.id === selectedPersonId);
     }
-    return familyData.find((p) => p.id === selectedPersonId);
+
+    // DEBUG: Log person data to verify kunya field
+    if (foundPerson) {
+      console.log('🔍 [ProfileSheet] Person loaded:', {
+        name: foundPerson.name,
+        id: foundPerson.id,
+        hasKunya: !!foundPerson.kunya,
+        kunyaValue: foundPerson.kunya,
+        dataSource: treeData && treeData.length > 0 ? 'treeData' : 'familyData'
+      });
+    }
+
+    return foundPerson;
   }, [selectedPersonId, treeData]);
 
   const father = useMemo(() => {
@@ -1096,7 +1111,7 @@ const ProfileSheet = ({ editMode = false }) => {
                   />
                 ) : (
                   <View style={styles.nameContainer}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <View style={styles.nameWithKunyaRow}>
                       <Text style={styles.nameText}>{person.name}</Text>
                       {person.kunya && (
                         <>
@@ -1105,7 +1120,7 @@ const ProfileSheet = ({ editMode = false }) => {
                         </>
                       )}
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <View style={styles.nameActionsRow}>
                       {/* Permission indicator */}
                       {permissionLevel === 'full' && !isAdminMode && (
                         <View style={{
@@ -2420,6 +2435,17 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     color: "#736372",
     fontStyle: "italic",
+  },
+  nameWithKunyaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 4,
+  },
+  nameActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   moreButton: {
     padding: 8,

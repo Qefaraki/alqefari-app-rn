@@ -5,7 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -15,219 +15,40 @@ import {
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  GestureDetector,
-  Gesture,
-  GestureHandlerRootView,
-} from "react-native-gesture-handler";
-import ReAnimated from "react-native-reanimated";
-import {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
 import MotherSelectorSimple from "./fields/MotherSelectorSimple";
+import ChildListCard from "./ChildListCard";
 import tokens from "../ui/tokens";
 
-// Use Najdi Sadu color palette from tokens
 const COLORS = tokens.colors.najdi;
 
-// Card dimensions - thinner
-const CARD_WIDTH = 75;
-const CARD_HEIGHT = 85;
-const CARD_SPACING = 8;
-
-// Draggable Child Card Component
-const DraggableChildCard = ({
-  child,
-  index,
-  totalChildren,
-  onEdit,
-  onDelete,
-  onReorder,
-  isActive,
-  isNew,
-}) => {
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const scale = useSharedValue(1);
-  const zIndex = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(isNew ? 0 : 1)).current;
-
-  useEffect(() => {
-    if (isNew) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, []);
-
-  const panGesture = Gesture.Pan()
-    .onStart(() => {
-      "worklet";
-      scale.value = withSpring(1.1);
-      zIndex.value = 1000;
-      opacity.value = withSpring(0.9);
-      runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-    })
-    .onUpdate((e) => {
-      "worklet";
-      // No RTL adjustment needed: array is already reversed on init,
-      // so indices naturally map to visual positions (0=LEFT, higher=RIGHT)
-      translateX.value = e.translationX;
-      translateY.value = e.translationY;
-    })
-    .onEnd(() => {
-      "worklet";
-      const currentX = translateX.value;
-      const cardWithSpacing = CARD_WIDTH + CARD_SPACING;
-      const movement = Math.round(currentX / cardWithSpacing);
-      const newIndex = Math.max(
-        0,
-        Math.min(totalChildren - 1, index + movement),
-      );
-
-      translateX.value = withSpring(0);
-      translateY.value = withSpring(0);
-      scale.value = withSpring(1);
-      zIndex.value = 0;
-      opacity.value = withSpring(1);
-
-      if (newIndex !== index) {
-        runOnJS(onReorder)(child.id, index, newIndex);
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-      } else {
-        // Add subtle haptic when drag cancelled
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
-      }
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
-    zIndex: zIndex.value,
-    opacity: opacity.value,
-  }));
-
-  const handlePress = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    onEdit(child);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  return (
-    <GestureDetector gesture={panGesture}>
-      <ReAnimated.View style={[styles.cardWrapper, animatedStyle]}>
-        <Animated.View
-          style={[{ transform: [{ scale: scaleAnim }] }, { opacity: fadeAnim }]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.childCard,
-              isActive && styles.childCardActive,
-              child.isNew && styles.newCard,
-            ]}
-            onPress={handlePress}
-            activeOpacity={0.7}
-          >
-            {/* Delete button - top left in RTL (appears right) */}
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => onDelete(child)}
-            >
-              <Ionicons
-                name="close-circle"
-                size={20}
-                color="rgba(36, 33, 33, 0.4)"
-              />
-            </TouchableOpacity>
-
-            {/* Order badge - RTL aware */}
-            <View style={styles.orderBadge}>
-              <Text style={styles.orderBadgeText}>{index + 1}</Text>
-            </View>
-
-            <Text style={styles.childName} numberOfLines={1}>
-              {child.name}
-            </Text>
-
-            <View style={styles.genderLabel}>
-              <Text
-                style={[
-                  styles.genderText,
-                  child.gender === "male"
-                    ? styles.genderMale
-                    : styles.genderFemale,
-                ]}
-              >
-                {child.gender === "male" ? "ذكر" : "أنثى"}
-              </Text>
-            </View>
-
-            {isActive && (
-              <View style={styles.editIndicator}>
-                <Ionicons name="pencil" size={10} color={COLORS.background} />
-              </View>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      </ReAnimated.View>
-    </GestureDetector>
-  );
-};
-
-// Main QuickAddOverlay component
 const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
-  const [currentChild, setCurrentChild] = useState({
-    name: "",
-    gender: "male",
-    id: null,
-    mother_id: null, // Track mother for editing
-  });
+  const [currentName, setCurrentName] = useState("");
+  const [currentGender, setCurrentGender] = useState("male");
   const [allChildren, setAllChildren] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedMotherId, setSelectedMotherId] = useState(null);
-  const [editingChildId, setEditingChildId] = useState(null);
   const [hasReordered, setHasReordered] = useState(false);
-  const [hasEdits, setHasEdits] = useState(false);
+  const [mothers, setMothers] = useState([]);
+  const [showMotherSelector, setShowMotherSelector] = useState(false);
   const inputRef = useRef(null);
-  const scrollViewRef = useRef(null);
   const { refreshProfile } = useStore();
+
+  const motherSelectorHeight = useRef(new Animated.Value(0)).current;
 
   // Initialize with existing siblings
   useEffect(() => {
     if (visible && parentNode) {
-      // First sort by sibling_order, then fix any duplicates
+      // Sort by sibling_order
       const sortedSiblings = [...siblings]
         .sort((a, b) => {
           const orderA = a.sibling_order ?? 999;
           const orderB = b.sibling_order ?? 999;
           if (orderA === orderB) {
-            // If same order, sort by ID to have consistent ordering
             return (a.id || "").localeCompare(b.id || "");
           }
           return orderA - orderB;
@@ -236,19 +57,18 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           ...s,
           isNew: false,
           isExisting: true,
-          mother_id: s.mother_id || s.parent2, // Get mother ID
-          sibling_order: index, // Fix duplicate orders by using index
+          isEdited: false,
+          mother_id: s.mother_id || s.parent2,
+          mother_name: s.mother_name,
+          sibling_order: index,
         }));
 
-      // RTL: Reverse array so oldest (sibling_order 0) appears on the RIGHT
-      // Array renders left-to-right, so [2,1,0] displays as: RIGHT=0, MIDDLE=1, LEFT=2
-      const rtlSiblings = [...sortedSiblings].reverse();
-      setAllChildren(rtlSiblings);
-      setCurrentChild({ name: "", gender: "male", id: null, mother_id: null });
-      setEditingChildId(null);
+      setAllChildren(sortedSiblings);
+      setCurrentName("");
+      setCurrentGender("male");
       setSelectedMotherId(null);
       setHasReordered(false);
-      setHasEdits(false);
+      setShowMotherSelector(false);
 
       // Auto-focus after modal animation
       setTimeout(() => {
@@ -257,117 +77,94 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     }
   }, [visible, parentNode, siblings]);
 
-  // Handle adding or updating a child
-  const handleAddOrUpdateChild = () => {
-    const trimmedName = currentChild.name.trim();
+  // Animate mother selector
+  useEffect(() => {
+    Animated.timing(motherSelectorHeight, {
+      toValue: showMotherSelector ? 60 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [showMotherSelector]);
 
-    // Don't require name if just dismissing keyboard
-    if (!trimmedName && !editingChildId) {
+  // Auto-add child on Return key
+  const handleAutoAdd = () => {
+    const trimmedName = currentName.trim();
+
+    if (trimmedName.length === 0) {
       Keyboard.dismiss();
       return;
     }
 
-    // Validate name length (inline validation)
-    if (trimmedName && trimmedName.length < 2) {
+    // Validate name length
+    if (trimmedName.length < 2) {
       Alert.alert("خطأ", "يرجى إدخال اسم صحيح (حرفين على الأقل)");
       return;
     }
-    if (trimmedName && trimmedName.length > 100) {
+    if (trimmedName.length > 100) {
       Alert.alert("خطأ", "الاسم طويل جداً (100 حرف كحد أقصى)");
       return;
     }
 
-    if (editingChildId) {
-      // Update existing child in list
-      setAllChildren((prev) =>
-        prev.map((child) =>
-          child.id === editingChildId
-            ? {
-                ...child,
-                name: trimmedName || child.name,
-                gender: currentChild.gender,
-                mother_id: selectedMotherId,
-                isEdited: true,
-              }
-            : child,
-        ),
-      );
-      setHasEdits(true);
-      setEditingChildId(null);
-    } else if (trimmedName) {
-      // Add new child
-      // Calculate the next sibling_order (should be highest + 1)
-      const maxOrder = allChildren.reduce(
-        (max, child) => Math.max(max, child.sibling_order ?? 0),
-        -1,
-      );
+    // Calculate the next sibling_order
+    const maxOrder = allChildren.reduce(
+      (max, child) => Math.max(max, child.sibling_order ?? 0),
+      -1
+    );
 
-      const newChild = {
-        id: `new-${Date.now()}`,
-        name: trimmedName,
-        gender: currentChild.gender,
-        mother_id: selectedMotherId,
-        isNew: true,
-        isExisting: false,
-        sibling_order: maxOrder + 1, // Will be youngest (highest sibling_order)
-      };
+    const newChild = {
+      id: `new-${Date.now()}`,
+      name: trimmedName,
+      gender: currentGender,
+      mother_id: selectedMotherId,
+      mother_name: selectedMotherId
+        ? mothers.find((m) => m.id === selectedMotherId)?.name
+        : null,
+      isNew: true,
+      isExisting: false,
+      isEdited: false,
+      sibling_order: maxOrder + 1,
+    };
 
-      // RTL: Add to beginning of array (leftmost position for youngest)
-      // Youngest child (highest sibling_order) appears on LEFT in RTL
-      setAllChildren((prev) => [newChild, ...prev]);
-      // Scroll to start to show new child
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ x: 0, animated: true });
-      }, 100);
-    }
-
-    // Reset form
-    setCurrentChild({ name: "", gender: "male", id: null, mother_id: null });
-    setSelectedMotherId(null);
+    setAllChildren((prev) => [...prev, newChild]);
+    setCurrentName("");
+    // Keep gender and mother selection for next child
     inputRef.current?.focus();
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  // Handle editing a child
-  const handleEditChild = (child) => {
-    setCurrentChild({
-      name: child.name,
-      gender: child.gender,
-      id: child.id,
-      mother_id: child.mother_id,
-    });
-    setEditingChildId(child.id);
-    setSelectedMotherId(child.mother_id || null);
-    inputRef.current?.focus();
+  // Handle updating a child
+  const handleUpdateChild = (childId, updates) => {
+    setAllChildren((prev) =>
+      prev.map((child) =>
+        child.id === childId
+          ? {
+              ...child,
+              ...updates,
+              isEdited: child.isExisting ? true : child.isEdited,
+              mother_name:
+                updates.mother_id && mothers
+                  ? mothers.find((m) => m.id === updates.mother_id)?.name
+                  : child.mother_name,
+            }
+          : child
+      )
+    );
   };
 
   // Handle deleting a child
   const handleDeleteChild = (child) => {
-    Alert.alert(
-      "حذف الطفل",
-      `هل تريد حذف ${child.name}؟`,
-      [
-        { text: "إلغاء", style: "cancel" },
-        {
-          text: "حذف",
-          style: "destructive",
-          onPress: () => {
-            setAllChildren((prev) =>
-              prev
-                .filter((c) => c.id !== child.id)
-                .map((c, i) => ({
-                  ...c,
-                  sibling_order: i,
-                })),
-            );
-            setHasReordered(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          },
-        },
-      ],
-      { cancelable: true },
+    setAllChildren((prev) =>
+      prev
+        .filter((c) => c.id !== child.id)
+        .map((c, i) => ({
+          ...c,
+          sibling_order: i,
+          isEdited: c.isExisting ? true : c.isEdited,
+        }))
     );
+    setHasReordered(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   // Handle reordering children
@@ -378,21 +175,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     const [movedChild] = newChildren.splice(fromIndex, 1);
     newChildren.splice(toIndex, 0, movedChild);
 
-    // RTL: Calculate sibling_order from visual position
-    // Array[0] (leftmost) = youngest = highest sibling_order
-    // Array[last] (rightmost) = oldest = lowest sibling_order (0)
-    const updatedChildren = newChildren.map((child, index) => {
-      const actualOrder = newChildren.length - 1 - index;
-      return {
-        ...child,
-        sibling_order: actualOrder,
-        isEdited: child.isExisting ? true : child.isEdited, // Mark as edited if it's an existing child
-      };
-    });
+    const updatedChildren = newChildren.map((child, index) => ({
+      ...child,
+      sibling_order: index,
+      isEdited: child.isExisting ? true : child.isEdited,
+    }));
 
     setAllChildren(updatedChildren);
     setHasReordered(true);
-    setHasEdits(true);
   };
 
   // Save all changes
@@ -402,11 +192,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     const newChildren = allChildren.filter((c) => c.isNew);
     const editedChildren = allChildren.filter((c) => c.isEdited);
 
-    if (
-      newChildren.length === 0 &&
-      !hasReordered &&
-      editedChildren.length === 0
-    ) {
+    if (newChildren.length === 0 && !hasReordered && editedChildren.length === 0) {
       Alert.alert("تنبيه", "لا توجد تغييرات للحفظ");
       return;
     }
@@ -418,8 +204,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       // 1. Create new children
       for (const child of newChildren) {
-        // Validate parent has generation (CRITICAL - generation is NOT NULL)
-        if (parentNode.generation === null || parentNode.generation === undefined) {
+        if (
+          parentNode.generation === null ||
+          parentNode.generation === undefined
+        ) {
           Alert.alert(
             "خطأ",
             "لا يمكن إضافة أطفال لملف غير مكتمل. يرجى تعيين جيل الوالد أولاً."
@@ -435,11 +223,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           mother_id:
             parentNode.gender === "female" ? parentNode.id : child.mother_id,
           sibling_order: child.sibling_order,
-          generation: (parentNode.generation || 0) + 1,  // CRITICAL: Calculate generation
+          generation: (parentNode.generation || 0) + 1,
           status: "alive",
         };
 
-        // If parent is male and mother is selected, use it
         if (parentNode.gender === "male" && child.mother_id) {
           profileData.mother_id = child.mother_id;
         }
@@ -448,14 +235,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           profilesService.createProfile(profileData).then(({ data, error }) => {
             if (error) throw error;
             return { childId: child.id, newId: data?.id };
-          }),
+          })
         );
       }
 
       // 2. Update edited children
       for (const child of editedChildren) {
         const updates = {
-          name: child.name, // profilesService expects 'name' not 'arabic_name'
+          name: child.name,
           gender: child.gender,
           sibling_order: child.sibling_order,
         };
@@ -471,42 +258,35 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       if (hasReordered) {
         const existingChildren = allChildren.filter((c) => c.isExisting);
         for (const child of existingChildren) {
-          // Skip if already handled in edited children
           if (!editedChildren.find((ec) => ec.id === child.id)) {
             promises.push(
               profilesService.updateProfile(child.id, 1, {
                 sibling_order: child.sibling_order,
-              }),
+              })
             );
           }
         }
       }
 
-      // Use Promise.allSettled for partial success handling
       const results = await Promise.allSettled(promises);
 
-      // Count successful and failed operations
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const successful = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
 
-      // Refresh profile data
       await refreshProfile(parentNode.id);
 
-      // Show appropriate message based on results
       if (failed === 0) {
-        // All operations succeeded
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("نجاح", "تم حفظ التغييرات بنجاح", [
           { text: "حسناً", onPress: onClose },
         ]);
       } else if (successful > 0) {
-        // Partial success
         Alert.alert(
           "تحديث جزئي",
           `تم حفظ ${successful} من ${results.length} بنجاح. فشل ${failed} عملية.`,
           [{ text: "حسناً", onPress: onClose }]
         );
       } else {
-        // All operations failed
         Alert.alert(
           "خطأ",
           "فشل حفظ جميع التعديلات. يرجى المحاولة مرة أخرى.",
@@ -524,9 +304,26 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Calculate totals
   const newChildrenCount = allChildren.filter((c) => c.isNew).length;
   const editedChildrenCount = allChildren.filter((c) => c.isEdited).length;
-  const totalChildrenCount = allChildren.length;
-  const hasChanges =
-    newChildrenCount > 0 || hasReordered || hasEdits || editedChildrenCount > 0;
+  const totalChanges = newChildrenCount + editedChildrenCount;
+  const hasChanges = totalChanges > 0 || hasReordered;
+
+  const getSaveButtonText = () => {
+    if (loading) return "جاري الحفظ...";
+    if (newChildrenCount > 0 && editedChildrenCount === 0) {
+      return newChildrenCount === 1
+        ? "حفظ طفل واحد"
+        : `حفظ ${newChildrenCount} أطفال جدد`;
+    }
+    if (editedChildrenCount > 0 && newChildrenCount === 0) {
+      return editedChildrenCount === 1
+        ? "حفظ تعديل واحد"
+        : `حفظ ${editedChildrenCount} تعديلات`;
+    }
+    if (totalChanges > 0) {
+      return `حفظ ${totalChanges} تغيير`;
+    }
+    return "حفظ";
+  };
 
   if (!visible) return null;
 
@@ -538,7 +335,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       onRequestClose={onClose}
     >
       <GestureHandlerRootView style={styles.flex}>
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top"]}>
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <KeyboardAvoidingView
               behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -547,186 +344,172 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               {/* Header */}
               <View style={styles.header}>
                 <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-                  <Ionicons name="chevron-back" size={28} color="#242121" />
+                  <Ionicons name="chevron-back" size={28} color={COLORS.text} />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
                   <Text style={styles.headerTitle}>إضافة أطفال</Text>
                   <Text style={styles.headerSubtitle}>
-                    {parentNode?.arabic_name}
+                    {parentNode?.arabic_name || parentNode?.name}
                   </Text>
                 </View>
                 <View style={styles.headerStats}>
-                  <Text style={styles.statsText}>{totalChildrenCount}</Text>
-                  <Text style={styles.statsLabel}>إجمالي</Text>
+                  <Text style={styles.statsText}>{allChildren.length}</Text>
+                  <Text style={styles.statsLabel}>طفل</Text>
                 </View>
               </View>
 
-              {/* Horizontal Children Cards */}
-              <View style={styles.cardsSection}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {allChildren.length === 0
-                      ? "ابدأ بإضافة الأطفال"
-                      : "اسحب البطاقات لإعادة الترتيب"}
-                  </Text>
-                </View>
-                <ScrollView
-                  ref={scrollViewRef}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.cardsScrollContent}
-                  style={styles.cardsScroll}
-                >
-                  {allChildren.length === 0 ? (
-                    <View style={styles.emptyCard}>
-                      <Ionicons
-                        name="person-add-outline"
-                        size={32}
-                        color={COLORS.textLight}
-                      />
-                      <Text style={styles.emptyCardText}>لا يوجد أطفال</Text>
-                    </View>
-                  ) : (
-                    allChildren.map((child, index) => (
-                      <DraggableChildCard
-                        key={child.id}
-                        child={child}
-                        index={index}
-                        totalChildren={allChildren.length}
-                        onEdit={handleEditChild}
-                        onDelete={handleDeleteChild}
-                        onReorder={handleReorder}
-                        isActive={editingChildId === child.id}
-                        isNew={child.isNew}
-                      />
-                    ))
-                  )}
-                </ScrollView>
-              </View>
-
-              {/* Input Form */}
-              <View style={styles.inputForm}>
-                <View style={styles.formHeader}>
-                  {editingChildId && (
-                    <TouchableOpacity
-                      onPress={() => {
-                        setCurrentChild({
-                          name: "",
-                          gender: "male",
-                          id: null,
-                          mother_id: null,
-                        });
-                        setEditingChildId(null);
-                        setSelectedMotherId(null);
-                      }}
-                      style={styles.cancelEditButton}
-                    >
-                      <Text style={styles.cancelEditText}>إلغاء</Text>
-                    </TouchableOpacity>
-                  )}
-                  <Text style={styles.formTitle}>
-                    {editingChildId ? "تعديل الطفل" : "طفل جديد"}
-                  </Text>
-                </View>
-
-                <View style={styles.inputContainer}>
+              {/* Quick Add Input (Sticky) */}
+              <View style={styles.quickAddContainer}>
+                <View style={styles.nameInputContainer}>
                   <TextInput
                     ref={inputRef}
                     style={styles.nameInput}
-                    placeholder="اسم الطفل..."
-                    placeholderTextColor={COLORS.textLight}
-                    value={currentChild.name}
-                    onChangeText={(text) =>
-                      setCurrentChild((prev) => ({ ...prev, name: text }))
-                    }
-                    onSubmitEditing={handleAddOrUpdateChild}
+                    placeholder="اسم الطفل الجديد..."
+                    placeholderTextColor={COLORS.textMuted}
+                    value={currentName}
+                    onChangeText={setCurrentName}
+                    onSubmitEditing={handleAutoAdd}
                     returnKeyType="done"
                     textAlign="right"
                     blurOnSubmit={false}
                   />
 
-                  <View style={styles.genderSection}>
+                  {/* Inline Gender Toggles */}
+                  <View style={styles.genderToggleContainer}>
                     <TouchableOpacity
                       style={[
-                        styles.genderButton,
-                        currentChild.gender === "male" &&
-                          styles.genderButtonActive,
+                        styles.genderToggle,
+                        currentGender === "male" && styles.genderToggleActive,
                       ]}
-                      onPress={() =>
-                        setCurrentChild((prev) => ({ ...prev, gender: "male" }))
-                      }
+                      onPress={() => {
+                        setCurrentGender("male");
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
                     >
-                      <Text
-                        style={[
-                          styles.genderButtonText,
-                          currentChild.gender === "male" &&
-                            styles.genderButtonTextActive,
-                        ]}
-                      >
-                        ذكر
-                      </Text>
+                      <Ionicons
+                        name="male"
+                        size={18}
+                        color={
+                          currentGender === "male"
+                            ? COLORS.background
+                            : COLORS.text
+                        }
+                      />
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[
-                        styles.genderButton,
-                        currentChild.gender === "female" &&
-                          styles.genderButtonActive,
+                        styles.genderToggle,
+                        currentGender === "female" &&
+                          styles.genderToggleActive,
                       ]}
-                      onPress={() =>
-                        setCurrentChild((prev) => ({
-                          ...prev,
-                          gender: "female",
-                        }))
-                      }
+                      onPress={() => {
+                        setCurrentGender("female");
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
                     >
-                      <Text
-                        style={[
-                          styles.genderButtonText,
-                          currentChild.gender === "female" &&
-                            styles.genderButtonTextActive,
-                        ]}
-                      >
-                        أنثى
-                      </Text>
+                      <Ionicons
+                        name="female"
+                        size={18}
+                        color={
+                          currentGender === "female"
+                            ? COLORS.background
+                            : COLORS.text
+                        }
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                {/* Add/Update Button - just adds to list, doesn't save to database */}
-                <TouchableOpacity
-                  style={[
-                    styles.addButton,
-                    !currentChild.name.trim() && styles.addButtonDisabled,
-                  ]}
-                  onPress={handleAddOrUpdateChild}
-                  disabled={!currentChild.name.trim()}
-                >
-                  <Ionicons
-                    name={editingChildId ? "checkmark" : "add"}
-                    size={20}
-                    color={COLORS.background}
-                  />
-                  <Text style={styles.addButtonText}>
-                    {editingChildId ? "تحديث" : "إضافة طفل"}
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Mother Selector - Available for both new and edit */}
+                {/* Mother Selector Toggle (for male parents) */}
                 {parentNode?.gender === "male" && (
-                  <View style={styles.motherSelectorContainer}>
-                    <MotherSelectorSimple
-                      fatherId={parentNode.id}
-                      value={selectedMotherId}
-                      onChange={setSelectedMotherId}
-                      label="الأم (اختياري)"
-                    />
+                  <>
+                    <TouchableOpacity
+                      style={styles.motherToggleButton}
+                      onPress={() => {
+                        setShowMotherSelector(!showMotherSelector);
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <Ionicons
+                        name={
+                          showMotherSelector
+                            ? "chevron-up"
+                            : "chevron-down"
+                        }
+                        size={16}
+                        color={COLORS.textMuted}
+                      />
+                      <Text style={styles.motherToggleText}>
+                        {selectedMotherId
+                          ? `الأم: ${mothers.find((m) => m.id === selectedMotherId)?.name || "محددة"}`
+                          : "تحديد الأم (اختياري)"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <Animated.View
+                      style={[
+                        styles.motherSelectorContainer,
+                        { height: motherSelectorHeight, opacity: showMotherSelector ? 1 : 0 },
+                      ]}
+                    >
+                      <MotherSelectorSimple
+                        fatherId={parentNode.id}
+                        value={selectedMotherId}
+                        onChange={(id, mothersData) => {
+                          setSelectedMotherId(id);
+                          if (mothersData) setMothers(mothersData);
+                        }}
+                        label=""
+                      />
+                    </Animated.View>
+                  </>
+                )}
+
+                <Text style={styles.quickAddHint}>
+                  اكتب الاسم واضغط Enter للإضافة السريعة
+                </Text>
+              </View>
+
+              {/* Children List */}
+              <View style={styles.childrenListSection}>
+                {allChildren.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateIcon}>👶</Text>
+                    <Text style={styles.emptyStateTitle}>
+                      ابدأ بإضافة الأطفال
+                    </Text>
+                    <Text style={styles.emptyStateSubtitle}>
+                      اكتب الاسم في الحقل أعلاه واضغط Enter للإضافة
+                    </Text>
                   </View>
+                ) : (
+                  <FlatList
+                    data={allChildren}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item, index }) => (
+                      <ChildListCard
+                        child={item}
+                        index={index}
+                        totalChildren={allChildren.length}
+                        onUpdate={handleUpdateChild}
+                        onDelete={handleDeleteChild}
+                        onReorder={handleReorder}
+                        mothers={mothers}
+                      />
+                    )}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  />
                 )}
               </View>
 
               {/* Bottom Actions */}
               <View style={styles.bottomActions}>
-                <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={onClose}
+                >
                   <Text style={styles.cancelButtonText}>إلغاء</Text>
                 </TouchableOpacity>
 
@@ -740,8 +523,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   disabled={!hasChanges || loading}
                 >
                   <Text style={styles.saveButtonText}>
-                    {loading ? "جاري الحفظ..." : "حفظ"}
+                    {getSaveButtonText()}
                   </Text>
+                  {hasChanges && totalChanges > 0 && !loading && (
+                    <View style={styles.changeCountBadge}>
+                      <Text style={styles.changeCountText}>{totalChanges}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
             </KeyboardAvoidingView>
@@ -763,11 +551,11 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.md,  // 16px
-    paddingVertical: tokens.spacing.sm,    // 12px
+    paddingHorizontal: tokens.spacing.md, // 16px
+    paddingVertical: tokens.spacing.sm, // 12px
     backgroundColor: COLORS.background,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
+    borderBottomColor: COLORS.container + "20",
   },
   headerButton: {
     width: 44,
@@ -785,13 +573,13 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   headerSubtitle: {
-    fontSize: 13,  // iOS-standard (footnote)
+    fontSize: 13,
     color: COLORS.textMuted,
-    marginTop: tokens.spacing.xxs,  // 4px (8px grid)
+    marginTop: tokens.spacing.xxs, // 4px
   },
   headerStats: {
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: tokens.spacing.sm, // 12px
   },
   statsText: {
     fontSize: 20,
@@ -801,267 +589,167 @@ const styles = StyleSheet.create({
   statsLabel: {
     fontSize: 11,
     color: COLORS.textMuted,
-    marginTop: tokens.spacing.xxs,  // 4px (8px grid)
+    marginTop: tokens.spacing.xxs, // 4px
   },
-  cardsSection: {
+  quickAddContainer: {
     backgroundColor: COLORS.background,
-    marginTop: tokens.spacing.xs,   // 8px
-    paddingVertical: tokens.spacing.md,  // 16px
-  },
-  sectionHeader: {
-    paddingHorizontal: 16,
-    flexDirection: "row",  // React Native handles RTL automatically
-    justifyContent: "flex-start",
-  },
-  sectionTitle: {
-    fontSize: 13,  // iOS-standard (footnote)
-    fontWeight: "500",
-    color: COLORS.textMuted,
-    marginBottom: tokens.spacing.sm,  // 12px
-    textAlign: "left",  // React Native handles RTL automatically
-  },
-  cardsScroll: {
-    height: CARD_HEIGHT + 20,
-  },
-  cardsScrollContent: {
-    paddingHorizontal: 16,
-    alignItems: "center",
-    flexDirection: "row",  // React Native handles RTL automatically
-  },
-  emptyCard: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    backgroundColor: COLORS.container + "20",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderStyle: "dashed",
-    borderColor: COLORS.container + "40",
-  },
-  emptyCardText: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: tokens.spacing.xs,  // 8px
-  },
-  cardWrapper: {
-    marginHorizontal: CARD_SPACING / 2,
-  },
-  childCard: {
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    backgroundColor: COLORS.background,
-    borderRadius: tokens.radii.sm,  // 10px
-    padding: 10,
+    paddingHorizontal: tokens.spacing.md, // 16px
+    paddingVertical: tokens.spacing.md, // 16px
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.container + "20",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
   },
-  childCardActive: {
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + "08",
-  },
-  newCard: {
-    borderColor: COLORS.secondary,
+  nameInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.container + "15",
+    borderRadius: tokens.radii.md, // 12px
     borderWidth: 1.5,
-  },
-
-  deleteButton: {
-    position: "absolute",
-    top: 4,
-    left: 4,
-    zIndex: 10,
-    width: 32,   // Minimum touch target
-    height: 32,  // Minimum touch target
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  orderBadge: {
-    position: "absolute",
-    top: 6,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  orderBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-  },
-  childName: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.text,
-    marginTop: 20,
-    marginBottom: 6,
-    textAlign: "center",
-    paddingHorizontal: 4,
-  },
-  genderLabel: {
-    position: "absolute",
-    bottom: 8,
-    alignSelf: "center",
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  genderText: {
-    fontSize: 11,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  genderMale: {
-    backgroundColor: COLORS.primary + "10",
-    color: COLORS.primary,
-  },
-  genderFemale: {
-    backgroundColor: COLORS.secondary + "10",
-    color: COLORS.secondary,
-  },
-  editIndicator: {
-    position: "absolute",
-    top: 4,
-    right: 4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  inputForm: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    marginTop: tokens.spacing.xs,  // 8px
-    paddingHorizontal: tokens.spacing.md,  // 16px
-    paddingTop: tokens.spacing.md,  // 16px
-  },
-  formHeader: {
-    flexDirection: "row",  // React Native handles RTL automatically
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  formTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: COLORS.text,
-  },
-  cancelEditButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  cancelEditText: {
-    color: COLORS.primary,
-    fontSize: 15,
-  },
-  inputContainer: {
-    marginBottom: 16,
+    borderColor: COLORS.container + "40",
+    paddingHorizontal: tokens.spacing.sm, // 12px
+    minHeight: 48,
   },
   nameInput: {
-    backgroundColor: COLORS.container + "20",
-    borderRadius: tokens.radii.md,  // 12px
-    paddingHorizontal: tokens.spacing.md,  // 16px
-    paddingVertical: tokens.spacing.sm + 2,  // 14px
-    fontSize: 17,  // iOS-standard (body)
-    color: COLORS.text,
-    textAlign: "left",  // React Native handles RTL automatically
-    marginBottom: tokens.spacing.sm,  // 12px
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
-  },
-  genderSection: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  genderButton: {
     flex: 1,
-    paddingVertical: 12,
-    backgroundColor: COLORS.container + "20",
-    borderRadius: 12,
+    fontSize: 17,
+    fontWeight: "400",
+    color: COLORS.text,
+    textAlign: "left", // Native RTL mode flips this automatically
+    paddingVertical: tokens.spacing.xs, // 8px
+  },
+  genderToggleContainer: {
+    flexDirection: "row",
+    gap: 4,
+    marginLeft: tokens.spacing.xs, // 8px
+  },
+  genderToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: COLORS.container + "40",
   },
-  genderButtonActive: {
+  genderToggleActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  genderButtonText: {
-    fontSize: 15,  // iOS-standard (subheadline)
-    fontWeight: "500",
-    color: COLORS.text,
-  },
-  genderButtonTextActive: {
-    color: COLORS.background,
-  },
-  addButton: {
+  motherToggleButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginBottom: 16,
+    paddingVertical: tokens.spacing.xs, // 8px
+    marginTop: tokens.spacing.xs, // 8px
+    gap: 4,
   },
-  addButtonDisabled: {
-    backgroundColor: COLORS.container + "40",
-  },
-  addButtonText: {
-    fontSize: 17,  // iOS-standard (body)
-    fontWeight: "600",
-    color: COLORS.background,  // Use background color instead of #FFF
+  motherToggleText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontWeight: "500",
   },
   motherSelectorContainer: {
-    width: "100%",
-    marginTop: 8,
+    overflow: "hidden",
+  },
+  quickAddHint: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: tokens.spacing.xs, // 8px
+    textAlign: "center",
+  },
+  childrenListSection: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: tokens.spacing.xxl, // 32px
+    paddingVertical: tokens.spacing.xxl * 2, // 64px
+  },
+  emptyStateIcon: {
+    fontSize: 64,
+    marginBottom: tokens.spacing.md, // 16px
+    opacity: 0.3,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: COLORS.text,
+    textAlign: "center",
+    marginBottom: tokens.spacing.xs, // 8px
+  },
+  emptyStateSubtitle: {
+    fontSize: 15,
+    fontWeight: "400",
+    color: COLORS.textMuted,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  listContent: {
+    paddingVertical: tokens.spacing.sm, // 12px
   },
   bottomActions: {
     flexDirection: "row",
-    paddingHorizontal: tokens.spacing.md,  // 16px
-    paddingVertical: tokens.spacing.sm,    // 12px
+    paddingHorizontal: tokens.spacing.md, // 16px
+    paddingVertical: tokens.spacing.sm, // 12px
     backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
-    gap: tokens.spacing.sm,  // 12px
+    borderTopColor: COLORS.container + "20",
+    gap: tokens.spacing.sm, // 12px
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    height: 48,
+    borderRadius: tokens.radii.md, // 12px
+    justifyContent: "center",
     alignItems: "center",
     backgroundColor: COLORS.container + "20",
   },
   cancelButtonText: {
-    fontSize: 17,  // iOS-standard (body)
+    fontSize: 17,
     fontWeight: "500",
     color: COLORS.text,
   },
   saveButton: {
     flex: 2,
-    paddingVertical: 14,
-    borderRadius: 12,
+    height: 48,
+    borderRadius: tokens.radii.md, // 12px
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
+    gap: 8,
     backgroundColor: COLORS.primary,
   },
   saveButtonDisabled: {
     backgroundColor: COLORS.container + "40",
+    opacity: 0.5,
   },
   saveButtonLoading: {
     opacity: 0.7,
   },
   saveButtonText: {
-    fontSize: 17,  // iOS-standard (body)
+    fontSize: 17,
     fontWeight: "600",
-    color: COLORS.background,  // Use background color instead of #FFF
+    color: COLORS.background,
+  },
+  changeCountBadge: {
+    backgroundColor: COLORS.background + "30",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: "center",
+  },
+  changeCountText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.background,
   },
 });
 

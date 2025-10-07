@@ -403,7 +403,8 @@ const SaduIconG2 = ({ x, y, size }) => {
 };
 
 // Spatial grid for efficient culling
-const GRID_CELL_SIZE = 512;
+// Reduced from 512px to better align with ~100px node spacing
+const GRID_CELL_SIZE = 256;
 
 class SpatialGrid {
   constructor(nodes, cellSize = GRID_CELL_SIZE) {
@@ -2817,12 +2818,14 @@ const TreeView = ({
     if (isLoading) return [];
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
+
+    // Add viewport padding for seamless node loading before screen edge
     return spatialGrid.getVisibleNodes(
       {
-        x: currentTransform.x,
-        y: currentTransform.y,
-        width: dimensions.width,
-        height: dimensions.height,
+        x: currentTransform.x + VIEWPORT_MARGIN_X,
+        y: currentTransform.y + VIEWPORT_MARGIN_Y,
+        width: dimensions.width + (VIEWPORT_MARGIN_X * 2),
+        height: dimensions.height + (VIEWPORT_MARGIN_Y * 2),
       },
       currentTransform.scale,
       indices.idToNode,

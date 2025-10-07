@@ -56,12 +56,26 @@ export const useTreeStore = create((set, get) => ({
 
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
 
-  setTreeData: (data) =>
-    set({
+  setTreeData: (data) => {
+    // DEBUG: Log first 3 nodes to verify kunya field
+    if (data && data.length > 0) {
+      console.log('📦 [useTreeStore] setTreeData called with', data.length, 'nodes, schema v' + TREE_DATA_SCHEMA_VERSION);
+      console.log('📦 Sample nodes (first 3):');
+      data.slice(0, 3).forEach((node, i) => {
+        console.log(`  [${i}] ${node.name}:`, {
+          id: node.id,
+          hasKunya: !!node.kunya,
+          kunya: node.kunya || 'null'
+        });
+      });
+    }
+
+    return set({
       treeData: data || [],
       nodesMap: new Map((data || []).map((node) => [node.id, node])),
       cachedSchemaVersion: TREE_DATA_SCHEMA_VERSION,
-    }),
+    });
+  },
 
   // Clear tree data and force refetch (useful after migrations)
   clearTreeData: () =>

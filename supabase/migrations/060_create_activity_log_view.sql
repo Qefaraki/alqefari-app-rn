@@ -2,28 +2,36 @@
 -- Created: 2025-01-10
 -- Purpose: JOIN audit_log_enhanced with profiles to get actor/target names, phones, roles
 -- Fixes: Actor names showing "مستخدم" fallback in Activity Log Dashboard
+-- Note: idx_profiles_user_id index already exists, no need to recreate
 
--- Step 1: Create performance index for actor JOIN
--- This speeds up the view query significantly
-CREATE INDEX IF NOT EXISTS idx_profiles_user_id_for_audit
-ON profiles(user_id)
-WHERE user_id IS NOT NULL;
-
--- Step 2: Create the detailed view with correct JOINs
+-- Create the detailed view with correct JOINs
 CREATE VIEW public.activity_log_detailed AS
 SELECT
   -- All original audit log columns
   al.id,
+  al.created_at,
+  al.actor_id,
+  al.actor_type,
+  al.action_type,
+  al.action_category,
   al.table_name,
   al.record_id,
-  al.action,
-  al.actor_id,
+  al.target_type,
   al.old_data,
   al.new_data,
   al.changed_fields,
   al.description,
+  al.ip_address,
+  al.user_agent,
   al.severity,
-  al.created_at,
+  al.status,
+  al.error_message,
+  al.session_id,
+  al.request_id,
+  al.metadata,
+  al.can_revert,
+  al.reverted_at,
+  al.reverted_by,
 
   -- Actor information (person who performed the action)
   actor_p.name as actor_name,
@@ -48,15 +56,12 @@ LEFT JOIN profiles target_p
   AND al.table_name = 'profiles';
 
 -- Add comment for documentation
-COMMENT ON VIEW activity_log_detailed IS
-  'Enhanced audit log view with actor and target profile information. ' ||
-  'Replaces direct queries to audit_log_enhanced table. ' ||
-  'Used by Activity Log Dashboard to display comprehensive activity metadata.';
+COMMENT ON VIEW activity_log_detailed IS 'Enhanced audit log view with actor and target profile information. Replaces direct queries to audit_log_enhanced table. Used by Activity Log Dashboard to display comprehensive activity metadata.';
 
 -- Log completion
 DO $$
 BEGIN
   RAISE NOTICE 'Migration 060: activity_log_detailed view created successfully';
   RAISE NOTICE 'View includes: actor_name, actor_phone, actor_role, target_name, target_phone';
-  RAISE NOTICE 'Performance index added on profiles.user_id';
+  RAISE NOTICE 'Uses existing index idx_profiles_user_id for performance';
 END $$;
