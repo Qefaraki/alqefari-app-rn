@@ -15,7 +15,7 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { DateTimePicker, Host } from '@expo/ui/swift-ui';
 import * as Haptics from 'expo-haptics';
 import {
   startOfDay,
@@ -130,18 +130,16 @@ const DateRangePickerModal = ({
   };
 
   // Handle custom date changes
-  const handleFromDateChange = (event, date) => {
-    setShowFromPicker(Platform.OS === 'ios');
-    if (date) {
-      setFromDate(startOfDay(date));
-    }
+  const handleFromDateChange = (dateString) => {
+    const date = new Date(dateString);
+    setFromDate(startOfDay(date));
+    setShowFromPicker(false);
   };
 
-  const handleToDateChange = (event, date) => {
-    setShowToPicker(Platform.OS === 'ios');
-    if (date) {
-      setToDate(endOfDay(date));
-    }
+  const handleToDateChange = (dateString) => {
+    const date = new Date(dateString);
+    setToDate(endOfDay(date));
+    setShowToPicker(false);
   };
 
   // Apply custom date range
@@ -308,14 +306,14 @@ const DateRangePickerModal = ({
                     <Text style={styles.pickerDone}>تم</Text>
                   </TouchableOpacity>
                 </View>
-                <DateTimePicker
-                  value={fromDate || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleFromDateChange}
-                  maximumDate={toDate || new Date()}
-                  style={styles.iosDatePicker}
-                />
+                <Host matchContents>
+                  <DateTimePicker
+                    onDateSelected={handleFromDateChange}
+                    displayedComponents="date"
+                    initialDate={(fromDate || new Date()).toISOString()}
+                    variant="wheel"
+                  />
+                </Host>
               </View>
             </View>
           </Modal>
@@ -334,15 +332,14 @@ const DateRangePickerModal = ({
                     <Text style={styles.pickerDone}>تم</Text>
                   </TouchableOpacity>
                 </View>
-                <DateTimePicker
-                  value={toDate || new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleToDateChange}
-                  minimumDate={fromDate}
-                  maximumDate={new Date()}
-                  style={styles.iosDatePicker}
-                />
+                <Host matchContents>
+                  <DateTimePicker
+                    onDateSelected={handleToDateChange}
+                    displayedComponents="date"
+                    initialDate={(toDate || new Date()).toISOString()}
+                    variant="wheel"
+                  />
+                </Host>
               </View>
             </View>
           </Modal>
