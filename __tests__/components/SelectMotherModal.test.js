@@ -32,7 +32,7 @@ describe('SelectMotherModal', () => {
     spouses: [
       {
         marriage_id: 'marriage-1',
-        status: 'married',
+        status: 'current',
         children_count: 2,
         spouse_profile: {
           id: 'mother-1',
@@ -42,7 +42,7 @@ describe('SelectMotherModal', () => {
       },
       {
         marriage_id: 'marriage-2',
-        status: 'married',
+        status: 'current',
         children_count: 1,
         spouse_profile: {
           id: 'mother-2',
@@ -52,7 +52,7 @@ describe('SelectMotherModal', () => {
       },
       {
         marriage_id: 'marriage-3',
-        status: 'divorced',
+        status: 'past',
         children_count: 0,
         spouse_profile: {
           id: 'mother-3',
@@ -510,7 +510,7 @@ describe('SelectMotherModal', () => {
         spouses: [
           {
             marriage_id: 'marriage-1',
-            status: 'married',
+            status: 'current',
             spouse_profile: null,
           },
         ],

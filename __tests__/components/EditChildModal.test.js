@@ -36,7 +36,7 @@ describe('EditChildModal', () => {
   const mockSpouses = [
     {
       marriage_id: 'marriage-1',
-      status: 'married',
+      status: 'current',
       spouse_profile: {
         id: 'mother-1',
         name: 'فاطمة',
@@ -45,7 +45,7 @@ describe('EditChildModal', () => {
     },
     {
       marriage_id: 'marriage-2',
-      status: 'married',
+      status: 'current',
       spouse_profile: {
         id: 'mother-2',
         name: 'عائشة',
