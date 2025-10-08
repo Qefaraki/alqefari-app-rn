@@ -9,7 +9,12 @@ import tokens from '../tokens';
  */
 const FamilyCardSkeleton = ({ tileCount = 4 }) => {
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityLabel="جاري تحميل بطاقة العائلة"
+      accessibilityRole="progressbar"
+    >
       {/* Title */}
       <Shimmer
         width={80}

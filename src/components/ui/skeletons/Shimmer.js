@@ -20,18 +20,19 @@ const Shimmer = ({
       Animated.sequence([
         Animated.timing(animatedValue, {
           toValue: 1,
-          duration: 1200,
+          duration: 500, // Design system "slow" animation duration
           useNativeDriver: true,
         }),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 1200,
+          duration: 500,
           useNativeDriver: true,
         }),
       ])
     );
     animation.start();
 
+    // CRITICAL: Stop animation on unmount to prevent memory leak
     return () => animation.stop();
   }, [animatedValue]);
 

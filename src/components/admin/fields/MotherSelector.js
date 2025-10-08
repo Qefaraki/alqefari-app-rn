@@ -79,7 +79,7 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
             wife_id: m.wife?.id,
             wife_name: m.wife?.name || "غير معروف",
             status: m.status,
-            is_current: m.status === "married", // Derive from status
+            is_current: m.status === "current" || m.status === "married", // Support both new and old
             children_count: 0, // We'll update this if needed
           }));
           setWives(transformedWives);

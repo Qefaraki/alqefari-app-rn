@@ -73,7 +73,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
           )
         `)
         .eq("wife_id", motherId)
-        .in("status", ["married", "widowed", "divorced"])
+        .in("status", ["current", "past", "married", "widowed", "divorced"]) // Support both old and new values
         .order("marriage_date", { ascending: false, nullsFirst: false });
 
       if (error) {
@@ -88,7 +88,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
         husband_name: marriage.husband?.name || "غير محدد",
         husband_hid: marriage.husband?.hid,
         status: marriage.status,
-        is_current: marriage.status === "married",
+        is_current: marriage.status === "current" || marriage.status === "married",
       }));
 
       setHusbands(formattedHusbands);

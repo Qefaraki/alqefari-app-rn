@@ -396,8 +396,8 @@ const TabFamily = ({ person, onDataChanged }) => {
   }
 
   const { father, mother, spouses = [], children = [] } = familyData;
-  const activeSpouses = spouses.filter((s) => s.status === 'married');
-  const inactiveSpouses = spouses.filter((s) => s.status !== 'married');
+  const activeSpouses = spouses.filter((s) => s.status === 'current' || s.status === 'married');
+  const inactiveSpouses = spouses.filter((s) => s.status !== 'current' && s.status !== 'married');
   const parentCount = [father, mother].filter(Boolean).length;
   const spousesTitle = person.gender === 'male' ? 'الزوجات' : 'الأزواج';
   const addSpouseLabel = person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج';
@@ -595,11 +595,9 @@ const SpouseRow = ({ spouseData, onEdit, onDelete, inactive = false }) => {
   const isMaleSpouse = spouse.gender === 'male';
 
   let statusMeta = null;
-  if (status && status !== 'married') {
-    statusMeta =
-      status === 'divorced'
-        ? { label: 'منفصل', tone: 'warning', icon: 'swap-horizontal-outline' }
-        : { label: 'متوفى', tone: 'danger', icon: 'heart-dislike-outline' };
+  if (status && status !== 'current' && status !== 'married') {
+    // Show "سابق" for any past marriage (past, divorced, widowed)
+    statusMeta = { label: 'سابق', tone: 'warning', icon: 'time-outline' };
   }
 
   return (

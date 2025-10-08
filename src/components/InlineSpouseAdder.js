@@ -103,7 +103,7 @@ export default function InlineSpouseAdder({
         await profilesService.createMarriage({
           husband_id,
           wife_id,
-          status: "married",
+          status: "current",
           munasib: true, // Mark as Munasib since spouse is from another family
         });
 

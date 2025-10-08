@@ -89,7 +89,9 @@ const EditChildModal = ({ visible, child, father, spouses = [], onClose, onSaved
     }
   };
 
-  const availableSpouses = spouses.filter((s) => s.status === 'married');
+  // Show ALL spouses (current or married for backward compatibility)
+  // Children can have mothers from past marriages
+  const availableSpouses = spouses; // No filter - show all spouses
   const selectedMother = availableSpouses.find((s) => s.spouse_profile?.id === motherId);
 
   return (

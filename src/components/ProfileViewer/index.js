@@ -107,7 +107,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     marriages: true,
     permissions: true,
   });
-  const [skeletonStartTime, setSkeletonStartTime] = useState(Date.now());
+  const skeletonStartTimeRef = useRef(Date.now());
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const viewOpacity = useRef(new Animated.Value(1)).current;
@@ -151,37 +151,51 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         marriages: true,
         permissions: true,
       });
-      setSkeletonStartTime(Date.now());
+      skeletonStartTimeRef.current = Date.now();
     }
   }, [currentSnapIndex, person?.id]);
 
+  // Reset loading states when navigating between profiles
+  useEffect(() => {
+    if (person?.id) {
+      setLoadingStates({
+        marriages: true,
+        permissions: true,
+      });
+      skeletonStartTimeRef.current = Date.now();
+    }
+  }, [person?.id]);
+
   useEffect(() => {
     let isCancelled = false; // Prevents race conditions on rapid profile switches
+    let cleanupSkeleton = null; // Cleanup function for skeleton timeout
+
+    // Set loading state synchronously before async operation
+    setLoadingStates((prev) => ({ ...prev, marriages: true }));
 
     const loadMarriages = async () => {
       if (!person?.id || typeof profilesService?.getPersonMarriages !== 'function') {
         if (!isCancelled) {
           setMarriages([]);
-          await hideSkeletonWithDelay('marriages');
+          cleanupSkeleton = hideSkeletonWithDelay('marriages');
         }
         return;
       }
 
       try {
-        // Reset loading state when person changes
-        setLoadingStates((prev) => ({ ...prev, marriages: true }));
-
         const data = await profilesService.getPersonMarriages(person.id);
 
         if (!isCancelled) {
           setMarriages(data || []);
-          await hideSkeletonWithDelay('marriages');
+          cleanupSkeleton = hideSkeletonWithDelay('marriages');
         }
       } catch (error) {
-        console.warn('Failed to load marriages', error);
+        console.error('[ProfileViewer] Failed to load marriages:', error);
         if (!isCancelled) {
           setMarriages([]);
-          await hideSkeletonWithDelay('marriages');
+          // On error, hide skeleton immediately and show error
+          setLoadingStates((prev) => ({ ...prev, marriages: false }));
+          Alert.alert('خطأ', 'فشل تحميل بيانات الزواج');
         }
       }
     };
@@ -189,15 +203,26 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     loadMarriages();
     return () => {
       isCancelled = true; // Cleanup: cancel pending updates
+      if (cleanupSkeleton) cleanupSkeleton(); // Clear pending skeleton timeout
     };
-  }, [person?.id, hideSkeletonWithDelay]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // hideSkeletonWithDelay excluded for clarity (stable callback with no deps)
+  }, [person?.id]);
 
   // Track permission loading state
   useEffect(() => {
+    let cleanupSkeleton = null;
+
     if (!permissionLoading) {
-      hideSkeletonWithDelay('permissions');
+      cleanupSkeleton = hideSkeletonWithDelay('permissions');
     }
-  }, [permissionLoading, hideSkeletonWithDelay]);
+
+    return () => {
+      if (cleanupSkeleton) cleanupSkeleton(); // Clear pending skeleton timeout
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // hideSkeletonWithDelay excluded for clarity (stable callback with no deps)
+  }, [permissionLoading]);
 
   // Note: profileSheetProgress (shared value) not in dependency array.
   // Per Reanimated docs, dependencies only needed without Babel plugin.
@@ -233,17 +258,20 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const canEdit = accessMode !== 'readonly';
 
   // Helper to hide skeleton with minimum display time (prevents flash)
+  // Returns cleanup function to cancel pending timeout
   const hideSkeletonWithDelay = useCallback(
-    async (key) => {
-      const elapsed = Date.now() - skeletonStartTime;
-      if (elapsed < MIN_SKELETON_TIME) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, MIN_SKELETON_TIME - elapsed)
-        );
-      }
-      setLoadingStates((prev) => ({ ...prev, [key]: false }));
+    (key) => {
+      const elapsed = Date.now() - skeletonStartTimeRef.current;
+      const waitTime = Math.max(0, MIN_SKELETON_TIME - elapsed);
+
+      const timer = setTimeout(() => {
+        setLoadingStates((prev) => ({ ...prev, [key]: false }));
+      }, waitTime);
+
+      // Return cleanup function to clear timeout on unmount/person change
+      return () => clearTimeout(timer);
     },
-    [skeletonStartTime]
+    [] // No dependencies needed - ref is always stable
   );
 
   const closeSheet = useCallback(() => {
@@ -580,6 +608,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         { useNativeDriver: false },
       )}
       scrollEventThrottle={16}
+      accessibilityLiveRegion="polite"
     >
         <Hero
           person={person}
@@ -599,36 +628,56 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         />
 
         {/* Show skeletons while permissions loading */}
-        {loadingStates.permissions ? (
-          <>
-            <GenericCardSkeleton rows={3} titleWidth={80} />
-            <GenericCardSkeleton rows={2} titleWidth={100} />
-            <GenericCardSkeleton rows={3} titleWidth={90} />
-            <GenericCardSkeleton rows={2} titleWidth={100} />
-          </>
-        ) : (
-          <>
-            <PersonalCard person={person} />
-            <DatesCard person={person} />
-            <ProfessionalCard person={person} />
-            <ContactCard person={person} />
-          </>
-        )}
+        <View
+          accessible={true}
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={
+            loadingStates.permissions
+              ? "جاري تحميل بيانات الملف الشخصي"
+              : "تم تحميل بيانات الملف الشخصي"
+          }
+        >
+          {loadingStates.permissions ? (
+            <>
+              <GenericCardSkeleton rows={3} titleWidth={80} />
+              <GenericCardSkeleton rows={2} titleWidth={100} />
+              <GenericCardSkeleton rows={3} titleWidth={90} />
+              <GenericCardSkeleton rows={2} titleWidth={100} />
+            </>
+          ) : (
+            <>
+              <PersonalCard person={person} />
+              <DatesCard person={person} />
+              <ProfessionalCard person={person} />
+              <ContactCard person={person} />
+            </>
+          )}
+        </View>
 
         {/* Family card with marriage data */}
-        {loadingStates.marriages ? (
-          <FamilyCardSkeleton tileCount={4} />
-        ) : (
-          <FamilyCard
-            father={metrics.father}
-            mother={metrics.mother}
-            marriages={marriages}
-            children={metrics.children}
-            person={person}
-            onNavigate={onNavigateToProfile}
-            showMarriages={isAdminMode}
-          />
-        )}
+        <View
+          accessible={true}
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={
+            loadingStates.marriages
+              ? "جاري تحميل بيانات العائلة"
+              : "تم تحميل بيانات العائلة"
+          }
+        >
+          {loadingStates.marriages ? (
+            <FamilyCardSkeleton tileCount={4} />
+          ) : (
+            <FamilyCard
+              father={metrics.father}
+              mother={metrics.mother}
+              marriages={marriages}
+              children={metrics.children}
+              person={person}
+              onNavigate={onNavigateToProfile}
+              showMarriages={isAdminMode}
+            />
+          )}
+        </View>
 
         <TimelineCard timeline={person?.timeline} />
         <PhotosCard person={person} accessMode={accessMode} />

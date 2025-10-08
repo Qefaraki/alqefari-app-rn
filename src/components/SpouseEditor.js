@@ -30,7 +30,7 @@ export default function SpouseEditor({
   const [spouseName, setSpouseName] = useState("");
   const [marriageDate, setMarriageDate] = useState(null);
   const [divorceDate, setDivorceDate] = useState(null);
-  const [status, setStatus] = useState("married");
+  const [status, setStatus] = useState("current");
   const [loading, setLoading] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState("marriage");
@@ -49,13 +49,16 @@ export default function SpouseEditor({
       );
       setMarriageDate(marriage.marriage_date);
       setDivorceDate(marriage.divorce_date);
-      setStatus(marriage.status || "married");
+      // Map old status values to new ones
+      const oldStatus = marriage.status || "married";
+      const mappedStatus = oldStatus === "married" ? "current" : "past";
+      setStatus(mappedStatus);
     } else if (visible) {
       // Reset for new spouse
       setSpouseName("");
       setMarriageDate(null);
       setDivorceDate(null);
-      setStatus("married");
+      setStatus("current");
     }
 
     // Animate in
@@ -88,15 +91,10 @@ export default function SpouseEditor({
 
   // Status options
   const statusOptions = [
-    { value: "married", label: "الحالة الحالية", color: "#34C759" },
+    { value: "current", label: "حالي", color: "#34C759" },
     {
-      value: "divorced",
-      label: person?.gender === "male" ? "سابقة" : "سابق",
-      color: "#8E8E93",
-    },
-    {
-      value: "widowed",
-      label: person?.gender === "male" ? "رحمها الله" : "رحمه الله",
+      value: "past",
+      label: "سابق",
       color: "#8E8E93",
     },
   ];
@@ -255,11 +253,11 @@ export default function SpouseEditor({
             </View>
           </View>
 
-          {/* Divorce/Death Date (if applicable) */}
-          {status !== "married" && (
+          {/* End Date (if marriage is past) */}
+          {status !== "current" && (
             <View style={styles.section}>
               <Text style={styles.label}>
-                {status === "divorced" ? "تاريخ الطلاق" : "تاريخ الوفاة"}
+                تاريخ انتهاء الزواج
               </Text>
               <TouchableOpacity
                 style={styles.dateInput}

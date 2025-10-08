@@ -9,7 +9,12 @@ import tokens from '../tokens';
  */
 const GenericCardSkeleton = ({ rows = 3, titleWidth = 100 }) => {
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityLabel="جاري تحميل البطاقة"
+      accessibilityRole="progressbar"
+    >
       {/* Title */}
       <Shimmer
         width={titleWidth}

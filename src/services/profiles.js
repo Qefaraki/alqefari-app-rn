@@ -462,7 +462,7 @@ export const profilesService = {
         p_munasib: marriageData.munasib || null,
         p_start_date: marriageData.start_date || null,
         p_end_date: marriageData.end_date || null,
-        p_status: marriageData.status || "married",
+        p_status: marriageData.status || "current",
       });
 
       if (error) throw error;

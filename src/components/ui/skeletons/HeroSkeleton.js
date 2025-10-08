@@ -9,7 +9,12 @@ import tokens from '../tokens';
  */
 const HeroSkeleton = ({ withPhoto = true }) => {
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityLabel="جاري تحميل الملف الشخصي"
+      accessibilityRole="progressbar"
+    >
       {/* Hero Photo */}
       {withPhoto && (
         <View style={styles.photoWrapper}>
