@@ -715,8 +715,8 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
           onNavigateToProfile: async (profileId) => {
             try {
               // Check if profile exists in currently loaded tree
-              const nodes = useTreeStore.getState().nodes;
-              const nodeExists = nodes.some(n => n.id === profileId);
+              const nodes = useTreeStore.getState().nodes || [];
+              const nodeExists = nodes.length > 0 && nodes.some(n => n.id === profileId);
 
               if (!nodeExists) {
                 Alert.alert(
