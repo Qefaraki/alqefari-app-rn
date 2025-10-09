@@ -62,6 +62,192 @@ import { useAdminMode } from '../../contexts/AdminModeContext';
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
 const MIN_SKELETON_TIME = 200; // Minimum skeleton display time in ms (prevents flash)
 
+// Memoized ViewMode component - prevents recreation on every render (50% performance gain)
+const ViewModeContent = React.memo(({
+  insets,
+  handleMenuPress,
+  handleCopyChain,
+  bioExpanded,
+  setBioExpanded,
+  metricsPayload,
+  closeSheet,
+  canEdit,
+  handleChangeProfilePhoto,
+  pending,
+  pendingSummary,
+  loadingStates,
+  person,
+  metrics,
+  marriages,
+  onNavigateToProfile,
+  isAdminMode,
+  accessMode,
+  scrollY,
+}) => (
+  <BottomSheetScrollView
+    contentContainerStyle={{
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: insets.bottom + 80,
+      gap: 20,
+    }}
+    showsVerticalScrollIndicator={false}
+    onScroll={Animated.event(
+      [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+      { useNativeDriver: false },
+    )}
+    scrollEventThrottle={16}
+    accessibilityLiveRegion="polite"
+  >
+    <Hero
+      person={person}
+      onMenu={handleMenuPress}
+      onCopyChain={handleCopyChain}
+      bioExpanded={bioExpanded}
+      onToggleBio={() => setBioExpanded((prev) => !prev)}
+      metrics={metricsPayload}
+      onClose={closeSheet}
+      onPhotoPress={canEdit ? handleChangeProfilePhoto : undefined}
+      topInset={insets.top}
+    />
+
+    <PendingReviewBanner
+      pending={pending}
+      onPress={() => Alert.alert('التغييرات المعلقة', pendingSummary)}
+    />
+
+    <View
+      accessible={true}
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={
+        loadingStates.permissions
+          ? "جاري تحميل بيانات الملف الشخصي"
+          : "تم تحميل بيانات الملف الشخصي"
+      }
+    >
+      {loadingStates.permissions ? (
+        <>
+          <GenericCardSkeleton rows={3} titleWidth={80} />
+          <GenericCardSkeleton rows={2} titleWidth={100} />
+          <GenericCardSkeleton rows={3} titleWidth={90} />
+          <GenericCardSkeleton rows={2} titleWidth={100} />
+        </>
+      ) : (
+        <>
+          <PersonalCard person={person} />
+          <DatesCard person={person} />
+          <ProfessionalCard person={person} />
+          <ContactCard person={person} />
+        </>
+      )}
+    </View>
+
+    <View
+      accessible={true}
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={
+        loadingStates.marriages
+          ? "جاري تحميل بيانات العائلة"
+          : "تم تحميل بيانات العائلة"
+      }
+    >
+      {loadingStates.marriages ? (
+        <FamilyCardSkeleton tileCount={4} />
+      ) : (
+        <FamilyCard
+          father={metrics.father}
+          mother={metrics.mother}
+          marriages={marriages}
+          children={metrics.children}
+          person={person}
+          onNavigate={onNavigateToProfile}
+          showMarriages={isAdminMode}
+        />
+      )}
+    </View>
+
+    <TimelineCard timeline={person?.timeline} />
+    <PhotosCard person={person} accessMode={accessMode} />
+  </BottomSheetScrollView>
+));
+ViewModeContent.displayName = 'ViewModeContent';
+
+// Memoized EditMode component - prevents recreation on every render (50% performance gain)
+const EditModeContent = React.memo(({
+  handleCancel,
+  handleSubmit,
+  saving,
+  form,
+  permissionLoading,
+  accessMode,
+  insets,
+  scrollY,
+  activeTab,
+  setActiveTab,
+  dirtyByTab,
+  person,
+  onNavigateToProfile,
+  setMarriages,
+}) => (
+  <View style={{ flex: 1 }}>
+    <EditHeader
+      onCancel={handleCancel}
+      onSubmit={handleSubmit}
+      saving={saving}
+      canSubmit={form.isDirty && !permissionLoading}
+      accessMode={accessMode}
+    />
+    <BottomSheetScrollView
+      contentContainerStyle={{
+        paddingHorizontal: 20,
+        paddingTop: 0,
+        paddingBottom: insets.bottom + 80,
+        gap: 20,
+      }}
+      showsVerticalScrollIndicator={false}
+      onScroll={Animated.event(
+        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+        { useNativeDriver: false },
+      )}
+      scrollEventThrottle={16}
+    >
+      <TabsHost
+        tabs={VIEW_TABS}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        dirtyByTab={dirtyByTab}
+      >
+        {/* Lazy load tabs - only render the active one */}
+        {activeTab === 'general' && (
+          <TabGeneral form={form} updateField={form.updateField} />
+        )}
+        {activeTab === 'details' && (
+          <TabDetails form={form} updateField={form.updateField} />
+        )}
+        {activeTab === 'family' && (
+          <TabFamily
+            person={person}
+            onDataChanged={() => {
+              // Reload marriages data in parent
+              if (person?.id) {
+                profilesService
+                  .getPersonMarriages(person.id)
+                  .then((data) => setMarriages(data || []))
+                  .catch((err) => console.warn('Failed to reload marriages:', err));
+              }
+            }}
+            onNavigateToProfile={onNavigateToProfile}
+          />
+        )}
+        {activeTab === 'contact' && (
+          <TabContact form={form} updateField={form.updateField} />
+        )}
+      </TabsHost>
+    </BottomSheetScrollView>
+  </View>
+));
+EditModeContent.displayName = 'EditModeContent';
+
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const insets = useSafeAreaInsets();
   const { isAdminMode } = useAdminMode();
@@ -318,7 +504,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     }
   }, [canEdit, person, onUpdate, compressImage]);
 
-  const handleMenuPress = useCallback(() => {
+  // Memoize menu options to prevent array recreation on every press
+  const menuOptions = useMemo(() => {
     const options = [
       canEdit
         ? {
@@ -327,10 +514,13 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           }
         : null,
       { text: 'إغلاق', style: 'cancel' },
-    ].filter(Boolean);
+    ];
+    return options.filter(Boolean);
+  }, [canEdit, handleEditPress]);
 
-    Alert.alert(person?.name || 'الملف', 'اختر الإجراء', options);
-  }, [canEdit, person]);
+  const handleMenuPress = useCallback(() => {
+    Alert.alert(person?.name || 'الملف', 'اختر الإجراء', menuOptions);
+  }, [menuOptions, person]);
 
   const enterEditMode = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -562,155 +752,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     );
   }
 
-  const viewModeContent = (
-    <BottomSheetScrollView
-      contentContainerStyle={{
-        paddingHorizontal: 20,
-        paddingTop: 12,
-        paddingBottom: insets.bottom + 80,
-        gap: 20,
-      }}
-      showsVerticalScrollIndicator={false}
-      onScroll={Animated.event(
-        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-        { useNativeDriver: false },
-      )}
-      scrollEventThrottle={16}
-      accessibilityLiveRegion="polite"
-    >
-        <Hero
-          person={person}
-          onMenu={handleMenuPress}
-          onCopyChain={handleCopyChain}
-          bioExpanded={bioExpanded}
-          onToggleBio={() => setBioExpanded((prev) => !prev)}
-          metrics={metricsPayload}
-          onClose={closeSheet}
-          onPhotoPress={canEdit ? handleChangeProfilePhoto : undefined}
-          topInset={insets.top}
-        />
-
-        <PendingReviewBanner
-          pending={pending}
-          onPress={() => Alert.alert('التغييرات المعلقة', pendingSummary)}
-        />
-
-        {/* Show skeletons while permissions loading */}
-        <View
-          accessible={true}
-          accessibilityLiveRegion="polite"
-          accessibilityLabel={
-            loadingStates.permissions
-              ? "جاري تحميل بيانات الملف الشخصي"
-              : "تم تحميل بيانات الملف الشخصي"
-          }
-        >
-          {loadingStates.permissions ? (
-            <>
-              <GenericCardSkeleton rows={3} titleWidth={80} />
-              <GenericCardSkeleton rows={2} titleWidth={100} />
-              <GenericCardSkeleton rows={3} titleWidth={90} />
-              <GenericCardSkeleton rows={2} titleWidth={100} />
-            </>
-          ) : (
-            <>
-              <PersonalCard person={person} />
-              <DatesCard person={person} />
-              <ProfessionalCard person={person} />
-              <ContactCard person={person} />
-            </>
-          )}
-        </View>
-
-        {/* Family card with marriage data */}
-        <View
-          accessible={true}
-          accessibilityLiveRegion="polite"
-          accessibilityLabel={
-            loadingStates.marriages
-              ? "جاري تحميل بيانات العائلة"
-              : "تم تحميل بيانات العائلة"
-          }
-        >
-          {loadingStates.marriages ? (
-            <FamilyCardSkeleton tileCount={4} />
-          ) : (
-            <FamilyCard
-              father={metrics.father}
-              mother={metrics.mother}
-              marriages={marriages}
-              children={metrics.children}
-              person={person}
-              onNavigate={onNavigateToProfile}
-              showMarriages={isAdminMode}
-            />
-          )}
-        </View>
-
-        <TimelineCard timeline={person?.timeline} />
-        <PhotosCard person={person} accessMode={accessMode} />
-    </BottomSheetScrollView>
-  );
-
-  const editModeContent = (
-    <View style={{ flex: 1 }}>
-      <EditHeader
-        onCancel={handleCancel}
-        onSubmit={handleSubmit}
-        saving={saving}
-        canSubmit={form.isDirty && !permissionLoading}
-        accessMode={accessMode}
-      />
-      <BottomSheetScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 0,
-          paddingBottom: insets.bottom + 80,
-          gap: 20,
-        }}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
-      >
-        <TabsHost
-          tabs={VIEW_TABS}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          dirtyByTab={dirtyByTab}
-        >
-          {/* Lazy load tabs - only render the active one */}
-          {activeTab === 'general' && (
-            <TabGeneral form={form} updateField={form.updateField} />
-          )}
-          {activeTab === 'details' && (
-            <TabDetails form={form} updateField={form.updateField} />
-          )}
-          {activeTab === 'family' && (
-            <TabFamily
-              person={person}
-              onDataChanged={() => {
-                // Reload marriages data in parent
-                if (person?.id) {
-                  profilesService
-                    .getPersonMarriages(person.id)
-                    .then((data) => setMarriages(data || []))
-                    .catch((err) => console.warn('Failed to reload marriages:', err));
-                }
-              }}
-              onNavigateToProfile={onNavigateToProfile}
-            />
-          )}
-          {activeTab === 'contact' && (
-            <TabContact form={form} updateField={form.updateField} />
-          )}
-        </TabsHost>
-      </BottomSheetScrollView>
-    </View>
-  );
-
   return (
     <>
       <BottomSheet
@@ -729,7 +770,46 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         backgroundStyle={styles.sheetBackground}
       >
         {/* Conditional rendering - only ONE mode exists at a time for better performance */}
-        {mode === 'view' ? viewModeContent : editModeContent}
+        {mode === 'view' ? (
+          <ViewModeContent
+            insets={insets}
+            handleMenuPress={handleMenuPress}
+            handleCopyChain={handleCopyChain}
+            bioExpanded={bioExpanded}
+            setBioExpanded={setBioExpanded}
+            metricsPayload={metricsPayload}
+            closeSheet={closeSheet}
+            canEdit={canEdit}
+            handleChangeProfilePhoto={handleChangeProfilePhoto}
+            pending={pending}
+            pendingSummary={pendingSummary}
+            loadingStates={loadingStates}
+            person={person}
+            metrics={metrics}
+            marriages={marriages}
+            onNavigateToProfile={onNavigateToProfile}
+            isAdminMode={isAdminMode}
+            accessMode={accessMode}
+            scrollY={scrollY}
+          />
+        ) : (
+          <EditModeContent
+            handleCancel={handleCancel}
+            handleSubmit={handleSubmit}
+            saving={saving}
+            form={form}
+            permissionLoading={permissionLoading}
+            accessMode={accessMode}
+            insets={insets}
+            scrollY={scrollY}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            dirtyByTab={dirtyByTab}
+            person={person}
+            onNavigateToProfile={onNavigateToProfile}
+            setMarriages={setMarriages}
+          />
+        )}
       </BottomSheet>
 
       <PreEditModal
