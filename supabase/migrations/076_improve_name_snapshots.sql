@@ -4,25 +4,24 @@
 -- 2. Add indexes for performance
 -- 3. Add monitoring capabilities
 
--- Step 1: Improve trigger function with error handling and logging
+-- Step 1: Improve trigger function with error handling and FULL NAME CHAINS
 CREATE OR REPLACE FUNCTION capture_name_snapshots()
 RETURNS TRIGGER AS $$
 DECLARE
   actor_name TEXT;
   target_name TEXT;
 BEGIN
-  -- Capture actor name at time of activity (build from relationships)
+  -- Capture actor name at time of activity (FULL CHAIN using build_name_chain)
   IF NEW.actor_id IS NOT NULL THEN
     BEGIN
-      SELECT TRIM(CONCAT_WS(' ', p.name, f.name, gf.name))
+      SELECT build_name_chain(p.id)
       INTO actor_name
       FROM profiles p
-      LEFT JOIN profiles f ON p.father_id = f.id
-      LEFT JOIN profiles gf ON f.father_id = gf.id
-      WHERE p.user_id = NEW.actor_id;
+      WHERE p.user_id = NEW.actor_id
+        AND p.deleted_at IS NULL;
 
       -- Log if snapshot capture failed
-      IF actor_name IS NULL OR TRIM(actor_name) = '' THEN
+      IF actor_name IS NULL OR TRIM(actor_name) = '' OR actor_name = 'غير معروف' THEN
         RAISE NOTICE 'Failed to capture actor snapshot for actor_id: %, audit_id: %',
                      NEW.actor_id, NEW.id;
       END IF;
@@ -36,18 +35,17 @@ BEGIN
     END;
   END IF;
 
-  -- Capture target name at time of activity (if target is a profile)
+  -- Capture target name at time of activity (FULL CHAIN using build_name_chain)
   IF NEW.table_name = 'profiles' AND NEW.record_id IS NOT NULL THEN
     BEGIN
-      SELECT TRIM(CONCAT_WS(' ', p.name, f.name, gf.name))
+      SELECT build_name_chain(p.id)
       INTO target_name
       FROM profiles p
-      LEFT JOIN profiles f ON p.father_id = f.id
-      LEFT JOIN profiles gf ON f.father_id = gf.id
-      WHERE p.id = NEW.record_id;
+      WHERE p.id = NEW.record_id
+        AND p.deleted_at IS NULL;
 
       -- Log if snapshot capture failed
-      IF target_name IS NULL OR TRIM(target_name) = '' THEN
+      IF target_name IS NULL OR TRIM(target_name) = '' OR target_name = 'غير معروف' THEN
         RAISE NOTICE 'Failed to capture target snapshot for record_id: %, audit_id: %',
                      NEW.record_id, NEW.id;
       END IF;
@@ -66,7 +64,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION capture_name_snapshots() IS
-  'Captures actor and target name chains at time of activity creation.
+  'Captures actor and target FULL name chains at time of activity creation.
+   Uses build_name_chain() for complete ancestry (not just 3 levels).
    Includes error handling to prevent INSERT failures if profile lookup fails.
    Logs warnings when snapshot capture fails for monitoring.';
 

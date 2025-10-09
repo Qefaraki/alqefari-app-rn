@@ -1,8 +1,12 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import InfoCard from '../components/InfoCard';
+import { useSettings } from '../../../../contexts/SettingsContext';
+import { formatYearBySettings } from '../../../../utils/dateUtils';
 
 const TimelineCard = ({ timeline }) => {
+  const { settings } = useSettings();
+
   if (!Array.isArray(timeline) || timeline.length === 0) {
     return null;
   }
@@ -10,17 +14,20 @@ const TimelineCard = ({ timeline }) => {
   return (
     <InfoCard title="الخط الزمني">
       <View style={{ gap: 12 }}>
-        {timeline.map((event, index) => (
-          <View key={`${event.year}-${index}`} style={styles.eventRow}>
-            <Text style={styles.year}>{event.year}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{event.event}</Text>
-              {event.description ? (
-                <Text style={styles.description}>{event.description}</Text>
-              ) : null}
+        {timeline.map((event, index) => {
+          const formattedYear = formatYearBySettings(event.year, settings);
+          return (
+            <View key={`${event.year}-${index}`} style={styles.eventRow}>
+              <Text style={styles.year}>{formattedYear}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.title}>{event.event}</Text>
+                {event.description ? (
+                  <Text style={styles.description}>{event.description}</Text>
+                ) : null}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </InfoCard>
   );

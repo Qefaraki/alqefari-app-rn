@@ -18,6 +18,7 @@ import QuickAddOverlay from '../../admin/QuickAddOverlay';
 import EditChildModal from './EditChildModal';
 import EditMarriageModal from './EditMarriageModal';
 import SelectMotherModal from './SelectMotherModal';
+import { ProgressiveThumbnail } from '../../ProgressiveImage';
 import useStore from '../../../hooks/useStore';
 
 const SectionCard = ({
@@ -50,29 +51,97 @@ const SectionCard = ({
   </View>
 );
 
-const ParentCell = ({ label, value, icon, emptyLabel = 'غير محدد', onAction, actionLabel }) => (
-  <View style={styles.parentCell}>
-    <View style={styles.parentLabelRow}>
-      <Ionicons name={icon} size={18} color={tokens.colors.najdi.secondary} />
-      <Text style={styles.parentLabel}>{label}</Text>
+const getInitials = (name) => {
+  if (!name) return '؟';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+};
+
+const ParentProfileCard = ({
+  label,
+  profile,
+  emptyTitle,
+  emptySubtitle,
+  onAction,
+  actionLabel = 'تغيير',
+}) => {
+  const hasProfile = Boolean(profile);
+  const initials = hasProfile ? getInitials(profile.name) : '؟';
+  const showExternalPill = hasProfile && !profile.hid;
+  const showStatusPill = hasProfile && profile.status === 'deceased';
+
+  const renderAvatar = () => {
+    if (hasProfile && profile.photo_url) {
+      return (
+        <ProgressiveThumbnail
+          source={{ uri: profile.photo_url }}
+          size={56}
+          style={styles.parentAvatarImage}
+        />
+      );
+    }
+
+    return (
+      <View style={[styles.parentAvatarFallback, !hasProfile && styles.parentAvatarEmpty]}>
+        <Text style={styles.parentAvatarInitial}>{initials}</Text>
+      </View>
+    );
+  };
+
+  return (
+    <View style={[styles.parentCard, !hasProfile && styles.parentCardEmpty]}>
+      <View style={styles.parentAvatar}>{renderAvatar()}</View>
+      <View style={styles.parentBody}>
+        <View style={styles.parentDetails}>
+          <Text style={styles.parentLabel}>{label}</Text>
+          <Text style={[styles.parentName, !hasProfile && styles.parentNameEmpty]} numberOfLines={1}>
+            {hasProfile ? profile.name : emptyTitle}
+          </Text>
+          {hasProfile ? (
+            <View style={styles.parentMetaRow}>
+              {profile.hid ? (
+                <MetaPill label={`HID ${profile.hid}`} icon="finger-print-outline" />
+              ) : (
+                showExternalPill && (
+                  <MetaPill label="من خارج العائلة" icon="globe-outline" tone="warning" />
+                )
+              )}
+              {showStatusPill && (
+                <MetaPill label="متوفى" icon="time-outline" tone="danger" />
+              )}
+            </View>
+          ) : (
+            emptySubtitle ? <Text style={styles.parentHint}>{emptySubtitle}</Text> : null
+          )}
+        </View>
+        {onAction ? (
+          <TouchableOpacity
+            style={[styles.parentActionButton, !hasProfile && styles.parentActionButtonPrimary]}
+            onPress={onAction}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={hasProfile ? 'swap-horizontal-outline' : 'add-circle-outline'}
+              size={16}
+              color={
+                hasProfile ? tokens.colors.najdi.primary : tokens.colors.surface
+              }
+            />
+            <Text
+              style={[styles.parentActionButtonText, !hasProfile && styles.parentActionButtonTextPrimary]}
+            >
+              {actionLabel}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
-    <View style={styles.parentValueRow}>
-      <Text style={[styles.parentValue, !value && styles.parentValueMuted]}>
-        {value || emptyLabel}
-      </Text>
-      {onAction && (
-        <TouchableOpacity
-          style={styles.parentActionButton}
-          onPress={onAction}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.6}
-        >
-          <Text style={styles.parentActionButtonText}>{actionLabel || 'تغيير'}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  </View>
-);
+  );
+};
 
 const EmptyState = ({ icon, title, caption }) => (
   <View style={styles.emptyState}>
@@ -448,19 +517,19 @@ const TabFamily = ({ person, onDataChanged }) => {
         badge={`${parentCount}/2`}
       >
         <View style={styles.parentGrid}>
-          <ParentCell
+          <ParentProfileCard
             label="الأب"
-            value={father?.name}
-            icon="man-outline"
-            emptyLabel="غير محدد"
+            profile={father}
+            emptyTitle="لم يتم تحديد الأب"
+            emptySubtitle="إضافة الأب تساعد على اكتمال شجرة العائلة"
           />
-          <ParentCell
+          <ParentProfileCard
             label="الأم"
-            value={mother?.name}
-            icon="woman-outline"
-            emptyLabel="غير محددة"
+            profile={mother}
+            emptyTitle="لم يتم اختيار الأم"
+            emptySubtitle="اختر الأم الصحيحة لربط الأبناء تلقائيًا"
             onAction={father ? handleChangeMother : null}
-            actionLabel="تغيير"
+            actionLabel={mother ? 'تغيير الأم' : 'اختيار الأم'}
           />
         </View>
       </SectionCard>
@@ -837,36 +906,111 @@ const styles = StyleSheet.create({
   },
 
   parentGrid: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: tokens.spacing.md,
   },
-  parentCell: {
-    flex: 1,
-    borderRadius: tokens.radii.md,
-    backgroundColor: tokens.colors.najdi.background,
+  parentCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: tokens.colors.bg,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.md,
+    gap: tokens.spacing.md,
+  },
+  parentCardEmpty: {
+    backgroundColor: 'rgba(149, 126, 181, 0.08)',
+    borderColor: 'rgba(149, 126, 181, 0.18)',
+  },
+  parentAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.divider,
   },
-  parentLabelRow: {
-    flexDirection: 'row',
+  parentAvatarImage: {
+    borderRadius: 28,
+  },
+  parentAvatarFallback: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
-    marginBottom: tokens.spacing.xs,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(209, 187, 163, 0.25)',
+  },
+  parentAvatarEmpty: {
+    backgroundColor: 'rgba(161, 51, 51, 0.12)',
+  },
+  parentAvatarInitial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
+  },
+  parentBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.md,
+  },
+  parentDetails: {
+    flex: 1,
     gap: tokens.spacing.xs,
   },
   parentLabel: {
     fontSize: 13,
+    fontWeight: '600',
     color: tokens.colors.najdi.textMuted,
-    fontWeight: '600',
   },
-  parentValue: {
+  parentName: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: '700',
     color: tokens.colors.najdi.text,
   },
-  parentValueMuted: {
+  parentNameEmpty: {
+    color: tokens.colors.najdi.primary,
+  },
+  parentMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.xs,
+  },
+  parentHint: {
+    fontSize: 13,
     color: tokens.colors.najdi.textMuted,
+    lineHeight: 18,
+  },
+  parentActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.primary,
+    backgroundColor: tokens.colors.surface,
+    gap: tokens.spacing.xs,
+    alignSelf: 'flex-start',
+  },
+  parentActionButtonPrimary: {
+    backgroundColor: tokens.colors.najdi.primary,
+  },
+  parentActionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
+  },
+  parentActionButtonTextPrimary: {
+    color: tokens.colors.surface,
   },
 
   emptyState: {
@@ -1001,26 +1145,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: tokens.spacing.xs,
-  },
-
-  parentValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: tokens.spacing.xs,
-  },
-
-  parentActionButton: {
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.sm,
-    backgroundColor: 'rgba(161, 51, 51, 0.08)',
-  },
-
-  parentActionButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: tokens.colors.najdi.primary,
   },
 
   addActionButton: {

@@ -498,5 +498,52 @@ export const validateDates = (birthDate, deathDate) => {
   return errors;
 };
 
+/**
+ * Format a single year based on calendar preference
+ * Uses mid-year (July 1) approximation for Hijri conversion
+ * @param {number|string} year - The Gregorian year to format
+ * @param {boolean} isHijri - Whether to convert to Hijri
+ * @param {boolean} useArabicNumerals - Whether to use Eastern Arabic numerals
+ * @returns {string} Formatted year string
+ */
+export const formatYear = (year, isHijri = false, useArabicNumerals = false) => {
+  // Validate input
+  if (!year || year === '') return '';
+  const numYear = Number(year);
+  if (isNaN(numYear) || numYear < 1000 || numYear > 3000) return '';
+
+  let displayYear = numYear;
+  let suffix = '';
+
+  if (isHijri) {
+    // Use mid-year (July 1) for better approximation
+    // since Gregorian years span two Hijri years
+    const hijriDate = gregorianToHijri(numYear, 7, 1);
+    if (hijriDate) {
+      displayYear = hijriDate.year;
+      suffix = ' هـ';
+    } else if (numYear < 622) {
+      // Pre-Hijri date (before 622 CE)
+      suffix = ' م';
+    }
+  }
+
+  const result = `${displayYear}${suffix}`;
+  return useArabicNumerals ? toArabicNumerals(result) : result;
+};
+
+/**
+ * Utility function for components to format years based on settings
+ * This is NOT a hook - safe to use inside loops/conditions
+ * @param {number|string} year - The year to format
+ * @param {Object} settings - Settings object from useSettings()
+ * @returns {string} Formatted year string
+ */
+export const formatYearBySettings = (year, settings) => {
+  const isHijri = settings?.defaultCalendar === 'hijri';
+  const useArabic = settings?.arabicNumerals === true;
+  return formatYear(year, isHijri, useArabic);
+};
+
 // For compatibility with dayjs imports
 export default moment;
