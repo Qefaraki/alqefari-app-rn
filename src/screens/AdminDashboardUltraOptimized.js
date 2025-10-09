@@ -108,6 +108,9 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   // Router for navigation
   const router = useRouter();
 
+  // Tree data for profile existence checks
+  const treeData = useTreeStore(state => state.treeData);
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -715,8 +718,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
           onNavigateToProfile: async (profileId) => {
             try {
               // Check if profile exists in currently loaded tree
-              const nodes = useTreeStore.getState().nodes || [];
-              const nodeExists = nodes.length > 0 && nodes.some(n => n.id === profileId);
+              const nodeExists = treeData.length > 0 && treeData.some(n => n.id === profileId);
 
               if (!nodeExists) {
                 Alert.alert(
@@ -740,11 +742,19 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
               // Profile exists in tree, navigate to it
               setShowActivityLog(false);
+
+              // Wait for modal close animation, then verify tree state before navigation
               setTimeout(() => {
-                router.push(`/?highlightProfileId=${profileId}&focusOnProfile=true`);
+                // Double-check tree state after modal closes (prevents race conditions)
+                const currentTreeData = useTreeStore.getState().treeData || [];
+                if (currentTreeData.some(n => n.id === profileId)) {
+                  router.push(`/?highlightProfileId=${profileId}&focusOnProfile=true`);
+                } else {
+                  Alert.alert('خطأ', 'تم تغيير حالة الشجرة. يرجى المحاولة مرة أخرى.');
+                }
               }, 300);
             } catch (error) {
-              console.error('[ActivityLog] Navigation error:', error);
+              console.error('[ActivityLog] خطأ في التنقل:', error);
               Alert.alert('خطأ', 'فشل التنقل إلى الملف');
             }
           }

@@ -250,10 +250,11 @@ const SmartNameDisplay = React.memo(({
     if (!onNavigate || !profileId) return;
 
     try {
-      onNavigate(profileId);
+      // Fire haptics FIRST for immediate tactile feedback
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onNavigate(profileId);
     } catch (error) {
-      console.error('[SmartNameDisplay] Navigation error:', error);
+      console.error('[SmartNameDisplay] خطأ في التنقل:', error);
     }
   }, [onNavigate, profileId]);
 
@@ -275,12 +276,12 @@ const SmartNameDisplay = React.memo(({
         accessibilityRole="button"
         accessibilityHint="اضغط للانتقال إلى الملف الشخصي في الشجرة"
       >
-        <Ionicons name="person-circle-outline" size={14} color="#D58C4A" />
+        <Ionicons name="person-circle-outline" size={14} color="#736372" />
         <Text style={[style, historicalStyle]}>
           {displayName}
         </Text>
         {onNavigate && profileId && (
-          <Ionicons name="chevron-back" size={12} color="#D58C4A" />
+          <Ionicons name="chevron-back" size={12} color="#736372" />
         )}
       </TouchableOpacity>
     );

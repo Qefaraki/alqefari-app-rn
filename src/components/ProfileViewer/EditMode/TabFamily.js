@@ -102,6 +102,7 @@ const ParentProfileCard = ({
   actionLabel = 'تغيير',
   children,
   infoHint,
+  actionTone = 'primary',
 }) => {
   const hasProfile = Boolean(profile);
   const initials = hasProfile ? getInitials(profile.name) : '؟';
@@ -151,18 +152,19 @@ const ParentProfileCard = ({
       </View>
       {onAction ? (
         <TouchableOpacity
-          style={[styles.parentActionButton, !hasProfile && styles.parentActionButtonPrimary]}
+          style={[
+            styles.parentActionButton,
+            actionTone === 'secondary' && styles.parentActionButtonSecondary,
+          ]}
           onPress={onAction}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           activeOpacity={0.85}
         >
-          <Ionicons
-            name={hasProfile ? 'swap-horizontal-outline' : 'add-circle-outline'}
-            size={16}
-            color={hasProfile ? tokens.colors.najdi.primary : tokens.colors.surface}
-          />
           <Text
-            style={[styles.parentActionButtonText, !hasProfile && styles.parentActionButtonTextPrimary]}
+            style={[
+              styles.parentActionButtonText,
+              actionTone === 'secondary' && styles.parentActionButtonTextSecondary,
+            ]}
           >
             {actionLabel}
           </Text>
@@ -206,14 +208,17 @@ const MotherInlinePicker = ({
       </View>
 
       {loading ? (
-        <View style={styles.motherLoadingRow}>
+        <View style={styles.motherLoadingColumn}>
           <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-          <Text style={styles.motherLoadingText}>جاري تحميل المرشحات...</Text>
+          <Text style={styles.motherLoadingCaption}>جاري تجهيز المرشحات...</Text>
+          {[1, 2].map((key) => (
+            <View key={key} style={styles.motherSkeletonRow} />
+          ))}
         </View>
       ) : !hasFather ? (
         <View style={styles.motherEmptyState}>
-          <Text style={styles.motherEmptyTitle}>حدد الأب أولاً</Text>
-          <Text style={styles.motherEmptyText}>بعد اختيار الأب ستظهر المرشحات هنا</Text>
+          <Text style={styles.motherEmptyTitle}>لا يوجد أب مرتبط</Text>
+          <Text style={styles.motherEmptyText}>أضف أو حدّد الأب لتظهر خيارات الأم</Text>
         </View>
       ) : suggestions.length > 0 ? (
         <View style={styles.motherListContainer}>
@@ -256,11 +261,9 @@ const MotherInlinePicker = ({
                         : 'من خارج العائلة'}
                     </Text>
                   </View>
-                  {isSelected ? (
-                    <Ionicons name="checkmark-circle" size={20} color={tokens.colors.najdi.primary} />
-                  ) : (
-                    <Ionicons name="ellipse-outline" size={20} color={tokens.colors.najdi.textMuted + '66'} />
-                  )}
+                  <View style={[styles.motherRadio, isSelected && styles.motherRadioSelected]}>
+                    {isSelected ? <View style={styles.motherRadioDot} /> : null}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -269,28 +272,28 @@ const MotherInlinePicker = ({
       ) : (
         <View style={styles.motherEmptyState}>
           <Text style={styles.motherEmptyTitle}>لا توجد أم مرشحة</Text>
-          <Text style={styles.motherEmptyText}>أضف زوجة للأب لتتمكن من اختيار الأم</Text>
+          <Text style={styles.motherEmptyText}>أضف زوجة للأب لتظهر هنا خيارات الأم</Text>
           <TouchableOpacity
             style={styles.motherNudgeButton}
             onPress={onAddSpouse}
             activeOpacity={0.85}
           >
-            <Ionicons name="add" size={16} color={tokens.colors.najdi.primary} />
             <Text style={styles.motherNudgeButtonText}>إضافة زوجة للأب</Text>
+            <Ionicons name="chevron-back" size={16} color={tokens.colors.najdi.primary} />
           </TouchableOpacity>
         </View>
       )}
 
-      <View style={styles.motherSheetFooter}>
-        <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-          <Text style={styles.motherFooterLink}>إلغاء</Text>
-        </TouchableOpacity>
-        {currentMotherId ? (
+      {currentMotherId ? (
+        <View style={styles.motherSheetFooter}>
           <TouchableOpacity onPress={onClear} activeOpacity={0.7}>
             <Text style={[styles.motherFooterLink, styles.motherFooterDanger]}>إزالة الأم</Text>
           </TouchableOpacity>
-        ) : null}
-      </View>
+          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+            <Text style={[styles.motherFooterLink, styles.motherFooterPrimary]}>تم</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -433,6 +436,7 @@ const TabFamily = ({ person, onDataChanged }) => {
       } else {
         setMotherOptions([]);
         setLoadingMotherOptions(false);
+        setMotherPickerVisible(false);
       }
     } catch (err) {
       if (__DEV__) {
@@ -658,6 +662,7 @@ const TabFamily = ({ person, onDataChanged }) => {
         onDataChanged();
       }
       setMotherFeedback('تم تعيين الأم بنجاح');
+      setMotherPickerVisible(false);
     } catch (error) {
       if (__DEV__) {
         console.error('Error assigning mother:', error);
@@ -688,6 +693,7 @@ const TabFamily = ({ person, onDataChanged }) => {
         onDataChanged();
       }
       setMotherFeedback('تمت إزالة الأم');
+      setMotherPickerVisible(false);
     } catch (error) {
       if (__DEV__) {
         console.error('Error clearing mother:', error);
@@ -705,6 +711,7 @@ const TabFamily = ({ person, onDataChanged }) => {
 
   const handleChangeMother = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setMotherFeedback(null);
     setMotherPickerVisible((prev) => !prev);
   };
 
@@ -783,14 +790,17 @@ const TabFamily = ({ person, onDataChanged }) => {
             profile={father}
             emptyTitle="لم يتم تحديد الأب"
             emptySubtitle="إضافة الأب تساعد على اكتمال شجرة العائلة"
+            infoHint={!father ? 'حدد الأب أولاً لتتمكن من اختيار الأم' : null}
           />
           <ParentProfileCard
             label="الأم"
             profile={mother}
-            emptyTitle="لم يتم اختيار الأم"
-            emptySubtitle="أضف الأم ليكتمل ملفك"
+            emptyTitle="لا توجد أم محددة بعد"
+            emptySubtitle="أضف بيانات الأم ليكتمل ملفك"
             onAction={father ? handleChangeMother : null}
-            actionLabel={motherPickerVisible ? 'إغلاق' : mother ? 'تغيير الأم' : 'إضافة الأم'}
+            actionLabel={motherPickerVisible ? 'إنهاء الاختيار' : mother ? 'تغيير الأم' : 'إضافة الأم'}
+            actionTone={motherPickerVisible ? 'secondary' : 'primary'}
+            infoHint={!father ? 'أكمل بيانات الأب لتتمكن من اختيار الأم' : null}
           >
             <MotherInlinePicker
               visible={motherPickerVisible}
@@ -1310,7 +1320,6 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: tokens.radii.lg,
     backgroundColor: tokens.colors.najdi.primary,
-    gap: tokens.spacing.xs,
     alignSelf: 'stretch',
     marginTop: tokens.spacing.md,
     shadowColor: '#000',
@@ -1318,16 +1327,19 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
-  parentActionButtonPrimary: {
-    backgroundColor: tokens.colors.najdi.primary,
+  parentActionButtonSecondary: {
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.primary,
+    shadowOpacity: 0,
   },
   parentActionButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: tokens.colors.surface,
   },
-  parentActionButtonTextPrimary: {
-    color: tokens.colors.surface,
+  parentActionButtonTextSecondary: {
+    color: tokens.colors.najdi.primary,
   },
 
   motherSheet: {
@@ -1351,14 +1363,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: tokens.colors.najdi.text,
   },
-  motherLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  motherLoadingColumn: {
     gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+    alignItems: 'center',
   },
-  motherLoadingText: {
+  motherLoadingCaption: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
+    textAlign: 'center',
+  },
+  motherSkeletonRow: {
+    height: 48,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: tokens.colors.najdi.container + '20',
+    marginHorizontal: tokens.spacing.sm,
+    marginVertical: 4,
+    alignSelf: 'stretch',
   },
   motherListContainer: {
     borderRadius: tokens.radii.md,
@@ -1419,6 +1440,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: tokens.colors.najdi.textMuted,
   },
+  motherRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.textMuted + '80',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  motherRadioSelected: {
+    borderColor: tokens.colors.najdi.primary,
+  },
+  motherRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: tokens.colors.najdi.primary,
+  },
   motherEmptyState: {
     alignItems: 'center',
     gap: tokens.spacing.xs,
@@ -1428,7 +1467,7 @@ const styles = StyleSheet.create({
   motherEmptyTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: tokens.colors.najدي.text,
+    color: tokens.colors.najdi.text,
   },
   motherEmptyText: {
     fontSize: 13,
@@ -1445,7 +1484,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.primary + '55',
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.najdi.background,
     marginTop: tokens.spacing.sm,
   },
   motherNudgeButtonText: {
@@ -1463,6 +1502,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     fontWeight: '600',
+  },
+  motherFooterPrimary: {
+    color: tokens.colors.najdi.primary,
   },
   motherFooterDanger: {
     color: tokens.colors.danger,
