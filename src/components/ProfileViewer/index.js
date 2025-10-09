@@ -110,8 +110,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
   const skeletonStartTimeRef = useRef(Date.now());
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const viewOpacity = useRef(new Animated.Value(1)).current;
-  const editOpacity = useRef(new Animated.Value(0)).current;
   const animatedPosition = useSharedValue(0);
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
 
@@ -222,22 +220,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     },
     [screenHeight],
   );
-
-  // Fade animation when switching between view and edit modes
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(viewOpacity, {
-        toValue: mode === 'view' ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(editOpacity, {
-        toValue: mode === 'edit' ? 1 : 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [mode, viewOpacity, editOpacity]);
 
   // Cleanup handled by parent component
 
@@ -745,37 +727,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         onChange={handleSheetChange}
         backgroundStyle={styles.sheetBackground}
       >
-        <View style={{ flex: 1 }}>
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: viewOpacity,
-              zIndex: mode === 'view' ? 1 : 0,
-            }}
-            pointerEvents={mode === 'view' ? 'auto' : 'none'}
-          >
-            {viewModeContent}
-          </Animated.View>
-
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              opacity: editOpacity,
-              zIndex: mode === 'edit' ? 1 : 0,
-            }}
-            pointerEvents={mode === 'edit' ? 'auto' : 'none'}
-          >
-            {editModeContent}
-          </Animated.View>
-        </View>
+        {/* Conditional rendering - only ONE mode exists at a time for better performance */}
+        {mode === 'view' ? viewModeContent : editModeContent}
       </BottomSheet>
 
       <PreEditModal

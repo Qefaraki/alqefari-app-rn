@@ -114,11 +114,12 @@ BEGIN
 END $$;
 
 -- Create indexes for fast name searches
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_log_actor_name_snapshot
+-- Note: Using regular CREATE INDEX (not CONCURRENTLY) since we're in migration mode
+CREATE INDEX IF NOT EXISTS idx_audit_log_actor_name_snapshot
   ON audit_log_enhanced(actor_name_snapshot)
   WHERE actor_name_snapshot IS NOT NULL;
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_audit_log_target_name_snapshot
+CREATE INDEX IF NOT EXISTS idx_audit_log_target_name_snapshot
   ON audit_log_enhanced(target_name_snapshot)
   WHERE target_name_snapshot IS NOT NULL;
 
