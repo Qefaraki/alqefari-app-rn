@@ -706,8 +706,23 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   }
 
   const { father, mother, spouses = [], children = [] } = familyData;
-  const activeSpouses = spouses.filter((s) => s.status === 'current' || s.status === 'married');
-  const inactiveSpouses = spouses.filter((s) => s.status !== 'current' && s.status !== 'married');
+
+  // Memoize spouse filtering to prevent unnecessary iterations on every render
+  const { activeSpouses, inactiveSpouses } = useMemo(() => {
+    const active = [];
+    const inactive = [];
+
+    spouses.forEach(s => {
+      if (s.status === 'current' || s.status === 'married') {
+        active.push(s);
+      } else {
+        inactive.push(s);
+      }
+    });
+
+    return { activeSpouses: active, inactiveSpouses: inactive };
+  }, [spouses]);
+
   const parentCount = [father, mother].filter(Boolean).length;
   const spousesTitle = person.gender === 'male' ? 'الزوجات' : 'الأزواج';
   const addSpouseLabel = person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج';

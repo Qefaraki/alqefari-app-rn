@@ -418,4 +418,10 @@ TabGeneral.propTypes = {
   updateField: PropTypes.func.isRequired,
 };
 
-export default TabGeneral;
+// Memoize to prevent re-renders when parent updates but props haven't changed
+export default React.memo(TabGeneral, (prev, next) => {
+  return (
+    prev.form.draft === next.form.draft &&
+    prev.updateField === next.updateField
+  );
+});

@@ -261,4 +261,7 @@ TabDetails.propTypes = {
   updateField: PropTypes.func.isRequired,
 };
 
-export default TabDetails;
+// Memoize to prevent re-renders of inactive tabs
+export default React.memo(TabDetails, (prev, next) => {
+  return prev.form.draft === next.form.draft;
+});

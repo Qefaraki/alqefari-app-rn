@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-
-const clone = (value) => JSON.parse(JSON.stringify(value ?? {}));
+import { fastEqual, deepClone } from './utils/equality';
 
 export const useProfileForm = (person) => {
-  const [original, setOriginal] = useState(() => clone(person));
-  const [draft, setDraft] = useState(() => clone(person));
+  const [original, setOriginal] = useState(() => deepClone(person));
+  const [draft, setDraft] = useState(() => deepClone(person));
   const [touched, setTouched] = useState(() => new Set());
 
   useEffect(() => {
-    setOriginal(clone(person));
-    setDraft(clone(person));
+    setOriginal(deepClone(person));
+    setDraft(deepClone(person));
     setTouched(new Set());
   }, [person?.id, person?.version]); // ✅ React to version changes
 
@@ -28,8 +27,8 @@ export const useProfileForm = (person) => {
   const reset = useCallback(() => {
     // Always reset from current person prop, not cached original
     // This ensures we get latest data even if original hasn't updated yet
-    setOriginal(clone(person));
-    setDraft(clone(person));
+    setOriginal(deepClone(person));
+    setDraft(deepClone(person));
     setTouched(new Set());
   }, [person]);
 
@@ -38,7 +37,8 @@ export const useProfileForm = (person) => {
     for (const key of touched) {
       const originalValue = original?.[key];
       const draftValue = draft?.[key];
-      if (JSON.stringify(originalValue) !== JSON.stringify(draftValue)) {
+      // Fast equality check - primitives first, deep check only if needed
+      if (!fastEqual(originalValue, draftValue)) {
         return true;
       }
     }
@@ -50,7 +50,8 @@ export const useProfileForm = (person) => {
     for (const key of touched) {
       const originalValue = original?.[key];
       const draftValue = draft?.[key];
-      if (JSON.stringify(originalValue) !== JSON.stringify(draftValue)) {
+      // Fast equality check - primitives first, deep check only if needed
+      if (!fastEqual(originalValue, draftValue)) {
         result.add(key);
       }
     }

@@ -308,4 +308,7 @@ TabContact.propTypes = {
   updateField: PropTypes.func.isRequired,
 };
 
-export default TabContact;
+// Memoize to prevent re-renders of inactive tabs
+export default React.memo(TabContact, (prev, next) => {
+  return prev.form.draft === next.form.draft;
+});
