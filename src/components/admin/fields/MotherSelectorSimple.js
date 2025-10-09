@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
-import { getShortNameChain } from "../../ProfileViewer/EditMode/TabFamily";
+import { getShortNameChain } from "../../../utils/nameChainUtils";
 
 // Enable RTL
 I18nManager.forceRTL(true);

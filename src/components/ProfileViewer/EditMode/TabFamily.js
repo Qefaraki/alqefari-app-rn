@@ -22,6 +22,7 @@ import { ProgressiveThumbnail } from '../../ProgressiveImage';
 import useStore from '../../../hooks/useStore';
 import { useFeedbackTimeout } from '../../../hooks/useFeedbackTimeout';
 import { ErrorBoundary } from '../../ErrorBoundary';
+import { getShortNameChain } from '../../../utils/nameChainUtils';
 
 // Reducer for managing all TabFamily state in one place (60% performance improvement)
 const initialState = {
@@ -139,36 +140,6 @@ const getInitials = (name) => {
     return parts[0].slice(0, 2).toUpperCase();
   }
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-};
-
-// Export for reuse in FatherSelectorSimple and other components
-export const getShortNameChain = (profile) => {
-  const rawChain =
-    profile?.lineage_preview ||
-    profile?.name_chain ||
-    profile?.full_name_chain ||
-    profile?.name_chain_snapshot ||
-    profile?.full_name ||
-    null;
-
-  let normalized;
-  if (rawChain) {
-    normalized = rawChain.replace(/\s+/g, ' ').trim();
-  }
-
-  if (!normalized) {
-    const familyName = profile?.family_origin || profile?.family_name || null;
-    if (familyName) {
-      return `${profile?.name || ''} ${familyName}`.trim();
-    }
-    return null;
-  }
-
-  const tokens = normalized.split(' ');
-  if (tokens.length <= 5) {
-    return tokens.join(' ');
-  }
-  return tokens.slice(0, 5).join(' ');
 };
 
 const ParentProfileCard = React.memo(({
@@ -426,26 +397,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     dispatch({ type: 'SET_SPOUSE_FEEDBACK', payload: value })
   );
 
-  const prefetchMotherOptions = useCallback(async (fatherId) => {
-    if (!fatherId) return;
-    dispatch({ type: 'SET_LOADING_MOTHER_OPTIONS', payload: true });
-    try {
-      const { data, error } = await supabase.rpc('get_profile_family_data', {
-        p_profile_id: fatherId,
-      });
-
-      if (error) throw error;
-
-      const spouses = data?.spouses || [];
-      dispatch({ type: 'SET_MOTHER_OPTIONS', payload: spouses });
-    } catch (error) {
-      if (__DEV__) {
-        console.error('Error prefetching mother options:', error);
-      }
-      dispatch({ type: 'SET_MOTHER_OPTIONS', payload: [] });
-    }
-  }, []);
-
+  // Combined loadFamilyData with inline mother options loading (eliminates callback chain)
   const loadFamilyData = useCallback(async (isRefresh = false) => {
     if (!person?.id) return;
 
@@ -480,8 +432,24 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
 
       dispatch({ type: 'SET_FAMILY_DATA', payload: data });
 
+      // Inline mother options loading (eliminates dependency on prefetchMotherOptions)
       if (data?.father?.id) {
-        prefetchMotherOptions(data.father.id);
+        dispatch({ type: 'SET_LOADING_MOTHER_OPTIONS', payload: true });
+        try {
+          const { data: motherData, error: motherError } = await supabase.rpc('get_profile_family_data', {
+            p_profile_id: data.father.id,
+          });
+
+          if (motherError) throw motherError;
+
+          const spouses = motherData?.spouses || [];
+          dispatch({ type: 'SET_MOTHER_OPTIONS', payload: spouses });
+        } catch (motherErr) {
+          if (__DEV__) {
+            console.error('Error loading mother options:', motherErr);
+          }
+          dispatch({ type: 'SET_MOTHER_OPTIONS', payload: [] });
+        }
       } else {
         dispatch({ type: 'SET_MOTHER_OPTIONS', payload: [] });
         dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: false });
@@ -493,7 +461,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       Alert.alert('خطأ', `حدث خطأ أثناء تحميل البيانات: ${err.message}`);
       dispatch({ type: 'SET_FAMILY_DATA', payload: null });
     }
-  }, [person?.id, prefetchMotherOptions]);
+  }, [person?.id]); // Single dependency, no callback chain
 
   const handleRefresh = useCallback(() => {
     loadFamilyData(true);
@@ -1088,6 +1056,7 @@ const SpouseRow = React.memo(
       prev.spouseData.marriage_id === next.spouseData.marriage_id &&
       prev.spouseData.children_count === next.spouseData.children_count &&
       prev.spouseData.spouse_profile?.name === next.spouseData.spouse_profile?.name &&
+      prev.spouseData.spouse_profile?.photo_url === next.spouseData.spouse_profile?.photo_url &&
       prev.inactive === next.inactive
     );
   }
@@ -1148,11 +1117,15 @@ const ChildRow = React.memo(
   },
   (prev, next) => {
     // Only re-render if actual data changed, not callbacks
+    const prevPhotoUrl = prev.child.photo_url || prev.child.profile?.photo_url || null;
+    const nextPhotoUrl = next.child.photo_url || next.child.profile?.photo_url || null;
+
     return (
       prev.child.id === next.child.id &&
       prev.child.name === next.child.name &&
       prev.child.mother_name === next.child.mother_name &&
-      prev.child.birth_year === next.child.birth_year
+      prev.child.birth_year === next.child.birth_year &&
+      prevPhotoUrl === nextPhotoUrl
     );
   }
 );

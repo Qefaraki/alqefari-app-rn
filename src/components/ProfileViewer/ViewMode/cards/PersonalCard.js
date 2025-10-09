@@ -3,31 +3,40 @@ import { View, Text } from 'react-native';
 import InfoCard from '../components/InfoCard';
 import { getTitleLabel } from '../../../../services/professionalTitleService';
 
-const PersonalCard = React.memo(({ person }) => {
-  if (!person) return null;
+const PersonalCard = React.memo(
+  ({ person }) => {
+    if (!person) return null;
 
-  const rows = [
-    person.birth_place ? { label: 'مكان الميلاد', value: person.birth_place } : null,
-    person.family_origin ? { label: 'الأصل العائلي', value: person.family_origin } : null,
-  ].filter(Boolean);
+    const rows = [
+      person.birth_place ? { label: 'مكان الميلاد', value: person.birth_place } : null,
+      person.family_origin ? { label: 'الأصل العائلي', value: person.family_origin } : null,
+    ].filter(Boolean);
 
-  if (rows.length === 0) return null;
+    if (rows.length === 0) return null;
 
-  return (
-    <InfoCard title="المعلومات الشخصية">
-      <View style={styles.grid}>
-        {rows.map((row) => (
-          <View key={row.label} style={styles.gridItem}>
-            <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit>
-              {row.label}
-            </Text>
-            <Text style={styles.value}>{row.value}</Text>
-          </View>
-        ))}
-      </View>
-    </InfoCard>
-  );
-});
+    return (
+      <InfoCard title="المعلومات الشخصية">
+        <View style={styles.grid}>
+          {rows.map((row) => (
+            <View key={row.label} style={styles.gridItem}>
+              <Text style={styles.label} numberOfLines={1} adjustsFontSizeToFit>
+                {row.label}
+              </Text>
+              <Text style={styles.value}>{row.value}</Text>
+            </View>
+          ))}
+        </View>
+      </InfoCard>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if actual data changed (prevents re-render on object reference change)
+    return (
+      prevProps.person?.birth_place === nextProps.person?.birth_place &&
+      prevProps.person?.family_origin === nextProps.person?.family_origin
+    );
+  }
+);
 
 PersonalCard.displayName = 'PersonalCard';
 

@@ -26,45 +26,46 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
   };
 };
 
-const FamilyCard = React.memo(({
-  father,
-  mother,
-  marriages = [],
-  children = [],
-  person,
-  onNavigate,
-  showMarriages,
-}) => {
-  const allMembers = useMemo(() => {
-    const list = [];
+const FamilyCard = React.memo(
+  ({
+    father,
+    mother,
+    marriages = [],
+    children = [],
+    person,
+    onNavigate,
+    showMarriages,
+  }) => {
+    const allMembers = useMemo(() => {
+      const list = [];
 
-    // Add parents first with labels
-    if (father) {
-      list.push({ ...buildRelative(father, { label: 'الوالد' }), type: 'parent' });
-    }
-    if (mother) {
-      list.push({ ...buildRelative(mother, { label: 'الوالدة' }), type: 'parent' });
-    }
+      // Add parents first with labels
+      if (father) {
+        list.push({ ...buildRelative(father, { label: 'الوالد' }), type: 'parent' });
+      }
+      if (mother) {
+        list.push({ ...buildRelative(mother, { label: 'الوالدة' }), type: 'parent' });
+      }
 
-    // Add divider if we have both parents and children
-    if (list.length > 0 && children.length > 0) {
-      list.push({ type: 'divider', key: 'divider' });
-    }
+      // Add divider if we have both parents and children
+      if (list.length > 0 && children.length > 0) {
+        list.push({ type: 'divider', key: 'divider' });
+      }
 
-    // Sort children by sibling_order (0 = oldest)
-    const sortedChildren = [...children].sort((a, b) => {
-      const orderA = a.sibling_order ?? 999;
-      const orderB = b.sibling_order ?? 999;
-      return orderA - orderB;
-    });
+      // Sort children by sibling_order (0 = oldest)
+      const sortedChildren = [...children].sort((a, b) => {
+        const orderA = a.sibling_order ?? 999;
+        const orderB = b.sibling_order ?? 999;
+        return orderA - orderB;
+      });
 
-    // Native RTL mode handles visual direction automatically
-    sortedChildren.forEach(child => {
-      list.push({ ...buildRelative(child, {}), type: 'child' });
-    });
+      // Native RTL mode handles visual direction automatically
+      sortedChildren.forEach(child => {
+        list.push({ ...buildRelative(child, {}), type: 'child' });
+      });
 
-    return list;
-  }, [children, father, mother]);
+      return list;
+    }, [children, father, mother]);
 
   if (allMembers.length === 0) {
     return null;
@@ -132,7 +133,18 @@ const FamilyCard = React.memo(({
       </ScrollView>
     </InfoCard>
   );
-});
+},
+(prevProps, nextProps) => {
+  // Only re-render if family members changed
+  return (
+    prevProps.father?.id === nextProps.father?.id &&
+    prevProps.mother?.id === nextProps.mother?.id &&
+    prevProps.children?.length === nextProps.children?.length &&
+    prevProps.children?.every((child, index) => child.id === nextProps.children?.[index]?.id) &&
+    prevProps.showMarriages === nextProps.showMarriages
+  );
+}
+);
 
 FamilyCard.displayName = 'FamilyCard';
 

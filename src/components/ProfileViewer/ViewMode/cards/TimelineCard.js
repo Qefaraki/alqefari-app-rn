@@ -4,34 +4,54 @@ import InfoCard from '../components/InfoCard';
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { formatYearBySettings } from '../../../../utils/dateUtils';
 
-const TimelineCard = React.memo(({ timeline }) => {
-  const { settings } = useSettings();
+const TimelineCard = React.memo(
+  ({ timeline }) => {
+    const { settings } = useSettings();
 
-  if (!Array.isArray(timeline) || timeline.length === 0) {
-    return null;
-  }
+    if (!Array.isArray(timeline) || timeline.length === 0) {
+      return null;
+    }
 
-  return (
-    <InfoCard title="الخط الزمني">
-      <View style={{ gap: 12 }}>
-        {timeline.map((event, index) => {
-          const formattedYear = formatYearBySettings(event.year, settings);
-          return (
-            <View key={`${event.year}-${index}`} style={styles.eventRow}>
-              <Text style={styles.year}>{formattedYear}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.title}>{event.event}</Text>
-                {event.description ? (
-                  <Text style={styles.description}>{event.description}</Text>
-                ) : null}
+    return (
+      <InfoCard title="الخط الزمني">
+        <View style={{ gap: 12 }}>
+          {timeline.map((event, index) => {
+            const formattedYear = formatYearBySettings(event.year, settings);
+            return (
+              <View key={`${event.year}-${index}`} style={styles.eventRow}>
+                <Text style={styles.year}>{formattedYear}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.title}>{event.event}</Text>
+                  {event.description ? (
+                    <Text style={styles.description}>{event.description}</Text>
+                  ) : null}
+                </View>
               </View>
-            </View>
-          );
-        })}
-      </View>
-    </InfoCard>
-  );
-});
+            );
+          })}
+        </View>
+      </InfoCard>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Only re-render if timeline array changed
+    const prevTimeline = prevProps.timeline;
+    const nextTimeline = nextProps.timeline;
+
+    // Fast check: different lengths = different content
+    if (prevTimeline?.length !== nextTimeline?.length) return false;
+
+    // Deep compare timeline events
+    return prevTimeline?.every((event, index) => {
+      const nextEvent = nextTimeline?.[index];
+      return (
+        event.year === nextEvent?.year &&
+        event.event === nextEvent?.event &&
+        event.description === nextEvent?.description
+      );
+    }) ?? true;
+  }
+);
 
 TimelineCard.displayName = 'TimelineCard';
 

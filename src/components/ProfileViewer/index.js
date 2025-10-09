@@ -169,7 +169,18 @@ const ViewModeContent = React.memo(({
     <TimelineCard timeline={person?.timeline} />
     <PhotosCard person={person} accessMode={accessMode} />
   </BottomSheetScrollView>
-));
+), (prevProps, nextProps) => {
+  // Custom comparator - only re-render when actual data changes
+  return (
+    prevProps.person?.id === nextProps.person?.id &&
+    prevProps.bioExpanded === nextProps.bioExpanded &&
+    prevProps.loadingStates?.permissions === nextProps.loadingStates?.permissions &&
+    prevProps.loadingStates?.marriages === nextProps.loadingStates?.marriages &&
+    prevProps.pending?.length === nextProps.pending?.length &&
+    prevProps.isAdminMode === nextProps.isAdminMode &&
+    prevProps.accessMode === nextProps.accessMode
+  );
+});
 ViewModeContent.displayName = 'ViewModeContent';
 
 // Memoized EditMode component - prevents recreation on every render (50% performance gain)
@@ -504,24 +515,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     }
   }, [canEdit, person, onUpdate, compressImage]);
 
-  // Memoize menu options to prevent array recreation on every press
-  const menuOptions = useMemo(() => {
-    const options = [
-      canEdit
-        ? {
-            text: 'تحرير الملف',
-            onPress: () => handleEditPress(),
-          }
-        : null,
-      { text: 'إغلاق', style: 'cancel' },
-    ];
-    return options.filter(Boolean);
-  }, [canEdit, handleEditPress]);
-
-  const handleMenuPress = useCallback(() => {
-    Alert.alert(person?.name || 'الملف', 'اختر الإجراء', menuOptions);
-  }, [menuOptions, person]);
-
+  // Define edit mode handlers before menuOptions to prevent stale closure
   const enterEditMode = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     form.reset();
@@ -543,6 +537,24 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
 
     enterEditMode();
   }, [accessMode, canEdit, enterEditMode, rememberChoice]);
+
+  // Memoize menu options to prevent array recreation on every press
+  const menuOptions = useMemo(() => {
+    const options = [
+      canEdit
+        ? {
+            text: 'تحرير الملف',
+            onPress: handleEditPress,  // Direct reference instead of arrow function
+          }
+        : null,
+      { text: 'إغلاق', style: 'cancel' },
+    ];
+    return options.filter(Boolean);
+  }, [canEdit, handleEditPress]);
+
+  const handleMenuPress = useCallback(() => {
+    Alert.alert(person?.name || 'الملف', 'اختر الإجراء', menuOptions);
+  }, [menuOptions, person]);
 
   const exitEditMode = useCallback(() => {
     setMode('view');
