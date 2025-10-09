@@ -169,6 +169,21 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       const husband_id = person.gender === "male" ? person.id : selectedSpouse.id;
       const wife_id = person.gender === "female" ? person.id : selectedSpouse.id;
 
+      // Safety: Check for duplicate marriage
+      const { data: existingMarriage } = await supabase
+        .from('marriages')
+        .select('id')
+        .eq('husband_id', husband_id)
+        .eq('wife_id', wife_id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (existingMarriage) {
+        Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
+        setSubmitting(false);
+        return;
+      }
+
       // CRITICAL FIX: Cousin marriage handling
       // If selectedSpouse has HID (is Al-Qefari), munasib must be NULL
       // If selectedSpouse has no HID (is munasib), use family_origin
@@ -218,6 +233,22 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       // Create marriage
       const husband_id = person.gender === "male" ? person.id : newPerson.id;
       const wife_id = person.gender === "female" ? person.id : newPerson.id;
+
+      // Safety: Check for duplicate marriage
+      const { data: existingMarriage } = await supabase
+        .from('marriages')
+        .select('id')
+        .eq('husband_id', husband_id)
+        .eq('wife_id', wife_id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (existingMarriage) {
+        Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
+        setSubmitting(false);
+        setStage("INPUT");
+        return;
+      }
 
       const { data: marriage, error: marriageError } =
         await profilesService.createMarriage({

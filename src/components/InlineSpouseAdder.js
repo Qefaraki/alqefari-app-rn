@@ -37,10 +37,33 @@ export default function InlineSpouseAdder({
   const heightSV = useSharedValue(0);
   const opacitySV = useSharedValue(0);
   const inputRef = useRef(null);
+  const collapseTimeoutRef = useRef(null);
+  const abortControllerRef = useRef(null);
+
+  // Cleanup: Abort in-flight requests on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
-    if (visible) expand();
-    else collapse();
+    if (visible) {
+      expand();
+    } else {
+      collapse();
+    }
+
+    // Cleanup: Clear collapse timeout on unmount or visibility change
+    return () => {
+      if (collapseTimeoutRef.current) {
+        clearTimeout(collapseTimeoutRef.current);
+        collapseTimeoutRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
@@ -62,16 +85,29 @@ export default function InlineSpouseAdder({
     Keyboard.dismiss();
     heightSV.value = withTiming(0, { duration: 160 });
     opacitySV.value = withTiming(0, { duration: 140 });
+
+    // Clear any existing timeout
+    if (collapseTimeoutRef.current) {
+      clearTimeout(collapseTimeoutRef.current);
+    }
+
     // Hide after the closing animation
-    setTimeout(() => {
+    collapseTimeoutRef.current = setTimeout(() => {
       setIsExpanded(false);
       setSpouseName("");
+      collapseTimeoutRef.current = null;
     }, 180);
   };
 
   const handleSave = async () => {
     const trimmedName = spouseName.trim();
     if (!trimmedName) return;
+
+    // Safety: Validate person prop exists
+    if (!person || !person.gender || !person.id) {
+      Alert.alert("خطأ", "معلومات الملف الشخصي غير متوفرة. يرجى إعادة المحاولة.");
+      return;
+    }
 
     // Validate minimum 2 words (name + surname)
     const words = trimmedName.split(/\s+/);
@@ -81,7 +117,7 @@ export default function InlineSpouseAdder({
     }
 
     // Determine spouse gender
-    const spouseGender = person?.gender === "male" ? "female" : "male";
+    const spouseGender = person.gender === "male" ? "female" : "male";
 
     // SMART DETECTION: Check if Al-Qefari family member
     const parsed = familyNameService.parseFullName(trimmedName, spouseGender);
@@ -110,6 +146,11 @@ export default function InlineSpouseAdder({
 
     // Non-Al-Qefari → Create munasib inline
     setLoading(true);
+
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       // Extract family origin from spouse name
       const familyOrigin = parsed.familyOrigin || parsed.familyName;
@@ -133,6 +174,9 @@ export default function InlineSpouseAdder({
           p_phone: null,
         });
 
+      // Check if request was aborted
+      if (signal.aborted) return;
+
       if (createError) throw createError;
       if (!newSpouse?.id) throw new Error("Failed to create spouse profile");
 
@@ -149,6 +193,9 @@ export default function InlineSpouseAdder({
         .is('deleted_at', null)
         .maybeSingle();
 
+      // Check if request was aborted
+      if (signal.aborted) return;
+
       if (existingMarriage) {
         Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
         setLoading(false);
@@ -161,18 +208,33 @@ export default function InlineSpouseAdder({
         munasib: familyOrigin, // FIXED: Use string (not boolean)
       });
 
+      // Check if request was aborted
+      if (signal.aborted) return;
+
       if (marriageError) throw marriageError;
 
       if (onAdded) onAdded();
       collapse();
     } catch (error) {
-      console.error("Error adding spouse:", error);
+      // Silently ignore aborted requests
+      if (error.name === 'AbortError') {
+        return;
+      }
+
+      if (__DEV__) {
+        console.error("Error adding spouse:", error);
+      }
+
       Alert.alert(
         "خطأ",
         error.message || "فشل في إضافة الزوج/الزوجة. تحقق من البيانات وحاول مرة أخرى."
       );
     } finally {
       setLoading(false);
+      // Clean up abort controller
+      if (abortControllerRef.current) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
