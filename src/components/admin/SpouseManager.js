@@ -8,98 +8,162 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  ScrollView,
   Alert,
+  Image,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
-import { buildNameChain } from "../../utils/nameChainBuilder";
 import { familyNameService } from "../../services/familyNameService";
+import tokens from "../ui/tokens";
+
+/**
+ * SpouseManager - Redesigned with single-input simplicity
+ *
+ * Flow:
+ * 1. User enters full name: "فاطمة بنت محمد العتيبي"
+ * 2. System parses surname on submit
+ * 3. If Al-Qefari → Search tree first
+ * 4. If non-Qefari → Confirm and create munasib
+ * 5. Success animation → auto-dismiss
+ */
 
 export default function SpouseManager({ visible, person, onClose, onSpouseAdded }) {
-  const [mode, setMode] = useState("search"); // 'search' or 'create'
-  const [searchQuery, setSearchQuery] = useState("");
+  // Simplified 4-state machine (not 7)
+  const [stage, setStage] = useState("INPUT"); // INPUT, SEARCH, CREATE, SUCCESS
+  const [fullName, setFullName] = useState("");
+  const [parsedData, setParsedData] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [selectedSpouse, setSelectedSpouse] = useState(null);
-  const [newSpouseName, setNewSpouseName] = useState("");
-  const [newSpousePhone, setNewSpousePhone] = useState("");
+  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Get the appropriate gender for spouse
+  // Get appropriate gender for spouse
   const spouseGender = person?.gender === "male" ? "female" : "male";
   const spouseTitle = spouseGender === "female" ? "الزوجة" : "الزوج";
+  const genderMarker = spouseGender === "female" ? "بنت" : "بن";
 
+  // Reset state when modal opens
   useEffect(() => {
     if (visible) {
-      // Reset state when modal opens
-      setMode("search");
-      setSearchQuery("");
+      setStage("INPUT");
+      setFullName("");
+      setParsedData(null);
       setSearchResults([]);
       setSelectedSpouse(null);
-      setNewSpouseName("");
-      setNewSpousePhone("");
     }
   }, [visible]);
 
-  useEffect(() => {
-    if (mode === "search" && searchQuery.length >= 2) {
-      const timer = setTimeout(() => performSearch(), 300);
-      return () => clearTimeout(timer);
-    } else {
-      setSearchResults([]);
+  // Handle name submission with validation and smart detection
+  const handleSubmit = async () => {
+    // Validate: minimum 2 words (name + surname)
+    const words = fullName.trim().split(/\s+/);
+    if (words.length < 2) {
+      Alert.alert("خطأ", "يرجى إدخال الاسم الكامل مع اسم العائلة");
+      return;
     }
-  }, [searchQuery, mode]);
 
-  const performSearch = async () => {
-    if (!searchQuery.trim()) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // Parse name components
+    const parsed = familyNameService.parseFullName(fullName.trim(), spouseGender);
+    setParsedData(parsed);
+
+    // Branch based on surname
+    if (familyNameService.isAlQefariFamily(parsed.familyName)) {
+      // Al-Qefari: Always search first (even if no results)
+      await performSearch(parsed);
+    } else {
+      // Non-Qefari: Confirm munasib creation
+      confirmMunasibCreation(parsed);
+    }
+  };
+
+  // Search for Al-Qefari family members
+  const performSearch = async (parsed) => {
+    setStage("SEARCH");
     setLoading(true);
+
     try {
+      // Build search query from first name only (not full chain)
+      const searchQuery = parsed.firstName;
+
       const { data, error } = await profilesService.searchProfiles(
-        searchQuery.trim(),
+        searchQuery,
         20,
         0
       );
 
       if (error) throw error;
 
-      // Filter by gender and exclude current person
+      // Filter to:
+      // 1. Correct gender
+      // 2. Has HID (Al-Qefari only, not munasib)
+      // 3. Not current person
       const filtered = (data || [])
         .filter(p => p.gender === spouseGender)
-        .filter(p => p.id !== person?.id);
+        .filter(p => p.hid !== null) // Only Al-Qefari members
+        .filter(p => p.id !== person?.id)
+        .slice(0, 8); // Max 8 results
 
       setSearchResults(filtered);
     } catch (error) {
       console.error("Search error:", error);
-      setSearchResults([]);
+      Alert.alert("خطأ", "فشل البحث في الشجرة");
+      setStage("INPUT");
     } finally {
       setLoading(false);
     }
   };
 
+  // Confirm munasib creation for non-Al-Qefari
+  const confirmMunasibCreation = (parsed) => {
+    Alert.alert(
+      "تأكيد الإضافة",
+      `هل تريد إضافة ${parsed.firstName} من عائلة ${parsed.familyName}؟`,
+      [
+        {
+          text: "إلغاء",
+          style: "cancel",
+          onPress: () => setStage("INPUT"),
+        },
+        {
+          text: "نعم",
+          onPress: () => {
+            setStage("CREATE");
+            createMunasib(parsed);
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle selecting a search result
   const handleSelectSpouse = (spouse) => {
     setSelectedSpouse(spouse);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const handleLinkExistingSpouse = async () => {
-    if (!selectedSpouse) {
-      Alert.alert("تنبيه", `يرجى اختيار ${spouseTitle}`);
-      return;
-    }
+  // Link existing Al-Qefari profile
+  const handleLinkSpouse = async () => {
+    if (!selectedSpouse) return;
 
     setSubmitting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
     try {
       const husband_id = person.gender === "male" ? person.id : selectedSpouse.id;
       const wife_id = person.gender === "female" ? person.id : selectedSpouse.id;
 
-      // Determine munasib value: If spouse has hid (Al-Qefari), munasib is null
-      // If spouse doesn't have hid (Munasib), use their family_origin
-      const munasibValue = selectedSpouse.hid ? null : (selectedSpouse.family_origin || null);
+      // CRITICAL FIX: Cousin marriage handling
+      // If selectedSpouse has HID (is Al-Qefari), munasib must be NULL
+      // If selectedSpouse has no HID (is munasib), use family_origin
+      const munasibValue = selectedSpouse.hid !== null
+        ? null  // Al-Qefari member (cousin marriage)
+        : (selectedSpouse.family_origin || null);  // Munasib
 
       const { data, error } = await profilesService.createMarriage({
         husband_id,
@@ -109,47 +173,38 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
 
       if (error) throw error;
 
-      Alert.alert("نجح", "تم إضافة الزواج بنجاح");
-      if (onSpouseAdded) onSpouseAdded(data);
-      onClose();
+      // Success!
+      setStage("SUCCESS");
+      setTimeout(() => {
+        if (onSpouseAdded) onSpouseAdded(data);
+        onClose();
+      }, 1500); // Auto-dismiss after 1.5s
     } catch (error) {
       Alert.alert("خطأ", error.message || "حدث خطأ أثناء إضافة الزواج");
-    } finally {
       setSubmitting(false);
     }
   };
 
-  const handleCreateNewSpouse = async () => {
-    if (!newSpouseName.trim()) {
-      Alert.alert("تنبيه", "يرجى إدخال اسم كامل");
-      return;
-    }
-
-    // Extract family origin from the name
-    const familyOrigin = familyNameService.extractFamilyName(newSpouseName.trim());
-    if (!familyOrigin) {
-      Alert.alert("تنبيه", "يرجى إدخال اسم العائلة");
-      return;
-    }
-
+  // Create new munasib profile
+  const createMunasib = async (parsed) => {
     setSubmitting(true);
+
     try {
-      // Create new Munasib profile using secure RPC function
-      // This ensures proper permissions and audit logging
+      // Create munasib profile using secure RPC
       const { data: newPerson, error: createError } = await supabase
         .rpc('admin_create_munasib_profile', {
-          p_name: newSpouseName.trim(),
+          p_name: fullName.trim(),
           p_gender: spouseGender,
           p_generation: person.generation,
-          p_family_origin: familyOrigin,
+          p_family_origin: parsed.familyOrigin || parsed.familyName,
           p_sibling_order: 0,
           p_status: 'alive',
-          p_phone: newSpousePhone.trim() || null,
+          p_phone: null,
         });
 
       if (createError) throw createError;
 
-      // Create the marriage
+      // Create marriage
       const husband_id = person.gender === "male" ? person.id : newPerson.id;
       const wife_id = person.gender === "female" ? person.id : newPerson.id;
 
@@ -157,48 +212,238 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
         await profilesService.createMarriage({
           husband_id,
           wife_id,
-          munasib: familyOrigin, // Store family origin for Munasib
+          munasib: parsed.familyOrigin || parsed.familyName,
         });
 
       if (marriageError) throw marriageError;
 
-      Alert.alert("نجح", `تم إضافة ${spouseTitle} بنجاح`);
-      if (onSpouseAdded) onSpouseAdded(marriage);
-      onClose();
+      // Success!
+      setStage("SUCCESS");
+      setTimeout(() => {
+        if (onSpouseAdded) onSpouseAdded(marriage);
+        onClose();
+      }, 1500);
     } catch (error) {
       Alert.alert("خطأ", error.message || "حدث خطأ أثناء الإضافة");
-    } finally {
+      setStage("INPUT");
       setSubmitting(false);
     }
   };
 
+  // Handle "add as new" from empty search results
+  const handleAddAsNew = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    Alert.alert(
+      "إضافة كشخص جديد",
+      `هل تريد إضافة ${parsedData?.firstName} كشخص جديد على الشجرة؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "نعم",
+          onPress: () => {
+            setStage("CREATE");
+            createMunasib(parsedData);
+          },
+        },
+      ]
+    );
+  };
+
+  // Render search result card (ParentProfileCard pattern)
   const renderSearchResult = ({ item }) => {
     const isSelected = selectedSpouse?.id === item.id;
+    const initials = item.name ? item.name.split(" ")[0].charAt(0) : "؟";
 
     return (
       <TouchableOpacity
         style={[styles.resultCard, isSelected && styles.resultCardSelected]}
         onPress={() => handleSelectSpouse(item)}
-        activeOpacity={0.7}
+        activeOpacity={0.85}
       >
-        <View style={styles.resultContent}>
-          <View style={styles.resultInfo}>
-            <Text style={styles.resultName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            {item.hid && (
-              <Text style={styles.resultHid}>
-                HID: {item.hid}
-              </Text>
-            )}
-          </View>
-          {isSelected && (
-            <Ionicons name="checkmark-circle" size={24} color="#A13333" />
+        <View style={styles.resultAvatar}>
+          {item.photo_url ? (
+            <Image
+              source={{ uri: item.photo_url }}
+              style={styles.resultAvatarImage}
+            />
+          ) : (
+            <View style={styles.resultAvatarFallback}>
+              <Text style={styles.resultAvatarInitial}>{initials}</Text>
+            </View>
           )}
         </View>
+
+        <View style={styles.resultInfo}>
+          <Text style={styles.resultName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {/* Display father name with gender marker ONCE */}
+          {item.father_name && (
+            <Text style={styles.resultChain} numberOfLines={1}>
+              {genderMarker} {item.father_name}
+            </Text>
+          )}
+          {/* Display generation */}
+          <Text style={styles.resultGeneration}>
+            الجيل {item.generation || "؟"}
+          </Text>
+        </View>
+
+        {isSelected && (
+          <Ionicons
+            name="checkmark-circle"
+            size={24}
+            color={tokens.colors.najdi.primary}
+          />
+        )}
       </TouchableOpacity>
     );
   };
+
+  // Render INPUT stage
+  const renderInputStage = () => (
+    <View style={styles.stageContainer}>
+      <View style={styles.iconContainer}>
+        <Ionicons
+          name="moon"
+          size={32}
+          color={tokens.colors.najdi.secondary}
+        />
+      </View>
+
+      <Text style={styles.questionText}>ما اسم {spouseTitle} الكاملة؟</Text>
+
+      <TextInput
+        style={styles.nameInput}
+        placeholder={`مثال: فاطمة ${genderMarker} محمد العتيبي`}
+        value={fullName}
+        onChangeText={setFullName}
+        placeholderTextColor={tokens.colors.najdi.text + "40"}
+        autoFocus
+        returnKeyType="done"
+        onSubmitEditing={handleSubmit}
+      />
+
+      <Text style={styles.hintText}>
+        يجب أن يتضمن الاسم اسم العائلة
+      </Text>
+
+      <View style={{ flex: 1 }} />
+
+      <TouchableOpacity
+        style={[
+          styles.primaryButton,
+          fullName.trim().length < 3 && styles.buttonDisabled,
+        ]}
+        onPress={handleSubmit}
+        disabled={fullName.trim().length < 3}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.primaryButtonText}>التالي</Text>
+        <Ionicons name="arrow-back" size={20} color={tokens.colors.surface} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Render SEARCH stage
+  const renderSearchStage = () => (
+    <View style={styles.stageContainer}>
+      <View style={styles.searchHeader}>
+        <TouchableOpacity
+          onPress={() => setStage("INPUT")}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-forward" size={24} color={tokens.colors.najdi.text} />
+          <Text style={styles.backButtonText}>رجوع</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.searchTitle}>
+        نتائج البحث عن: {parsedData?.firstName}
+      </Text>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+          <Text style={styles.loadingText}>جاري البحث...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={searchResults}
+          renderItem={renderSearchResult}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.resultsList}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name="search-outline"
+                size={48}
+                color={tokens.colors.najdi.textMuted}
+              />
+              <Text style={styles.emptyText}>لا توجد نتائج</Text>
+              <Text style={styles.emptyHint}>
+                لم نجد {spouseTitle} بهذا الاسم في الشجرة
+              </Text>
+              <TouchableOpacity
+                style={styles.addNewButton}
+                onPress={handleAddAsNew}
+              >
+                <Text style={styles.addNewButtonText}>
+                  إضافة كشخص جديد
+                </Text>
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={tokens.colors.najdi.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          }
+        />
+      )}
+
+      {selectedSpouse && !loading && (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+            onPress={handleLinkSpouse}
+            disabled={submitting}
+            activeOpacity={0.8}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={tokens.colors.surface} />
+            ) : (
+              <Text style={styles.primaryButtonText}>ربط الزواج</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+
+  // Render CREATE stage (loading)
+  const renderCreateStage = () => (
+    <View style={styles.stageContainer}>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+        <Text style={styles.loadingText}>جاري الإضافة...</Text>
+      </View>
+    </View>
+  );
+
+  // Render SUCCESS stage
+  const renderSuccessStage = () => (
+    <View style={styles.stageContainer}>
+      <View style={styles.successContainer}>
+        <View style={styles.successIconContainer}>
+          <Ionicons name="checkmark-circle" size={120} color="#34C759" />
+        </View>
+        <Text style={styles.successTitle}>تم إضافة {spouseTitle} بنجاح</Text>
+      </View>
+    </View>
+  );
 
   return (
     <Modal
@@ -211,7 +456,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="#242121" />
+            <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
           </TouchableOpacity>
           <Text style={styles.title}>إضافة {spouseTitle}</Text>
           <View style={{ width: 28 }} />
@@ -219,179 +464,15 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
 
         {/* Person Info */}
         <View style={styles.personInfo}>
+          <Text style={styles.personSubtext}>إضافة {spouseTitle} لـ</Text>
           <Text style={styles.personName}>{person?.name}</Text>
-          <Text style={styles.personSubtext}>
-            إضافة {spouseTitle} لـ
-          </Text>
         </View>
 
-        {/* Mode Toggle */}
-        <View style={styles.modeToggle}>
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              mode === "search" && styles.modeButtonActive,
-            ]}
-            onPress={() => setMode("search")}
-          >
-            <Ionicons
-              name="search"
-              size={20}
-              color={mode === "search" ? "#F9F7F3" : "#242121"}
-            />
-            <Text
-              style={[
-                styles.modeButtonText,
-                mode === "search" && styles.modeButtonTextActive,
-              ]}
-            >
-              بحث عن موجود
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.modeButton,
-              mode === "create" && styles.modeButtonActive,
-            ]}
-            onPress={() => setMode("create")}
-          >
-            <Ionicons
-              name="person-add"
-              size={20}
-              color={mode === "create" ? "#F9F7F3" : "#242121"}
-            />
-            <Text
-              style={[
-                styles.modeButtonText,
-                mode === "create" && styles.modeButtonTextActive,
-              ]}
-            >
-              إضافة جديد
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search Mode */}
-        {mode === "search" && (
-          <View style={styles.content}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color="#24212160" />
-              <TextInput
-                style={styles.searchInput}
-                placeholder={`ابحث عن ${spouseTitle}...`}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholderTextColor="#24212160"
-                autoFocus
-              />
-              {searchQuery !== "" && (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Ionicons name="close-circle" size={20} color="#24212160" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#A13333" />
-              </View>
-            ) : (
-              <FlatList
-                data={searchResults}
-                renderItem={renderSearchResult}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.resultsList}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  searchQuery.length >= 2 && (
-                    <View style={styles.emptyContainer}>
-                      <Ionicons name="search-outline" size={48} color="#24212140" />
-                      <Text style={styles.emptyText}>لا توجد نتائج</Text>
-                      <TouchableOpacity
-                        style={styles.switchModeButton}
-                        onPress={() => {
-                          setMode("create");
-                          setNewSpouseName(searchQuery);
-                        }}
-                      >
-                        <Text style={styles.switchModeText}>
-                          إضافة "{searchQuery}" كشخص جديد
-                        </Text>
-                        <Ionicons name="arrow-forward" size={20} color="#A13333" />
-                      </TouchableOpacity>
-                    </View>
-                  )
-                }
-              />
-            )}
-
-            {selectedSpouse && (
-              <View style={styles.footer}>
-                <TouchableOpacity
-                  style={[styles.primaryButton, submitting && styles.buttonDisabled]}
-                  onPress={handleLinkExistingSpouse}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator size="small" color="#F9F7F3" />
-                  ) : (
-                    <Text style={styles.primaryButtonText}>ربط الزواج</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Create Mode */}
-        {mode === "create" && (
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>الاسم الكامل</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="مثال: فاطمة بنت محمد العتيبي"
-                  value={newSpouseName}
-                  onChangeText={setNewSpouseName}
-                  placeholderTextColor="#24212160"
-                  autoFocus
-                />
-                <Text style={styles.inputHint}>
-                  يجب أن يتضمن الاسم اسم العائلة
-                </Text>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>رقم الهاتف (اختياري)</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="05XXXXXXXX"
-                  value={newSpousePhone}
-                  onChangeText={setNewSpousePhone}
-                  placeholderTextColor="#24212160"
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </View>
-
-            <View style={styles.footer}>
-              <TouchableOpacity
-                style={[styles.primaryButton, submitting && styles.buttonDisabled]}
-                onPress={handleCreateNewSpouse}
-                disabled={submitting || !newSpouseName.trim()}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#F9F7F3" />
-                ) : (
-                  <Text style={styles.primaryButtonText}>
-                    إضافة {spouseTitle}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        )}
+        {/* Stage Content */}
+        {stage === "INPUT" && renderInputStage()}
+        {stage === "SEARCH" && renderSearchStage()}
+        {stage === "CREATE" && renderCreateStage()}
+        {stage === "SUCCESS" && renderSuccessStage()}
       </SafeAreaView>
     </Modal>
   );
@@ -400,213 +481,281 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F7F3",
+    backgroundColor: tokens.colors.najdi.background,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#D1BBA340",
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: tokens.colors.najdi.container + "40",
   },
   closeButton: {
-    padding: 4,
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 20,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: "#242121",
+    color: tokens.colors.najdi.text,
   },
   personInfo: {
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: "#D1BBA310",
-  },
-  personName: {
-    fontSize: 18,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: "#242121",
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    backgroundColor: tokens.colors.najdi.container + "10",
   },
   personSubtext: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: "SF Arabic",
-    color: "#24212199",
-    marginTop: 4,
+    color: tokens.colors.najdi.textMuted,
+    marginBottom: tokens.spacing.xxs,
   },
-  modeToggle: {
-    flexDirection: "row",
-    padding: 16,
-    gap: 12,
+  personName: {
+    fontSize: 17,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.text,
   },
-  modeButton: {
+
+  // Stage Container
+  stageContainer: {
     flex: 1,
-    flexDirection: "row",
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.xl,
+  },
+
+  // INPUT Stage
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: tokens.colors.najdi.secondary + "15",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: "#D1BBA320",
-    borderWidth: 1,
-    borderColor: "transparent",
+    alignSelf: "center",
+    marginBottom: tokens.spacing.lg,
   },
-  modeButtonActive: {
-    backgroundColor: "#A13333",
-    borderColor: "#A13333",
-  },
-  modeButtonText: {
-    fontSize: 15,
+  questionText: {
+    fontSize: 20,
+    fontWeight: "600",
     fontFamily: "SF Arabic",
-    fontWeight: "500",
-    color: "#242121",
+    color: tokens.colors.najdi.text,
+    textAlign: "center",
+    marginBottom: tokens.spacing.xl,
   },
-  modeButtonTextActive: {
-    color: "#F9F7F3",
+  nameInput: {
+    backgroundColor: tokens.colors.najdi.container + "20",
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + "40",
+    borderRadius: tokens.radii.md,
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
+    fontSize: 17,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.text,
+    minHeight: 52,
+    textAlign: "right",
   },
-  content: {
-    flex: 1,
+  hintText: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.textMuted,
+    textAlign: "center",
+    marginTop: tokens.spacing.xs,
   },
-  searchBar: {
+
+  // SEARCH Stage
+  searchHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#D1BBA320",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 44,
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: tokens.spacing.lg,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.xs,
+  },
+  backButtonText: {
+    fontSize: 15,
     fontFamily: "SF Arabic",
-    marginHorizontal: 8,
-    color: "#242121",
+    color: tokens.colors.najdi.text,
+  },
+  searchTitle: {
+    fontSize: 15,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.textMuted,
+    marginBottom: tokens.spacing.md,
   },
   resultsList: {
-    paddingHorizontal: 16,
     paddingBottom: 100,
   },
   resultCard: {
-    backgroundColor: "#F9F7F3",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D1BBA340",
-    marginBottom: 8,
-    overflow: "hidden",
-  },
-  resultCardSelected: {
-    borderColor: "#A13333",
-    backgroundColor: "#A1333308",
-  },
-  resultContent: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + "33",
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.md,
+    marginBottom: tokens.spacing.sm,
+    gap: tokens.spacing.md,
+  },
+  resultCardSelected: {
+    borderColor: tokens.colors.najdi.primary,
+    borderWidth: 2,
+    backgroundColor: tokens.colors.najdi.primary + "08",
+  },
+  resultAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: tokens.colors.najdi.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + "40",
+    overflow: "hidden",
+  },
+  resultAvatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 28,
+  },
+  resultAvatarFallback: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: tokens.colors.najdi.container + "40",
+  },
+  resultAvatarInitial: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: tokens.colors.najdi.text,
   },
   resultInfo: {
     flex: 1,
+    gap: tokens.spacing.xxs,
   },
   resultName: {
-    fontSize: 16,
+    fontSize: 17,
+    fontWeight: "600",
     fontFamily: "SF Arabic",
-    fontWeight: "500",
-    color: "#242121",
+    color: tokens.colors.najdi.text,
   },
-  resultHid: {
+  resultChain: {
     fontSize: 13,
     fontFamily: "SF Arabic",
-    color: "#24212160",
-    marginTop: 2,
+    color: tokens.colors.najdi.textMuted,
+    lineHeight: 18,
   },
+  resultGeneration: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.textMuted,
+  },
+
+  // Empty State
+  emptyContainer: {
+    alignItems: "center",
+    paddingTop: 60,
+  },
+  emptyText: {
+    fontSize: 17,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
+    color: tokens.colors.najdi.text,
+    marginTop: tokens.spacing.md,
+  },
+  emptyHint: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.textMuted,
+    marginTop: tokens.spacing.xs,
+    textAlign: "center",
+  },
+  addNewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.xs,
+    marginTop: tokens.spacing.xl,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.lg,
+    backgroundColor: tokens.colors.najdi.primary + "10",
+    borderRadius: tokens.radii.sm,
+  },
+  addNewButtonText: {
+    fontSize: 15,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
+    color: tokens.colors.najdi.primary,
+  },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingTop: 100,
   },
-  emptyContainer: {
-    alignItems: "center",
-    paddingTop: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontFamily: "SF Arabic",
-    color: "#24212160",
-    marginTop: 16,
-  },
-  switchModeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    backgroundColor: "#A1333310",
-    borderRadius: 10,
-  },
-  switchModeText: {
+  loadingText: {
     fontSize: 15,
     fontFamily: "SF Arabic",
-    color: "#A13333",
-    fontWeight: "500",
+    color: tokens.colors.najdi.textMuted,
+    marginTop: tokens.spacing.md,
   },
-  form: {
-    padding: 16,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontFamily: "SF Arabic",
-    fontWeight: "500",
-    color: "#242121",
-    marginBottom: 8,
-  },
-  textInput: {
-    backgroundColor: "#D1BBA320",
-    borderWidth: 1,
-    borderColor: "#D1BBA340",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontFamily: "SF Arabic",
-    color: "#242121",
-  },
-  inputHint: {
-    fontSize: 12,
-    fontFamily: "SF Arabic",
-    color: "#24212160",
-    marginTop: 6,
-  },
-  footer: {
-    padding: 16,
-    paddingBottom: 24,
-  },
-  primaryButton: {
-    backgroundColor: "#A13333",
-    borderRadius: 10,
-    paddingVertical: 14,
+
+  // Success
+  successContainer: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
+  },
+  successIconContainer: {
+    marginBottom: tokens.spacing.xl,
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.text,
+  },
+
+  // Footer
+  footer: {
+    padding: tokens.spacing.md,
+    paddingBottom: tokens.spacing.xl,
+  },
+  primaryButton: {
+    backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: tokens.radii.sm,
+    paddingVertical: 14,
+    paddingHorizontal: tokens.spacing.xxl,
+    minHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
+    shadowColor: tokens.colors.najdi.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   primaryButtonText: {
-    color: "#F9F7F3",
+    color: tokens.colors.surface,
     fontSize: 16,
     fontWeight: "600",
     fontFamily: "SF Arabic",
   },
   buttonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
 });

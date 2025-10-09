@@ -186,6 +186,30 @@ const formatValue = (value) => {
   return String(value);
 };
 
+// Helper: Check if two name chains represent the same person
+// Handles old 3-level chains vs new full chains by comparing segments
+const isNameChainEquivalent = (historical, current) => {
+  const h = historical?.trim();
+  const c = current?.trim();
+
+  if (!h || !c) return false;
+  if (h === c) return true; // Fast path for exact match
+
+  // Split by "بن" (bin) and compare overlapping segments
+  const hParts = h.split(' بن ').map(p => p.trim());
+  const cParts = c.split(' بن ').map(p => p.trim());
+  const minLength = Math.min(hParts.length, cParts.length);
+
+  // ALL segments must match for same person
+  for (let i = 0; i < minLength; i++) {
+    if (hParts[i] !== cParts[i]) {
+      return false; // Different person or name was edited
+    }
+  }
+
+  return true; // Same person (one chain is just longer)
+};
+
 // Smart Name Display Component - Shows historical + current names with navigation
 const SmartNameDisplay = React.memo(({
   historicalName,
@@ -200,19 +224,20 @@ const SmartNameDisplay = React.memo(({
   const normalizedHistorical = historicalName?.trim() || null;
   const normalizedCurrent = currentName?.trim() || null;
 
+  // Use smart comparison to handle 3-level vs full chain differences
   const namesAreDifferent =
     normalizedHistorical &&
     normalizedCurrent &&
-    normalizedHistorical !== normalizedCurrent;
+    !isNameChainEquivalent(normalizedHistorical, normalizedCurrent);
 
   const handlePress = useCallback(() => {
-    if (onNavigate && profileId) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onNavigate(profileId);
-      } catch (error) {
-        console.error('[SmartNameDisplay] Navigation error:', error);
-      }
+    if (!onNavigate || !profileId) return;
+
+    try {
+      onNavigate(profileId);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      console.error('[SmartNameDisplay] Navigation error:', error);
     }
   }, [onNavigate, profileId]);
 
@@ -247,45 +272,41 @@ const SmartNameDisplay = React.memo(({
 
   // Names are different - show both with visual distinction
   return (
-    <View style={{ gap: 4 }}>
-      <TouchableOpacity
-        onPress={handlePress}
-        disabled={!onNavigate || !profileId}
-        activeOpacity={0.7}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-        accessibilityLabel={`الاسم السابق: ${normalizedHistorical}`}
-        accessibilityRole="button"
-      >
-        <Ionicons name="person-circle-outline" size={14} color="#73637280" />
-        <Text style={[style, historicalStyle]}>
-          {normalizedHistorical}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        onPress={handlePress}
-        disabled={!onNavigate || !profileId}
-        activeOpacity={0.7}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 18 }}
-        accessibilityLabel={`الاسم الحالي: ${normalizedCurrent}. اضغط للانتقال إلى الملف`}
-        accessibilityRole="button"
-        accessibilityHint="اضغط للانتقال إلى الملف الشخصي في الشجرة"
-      >
-        <View style={{
-          paddingHorizontal: 6,
-          paddingVertical: 2,
-          borderRadius: 4,
-          backgroundColor: '#D58C4A15'
-        }}>
-          <Text style={{ fontSize: 10, color: '#D58C4A', fontWeight: '600' }}>الآن</Text>
+    <TouchableOpacity
+      onPress={handlePress}
+      disabled={!onNavigate || !profileId}
+      activeOpacity={0.7}
+      accessibilityLabel={`الاسم تغير من ${normalizedHistorical} إلى ${normalizedCurrent}. اضغط للانتقال إلى الملف`}
+      accessibilityRole="button"
+      accessibilityHint="اضغط للانتقال إلى الملف الشخصي في الشجرة"
+    >
+      <View style={{ gap: 4 }}>
+        {/* Historical name row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ionicons name="person-circle-outline" size={14} color="#73637280" />
+          <Text style={[style, historicalStyle]}>
+            {normalizedHistorical}
+          </Text>
         </View>
-        <Text style={[style, currentStyle, { color: '#D58C4A' }]}>
-          {normalizedCurrent}
-        </Text>
-        {onNavigate && profileId && (
-          <Ionicons name="chevron-back" size={12} color="#D58C4A" />
-        )}
-      </TouchableOpacity>
-    </View>
+        {/* Current name row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginRight: 18 }}>
+          <View style={{
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: 4,
+            backgroundColor: '#D58C4A15'
+          }}>
+            <Text style={{ fontSize: 10, color: '#73637280', fontWeight: '600' }}>الآن</Text>
+          </View>
+          <Text style={[style, currentStyle, { color: '#242121' }]}>
+            {normalizedCurrent}
+          </Text>
+          {onNavigate && profileId && (
+            <Ionicons name="chevron-back" size={12} color="#736372" />
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 });
 

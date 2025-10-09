@@ -24,11 +24,14 @@ import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { useRouter } from 'expo-router';
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
 import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
+import { useTreeStore } from "../stores/useTreeStore";
+import * as Haptics from 'expo-haptics';
 
 // Animated TouchableOpacity for iOS-like press feedback
 const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
@@ -101,6 +104,9 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
   // Get safe area insets for dynamic bottom padding
   const insets = useSafeAreaInsets();
+
+  // Router for navigation
+  const router = useRouter();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -706,11 +712,41 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         () => setShowActivityLog(false),
         ActivityLogDashboard,
         {
-          onNavigateToProfile: (profileId) => {
-            // TODO: Implement tree navigation - close modal and open tree at person
-            // For now, just log the navigation intent
-            console.log('[ActivityLog] Navigate to profile:', profileId);
-            Alert.alert('التنقل', `قريباً: الانتقال إلى الملف في الشجرة`);
+          onNavigateToProfile: async (profileId) => {
+            try {
+              // Check if profile exists in currently loaded tree
+              const nodes = useTreeStore.getState().nodes;
+              const nodeExists = nodes.some(n => n.id === profileId);
+
+              if (!nodeExists) {
+                Alert.alert(
+                  "الملف غير محمل",
+                  "هذا الملف غير موجود في الفرع المحمل حالياً. سيتم إعادة تحميل الشجرة.",
+                  [
+                    { text: "إلغاء", style: "cancel" },
+                    {
+                      text: "تحميل",
+                      onPress: () => {
+                        setShowActivityLog(false);
+                        setTimeout(() => {
+                          router.push(`/?reloadBranch=${profileId}&highlightProfileId=${profileId}&focusOnProfile=true`);
+                        }, 300);
+                      }
+                    }
+                  ]
+                );
+                return;
+              }
+
+              // Profile exists in tree, navigate to it
+              setShowActivityLog(false);
+              setTimeout(() => {
+                router.push(`/?highlightProfileId=${profileId}&focusOnProfile=true`);
+              }, 300);
+            } catch (error) {
+              console.error('[ActivityLog] Navigation error:', error);
+              Alert.alert('خطأ', 'فشل التنقل إلى الملف');
+            }
           }
         }
       )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,9 +33,11 @@ const SectionCard = ({
 }) => (
   <View style={[styles.sectionCard, style]}>
     <View style={styles.sectionHeader}>
-      <View style={[styles.sectionIcon, { backgroundColor: `${iconTint}15` }]}>
-        <Ionicons name={icon} size={20} color={iconTint} />
-      </View>
+      {icon ? (
+        <View style={[styles.sectionIcon, { backgroundColor: `${iconTint}15` }]}>
+          <Ionicons name={icon} size={20} color={iconTint} />
+        </View>
+      ) : null}
       <View style={styles.sectionTitleContainer}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
@@ -60,6 +62,18 @@ const getInitials = (name) => {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 };
 
+const getShortNameChain = (profile) => {
+  const chain = profile?.name_chain || profile?.full_name_chain || '';
+  if (!chain) return null;
+  const normalized = chain.replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+  const tokens = normalized.split(' ');
+  if (tokens.length <= 5) {
+    return tokens.join(' ');
+  }
+  return tokens.slice(0, 5).join(' ');
+};
+
 const ParentProfileCard = ({
   label,
   profile,
@@ -67,11 +81,11 @@ const ParentProfileCard = ({
   emptySubtitle,
   onAction,
   actionLabel = 'تغيير',
+  children,
 }) => {
   const hasProfile = Boolean(profile);
   const initials = hasProfile ? getInitials(profile.name) : '؟';
-  const showExternalPill = hasProfile && !profile.hid;
-  const showStatusPill = hasProfile && profile.status === 'deceased';
+  const shortChain = hasProfile ? getShortNameChain(profile) : null;
 
   const renderAvatar = () => {
     if (hasProfile && profile.photo_url) {
@@ -93,52 +107,172 @@ const ParentProfileCard = ({
 
   return (
     <View style={[styles.parentCard, !hasProfile && styles.parentCardEmpty]}>
-      <View style={styles.parentAvatar}>{renderAvatar()}</View>
-      <View style={styles.parentBody}>
+      <View style={styles.parentHeader}>
+        <View style={styles.parentAvatar}>{renderAvatar()}</View>
         <View style={styles.parentDetails}>
           <Text style={styles.parentLabel}>{label}</Text>
-          <Text style={[styles.parentName, !hasProfile && styles.parentNameEmpty]} numberOfLines={1}>
+          <Text
+            style={[styles.parentName, !hasProfile && styles.parentNameEmpty]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
             {hasProfile ? profile.name : emptyTitle}
           </Text>
           {hasProfile ? (
-            <View style={styles.parentMetaRow}>
-              {profile.hid ? (
-                <MetaPill label={`HID ${profile.hid}`} icon="finger-print-outline" />
-              ) : (
-                showExternalPill && (
-                  <MetaPill label="من خارج العائلة" icon="globe-outline" tone="warning" />
-                )
-              )}
-              {showStatusPill && (
-                <MetaPill label="متوفى" icon="time-outline" tone="danger" />
-              )}
-            </View>
-          ) : (
-            emptySubtitle ? <Text style={styles.parentHint}>{emptySubtitle}</Text> : null
-          )}
+            shortChain ? (
+              <Text style={styles.parentChain} numberOfLines={1} ellipsizeMode="tail">
+                {shortChain}
+              </Text>
+            ) : null
+          ) : emptySubtitle ? (
+            <Text style={styles.parentHint}>{emptySubtitle}</Text>
+          ) : null}
         </View>
-        {onAction ? (
-          <TouchableOpacity
-            style={[styles.parentActionButton, !hasProfile && styles.parentActionButtonPrimary]}
-            onPress={onAction}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name={hasProfile ? 'swap-horizontal-outline' : 'add-circle-outline'}
-              size={16}
-              color={
-                hasProfile ? tokens.colors.najdi.primary : tokens.colors.surface
-              }
-            />
-            <Text
-              style={[styles.parentActionButtonText, !hasProfile && styles.parentActionButtonTextPrimary]}
-            >
-              {actionLabel}
-            </Text>
-          </TouchableOpacity>
-        ) : null}
       </View>
+      {onAction ? (
+        <TouchableOpacity
+          style={[styles.parentActionButton, !hasProfile && styles.parentActionButtonPrimary]}
+          onPress={onAction}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name={hasProfile ? 'swap-horizontal-outline' : 'add-circle-outline'}
+            size={16}
+            color={hasProfile ? tokens.colors.najdi.primary : tokens.colors.surface}
+          />
+          <Text
+            style={[styles.parentActionButtonText, !hasProfile && styles.parentActionButtonTextPrimary]}
+          >
+            {actionLabel}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+      {children ? <View style={styles.parentExtras}>{children}</View> : null}
+    </View>
+  );
+};
+
+const MotherQuickActions = ({
+  suggestions = [],
+  loading,
+  selectedMotherId,
+  updatingMotherId,
+  feedback,
+  onSelect,
+  onOpenAll,
+  onClear,
+  hasFather,
+}) => {
+  const clearing = updatingMotherId === 'clear';
+  const showSuggestions = hasFather && suggestions.length > 0;
+
+  if (!hasFather && !loading) {
+    return null;
+  }
+
+  if (!showSuggestions && !loading && !selectedMotherId) {
+    return null;
+  }
+
+  return (
+    <View style={styles.motherActions}>
+      <View style={styles.motherActionsHeader}>
+        <Text style={styles.motherActionsTitle}>اقتراحات سريعة</Text>
+        <TouchableOpacity
+          onPress={onOpenAll}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.motherActionsLink}>عرض جميع الخيارات</Text>
+        </TouchableOpacity>
+      </View>
+
+      {feedback ? (
+        <View style={styles.motherFeedback}>
+          <Ionicons name="checkmark-circle" size={16} color={tokens.colors.success} />
+          <Text style={styles.motherFeedbackText}>{feedback}</Text>
+        </View>
+      ) : null}
+
+      {loading ? (
+        <View style={styles.motherLoadingRow}>
+          <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+          <Text style={styles.motherLoadingText}>جاري تجهيز المرشحات...</Text>
+        </View>
+      ) : showSuggestions ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.motherChipsRow}
+        >
+          {suggestions.map((option) => {
+            const motherProfile = option.spouse_profile;
+            if (!motherProfile) return null;
+            const isSelected = motherProfile.id === selectedMotherId;
+            const isUpdating = updatingMotherId === motherProfile.id;
+
+            return (
+              <TouchableOpacity
+                key={option.marriage_id}
+                style={[
+                  styles.motherChip,
+                  isSelected && styles.motherChipSelected,
+                  isUpdating && styles.motherChipUpdating,
+                ]}
+                onPress={() => onSelect(motherProfile.id)}
+                disabled={isUpdating}
+                activeOpacity={0.85}
+              >
+                <View style={styles.motherChipAvatar}>
+                  {motherProfile.photo_url ? (
+                    <ProgressiveThumbnail
+                      source={{ uri: motherProfile.photo_url }}
+                      size={32}
+                    />
+                  ) : (
+                    <View style={styles.motherChipFallback}>
+                      <Text style={styles.motherChipInitial}>{getInitials(motherProfile.name)}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.motherChipTextBlock}>
+                  <Text style={styles.motherChipName} numberOfLines={1}>
+                    {motherProfile.name}
+                  </Text>
+                  {option.status && option.status !== 'married' ? (
+                    <Text style={styles.motherChipHint} numberOfLines={1}>
+                      {option.status === 'divorced' ? 'مرتبطة سابقاً' : 'أرملة'}
+                    </Text>
+                  ) : null}
+                </View>
+                {isUpdating ? (
+                  <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+                ) : isSelected ? (
+                  <Ionicons name="checkmark-circle" size={18} color={tokens.colors.najdi.primary} />
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
+      {selectedMotherId ? (
+        <TouchableOpacity
+          style={styles.motherClearButton}
+          onPress={onClear}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          disabled={clearing}
+          activeOpacity={0.7}
+        >
+          {clearing ? (
+            <ActivityIndicator size="small" color={tokens.colors.najdi.textMuted} />
+          ) : (
+            <Ionicons name="close-circle" size={16} color={tokens.colors.najdi.textMuted} />
+          )}
+          <Text style={styles.motherClearText}>إزالة الأم</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 };
@@ -223,7 +357,21 @@ const TabFamily = ({ person, onDataChanged }) => {
   const [editMarriageModalVisible, setEditMarriageModalVisible] = useState(false);
   const [selectedMarriage, setSelectedMarriage] = useState(null);
   const [selectMotherModalVisible, setSelectMotherModalVisible] = useState(false);
+  const [motherOptions, setMotherOptions] = useState([]);
+  const [loadingMotherOptions, setLoadingMotherOptions] = useState(false);
+  const [updatingMotherId, setUpdatingMotherId] = useState(null);
+  const [motherFeedback, setMotherFeedback] = useState(null);
   const { refreshProfile } = useStore();
+
+  useEffect(() => {
+    let timeout;
+    if (motherFeedback) {
+      timeout = setTimeout(() => setMotherFeedback(null), 2000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [motherFeedback]);
 
   useEffect(() => {
     if (person?.id) {
@@ -264,6 +412,13 @@ const TabFamily = ({ person, onDataChanged }) => {
       }
 
       setFamilyData(data);
+
+      if (data?.father?.id) {
+        prefetchMotherOptions(data.father.id);
+      } else {
+        setMotherOptions([]);
+        setLoadingMotherOptions(false);
+      }
     } catch (err) {
       if (__DEV__) {
         console.error('Error loading family data:', err);
@@ -278,6 +433,28 @@ const TabFamily = ({ person, onDataChanged }) => {
 
   const handleRefresh = () => {
     loadFamilyData(true);
+  };
+
+  const prefetchMotherOptions = async (fatherId) => {
+    if (!fatherId) return;
+    setLoadingMotherOptions(true);
+    try {
+      const { data, error } = await supabase.rpc('get_profile_family_data', {
+        p_profile_id: fatherId,
+      });
+
+      if (error) throw error;
+
+      const spouses = data?.spouses || [];
+      setMotherOptions(spouses);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error prefetching mother options:', error);
+      }
+      setMotherOptions([]);
+    } finally {
+      setLoadingMotherOptions(false);
+    }
   };
 
   const handleSpouseAdded = async (marriage) => {
@@ -427,6 +604,71 @@ const TabFamily = ({ person, onDataChanged }) => {
     );
   };
 
+  const handleQuickMotherSelect = async (motherId) => {
+    if (!person?.id || !motherId || motherId === person?.mother_id) return;
+    setUpdatingMotherId(motherId);
+    try {
+      const { error } = await supabase.rpc('admin_update_profile', {
+        p_id: person.id,
+        p_updates: { mother_id: motherId },
+      });
+
+      if (error) throw error;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await loadFamilyData(true);
+      if (refreshProfile) {
+        await refreshProfile(person.id);
+      }
+      if (onDataChanged) {
+        onDataChanged();
+      }
+      setMotherFeedback('تم تعيين الأم بنجاح');
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error assigning mother:', error);
+      }
+      Alert.alert('خطأ', 'فشل تعيين الأم');
+    } finally {
+      setUpdatingMotherId(null);
+    }
+  };
+
+  const handleClearMother = async () => {
+    if (!person?.id || !person?.mother_id) return;
+    setUpdatingMotherId('clear');
+    try {
+      const { error } = await supabase.rpc('admin_update_profile', {
+        p_id: person.id,
+        p_updates: { mother_id: null },
+      });
+
+      if (error) throw error;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await loadFamilyData(true);
+      if (refreshProfile) {
+        await refreshProfile(person.id);
+      }
+      if (onDataChanged) {
+        onDataChanged();
+      }
+      setMotherFeedback('تمت إزالة الأم');
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error clearing mother:', error);
+      }
+      Alert.alert('خطأ', 'فشل إزالة الأم');
+    } finally {
+      setUpdatingMotherId(null);
+    }
+  };
+
+  const motherSuggestions = useMemo(() => {
+    if (!motherOptions || motherOptions.length === 0) return [];
+    return motherOptions.slice(0, 2);
+  }, [motherOptions]);
+
   const handleChangeMother = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectMotherModalVisible(true);
@@ -510,10 +752,7 @@ const TabFamily = ({ person, onDataChanged }) => {
       }
     >
       <SectionCard
-        icon="people-circle-outline"
-        iconTint={tokens.colors.najdi.secondary}
         title="الوالدان"
-        subtitle="المراجع الأساسية لشجرة العائلة"
         badge={`${parentCount}/2`}
       >
         <View style={styles.parentGrid}>
@@ -527,10 +766,22 @@ const TabFamily = ({ person, onDataChanged }) => {
             label="الأم"
             profile={mother}
             emptyTitle="لم يتم اختيار الأم"
-            emptySubtitle="اختر الأم الصحيحة لربط الأبناء تلقائيًا"
+            emptySubtitle="اختر الأم لتكتمل بطاقة النسب"
             onAction={father ? handleChangeMother : null}
             actionLabel={mother ? 'تغيير الأم' : 'اختيار الأم'}
-          />
+          >
+            <MotherQuickActions
+              suggestions={motherSuggestions}
+              loading={loadingMotherOptions}
+              selectedMotherId={person?.mother_id}
+              updatingMotherId={updatingMotherId}
+              feedback={motherFeedback}
+              onSelect={handleQuickMotherSelect}
+              onOpenAll={() => setSelectMotherModalVisible(true)}
+              onClear={handleClearMother}
+              hasFather={Boolean(father)}
+            />
+          </ParentProfileCard>
         </View>
       </SectionCard>
 
@@ -912,17 +1163,24 @@ const styles = StyleSheet.create({
   parentCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: tokens.colors.bg,
+    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.divider,
-    paddingHorizontal: tokens.spacing.md,
+    borderColor: tokens.colors.najdi.container + '33',
+    paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.md,
     gap: tokens.spacing.md,
+    width: '100%',
   },
   parentCardEmpty: {
-    backgroundColor: 'rgba(149, 126, 181, 0.08)',
-    borderColor: 'rgba(149, 126, 181, 0.18)',
+    backgroundColor: tokens.colors.najdi.background,
+    borderColor: tokens.colors.najdi.container + '66',
+  },
+  parentHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.md,
+    width: '100%',
   },
   parentAvatar: {
     width: 64,
@@ -930,9 +1188,9 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.najdi.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.divider,
+    borderColor: tokens.colors.najdi.container + '40',
   },
   parentAvatarImage: {
     borderRadius: 28,
@@ -943,10 +1201,10 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(209, 187, 163, 0.25)',
+    backgroundColor: tokens.colors.najdi.background,
   },
   parentAvatarEmpty: {
-    backgroundColor: 'rgba(161, 51, 51, 0.12)',
+    backgroundColor: tokens.colors.najdi.secondary + '22',
   },
   parentAvatarInitial: {
     fontSize: 20,
@@ -958,7 +1216,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
     gap: tokens.spacing.md,
   },
   parentDetails: {
@@ -978,15 +1235,20 @@ const styles = StyleSheet.create({
   parentNameEmpty: {
     color: tokens.colors.najdi.primary,
   },
-  parentMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.xs,
+  parentChain: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    lineHeight: 18,
   },
   parentHint: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
     lineHeight: 18,
+  },
+  parentExtras: {
+    marginTop: tokens.spacing.md,
+    gap: tokens.spacing.sm,
+    width: '100%',
   },
   parentActionButton: {
     flexDirection: 'row',
@@ -1011,6 +1273,120 @@ const styles = StyleSheet.create({
   },
   parentActionButtonTextPrimary: {
     color: tokens.colors.surface,
+  },
+
+  motherActions: {
+    width: '100%',
+    gap: tokens.spacing.sm,
+  },
+  motherActionsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  motherActionsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  motherActionsLink: {
+    fontSize: 13,
+    color: tokens.colors.najdi.primary,
+    fontWeight: '600',
+  },
+  motherLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+  },
+  motherLoadingText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+  },
+  motherFeedback: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xs,
+  },
+  motherFeedbackText: {
+    fontSize: 13,
+    color: tokens.colors.success,
+    fontWeight: '600',
+  },
+  motherChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.sm,
+  },
+  motherChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '40',
+    backgroundColor: tokens.colors.najdi.background,
+    minWidth: 0,
+  },
+  motherChipSelected: {
+    borderColor: tokens.colors.najdi.primary,
+    backgroundColor: tokens.colors.najdi.primary + '14',
+  },
+  motherChipUpdating: {
+    opacity: 0.7,
+  },
+  motherChipAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  motherChipFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.najdi.container + '40',
+  },
+  motherChipInitial: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  motherChipTextBlock: {
+    flex: 1,
+    minWidth: 80,
+    flexShrink: 1,
+  },
+  motherChipName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  motherChipHint: {
+    fontSize: 12,
+    color: tokens.colors.najdi.textMuted,
+  },
+  motherClearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    marginTop: tokens.spacing.xs,
+  },
+  motherClearText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+  },
+  motherEmptyContainer: {
+    paddingVertical: tokens.spacing.sm,
+  },
+  motherEmptyText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
   },
 
   emptyState: {
