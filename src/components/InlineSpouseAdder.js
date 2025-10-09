@@ -86,11 +86,24 @@ export default function InlineSpouseAdder({
     // SMART DETECTION: Check if Al-Qefari family member
     const parsed = familyNameService.parseFullName(trimmedName, spouseGender);
 
+    // Safety: Validate parsing succeeded
+    if (!parsed || !parsed.familyName) {
+      Alert.alert("خطأ", "فشل في تحليل الاسم. يرجى التأكد من إدخال الاسم الكامل.");
+      return;
+    }
+
     if (familyNameService.isAlQefariFamily(parsed.familyName)) {
       // Al-Qefari detected → Need to search tree first
       collapse();
       if (onNeedsSearch) {
         onNeedsSearch(trimmedName); // Pass to parent to open SpouseManager
+      } else {
+        // Fallback: Inform user to use full modal
+        Alert.alert(
+          "معلومة",
+          "يبدو أن الزوج/الزوجة من عائلة القفاري. يرجى استخدام نموذج الزواج الكامل للبحث في شجرة العائلة.",
+          [{ text: "حسناً", onPress: handleCancel }]
+        );
       }
       return;
     }
@@ -100,6 +113,13 @@ export default function InlineSpouseAdder({
     try {
       // Extract family origin from spouse name
       const familyOrigin = parsed.familyOrigin || parsed.familyName;
+
+      // Safety: Validate family origin was extracted
+      if (!familyOrigin || familyOrigin.trim().length < 2) {
+        Alert.alert("خطأ", "لم يتم التعرف على اسم العائلة. يرجى التأكد من إدخال الاسم الكامل.");
+        setLoading(false);
+        return;
+      }
 
       // Step 1: Create Munasib spouse profile using secure RPC
       const { data: newSpouse, error: createError } = await supabase
@@ -119,6 +139,21 @@ export default function InlineSpouseAdder({
       // Step 2: Create the marriage
       const husband_id = person?.gender === "male" ? person.id : newSpouse.id;
       const wife_id = person?.gender === "female" ? person.id : newSpouse.id;
+
+      // Safety: Check for duplicate marriage
+      const { data: existingMarriage } = await supabase
+        .from('marriages')
+        .select('id')
+        .eq('husband_id', husband_id)
+        .eq('wife_id', wife_id)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (existingMarriage) {
+        Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
+        setLoading(false);
+        return;
+      }
 
       const { error: marriageError } = await profilesService.createMarriage({
         husband_id,
@@ -206,10 +241,10 @@ export default function InlineSpouseAdder({
             <TouchableOpacity
               style={[
                 styles.saveButton,
-                !spouseName.trim() && styles.saveButtonDisabled,
+                (!spouseName.trim() || loading) && styles.saveButtonDisabled,
               ]}
               onPress={handleSave}
-              disabled={!spouseName.trim()}
+              disabled={!spouseName.trim() || loading}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons

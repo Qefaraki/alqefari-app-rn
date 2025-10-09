@@ -64,10 +64,27 @@ const getInitials = (name) => {
 };
 
 const getShortNameChain = (profile) => {
-  const chain = profile?.name_chain || profile?.full_name_chain || '';
-  if (!chain) return null;
-  const normalized = chain.replace(/\s+/g, ' ').trim();
-  if (!normalized) return null;
+  const rawChain =
+    profile?.lineage_preview ||
+    profile?.name_chain ||
+    profile?.full_name_chain ||
+    profile?.name_chain_snapshot ||
+    profile?.full_name ||
+    null;
+
+  let normalized;
+  if (rawChain) {
+    normalized = rawChain.replace(/\s+/g, ' ').trim();
+  }
+
+  if (!normalized) {
+    const familyName = profile?.family_origin || profile?.family_name || null;
+    if (familyName) {
+      return `${profile?.name || ''} ${familyName}`.trim();
+    }
+    return null;
+  }
+
   const tokens = normalized.split(' ');
   if (tokens.length <= 5) {
     return tokens.join(' ');
@@ -801,7 +818,6 @@ const TabFamily = ({ person, onDataChanged }) => {
             profile={father}
             emptyTitle="لم يتم تحديد الأب"
             emptySubtitle="إضافة الأب تساعد على اكتمال شجرة العائلة"
-            infoHint={father ? 'مرتبط من ملف العائلة' : null}
           />
           <ParentProfileCard
             label="الأم"
@@ -1217,7 +1233,7 @@ const styles = StyleSheet.create({
 
   parentGrid: {
     flexDirection: 'column',
-    gap: tokens.spacing.md,
+    gap: tokens.spacing.sm,
   },
   parentCard: {
     flexDirection: 'column',
@@ -1227,8 +1243,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container + '33',
     paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.md,
-    gap: tokens.spacing.md,
+    paddingTop: tokens.spacing.md,
+    paddingBottom: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
     width: '100%',
   },
   parentCardEmpty: {
@@ -1240,7 +1257,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: tokens.spacing.md,
     width: '100%',
-    paddingHorizontal: tokens.spacing.sm,
   },
   parentAvatar: {
     width: 56,
@@ -1303,7 +1319,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   parentExtras: {
-    marginTop: tokens.spacing.md,
+    marginTop: tokens.spacing.sm,
     gap: tokens.spacing.sm,
     width: '100%',
   },
@@ -1327,7 +1343,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.primary,
     gap: tokens.spacing.xs,
     alignSelf: 'stretch',
-    marginTop: tokens.spacing.sm,
+    marginTop: tokens.spacing.md,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 10,
