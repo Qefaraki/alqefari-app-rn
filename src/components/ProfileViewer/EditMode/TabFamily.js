@@ -83,6 +83,7 @@ const ParentProfileCard = ({
   onAction,
   actionLabel = 'تغيير',
   children,
+  infoHint,
 }) => {
   const hasProfile = Boolean(profile);
   const initials = hasProfile ? getInitials(profile.name) : '؟';
@@ -150,6 +151,12 @@ const ParentProfileCard = ({
         </TouchableOpacity>
       ) : null}
       {children ? <View style={styles.parentExtras}>{children}</View> : null}
+      {!children && infoHint ? (
+        <View style={styles.parentInfoHint}>
+          <Ionicons name="information-circle-outline" size={14} color={tokens.colors.najdi.textMuted} />
+          <Text style={styles.parentInfoHintText}>{infoHint}</Text>
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -179,13 +186,13 @@ const MotherQuickActions = ({
   return (
     <View style={styles.motherActions}>
       <View style={styles.motherActionsHeader}>
-        <Text style={styles.motherActionsTitle}>اقتراحات سريعة</Text>
+        <Text style={styles.motherActionsTitle}>اقتراحات جاهزة</Text>
         <TouchableOpacity
           onPress={onOpenAll}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           activeOpacity={0.7}
         >
-          <Text style={styles.motherActionsLink}>عرض جميع الخيارات</Text>
+          <Text style={styles.motherActionsLink}>عرض جميع الأمهات</Text>
         </TouchableOpacity>
       </View>
 
@@ -794,6 +801,7 @@ const TabFamily = ({ person, onDataChanged }) => {
             profile={father}
             emptyTitle="لم يتم تحديد الأب"
             emptySubtitle="إضافة الأب تساعد على اكتمال شجرة العائلة"
+            infoHint={father ? 'مرتبط من ملف العائلة' : null}
           />
           <ParentProfileCard
             label="الأم"
@@ -1212,8 +1220,8 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.md,
   },
   parentCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    alignItems: 'stretch',
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1229,14 +1237,15 @@ const styles = StyleSheet.create({
   },
   parentHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: tokens.spacing.md,
     width: '100%',
+    paddingHorizontal: tokens.spacing.sm,
   },
   parentAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: tokens.colors.najdi.background,
@@ -1244,11 +1253,11 @@ const styles = StyleSheet.create({
     borderColor: tokens.colors.najdi.container + '40',
   },
   parentAvatarImage: {
-    borderRadius: 28,
+    borderRadius: 24,
   },
   parentAvatarFallback: {
-    width: 56,
-    height: 56,
+    width: '100%',
+    height: '100%',
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1264,10 +1273,7 @@ const styles = StyleSheet.create({
   },
   parentBody: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: tokens.spacing.md,
+    gap: tokens.spacing.xs,
   },
   parentDetails: {
     flex: 1,
@@ -1284,7 +1290,7 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
   },
   parentNameEmpty: {
-    color: tokens.colors.najdi.primary,
+    color: tokens.colors.najdi.text,
   },
   parentChain: {
     fontSize: 13,
@@ -1301,29 +1307,39 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sm,
     width: '100%',
   },
+  parentInfoHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
+  },
+  parentInfoHintText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+  },
   parentActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary,
-    backgroundColor: tokens.colors.surface,
+    height: 48,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: tokens.colors.najdi.primary,
     gap: tokens.spacing.xs,
     alignSelf: 'stretch',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginTop: tokens.spacing.sm,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
   parentActionButtonPrimary: {
     backgroundColor: tokens.colors.najdi.primary,
   },
   parentActionButtonText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
-    color: tokens.colors.najdi.primary,
+    color: tokens.colors.surface,
   },
   parentActionButtonTextPrimary: {
     color: tokens.colors.surface,
@@ -1337,6 +1353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: tokens.spacing.sm,
   },
   motherActionsTitle: {
     fontSize: 15,
@@ -1372,6 +1389,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
   },
   motherChip: {
     flexDirection: 'row',
