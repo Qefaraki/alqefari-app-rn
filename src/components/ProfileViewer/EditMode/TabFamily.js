@@ -14,6 +14,7 @@ import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import { supabase } from '../../../services/supabase';
 import SpouseManager from '../../admin/SpouseManager';
+import InlineSpouseAdder from '../../InlineSpouseAdder';
 import QuickAddOverlay from '../../admin/QuickAddOverlay';
 import EditChildModal from './EditChildModal';
 import EditMarriageModal from './EditMarriageModal';
@@ -361,6 +362,9 @@ const TabFamily = ({ person, onDataChanged }) => {
   const [loadingMotherOptions, setLoadingMotherOptions] = useState(false);
   const [updatingMotherId, setUpdatingMotherId] = useState(null);
   const [motherFeedback, setMotherFeedback] = useState(null);
+  const [spouseAdderVisible, setSpouseAdderVisible] = useState(false);
+  const [spouseFeedback, setSpouseFeedback] = useState(null);
+  const [prefilledSpouseName, setPrefilledSpouseName] = useState(null);
   const { refreshProfile } = useStore();
 
   useEffect(() => {
@@ -372,6 +376,16 @@ const TabFamily = ({ person, onDataChanged }) => {
       if (timeout) clearTimeout(timeout);
     };
   }, [motherFeedback]);
+
+  useEffect(() => {
+    let timeout;
+    if (spouseFeedback) {
+      timeout = setTimeout(() => setSpouseFeedback(null), 2000);
+    }
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [spouseFeedback]);
 
   useEffect(() => {
     if (person?.id) {
@@ -524,6 +538,25 @@ const TabFamily = ({ person, onDataChanged }) => {
         },
       },
     ]);
+  };
+
+  const handleSpouseAddedInline = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSpouseFeedback('تمت إضافة الزواج بنجاح');
+    await loadFamilyData();
+    if (refreshProfile) {
+      await refreshProfile(person.id);
+    }
+    if (onDataChanged) {
+      onDataChanged();
+    }
+    setSpouseAdderVisible(false);
+  };
+
+  const handleNeedsAlQefariSearch = (prefilledName) => {
+    setSpouseAdderVisible(false);
+    setPrefilledSpouseName(prefilledName);
+    setSpouseModalVisible(true);
   };
 
   const handleEditMarriage = (marriage) => {
@@ -766,9 +799,9 @@ const TabFamily = ({ person, onDataChanged }) => {
             label="الأم"
             profile={mother}
             emptyTitle="لم يتم اختيار الأم"
-            emptySubtitle="اختر الأم لتكتمل بطاقة النسب"
+            emptySubtitle="أضف الأم ليكتمل ملفك"
             onAction={father ? handleChangeMother : null}
-            actionLabel={mother ? 'تغيير الأم' : 'اختيار الأم'}
+            actionLabel={mother ? 'تغيير الأم' : 'إضافة الأم'}
           >
             <MotherQuickActions
               suggestions={motherSuggestions}
@@ -790,7 +823,21 @@ const TabFamily = ({ person, onDataChanged }) => {
         title={spousesTitle}
         subtitle="تفاصيل العلاقات الحالية والسابقة"
         badge={`${spouses.length}`}
-        footer={<AddActionButton label={addSpouseLabel} onPress={handleAddSpousePress} />}
+        footer={
+          <View>
+            {!spouseAdderVisible ? (
+              <AddActionButton label={addSpouseLabel} onPress={() => setSpouseAdderVisible(true)} />
+            ) : null}
+            <InlineSpouseAdder
+              person={person}
+              visible={spouseAdderVisible}
+              onAdded={handleSpouseAddedInline}
+              onCancel={() => setSpouseAdderVisible(false)}
+              onNeedsSearch={handleNeedsAlQefariSearch}
+              feedback={spouseFeedback}
+            />
+          </View>
+        }
       >
         {activeSpouses.length > 0 ? (
           <View style={styles.sectionStack}>
@@ -860,8 +907,12 @@ const TabFamily = ({ person, onDataChanged }) => {
       <SpouseManager
         visible={spouseModalVisible}
         person={person}
-        onClose={() => setSpouseModalVisible(false)}
+        onClose={() => {
+          setSpouseModalVisible(false);
+          setPrefilledSpouseName(null);
+        }}
         onSpouseAdded={handleSpouseAdded}
+        prefilledName={prefilledSpouseName}
       />
 
       <QuickAddOverlay
@@ -1261,7 +1312,10 @@ const styles = StyleSheet.create({
     borderColor: tokens.colors.najdi.primary,
     backgroundColor: tokens.colors.surface,
     gap: tokens.spacing.xs,
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: tokens.spacing.sm,
   },
   parentActionButtonPrimary: {
     backgroundColor: tokens.colors.najdi.primary,

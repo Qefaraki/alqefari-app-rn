@@ -187,7 +187,7 @@ const formatValue = (value) => {
 };
 
 // Helper: Check if two name chains represent the same person
-// Handles old 3-level chains vs new full chains by comparing segments
+// Handles both old format (space-separated) and new format (with "بن")
 const isNameChainEquivalent = (historical, current) => {
   const h = historical?.trim();
   const c = current?.trim();
@@ -195,12 +195,28 @@ const isNameChainEquivalent = (historical, current) => {
   if (!h || !c) return false;
   if (h === c) return true; // Fast path for exact match
 
-  // Split by "بن" (bin) and compare overlapping segments
-  const hParts = h.split(' بن ').map(p => p.trim());
-  const cParts = c.split(' بن ').map(p => p.trim());
+  // Remove " القفاري" suffix if present
+  const stripSuffix = (str) => str.replace(/ القفاري$/, '').trim();
+  const hClean = stripSuffix(h);
+  const cClean = stripSuffix(c);
+
+  // Split into parts - handle both formats:
+  // Old format: "محمد علي عبدالله" (spaces only)
+  // New format: "محمد بن علي بن عبدالله" (with بن)
+  const splitChain = (str) => {
+    if (str.includes(' بن ')) {
+      // New format: split by "بن"
+      return str.split(' بن ').map(p => p.trim());
+    }
+    // Old format: space-separated names
+    return str.split(/\s+/).filter(p => p.length > 0);
+  };
+
+  const hParts = splitChain(hClean);
+  const cParts = splitChain(cClean);
   const minLength = Math.min(hParts.length, cParts.length);
 
-  // ALL segments must match for same person
+  // Compare overlapping segments - ALL must match for same person
   for (let i = 0; i < minLength; i++) {
     if (hParts[i] !== cParts[i]) {
       return false; // Different person or name was edited

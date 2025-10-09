@@ -31,7 +31,7 @@ import tokens from "../ui/tokens";
  * 5. Success animation → auto-dismiss
  */
 
-export default function SpouseManager({ visible, person, onClose, onSpouseAdded }) {
+export default function SpouseManager({ visible, person, onClose, onSpouseAdded, prefilledName }) {
   // Simplified 4-state machine (not 7)
   const [stage, setStage] = useState("INPUT"); // INPUT, SEARCH, CREATE, SUCCESS
   const [fullName, setFullName] = useState("");
@@ -46,16 +46,27 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded 
   const spouseTitle = spouseGender === "female" ? "الزوجة" : "الزوج";
   const genderMarker = spouseGender === "female" ? "بنت" : "بن";
 
-  // Reset state when modal opens
+  // Reset state when modal opens, or auto-submit if pre-filled
   useEffect(() => {
     if (visible) {
-      setStage("INPUT");
-      setFullName("");
-      setParsedData(null);
-      setSearchResults([]);
-      setSelectedSpouse(null);
+      if (prefilledName) {
+        // Pre-filled from inline adder: auto-submit to search
+        setFullName(prefilledName);
+
+        // Parse and search immediately (Al-Qefari family members only)
+        const parsed = familyNameService.parseFullName(prefilledName.trim(), spouseGender);
+        setParsedData(parsed);
+        performSearch(parsed);
+      } else {
+        // Normal flow: start at INPUT
+        setStage("INPUT");
+        setFullName("");
+        setParsedData(null);
+        setSearchResults([]);
+        setSelectedSpouse(null);
+      }
     }
-  }, [visible]);
+  }, [visible, prefilledName]);
 
   // Handle name submission with validation and smart detection
   const handleSubmit = async () => {
