@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import PropTypes from 'prop-types';
 import SocialMediaEditor from '../../admin/SocialMediaEditor';
@@ -20,7 +20,7 @@ const validatePhone = (phone) => {
   return saudiRegex.test(cleaned) || intlRegex.test(cleaned);
 };
 
-// Validated Input Component
+// Validated Input Component with debouncing
 const ValidatedInput = ({
   label,
   value,
@@ -34,17 +34,46 @@ const ValidatedInput = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
+  const timeoutRef = useRef(null);
 
-  const isValid = !value || !validate || validate(value);
-  const showError = showValidation && !isValid && value.length > 0;
-  const showSuccess = showValidation && isValid && value.length > 0;
+  // Sync local value when external value changes
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  // Debounced onChange handler
+  const handleChange = useCallback((text) => {
+    setLocalValue(text);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      onChange(text);
+    }, 400); // 400ms debounce for validation inputs
+  }, [onChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const isValid = !localValue || !validate || validate(localValue);
+  const showError = showValidation && !isValid && localValue.length > 0;
+  const showSuccess = showValidation && isValid && localValue.length > 0;
 
   useEffect(() => {
     // Show validation after user has entered something and blurred
-    if (!isFocused && value) {
+    if (!isFocused && localValue) {
       setShowValidation(true);
     }
-  }, [isFocused, value]);
+  }, [isFocused, localValue]);
 
   return (
     <View style={styles.validatedInputContainer}>
@@ -82,8 +111,8 @@ const ValidatedInput = ({
           showError && styles.validatedInputError,
           showSuccess && styles.validatedInputSuccess,
         ]}
-        value={value}
-        onChangeText={onChange}
+        value={localValue}
+        onChangeText={handleChange}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         placeholder={placeholder}

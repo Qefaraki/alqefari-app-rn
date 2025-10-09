@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import useStore from '../../../hooks/useStore';
 import { useFeedbackTimeout } from '../../../hooks/useFeedbackTimeout';
 import { ErrorBoundary } from '../../ErrorBoundary';
 
-const SectionCard = ({
+const SectionCard = React.memo(({
   icon,
   iconTint = tokens.colors.najdi.primary,
   badge,
@@ -53,7 +53,8 @@ const SectionCard = ({
     <View style={styles.sectionBody}>{children}</View>
     {footer ? <View style={styles.sectionFooter}>{footer}</View> : null}
   </View>
-);
+));
+SectionCard.displayName = 'SectionCard';
 
 const getInitials = (name) => {
   if (!name) return '؟';
@@ -93,7 +94,7 @@ const getShortNameChain = (profile) => {
   return tokens.slice(0, 5).join(' ');
 };
 
-const ParentProfileCard = ({
+const ParentProfileCard = React.memo(({
   label,
   profile,
   emptyTitle,
@@ -185,9 +186,10 @@ const ParentProfileCard = ({
       ) : null}
     </View>
   );
-};
+});
+ParentProfileCard.displayName = 'ParentProfileCard';
 
-const MotherInlinePicker = ({
+const MotherInlinePicker = React.memo(({
   visible,
   suggestions = [],
   loading,
@@ -300,9 +302,10 @@ const MotherInlinePicker = ({
       ) : null}
     </View>
   );
-};
+});
+MotherInlinePicker.displayName = 'MotherInlinePicker';
 
-const EmptyState = ({ icon, title, caption }) => (
+const EmptyState = React.memo(({ icon, title, caption }) => (
   <View style={styles.emptyState}>
     <View style={styles.emptyStateIconWrapper}>
       <Ionicons name={icon} size={24} color={tokens.colors.najdi.textMuted} />
@@ -310,54 +313,16 @@ const EmptyState = ({ icon, title, caption }) => (
     <Text style={styles.emptyStateTitle}>{title}</Text>
     {caption ? <Text style={styles.emptyStateCaption}>{caption}</Text> : null}
   </View>
-);
+));
+EmptyState.displayName = 'EmptyState';
 
-const MetaPill = ({ label, icon, tone = 'neutral' }) => {
-  const toneStyles = {
-    positive: {
-      container: styles.metaPillPositive,
-      text: styles.metaPillPositiveText,
-      iconColor: tokens.colors.success,
-    },
-    warning: {
-      container: styles.metaPillWarning,
-      text: styles.metaPillWarningText,
-      iconColor: tokens.colors.najdi.secondary,
-    },
-    danger: {
-      container: styles.metaPillDanger,
-      text: styles.metaPillDangerText,
-      iconColor: tokens.colors.danger,
-    },
-  }[tone];
-
-  const iconColor = toneStyles?.iconColor || tokens.colors.najdi.textMuted;
-
-  return (
-    <View style={[styles.metaPill, toneStyles?.container]}>
-      {icon ? (
-        <Ionicons
-          name={icon}
-          size={13}
-          color={iconColor}
-          style={styles.metaPillIcon}
-        />
-      ) : null}
-      <Text style={[styles.metaPillText, toneStyles?.text]}>{label}</Text>
-    </View>
-  );
-};
-
-const AddActionButton = ({ label, onPress, icon = 'add-circle-outline' }) => (
-  <TouchableOpacity
-    style={styles.addActionButton}
-    onPress={onPress}
-    activeOpacity={0.85}
-  >
-    <Ionicons name={icon} size={18} color={tokens.colors.najdi.primary} />
+const AddActionButton = React.memo(({ label, onPress, icon = 'add' }) => (
+  <TouchableOpacity style={styles.addActionButton} onPress={onPress} activeOpacity={0.85}>
+    <Ionicons name={icon} size={18} color={tokens.colors.surface} />
     <Text style={styles.addActionButtonText}>{label}</Text>
   </TouchableOpacity>
-);
+));
+AddActionButton.displayName = 'AddActionButton';
 
 const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   // Early validation - show error if person not provided
@@ -395,13 +360,29 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   useFeedbackTimeout(motherFeedback, setMotherFeedback);
   useFeedbackTimeout(spouseFeedback, setSpouseFeedback);
 
-  useEffect(() => {
-    if (person?.id) {
-      loadFamilyData();
-    }
-  }, [person?.id]);
+  const prefetchMotherOptions = useCallback(async (fatherId) => {
+    if (!fatherId) return;
+    setLoadingMotherOptions(true);
+    try {
+      const { data, error } = await supabase.rpc('get_profile_family_data', {
+        p_profile_id: fatherId,
+      });
 
-  const loadFamilyData = async (isRefresh = false) => {
+      if (error) throw error;
+
+      const spouses = data?.spouses || [];
+      setMotherOptions(spouses);
+    } catch (error) {
+      if (__DEV__) {
+        console.error('Error prefetching mother options:', error);
+      }
+      setMotherOptions([]);
+    } finally {
+      setLoadingMotherOptions(false);
+    }
+  }, []);
+
+  const loadFamilyData = useCallback(async (isRefresh = false) => {
     if (!person?.id) return;
 
     if (isRefresh) {
@@ -452,33 +433,18 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [person?.id, prefetchMotherOptions]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     loadFamilyData(true);
-  };
+  }, [loadFamilyData]);
 
-  const prefetchMotherOptions = async (fatherId) => {
-    if (!fatherId) return;
-    setLoadingMotherOptions(true);
-    try {
-      const { data, error } = await supabase.rpc('get_profile_family_data', {
-        p_profile_id: fatherId,
-      });
-
-      if (error) throw error;
-
-      const spouses = data?.spouses || [];
-      setMotherOptions(spouses);
-    } catch (error) {
-      if (__DEV__) {
-        console.error('Error prefetching mother options:', error);
-      }
-      setMotherOptions([]);
-    } finally {
-      setLoadingMotherOptions(false);
+  // Load family data on mount and when person.id changes
+  useEffect(() => {
+    if (person?.id) {
+      loadFamilyData();
     }
-  };
+  }, [person?.id, loadFamilyData]);
 
   const handleSpouseAdded = async (marriage) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -504,7 +470,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     setChildModalVisible(false);
   };
 
-  const handleDeleteSpouse = async (marriage) => {
+  const handleDeleteSpouse = useCallback(async (marriage) => {
     const childrenCount = marriage.children_count || 0;
 
     let confirmMessage = `هل أنت متأكد من حذف الزواج؟`;
@@ -547,7 +513,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
         },
       },
     ]);
-  };
+  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
 
   const handleSpouseAddedInline = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -568,13 +534,13 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     setSpouseModalVisible(true);
   };
 
-  const handleEditMarriage = (marriage) => {
+  const handleEditMarriage = useCallback((marriage) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedMarriage(marriage);
     setEditMarriageModalVisible(true);
-  };
+  }, []);
 
-  const handleEditMarriageSaved = async () => {
+  const handleEditMarriageSaved = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await loadFamilyData();
     if (refreshProfile) {
@@ -585,15 +551,15 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     }
     setEditMarriageModalVisible(false);
     setSelectedMarriage(null);
-  };
+  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
 
-  const handleEditChild = (child) => {
+  const handleEditChild = useCallback((child) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedChild(child);
     setEditChildModalVisible(true);
-  };
+  }, []);
 
-  const handleEditChildSaved = async () => {
+  const handleEditChildSaved = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await loadFamilyData();
     if (refreshProfile) {
@@ -604,9 +570,9 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     }
     setEditChildModalVisible(false);
     setSelectedChild(null);
-  };
+  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
 
-  const handleDeleteChild = async (child) => {
+  const handleDeleteChild = useCallback(async (child) => {
     Alert.alert(
       'تأكيد الحذف',
       `هل أنت متأكد من حذف ${child.name} من العائلة؟`,
@@ -644,7 +610,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
         },
       ]
     );
-  };
+  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
 
   const handleQuickMotherSelect = async (motherId) => {
     if (!person?.id || !motherId || motherId === person?.mother_id) return;
@@ -837,9 +803,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       </SectionCard>
 
       <SectionCard
-        icon="heart-outline"
         title={spousesTitle}
-        subtitle="تفاصيل العلاقات الحالية والسابقة"
         badge={`${spouses.length}`}
         footer={
           <View>
@@ -898,9 +862,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       </SectionCard>
 
       <SectionCard
-        icon="people-outline"
         title="الأبناء"
-        subtitle="الأبناء عبر جميع الزيجات"
         badge={`${children.length}`}
         footer={<AddActionButton label="إضافة ابن/ابنة" onPress={handleAddChildPress} />}
       >
@@ -968,132 +930,138 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   );
 };
 
-// Spouse Row Component with rich metadata
-const SpouseRow = ({ spouseData, onEdit, onDelete, inactive = false }) => {
-  const spouse = spouseData.spouse_profile;
-  if (!spouse) return null;
-
-  const isMunasib = !spouse.hid;
-  const hasChildren = spouseData.children_count > 0;
-  const status = spouseData.status;
-  const isMaleSpouse = spouse.gender === 'male';
-
-  let statusMeta = null;
-  if (status && status !== 'current' && status !== 'married') {
-    // Show "سابق" for any past marriage (past, divorced, widowed)
-    statusMeta = { label: 'سابق', tone: 'warning', icon: 'time-outline' };
+const AvatarThumbnail = ({ photoUrl, size = 52, fallbackLabel }) => {
+  if (photoUrl) {
+    return (
+      <ProgressiveThumbnail
+        source={{ uri: photoUrl }}
+        size={size}
+        style={[styles.memberAvatarImage, { borderRadius: size / 2 }]}
+      />
+    );
   }
 
   return (
-    <View style={[styles.itemRow, inactive && styles.itemRowInactive]}>
-      <View style={styles.itemLeading}>
-        <View
-          style={[
-            styles.itemAvatar,
-            isMaleSpouse ? styles.itemAvatarMale : styles.itemAvatarFemale,
-          ]}
-        >
-          <Ionicons
-            name={isMaleSpouse ? 'male-outline' : 'female-outline'}
-            size={18}
-            color={isMaleSpouse ? tokens.colors.najdi.primary : tokens.colors.najdi.secondary}
-          />
-        </View>
-        <View style={styles.itemContent}>
-          <Text style={styles.itemTitle}>{spouse.name}</Text>
-          <View style={styles.metaRow}>
-            {isMunasib ? (
-              <MetaPill
-                label="منسب"
-                tone="positive"
-                icon="shield-checkmark-outline"
-              />
-            ) : null}
-            {hasChildren ? (
-              <MetaPill
-                label={`${spouseData.children_count} ${
-                  spouseData.children_count === 1 ? 'طفل' : 'أطفال'
-                }`}
-                icon="people-outline"
-              />
-            ) : null}
-            {statusMeta ? <MetaPill {...statusMeta} /> : null}
-          </View>
-        </View>
-      </View>
-      <View style={styles.itemActions}>
-        <TouchableOpacity
-          style={styles.itemActionButton}
-          onPress={() => onEdit(spouseData)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          activeOpacity={0.6}
-        >
-          <Ionicons name="create-outline" size={18} color={tokens.colors.najdi.primary} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.itemActionButton}
-          onPress={() => onDelete(spouseData)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          activeOpacity={0.6}
-        >
-          <Ionicons name="trash-outline" size={18} color={tokens.colors.danger} />
-        </TouchableOpacity>
-      </View>
+    <View
+      style={[
+        styles.memberAvatarFallback,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
+    >
+      <Text style={styles.memberAvatarInitial}>{fallbackLabel}</Text>
     </View>
   );
 };
+AvatarThumbnail.displayName = 'AvatarThumbnail';
 
-// Child Row Component with contextual chips
-const ChildRow = ({ child, onEdit, onDelete }) => {
-  const isMale = child.gender === 'male';
-  const genderIcon = isMale ? 'male-outline' : 'female-outline';
+const SpouseRow = React.memo(({ spouseData, onEdit, onDelete, inactive = false }) => {
+  const spouse = spouseData.spouse_profile;
+  if (!spouse) return null;
+
+  const initials = getInitials(spouse.name);
+  const subtitleParts = [];
+
+  if (spouseData.children_count > 0) {
+    subtitleParts.push(
+      `${spouseData.children_count} ${spouseData.children_count === 1 ? 'طفل' : 'أطفال'}`,
+    );
+  }
+
+  if (inactive) {
+    subtitleParts.push('زواج سابق');
+  }
+
+  const subtitle = subtitleParts.join(' • ');
 
   return (
-    <View style={styles.itemRow}>
-      <View style={styles.itemLeading}>
-        <View
-          style={[
-            styles.itemAvatar,
-            isMale ? styles.itemAvatarMale : styles.itemAvatarFemale,
-          ]}
-        >
-          <Ionicons
-            name={genderIcon}
-            size={18}
-            color={isMale ? tokens.colors.najdi.primary : tokens.colors.najdi.secondary}
-          />
-        </View>
-        <View style={styles.itemContent}>
-          <Text style={styles.itemTitle}>{child.name}</Text>
-          <View style={styles.metaRow}>
-            <MetaPill label={isMale ? 'ذكر' : 'أنثى'} icon={genderIcon} />
-            {child.mother_name ? (
-              <MetaPill label={`من ${child.mother_name}`} icon="person-outline" />
-            ) : null}
-          </View>
+    <View style={[styles.memberCard, inactive && styles.memberCardInactive]}>
+      <View style={styles.memberHeader}>
+        <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={initials} />
+        <View style={styles.memberDetails}>
+          <Text style={styles.memberName} numberOfLines={1} ellipsizeMode="tail">
+            {spouse.name}
+          </Text>
+          {subtitle ? (
+            <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
+              {subtitle}
+            </Text>
+          ) : null}
         </View>
       </View>
-      <View style={styles.itemActions}>
+
+      <View style={styles.memberActions}>
         <TouchableOpacity
-          style={styles.itemActionButton}
-          onPress={() => onEdit(child)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          activeOpacity={0.6}
+          style={styles.memberActionButton}
+          onPress={() => onEdit(spouseData)}
+          activeOpacity={0.7}
         >
-          <Ionicons name="create-outline" size={18} color={tokens.colors.najdi.primary} />
+          <Text style={styles.memberActionPrimary}>تعديل</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.itemActionButton}
-          onPress={() => onDelete(child)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          activeOpacity={0.6}
+          style={styles.memberActionButton}
+          onPress={() => onDelete(spouseData)}
+          activeOpacity={0.7}
         >
-          <Ionicons name="trash-outline" size={18} color={tokens.colors.danger} />
+          <Text style={styles.memberActionDanger}>حذف</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
-};
+});
+SpouseRow.displayName = 'SpouseRow';
+
+const ChildRow = React.memo(({ child, onEdit, onDelete }) => {
+  if (!child) return null;
+
+  const initials = getInitials(child.name);
+  const photoUrl = child.photo_url || child.profile?.photo_url || null;
+
+  const subtitleParts = [];
+  if (child.mother_name) {
+    subtitleParts.push(`من ${child.mother_name}`);
+  }
+  if (child.birth_year) {
+    subtitleParts.push(`مواليد ${child.birth_year}`);
+  }
+
+  const subtitle = subtitleParts.join(' • ');
+
+  return (
+    <View style={styles.memberCard}>
+      <View style={styles.memberHeader}>
+        <AvatarThumbnail photoUrl={photoUrl} fallbackLabel={initials} />
+        <View style={styles.memberDetails}>
+          <Text style={styles.memberName} numberOfLines={1} ellipsizeMode="tail">
+            {child.name}
+          </Text>
+          {subtitle ? (
+            <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={styles.memberActions}>
+        <TouchableOpacity
+          style={styles.memberActionButton}
+          onPress={() => onEdit(child)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.memberActionPrimary}>تعديل</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.memberActionButton}
+          onPress={() => onDelete(child)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.memberActionDanger}>حذف</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+ChildRow.displayName = 'ChildRow';
 
 const styles = StyleSheet.create({
   container: {
@@ -1553,107 +1521,75 @@ const styles = StyleSheet.create({
     maxWidth: 220,
   },
 
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: tokens.colors.bg,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radii.md,
-  },
-  itemRowInactive: {
-    opacity: 0.6,
-  },
-  itemLeading: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginEnd: tokens.spacing.sm,
-  },
-  itemAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+  memberCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.divider,
-    marginEnd: tokens.spacing.md,
+    borderColor: tokens.colors.najdi.container + '33',
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.md,
+    gap: tokens.spacing.md,
   },
-  itemAvatarMale: {
-    backgroundColor: 'rgba(161, 51, 51, 0.12)',
-    borderColor: 'rgba(161, 51, 51, 0.26)',
+  memberCardInactive: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderColor: tokens.colors.najdi.container + '55',
+    opacity: 0.85,
   },
-  itemAvatarFemale: {
-    backgroundColor: 'rgba(213, 140, 74, 0.14)',
-    borderColor: 'rgba(213, 140, 74, 0.3)',
+  memberHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.md,
   },
-  itemContent: {
+  memberDetails: {
     flex: 1,
+    gap: tokens.spacing.xs,
   },
-  itemTitle: {
+  memberName: {
     fontSize: 17,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: tokens.spacing.xs,
-  },
-  metaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: tokens.radii.sm,
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.xxs,
-    backgroundColor: tokens.colors.najdi.background,
-    marginEnd: tokens.spacing.xs,
-    marginBottom: tokens.spacing.xs,
-  },
-  metaPillPositive: {
-    backgroundColor: 'rgba(52, 199, 89, 0.16)',
-  },
-  metaPillWarning: {
-    backgroundColor: 'rgba(213, 140, 74, 0.18)',
-  },
-  metaPillDanger: {
-    backgroundColor: 'rgba(255, 59, 48, 0.16)',
-  },
-  metaPillIcon: {
-    marginEnd: 4,
-  },
-  metaPillText: {
+  memberSubtitle: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
-    fontWeight: '500',
   },
-  metaPillPositiveText: {
-    color: tokens.colors.success,
+  memberAvatarImage: {
+    borderRadius: 26,
   },
-  metaPillWarningText: {
-    color: tokens.colors.najdi.secondary,
-  },
-  metaPillDangerText: {
-    color: tokens.colors.danger,
-  },
-
-  itemActionButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  memberAvatarFallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: tokens.colors.surface,
+    backgroundColor: tokens.colors.najdi.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.divider,
+    borderColor: tokens.colors.najdi.container + '40',
   },
-
-  itemActions: {
+  memberAvatarInitial: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: tokens.colors.najdi.text,
+  },
+  memberActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.spacing.xs,
+    justifyContent: 'flex-end',
+    gap: tokens.spacing.md,
+    paddingTop: tokens.spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.colors.divider,
+  },
+  memberActionButton: {
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xs,
+  },
+  memberActionPrimary: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
+  },
+  memberActionDanger: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.danger,
   },
 
   addActionButton: {
@@ -1661,16 +1597,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: tokens.touchTarget.minimum,
-    backgroundColor: 'rgba(161, 51, 51, 0.08)',
-    borderRadius: tokens.radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(161, 51, 51, 0.24)',
+    backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: tokens.radii.lg,
     paddingHorizontal: tokens.spacing.lg,
+    gap: tokens.spacing.xs,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
   addActionButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: tokens.colors.najdi.primary,
+    color: tokens.colors.surface,
     marginStart: tokens.spacing.xs,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -91,6 +91,37 @@ const TabGeneral = ({ form, updateField }) => {
   const { draft, original } = form;
   const profileId = original?.id || draft?.id;
 
+  // Local state for debounced kunya input
+  const [kunyaValue, setKunyaValue] = useState(draft?.kunya || '');
+  const kunyaTimeoutRef = useRef(null);
+
+  // Sync local kunya value when draft changes
+  useEffect(() => {
+    setKunyaValue(draft?.kunya || '');
+  }, [draft?.kunya]);
+
+  // Debounced kunya update
+  const handleKunyaChange = useCallback((text) => {
+    setKunyaValue(text);
+
+    if (kunyaTimeoutRef.current) {
+      clearTimeout(kunyaTimeoutRef.current);
+    }
+
+    kunyaTimeoutRef.current = setTimeout(() => {
+      updateField('kunya', text);
+    }, 300);
+  }, [updateField]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (kunyaTimeoutRef.current) {
+        clearTimeout(kunyaTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Animated height for DOD field (smooth reveal)
   const dodHeightAnim = useRef(new Animated.Value(0)).current;
   const dodOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -147,8 +178,8 @@ const TabGeneral = ({ form, updateField }) => {
             <Text style={styles.inputLabel}>الكنية</Text>
             <TextInput
               style={styles.input}
-              value={draft?.kunya || ''}
-              onChangeText={(text) => updateField('kunya', text)}
+              value={kunyaValue}
+              onChangeText={handleKunyaChange}
               placeholder="أبو محمد"
               placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
             />

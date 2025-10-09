@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
+import { buildNameChain, getFirstThreeNames } from "../../../utils/nameChainBuilder";
 
 // Enable RTL
 I18nManager.forceRTL(true);
@@ -69,7 +70,12 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
           husband:profiles!marriages_husband_id_fkey(
             id,
             name,
-            hid
+            hid,
+            father_name,
+            grandfather_name,
+            name_chain,
+            lineage_preview,
+            full_name_chain
           )
         `)
         .eq("wife_id", motherId)
@@ -83,13 +89,33 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
       }
 
       // Format data for display
-      const formattedHusbands = (data || []).map((marriage) => ({
-        husband_id: marriage.husband_id,
-        husband_name: marriage.husband?.name || "غير محدد",
-        husband_hid: marriage.husband?.hid,
-        status: marriage.status,
-        is_current: marriage.status === "current" || marriage.status === "married",
-      }));
+      const formattedHusbands = (data || []).map((marriage) => {
+        const husband = marriage.husband;
+
+        // Build name chain from available data
+        let nameChain = '';
+        if (husband) {
+          // Try to use existing chain fields first
+          nameChain = husband.lineage_preview ||
+                      husband.name_chain ||
+                      husband.full_name_chain ||
+                      buildNameChain(husband) ||
+                      husband.name ||
+                      "غير محدد";
+        }
+
+        // Extract first 3 names for display
+        const displayName = getFirstThreeNames(nameChain) || husband?.name || "غير محدد";
+
+        return {
+          husband_id: marriage.husband_id,
+          husband_name: husband?.name || "غير محدد", // Keep original for backwards compatibility
+          display_name: displayName, // New field with 3 names
+          husband_hid: husband?.hid,
+          status: marriage.status,
+          is_current: marriage.status === "current" || marriage.status === "married",
+        };
+      });
 
       setHusbands(formattedHusbands);
       // Pass husbands data to parent
@@ -229,7 +255,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
               }
               numberOfLines={1}
             >
-              {selectedFather ? selectedFather.husband_name : "اختر الأب"}
+              {selectedFather ? selectedFather.display_name : "اختر الأب"}
             </Text>
 
             {/* Clear button (if not required) */}
@@ -292,7 +318,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
                           styles.optionTextSelected,
                       ]}
                     >
-                      {husband.husband_name}
+                      {husband.display_name}
                     </Text>
                     {husband.husband_hid && (
                       <Text style={styles.optionHid}>

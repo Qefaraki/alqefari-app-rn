@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import PropTypes from 'prop-types';
 import BioEditor from '../../admin/fields/BioEditor';
@@ -25,7 +25,7 @@ const Section = ({ title, subtitle, icon, children, isLast }) => (
   </View>
 );
 
-// Enhanced Input with character count
+// Enhanced Input with character count and debouncing
 const LimitedInput = ({
   value,
   onChange,
@@ -33,15 +33,45 @@ const LimitedInput = ({
   maxLength = 100,
   multiline = false,
 }) => {
-  const charCount = value?.length || 0;
+  const [localValue, setLocalValue] = useState(value);
+  const timeoutRef = useRef(null);
+
+  // Sync local value when external value changes
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
+
+  // Debounced onChange handler
+  const handleChange = useCallback((text) => {
+    setLocalValue(text);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      onChange(text);
+    }, 350); // 350ms debounce
+  }, [onChange]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  const charCount = localValue?.length || 0;
   const isNearLimit = charCount > maxLength * 0.8;
 
   return (
     <View style={styles.limitedInputContainer}>
       <TextInput
         style={[styles.input, multiline && styles.inputMultiline]}
-        value={value}
-        onChangeText={onChange}
+        value={localValue}
+        onChangeText={handleChange}
         placeholder={placeholder}
         placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
         maxLength={maxLength}

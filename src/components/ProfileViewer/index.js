@@ -681,13 +681,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
           onTabChange={setActiveTab}
           dirtyByTab={dirtyByTab}
         >
-          {activeTab === 'general' ? (
+          {/* Lazy load tabs - only render the active one */}
+          {activeTab === 'general' && (
             <TabGeneral form={form} updateField={form.updateField} />
-          ) : null}
-          {activeTab === 'details' ? (
+          )}
+          {activeTab === 'details' && (
             <TabDetails form={form} updateField={form.updateField} />
-          ) : null}
-          {activeTab === 'family' ? (
+          )}
+          {activeTab === 'family' && (
             <TabFamily
               person={person}
               onDataChanged={() => {
@@ -701,10 +702,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
               }}
               onNavigateToProfile={onNavigateToProfile}
             />
-          ) : null}
-          {activeTab === 'contact' ? (
+          )}
+          {activeTab === 'contact' && (
             <TabContact form={form} updateField={form.updateField} />
-          ) : null}
+          )}
         </TabsHost>
       </BottomSheetScrollView>
     </View>

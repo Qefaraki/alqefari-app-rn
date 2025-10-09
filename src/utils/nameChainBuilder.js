@@ -82,3 +82,32 @@ export function getProfileDisplayName(profile) {
     "بدون اسم"
   );
 }
+
+/**
+ * Extract first three names from a full name chain
+ * @param {string} nameChain - Full name chain (e.g., "محمد بن علي عبدالله أحمد القفاري")
+ * @returns {string} First three names (e.g., "محمد بن علي عبدالله")
+ */
+export function getFirstThreeNames(nameChain) {
+  if (!nameChain || typeof nameChain !== 'string') {
+    return '';
+  }
+
+  // Trim and normalize whitespace
+  const normalized = nameChain.trim().replace(/\s+/g, ' ');
+
+  if (!normalized) {
+    return '';
+  }
+
+  // Split by spaces
+  const parts = normalized.split(' ');
+
+  // If 3 or fewer parts, return as is
+  if (parts.length <= 3) {
+    return normalized;
+  }
+
+  // Return first 3 parts joined
+  return parts.slice(0, 3).join(' ');
+}
