@@ -69,7 +69,8 @@ The system's design is built on a clear separation of concerns between individua
 
 - **`marriages` Table**: This table exclusively defines the **relationships between spouses**.
   - It connects two profiles via `husband_id` and `wife_id`.
-  - It stores metadata about the union, such as `status` ('married', 'divorced', 'widowed') and start/end dates.
+  - It stores metadata about the union, such as `status` ('current', 'past') and start/end dates.
+  - **Note**: As of Migration 078 (January 2025), status values changed from 'married'/'divorced'/'widowed' to 'current'/'past' for neutral, culturally sensitive terminology.
 
 ### The "Munasib" Concept: The Key to Integration
 
@@ -90,12 +91,13 @@ The architecture is designed to handle various complex relationship scenarios gr
 - **How it Works**: This is handled seamlessly. Both individuals already exist in the `profiles` table and both have a valid, non-null `hid`. The `admin_create_marriage` function is called with their respective UUIDs, creating a new entry in the `marriages` table that links them.
 - **System Impact**: No special logic is required. The system correctly links two existing blood relatives as spouses.
 
-### Scenario 2: Divorces
+### Scenario 2: Ended Marriages (Divorce, Death, etc.)
 
-- **How it Works**: The `marriages` table is designed for historical accuracy. A divorce is not a deletion but a status change.
-  1.  The `status` field for the marriage record is updated from `'married'` to `'divorced'`.
+- **How it Works**: The `marriages` table is designed for historical accuracy. An ended marriage is not a deletion but a status change.
+  1.  The `status` field for the marriage record is updated from `'current'` to `'past'`.
   2.  The `end_date` field can be populated to record when the marriage officially ended.
 - **System Impact**: The relationship record is preserved, allowing the application to display a person's full marital history. The `UNIQUE` constraint on the table only applies to _active_ marriages, so it does not prevent a person from remarrying.
+- **Note**: The old terminology ('divorced', 'widowed') has been replaced with the neutral term 'past' (سابق) to avoid cultural stigma (Migration 078, January 2025).
 
 ### Scenario 3: Multiple Marriages & Remarriage
 

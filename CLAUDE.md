@@ -747,6 +747,66 @@ Adds super admin role and management functions:
   - Only super_admin can call role management functions
   - All functions include authorization checks
 
+#### Migration 077: Admin Update Marriage RPC
+**File**: `migrations/077_admin_update_marriage.sql`
+
+Secure RPC function for updating marriage records with permission checks:
+- **Function Created**: `admin_update_marriage(p_marriage_id UUID, p_updates JSONB)`
+- **Features**:
+  - Permission check: User must have admin/moderator/inner permission on either spouse
+  - Validates status values (only 'current' or 'past' allowed after migration 078)
+  - Creates audit log entry for all changes
+  - Uses whitelist approach for security
+- **Important Notes**:
+  - Replaces direct UPDATE on marriages table (blocked by RLS)
+  - Includes DROP FUNCTION to avoid parameter name conflicts
+  - Validates date fields and status values
+
+#### Migration 078: Simplify Marriage Status Values
+**File**: `migrations/078_simplify_marriage_status.sql`
+
+**Status**: ✅ Deployed (January 2025)
+
+Replaces stigmatizing marriage status terms with neutral language:
+- **Old Values**: `'married'`, `'divorced'`, `'widowed'`
+- **New Values**: `'current'` (حالي), `'past'` (سابق)
+
+**Changes**:
+1. Updates all existing records: married→current, divorced/widowed→past
+2. Drops old constraint, adds new constraint accepting only current/past
+3. Updates default value to 'current'
+4. Adds documentation comment explaining the change
+
+**Why This Migration**:
+- Removes cultural stigma from marriage status terminology
+- Simplifies UI (2 options instead of 3)
+- More neutral and inclusive language
+
+**App Code Updates Required**:
+When this migration is deployed, **all app references to marriage status must be updated**:
+
+Critical Files Updated (committed 2a7cde41f, ad643c193):
+- ✅ `TabFamily.js` - Spouse filters and display
+- ✅ `EditChildModal.js` - Mother selection
+- ✅ `EditMarriageModal.js` - Status options (already done)
+- ✅ `InlineSpouseAdder.js` - Default status on creation
+- ✅ `profiles.js` - Default status in createMarriage
+- ✅ `SpouseEditor.js` - Status options and logic
+- ✅ `FatherSelectorSimple.js` - Status filter
+- ✅ `MotherSelector.js` - is_current derivation
+- ✅ Test files - Mock data updated
+
+**Backward Compatibility**: App code now supports both old and new values during transition period.
+
+**Common Issue**: If wives disappear after migration, check that spouse filters accept both 'current' AND 'married' values:
+```javascript
+// ✅ Correct
+const activeSpouses = spouses.filter(s => s.status === 'current' || s.status === 'married');
+
+// ❌ Wrong (causes wives to disappear)
+const activeSpouses = spouses.filter(s => s.status === 'married');
+```
+
 ### Deployment Order
 
 Always deploy migrations in sequence:
@@ -817,10 +877,11 @@ console.log(profile.your_new_field);  // Should NOT be undefined!
 
 - **Super Admin**: علي (phone: 966501669043, ID: ff239ed7-24d5-4298-a135-79dc0f70e5b8)
 - **Authentication**: Phone-based only (no email logins)
-- **Migrations Deployed**: 005, 006 (permission system), 012, 013, 015 (field mapping)
+- **Migrations Deployed**: 005, 006 (permission system), 012, 013, 015 (field mapping), 077, 078 (marriage status)
 - **Admin Functions**: All 10 core functions deployed and operational
 - **Constraint Status**: Fixed - only `check_valid_role` active
 - **Field Coverage**: Migration 015 ensures all 41 profile fields are returned by RPC functions
+- **Marriage Status**: Migration 078 deployed - uses 'current'/'past' terminology (January 2025)
 
 ## 📚 Reference
 
