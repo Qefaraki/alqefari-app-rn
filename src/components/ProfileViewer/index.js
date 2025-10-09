@@ -140,24 +140,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     loadPreference();
   }, [rememberStoreKey]);
 
-  useEffect(() => {
-    bottomSheetRef.current?.snapToIndex?.(0);
-  }, [person?.id]);
-
-  // Reset loading states when bottom sheet opens (snap index changes)
-  useEffect(() => {
-    if (currentSnapIndex >= 0 && person?.id) {
-      setLoadingStates({
-        marriages: true,
-        permissions: true,
-      });
-      skeletonStartTimeRef.current = Date.now();
-    }
-  }, [currentSnapIndex, person?.id]);
-
-  // Reset loading states when navigating between profiles
+  // Reset snap index and loading states when person changes (declarative control)
   useEffect(() => {
     if (person?.id) {
+      setCurrentSnapIndex(0);
       setLoadingStates({
         marriages: true,
         permissions: true,
@@ -746,13 +732,13 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     <>
       <BottomSheet
         ref={bottomSheetRef}
-        index={currentSnapIndex}
+        index={Math.max(-1, Math.min(2, currentSnapIndex))}
         snapPoints={snapPoints}
         enablePanDownToClose={mode !== 'edit'}
         backdropComponent={renderBackdrop}
         handleComponent={handleComponent}
         animatedPosition={animatedPosition}
-        animateOnMount={false}
+        animateOnMount={true}
         onClose={() => {
           onClose?.();
         }}
