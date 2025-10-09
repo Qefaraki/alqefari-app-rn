@@ -18,9 +18,10 @@ import InlineSpouseAdder from '../../InlineSpouseAdder';
 import QuickAddOverlay from '../../admin/QuickAddOverlay';
 import EditChildModal from './EditChildModal';
 import EditMarriageModal from './EditMarriageModal';
-import SelectMotherModal from './SelectMotherModal';
 import { ProgressiveThumbnail } from '../../ProgressiveImage';
 import useStore from '../../../hooks/useStore';
+import { useFeedbackTimeout } from '../../../hooks/useFeedbackTimeout';
+import { ErrorBoundary } from '../../ErrorBoundary';
 
 const SectionCard = ({
   icon,
@@ -178,126 +179,118 @@ const ParentProfileCard = ({
   );
 };
 
-const MotherQuickActions = ({
+const MotherInlinePicker = ({
+  visible,
   suggestions = [],
   loading,
-  selectedMotherId,
-  updatingMotherId,
-  feedback,
+  currentMotherId,
   onSelect,
-  onOpenAll,
+  onClose,
   onClear,
+  onAddSpouse,
   hasFather,
 }) => {
-  const clearing = updatingMotherId === 'clear';
-  const showSuggestions = hasFather && suggestions.length > 0;
-
-  if (!hasFather && !loading) {
-    return null;
-  }
-
-  if (!showSuggestions && !loading && !selectedMotherId) {
-    return null;
-  }
+  if (!visible) return null;
 
   return (
-    <View style={styles.motherActions}>
-      <View style={styles.motherActionsHeader}>
-        <Text style={styles.motherActionsTitle}>اقتراحات جاهزة</Text>
+    <View style={styles.motherSheet}>
+      <View style={styles.motherSheetHeader}>
+        <Text style={styles.motherSheetTitle}>اختيار الأم</Text>
         <TouchableOpacity
-          onPress={onOpenAll}
+          onPress={onClose}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           activeOpacity={0.7}
         >
-          <Text style={styles.motherActionsLink}>عرض جميع الأمهات</Text>
+          <Ionicons name="close" size={20} color={tokens.colors.najdi.textMuted} />
         </TouchableOpacity>
       </View>
-
-      {feedback ? (
-        <View style={styles.motherFeedback}>
-          <Ionicons name="checkmark-circle" size={16} color={tokens.colors.success} />
-          <Text style={styles.motherFeedbackText}>{feedback}</Text>
-        </View>
-      ) : null}
 
       {loading ? (
         <View style={styles.motherLoadingRow}>
           <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-          <Text style={styles.motherLoadingText}>جاري تجهيز المرشحات...</Text>
+          <Text style={styles.motherLoadingText}>جاري تحميل المرشحات...</Text>
         </View>
-      ) : showSuggestions ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.motherChipsRow}
-        >
-          {suggestions.map((option) => {
-            const motherProfile = option.spouse_profile;
-            if (!motherProfile) return null;
-            const isSelected = motherProfile.id === selectedMotherId;
-            const isUpdating = updatingMotherId === motherProfile.id;
+      ) : !hasFather ? (
+        <View style={styles.motherEmptyState}>
+          <Text style={styles.motherEmptyTitle}>حدد الأب أولاً</Text>
+          <Text style={styles.motherEmptyText}>بعد اختيار الأب ستظهر المرشحات هنا</Text>
+        </View>
+      ) : suggestions.length > 0 ? (
+        <View style={styles.motherListContainer}>
+          <ScrollView style={styles.motherList} showsVerticalScrollIndicator={false}>
+            {suggestions.map((option) => {
+              const motherProfile = option.spouse_profile;
+              if (!motherProfile) return null;
+              const isSelected = motherProfile.id === currentMotherId;
 
-            return (
-              <TouchableOpacity
-                key={option.marriage_id}
-                style={[
-                  styles.motherChip,
-                  isSelected && styles.motherChipSelected,
-                  isUpdating && styles.motherChipUpdating,
-                ]}
-                onPress={() => onSelect(motherProfile.id)}
-                disabled={isUpdating}
-                activeOpacity={0.85}
-              >
-                <View style={styles.motherChipAvatar}>
-                  {motherProfile.photo_url ? (
-                    <ProgressiveThumbnail
-                      source={{ uri: motherProfile.photo_url }}
-                      size={32}
-                    />
-                  ) : (
-                    <View style={styles.motherChipFallback}>
-                      <Text style={styles.motherChipInitial}>{getInitials(motherProfile.name)}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.motherChipTextBlock}>
-                  <Text style={styles.motherChipName} numberOfLines={1}>
-                    {motherProfile.name}
-                  </Text>
-                  {option.status && option.status !== 'married' ? (
-                    <Text style={styles.motherChipHint} numberOfLines={1}>
-                      {option.status === 'divorced' ? 'مرتبطة سابقاً' : 'أرملة'}
+              return (
+                <TouchableOpacity
+                  key={option.marriage_id}
+                  style={[styles.motherRow, isSelected && styles.motherRowSelected]}
+                  onPress={() => onSelect(motherProfile.id)}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.motherRowAvatar}>
+                    {motherProfile.photo_url ? (
+                      <ProgressiveThumbnail
+                        source={{ uri: motherProfile.photo_url }}
+                        size={40}
+                      />
+                    ) : (
+                      <View style={styles.motherRowFallback}>
+                        <Text style={styles.motherRowInitial}>{getInitials(motherProfile.name)}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.motherRowText}>
+                    <Text style={styles.motherRowName} numberOfLines={1}>
+                      {motherProfile.name}
                     </Text>
-                  ) : null}
-                </View>
-                {isUpdating ? (
-                  <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-                ) : isSelected ? (
-                  <Ionicons name="checkmark-circle" size={18} color={tokens.colors.najdi.primary} />
-                ) : null}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      ) : null}
+                    <Text style={styles.motherRowHint} numberOfLines={1}>
+                      {option.status === 'married'
+                        ? 'زوجة حالية'
+                        : option.status === 'divorced'
+                        ? 'زوجة سابقة'
+                        : option.status === 'widowed'
+                        ? 'زوجة أرملة'
+                        : 'من خارج العائلة'}
+                    </Text>
+                  </View>
+                  {isSelected ? (
+                    <Ionicons name="checkmark-circle" size={20} color={tokens.colors.najdi.primary} />
+                  ) : (
+                    <Ionicons name="ellipse-outline" size={20} color={tokens.colors.najdi.textMuted + '66'} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : (
+        <View style={styles.motherEmptyState}>
+          <Text style={styles.motherEmptyTitle}>لا توجد أم مرشحة</Text>
+          <Text style={styles.motherEmptyText}>أضف زوجة للأب لتتمكن من اختيار الأم</Text>
+          <TouchableOpacity
+            style={styles.motherNudgeButton}
+            onPress={onAddSpouse}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={16} color={tokens.colors.najdi.primary} />
+            <Text style={styles.motherNudgeButtonText}>إضافة زوجة للأب</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {selectedMotherId ? (
-        <TouchableOpacity
-          style={styles.motherClearButton}
-          onPress={onClear}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          disabled={clearing}
-          activeOpacity={0.7}
-        >
-          {clearing ? (
-            <ActivityIndicator size="small" color={tokens.colors.najdi.textMuted} />
-          ) : (
-            <Ionicons name="close-circle" size={16} color={tokens.colors.najdi.textMuted} />
-          )}
-          <Text style={styles.motherClearText}>إزالة الأم</Text>
+      <View style={styles.motherSheetFooter}>
+        <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+          <Text style={styles.motherFooterLink}>إلغاء</Text>
         </TouchableOpacity>
-      ) : null}
+        {currentMotherId ? (
+          <TouchableOpacity onPress={onClear} activeOpacity={0.7}>
+            <Text style={[styles.motherFooterLink, styles.motherFooterDanger]}>إزالة الأم</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
 };
@@ -381,35 +374,19 @@ const TabFamily = ({ person, onDataChanged }) => {
   const [selectedChild, setSelectedChild] = useState(null);
   const [editMarriageModalVisible, setEditMarriageModalVisible] = useState(false);
   const [selectedMarriage, setSelectedMarriage] = useState(null);
-  const [selectMotherModalVisible, setSelectMotherModalVisible] = useState(false);
   const [motherOptions, setMotherOptions] = useState([]);
   const [loadingMotherOptions, setLoadingMotherOptions] = useState(false);
   const [updatingMotherId, setUpdatingMotherId] = useState(null);
   const [motherFeedback, setMotherFeedback] = useState(null);
+  const [motherPickerVisible, setMotherPickerVisible] = useState(false);
   const [spouseAdderVisible, setSpouseAdderVisible] = useState(false);
   const [spouseFeedback, setSpouseFeedback] = useState(null);
   const [prefilledSpouseName, setPrefilledSpouseName] = useState(null);
   const { refreshProfile } = useStore();
 
-  useEffect(() => {
-    let timeout;
-    if (motherFeedback) {
-      timeout = setTimeout(() => setMotherFeedback(null), 2000);
-    }
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [motherFeedback]);
-
-  useEffect(() => {
-    let timeout;
-    if (spouseFeedback) {
-      timeout = setTimeout(() => setSpouseFeedback(null), 2000);
-    }
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [spouseFeedback]);
+  // Auto-clear feedback messages after 2 seconds
+  useFeedbackTimeout(motherFeedback, setMotherFeedback);
+  useFeedbackTimeout(spouseFeedback, setSpouseFeedback);
 
   useEffect(() => {
     if (person?.id) {
@@ -723,24 +700,12 @@ const TabFamily = ({ person, onDataChanged }) => {
 
   const motherSuggestions = useMemo(() => {
     if (!motherOptions || motherOptions.length === 0) return [];
-    return motherOptions.slice(0, 2);
+    return motherOptions;
   }, [motherOptions]);
 
   const handleChangeMother = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectMotherModalVisible(true);
-  };
-
-  const handleMotherSelected = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await loadFamilyData();
-    if (refreshProfile) {
-      await refreshProfile(person.id);
-    }
-    if (onDataChanged) {
-      onDataChanged();
-    }
-    setSelectMotherModalVisible(false);
+    setMotherPickerVisible((prev) => !prev);
   };
 
   if (loading) {
@@ -825,19 +790,28 @@ const TabFamily = ({ person, onDataChanged }) => {
             emptyTitle="لم يتم اختيار الأم"
             emptySubtitle="أضف الأم ليكتمل ملفك"
             onAction={father ? handleChangeMother : null}
-            actionLabel={mother ? 'تغيير الأم' : 'إضافة الأم'}
+            actionLabel={motherPickerVisible ? 'إغلاق' : mother ? 'تغيير الأم' : 'إضافة الأم'}
           >
-            <MotherQuickActions
+            <MotherInlinePicker
+              visible={motherPickerVisible}
               suggestions={motherSuggestions}
               loading={loadingMotherOptions}
-              selectedMotherId={person?.mother_id}
-              updatingMotherId={updatingMotherId}
-              feedback={motherFeedback}
+              currentMotherId={person?.mother_id}
               onSelect={handleQuickMotherSelect}
-              onOpenAll={() => setSelectMotherModalVisible(true)}
+              onClose={() => setMotherPickerVisible(false)}
               onClear={handleClearMother}
+              onAddSpouse={() => {
+                setMotherPickerVisible(false);
+                setSpouseModalVisible(true);
+              }}
               hasFather={Boolean(father)}
             />
+            {motherFeedback ? (
+              <View style={styles.parentFeedback}>
+                <Ionicons name="checkmark-circle" size={14} color={tokens.colors.success} />
+                <Text style={styles.parentFeedbackText}>{motherFeedback}</Text>
+              </View>
+            ) : null}
           </ParentProfileCard>
         </View>
       </SectionCard>
@@ -852,14 +826,16 @@ const TabFamily = ({ person, onDataChanged }) => {
             {!spouseAdderVisible ? (
               <AddActionButton label={addSpouseLabel} onPress={() => setSpouseAdderVisible(true)} />
             ) : null}
-            <InlineSpouseAdder
-              person={person}
-              visible={spouseAdderVisible}
-              onAdded={handleSpouseAddedInline}
-              onCancel={() => setSpouseAdderVisible(false)}
-              onNeedsSearch={handleNeedsAlQefariSearch}
-              feedback={spouseFeedback}
-            />
+            <ErrorBoundary>
+              <InlineSpouseAdder
+                person={person}
+                visible={spouseAdderVisible}
+                onAdded={handleSpouseAddedInline}
+                onCancel={() => setSpouseAdderVisible(false)}
+                onNeedsSearch={handleNeedsAlQefariSearch}
+                feedback={spouseFeedback}
+              />
+            </ErrorBoundary>
           </View>
         }
       >
@@ -968,13 +944,6 @@ const TabFamily = ({ person, onDataChanged }) => {
         onSaved={handleEditMarriageSaved}
       />
 
-      <SelectMotherModal
-        visible={selectMotherModalVisible}
-        person={person}
-        father={familyData?.father}
-        onClose={() => setSelectMotherModalVisible(false)}
-        onSaved={handleMotherSelected}
-      />
     </ScrollView>
   );
 };
@@ -1361,25 +1330,26 @@ const styles = StyleSheet.create({
     color: tokens.colors.surface,
   },
 
-  motherActions: {
+  motherSheet: {
     width: '100%',
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '40',
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
     gap: tokens.spacing.sm,
+    marginTop: tokens.spacing.sm,
   },
-  motherActionsHeader: {
+  motherSheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: tokens.spacing.sm,
   },
-  motherActionsTitle: {
+  motherSheetTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: tokens.colors.najdi.text,
-  },
-  motherActionsLink: {
-    fontSize: 13,
-    color: tokens.colors.najdi.primary,
-    fontWeight: '600',
   },
   motherLoadingRow: {
     flexDirection: 'row',
@@ -1390,91 +1360,112 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
   },
-  motherFeedback: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xs,
-  },
-  motherFeedbackText: {
-    fontSize: 13,
-    color: tokens.colors.success,
-    fontWeight: '600',
-  },
-  motherChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.sm,
-  },
-  motherChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.lg,
+  motherListContainer: {
+    borderRadius: tokens.radii.md,
+    backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: tokens.colors.najdi.container + '20',
+    maxHeight: 240,
+  },
+  motherList: {
+    paddingVertical: tokens.spacing.xs,
+  },
+  motherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+    borderRadius: tokens.radii.md,
+    marginHorizontal: tokens.spacing.sm,
+    marginVertical: 2,
+  },
+  motherRowSelected: {
+    backgroundColor: tokens.colors.najdi.primary + '18',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.primary + '60',
+  },
+  motherRowAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: tokens.colors.najdi.background,
-    minWidth: 0,
-  },
-  motherChipSelected: {
-    borderColor: tokens.colors.najdi.primary,
-    backgroundColor: tokens.colors.najdi.primary + '14',
-  },
-  motherChipUpdating: {
-    opacity: 0.7,
-  },
-  motherChipAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  motherChipFallback: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: tokens.colors.najdi.container + '40',
+    overflow: 'hidden',
   },
-  motherChipInitial: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
+  motherRowFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.najdi.container + '26',
   },
-  motherChipTextBlock: {
-    flex: 1,
-    minWidth: 80,
-    flexShrink: 1,
-  },
-  motherChipName: {
+  motherRowInitial: {
     fontSize: 15,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  motherChipHint: {
+  motherRowText: {
+    flex: 1,
+    gap: 2,
+  },
+  motherRowName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  motherRowHint: {
     fontSize: 12,
     color: tokens.colors.najdi.textMuted,
   },
-  motherClearButton: {
-    flexDirection: 'row',
+  motherEmptyState: {
     alignItems: 'center',
     gap: tokens.spacing.xs,
-    marginTop: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
   },
-  motherClearText: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-  },
-  motherEmptyContainer: {
-    paddingVertical: tokens.spacing.sm,
+  motherEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najدي.text,
   },
   motherEmptyText: {
     fontSize: 13,
     color: tokens.colors.najdi.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  motherNudgeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.primary + '55',
+    backgroundColor: tokens.colors.surface,
+    marginTop: tokens.spacing.sm,
+  },
+  motherNudgeButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
+  },
+  motherSheetFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: tokens.spacing.sm,
+  },
+  motherFooterLink: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    fontWeight: '600',
+  },
+  motherFooterDanger: {
+    color: tokens.colors.danger,
   },
 
   emptyState: {

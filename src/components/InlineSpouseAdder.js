@@ -15,11 +15,30 @@ import Animated, {
   withTiming,
   withSpring,
 } from "react-native-reanimated";
+import PropTypes from "prop-types";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
 import profilesService from "../services/profiles";
 import familyNameService from "../services/familyNameService";
 import tokens from "./ui/tokens";
+
+// Animation constants for consistent timing and behavior
+const ANIMATION = {
+  // Input focus delay after expansion completes
+  INPUT_FOCUS_DELAY: 60,
+
+  // Expansion animation
+  EXPAND_HEIGHT: 60,
+  EXPAND_SPRING: { damping: 18, stiffness: 220 },
+  EXPAND_OPACITY_DURATION: 180,
+
+  // Collapse animation
+  COLLAPSE_HEIGHT_DURATION: 160,
+  COLLAPSE_OPACITY_DURATION: 140,
+
+  // State reset delay (must match or exceed collapse animation)
+  STATE_RESET_DELAY: 180,
+};
 
 export default function InlineSpouseAdder({
   person,
@@ -70,21 +89,21 @@ export default function InlineSpouseAdder({
   // Focus input shortly after expansion finishes
   useEffect(() => {
     if (isExpanded && visible) {
-      const id = setTimeout(() => inputRef.current?.focus(), 60);
+      const id = setTimeout(() => inputRef.current?.focus(), ANIMATION.INPUT_FOCUS_DELAY);
       return () => clearTimeout(id);
     }
   }, [isExpanded, visible]);
 
   const expand = () => {
     setIsExpanded(true);
-    heightSV.value = withSpring(60, { damping: 18, stiffness: 220 });
-    opacitySV.value = withTiming(1, { duration: 180 });
+    heightSV.value = withSpring(ANIMATION.EXPAND_HEIGHT, ANIMATION.EXPAND_SPRING);
+    opacitySV.value = withTiming(1, { duration: ANIMATION.EXPAND_OPACITY_DURATION });
   };
 
   const collapse = () => {
     Keyboard.dismiss();
-    heightSV.value = withTiming(0, { duration: 160 });
-    opacitySV.value = withTiming(0, { duration: 140 });
+    heightSV.value = withTiming(0, { duration: ANIMATION.COLLAPSE_HEIGHT_DURATION });
+    opacitySV.value = withTiming(0, { duration: ANIMATION.COLLAPSE_OPACITY_DURATION });
 
     // Clear any existing timeout
     if (collapseTimeoutRef.current) {
@@ -96,7 +115,7 @@ export default function InlineSpouseAdder({
       setIsExpanded(false);
       setSpouseName("");
       collapseTimeoutRef.current = null;
-    }, 180);
+    }, ANIMATION.STATE_RESET_DELAY);
   };
 
   const handleSave = async () => {
@@ -325,6 +344,28 @@ export default function InlineSpouseAdder({
     </View>
   );
 }
+
+// PropTypes validation for type safety
+InlineSpouseAdder.propTypes = {
+  person: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    gender: PropTypes.oneOf(['male', 'female']).isRequired,
+    generation: PropTypes.number,
+  }).isRequired,
+  onAdded: PropTypes.func,
+  visible: PropTypes.bool,
+  onCancel: PropTypes.func,
+  onNeedsSearch: PropTypes.func,
+  feedback: PropTypes.string,
+};
+
+InlineSpouseAdder.defaultProps = {
+  visible: false,
+  onAdded: null,
+  onCancel: null,
+  onNeedsSearch: null,
+  feedback: null,
+};
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -13,6 +13,7 @@ import {
   Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import PropTypes from "prop-types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
@@ -519,6 +520,24 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     </Modal>
   );
 }
+
+// PropTypes validation for type safety
+SpouseManager.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  person: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    gender: PropTypes.oneOf(['male', 'female']).isRequired,
+    generation: PropTypes.number,
+  }).isRequired,
+  onClose: PropTypes.func.isRequired,
+  onSpouseAdded: PropTypes.func,
+  prefilledName: PropTypes.string,
+};
+
+SpouseManager.defaultProps = {
+  onSpouseAdded: null,
+  prefilledName: null,
+};
 
 const styles = StyleSheet.create({
   container: {
