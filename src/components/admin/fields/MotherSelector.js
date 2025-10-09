@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import CardSurface from "../../ios/CardSurface";
 import { supabase } from "../../../services/supabase";
 import familyNameService from "../../../services/familyNameService";
+import { getShortNameChain } from "../../ProfileViewer/EditMode/TabFamily";
 
 // Enable RTL
 I18nManager.forceRTL(true);
@@ -45,48 +46,64 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
 
     setLoading(true);
     try {
-      // Get father's wives using the admin function
-      const { data, error } = await supabase.rpc("admin_get_person_wives", {
-        p_person_id: fatherId,
-      });
+      // Query marriages table for father's wives
+      const { data, error } = await supabase
+        .from("marriages")
+        .select(`
+          id,
+          wife_id,
+          status,
+          wife:profiles!marriages_wife_id_fkey(
+            id,
+            name,
+            hid,
+            name_chain,
+            lineage_preview,
+            full_name_chain,
+            name_chain_snapshot,
+            full_name,
+            family_origin,
+            family_name
+          )
+        `)
+        .eq("husband_id", fatherId)
+        .in("status", ["current", "past", "married", "widowed", "divorced"]) // Support both old and new values
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error loading wives:", error);
-        // If admin function fails, try getting marriages directly
-        const { data: marriages, error: marriagesError } = await supabase
-          .from("marriages")
-          .select(
-            `
-            id,
-            wife_id,
-            status,
-            wife:profiles!marriages_wife_id_fkey(
-              id,
-              name
-            )
-          `,
-          )
-          .eq("husband_id", fatherId)
-          .order("created_at", { ascending: false });
-
-        if (marriagesError) {
-          console.error("Error loading marriages:", marriagesError);
-          setWives([]);
-        } else {
-          // Transform the data to match expected format
-          const transformedWives = (marriages || []).map((m) => ({
-            id: m.id,
-            wife_id: m.wife?.id,
-            wife_name: m.wife?.name || "غير معروف",
-            status: m.status,
-            is_current: m.status === "current" || m.status === "married", // Support both new and old
-            children_count: 0, // We'll update this if needed
-          }));
-          setWives(transformedWives);
-        }
-      } else {
-        setWives(data || []);
+        setWives([]);
+        return;
       }
+
+      // Format data for display - get children count for each wife
+      const formattedWivesPromises = (data || []).map(async (marriage) => {
+        const wife = marriage.wife;
+
+        // Use same logic as view mode - getShortNameChain handles all edge cases
+        const displayName = wife ? (getShortNameChain(wife) || wife.name || "غير معروف") : "غير معروف";
+
+        // Get children count
+        const { count } = await supabase
+          .from("profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("mother_id", marriage.wife_id)
+          .eq("father_id", fatherId);
+
+        return {
+          id: marriage.id,
+          wife_id: marriage.wife_id,
+          wife_name: wife?.name || "غير معروف", // Keep original for backwards compatibility
+          display_name: displayName, // Shows up to 5 names from chain (same as view mode)
+          wife_hid: wife?.hid,
+          status: marriage.status,
+          is_current: marriage.status === "current" || marriage.status === "married",
+          children_count: count || 0,
+        };
+      });
+
+      const formattedWives = await Promise.all(formattedWivesPromises);
+      setWives(formattedWives);
     } catch (error) {
       console.error("Error in loadWives:", error);
       setWives([]);
@@ -170,7 +187,7 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
               <View style={styles.selectedContent}>
                 <View style={styles.selectedInfo}>
                   <Text style={styles.selectedName}>
-                    {selectedMother.wife_name}
+                    {selectedMother.display_name}
                   </Text>
                   {selectedMother.is_current && (
                     <View style={styles.currentBadge}>
@@ -236,8 +253,13 @@ const MotherSelector = ({ fatherId, value, onChange, label }) => {
                           isSelected && styles.optionNameSelected,
                         ]}
                       >
-                        {wife.wife_name}
+                        {wife.display_name}
                       </Text>
+                      {wife.wife_hid && (
+                        <Text style={styles.optionHid}>
+                          {wife.wife_hid}
+                        </Text>
+                      )}
                       <View style={styles.optionMeta}>
                         {wife.is_current ? (
                           <View style={styles.currentIndicator}>
@@ -416,6 +438,12 @@ const styles = StyleSheet.create({
   optionNameSelected: {
     color: "#007AFF",
     fontWeight: "500",
+  },
+  optionHid: {
+    fontSize: 13,
+    color: "#8A8A8E",
+    fontFamily: "SF Arabic Regular",
+    marginBottom: 4,
   },
   optionMeta: {
     flexDirection: "row",

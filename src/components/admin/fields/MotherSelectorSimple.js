@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
+import { getShortNameChain } from "../../ProfileViewer/EditMode/TabFamily";
 
 // Enable RTL
 I18nManager.forceRTL(true);
@@ -50,31 +51,59 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
     setLoading(true);
     try {
-      // Get father's wives
-      const { data, error } = await supabase.rpc("admin_get_person_wives", {
-        p_person_id: fatherId,
+      // Query marriages table for father's wives
+      const { data, error } = await supabase
+        .from("marriages")
+        .select(`
+          id,
+          wife_id,
+          status,
+          wife:profiles!marriages_wife_id_fkey(
+            id,
+            name,
+            hid,
+            name_chain,
+            lineage_preview,
+            full_name_chain,
+            name_chain_snapshot,
+            full_name,
+            family_origin,
+            family_name
+          )
+        `)
+        .eq("husband_id", fatherId)
+        .in("status", ["current", "past", "married", "widowed", "divorced"]) // Support both old and new values
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading wives:", error);
+        setWives([]);
+        return;
+      }
+
+      // Format data for display
+      const formattedWives = (data || []).map((marriage) => {
+        const wife = marriage.wife;
+
+        // Use same logic as view mode - getShortNameChain handles all edge cases
+        const displayName = wife ? (getShortNameChain(wife) || wife.name || "غير محدد") : "غير محدد";
+
+        return {
+          wife_id: marriage.wife_id,
+          wife_name: wife?.name || "غير محدد", // Keep original for backwards compatibility
+          display_name: displayName, // Shows up to 5 names from chain (same as view mode)
+          wife_hid: wife?.hid,
+          status: marriage.status,
+          is_current: marriage.status === "current" || marriage.status === "married",
+        };
       });
 
-      if (!error && data) {
-        setWives(data);
-        // Pass wives data to parent immediately after loading
-        onChange(value, data);
-      } else {
-        // Fallback: try direct query
-        const { data: marriages } = await supabase
-          .from("marriages")
-          .select("wife_id, wife_name, is_current, marriage_order")
-          .eq("husband_id", fatherId)
-          .order("marriage_order", { ascending: true });
-
-        if (marriages) {
-          setWives(marriages);
-          // Pass wives data to parent immediately after loading
-          onChange(value, marriages);
-        }
-      }
+      setWives(formattedWives);
+      // Pass wives data to parent
+      onChange(value, formattedWives);
     } catch (err) {
       console.error("Error loading wives:", err);
+      setWives([]);
     } finally {
       setLoading(false);
     }
@@ -184,7 +213,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
               }
               numberOfLines={1}
             >
-              {selectedMother ? selectedMother.wife_name : "اختر الأم"}
+              {selectedMother ? selectedMother.display_name : "اختر الأم"}
             </Text>
 
             {/* Clear button SECOND (will appear in middle/left) */}
@@ -240,15 +269,22 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
                   activeOpacity={0.6}
                 >
                   {/* Text FIRST for RTL */}
-                  <Text
-                    style={[
-                      styles.optionText,
-                      selectedMother?.wife_id === wife.wife_id &&
-                        styles.optionTextSelected,
-                    ]}
-                  >
-                    {wife.wife_name}
-                  </Text>
+                  <View style={styles.optionContent}>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        selectedMother?.wife_id === wife.wife_id &&
+                          styles.optionTextSelected,
+                      ]}
+                    >
+                      {wife.display_name}
+                    </Text>
+                    {wife.wife_hid && (
+                      <Text style={styles.optionHid}>
+                        {wife.wife_hid}
+                      </Text>
+                    )}
+                  </View>
 
                   {/* Badge LAST for RTL */}
                   {wife.is_current && (
@@ -362,7 +398,7 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -371,14 +407,23 @@ const styles = StyleSheet.create({
   optionSelected: {
     backgroundColor: "#F8F8F8",
   },
+  optionContent: {
+    flex: 1,
+    alignItems: I18nManager.isRTL ? "flex-end" : "flex-start",
+  },
   optionText: {
     fontSize: 15,
     color: "#000",
     textAlign: "right",
-    flex: 1,
   },
   optionTextSelected: {
     fontWeight: "600",
+  },
+  optionHid: {
+    fontSize: 12,
+    color: "rgba(0,0,0,0.4)",
+    marginTop: 2,
+    textAlign: "right",
   },
   currentBadge: {
     backgroundColor: "rgba(0,0,0,0.05)",
