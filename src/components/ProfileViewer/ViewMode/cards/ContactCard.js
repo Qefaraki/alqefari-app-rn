@@ -20,7 +20,7 @@ const formatPlatform = (platform) => {
   }
 };
 
-const ContactCard = ({ person }) => {
+const ContactCard = React.memo(({ person }) => {
   const socials = person?.social_media_links;
   const hasSocials = socials && Object.keys(socials).length > 0;
 
@@ -63,7 +63,9 @@ const ContactCard = ({ person }) => {
       ) : null}
     </InfoCard>
   );
-};
+});
+
+ContactCard.displayName = 'ContactCard';
 
 const styles = {
   label: {

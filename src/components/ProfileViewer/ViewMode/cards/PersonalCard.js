@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import InfoCard from '../components/InfoCard';
 import { getTitleLabel } from '../../../../services/professionalTitleService';
 
-const PersonalCard = ({ person }) => {
+const PersonalCard = React.memo(({ person }) => {
   if (!person) return null;
 
   const rows = [
@@ -27,7 +27,9 @@ const PersonalCard = ({ person }) => {
       </View>
     </InfoCard>
   );
-};
+});
+
+PersonalCard.displayName = 'PersonalCard';
 
 const styles = {
   grid: {

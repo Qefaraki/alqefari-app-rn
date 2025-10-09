@@ -4,7 +4,7 @@ import InfoCard from '../components/InfoCard';
 import { useSettings } from '../../../../contexts/SettingsContext';
 import { formatYearBySettings } from '../../../../utils/dateUtils';
 
-const TimelineCard = ({ timeline }) => {
+const TimelineCard = React.memo(({ timeline }) => {
   const { settings } = useSettings();
 
   if (!Array.isArray(timeline) || timeline.length === 0) {
@@ -31,7 +31,9 @@ const TimelineCard = ({ timeline }) => {
       </View>
     </InfoCard>
   );
-};
+});
+
+TimelineCard.displayName = 'TimelineCard';
 
 const styles = {
   eventRow: {

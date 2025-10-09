@@ -26,7 +26,7 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
   };
 };
 
-const FamilyCard = ({
+const FamilyCard = React.memo(({
   father,
   mother,
   marriages = [],
@@ -132,7 +132,9 @@ const FamilyCard = ({
       </ScrollView>
     </InfoCard>
   );
-};
+});
+
+FamilyCard.displayName = 'FamilyCard';
 
 const styles = StyleSheet.create({
   familyRow: {

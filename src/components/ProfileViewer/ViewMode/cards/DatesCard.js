@@ -4,7 +4,7 @@ import InfoCard from '../components/InfoCard';
 import FieldRow from '../components/FieldRow';
 import { useFormattedDate } from '../../../../hooks/useFormattedDate';
 
-const DatesCard = ({ person }) => {
+const DatesCard = React.memo(({ person }) => {
   const dob = person?.dob_data;
   const dod = person?.dod_data;
   const status = person?.status;
@@ -45,7 +45,9 @@ const DatesCard = ({ person }) => {
       {rows}
     </InfoCard>
   );
-};
+});
+
+DatesCard.displayName = 'DatesCard';
 
 const styles = {
   privacy: {

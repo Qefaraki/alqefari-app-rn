@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import InfoCard from '../components/InfoCard';
 import FieldRow from '../components/FieldRow';
 
-const ProfessionalCard = ({ person }) => {
+const ProfessionalCard = React.memo(({ person }) => {
   const hasAchievements = Array.isArray(person?.achievements) && person.achievements.length > 0;
   if (!person?.education && !hasAchievements) {
     return null;
@@ -26,7 +26,9 @@ const ProfessionalCard = ({ person }) => {
       ) : null}
     </InfoCard>
   );
-};
+});
+
+ProfessionalCard.displayName = 'ProfessionalCard';
 
 const styles = {
   label: {

@@ -2,7 +2,7 @@ import React from 'react';
 import InfoCard from '../components/InfoCard';
 import PhotoGallerySimple from '../../../PhotoGallerySimple';
 
-const PhotosCard = ({ person, accessMode }) => {
+const PhotosCard = React.memo(({ person, accessMode }) => {
   if (!person?.id) return null;
 
   // Enable editing for users with direct access (admin/moderator/inner circle)
@@ -16,6 +16,8 @@ const PhotosCard = ({ person, accessMode }) => {
       />
     </InfoCard>
   );
-};
+});
+
+PhotosCard.displayName = 'PhotosCard';
 
 export default PhotosCard;

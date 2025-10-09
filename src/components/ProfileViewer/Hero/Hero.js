@@ -36,7 +36,7 @@ const constructCommonName = (person, nodesMap) => {
   return chain;
 };
 
-const Hero = ({
+const Hero = React.memo(({
   person,
   onMenu,
   onCopyChain,
@@ -157,7 +157,9 @@ const Hero = ({
       ) : null}
     </View>
   );
-};
+});
+
+Hero.displayName = 'Hero';
 
 const styles = StyleSheet.create({
   container: {

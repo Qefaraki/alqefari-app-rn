@@ -202,7 +202,6 @@ const MotherInlinePicker = ({
 
   return (
     <View style={styles.motherSheet}>
-      <Text style={styles.motherSheetTitle}>اختر الأم المرتبطة بهذا الملف</Text>
 
       {loading ? (
         <View style={styles.motherLoadingColumn}>
@@ -276,8 +275,8 @@ const MotherInlinePicker = ({
         </View>
       ) : (
         <View style={styles.motherEmptyState}>
-          <Text style={styles.motherEmptyTitle}>لا توجد أم مرشحة</Text>
-          <Text style={styles.motherEmptyText}>أضف زوجة للأب أو حدث بياناته ليظهر خيار الأم المناسب</Text>
+          <Text style={styles.motherEmptyTitle}>لا توجد أم مسجلة</Text>
+          <Text style={styles.motherEmptyText}>أضف زوجة للأب أو حدّث بياناته لتظهر خيارات الأم هنا</Text>
           <TouchableOpacity
             style={styles.motherNudgeButton}
             onPress={onGoToFather}
