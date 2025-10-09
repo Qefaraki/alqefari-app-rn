@@ -65,7 +65,8 @@ const getInitials = (name) => {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 };
 
-const getShortNameChain = (profile) => {
+// Export for reuse in FatherSelectorSimple and other components
+export const getShortNameChain = (profile) => {
   const rawChain =
     profile?.lineage_preview ||
     profile?.name_chain ||

@@ -13,7 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
-import { buildNameChain, getFirstThreeNames } from "../../../utils/nameChainBuilder";
+import { getShortNameChain } from "../../ProfileViewer/EditMode/TabFamily";
 
 // Enable RTL
 I18nManager.forceRTL(true);
@@ -71,11 +71,13 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
             id,
             name,
             hid,
-            father_name,
-            grandfather_name,
             name_chain,
             lineage_preview,
-            full_name_chain
+            full_name_chain,
+            name_chain_snapshot,
+            full_name,
+            family_origin,
+            family_name
           )
         `)
         .eq("wife_id", motherId)
@@ -92,25 +94,13 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
       const formattedHusbands = (data || []).map((marriage) => {
         const husband = marriage.husband;
 
-        // Build name chain from available data
-        let nameChain = '';
-        if (husband) {
-          // Try to use existing chain fields first
-          nameChain = husband.lineage_preview ||
-                      husband.name_chain ||
-                      husband.full_name_chain ||
-                      buildNameChain(husband) ||
-                      husband.name ||
-                      "غير محدد";
-        }
-
-        // Extract first 3 names for display
-        const displayName = getFirstThreeNames(nameChain) || husband?.name || "غير محدد";
+        // Use same logic as view mode - getShortNameChain handles all edge cases
+        const displayName = husband ? (getShortNameChain(husband) || husband.name || "غير محدد") : "غير محدد";
 
         return {
           husband_id: marriage.husband_id,
           husband_name: husband?.name || "غير محدد", // Keep original for backwards compatibility
-          display_name: displayName, // New field with 3 names
+          display_name: displayName, // Shows up to 5 names from chain (same as view mode)
           husband_hid: husband?.hid,
           status: marriage.status,
           is_current: marriage.status === "current" || marriage.status === "married",

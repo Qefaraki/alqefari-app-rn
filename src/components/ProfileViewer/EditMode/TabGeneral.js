@@ -26,7 +26,14 @@ const FormGroup = ({ title, children, style }) => (
 
 // Enhanced Toggle Group with proper iOS styling and haptics
 const ToggleGroup = ({ label, value, options, onChange }) => {
-  const scaleAnims = useRef(options.map(() => new Animated.Value(1))).current;
+  // Lazy initialization to prevent memory leaks from orphaned Animated.Values
+  const scaleAnimsRef = useRef(null);
+
+  if (!scaleAnimsRef.current) {
+    scaleAnimsRef.current = options.map(() => new Animated.Value(1));
+  }
+
+  const scaleAnims = scaleAnimsRef.current;
 
   const handlePress = (option, index) => {
     // Haptic feedback on selection
