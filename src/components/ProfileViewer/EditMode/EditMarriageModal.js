@@ -26,14 +26,27 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
   // Initialize form when marriage changes
   useEffect(() => {
     if (marriage) {
-      // marriage_date is aliased from start_date in the RPC
-      setStartDate(marriage.start_date || marriage.marriage_date || '');
-      setEndDate(marriage.end_date || '');
+      // Extract year from full date (YYYY-MM-DD → YYYY)
+      const extractYear = (dateStr) => {
+        if (!dateStr) return '';
+        const match = dateStr.match(/^(\d{4})/);
+        return match ? match[1] : '';
+      };
 
-      // Map old status values to new simplified values
-      const oldStatus = marriage.status || 'married';
-      const newStatus = oldStatus === 'married' ? 'current' : 'past';
-      setStatus(newStatus);
+      setStartDate(extractYear(marriage.start_date || marriage.marriage_date));
+      setEndDate(extractYear(marriage.end_date));
+
+      // Map both old and new status values correctly
+      const rawStatus = marriage.status || 'current';
+      // Old values: 'married' → 'current', 'divorced'/'widowed' → 'past'
+      // New values: 'current' stays 'current', 'past' stays 'past'
+      let mappedStatus;
+      if (rawStatus === 'current' || rawStatus === 'married') {
+        mappedStatus = 'current';
+      } else {
+        mappedStatus = 'past'; // 'past', 'divorced', 'widowed' all → 'past'
+      }
+      setStatus(mappedStatus);
     }
   }, [marriage]);
 
@@ -42,42 +55,36 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
     onClose?.();
   };
 
-  const formatDateForDisplay = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
-    return date.toISOString().split('T')[0];
-  };
-
-  const validateDate = (dateString) => {
-    if (!dateString) return true; // Empty is OK
-    // Accept YYYY-MM-DD format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(dateString)) {
+  const validateYear = (yearString) => {
+    if (!yearString) return true; // Empty is OK
+    // Accept YYYY format only
+    const yearRegex = /^\d{4}$/;
+    if (!yearRegex.test(yearString)) {
       return false;
     }
-    const date = new Date(dateString);
-    return !isNaN(date.getTime());
+    const year = parseInt(yearString, 10);
+    // Reasonable year range: 1900-2100
+    return year >= 1900 && year <= 2100;
   };
 
   const handleSave = async () => {
     // Validation
-    if (startDate && !validateDate(startDate)) {
-      Alert.alert('خطأ', 'تاريخ بداية الزواج غير صحيح. استخدم الصيغة: YYYY-MM-DD\nمثال: 2020-01-15');
+    if (startDate && !validateYear(startDate)) {
+      Alert.alert('خطأ', 'سنة بداية الزواج غير صحيحة. أدخل 4 أرقام فقط\nمثال: 2020');
       return;
     }
 
-    if (endDate && !validateDate(endDate)) {
-      Alert.alert('خطأ', 'تاريخ نهاية الزواج غير صحيح. استخدم الصيغة: YYYY-MM-DD\nمثال: 2023-06-30');
+    if (endDate && !validateYear(endDate)) {
+      Alert.alert('خطأ', 'سنة انتهاء الزواج غير صحيحة. أدخل 4 أرقام فقط\nمثال: 2023');
       return;
     }
 
-    // Validate logic: end date must be after start date
+    // Validate logic: end year must be after start year
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      if (end <= start) {
-        Alert.alert('خطأ', 'تاريخ نهاية الزواج يجب أن يكون بعد تاريخ البداية');
+      const startYear = parseInt(startDate, 10);
+      const endYear = parseInt(endDate, 10);
+      if (endYear <= startYear) {
+        Alert.alert('خطأ', 'سنة انتهاء الزواج يجب أن تكون بعد سنة البداية');
         return;
       }
     }
@@ -104,9 +111,15 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
   const saveMarriage = async (finalEndDate) => {
     setSaving(true);
     try {
+      // Convert year (YYYY) to full date format (YYYY-01-01) for database
+      const yearToDate = (yearStr) => {
+        if (!yearStr) return null;
+        return `${yearStr}-01-01`;
+      };
+
       const updates = {
-        start_date: startDate || null,
-        end_date: finalEndDate,
+        start_date: yearToDate(startDate),
+        end_date: yearToDate(finalEndDate),
         status,
       };
 
@@ -227,36 +240,38 @@ const EditMarriageModal = ({ visible, marriage, onClose, onSaved }) => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="calendar-outline" size={18} color={tokens.colors.najdi.secondary} />
-              <Text style={styles.sectionTitle}>التواريخ</Text>
+              <Text style={styles.sectionTitle}>السنوات</Text>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>تاريخ بداية الزواج</Text>
-              <TextInput
-                style={styles.textInput}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="YYYY-MM-DD (مثال: 2020-01-15)"
-                placeholderTextColor={tokens.colors.najdi.textMuted}
-                keyboardType="numbers-and-punctuation"
-              />
-              <Text style={styles.fieldHint}>الصيغة: السنة-الشهر-اليوم (2020-01-15)</Text>
-            </View>
-
-            {status !== 'current' && (
-              <View style={styles.fieldGroup}>
-                <Text style={styles.fieldLabel}>تاريخ انتهاء الزواج</Text>
+            <View style={styles.dateRow}>
+              <View style={styles.dateField}>
+                <Text style={styles.fieldLabel}>سنة البداية</Text>
                 <TextInput
-                  style={styles.textInput}
-                  value={endDate}
-                  onChangeText={setEndDate}
-                  placeholder="YYYY-MM-DD (مثال: 2023-06-30)"
+                  style={styles.yearInput}
+                  value={startDate}
+                  onChangeText={setStartDate}
+                  placeholder="مثال: 2020"
                   placeholderTextColor={tokens.colors.najdi.textMuted}
-                  keyboardType="numbers-and-punctuation"
+                  keyboardType="number-pad"
+                  maxLength={4}
                 />
-                <Text style={styles.fieldHint}>الصيغة: السنة-الشهر-اليوم (2023-06-30)</Text>
               </View>
-            )}
+
+              {status !== 'current' && (
+                <View style={styles.dateField}>
+                  <Text style={styles.fieldLabel}>سنة النهاية</Text>
+                  <TextInput
+                    style={styles.yearInput}
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    placeholder="مثال: 2023"
+                    placeholderTextColor={tokens.colors.najdi.textMuted}
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+                </View>
+              )}
+            </View>
           </View>
 
           {/* Marriage Info */}
@@ -442,6 +457,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: tokens.colors.najdi.textMuted,
     marginTop: 4,
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: tokens.spacing.sm,
+  },
+  dateField: {
+    flex: 1,
+  },
+  yearInput: {
+    backgroundColor: 'rgba(209, 187, 163, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(209, 187, 163, 0.4)',
+    borderRadius: tokens.radii.md,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    fontSize: 17,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+    textAlign: 'center',
+    minHeight: 48,
   },
   infoBox: {
     backgroundColor: 'rgba(161, 51, 51, 0.04)',

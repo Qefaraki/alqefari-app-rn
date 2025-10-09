@@ -731,6 +731,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
                     .catch((err) => console.warn('Failed to reload marriages:', err));
                 }
               }}
+              onNavigateToProfile={onNavigateToProfile}
             />
           ) : null}
           {activeTab === 'contact' ? (
