@@ -633,10 +633,11 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('profiles')
-                .update({ deleted_at: new Date().toISOString() })
-                .eq('id', child.id);
+              // Use RPC function instead of direct UPDATE to bypass RLS
+              const { error } = await supabase.rpc('admin_update_profile', {
+                p_id: child.id,
+                p_updates: { deleted_at: new Date().toISOString() },
+              });
 
               if (error) throw error;
 
