@@ -717,6 +717,24 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: !state.motherPickerVisible });
   };
 
+  // Memoize spouse filtering to prevent unnecessary iterations on every render
+  // MUST be before conditional returns to comply with Rules of Hooks
+  const { activeSpouses, inactiveSpouses } = useMemo(() => {
+    const spouses = state.familyData?.spouses || [];
+    const active = [];
+    const inactive = [];
+
+    spouses.forEach(s => {
+      if (s.status === 'current' || s.status === 'married') {
+        active.push(s);
+      } else {
+        inactive.push(s);
+      }
+    });
+
+    return { activeSpouses: active, inactiveSpouses: inactive };
+  }, [state.familyData?.spouses]);
+
   if (state.loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -738,22 +756,6 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   }
 
   const { father, mother, spouses = [], children = [] } = state.familyData;
-
-  // Memoize spouse filtering to prevent unnecessary iterations on every render
-  const { activeSpouses, inactiveSpouses } = useMemo(() => {
-    const active = [];
-    const inactive = [];
-
-    spouses.forEach(s => {
-      if (s.status === 'current' || s.status === 'married') {
-        active.push(s);
-      } else {
-        inactive.push(s);
-      }
-    });
-
-    return { activeSpouses: active, inactiveSpouses: inactive };
-  }, [spouses]);
 
   const parentCount = [father, mother].filter(Boolean).length;
   const spousesTitle = person.gender === 'male' ? 'الزوجات' : 'الأزواج';
