@@ -807,6 +807,129 @@ const activeSpouses = spouses.filter(s => s.status === 'current' || s.status ===
 const activeSpouses = spouses.filter(s => s.status === 'married');
 ```
 
+### 🗑️ Soft Delete Pattern & Optimistic Locking
+
+**Status**: ✅ Deployed and operational (January 2025)
+
+The app uses soft deletion for profile records, combined with optimistic locking for concurrent edit protection.
+
+#### Soft Delete Behavior
+
+**What is Soft Delete?**
+- Sets `deleted_at` timestamp instead of removing records from database
+- Profile disappears from queries (`WHERE deleted_at IS NULL`)
+- Data remains in database for audit trail and potential recovery
+- **Reversible** - Admin can restore by setting `deleted_at` back to NULL
+
+**Why Soft Delete?**
+1. **Data Preservation** - Never lose family history data
+2. **Audit Trail** - Track who deleted what and when
+3. **Reversibility** - Mistakes can be undone
+4. **Reference Integrity** - Foreign keys remain valid
+
+#### Optimistic Locking with `p_version`
+
+**What is Optimistic Locking?**
+- Each profile has a `version` field that increments on every update
+- `admin_update_profile()` requires `p_version` parameter
+- Function checks if version matches before updating
+- Prevents concurrent edits from overwriting each other
+
+**Function Signature**:
+```sql
+admin_update_profile(
+  p_id UUID,
+  p_version INTEGER,  -- REQUIRED for optimistic locking
+  p_updates JSONB
+)
+```
+
+**Version Fallback Pattern**:
+```javascript
+// Always use fallback to handle profiles created before version tracking
+const { error } = await supabase.rpc('admin_update_profile', {
+  p_id: profile.id,
+  p_version: profile.version || 1,  // Fallback to 1 if version is NULL
+  p_updates: { name: 'New Name' }
+});
+```
+
+#### Edge Cases & Warnings
+
+**Descendant Orphaning**:
+- Soft deleting a profile does NOT cascade to descendants
+- Children/grandchildren remain in tree with NULL parent reference
+- **Best Practice**: Check for descendants before deleting
+
+**Example - Delete with Descendant Warning**:
+```javascript
+// From TabFamily.js:666-731
+const handleDeleteChild = async (child) => {
+  try {
+    // 1. Check for descendants before deleting
+    const { data: descendants } = await supabase
+      .from('profiles')
+      .select('id, name, gender')
+      .or(`father_id.eq.${child.id},mother_id.eq.${child.id}`)
+      .is('deleted_at', null);
+
+    const descendantCount = descendants?.length || 0;
+
+    // 2. Build warning message
+    let message = `هل أنت متأكد من حذف ${child.name} من العائلة؟`;
+
+    if (descendantCount > 0) {
+      message += `\n\n⚠️ تحذير: لديه ${descendantCount} ${
+        descendantCount === 1 ? 'طفل' : 'أطفال'
+      }.\n\nملاحظة: الأطفال سيبقون في الشجرة لكن بدون والد ظاهر.`;
+    }
+
+    Alert.alert('تأكيد الحذف', message, [
+      { text: 'إلغاء', style: 'cancel' },
+      {
+        text: 'حذف',
+        style: 'destructive',
+        onPress: async () => {
+          // 3. Soft delete with optimistic locking
+          const { error } = await supabase.rpc('admin_update_profile', {
+            p_id: child.id,
+            p_version: child.version || 1,
+            p_updates: { deleted_at: new Date().toISOString() },
+          });
+          // ... handle error
+        },
+      },
+    ]);
+  } catch (err) {
+    Alert.alert('خطأ', 'حدث خطأ أثناء التحقق من البيانات');
+  }
+};
+```
+
+#### Code Locations Using This Pattern
+
+All locations **MUST** include `p_version` parameter when calling `admin_update_profile()`:
+
+1. **TabFamily.js:700** - Delete child (soft delete)
+2. **TabFamily.js:747** - Set mother (family relationship update)
+3. **TabFamily.js:779** - Clear mother (family relationship update)
+4. **EditChildModal.js:74** - Update child profile
+5. **SelectMotherModal.js:97** - Update person's mother
+
+**Common Error if `p_version` Missing**:
+```
+ERROR: "Could not find the function public.admin_update_profile(p_id, p_updates) in the schema cache"
+HINT: "Perhaps you meant to call admin_update_profile(p_id, p_updates, p_version)"
+```
+
+**Fix**: Add `p_version: object.version || 1` to all RPC calls
+
+#### Migration History
+
+- **Migration 007**: Added `version` field to profiles table with optimistic locking
+- **Migration 013**: Updated `admin_update_profile()` to require p_version parameter
+- **Dropped 2-parameter version**: Only 3-parameter version exists now (p_id, p_version, p_updates)
+
 ### Deployment Order
 
 Always deploy migrations in sequence:

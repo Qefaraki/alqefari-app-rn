@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -299,15 +301,6 @@ const MotherInlinePicker = React.memo(({
                     <Text style={styles.motherRowName} numberOfLines={1}>
                       {motherProfile.name}
                     </Text>
-                    <Text style={styles.motherRowHint} numberOfLines={1}>
-                      {option.status === 'married'
-                        ? 'زوجة حالية'
-                        : option.status === 'divorced'
-                        ? 'زوجة سابقة'
-                        : option.status === 'widowed'
-                        ? 'زوجة أرملة'
-                        : 'من خارج العائلة'}
-                    </Text>
                   </View>
                   <View style={[styles.motherRadio, isSelected && styles.motherRadioSelected]}>
                     {isSelected ? <View style={styles.motherRadioDot} /> : null}
@@ -366,29 +359,77 @@ const AddActionButton = React.memo(({ label, onPress, icon = 'add' }) => (
 ));
 AddActionButton.displayName = 'AddActionButton';
 
-const InlineActionPill = React.memo(({ label, tone = 'primary', onPress }) => {
-  const toneStyles = tone === 'danger'
-    ? {
-        container: styles.memberActionPillDanger,
-        text: styles.memberActionTextDanger,
+const showCardActionSheet = ({ subject, onEdit, onDelete, onVisit, visitLabel = 'زيارة الملف' }) => {
+  Haptics.selectionAsync();
+
+  const optionItems = [];
+
+  if (typeof onVisit === 'function') {
+    optionItems.push({ label: visitLabel, handler: onVisit, style: 'default' });
+  }
+
+  if (typeof onEdit === 'function') {
+    optionItems.push({ label: 'تعديل', handler: onEdit, style: 'default' });
+  }
+
+  if (typeof onDelete === 'function') {
+    optionItems.push({ label: 'حذف', handler: onDelete, style: 'destructive' });
+  }
+
+  const cancelLabel = 'إلغاء';
+
+  if (Platform.OS === 'ios' && ActionSheetIOS?.showActionSheetWithOptions) {
+    const options = optionItems.map((item) => item.label).concat(cancelLabel);
+    const cancelButtonIndex = options.length - 1;
+    const destructiveButtonIndex = optionItems.findIndex((item) => item.style === 'destructive');
+
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex,
+        destructiveButtonIndex: destructiveButtonIndex >= 0 ? destructiveButtonIndex : undefined,
+        title: subject ? `اختر إجراء لـ ${subject}` : 'اختر إجراء',
+      },
+      (buttonIndex) => {
+        if (buttonIndex >= 0 && buttonIndex < optionItems.length) {
+          const handler = optionItems[buttonIndex]?.handler;
+          if (typeof handler === 'function') {
+            handler();
+          }
+        }
       }
-    : {
-        container: styles.memberActionPillPrimary,
-        text: styles.memberActionTextPrimary,
-      };
+    );
+  } else {
+    const alertButtons = optionItems.map((item) => ({
+      text: item.label,
+      onPress: item.handler,
+      style: item.style === 'destructive' ? 'destructive' : 'default',
+    }));
+
+    alertButtons.push({ text: cancelLabel, style: 'cancel' });
+
+    Alert.alert(subject || 'الإجراءات', undefined, alertButtons);
+  }
+};
+
+const CardActionMenu = React.memo(({ subject, onEdit, onDelete, onVisit, visitLabel }) => {
+  const handlePress = () =>
+    showCardActionSheet({ subject, onEdit, onDelete, onVisit, visitLabel });
 
   return (
     <TouchableOpacity
-      style={[styles.memberActionPill, toneStyles.container]}
-      onPress={onPress}
+      style={styles.memberMenuButton}
+      onPress={handlePress}
       activeOpacity={0.75}
       accessibilityRole="button"
+      accessibilityLabel={subject ? `إجراءات ${subject}` : 'إجراءات'}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
-      <Text style={[styles.memberActionText, toneStyles.text]}>{label}</Text>
+      <Ionicons name="ellipsis-vertical" size={18} color={tokens.colors.najdi.text} />
     </TouchableOpacity>
   );
 });
-InlineActionPill.displayName = 'InlineActionPill';
+CardActionMenu.displayName = 'CardActionMenu';
 
 const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   // Early validation - show error if person not provided
@@ -623,19 +664,42 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
 
   const handleDeleteChild = useCallback(async (child) => {
-    Alert.alert(
-      'تأكيد الحذف',
-      `هل أنت متأكد من حذف ${child.name} من العائلة؟`,
-      [
+    try {
+      // Check for descendants before deleting to warn user
+      const { data: descendants, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, name, gender')
+        .or(`father_id.eq.${child.id},mother_id.eq.${child.id}`)
+        .is('deleted_at', null);
+
+      if (checkError) {
+        if (__DEV__) console.error('Error checking descendants:', checkError);
+      }
+
+      const descendantCount = descendants?.length || 0;
+
+      // Build confirmation message with descendant warning
+      let message = `هل أنت متأكد من حذف ${child.name} من العائلة؟`;
+
+      if (descendantCount > 0) {
+        message += `\n\n⚠️ تحذير: لديه ${descendantCount} ${
+          descendantCount === 1 ? 'طفل' : 'أطفال'
+        }.\n\nملاحظة: الأطفال سيبقون في الشجرة لكن بدون والد ظاهر.`;
+      }
+
+      Alert.alert('تأكيد الحذف', message, [
         { text: 'إلغاء', style: 'cancel' },
         {
           text: 'حذف',
           style: 'destructive',
           onPress: async () => {
             try {
-              // Use RPC function instead of direct UPDATE to bypass RLS
+              // Soft delete: Sets deleted_at timestamp (reversible)
+              // Profile disappears from queries but data remains in database
+              // Descendants are NOT automatically deleted (may become orphaned)
               const { error } = await supabase.rpc('admin_update_profile', {
                 p_id: child.id,
+                p_version: child.version || 1, // Optimistic locking with fallback
                 p_updates: { deleted_at: new Date().toISOString() },
               });
 
@@ -659,9 +723,20 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
             }
           },
         },
-      ]
-    );
+      ]);
+    } catch (err) {
+      if (__DEV__) console.error('Error in handleDeleteChild:', err);
+      Alert.alert('خطأ', 'حدث خطأ أثناء التحقق من البيانات');
+    }
   }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
+
+  const handleVisitChild = useCallback(
+    (child) => {
+      if (!child?.id || typeof onNavigateToProfile !== 'function') return;
+      onNavigateToProfile(child.id);
+    },
+    [onNavigateToProfile]
+  );
 
   const handleQuickMotherSelect = async (motherId) => {
     if (!person?.id || !motherId || motherId === person?.mother_id) return;
@@ -669,6 +744,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     try {
       const { error } = await supabase.rpc('admin_update_profile', {
         p_id: person.id,
+        p_version: person.version || 1, // Optimistic locking with fallback
         p_updates: { mother_id: motherId },
       });
 
@@ -700,6 +776,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     try {
       const { error } = await supabase.rpc('admin_update_profile', {
         p_id: person.id,
+        p_version: person.version || 1, // Optimistic locking with fallback
         p_updates: { mother_id: null },
       });
 
@@ -945,6 +1022,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
                 child={child}
                 onEdit={handleEditChild}
                 onDelete={handleDeleteChild}
+                onVisit={handleVisitChild}
               />
             ))}
           </View>
@@ -1036,14 +1114,41 @@ const SpouseRow = React.memo(
 
     const subtitle = subtitleParts.join(' • ');
 
+    const handleEdit = useCallback(() => onEdit?.(spouseData), [onEdit, spouseData]);
+    const handleDelete = useCallback(() => onDelete?.(spouseData), [onDelete, spouseData]);
+    const handleActions = useCallback(() => {
+      showCardActionSheet({
+        subject: spouse.name,
+        onEdit: handleEdit,
+        onDelete: handleDelete,
+      });
+    }, [handleDelete, handleEdit, spouse.name]);
+
     return (
-      <View style={[styles.memberCard, inactive && styles.memberCardInactive]}>
+      <TouchableOpacity
+        style={[styles.memberCard, inactive && styles.memberCardInactive]}
+        activeOpacity={0.82}
+        onPress={handleActions}
+        accessibilityRole="button"
+        accessibilityLabel={`إجراءات ${spouse.name}`}
+      >
         <View style={styles.memberHeader}>
           <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={initials} />
           <View style={styles.memberDetails}>
-            <Text style={styles.memberName} numberOfLines={1} ellipsizeMode="tail">
-              {spouse.name}
-            </Text>
+            <View style={styles.memberTitleRow}>
+              <Text
+                style={styles.memberName}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {spouse.name}
+              </Text>
+              <CardActionMenu
+                subject={spouse.name}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </View>
             {subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
@@ -1051,12 +1156,7 @@ const SpouseRow = React.memo(
             ) : null}
           </View>
         </View>
-
-        <View style={styles.memberActions}>
-          <InlineActionPill label="تعديل" onPress={() => onEdit(spouseData)} />
-          <InlineActionPill label="حذف" tone="danger" onPress={() => onDelete(spouseData)} />
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   },
   (prev, next) => {
@@ -1073,30 +1173,57 @@ const SpouseRow = React.memo(
 SpouseRow.displayName = 'SpouseRow';
 
 const ChildRow = React.memo(
-  ({ child, onEdit, onDelete }) => {
+  ({ child, onEdit, onDelete, onVisit }) => {
     if (!child) return null;
 
     const initials = getInitials(child.name);
     const photoUrl = child.photo_url || child.profile?.photo_url || null;
 
     const subtitleParts = [];
-    if (child.mother_name) {
-      subtitleParts.push(`من ${child.mother_name}`);
-    }
     if (child.birth_year) {
       subtitleParts.push(`مواليد ${child.birth_year}`);
     }
 
     const subtitle = subtitleParts.join(' • ');
 
+    const handleVisit = useCallback(() => onVisit?.(child), [child, onVisit]);
+    const handleEdit = useCallback(() => onEdit?.(child), [child, onEdit]);
+    const handleDelete = useCallback(() => onDelete?.(child), [child, onDelete]);
+    const handleActions = useCallback(() => {
+      showCardActionSheet({
+        subject: child.name,
+        onVisit: handleVisit,
+        onEdit: handleEdit,
+        onDelete: handleDelete,
+      });
+    }, [child.name, handleDelete, handleEdit, handleVisit]);
+
     return (
-      <View style={styles.memberCard}>
+      <TouchableOpacity
+        style={styles.memberCard}
+        activeOpacity={0.82}
+        onPress={handleActions}
+        accessibilityRole="button"
+        accessibilityLabel={`إجراءات ${child.name}`}
+      >
         <View style={styles.memberHeader}>
           <AvatarThumbnail photoUrl={photoUrl} fallbackLabel={initials} />
           <View style={styles.memberDetails}>
-            <Text style={styles.memberName} numberOfLines={1} ellipsizeMode="tail">
-              {child.name}
-            </Text>
+            <View style={styles.memberTitleRow}>
+              <Text
+                style={styles.memberName}
+                numberOfLines={2}
+                ellipsizeMode="tail"
+              >
+                {child.name}
+              </Text>
+              <CardActionMenu
+                subject={child.name}
+                onVisit={handleVisit}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            </View>
             {subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
@@ -1104,12 +1231,7 @@ const ChildRow = React.memo(
             ) : null}
           </View>
         </View>
-
-        <View style={styles.memberActions}>
-          <InlineActionPill label="تعديل" onPress={() => onEdit(child)} />
-          <InlineActionPill label="حذف" tone="danger" onPress={() => onDelete(child)} />
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   },
   (prev, next) => {
@@ -1592,8 +1714,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container + '33',
     paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.md,
-    gap: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
   },
   memberCardInactive: {
     backgroundColor: tokens.colors.najdi.background,
@@ -1607,12 +1729,20 @@ const styles = StyleSheet.create({
   },
   memberDetails: {
     flex: 1,
+    gap: tokens.spacing.xxs,
+    justifyContent: 'center',
+  },
+  memberTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: tokens.spacing.xs,
   },
   memberName: {
+    flex: 1,
     fontSize: 17,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
+    lineHeight: 22,
   },
   memberSubtitle: {
     fontSize: 13,
@@ -1633,42 +1763,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: tokens.colors.najdi.text,
   },
-  memberActions: {
-    flexDirection: 'row',
+  memberMenuButton: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: tokens.spacing.xs,
-    flexWrap: 'wrap',
-    paddingTop: tokens.spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.divider,
-  },
-  memberActionPill: {
-    minHeight: tokens.touchTarget.minimum,
-    paddingHorizontal: tokens.spacing.md,
-    borderRadius: tokens.radii.md,
     justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    marginTop: tokens.spacing.xs,
-  },
-  memberActionPillPrimary: {
-    backgroundColor: tokens.colors.najdi.primary + '14',
-    borderColor: tokens.colors.najdi.primary + '40',
-  },
-  memberActionPillDanger: {
-    backgroundColor: tokens.colors.danger + '12',
-    borderColor: tokens.colors.danger + '38',
-  },
-  memberActionText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  memberActionTextPrimary: {
-    color: tokens.colors.najdi.primary,
-  },
-  memberActionTextDanger: {
-    color: tokens.colors.danger,
   },
 
   addActionButton: {

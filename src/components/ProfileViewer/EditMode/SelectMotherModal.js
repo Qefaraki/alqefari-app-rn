@@ -94,6 +94,7 @@ const SelectMotherModal = ({ visible, person, father, onClose, onSaved }) => {
 
       const { error } = await supabase.rpc('admin_update_profile', {
         p_id: person.id,
+        p_version: person.version || 1, // Optimistic locking with fallback
         p_updates: updates,
       });
 
