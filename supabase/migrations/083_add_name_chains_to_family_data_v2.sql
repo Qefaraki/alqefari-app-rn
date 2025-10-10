@@ -5,14 +5,70 @@
 -- Solution: Change ONLY father/mother subqueries to include computed name_chain
 --
 -- Changes from migration 082:
---   1. Lines 56-68: Replace to_jsonb(p) with jsonb_build_object including name_chain
---   2. Line 79: Remove marriage_date field (user requested removal)
---   3. Everything else: UNCHANGED
+--   1. Add build_name_chain_simple() function (no "بن" separator)
+--   2. Lines 56-68: Replace to_jsonb(p) with jsonb_build_object including name_chain
+--   3. Line 79: Remove marriage_date field (user requested removal)
+--   4. Everything else: UNCHANGED
 --
 -- Fixes: TabFamily.js ParentProfileCard displaying only first name
 -- References: Migration 064 (build_name_chain function), Migration 082 (base function)
 
 BEGIN;
+
+-- ============================================================================
+-- Helper Function: Build Name Chain Without "بن" Separator
+-- ============================================================================
+
+-- Simple name chain with space-separated names (no "بن")
+-- Example: "محمد علي عبدالله القفاري" instead of "محمد بن علي بن عبدالله القفاري"
+CREATE OR REPLACE FUNCTION build_name_chain_simple(p_profile_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+  v_result TEXT;
+BEGIN
+  -- Validate input
+  IF p_profile_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  -- Use recursive CTE to build name chain with space separator (no "بن")
+  WITH RECURSIVE ancestry AS (
+    -- Base case: start with the target person
+    SELECT
+      id,
+      name,
+      father_id,
+      1 as depth,
+      name as chain
+    FROM profiles
+    WHERE id = p_profile_id
+
+    UNION ALL
+
+    -- Recursive case: add father's name with just space (no "بن")
+    SELECT
+      p.id,
+      p.name,
+      p.father_id,
+      a.depth + 1,
+      a.chain || ' ' || p.name as chain  -- 🎯 Just space, no "بن"
+    FROM profiles p
+    INNER JOIN ancestry a ON a.father_id = p.id
+    WHERE a.depth < 10 -- Max depth limit
+  )
+  SELECT chain || ' القفاري' INTO v_result
+  FROM ancestry
+  ORDER BY depth DESC
+  LIMIT 1;
+
+  RETURN COALESCE(v_result, 'غير معروف');
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+COMMENT ON FUNCTION build_name_chain_simple(UUID) IS
+  'Builds name chain with space-separated names (no بن separator).
+   Used for parent display in edit mode where compact format is preferred.
+   Example: "محمد علي عبدالله القفاري"';
 
 -- ============================================================================
 -- Update get_profile_family_data with Name Chains (MINIMAL CHANGE)
@@ -60,12 +116,12 @@ BEGIN
         -- Main profile data
         'profile', to_jsonb(v_profile),
 
-        -- 🎯 CHANGED: Father with computed name chain
+        -- 🎯 CHANGED: Father with computed name chain (no "بن")
         'father', (
             SELECT jsonb_build_object(
                 'id', p.id,
                 'name', p.name,
-                'name_chain', build_name_chain(p.id),  -- 🎯 THE KEY FIX
+                'name_chain', build_name_chain_simple(p.id),  -- 🎯 No "بن" version
                 'photo_url', p.photo_url,
                 'gender', p.gender,
                 'status', p.status,
@@ -77,13 +133,13 @@ BEGIN
             WHERE p.id = v_profile.father_id
         ),
 
-        -- 🎯 CHANGED: Mother with computed name chain
+        -- 🎯 CHANGED: Mother with computed name chain (no "بن")
         -- Handles both tree members and Munasib mothers
         'mother', (
             SELECT jsonb_build_object(
                 'id', p.id,
                 'name', p.name,
-                'name_chain', build_name_chain(p.id),  -- 🎯 THE KEY FIX
+                'name_chain', build_name_chain_simple(p.id),  -- 🎯 No "بن" version
                 'photo_url', p.photo_url,
                 'gender', p.gender,
                 'status', p.status,
@@ -202,12 +258,13 @@ $$;
 
 -- Grant access to authenticated users
 GRANT EXECUTE ON FUNCTION get_profile_family_data(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION build_name_chain_simple(UUID) TO authenticated;
 
 -- Add helpful comment
 COMMENT ON FUNCTION get_profile_family_data IS
     'Returns comprehensive family data for a profile in a single query.
      Uses updated status values: ''current'' (active marriage) and ''past'' (ended marriage).
-     UPDATED: Father and mother profiles now include computed name_chain field.
+     UPDATED: Father and mother profiles now include name_chain field (space-separated, no بن).
      Includes: profile details, father, mother, all spouses with marriage details,
      all children with mother information and tree visibility flag.
      Optimized to prevent N+1 query issues in family management UI.';
@@ -219,13 +276,19 @@ COMMENT ON FUNCTION get_profile_family_data IS
 DO $$
 DECLARE
   v_function_exists BOOLEAN;
+  v_simple_chain_exists BOOLEAN;
   v_comment TEXT;
 BEGIN
-  -- Check if function was updated
+  -- Check if functions were updated
   SELECT EXISTS (
     SELECT 1 FROM pg_proc
     WHERE proname = 'get_profile_family_data'
   ) INTO v_function_exists;
+
+  SELECT EXISTS (
+    SELECT 1 FROM pg_proc
+    WHERE proname = 'build_name_chain_simple'
+  ) INTO v_simple_chain_exists;
 
   -- Get function comment to verify it was updated
   SELECT obj_description(oid, 'pg_proc') INTO v_comment
@@ -233,31 +296,32 @@ BEGIN
   WHERE proname = 'get_profile_family_data';
 
   RAISE NOTICE '========================================';
-  RAISE NOTICE 'Migration 083 v2: Name Chain Fix';
+  RAISE NOTICE 'Migration 083 v2: Name Chain Fix (No بن)';
   RAISE NOTICE '========================================';
+  RAISE NOTICE '✓ build_name_chain_simple function: %',
+    CASE WHEN v_simple_chain_exists THEN 'DEPLOYED' ELSE 'MISSING' END;
   RAISE NOTICE '✓ get_profile_family_data function: %',
     CASE WHEN v_function_exists THEN 'DEPLOYED' ELSE 'MISSING' END;
-  RAISE NOTICE '✓ Father/mother profiles now include name_chain';
+  RAISE NOTICE '✓ Father/mother now use space-separated names';
   RAISE NOTICE '✓ marriage_date field removed from spouses';
   RAISE NOTICE '========================================';
   RAISE NOTICE 'Changes applied:';
-  RAISE NOTICE '  1. Lines 56-76: Father with name_chain field';
-  RAISE NOTICE '  2. Lines 80-100: Mother with name_chain field';
-  RAISE NOTICE '  3. Line 107: Removed marriage_date from spouses';
+  RAISE NOTICE '  1. New: build_name_chain_simple() - no بن';
+  RAISE NOTICE '  2. Lines 56-76: Father with name_chain';
+  RAISE NOTICE '  3. Lines 80-100: Mother with name_chain';
+  RAISE NOTICE '  4. Line 107: Removed marriage_date';
   RAISE NOTICE '========================================';
-  RAISE NOTICE 'Parent names now show full chains!';
-  RAISE NOTICE '  - getShortNameChain() will find name_chain field';
-  RAISE NOTICE '  - Displays up to 5 names from ancestry';
+  RAISE NOTICE 'Parent names now show: "محمد علي عبدالله القفاري"';
+  RAISE NOTICE 'Instead of: "محمد بن علي بن عبدالله القفاري"';
   RAISE NOTICE '========================================';
 
-  -- Fail if function wasn't created
+  -- Fail if functions weren't created
   IF NOT v_function_exists THEN
     RAISE EXCEPTION 'Migration 083 v2 failed: get_profile_family_data not found';
   END IF;
 
-  -- Verify comment was updated (should mention 'name_chain')
-  IF v_comment IS NULL OR v_comment NOT LIKE '%name_chain%' THEN
-    RAISE WARNING 'Migration 083 v2: Function comment may not have been updated';
+  IF NOT v_simple_chain_exists THEN
+    RAISE EXCEPTION 'Migration 083 v2 failed: build_name_chain_simple not found';
   END IF;
 END $$;
 
