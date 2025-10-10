@@ -186,15 +186,9 @@ const ParentProfileCard = React.memo(({
             numberOfLines={2}
             ellipsizeMode="tail"
           >
-            {hasProfile ? profile.name : emptyTitle}
+            {hasProfile ? (shortChain || profile.name) : emptyTitle}
           </Text>
-          {hasProfile ? (
-            shortChain ? (
-              <Text style={styles.parentChain} numberOfLines={1} ellipsizeMode="tail">
-                {shortChain}
-              </Text>
-            ) : null
-          ) : emptySubtitle ? (
+          {!hasProfile && emptySubtitle ? (
             <Text style={styles.parentHint}>{emptySubtitle}</Text>
           ) : null}
         </View>
@@ -371,6 +365,30 @@ const AddActionButton = React.memo(({ label, onPress, icon = 'add' }) => (
   </TouchableOpacity>
 ));
 AddActionButton.displayName = 'AddActionButton';
+
+const InlineActionPill = React.memo(({ label, tone = 'primary', onPress }) => {
+  const toneStyles = tone === 'danger'
+    ? {
+        container: styles.memberActionPillDanger,
+        text: styles.memberActionTextDanger,
+      }
+    : {
+        container: styles.memberActionPillPrimary,
+        text: styles.memberActionTextPrimary,
+      };
+
+  return (
+    <TouchableOpacity
+      style={[styles.memberActionPill, toneStyles.container]}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+    >
+      <Text style={[styles.memberActionText, toneStyles.text]}>{label}</Text>
+    </TouchableOpacity>
+  );
+});
+InlineActionPill.displayName = 'InlineActionPill';
 
 const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   // Early validation - show error if person not provided
@@ -1034,20 +1052,8 @@ const SpouseRow = React.memo(
         </View>
 
         <View style={styles.memberActions}>
-          <TouchableOpacity
-            style={styles.memberActionButton}
-            onPress={() => onEdit(spouseData)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.memberActionPrimary}>تعديل</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.memberActionButton}
-            onPress={() => onDelete(spouseData)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.memberActionDanger}>حذف</Text>
-          </TouchableOpacity>
+          <InlineActionPill label="تعديل" onPress={() => onEdit(spouseData)} />
+          <InlineActionPill label="حذف" tone="danger" onPress={() => onDelete(spouseData)} />
         </View>
       </View>
     );
@@ -1099,20 +1105,8 @@ const ChildRow = React.memo(
         </View>
 
         <View style={styles.memberActions}>
-          <TouchableOpacity
-            style={styles.memberActionButton}
-            onPress={() => onEdit(child)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.memberActionPrimary}>تعديل</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.memberActionButton}
-            onPress={() => onDelete(child)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.memberActionDanger}>حذف</Text>
-          </TouchableOpacity>
+          <InlineActionPill label="تعديل" onPress={() => onEdit(child)} />
+          <InlineActionPill label="حذف" tone="danger" onPress={() => onDelete(child)} />
         </View>
       </View>
     );
@@ -1641,24 +1635,38 @@ const styles = StyleSheet.create({
   memberActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: tokens.spacing.md,
+    justifyContent: 'flex-start',
+    gap: tokens.spacing.xs,
+    flexWrap: 'wrap',
     paddingTop: tokens.spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: tokens.colors.divider,
   },
-  memberActionButton: {
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xs,
+  memberActionPill: {
+    minHeight: tokens.touchTarget.minimum,
+    paddingHorizontal: tokens.spacing.md,
+    borderRadius: tokens.radii.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    marginTop: tokens.spacing.xs,
   },
-  memberActionPrimary: {
+  memberActionPillPrimary: {
+    backgroundColor: tokens.colors.najdi.primary + '14',
+    borderColor: tokens.colors.najdi.primary + '40',
+  },
+  memberActionPillDanger: {
+    backgroundColor: tokens.colors.danger + '12',
+    borderColor: tokens.colors.danger + '38',
+  },
+  memberActionText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  memberActionTextPrimary: {
     color: tokens.colors.najdi.primary,
   },
-  memberActionDanger: {
-    fontSize: 15,
-    fontWeight: '600',
+  memberActionTextDanger: {
     color: tokens.colors.danger,
   },
 
