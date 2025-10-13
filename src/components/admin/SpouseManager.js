@@ -359,7 +359,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
       <TextInput
         style={styles.nameInput}
-        placeholder={`مثال: فاطمة ${genderMarker} محمد العتيبي`}
+        placeholder="مثال: مريم محمد علي السعوي"
         value={fullName}
         onChangeText={setFullName}
         placeholderTextColor={tokens.colors.najdi.text + "40"}

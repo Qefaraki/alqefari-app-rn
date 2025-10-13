@@ -1163,7 +1163,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
             {activeSpouses.length > 0 && inactiveSpouses.length > 0 && (
               <View style={styles.sectionTrailingBlock}>
                 <View style={styles.sectionDivider} />
-                <Text style={styles.sectionSubheader}>زيجات سابقة</Text>
+                <Text style={styles.sectionSubheader}>زوجات سابقة</Text>
               </View>
             )}
 
@@ -1372,12 +1372,12 @@ const SpouseRow = React.memo(
         return;
       }
 
-      // Validate minimum 2 words (name + surname), encourage 5 names
+      // Validate minimum 2 words (name + surname), encourage full names
       const words = trimmedName.split(/\s+/);
       if (words.length < 2) {
         Alert.alert(
           'عفواً عمي...',
-          'أدخل الاسم كاملاً من فضلك\n\nمثال: مريم محمد علي سليمان السعوي\nالحد الأدنى: اسمان (الاسم الأول + العائلة)'
+          'أدخل الاسم كاملاً من فضلك\n\nمثال: مريم محمد علي السعوي\nالحد الأدنى: اسمان (الاسم الأول + العائلة)'
         );
         return;
       }

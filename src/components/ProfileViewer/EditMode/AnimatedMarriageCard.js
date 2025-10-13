@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Animated, Easing } from 'react-native';
 
 /**
@@ -23,23 +23,28 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
   const [measuredHeight, setMeasuredHeight] = useState(400); // Default fallback
 
   // Measure actual content height for accurate animations
-  const onLayout = (event) => {
+  const onLayout = useCallback((event) => {
     const { height: layoutHeight } = event.nativeEvent.layout;
     // Only update if not currently animating and height is valid
     if (layoutHeight > 0 && !deletingState) {
-      setMeasuredHeight(layoutHeight);
+      setMeasuredHeight((prevHeight) => {
+        // Only update if significantly different (avoid floating point issues and unnecessary re-renders)
+        if (Math.abs(prevHeight - layoutHeight) > 1) {
+          return layoutHeight;
+        }
+        return prevHeight;
+      });
     }
-  };
+  }, [deletingState]);
 
   useEffect(() => {
-    // Track animations for cleanup
-    let phaseOneAnimations = null;
-    let phaseTwoAnimations = null;
-    let restoringAnimations = null;
+    // Track mount state to prevent callbacks after unmount
+    let isMounted = true;
+    let currentAnimation = null;
 
     if (deletingState === 'removing') {
       // Phase 1: Quick feedback (0-200ms) - User sees immediate response
-      phaseOneAnimations = Animated.parallel([
+      const phaseOne = Animated.parallel([
         Animated.timing(opacity, {
           toValue: 0.8,
           duration: 200,
@@ -54,9 +59,13 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
         }),
       ]);
 
-      phaseOneAnimations.start(() => {
+      currentAnimation = phaseOne;
+
+      phaseOne.start(({ finished }) => {
+        if (!isMounted || !finished) return;
+
         // Phase 2: Graceful removal (200-500ms)
-        phaseTwoAnimations = Animated.parallel([
+        const phaseTwo = Animated.parallel([
           Animated.timing(opacity, {
             toValue: 0,
             duration: 300,
@@ -77,13 +86,16 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
           }),
         ]);
 
-        phaseTwoAnimations.start(() => {
+        currentAnimation = phaseTwo;
+
+        phaseTwo.start(({ finished }) => {
+          if (!isMounted || !finished) return;
           onAnimationComplete?.('removed');
         });
       });
     } else if (deletingState === 'restoring') {
       // Error recovery: Smooth spring animation back (feels natural and forgiving)
-      restoringAnimations = Animated.parallel([
+      const restore = Animated.parallel([
         Animated.spring(opacity, {
           toValue: 1,
           friction: 8,
@@ -104,21 +116,19 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
         }),
       ]);
 
-      restoringAnimations.start(() => {
+      currentAnimation = restore;
+
+      restore.start(({ finished }) => {
+        if (!isMounted || !finished) return;
         onAnimationComplete?.('restored');
       });
     }
 
-    // Cleanup: Stop all animations if component unmounts or state changes
+    // Cleanup: Stop animations and prevent callbacks after unmount
     return () => {
-      if (phaseOneAnimations) {
-        phaseOneAnimations.stop();
-      }
-      if (phaseTwoAnimations) {
-        phaseTwoAnimations.stop();
-      }
-      if (restoringAnimations) {
-        restoringAnimations.stop();
+      isMounted = false;
+      if (currentAnimation) {
+        currentAnimation.stop();
       }
     };
   }, [deletingState, opacity, scale, height, onAnimationComplete]);

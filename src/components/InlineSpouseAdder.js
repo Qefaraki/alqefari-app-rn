@@ -303,7 +303,7 @@ export default function InlineSpouseAdder({
             style={styles.input}
             value={spouseName}
             onChangeText={setSpouseName}
-            placeholder="مثال: فاطمة بنت محمد العتيبي"
+            placeholder="مثال: مريم محمد علي السعوي"
             accessibilityLabel="الاسم الكامل"
             placeholderTextColor={tokens.colors.najdi.textMuted}
             returnKeyType="done"

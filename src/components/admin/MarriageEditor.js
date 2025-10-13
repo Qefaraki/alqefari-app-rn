@@ -348,7 +348,7 @@ export default function MarriageEditor({
         <Text style={styles.label}>{inputLabel}</Text>
         <TextInput
           style={styles.input}
-          placeholder="مثال: مريم محمد السعوي"
+          placeholder="مثال: مريم محمد علي السعوي"
           placeholderTextColor="#999999"
           value={spouseName}
           onChangeText={handleNameChange}

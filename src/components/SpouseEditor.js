@@ -84,7 +84,7 @@ export default function SpouseEditor({
           : "إضافة زوج",
       nameLabel: isMale ? "اسم الزوجة" : "اسم الزوج",
       namePlaceholder: isMale
-        ? "مثال: مريم محمد علي سليمان السعوي"
+        ? "مثال: مريم محمد علي السعوي"
         : "مثال: أحمد محمد علي القفاري",
     };
   };
