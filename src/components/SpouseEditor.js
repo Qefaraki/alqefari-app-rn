@@ -202,6 +202,7 @@ export default function SpouseEditor({
               placeholderTextColor="#8E8E93"
               autoFocus
               textAlign="right"
+              clearButtonMode="never"
             />
           </View>
 

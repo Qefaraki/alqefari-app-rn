@@ -58,9 +58,9 @@ import storageService from '../../services/storage';
 import { supabase } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { useAdminMode } from '../../contexts/AdminModeContext';
+import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
-const MIN_SKELETON_TIME = 200; // Minimum skeleton display time in ms (prevents flash)
 
 // Memoized ViewMode component - prevents recreation on every render (50% performance gain)
 const ViewModeContent = React.memo(({
@@ -304,7 +304,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     marriages: true,
     permissions: true,
   });
-  const skeletonStartTimeRef = useRef(Date.now());
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const animatedPosition = useSharedValue(0);
@@ -343,13 +342,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
         marriages: true,
         permissions: true,
       });
-      skeletonStartTimeRef.current = Date.now();
     }
   }, [person?.id]);
 
   useEffect(() => {
     let isCancelled = false; // Prevents race conditions on rapid profile switches
-    let cleanupSkeleton = null; // Cleanup function for skeleton timeout
 
     // Set loading state synchronously before async operation
     setLoadingStates((prev) => ({ ...prev, marriages: true }));
@@ -358,25 +355,35 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
       if (!person?.id || typeof profilesService?.getPersonMarriages !== 'function') {
         if (!isCancelled) {
           setMarriages([]);
-          cleanupSkeleton = hideSkeletonWithDelay('marriages');
+          hideSkeletonImmediately('marriages');
         }
         return;
       }
 
       try {
-        const data = await profilesService.getPersonMarriages(person.id);
+        // Wrap with 5-second timeout to prevent infinite loading
+        const data = await fetchWithTimeout(
+          profilesService.getPersonMarriages(person.id),
+          5000,
+          'Load marriages'
+        );
 
         if (!isCancelled) {
           setMarriages(data || []);
-          cleanupSkeleton = hideSkeletonWithDelay('marriages');
+          hideSkeletonImmediately('marriages');
         }
       } catch (error) {
         console.error('[ProfileViewer] Failed to load marriages:', error);
         if (!isCancelled) {
           setMarriages([]);
-          // On error, hide skeleton immediately and show error
-          setLoadingStates((prev) => ({ ...prev, marriages: false }));
-          Alert.alert('خطأ', 'فشل تحميل بيانات الزواج');
+          hideSkeletonImmediately('marriages');
+
+          // Show user-friendly error based on type
+          if (error.message && error.message.includes('timeout')) {
+            Alert.alert('بطيء', 'استغرق التحميل وقتاً طويلاً. يرجى المحاولة مرة أخرى.');
+          } else {
+            Alert.alert('خطأ', 'فشل تحميل بيانات الزواج');
+          }
         }
       }
     };
@@ -384,26 +391,15 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     loadMarriages();
     return () => {
       isCancelled = true; // Cleanup: cancel pending updates
-      if (cleanupSkeleton) cleanupSkeleton(); // Clear pending skeleton timeout
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // hideSkeletonWithDelay excluded for clarity (stable callback with no deps)
-  }, [person?.id]);
+  }, [person?.id, hideSkeletonImmediately]);
 
   // Track permission loading state
   useEffect(() => {
-    let cleanupSkeleton = null;
-
     if (!permissionLoading) {
-      cleanupSkeleton = hideSkeletonWithDelay('permissions');
+      hideSkeletonImmediately('permissions');
     }
-
-    return () => {
-      if (cleanupSkeleton) cleanupSkeleton(); // Clear pending skeleton timeout
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    // hideSkeletonWithDelay excluded for clarity (stable callback with no deps)
-  }, [permissionLoading]);
+  }, [permissionLoading, hideSkeletonImmediately]);
 
   // Note: profileSheetProgress (shared value) not in dependency array.
   // Per Reanimated docs, dependencies only needed without Babel plugin.
@@ -422,22 +418,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
 
   const canEdit = accessMode !== 'readonly';
 
-  // Helper to hide skeleton with minimum display time (prevents flash)
-  // Returns cleanup function to cancel pending timeout
-  const hideSkeletonWithDelay = useCallback(
-    (key) => {
-      const elapsed = Date.now() - skeletonStartTimeRef.current;
-      const waitTime = Math.max(0, MIN_SKELETON_TIME - elapsed);
-
-      const timer = setTimeout(() => {
-        setLoadingStates((prev) => ({ ...prev, [key]: false }));
-      }, waitTime);
-
-      // Return cleanup function to clear timeout on unmount/person change
-      return () => clearTimeout(timer);
-    },
-    [] // No dependencies needed - ref is always stable
-  );
+  // Helper to hide skeleton immediately
+  // No artificial delays - improves perceived performance
+  const hideSkeletonImmediately = useCallback((key) => {
+    setLoadingStates((prev) => ({ ...prev, [key]: false }));
+  }, []);
 
   const closeSheet = useCallback(() => {
     setMode('view');

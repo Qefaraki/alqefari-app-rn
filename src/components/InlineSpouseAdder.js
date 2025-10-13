@@ -310,6 +310,7 @@ export default function InlineSpouseAdder({
             onSubmitEditing={handleSubmit}
             textAlign="right"
             editable={!loading}
+            clearButtonMode="never"
           />
 
           {loading ? (

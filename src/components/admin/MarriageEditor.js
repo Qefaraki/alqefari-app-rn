@@ -355,6 +355,7 @@ export default function MarriageEditor({
           textAlign="right"
           autoCorrect={false}
           autoCapitalize="words"
+          clearButtonMode="never"
         />
         <Text style={styles.helpText}>
           اكتب الاسم الثلاثي: الاسم الأول + اسم الأب + اسم العائلة

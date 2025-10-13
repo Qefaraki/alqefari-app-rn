@@ -366,6 +366,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         autoFocus
         returnKeyType="done"
         onSubmitEditing={handleSubmit}
+        clearButtonMode="never"
       />
 
       <Text style={styles.hintText}>

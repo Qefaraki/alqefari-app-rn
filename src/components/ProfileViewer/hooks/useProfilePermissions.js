@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '../../../services/supabase';
 import { PERMISSION_LEVELS } from '../constants';
+import { fetchWithTimeout } from '../../../utils/fetchWithTimeout';
 
 const cache = new Map();
 const TTL = 1000 * 60 * 5; // 5 minutes
@@ -78,12 +79,14 @@ export const useProfilePermissions = (profileId) => {
         return 'none';
       }
 
-      const { data, error: permissionError } = await supabase.rpc(
-        'check_family_permission_v4',
-        {
+      // Wrap permission check with 3-second timeout (typically fast with cache)
+      const { data, error: permissionError } = await fetchWithTimeout(
+        supabase.rpc('check_family_permission_v4', {
           p_user_id: userProfile.id,
           p_target_id: profileId,
-        },
+        }),
+        3000,
+        'Check permissions'
       );
 
       if (permissionError) {

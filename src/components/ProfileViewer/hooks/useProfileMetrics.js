@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useTreeStore } from '../../../stores/useTreeStore';
 import { familyData, getChildren } from '../../../data/family-data';
 import { supabase } from '../../../services/supabase';
+import { fetchWithTimeout } from '../../../utils/fetchWithTimeout';
 
 const generationNames = [
   'الأول',
@@ -33,6 +34,8 @@ export const useProfileMetrics = (person) => {
   const [motherLoading, setMotherLoading] = useState(false);
 
   useEffect(() => {
+    let isCancelled = false; // Track if component unmounted or person changed
+
     if (!person?.mother_id) {
       setMother(null);
       return;
@@ -49,11 +52,19 @@ export const useProfileMetrics = (person) => {
     setMotherLoading(true);
     const fetchMother = async () => {
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', person.mother_id)
-          .single();
+        // Wrap with 3-second timeout (mother fetch should be fast)
+        const { data, error } = await fetchWithTimeout(
+          supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', person.mother_id)
+            .single(),
+          3000,
+          'Fetch mother profile'
+        );
+
+        // Guard against stale updates after component unmount or person change
+        if (isCancelled) return;
 
         if (error) {
           console.error('Failed to fetch mother profile:', error);
@@ -62,14 +73,25 @@ export const useProfileMetrics = (person) => {
           setMother(data);
         }
       } catch (err) {
-        console.error('Error fetching mother:', err);
-        setMother(null);
+        // Only update state if not cancelled
+        if (!isCancelled) {
+          console.error('Error fetching mother:', err);
+          setMother(null);
+        }
       } finally {
-        setMotherLoading(false);
+        // Only update loading state if not cancelled
+        if (!isCancelled) {
+          setMotherLoading(false);
+        }
       }
     };
 
     fetchMother();
+
+    // Cleanup: Mark as cancelled when effect re-runs or component unmounts
+    return () => {
+      isCancelled = true;
+    };
   }, [person?.mother_id, dataSource]);
 
   const children = useMemo(() => {

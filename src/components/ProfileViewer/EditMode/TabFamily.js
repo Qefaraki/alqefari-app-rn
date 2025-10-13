@@ -1495,6 +1495,7 @@ const SpouseRow = React.memo(
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!saving}
+                clearButtonMode="never"
               />
             </View>
 
@@ -1722,6 +1723,7 @@ const ChildRow = React.memo(
                 autoCapitalize="words"
                 autoCorrect={false}
                 editable={!saving}
+                clearButtonMode="never"
               />
             </View>
 

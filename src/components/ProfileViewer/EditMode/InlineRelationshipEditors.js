@@ -180,6 +180,7 @@ export const InlineMarriageEditor = ({
           placeholderTextColor={tokens.colors.najdi.textMuted}
           autoCapitalize="words"
           autoCorrect={false}
+          clearButtonMode="never"
         />
       </InlineFieldGroup>
 
