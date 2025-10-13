@@ -112,15 +112,26 @@ export const profilesService = {
 
         if (marriageError) throw marriageError;
 
-        // Format the data to match RPC structure
+        // Format the data to match nested structure (for FamilyCard compatibility)
         return (marriages || []).map((m) => {
           const spouse = isHusband ? m.wife : m.husband;
           return {
             id: m.id,  // Use id consistently for key prop
             marriage_id: m.id,
+
+            // Nested structure for FamilyCard compatibility
+            spouse_profile: {
+              id: spouse?.id,
+              name: spouse?.name,
+              photo_url: spouse?.photo_url,
+              deleted_at: null  // Fallback query doesn't return deleted profiles
+            },
+
+            // Keep flat fields for backward compatibility
             spouse_id: spouse?.id,
             spouse_name: spouse?.name,
             spouse_photo: spouse?.photo_url,
+
             munasib: m.munasib,
             status: m.status,
             start_date: m.start_date,
@@ -134,16 +145,35 @@ export const profilesService = {
         });
       }
 
-      // Transform RPC response to include backward compatibility fields
+      // Transform RPC response to include nested spouse_profile structure
       if (data && Array.isArray(data)) {
         return data.map(m => ({
-          ...m,
           // Handle both old (marriage_id) and new (id) RPC versions
           id: m.id || m.marriage_id,
           marriage_id: m.marriage_id || m.id,
-          // Add backward compatibility fields for ProfileSheet
-          husband_name: m.spouse_name, // Will be fixed in ProfileSheet
-          wife_name: m.spouse_name,     // Will be fixed in ProfileSheet
+
+          // Nested structure for FamilyCard compatibility
+          spouse_profile: {
+            id: m.spouse_id,
+            name: m.spouse_name,
+            photo_url: m.spouse_photo,  // Map spouse_photo → photo_url
+            deleted_at: null  // RPC filters deleted profiles
+          },
+
+          // Keep flat fields for backward compatibility
+          spouse_id: m.spouse_id,
+          spouse_name: m.spouse_name,
+          spouse_photo: m.spouse_photo,
+
+          munasib: m.munasib,
+          status: m.status,
+          start_date: m.start_date,
+          end_date: m.end_date,
+          children_count: m.children_count || 0,
+
+          // Deprecated fields
+          husband_name: m.spouse_name,
+          wife_name: m.spouse_name,
         }));
       }
 
