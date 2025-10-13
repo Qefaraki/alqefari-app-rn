@@ -593,10 +593,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
           // STEP 2: Success haptic (confidence-building feedback)
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-          // STEP 3: Wait for animation to start before API call (perceived speed)
-          await new Promise((resolve) => setTimeout(resolve, 100));
-
-          // STEP 4: Background API call
+          // STEP 3: Background API call (animation already started via optimistic update)
           try {
             const { data, error } = await supabase.rpc('admin_soft_delete_marriage', {
               p_marriage_id: marriage.marriage_id,
@@ -1117,99 +1114,109 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
           </View>
         }
       >
-        {activeSpouses.length > 0 ? (
-          <View style={styles.sectionStack}>
-            {activeSpouses.map((spouseData) => {
-              const isEditing = editingMarriageId === spouseData.marriage_id;
-              const visitSpouse =
-                spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
-                  ? () => onNavigateToProfile(spouseData.spouse_profile.id)
-                  : undefined;
+        {activeSpouses.length > 0 || inactiveSpouses.length > 0 ? (
+          <>
+            {/* Active/Current Spouses */}
+            {activeSpouses.length > 0 && (
+              <View style={styles.sectionStack}>
+                {activeSpouses.map((spouseData) => {
+                  const isEditing = editingMarriageId === spouseData.marriage_id;
+                  const visitSpouse =
+                    spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
+                      ? () => onNavigateToProfile(spouseData.spouse_profile.id)
+                      : undefined;
 
-              return (
-                <AnimatedMarriageCard
-                  key={spouseData.marriage_id}
-                  deletingState={spouseData._deletingState}
-                  onAnimationComplete={(state) => {
-                    if (state === 'removed') {
-                      dispatch({
-                        type: 'REMOVE_DELETED_MARRIAGE',
-                        payload: { marriage_id: spouseData.marriage_id },
-                      });
-                    } else if (state === 'restored') {
-                      dispatch({
-                        type: 'CLEAR_DELETE_STATE',
-                        payload: { marriage_id: spouseData.marriage_id },
-                      });
-                    }
-                  }}
-                >
-                  <SpouseRow
-                    spouseData={spouseData}
-                    onEdit={handleEditMarriage}
-                    onDelete={handleDeleteSpouse}
-                    onVisit={visitSpouse}
-                    isEditing={isEditing}
-                    onSave={handleMarriageEditorSaved}
-                    onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
-                  />
-                </AnimatedMarriageCard>
-              );
-            })}
-          </View>
+                  return (
+                    <AnimatedMarriageCard
+                      key={spouseData.marriage_id}
+                      deletingState={spouseData._deletingState}
+                      onAnimationComplete={(state) => {
+                        if (state === 'removed') {
+                          dispatch({
+                            type: 'REMOVE_DELETED_MARRIAGE',
+                            payload: { marriage_id: spouseData.marriage_id },
+                          });
+                        } else if (state === 'restored') {
+                          dispatch({
+                            type: 'CLEAR_DELETE_STATE',
+                            payload: { marriage_id: spouseData.marriage_id },
+                          });
+                        }
+                      }}
+                    >
+                      <SpouseRow
+                        spouseData={spouseData}
+                        onEdit={handleEditMarriage}
+                        onDelete={handleDeleteSpouse}
+                        onVisit={visitSpouse}
+                        isEditing={isEditing}
+                        onSave={handleMarriageEditorSaved}
+                        onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                      />
+                    </AnimatedMarriageCard>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Divider & "Former Marriages" label - Only when BOTH types exist */}
+            {activeSpouses.length > 0 && inactiveSpouses.length > 0 && (
+              <View style={styles.sectionTrailingBlock}>
+                <View style={styles.sectionDivider} />
+                <Text style={styles.sectionSubheader}>زيجات سابقة</Text>
+              </View>
+            )}
+
+            {/* Former/Past Spouses */}
+            {inactiveSpouses.length > 0 && (
+              <View style={styles.sectionStack}>
+                {inactiveSpouses.map((spouseData) => {
+                  const isEditing = editingMarriageId === spouseData.marriage_id;
+                  const visitSpouse =
+                    spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
+                      ? () => onNavigateToProfile(spouseData.spouse_profile.id)
+                      : undefined;
+
+                  return (
+                    <AnimatedMarriageCard
+                      key={spouseData.marriage_id}
+                      deletingState={spouseData._deletingState}
+                      onAnimationComplete={(state) => {
+                        if (state === 'removed') {
+                          dispatch({
+                            type: 'REMOVE_DELETED_MARRIAGE',
+                            payload: { marriage_id: spouseData.marriage_id },
+                          });
+                        } else if (state === 'restored') {
+                          dispatch({
+                            type: 'CLEAR_DELETE_STATE',
+                            payload: { marriage_id: spouseData.marriage_id },
+                          });
+                        }
+                      }}
+                    >
+                      <SpouseRow
+                        spouseData={spouseData}
+                        onEdit={handleEditMarriage}
+                        onDelete={handleDeleteSpouse}
+                        onVisit={visitSpouse}
+                        inactive
+                        isEditing={isEditing}
+                        onSave={handleMarriageEditorSaved}
+                        onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                      />
+                    </AnimatedMarriageCard>
+                  );
+                })}
+              </View>
+            )}
+          </>
         ) : (
           <EmptyState
             icon="heart-dislike-outline"
             title={spouseEmptyTitle}
             caption={spouseEmptyCaption}
           />
-        )}
-
-        {inactiveSpouses.length > 0 && (
-          <View style={styles.sectionTrailingBlock}>
-            <View style={styles.sectionDivider} />
-            <Text style={styles.sectionSubheader}>زيجات سابقة</Text>
-            <View style={styles.sectionStack}>
-              {inactiveSpouses.map((spouseData) => {
-                const isEditing = editingMarriageId === spouseData.marriage_id;
-                const visitSpouse =
-                  spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
-                    ? () => onNavigateToProfile(spouseData.spouse_profile.id)
-                    : undefined;
-
-                return (
-                  <AnimatedMarriageCard
-                    key={spouseData.marriage_id}
-                    deletingState={spouseData._deletingState}
-                    onAnimationComplete={(state) => {
-                      if (state === 'removed') {
-                        dispatch({
-                          type: 'REMOVE_DELETED_MARRIAGE',
-                          payload: { marriage_id: spouseData.marriage_id },
-                        });
-                      } else if (state === 'restored') {
-                        dispatch({
-                          type: 'CLEAR_DELETE_STATE',
-                          payload: { marriage_id: spouseData.marriage_id },
-                        });
-                      }
-                    }}
-                  >
-                    <SpouseRow
-                      spouseData={spouseData}
-                      onEdit={handleEditMarriage}
-                      onDelete={handleDeleteSpouse}
-                      onVisit={visitSpouse}
-                      inactive
-                      isEditing={isEditing}
-                      onSave={handleMarriageEditorSaved}
-                      onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
-                    />
-                  </AnimatedMarriageCard>
-                );
-              })}
-            </View>
-          </View>
         )}
       </SectionCard>
 
@@ -1365,10 +1372,13 @@ const SpouseRow = React.memo(
         return;
       }
 
-      // Validate minimum 2 words (name + surname)
+      // Validate minimum 2 words (name + surname), encourage 5 names
       const words = trimmedName.split(/\s+/);
       if (words.length < 2) {
-        Alert.alert('خطأ', 'يجب إدخال الاسم الكامل مع اسم العائلة (كلمتان على الأقل)');
+        Alert.alert(
+          'عفواً عمي...',
+          'أدخل الاسم كاملاً من فضلك\n\nمثال: مريم محمد علي سليمان السعوي\nالحد الأدنى: اسمان (الاسم الأول + العائلة)'
+        );
         return;
       }
 
@@ -1578,7 +1588,8 @@ const SpouseRow = React.memo(
       prev.spouseData.spouse_profile?.name === next.spouseData.spouse_profile?.name &&
       prevPhotoUrl === nextPhotoUrl &&
       prev.inactive === next.inactive &&
-      prev.isEditing === next.isEditing
+      prev.isEditing === next.isEditing &&
+      prev.spouseData._deletingState === next.spouseData._deletingState // Required for delete animation
     );
   }
 );

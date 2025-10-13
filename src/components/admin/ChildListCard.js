@@ -187,11 +187,24 @@ const ChildListCard = ({
         accessibilityRole="button"
         accessibilityLabel={`تعديل ${child.name}`}
       >
-        <View style={styles.viewBlock}>
+        <View style={[styles.viewBlock, !isEditing && styles.viewBlockClosed]}>
           <View style={styles.titleRow}>
-            <Text style={[styles.nameText, isEditing && styles.nameTextEditing]} numberOfLines={1}>
-              {isEditing ? localName : child.name}
-            </Text>
+            {isEditing ? (
+              <TextInput
+                value={localName}
+                onChangeText={setLocalName}
+                style={styles.editInputInline}
+                placeholder="اسم الطفل"
+                placeholderTextColor={COLORS.textMuted + "99"}
+                returnKeyType="done"
+                onSubmitEditing={handleSave}
+                maxLength={100}
+              />
+            ) : (
+              <Text style={styles.nameText} numberOfLines={1}>
+                {child.name}
+              </Text>
+            )}
             {badgeText && !isEditing && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{badgeText}</Text>
@@ -199,22 +212,9 @@ const ChildListCard = ({
             )}
           </View>
 
-          {isEditing ? (
-            <TextInput
-              value={localName}
-              onChangeText={setLocalName}
-              style={styles.editInput}
-              placeholder="اسم الطفل"
-              placeholderTextColor={COLORS.textMuted + "99"}
-              returnKeyType="done"
-              onSubmitEditing={handleSave}
-              maxLength={100}
-            />
-          ) : null}
-
           <View style={styles.metadataRow}>
             {isEditing ? (
-              <View style={styles.segmentedRow}>
+              <View style={styles.segmentedHolderEditing}>
                 {genderOptions.map((option) => {
                   const active = option.value === localGender;
                   return (
@@ -443,7 +443,10 @@ const styles = StyleSheet.create({
   },
   viewBlock: {
     flex: 1,
-    gap: 4,
+    gap: tokens.spacing.xs,
+  },
+  viewBlockClosed: {
+    paddingVertical: 3,
   },
   titleRow: {
     flexDirection: "row",
@@ -455,6 +458,19 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.body.fontSize,
     fontWeight: "600",
     color: COLORS.text,
+  },
+  editInputInline: {
+    flex: 1,
+    borderRadius: tokens.radii.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "33",
+    backgroundColor: COLORS.background,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.text,
+    textAlign: "auto",
+    textAlignVertical: "center",
   },
   badge: {
     backgroundColor: COLORS.secondary + "18",
@@ -517,12 +533,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: tokens.spacing.sm,
   },
-  segmentedRow: {
+  segmentedHolderEditing: {
     flexDirection: "row",
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.container + "33",
     overflow: "hidden",
+    backgroundColor: COLORS.background,
   },
   segmentButton: {
     paddingHorizontal: tokens.spacing.sm,

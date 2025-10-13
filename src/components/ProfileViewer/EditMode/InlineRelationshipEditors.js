@@ -125,6 +125,7 @@ export const InlineMarriageEditor = ({
       if (marriage.spouse_profile?.id && trimmedName && trimmedName !== originalName) {
         const { error: nameError } = await supabase.rpc('admin_update_profile', {
           p_id: marriage.spouse_profile.id,
+          p_version: marriage.spouse_profile.version || 1, // Required for optimistic locking
           p_updates: { name: trimmedName },
         });
         if (nameError) throw nameError;

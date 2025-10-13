@@ -265,30 +265,30 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
                   onPress={() => handleSelect(wife)}
                   activeOpacity={0.6}
                 >
-                  {/* Text FIRST for RTL */}
                   <View style={styles.optionContent}>
-                    <Text
-                      style={[
-                        styles.optionText,
-                        selectedMother?.wife_id === wife.wife_id &&
-                          styles.optionTextSelected,
-                      ]}
-                    >
-                      {wife.display_name}
-                    </Text>
-                    {wife.wife_hid && (
-                      <Text style={styles.optionHid}>
-                        {wife.wife_hid}
+                    <View style={styles.optionTextWrapper}>
+                      <Text
+                        style={[
+                          styles.optionText,
+                          selectedMother?.wife_id === wife.wife_id &&
+                            styles.optionTextSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {wife.display_name}
                       </Text>
+                      {wife.wife_hid && (
+                        <Text style={styles.optionHid}>
+                          {wife.wife_hid}
+                        </Text>
+                      )}
+                    </View>
+                    {wife.is_current && (
+                      <View style={styles.currentBadge}>
+                        <Text style={styles.currentBadgeText}>حالية</Text>
+                      </View>
                     )}
                   </View>
-
-                  {/* Badge LAST for RTL */}
-                  {wife.is_current && (
-                    <View style={styles.currentBadge}>
-                      <Text style={styles.currentBadgeText}>الحالية</Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -320,6 +320,7 @@ const styles = StyleSheet.create({
   selectorWrapper: {
     position: "relative",
     width: "100%",
+    zIndex: 20,
   },
 
   // Main selector container
@@ -393,11 +394,11 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     overflow: "hidden",
+    zIndex: 30,
   },
   option: {
-    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+    flexDirection: I18nManager.isRTL ? "row" : "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -407,6 +408,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.container + "12",
   },
   optionContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: tokens.spacing.xs,
+  },
+  optionTextWrapper: {
     flex: 1,
     alignItems: I18nManager.isRTL ? "flex-end" : "flex-start",
   },
@@ -429,8 +437,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 3,
     borderRadius: tokens.radii.sm,
-    marginLeft: I18nManager.isRTL ? 0 : 8,
-    marginRight: I18nManager.isRTL ? 8 : 0,
+    marginLeft: I18nManager.isRTL ? tokens.spacing.xs : 0,
+    marginRight: I18nManager.isRTL ? 0 : tokens.spacing.xs,
   },
   currentBadgeText: {
     fontSize: tokens.typography.caption1.fontSize,
