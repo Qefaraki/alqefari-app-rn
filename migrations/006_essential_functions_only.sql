@@ -77,6 +77,7 @@ BEGIN
       1 as depth
     FROM profiles p
     WHERE p.deleted_at IS NULL
+      AND p.hid IS NOT NULL  -- Only family members, exclude Munasib (NULL HID)
 
     UNION ALL
 

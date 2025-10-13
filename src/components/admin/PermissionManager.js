@@ -24,6 +24,7 @@ import BranchSelector from "./BranchSelector";
 import BranchList from "./BranchList";
 import PermissionSummary from "./PermissionSummary";
 import { SkeletonUserCard } from "../ui/Skeleton";
+import enhancedSearchService from "../../services/enhancedSearchService";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -107,9 +108,8 @@ const AnimatedUserCard = ({
         activeOpacity={0.95}
       >
         <View style={styles.userInfo}>
-          {/* User name and chain */}
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.userChain} numberOfLines={1}>
+          {/* Full name chain (removed redundant standalone name) */}
+          <Text style={styles.userNameChain} numberOfLines={2}>
             {item.full_name_chain}
           </Text>
 
@@ -141,7 +141,7 @@ const AnimatedUserCard = ({
           </View>
         </View>
 
-        {/* Actions with better visual design */}
+        {/* Actions with improved icons and labels */}
         {canEditThisUser && (
           <View style={styles.actions}>
             {/* Role selector */}
@@ -153,7 +153,8 @@ const AnimatedUserCard = ({
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Ionicons name="key" size={18} color={colors.primary} />
+                <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+                <Text style={[styles.actionLabel, { color: colors.primary }]}>الصلاحية</Text>
               </TouchableOpacity>
             )}
 
@@ -169,10 +170,13 @@ const AnimatedUserCard = ({
               }}
             >
               <Ionicons
-                name="git-branch"
-                size={18}
+                name="star"
+                size={20}
                 color={item.is_branch_moderator ? colors.secondary : colors.textMuted}
               />
+              <Text style={[styles.actionLabel, {
+                color: item.is_branch_moderator ? colors.secondary : colors.textMuted
+              }]}>المشرف</Text>
             </TouchableOpacity>
 
             {/* Suggestion block toggle */}
@@ -187,10 +191,13 @@ const AnimatedUserCard = ({
               }}
             >
               <Ionicons
-                name={item.is_blocked ? "checkmark-circle" : "ban"}
-                size={18}
+                name={item.is_blocked ? "lock-open" : "lock-closed"}
+                size={20}
                 color={item.is_blocked ? colors.success : colors.error}
               />
+              <Text style={[styles.actionLabel, {
+                color: item.is_blocked ? colors.success : colors.error
+              }]}>الحظر</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -242,7 +249,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
     }
   };
 
-  // Search users by name chain
+  // Search users by name chain with fuzzy matching
   const searchUsers = async (query) => {
     if (!query || query.length < 2) {
       setSearchResults([]);
@@ -253,16 +260,80 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
     setLoading(true);
     setHasSearched(true);
     try {
-      // Use super_admin_search_by_name_chain (migration 006)
-      // This function returns all needed fields: id, name, full_name_chain, role,
-      // is_branch_moderator, branch_count, is_blocked
-      const { data, error } = await supabase.rpc(
-        "super_admin_search_by_name_chain",
-        { p_search_text: query }
+      // Split query into names for fuzzy search (like tree search)
+      const names = query.trim().split(/\s+/);
+
+      // Use enhanced search service with fuzzy matching, Arabic normalization, etc.
+      const { data: profiles, error: searchError } = await enhancedSearchService.searchWithFuzzyMatching(
+        names,
+        { limit: 50 }
       );
 
-      if (error) throw error;
-      setSearchResults(data || []);
+      if (searchError) throw new Error(searchError);
+
+      if (!profiles || profiles.length === 0) {
+        setSearchResults([]);
+        return;
+      }
+
+      // Get admin-specific data for matched profiles
+      const profileIds = profiles.map(p => p.id);
+
+      // Fetch admin data: role, branch moderator status, block status
+      const { data: adminDataArray, error: adminError } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .in('id', profileIds);
+
+      if (adminError) throw adminError;
+
+      // Get branch moderator counts
+      const { data: branchMods, error: branchError } = await supabase
+        .from('branch_moderators')
+        .select('user_id')
+        .in('user_id', profileIds)
+        .eq('is_active', true);
+
+      if (branchError) throw branchError;
+
+      // Get blocked users
+      const { data: blocked, error: blockError } = await supabase
+        .from('suggestion_blocks')
+        .select('blocked_user_id')
+        .in('blocked_user_id', profileIds)
+        .eq('is_active', true);
+
+      if (blockError) throw blockError;
+
+      // Count branch moderator assignments per user
+      const branchCounts = {};
+      (branchMods || []).forEach(bm => {
+        branchCounts[bm.user_id] = (branchCounts[bm.user_id] || 0) + 1;
+      });
+
+      // Create blocked users set for fast lookup
+      const blockedSet = new Set((blocked || []).map(b => b.blocked_user_id));
+
+      // Merge results with admin data
+      const enrichedResults = profiles.map(profile => {
+        const adminData = adminDataArray?.find(ad => ad.id === profile.id);
+        const branchCount = branchCounts[profile.id] || 0;
+        const isBlocked = blockedSet.has(profile.id);
+
+        return {
+          id: profile.id,
+          name: profile.name,
+          full_name_chain: profile.name_chain || profile.name, // Use name_chain from search
+          role: adminData?.role || null,
+          is_branch_moderator: branchCount > 0,
+          branch_count: branchCount,
+          is_blocked: isBlocked,
+          photo_url: profile.photo_url, // Bonus: now we have photos!
+          generation: profile.generation, // Bonus: generation info
+        };
+      });
+
+      setSearchResults(enrichedResults);
     } catch (error) {
       console.error("Error searching users:", error);
       Alert.alert("خطأ", "فشل البحث عن المستخدمين");
@@ -867,18 +938,13 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
   },
-  userName: {
-    fontSize: 18,
+  userNameChain: {
+    fontSize: 17,  // Larger, more prominent
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 4,
-    fontFamily: "SF Arabic",
-  },
-  userChain: {
-    fontSize: 12,
-    color: colors.textMuted,
     marginBottom: 8,
     fontFamily: "SF Arabic",
+    lineHeight: 24,  // Better readability for multi-line chains
   },
   badgeRow: {
     flexDirection: "row",
@@ -914,15 +980,24 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: "row",
-    gap: 8,
+    gap: 12,
+    alignItems: "flex-start",
   },
   actionButton: {
-    width: 44,  // iOS minimum touch target
-    height: 44,  // iOS minimum touch target
-    borderRadius: 22,
+    minWidth: 52,  // Wider to accommodate labels
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderRadius: 12,
     backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,  // Space between icon and label
+  },
+  actionLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    textAlign: "center",
   },
   primaryAction: {
     backgroundColor: colors.primary + "10",
