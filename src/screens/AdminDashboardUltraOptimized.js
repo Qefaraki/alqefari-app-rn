@@ -23,6 +23,7 @@ import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
+import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import pdfExportService from "../services/pdfExport";
@@ -98,6 +99,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [showMunasibManager, setShowMunasibManager] = useState(false);
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -589,12 +591,25 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
               <View style={styles.separator} />
 
               <AnimatedTouchable
-                style={isSuperAdmin ? styles.listItem : [styles.listItem, styles.listItemLast]}
+                style={styles.listItem}
                 onPress={() => setShowMunasibManager(true)}
               >
                 <View style={styles.listItemContent}>
                   <Ionicons name="people-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
                   <Text style={styles.listItemText}>المناسبين</Text>
+                </View>
+                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+              </AnimatedTouchable>
+
+              <View style={styles.separator} />
+
+              <AnimatedTouchable
+                style={isSuperAdmin ? styles.listItem : [styles.listItem, styles.listItemLast]}
+                onPress={() => setShowSuggestionReview(true)}
+              >
+                <View style={styles.listItemContent}>
+                  <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
+                  <Text style={styles.listItemText}>مراجعة الاقتراحات</Text>
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>
@@ -799,6 +814,12 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         showTemplateManager,
         () => setShowTemplateManager(false),
         MessageTemplateManager
+      )}
+
+      {renderIOSModal(
+        showSuggestionReview,
+        () => setShowSuggestionReview(false),
+        SuggestionReviewManager
       )}
     </SafeAreaView>
   );

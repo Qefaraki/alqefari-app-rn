@@ -365,6 +365,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const showRoleMenu = (user) => {
     const options = [
       { label: "مستخدم عادي", value: null },
+      { label: "مراقب", value: "moderator" },
       { label: "مشرف", value: "admin" },
       { label: "مشرف عام", value: "super_admin" }
     ];
@@ -464,12 +465,12 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
           </View>
         </View>
 
-          {/* Only show for super admins */}
-          {currentUserRole !== "super_admin" ? (
+          {/* Only show for admins and super admins */}
+          {!["admin", "super_admin"].includes(currentUserRole) ? (
             <View style={styles.noAccessContainer}>
               <Ionicons name="lock-closed" size={64} color={colors.textMuted} />
               <Text style={styles.noAccessText}>
-                هذه الصفحة متاحة للمشرفين العامين فقط
+                هذه الصفحة متاحة للمشرفين فقط
               </Text>
             </View>
           ) : (
