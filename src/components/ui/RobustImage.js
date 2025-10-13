@@ -111,14 +111,26 @@ const RobustImage = ({
   const handleError = useCallback((error) => {
     if (!mountedRef.current) return;
 
-    console.error('[RobustImage] Load error:', {
-      url: imageUrl,
-      attempt: retryCount + 1,
-      error: error?.message || 'Unknown error',
-    });
-
     setLoadState('error');
     externalOnError?.(error);
+
+    // Only log ERROR after max retries exhausted
+    if (retryCount >= maxRetries) {
+      console.error('[RobustImage] Load failed after max retries:', {
+        url: imageUrl,
+        attempts: retryCount + 1,
+        maxRetries,
+        error: error?.message || 'Unknown error',
+      });
+    } else if (__DEV__) {
+      // Log WARN for intermediate failures (only in dev)
+      const nextRetryDelay = Math.min(1000 * Math.pow(2, retryCount), 8000);
+      console.warn('[RobustImage] Load error (retry scheduled):', {
+        url: imageUrl,
+        attempt: retryCount + 1,
+        nextRetryIn: `${nextRetryDelay}ms`,
+      });
+    }
 
     // Auto-retry if under max attempts
     if (retryCount < maxRetries) {
