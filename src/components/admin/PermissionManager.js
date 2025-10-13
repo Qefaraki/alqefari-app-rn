@@ -22,6 +22,7 @@ import { supabase } from "../../services/supabase";
 import * as Haptics from "expo-haptics";
 import BranchSelector from "./BranchSelector";
 import BranchList from "./BranchList";
+import PermissionSummary from "./PermissionSummary";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -99,8 +100,8 @@ const AnimatedUserCard = ({
       <TouchableOpacity
         style={styles.userCard}
         onPress={() => {
-          onUserSelect(item);
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onUserSelect(item);
         }}
         activeOpacity={0.95}
       >
@@ -203,6 +204,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const [loading, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showBranchSelector, setShowBranchSelector] = useState(false);
+  const [showPermissionSummary, setShowPermissionSummary] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [searchTimer, setSearchTimer] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -386,6 +388,12 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
     return roleColors[role] || colors.textMuted;
   };
 
+  // Handle user selection to show permission summary
+  const handleUserSelect = (user) => {
+    setSelectedUser(user);
+    setShowPermissionSummary(true);
+  };
+
   // Render user card with animations
   const renderUserCard = ({ item, index }) => {
     return (
@@ -395,7 +403,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
         currentUserRole={currentUserRole}
         getRoleColor={getRoleColor}
         getRoleLabel={getRoleLabel}
-        onUserSelect={setSelectedUser}
+        onUserSelect={handleUserSelect}
         onShowRoleMenu={showRoleMenu}
         onManageBranch={manageBranchModerator}
         onToggleBlock={toggleSuggestionBlock}
@@ -639,6 +647,28 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
               selectedUserId={selectedUser?.id}
               selectedUserName={selectedUser?.name}
             />
+          </Modal>
+
+          {/* Permission Summary Modal */}
+          <Modal
+            visible={showPermissionSummary}
+            animationType="slide"
+            presentationStyle="pageSheet"
+          >
+            {selectedUser && (
+              <PermissionSummary
+                user={selectedUser}
+                onClose={() => {
+                  setShowPermissionSummary(false);
+                  setSelectedUser(null);
+                }}
+                onRefresh={() => {
+                  if (searchText) {
+                    searchUsers(searchText);
+                  }
+                }}
+              />
+            )}
           </Modal>
         </KeyboardAvoidingView>
     </SafeAreaView>
