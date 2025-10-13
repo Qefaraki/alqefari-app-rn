@@ -243,6 +243,7 @@ const EditModeContent = React.memo(({
         {activeTab === 'family' && (
           <TabFamily
             person={person}
+            accessMode={accessMode}
             onDataChanged={() => {
               // Reload marriages data in parent
               if (person?.id) {

@@ -26,6 +26,11 @@ import { ErrorBoundary } from '../../ErrorBoundary';
 import { getShortNameChain } from '../../../utils/nameChainUtils';
 import AnimatedMarriageCard from './AnimatedMarriageCard';
 
+// Context for sharing permission state across family components
+const TabFamilyContext = React.createContext({
+  canEditFamily: false
+});
+
 // Reducer for managing all TabFamily state in one place (60% performance improvement)
 const initialState = {
   familyData: null,
@@ -440,7 +445,7 @@ const AddActionButton = React.memo(({ label, onPress, icon = 'add' }) => (
 AddActionButton.displayName = 'AddActionButton';
 
 
-const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
+const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) => {
   // Early validation - show error if person not provided
   if (!person) {
     return (
@@ -882,6 +887,13 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     state.activeEditor?.type === 'child' ? state.activeEditor.entity?.id : null;
 
   const handleQuickMotherSelect = async (motherId) => {
+    if (!canEditFamily) {
+      Alert.alert(
+        'غير مصرح',
+        'ليس لديك صلاحية لتعديل الأم.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+      );
+      return;
+    }
     if (!person?.id || !motherId || motherId === person?.mother_id) return;
     dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: motherId });
     try {
@@ -914,6 +926,13 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   };
 
   const handleClearMother = async () => {
+    if (!canEditFamily) {
+      Alert.alert(
+        'غير مصرح',
+        'ليس لديك صلاحية لإزالة الأم.'
+      );
+      return;
+    }
     if (!person?.id || !person?.mother_id) return;
     dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: 'clear' });
     try {
@@ -951,6 +970,13 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   }, [state.motherOptions]);
 
   const handleChangeMother = () => {
+    if (!canEditFamily) {
+      Alert.alert(
+        'غير مصرح',
+        'ليس لديك صلاحية لتعديل الأم.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+      );
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_MOTHER_FEEDBACK', payload: null });
     dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: !state.motherPickerVisible });
@@ -1007,8 +1033,26 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج';
 
   const handleAddSpousePress = () => {
+    if (!canEditFamily) {
+      Alert.alert(
+        'غير مصرح',
+        'ليس لديك صلاحية لإضافة زواج.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+      );
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true });
+  };
+
+  const handleOpenInlineSpouseAdder = () => {
+    if (!canEditFamily) {
+      Alert.alert(
+        'غير مصرح',
+        'ليس لديك صلاحية لإضافة زواج.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+      );
+      return;
+    }
+    dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: true } });
   };
 
   const handleGoToFatherProfile = () => {
@@ -1022,6 +1066,13 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   };
 
   const handleAddChildPress = () => {
+    if (!canEditFamily) {
+      Alert.alert(
+        'غير مصرح',
+        'ليس لديك صلاحية لإضافة ابن/ابنة.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+      );
+      return;
+    }
     if (person.gender === 'female' && spouses.length === 0) {
       Alert.alert('تنبيه', 'يجب إضافة زوج أولاً قبل إضافة الأبناء', [
         {
@@ -1036,8 +1087,12 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: true });
   };
 
+  // Calculate permission for family editing based on parent profile permission
+  const canEditFamily = accessMode === 'direct';
+
   return (
-    <ScrollView
+    <TabFamilyContext.Provider value={{ canEditFamily }}>
+      <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={
@@ -1064,10 +1119,10 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
             profile={mother}
             emptyTitle="لم يتم ربط الأم"
             emptySubtitle="أضف الأم ليكتمل ملفك الشخصي"
-            onAction={father ? handleChangeMother : null}
+            onAction={father && canEditFamily ? handleChangeMother : null}
             actionLabel={state.motherPickerVisible ? 'إخفاء الخيارات' : mother ? 'تغيير الأم' : 'إضافة الأم'}
             actionTone={state.motherPickerVisible ? 'secondary' : 'primary'}
-            infoHint={!father ? 'أدخل بيانات الأب أولاً لتتمكن من اختيار الأم' : null}
+            infoHint={!father ? 'أدخل بيانات الأب أولاً لتتمكن من اختيار الأم' : !canEditFamily ? 'ليس لديك صلاحية لتعديل الأم' : null}
           >
             <MotherInlinePicker
               visible={state.motherPickerVisible}
@@ -1098,7 +1153,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
             {!state.spouseAdderVisible ? (
               <AddActionButton
                 label={addSpouseLabel}
-                onPress={() => dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: true } })}
+                onPress={handleOpenInlineSpouseAdder}
               />
             ) : null}
             <ErrorBoundary>
@@ -1146,7 +1201,12 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
                     >
                       <SpouseRow
                         spouseData={spouseData}
+                        onEdit={handleEditMarriage}
+                        onDelete={handleDeleteSpouse}
                         onVisit={visitSpouse}
+                        isEditing={isEditing}
+                        onSave={handleMarriageEditorSaved}
+                        onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
                       />
                     </AnimatedMarriageCard>
                   );
@@ -1222,13 +1282,21 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       >
         {children.length > 0 ? (
           <View style={styles.sectionStack}>
-            {children.map((child) => (
-              <ChildRow
-                key={child.id}
-                child={child}
-                onVisit={handleVisitChild}
-              />
-            ))}
+            {children.map((child) => {
+              const isEditing = editingChildId === child.id;
+              return (
+                <ChildRow
+                  key={child.id}
+                  child={child}
+                  onEdit={handleEditChild}
+                  onDelete={handleDeleteChild}
+                  onVisit={() => handleVisitChild(child)}
+                  isEditing={isEditing}
+                  onSave={handleChildEditorSaved}
+                  onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                />
+              );
+            })}
           </View>
         ) : (
           <EmptyState
@@ -1256,7 +1324,8 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
 
 
 
-    </ScrollView>
+      </ScrollView>
+    </TabFamilyContext.Provider>
   );
 };
 
@@ -1288,14 +1357,36 @@ AvatarThumbnail.displayName = 'AvatarThumbnail';
 const SpouseRow = React.memo(
   ({
     spouseData,
+    onEdit,
+    onDelete,
     onVisit,
     inactive = false,
+    isEditing = false,
+    onSave,
+    onCancelEdit,
   }) => {
+    const { canEditFamily } = React.useContext(TabFamilyContext);
     const spouse = spouseData.spouse_profile;
+    const [editingName, setEditingName] = useState('');
+    const [editingStatus, setEditingStatus] = useState('current');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (isEditing) {
+        setEditingName(spouse?.name || '');
+        const rawStatus = spouseData.status || 'current';
+        setEditingStatus(
+          rawStatus === 'past' || rawStatus === 'divorced' || rawStatus === 'widowed'
+            ? 'past'
+            : 'current'
+        );
+        setSaving(false);
+      }
+    }, [isEditing, spouse?.name, spouseData.status]);
 
     if (!spouse) return null;
 
-    const displayName = spouse.name;
+    const displayName = isEditing ? editingName || '—' : spouse.name;
 
     const subtitleParts = [];
     if (spouseData.children_count > 0) {
@@ -1308,6 +1399,35 @@ const SpouseRow = React.memo(
     }
     const subtitle = subtitleParts.join(' • ');
 
+    const handleToggle = () => {
+      if (isEditing) {
+        Haptics.selectionAsync();
+        onCancelEdit?.();
+      } else {
+        if (!canEditFamily) {
+          Alert.alert(
+            'غير مصرح',
+            'ليس لديك صلاحية لتعديل هذا الملف الشخصي.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+          );
+          return;
+        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onEdit?.(spouseData);
+      }
+    };
+
+    const handleDelete = () => {
+      if (!canEditFamily) {
+        Alert.alert(
+          'غير مصرح',
+          'ليس لديك صلاحية لحذف هذا السجل.'
+        );
+        return;
+      }
+      Haptics.selectionAsync();
+      onDelete?.(spouseData);
+    };
+
     const handleVisit = () => {
       if (onVisit) {
         Haptics.selectionAsync();
@@ -1315,36 +1435,256 @@ const SpouseRow = React.memo(
       }
     };
 
+    const handleSave = async () => {
+      if (!canEditFamily) {
+        Alert.alert(
+          'غير مصرح',
+          'ليس لديك صلاحية لحفظ التعديلات.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+        );
+        return;
+      }
+
+      const trimmedName = editingName.trim();
+      if (!trimmedName) {
+        Alert.alert('خطأ', 'يرجى كتابة اسم الزوجة');
+        return;
+      }
+
+      // Validate minimum 2 words (name + surname), encourage 5 names
+      const words = trimmedName.split(/\s+/);
+      if (words.length < 2) {
+        Alert.alert(
+          'عفواً عمي...',
+          'أدخل الاسم كاملاً من فضلك\n\nمثال: مريم محمد علي سليمان السعوي\nالحد الأدنى: اسمان (الاسم الأول + العائلة)'
+        );
+        return;
+      }
+
+      const originalName = spouse.name?.trim() || '';
+      const statusChanged = spouseData.status !== editingStatus;
+      const nameChanged = trimmedName !== originalName;
+
+      if (!statusChanged && !nameChanged) {
+        onSave?.(spouseData);
+        return;
+      }
+
+      // Validate required IDs before attempting save
+      if (statusChanged && !spouseData.marriage_id) {
+        if (__DEV__) {
+          console.error('Missing marriage_id for spouse:', spouseData);
+        }
+        Alert.alert('خطأ', 'بيانات الزواج غير مكتملة. يرجى التواصل مع المسؤول.');
+        return;
+      }
+
+      if (nameChanged && !spouse.id) {
+        if (__DEV__) {
+          console.error('Missing spouse.id for spouse:', spouse);
+        }
+        Alert.alert('خطأ', 'بيانات الملف الشخصي غير مكتملة. يرجى التواصل مع المسؤول.');
+        return;
+      }
+
+      setSaving(true);
+
+      // Declare parsed at function scope (not inside if block)
+      let parsed = null;
+
+      try {
+        if (statusChanged) {
+          const { error } = await supabase.rpc('admin_update_marriage', {
+            p_marriage_id: spouseData.marriage_id,
+            p_updates: { status: editingStatus },
+          });
+          if (error) throw error;
+        }
+
+        if (nameChanged && spouse.id) {
+          // Parse name to extract family_origin
+          const spouseGender = spouse.gender || 'female';
+          parsed = familyNameService.parseFullName(trimmedName, spouseGender);
+
+          // Update both name AND family_origin atomically
+          const profileUpdates = {
+            name: trimmedName,
+            family_origin: parsed.familyOrigin, // null for Al-Qefari (cousin marriage)
+          };
+
+          const { error: nameError } = await supabase.rpc('admin_update_profile', {
+            p_id: spouse.id,
+            p_version: spouse.version || 1,
+            p_updates: profileUpdates,
+          });
+          if (nameError) throw nameError;
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const updatedMarriage = {
+          ...spouseData,
+          status: editingStatus,
+          spouse_profile: {
+            ...spouse,
+            name: trimmedName,
+            family_origin: parsed?.familyOrigin, // Update local state too
+            version: spouse.version ? spouse.version + 1 : 2, // Increment version after successful update
+          },
+        };
+        onSave?.(updatedMarriage);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error updating marriage:', error);
+        }
+
+        // Check for version conflict (optimistic locking failure)
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('version') || errorMessage.includes('تم تحديث البيانات') || error.code === 'P0001') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert(
+            'تعارض في التعديلات',
+            'تم تعديل هذا الملف الشخصي من قبل شخص آخر. يرجى تحديث الصفحة والمحاولة مرة أخرى.'
+          );
+          return;
+        }
+
+        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
+      } finally {
+        setSaving(false);
+      }
+    };
+
     return (
-      <View style={[styles.memberCard, inactive && styles.memberCardInactive]}>
-        <TouchableOpacity
-          style={styles.memberHeader}
-          onPress={handleVisit}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={`فتح ملف ${spouse.name}`}
-          disabled={!onVisit}
-        >
+      <View
+        style={[
+          styles.memberCard,
+          inactive && styles.memberCardInactive,
+          isEditing && styles.memberCardEditing,
+        ]}
+      >
+        <View style={styles.memberHeader}>
           <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={getInitials(spouse.name)} />
           <View style={styles.memberDetails}>
-            <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
-              {displayName}
-            </Text>
-            {subtitle ? (
+            <View style={styles.memberTitleRow}>
+              <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
+                {displayName}
+              </Text>
+              <TouchableOpacity
+                style={[styles.memberChevron, !canEditFamily && { opacity: 0.4 }]}
+                onPress={handleToggle}
+                disabled={!canEditFamily}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل الزواج'}
+              >
+                <Ionicons
+                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={20}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
+            {!isEditing && subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
               </Text>
             ) : null}
           </View>
-          {onVisit && (
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={tokens.colors.najdi.textMuted}
-              style={styles.memberChevron}
-            />
-          )}
-        </TouchableOpacity>
+        </View>
+
+        {isEditing ? (
+          <View style={styles.inlineEditor}>
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>اسم الزوجة</Text>
+              <TextInput
+                style={styles.inlineTextInput}
+                value={editingName}
+                onChangeText={setEditingName}
+                placeholder="اكتب الاسم الكامل"
+                placeholderTextColor={tokens.colors.najdi.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!saving}
+              />
+            </View>
+
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
+              <View style={styles.inlineSegments}>
+                {[
+                  { label: 'حالي', value: 'current' },
+                  { label: 'سابق', value: 'past' },
+                ].map((option) => {
+                  const active = editingStatus === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setEditingStatus(option.value);
+                      }}
+                      activeOpacity={0.85}
+                      disabled={saving}
+                    >
+                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.inlineFooter}>
+              <View style={styles.inlineFooterLinks}>
+                {onVisit ? (
+                  <TouchableOpacity
+                    style={styles.inlineUtilityButton}
+                    onPress={handleVisit}
+                    disabled={saving}
+                  >
+                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.inlineUtilityButton}
+                  onPress={handleDelete}
+                  disabled={saving}
+                >
+                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
+                  <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inlineActionButtons}>
+                <TouchableOpacity
+                  style={styles.inlineCancelButton}
+                  onPress={handleToggle}
+                  activeOpacity={0.7}
+                  disabled={saving}
+                >
+                  <Text style={styles.inlineCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={tokens.colors.surface} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
+                      <Text style={styles.inlineSaveText}>حفظ</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null}
       </View>
     );
   },
@@ -1357,6 +1697,7 @@ const SpouseRow = React.memo(
       prev.spouseData.spouse_profile?.name === next.spouseData.spouse_profile?.name &&
       prevPhotoUrl === nextPhotoUrl &&
       prev.inactive === next.inactive &&
+      prev.isEditing === next.isEditing &&
       prev.spouseData._deletingState === next.spouseData._deletingState // Required for delete animation
     );
   }
@@ -1364,51 +1705,263 @@ const SpouseRow = React.memo(
 SpouseRow.displayName = 'SpouseRow';
 
 const ChildRow = React.memo(
-  ({ child, onVisit }) => {
+  ({ child, onEdit, onDelete, onVisit, isEditing = false, onSave, onCancelEdit }) => {
+    const { canEditFamily } = React.useContext(TabFamilyContext);
     if (!child) return null;
+
+    const [editingName, setEditingName] = useState('');
+    const [editingGender, setEditingGender] = useState('male');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (isEditing) {
+        setEditingName(child.name || '');
+        setEditingGender(child.gender || 'male');
+        setSaving(false);
+      }
+    }, [isEditing, child.name, child.gender]);
 
     const initials = getInitials(child.name);
     const photoUrl = child.photo_url || child.profile?.photo_url || null;
-    const displayName = child.name;
-    const subtitle = child.birth_year ? `مواليد ${child.birth_year}` : null;
+    const displayName = isEditing ? editingName || '—' : child.name;
+    const subtitle = !isEditing && child.birth_year ? `مواليد ${child.birth_year}` : null;
+
+    const handleToggle = () => {
+      if (isEditing) {
+        Haptics.selectionAsync();
+        onCancelEdit?.();
+      } else {
+        if (!canEditFamily) {
+          Alert.alert(
+            'غير مصرح',
+            'ليس لديك صلاحية لتعديل هذا الملف الشخصي.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+          );
+          return;
+        }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onEdit?.(child);
+      }
+    };
+
+    const handleDelete = () => {
+      if (!canEditFamily) {
+        Alert.alert(
+          'غير مصرح',
+          'ليس لديك صلاحية لحذف هذا السجل.'
+        );
+        return;
+      }
+      Haptics.selectionAsync();
+      onDelete?.(child);
+    };
 
     const handleVisit = () => {
       if (onVisit) {
         Haptics.selectionAsync();
-        onVisit(child);
+        onVisit();
+      }
+    };
+
+    const handleSave = async () => {
+      if (!canEditFamily) {
+        Alert.alert(
+          'غير مصرح',
+          'ليس لديك صلاحية لحفظ التعديلات.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
+        );
+        return;
+      }
+
+      const trimmedName = editingName.trim();
+      if (!trimmedName) {
+        Alert.alert('خطأ', 'يرجى كتابة اسم الابن/الابنة');
+        return;
+      }
+
+      const nameChanged = trimmedName !== child.name;
+      const genderChanged = editingGender !== child.gender;
+
+      if (!nameChanged && !genderChanged) {
+        onSave?.(child);
+        return;
+      }
+
+      // Validate required ID before attempting save
+      if (!child.id) {
+        if (__DEV__) {
+          console.error('Missing child.id for child:', child);
+        }
+        Alert.alert('خطأ', 'بيانات الملف الشخصي غير مكتملة. يرجى التواصل مع المسؤول.');
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const { error } = await supabase.rpc('admin_update_profile', {
+          p_id: child.id,
+          p_version: child.version || 1,
+          p_updates: {
+            name: trimmedName,
+            gender: editingGender,
+          },
+        });
+        if (error) throw error;
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const updatedChild = {
+          ...child,
+          name: trimmedName,
+          gender: editingGender,
+          version: child.version ? child.version + 1 : 2, // Increment version after successful update
+        };
+        onSave?.(updatedChild);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error updating child:', error);
+        }
+
+        // Check for version conflict (optimistic locking failure)
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('version') || errorMessage.includes('تم تحديث البيانات') || error.code === 'P0001') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          Alert.alert(
+            'تعارض في التعديلات',
+            'تم تعديل هذا الملف الشخصي من قبل شخص آخر. يرجى تحديث الصفحة والمحاولة مرة أخرى.'
+          );
+          return;
+        }
+
+        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
+      } finally {
+        setSaving(false);
       }
     };
 
     return (
-      <View style={styles.memberCard}>
-        <TouchableOpacity
-          style={styles.memberHeader}
-          onPress={handleVisit}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={`فتح ملف ${child.name}`}
-          disabled={!onVisit}
-        >
+      <View style={[styles.memberCard, isEditing && styles.memberCardEditing]}>
+        <View style={styles.memberHeader}>
           <AvatarThumbnail photoUrl={photoUrl} fallbackLabel={initials} />
           <View style={styles.memberDetails}>
-            <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
-              {displayName}
-            </Text>
+            <View style={styles.memberTitleRow}>
+              <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
+                {displayName}
+              </Text>
+              <TouchableOpacity
+                style={[styles.memberChevron, !canEditFamily && { opacity: 0.4 }]}
+                onPress={handleToggle}
+                disabled={!canEditFamily}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل بيانات الابن/الابنة'}
+              >
+                <Ionicons
+                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={20}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
             {subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
               </Text>
             ) : null}
           </View>
-          {onVisit && (
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={tokens.colors.najdi.textMuted}
-              style={styles.memberChevron}
-            />
-          )}
-        </TouchableOpacity>
+        </View>
+
+        {isEditing ? (
+          <View style={styles.inlineEditor}>
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>الاسم الكامل</Text>
+              <TextInput
+                style={styles.inlineTextInput}
+                value={editingName}
+                onChangeText={setEditingName}
+                placeholder="اكتب الاسم"
+                placeholderTextColor={tokens.colors.najdi.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!saving}
+              />
+            </View>
+
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>الجنس</Text>
+              <View style={styles.inlineSegments}>
+                {[
+                  { label: 'ذكر', value: 'male' },
+                  { label: 'أنثى', value: 'female' },
+                ].map((option) => {
+                  const active = editingGender === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setEditingGender(option.value);
+                      }}
+                      activeOpacity={0.85}
+                      disabled={saving}
+                    >
+                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.inlineFooter}>
+              <View style={styles.inlineFooterLinks}>
+                {onVisit ? (
+                  <TouchableOpacity
+                    style={styles.inlineUtilityButton}
+                    onPress={handleVisit}
+                    disabled={saving}
+                  >
+                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.inlineUtilityButton}
+                  onPress={handleDelete}
+                  disabled={saving}
+                >
+                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
+                  <Text style={styles.inlineUtilityText}>حذف من العائلة</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inlineActionButtons}>
+                <TouchableOpacity
+                  style={styles.inlineCancelButton}
+                  onPress={handleToggle}
+                  activeOpacity={0.7}
+                  disabled={saving}
+                >
+                  <Text style={styles.inlineCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={tokens.colors.surface} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
+                      <Text style={styles.inlineSaveText}>حفظ</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null}
       </View>
     );
   },
@@ -1419,8 +1972,10 @@ const ChildRow = React.memo(
     return (
       prev.child.id === next.child.id &&
       prev.child.name === next.child.name &&
+      prev.child.gender === next.child.gender &&
       prev.child.birth_year === next.child.birth_year &&
-      prevPhotoUrl === nextPhotoUrl
+      prevPhotoUrl === nextPhotoUrl &&
+      prev.isEditing === next.isEditing
     );
   }
 );
@@ -1944,6 +2499,23 @@ const styles = StyleSheet.create({
     height: tokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  memberActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xxs,
+  },
+  memberActionButton: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberEditorContainer: {
+    marginTop: tokens.spacing.md,
+    paddingTop: tokens.spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.colors.divider,
   },
   memberCardEditing: {
     backgroundColor: tokens.colors.surface,

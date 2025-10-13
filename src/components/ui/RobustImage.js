@@ -38,13 +38,18 @@ const RobustImage = ({
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    // 🔍 DEBUG: Track component lifecycle
+    console.log('🔍 [RobustImage DEBUG] MOUNTED:', imageUrl.slice(-40));
+
     return () => {
       mountedRef.current = false;
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
+      // 🔍 DEBUG: Track unmount
+      console.log('🔍 [RobustImage DEBUG] UNMOUNTED:', imageUrl.slice(-40));
     };
-  }, []);
+  }, [imageUrl]);
 
   // Extract URL for logging
   const getImageUrl = () => {
@@ -57,6 +62,14 @@ const RobustImage = ({
 
   // Auto-retry with exponential backoff
   const scheduleRetry = useCallback(() => {
+    // 🔍 DEBUG: Track retry scheduling
+    console.log('🔍 [RobustImage DEBUG] scheduleRetry called:', {
+      retryCount,
+      maxRetries,
+      shouldRetry: retryCount < maxRetries,
+      imageUrl: imageUrl.slice(-40)
+    });
+
     if (retryCount >= maxRetries) {
       console.error('[RobustImage] Max retries reached for:', imageUrl);
       return;
@@ -67,6 +80,12 @@ const RobustImage = ({
 
     retryTimeoutRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
+
+      // 🔍 DEBUG: Track actual retry execution
+      console.log('🔍 [RobustImage DEBUG] Executing retry:', {
+        oldRetryCount: retryCount,
+        willBecome: retryCount + 1
+      });
 
       setRetryCount(prev => prev + 1);
       setImageKey(prev => prev + 1);
@@ -110,6 +129,16 @@ const RobustImage = ({
   // Handle load error
   const handleError = useCallback((error) => {
     if (!mountedRef.current) return;
+
+    // 🔍 DEBUG: Track which version is running and state
+    console.log('🔍 [RobustImage DEBUG] handleError called:', {
+      version: 'v2-fixed',
+      retryCount,
+      maxRetries,
+      willLogError: retryCount >= maxRetries,
+      willRetry: retryCount < maxRetries,
+      imageUrl: imageUrl.slice(-40)
+    });
 
     setLoadState('error');
     externalOnError?.(error);
