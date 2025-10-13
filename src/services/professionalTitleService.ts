@@ -39,7 +39,7 @@ export const PROFESSIONAL_TITLES: ProfessionalTitle[] = [
   { value: 'engineer', label: 'مهندس', abbrev: 'م.' },
   { value: 'mister', label: 'أستاذ', abbrev: null }, // No abbreviation
   { value: 'sheikh', label: 'الشيخ', abbrev: 'الشيخ' },
-  { value: 'major_general', label: 'لواء', abbrev: 'لواء' },
+  { value: 'major_general', label: 'اللواء', abbrev: 'اللواء' },
   { value: 'brigadier', label: 'عميد', abbrev: 'عميد' },
   { value: 'other', label: 'آخر (أدخل يدوياً)', abbrev: null },
 ];

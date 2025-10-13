@@ -170,7 +170,7 @@ export const VALUE_FORMATTERS = {
       engineer: 'مهندس (م.)',
       professor: 'أستاذ دكتور (أ.د.)',
       sheikh: 'شيخ',
-      general: 'لواء',
+      general: 'اللواء',
       colonel: 'عقيد',
       major: 'رائد',
       captain: 'نقيب',
