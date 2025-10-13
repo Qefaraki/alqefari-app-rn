@@ -14,11 +14,14 @@ import {
   Platform,
   Image,
   Animated,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import * as Haptics from "expo-haptics";
+import BranchSelector from "./BranchSelector";
+import BranchList from "./BranchList";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -434,6 +437,44 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
     }
   };
 
+  // Handle branch selection from BranchSelector
+  const handleBranchSelected = async (branch) => {
+    if (!selectedUser) return;
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "super_admin_assign_branch_moderator",
+        {
+          p_user_id: selectedUser.id,
+          p_branch_hid: branch.hid,
+          p_notes: `تم التعيين على فرع ${branch.name} (${branch.descendantsCount} فرد)`
+        }
+      );
+
+      if (error) throw error;
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        "نجح التعيين",
+        `تم تعيين ${selectedUser.name} كمشرف على فرع:\n${branch.name}\n\nعدد الأفراد: ${branch.descendantsCount}`,
+        [{ text: "حسناً" }]
+      );
+
+      // Refresh search results
+      if (searchText) {
+        searchUsers(searchText);
+      }
+
+      // Close modal
+      setShowBranchSelector(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error("Error assigning branch moderator:", error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert("خطأ", error.message || "فشل تعيين مشرف الفرع");
+    }
+  };
+
   // Use onBack if provided, otherwise use onClose
   const handleBack = onBack || onClose;
 
@@ -543,8 +584,23 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
             </>
           )}
 
-          {/* Branch Selector Modal would go here */}
-          {/* Implement later with tree selection */}
+          {/* Branch Selector Modal */}
+          <Modal
+            visible={showBranchSelector}
+            animationType="slide"
+            presentationStyle="fullScreen"
+          >
+            <BranchSelector
+              visible={showBranchSelector}
+              onSelect={handleBranchSelected}
+              onClose={() => {
+                setShowBranchSelector(false);
+                setSelectedUser(null);
+              }}
+              selectedUserId={selectedUser?.id}
+              selectedUserName={selectedUser?.name}
+            />
+          </Modal>
         </KeyboardAvoidingView>
     </SafeAreaView>
   );
