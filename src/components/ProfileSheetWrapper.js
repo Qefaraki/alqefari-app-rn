@@ -147,6 +147,12 @@ const ProfileSheetWrapper = ({ editMode }) => {
     setSelectedPersonId(null);
   };
 
+  // Don't render anything when no profile is selected and not loading
+  // This prevents the "no profile selected" empty state from showing on app open
+  if (!selectedPersonId && !loadingMunasib) {
+    return null;
+  }
+
   // Always render ProfileViewer (with loading state if needed)
   // This provides consistent skeleton loading instead of ActivityIndicator
   if (featureFlags.profileViewer) {

@@ -83,8 +83,10 @@ const ViewModeContent = React.memo(({
   isAdminMode,
   accessMode,
   scrollY,
+  scrollRef,
 }) => (
   <BottomSheetScrollView
+    ref={scrollRef}
     contentContainerStyle={{
       paddingHorizontal: 20,
       paddingTop: 12,
@@ -199,6 +201,7 @@ const EditModeContent = React.memo(({
   person,
   onNavigateToProfile,
   setMarriages,
+  scrollRef,
 }) => (
   <View style={{ flex: 1 }}>
     <EditHeader
@@ -209,6 +212,7 @@ const EditModeContent = React.memo(({
       accessMode={accessMode}
     />
     <BottomSheetScrollView
+      ref={scrollRef}
       contentContainerStyle={{
         paddingHorizontal: 20,
         paddingTop: 0,
@@ -263,6 +267,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const insets = useSafeAreaInsets();
   const { isAdminMode } = useAdminMode();
   const bottomSheetRef = useRef(null);
+  const viewScrollRef = useRef(null);
+  const editScrollRef = useRef(null);
   const snapPoints = useMemo(() => ['36%', '74%', '100%'], []);
 
   const [mode, setMode] = useState('view');
@@ -334,14 +340,21 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     loadPreference();
   }, [rememberStoreKey]);
 
-  // Reset snap index and loading states when person changes (declarative control)
+  // Reset scroll position and loading states when person changes
   useEffect(() => {
     if (person?.id) {
-      setCurrentSnapIndex(0);
+      // Reset scroll to top for both view and edit modes
+      viewScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+      editScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+
+      // Reset loading states
       setLoadingStates({
         marriages: true,
         permissions: true,
       });
+
+      // Note: We don't reset currentSnapIndex here - maintain the drawer position
+      // This allows users to stay at 100% when navigating between profiles
     }
   }, [person?.id]);
 
@@ -825,6 +838,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             isAdminMode={isAdminMode}
             accessMode={accessMode}
             scrollY={scrollY}
+            scrollRef={viewScrollRef}
           />
         ) : (
           <EditModeContent
@@ -842,6 +856,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             person={person}
             onNavigateToProfile={onNavigateToProfile}
             setMarriages={setMarriages}
+            scrollRef={editScrollRef}
           />
         )}
       </BottomSheet>
