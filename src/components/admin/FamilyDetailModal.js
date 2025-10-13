@@ -157,11 +157,11 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
     // Get Munasib name (spouse from other family)
     const munasibName = item.munasib ? item.munasib.name : "غير معروف";
 
-    // Build name chain for Al-Qefari member WITHOUT first name
+    // Build name chain for Al-Qefari member WITH first name
     let alqefariChain = "";
     if (item.alqefari) {
       const names = [];
-      let currentId = item.alqefari.father_id; // Start from father, not self
+      let currentId = item.alqefari.id; // Include person's own name
 
       // Build the ancestry chain by traversing father_id links
       const profilesMap = new Map();
@@ -178,9 +178,11 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
       names.push("القفاري");
 
       // Join names with " بن " or " بنت " connector
-      if (names.length > 0) {
+      if (names.length > 1) {
         const connector = item.alqefari.gender === "female" ? "بنت" : "بن";
-        alqefariChain = connector + " " + names.join(" ");
+        alqefariChain = names[0] + " " + connector + " " + names.slice(1).join(" ");
+      } else {
+        alqefariChain = names.join(" ");
       }
     }
 
@@ -329,19 +331,19 @@ const MarriageCard = ({ item, munasibName, alqefariChain, onPress, onWhatsAppPre
               )}
             </View>
 
-            {/* Al-Qefari Name Chain (Without First Name) */}
-            <Text style={styles.chainText} numberOfLines={2}>
-              {alqefariChain || "غير معروف"}
-            </Text>
-
-            {/* Generation Badge */}
-            {item.alqefari?.generation && (
-              <View style={styles.generationBadge}>
-                <Text style={styles.generationText}>
-                  الجيل {item.alqefari.generation}
-                </Text>
-              </View>
-            )}
+            {/* Al-Qefari Name Chain with Inline Generation Badge */}
+            <View style={styles.chainRow}>
+              <Text style={styles.chainText} numberOfLines={2}>
+                {alqefariChain || "غير معروف"}
+              </Text>
+              {item.alqefari?.generation && (
+                <View style={styles.generationBadge}>
+                  <Text style={styles.generationText}>
+                    الجيل {item.alqefari.generation}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -488,8 +490,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  // Chain Row (text + generation inline)
+  chainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+
   // Chain Text
   chainText: {
+    flex: 1,
     fontSize: 16,
     fontFamily: Platform.select({
       ios: "SF Arabic",
@@ -499,23 +510,21 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Generation Badge - iOS Style
+  // Generation Badge - iOS Style (Inline, Subtle)
   generationBadge: {
-    alignSelf: "flex-start",
-    backgroundColor: "#D1BBA340",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    marginTop: 4,
+    backgroundColor: "#D1BBA330",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   generationText: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
-    fontWeight: "600",
-    color: "#242121",
+    fontWeight: "500",
+    color: "#24212199",
   },
 
   // Empty State
