@@ -1,10 +1,12 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { View, Text, ActivityIndicator, Alert, StyleSheet } from "react-native";
 import { runOnUI } from "react-native-reanimated";
 import ProfileSheet from "./ProfileSheet";
 import ProfileViewer from "./ProfileViewer";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
 import { featureFlags } from "../config/featureFlags";
+import { supabase } from "../services/supabase";
 
 const ProfileSheetWrapper = ({ editMode }) => {
   const { isAdminMode } = useAdminMode();
@@ -13,28 +15,106 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const nodesMap = useTreeStore((s) => s.nodesMap);
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
-  // Get person data - O(1) lookup, reactive to version updates
+  // Local state for non-tree profiles (Munasib/spouses from outside family)
+  const [munasibProfile, setMunasibProfile] = useState(null);
+  const [loadingMunasib, setLoadingMunasib] = useState(false);
+
+  // Lazy-load Munasib profiles when not found in nodesMap
+  useEffect(() => {
+    if (!selectedPersonId) {
+      setMunasibProfile(null);
+      setLoadingMunasib(false);
+      return;
+    }
+
+    // If in nodesMap (Al-Qefari tree member), clear Munasib state
+    if (nodesMap.has(selectedPersonId)) {
+      setMunasibProfile(null);
+      setLoadingMunasib(false);
+      return;
+    }
+
+    // Not in nodesMap - might be Munasib, fetch it
+    let cancelled = false;
+    setLoadingMunasib(true);
+
+    const fetchMunasibProfile = async () => {
+      try {
+        console.log('[ProfileSheetWrapper] Lazy-loading Munasib profile:', selectedPersonId);
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', selectedPersonId)
+          .is('deleted_at', null) // Filter soft-deleted profiles
+          .single();
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error('[ProfileSheetWrapper] Failed to load Munasib:', error);
+          Alert.alert('خطأ', 'فشل تحميل الملف الشخصي');
+          setSelectedPersonId(null); // Close sheet
+          setLoadingMunasib(false);
+          return;
+        }
+
+        if (data) {
+          console.log('[ProfileSheetWrapper] Loaded Munasib profile:', data.name);
+          setMunasibProfile(data);
+        } else {
+          Alert.alert('خطأ', 'الملف الشخصي غير موجود');
+          setSelectedPersonId(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[ProfileSheetWrapper] Fetch error:', err);
+          Alert.alert('خطأ', 'حدث خطأ أثناء التحميل');
+          setSelectedPersonId(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingMunasib(false);
+        }
+      }
+    };
+
+    fetchMunasibProfile();
+
+    return () => {
+      cancelled = true; // Cleanup: prevent race conditions on rapid navigation
+    };
+  }, [selectedPersonId, nodesMap, setSelectedPersonId]);
+
+  // Get person data - try nodesMap first (tree members), fallback to Munasib state
   const person = React.useMemo(() => {
     if (!selectedPersonId) return null;
 
-    // CRITICAL: Only use nodesMap (zustand store), never fallback to static familyData
-    // The static familyData is from September and doesn't have version column
-    // If person not in store yet, wait for TreeView to load it
-    const foundPerson = nodesMap.get(selectedPersonId);
-
-    // DEBUG: Log person version for troubleshooting
-    if (foundPerson) {
-      console.log('[ProfileSheetWrapper] Person loaded:', {
-        name: foundPerson.name,
-        version: foundPerson.version,
+    // 1. Try tree store (Al-Qefari family members with HID)
+    const treeNode = nodesMap.get(selectedPersonId);
+    if (treeNode) {
+      console.log('[ProfileSheetWrapper] Person loaded from tree:', {
+        name: treeNode.name,
+        version: treeNode.version,
         source: 'nodesMap'
       });
-    } else if (selectedPersonId) {
-      console.log('[ProfileSheetWrapper] Person not in store yet, waiting for TreeView to load');
+      return treeNode;
     }
 
-    return foundPerson || null;
-  }, [selectedPersonId, nodesMap]);
+    // 2. Try Munasib state (spouses from outside family, hid=NULL)
+    if (munasibProfile?.id === selectedPersonId) {
+      console.log('[ProfileSheetWrapper] Person loaded from Munasib state:', {
+        name: munasibProfile.name,
+        isMunasib: true,
+        source: 'munasibProfile'
+      });
+      return munasibProfile;
+    }
+
+    // 3. Still loading or not found
+    console.log('[ProfileSheetWrapper] Person not loaded yet');
+    return null;
+  }, [selectedPersonId, nodesMap, munasibProfile]);
 
   // Critical: Reset profileSheetProgress when switching between modals
   useEffect(() => {
@@ -67,6 +147,16 @@ const ProfileSheetWrapper = ({ editMode }) => {
     setSelectedPersonId(null);
   };
 
+  // Show loading spinner while fetching Munasib profile
+  if (loadingMunasib && !person && selectedPersonId) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#A13333" />
+        <Text style={styles.loadingText}>جاري التحميل...</Text>
+      </View>
+    );
+  }
+
   if (featureFlags.profileViewer && person) {
     return (
       <ProfileViewer
@@ -81,5 +171,20 @@ const ProfileSheetWrapper = ({ editMode }) => {
   // Show ProfileSheet with edit mode enabled when in admin mode
   return <ProfileSheet editMode={editMode || isAdminMode} />;
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9F7F3', // Al-Jass White
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 17,
+    fontFamily: 'SF Arabic',
+    color: '#242121', // Sadu Night
+  },
+});
 
 export default ProfileSheetWrapper;

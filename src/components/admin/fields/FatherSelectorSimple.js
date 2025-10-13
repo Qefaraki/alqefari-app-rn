@@ -71,13 +71,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
             id,
             name,
             hid,
-            name_chain,
-            lineage_preview,
-            full_name_chain,
-            name_chain_snapshot,
-            full_name,
-            family_origin,
-            family_name
+            family_origin
           )
         `)
         .eq("wife_id", motherId)

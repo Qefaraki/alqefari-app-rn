@@ -13,9 +13,12 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
 import { getShortNameChain } from "../../../utils/nameChainUtils";
+import tokens from "../../ui/tokens";
 
 // Enable RTL
 I18nManager.forceRTL(true);
+
+const COLORS = tokens.colors.najdi;
 
 const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   const [loading, setLoading] = useState(false);
@@ -62,13 +65,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
             id,
             name,
             hid,
-            name_chain,
-            lineage_preview,
-            full_name_chain,
-            name_chain_snapshot,
-            full_name,
-            family_origin,
-            family_name
+            family_origin
           )
         `)
         .eq("husband_id", fatherId)
@@ -223,22 +220,22 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
                 style={styles.clearButton}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Ionicons
-                  name="close-circle"
-                  size={18}
-                  color="rgba(0,0,0,0.25)"
-                />
-              </TouchableOpacity>
-            )}
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={COLORS.textMuted + "55"}
+              />
+            </TouchableOpacity>
+          )}
 
-            {/* Chevron LAST (will appear on far left in RTL) */}
-            <Ionicons
-              name={showDropdown ? "chevron-up" : "chevron-down"}
-              size={16}
-              color="rgba(0,0,0,0.3)"
-            />
-          </View>
-        </TouchableOpacity>
+          {/* Chevron LAST (will appear on far left in RTL) */}
+          <Ionicons
+            name={showDropdown ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={COLORS.textMuted + "55"}
+          />
+        </View>
+      </TouchableOpacity>
 
         {/* Beautiful Dropdown */}
         {showDropdown && (
@@ -304,7 +301,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 16,
+    marginTop: tokens.spacing.sm,
     width: "100%",
   },
   labelRow: {
@@ -313,8 +310,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   label: {
-    fontSize: 13,
-    color: "rgba(0,0,0,0.5)",
+    fontSize: tokens.typography.caption1.fontSize,
+    color: COLORS.textMuted,
     fontWeight: "500",
     textAlign: I18nManager.isRTL ? "right" : "left",
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
@@ -327,10 +324,12 @@ const styles = StyleSheet.create({
 
   // Main selector container
   selector: {
-    backgroundColor: "#F8F8F8",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: COLORS.container + "10",
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "33",
   },
 
   // Inner content with RTL-aware flex
@@ -341,7 +340,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   selectorActive: {
-    backgroundColor: "#F2F2F2",
+    backgroundColor: COLORS.container + "18",
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
@@ -350,8 +349,8 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   selectedText: {
-    fontSize: 16,
-    color: "#000",
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.text,
     flex: 1,
     textAlign: I18nManager.isRTL ? "right" : "left",
     fontWeight: "500",
@@ -359,16 +358,16 @@ const styles = StyleSheet.create({
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   placeholderText: {
-    fontSize: 16,
-    color: "rgba(0,0,0,0.3)",
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.textMuted,
     flex: 1,
     textAlign: I18nManager.isRTL ? "right" : "left",
     marginHorizontal: 8,
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   disabledText: {
-    fontSize: 16,
-    color: "rgba(0,0,0,0.3)",
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.textMuted,
     textAlign: "right",
   },
   clearButton: {
@@ -381,8 +380,8 @@ const styles = StyleSheet.create({
     top: "100%",
     left: 0,
     right: 0,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.md,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
     shadowColor: "#000",
@@ -399,43 +398,43 @@ const styles = StyleSheet.create({
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.05)",
+    borderBottomColor: COLORS.container + "22",
   },
   optionSelected: {
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.container + "12",
   },
   optionContent: {
     flex: 1,
     alignItems: I18nManager.isRTL ? "flex-end" : "flex-start",
   },
   optionText: {
-    fontSize: 15,
-    color: "#000",
+    fontSize: tokens.typography.subheadline.fontSize,
+    color: COLORS.text,
     textAlign: "right",
   },
   optionTextSelected: {
     fontWeight: "600",
   },
   optionHid: {
-    fontSize: 12,
-    color: "rgba(0,0,0,0.4)",
+    fontSize: tokens.typography.caption1.fontSize,
+    color: COLORS.textMuted,
     marginTop: 2,
     textAlign: "right",
   },
   currentBadge: {
-    backgroundColor: "rgba(0,0,0,0.05)",
-    paddingHorizontal: 8,
+    backgroundColor: COLORS.primary + "12",
+    paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: tokens.radii.sm,
     marginLeft: I18nManager.isRTL ? 0 : 8,
     marginRight: I18nManager.isRTL ? 8 : 0,
   },
   currentBadgeText: {
-    fontSize: 11,
-    color: "rgba(0,0,0,0.6)",
+    fontSize: tokens.typography.caption1.fontSize,
+    color: COLORS.primary,
     fontWeight: "600",
   },
 });

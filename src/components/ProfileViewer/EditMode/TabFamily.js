@@ -1,7 +1,8 @@
-import React, { useReducer, useEffect, useMemo, useCallback } from 'react';
+import React, { useReducer, useEffect, useMemo, useCallback, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -9,7 +10,6 @@ import {
   Alert,
   RefreshControl,
   Platform,
-  ActionSheetIOS,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -18,8 +18,6 @@ import { supabase } from '../../../services/supabase';
 import SpouseManager from '../../admin/SpouseManager';
 import InlineSpouseAdder from '../../InlineSpouseAdder';
 import QuickAddOverlay from '../../admin/QuickAddOverlay';
-import EditChildModal from './EditChildModal';
-import EditMarriageModal from './EditMarriageModal';
 import { ProgressiveThumbnail } from '../../ProgressiveImage';
 import useStore from '../../../hooks/useStore';
 import { useFeedbackTimeout } from '../../../hooks/useFeedbackTimeout';
@@ -33,10 +31,6 @@ const initialState = {
   refreshing: false,
   spouseModalVisible: false,
   childModalVisible: false,
-  editChildModalVisible: false,
-  selectedChild: null,
-  editMarriageModalVisible: false,
-  selectedMarriage: null,
   motherOptions: [],
   loadingMotherOptions: false,
   updatingMotherId: null,
@@ -45,12 +39,19 @@ const initialState = {
   spouseAdderVisible: false,
   spouseFeedback: null,
   prefilledSpouseName: null,
+  activeEditor: null, // { type: 'marriage' | 'child', entity: {} }
 };
 
 const familyReducer = (state, action) => {
   switch (action.type) {
     case 'SET_FAMILY_DATA':
-      return { ...state, familyData: action.payload, loading: false, refreshing: false };
+      return {
+        ...state,
+        familyData: action.payload,
+        loading: false,
+        refreshing: false,
+        activeEditor: null,
+      };
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
     case 'SET_REFRESHING':
@@ -59,17 +60,10 @@ const familyReducer = (state, action) => {
       return { ...state, spouseModalVisible: action.payload };
     case 'SET_CHILD_MODAL_VISIBLE':
       return { ...state, childModalVisible: action.payload };
-    case 'SET_EDIT_CHILD_MODAL':
+    case 'SET_ACTIVE_EDITOR':
       return {
         ...state,
-        editChildModalVisible: action.payload.visible,
-        selectedChild: action.payload.child || null,
-      };
-    case 'SET_EDIT_MARRIAGE_MODAL':
-      return {
-        ...state,
-        editMarriageModalVisible: action.payload.visible,
-        selectedMarriage: action.payload.marriage || null,
+        activeEditor: action.payload,
       };
     case 'SET_MOTHER_OPTIONS':
       return { ...state, motherOptions: action.payload, loadingMotherOptions: false };
@@ -91,10 +85,30 @@ const familyReducer = (state, action) => {
       return { ...state, spouseFeedback: action.payload };
     case 'CLOSE_SPOUSE_MODAL':
       return { ...state, spouseModalVisible: false, prefilledSpouseName: null };
-    case 'CLOSE_EDIT_CHILD_MODAL':
-      return { ...state, editChildModalVisible: false, selectedChild: null };
-    case 'CLOSE_EDIT_MARRIAGE_MODAL':
-      return { ...state, editMarriageModalVisible: false, selectedMarriage: null };
+    case 'PATCH_MARRIAGE': {
+      if (!state.familyData) return state;
+      const updatedSpouses = state.familyData.spouses.map((spouse) =>
+        spouse.marriage_id === action.payload.marriage_id ? { ...spouse, ...action.payload } : spouse
+      );
+      return {
+        ...state,
+        familyData: { ...state.familyData, spouses: updatedSpouses },
+        activeEditor: null,
+      };
+    }
+    case 'PATCH_CHILD': {
+      if (!state.familyData) return state;
+      const updatedChildren = state.familyData.children.map((child) =>
+        child.id === action.payload.id ? { ...child, ...action.payload } : child
+      );
+      return {
+        ...state,
+        familyData: { ...state.familyData, children: updatedChildren },
+        activeEditor: null,
+      };
+    }
+    case 'RESET_ACTIVE_EDITOR':
+      return { ...state, activeEditor: null };
     case 'RESET_STATE':
       return initialState;
     default:
@@ -278,6 +292,12 @@ const MotherInlinePicker = React.memo(({
               if (!motherProfile) return null;
               const isSelected = motherProfile.id === currentMotherId;
 
+              // Build children count hint
+              const childrenCount = option.children_count || 0;
+              const childrenHint = childrenCount > 0
+                ? `${childrenCount} ${childrenCount === 1 ? 'طفل' : 'أطفال'}`
+                : null;
+
               return (
                 <TouchableOpacity
                   key={option.marriage_id}
@@ -301,6 +321,11 @@ const MotherInlinePicker = React.memo(({
                     <Text style={styles.motherRowName} numberOfLines={1}>
                       {motherProfile.name}
                     </Text>
+                    {childrenHint ? (
+                      <Text style={styles.motherRowHint} numberOfLines={1}>
+                        {childrenHint}
+                      </Text>
+                    ) : null}
                   </View>
                   <View style={[styles.motherRadio, isSelected && styles.motherRadioSelected]}>
                     {isSelected ? <View style={styles.motherRadioDot} /> : null}
@@ -359,77 +384,6 @@ const AddActionButton = React.memo(({ label, onPress, icon = 'add' }) => (
 ));
 AddActionButton.displayName = 'AddActionButton';
 
-const showCardActionSheet = ({ subject, onEdit, onDelete, onVisit, visitLabel = 'زيارة الملف' }) => {
-  Haptics.selectionAsync();
-
-  const optionItems = [];
-
-  if (typeof onVisit === 'function') {
-    optionItems.push({ label: visitLabel, handler: onVisit, style: 'default' });
-  }
-
-  if (typeof onEdit === 'function') {
-    optionItems.push({ label: 'تعديل', handler: onEdit, style: 'default' });
-  }
-
-  if (typeof onDelete === 'function') {
-    optionItems.push({ label: 'حذف', handler: onDelete, style: 'destructive' });
-  }
-
-  const cancelLabel = 'إلغاء';
-
-  if (Platform.OS === 'ios' && ActionSheetIOS?.showActionSheetWithOptions) {
-    const options = optionItems.map((item) => item.label).concat(cancelLabel);
-    const cancelButtonIndex = options.length - 1;
-    const destructiveButtonIndex = optionItems.findIndex((item) => item.style === 'destructive');
-
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-        destructiveButtonIndex: destructiveButtonIndex >= 0 ? destructiveButtonIndex : undefined,
-        title: subject ? `اختر إجراء لـ ${subject}` : 'اختر إجراء',
-      },
-      (buttonIndex) => {
-        if (buttonIndex >= 0 && buttonIndex < optionItems.length) {
-          const handler = optionItems[buttonIndex]?.handler;
-          if (typeof handler === 'function') {
-            handler();
-          }
-        }
-      }
-    );
-  } else {
-    const alertButtons = optionItems.map((item) => ({
-      text: item.label,
-      onPress: item.handler,
-      style: item.style === 'destructive' ? 'destructive' : 'default',
-    }));
-
-    alertButtons.push({ text: cancelLabel, style: 'cancel' });
-
-    Alert.alert(subject || 'الإجراءات', undefined, alertButtons);
-  }
-};
-
-const CardActionMenu = React.memo(({ subject, onEdit, onDelete, onVisit, visitLabel }) => {
-  const handlePress = () =>
-    showCardActionSheet({ subject, onEdit, onDelete, onVisit, visitLabel });
-
-  return (
-    <TouchableOpacity
-      style={styles.memberMenuButton}
-      onPress={handlePress}
-      activeOpacity={0.75}
-      accessibilityRole="button"
-      accessibilityLabel={subject ? `إجراءات ${subject}` : 'إجراءات'}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-    >
-      <Ionicons name="ellipsis-vertical" size={18} color={tokens.colors.najdi.text} />
-    </TouchableOpacity>
-  );
-});
-CardActionMenu.displayName = 'CardActionMenu';
 
 const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   // Early validation - show error if person not provided
@@ -491,18 +445,20 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
 
       dispatch({ type: 'SET_FAMILY_DATA', payload: data });
 
-      // Inline mother options loading (eliminates dependency on prefetchMotherOptions)
+      // Inline mother options loading with optimized RPC (80-90% bandwidth reduction)
       if (data?.father?.id) {
         dispatch({ type: 'SET_LOADING_MOTHER_OPTIONS', payload: true });
         try {
-          const { data: motherData, error: motherError } = await supabase.rpc('get_profile_family_data', {
-            p_profile_id: data.father.id,
+          // Use lightweight get_father_wives_minimal instead of full get_profile_family_data
+          // Returns only: marriage_id, status, children_count, minimal spouse_profile
+          const { data: motherData, error: motherError } = await supabase.rpc('get_father_wives_minimal', {
+            p_father_id: data.father.id,
           });
 
           if (motherError) throw motherError;
 
-          const spouses = motherData?.spouses || [];
-          dispatch({ type: 'SET_MOTHER_OPTIONS', payload: spouses });
+          // Data is already in the correct format (array of spouse objects)
+          dispatch({ type: 'SET_MOTHER_OPTIONS', payload: motherData || [] });
         } catch (motherErr) {
           if (__DEV__) {
             console.error('Error loading mother options:', motherErr);
@@ -626,49 +582,72 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
   const handleEditMarriage = useCallback((marriage) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({
-      type: 'SET_EDIT_MARRIAGE_MODAL',
-      payload: { visible: true, marriage },
+      type: 'SET_ACTIVE_EDITOR',
+      payload: { type: 'marriage', entity: marriage },
     });
   }, []);
 
-  const handleEditMarriageSaved = useCallback(async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await loadFamilyData();
-    if (refreshProfile) {
-      await refreshProfile(person.id);
-    }
-    if (onDataChanged) {
-      onDataChanged();
-    }
-    dispatch({ type: 'CLOSE_EDIT_MARRIAGE_MODAL' });
-  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
+  const handleMarriageEditorSaved = useCallback(
+    (updatedMarriage) => {
+      if (updatedMarriage) {
+        dispatch({ type: 'PATCH_MARRIAGE', payload: updatedMarriage });
+        refreshProfile?.(person.id);
+        onDataChanged?.();
+      } else {
+        dispatch({ type: 'RESET_ACTIVE_EDITOR' });
+      }
+    },
+    [onDataChanged, person.id, refreshProfile]
+  );
 
   const handleEditChild = useCallback((child) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({
-      type: 'SET_EDIT_CHILD_MODAL',
-      payload: { visible: true, child },
+      type: 'SET_ACTIVE_EDITOR',
+      payload: { type: 'child', entity: child },
     });
   }, []);
 
-  const handleEditChildSaved = useCallback(async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await loadFamilyData();
-    if (refreshProfile) {
-      await refreshProfile(person.id);
-    }
-    if (onDataChanged) {
-      onDataChanged();
-    }
-    dispatch({ type: 'CLOSE_EDIT_CHILD_MODAL' });
-  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
+  const handleChildEditorSaved = useCallback(
+    (updatedChild) => {
+      if (updatedChild) {
+        dispatch({ type: 'PATCH_CHILD', payload: updatedChild });
+        refreshProfile?.(person.id);
+        onDataChanged?.();
+      } else {
+        dispatch({ type: 'RESET_ACTIVE_EDITOR' });
+      }
+    },
+    [onDataChanged, person.id, refreshProfile]
+  );
+
+  // Helper function to calculate generation depth for descendants
+  const buildGenerationMap = (descendants, parentId) => {
+    const generationMap = {};
+
+    const findChildren = (currentParentId, currentGeneration) => {
+      const children = descendants.filter(
+        (d) =>
+          (d.father_id === currentParentId || d.mother_id === currentParentId) &&
+          !generationMap[d.id] // Prevent circular references
+      );
+
+      children.forEach((child) => {
+        generationMap[child.id] = currentGeneration;
+        findChildren(child.id, currentGeneration + 1);
+      });
+    };
+
+    findChildren(parentId, 1);
+    return generationMap;
+  };
 
   const handleDeleteChild = useCallback(async (child) => {
     try {
-      // Check for descendants before deleting to warn user
+      // Fetch descendants with parent IDs for generation calculation
       const { data: descendants, error: checkError } = await supabase
         .from('profiles')
-        .select('id, name, gender')
+        .select('id, name, father_id, mother_id')
         .or(`father_id.eq.${child.id},mother_id.eq.${child.id}`)
         .is('deleted_at', null);
 
@@ -678,36 +657,102 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
 
       const descendantCount = descendants?.length || 0;
 
-      // Build confirmation message with descendant warning
-      let message = `هل أنت متأكد من حذف ${child.name} من العائلة؟`;
-
+      // Calculate generations if descendants exist
+      let generations = 0;
       if (descendantCount > 0) {
-        message += `\n\n⚠️ تحذير: لديه ${descendantCount} ${
-          descendantCount === 1 ? 'طفل' : 'أطفال'
-        }.\n\nملاحظة: الأطفال سيبقون في الشجرة لكن بدون والد ظاهر.`;
+        const generationMap = buildGenerationMap(descendants, child.id);
+        generations = Math.max(...Object.values(generationMap));
       }
 
-      Alert.alert('تأكيد الحذف', message, [
+      // Build message based on descendant count (three-tier messaging)
+      let title, message, confirmButtonText;
+
+      if (descendantCount === 0) {
+        // Scenario 1: No descendants
+        title = 'حذف من العائلة';
+        message = `هل تريد حذف ${child.name} من شجرة العائلة؟`;
+        confirmButtonText = 'حذف';
+      } else if (descendantCount <= 5) {
+        // Scenario 2: 1-5 descendants
+        title = `حذف ${child.name} وذريته`;
+
+        if (descendantCount === 1) {
+          message = `سيتم حذف ${child.name} وطفله.\nالمجموع: شخصان`;
+        } else if (descendantCount === 2) {
+          message = `سيتم حذف ${child.name} وطفلاه.\nالمجموع: ٣ أشخاص`;
+        } else {
+          const total = descendantCount + 1;
+          message = `سيتم حذف ${child.name} و${descendantCount} من أبنائه وأحفاده.\nالمجموع: ${total} شخص`;
+        }
+
+        confirmButtonText = 'حذف الكل';
+      } else {
+        // Scenario 3: 6+ descendants
+        title = `حذف ${child.name} وذريته`;
+        const total = descendantCount + 1;
+        const generationWord = generations === 1 ? 'جيل' : 'أجيال';
+
+        message = `هذا الإجراء سيحذف ${child.name} مع ${descendantCount} فرد من ذريته عبر ${generations} ${generationWord}.\n\nلا يمكن التراجع عن هذا الحذف.\n\nهل تريد المتابعة؟`;
+        confirmButtonText = 'نعم، احذف الكل';
+      }
+
+      // Show confirmation alert
+      Alert.alert(title, message, [
         { text: 'إلغاء', style: 'cancel' },
         {
-          text: 'حذف',
+          text: confirmButtonText,
           style: 'destructive',
           onPress: async () => {
             try {
-              // Soft delete: Sets deleted_at timestamp (reversible)
-              // Profile disappears from queries but data remains in database
-              // Descendants are NOT automatically deleted (may become orphaned)
-              const { error } = await supabase.rpc('admin_update_profile', {
-                p_id: child.id,
-                p_version: child.version || 1, // Optimistic locking with fallback
-                p_updates: { deleted_at: new Date().toISOString() },
-              });
-
-              if (error) throw error;
-
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success
+              // Call cascade delete function
+              const { data: result, error } = await supabase.rpc(
+                'admin_cascade_delete_profile',
+                {
+                  p_profile_id: child.id,
+                  p_version: child.version || 1,
+                  p_confirm_cascade: true,
+                  p_max_descendants: 100,
+                }
               );
+
+              if (error) {
+                // Handle specific error types with user-friendly messages
+                const errorMsg = error.message || '';
+
+                if (errorMsg.includes('تم تحديث البيانات')) {
+                  Alert.alert(
+                    'تم تحديث البيانات',
+                    'تم تعديل هذا الملف من مستخدم آخر.\nيرجى المحاولة مرة أخرى.'
+                  );
+                } else if (errorMsg.includes('permission') || errorMsg.includes('Insufficient')) {
+                  Alert.alert(
+                    'غير مسموح',
+                    'ليس لديك صلاحية لحذف بعض الأشخاص في هذه الشجرة.'
+                  );
+                } else if (errorMsg.includes('limited to')) {
+                  Alert.alert(
+                    'عدد كبير جداً',
+                    'يوجد عدد كبير من الأشخاص. يرجى حذف الفروع بشكل منفصل.'
+                  );
+                } else if (errorMsg.includes('currently being edited')) {
+                  Alert.alert(
+                    'الملف قيد التعديل',
+                    'يقوم مستخدم آخر بتعديل هذا الملف حالياً. يرجى المحاولة بعد قليل.'
+                  );
+                } else {
+                  Alert.alert(
+                    'فشل الحذف',
+                    'لم نتمكن من حذف الملف. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.'
+                  );
+                }
+                return;
+              }
+
+              // Success feedback
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('تم الحذف', `تم حذف ${child.name} من شجرة العائلة.`);
+
+              // Refresh UI
               await loadFamilyData();
               if (refreshProfile) {
                 await refreshProfile(person.id);
@@ -715,6 +760,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
               if (onDataChanged) {
                 onDataChanged();
               }
+              dispatch({ type: 'RESET_ACTIVE_EDITOR' });
             } catch (error) {
               if (__DEV__) {
                 console.error('Error deleting child:', error);
@@ -737,6 +783,11 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
     },
     [onNavigateToProfile]
   );
+
+  const editingMarriageId =
+    state.activeEditor?.type === 'marriage' ? state.activeEditor.entity?.marriage_id : null;
+  const editingChildId =
+    state.activeEditor?.type === 'child' ? state.activeEditor.entity?.id : null;
 
   const handleQuickMotherSelect = async (motherId) => {
     if (!person?.id || !motherId || motherId === person?.mother_id) return;
@@ -973,14 +1024,26 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       >
         {activeSpouses.length > 0 ? (
           <View style={styles.sectionStack}>
-            {activeSpouses.map((spouseData) => (
-              <SpouseRow
-                key={spouseData.marriage_id}
-                spouseData={spouseData}
-                onEdit={handleEditMarriage}
-                onDelete={handleDeleteSpouse}
-              />
-            ))}
+            {activeSpouses.map((spouseData) => {
+              const isEditing = editingMarriageId === spouseData.marriage_id;
+              const visitSpouse =
+                spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
+                  ? () => onNavigateToProfile(spouseData.spouse_profile.id)
+                  : undefined;
+
+              return (
+                <SpouseRow
+                  key={spouseData.marriage_id}
+                  spouseData={spouseData}
+                  onEdit={handleEditMarriage}
+                  onDelete={handleDeleteSpouse}
+                  onVisit={visitSpouse}
+                  isEditing={isEditing}
+                  onSave={handleMarriageEditorSaved}
+                  onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                />
+              );
+            })}
           </View>
         ) : (
           <EmptyState
@@ -995,15 +1058,27 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
             <View style={styles.sectionDivider} />
             <Text style={styles.sectionSubheader}>زيجات سابقة</Text>
             <View style={styles.sectionStack}>
-              {inactiveSpouses.map((spouseData) => (
-                <SpouseRow
-                  key={spouseData.marriage_id}
-                  spouseData={spouseData}
-                  onEdit={handleEditMarriage}
-                  onDelete={handleDeleteSpouse}
-                  inactive
-                />
-              ))}
+              {inactiveSpouses.map((spouseData) => {
+                const isEditing = editingMarriageId === spouseData.marriage_id;
+                const visitSpouse =
+                  spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
+                    ? () => onNavigateToProfile(spouseData.spouse_profile.id)
+                    : undefined;
+
+                return (
+                  <SpouseRow
+                    key={spouseData.marriage_id}
+                    spouseData={spouseData}
+                    onEdit={handleEditMarriage}
+                    onDelete={handleDeleteSpouse}
+                    onVisit={visitSpouse}
+                    inactive
+                    isEditing={isEditing}
+                    onSave={handleMarriageEditorSaved}
+                    onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                  />
+                );
+              })}
             </View>
           </View>
         )}
@@ -1016,15 +1091,22 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       >
         {children.length > 0 ? (
           <View style={styles.sectionStack}>
-            {children.map((child) => (
-              <ChildRow
-                key={child.id}
-                child={child}
-                onEdit={handleEditChild}
-                onDelete={handleDeleteChild}
-                onVisit={handleVisitChild}
-              />
-            ))}
+            {children.map((child) => {
+              const isEditing = editingChildId === child.id;
+
+              return (
+                <ChildRow
+                  key={child.id}
+                  child={child}
+                  onEdit={handleEditChild}
+                  onDelete={handleDeleteChild}
+                  onVisit={handleVisitChild}
+                  isEditing={isEditing}
+                  onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                  onSave={handleChildEditorSaved}
+                />
+              );
+            })}
           </View>
         ) : (
           <EmptyState
@@ -1050,21 +1132,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
         onClose={handleChildAdded}
       />
 
-      <EditChildModal
-        visible={state.editChildModalVisible}
-        child={state.selectedChild}
-        father={state.familyData?.father}
-        spouses={state.familyData?.spouses || []}
-        onClose={() => dispatch({ type: 'CLOSE_EDIT_CHILD_MODAL' })}
-        onSaved={handleEditChildSaved}
-      />
 
-      <EditMarriageModal
-        visible={state.editMarriageModalVisible}
-        marriage={state.selectedMarriage}
-        onClose={() => dispatch({ type: 'CLOSE_EDIT_MARRIAGE_MODAL' })}
-        onSaved={handleEditMarriageSaved}
-      />
 
     </ScrollView>
   );
@@ -1094,135 +1162,382 @@ const AvatarThumbnail = ({ photoUrl, size = 52, fallbackLabel }) => {
 };
 AvatarThumbnail.displayName = 'AvatarThumbnail';
 
+
 const SpouseRow = React.memo(
-  ({ spouseData, onEdit, onDelete, inactive = false }) => {
+  ({
+    spouseData,
+    onEdit,
+    onDelete,
+    onVisit,
+    inactive = false,
+    isEditing = false,
+    onSave,
+    onCancelEdit,
+  }) => {
     const spouse = spouseData.spouse_profile;
+    const [editingName, setEditingName] = useState('');
+    const [editingStatus, setEditingStatus] = useState('current');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (isEditing) {
+        setEditingName(spouse?.name || '');
+        const rawStatus = spouseData.status || 'current';
+        setEditingStatus(
+          rawStatus === 'past' || rawStatus === 'divorced' || rawStatus === 'widowed'
+            ? 'past'
+            : 'current'
+        );
+        setSaving(false);
+      }
+    }, [isEditing, spouse?.name, spouseData.status]);
+
     if (!spouse) return null;
 
-    const initials = getInitials(spouse.name);
-    const subtitleParts = [];
+    const displayName = isEditing ? editingName || '—' : spouse.name;
 
+    const subtitleParts = [];
     if (spouseData.children_count > 0) {
       subtitleParts.push(
-        `${spouseData.children_count} ${spouseData.children_count === 1 ? 'طفل' : 'أطفال'}`,
+        `${spouseData.children_count} ${spouseData.children_count === 1 ? 'طفل' : 'أطفال'}`
       );
     }
-
     if (inactive) {
       subtitleParts.push('زواج سابق');
     }
-
     const subtitle = subtitleParts.join(' • ');
 
-    const handleEdit = useCallback(() => onEdit?.(spouseData), [onEdit, spouseData]);
-    const handleDelete = useCallback(() => onDelete?.(spouseData), [onDelete, spouseData]);
-    const handleActions = useCallback(() => {
-      showCardActionSheet({
-        subject: spouse.name,
-        onEdit: handleEdit,
-        onDelete: handleDelete,
-      });
-    }, [handleDelete, handleEdit, spouse.name]);
+    const handleToggle = () => {
+      if (isEditing) {
+        Haptics.selectionAsync();
+        onCancelEdit?.();
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onEdit?.(spouseData);
+      }
+    };
+
+    const handleDelete = () => {
+      Haptics.selectionAsync();
+      onDelete?.(spouseData);
+    };
+
+    const handleVisit = () => {
+      if (onVisit) {
+        Haptics.selectionAsync();
+        onVisit();
+      }
+    };
+
+    const handleSave = async () => {
+      const trimmedName = editingName.trim();
+      if (!trimmedName) {
+        Alert.alert('خطأ', 'يرجى كتابة اسم الزوجة');
+        return;
+      }
+
+      const originalName = spouse.name?.trim() || '';
+      const statusChanged = spouseData.status !== editingStatus;
+      const nameChanged = trimmedName !== originalName;
+
+      if (!statusChanged && !nameChanged) {
+        onSave?.(spouseData);
+        return;
+      }
+
+      setSaving(true);
+      try {
+        if (statusChanged) {
+          const { error } = await supabase.rpc('admin_update_marriage', {
+            p_marriage_id: spouseData.marriage_id,
+            p_updates: { status: editingStatus },
+          });
+          if (error) throw error;
+        }
+
+        if (nameChanged && spouse.id) {
+          const { error: nameError } = await supabase.rpc('admin_update_profile', {
+            p_id: spouse.id,
+            p_version: spouse.version || 1,
+            p_updates: { name: trimmedName },
+          });
+          if (nameError) throw nameError;
+        }
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const updatedMarriage = {
+          ...spouseData,
+          status: editingStatus,
+          spouse_profile: {
+            ...spouse,
+            name: trimmedName,
+          },
+        };
+        onSave?.(updatedMarriage);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error updating marriage:', error);
+        }
+        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
+      } finally {
+        setSaving(false);
+      }
+    };
 
     return (
-      <TouchableOpacity
-        style={[styles.memberCard, inactive && styles.memberCardInactive]}
-        activeOpacity={0.82}
-        onPress={handleActions}
-        accessibilityRole="button"
-        accessibilityLabel={`إجراءات ${spouse.name}`}
+      <View
+        style={[
+          styles.memberCard,
+          inactive && styles.memberCardInactive,
+          isEditing && styles.memberCardEditing,
+        ]}
       >
         <View style={styles.memberHeader}>
-          <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={initials} />
+          <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={getInitials(spouse.name)} />
           <View style={styles.memberDetails}>
             <View style={styles.memberTitleRow}>
-              <Text
-                style={styles.memberName}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {spouse.name}
+              <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
+                {displayName}
               </Text>
-              <CardActionMenu
-                subject={spouse.name}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+              <TouchableOpacity
+                style={styles.memberChevron}
+                onPress={handleToggle}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل الزواج'}
+              >
+                <Ionicons
+                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={20}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              </TouchableOpacity>
             </View>
-            {subtitle ? (
+            {!isEditing && subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
               </Text>
             ) : null}
           </View>
         </View>
-      </TouchableOpacity>
+
+        {isEditing ? (
+          <View style={styles.inlineEditor}>
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>اسم الزوجة</Text>
+              <TextInput
+                style={styles.inlineTextInput}
+                value={editingName}
+                onChangeText={setEditingName}
+                placeholder="اكتب الاسم الكامل"
+                placeholderTextColor={tokens.colors.najdi.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!saving}
+              />
+            </View>
+
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
+              <View style={styles.inlineSegments}>
+                {[
+                  { label: 'حالي', value: 'current' },
+                  { label: 'سابق', value: 'past' },
+                ].map((option) => {
+                  const active = editingStatus === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setEditingStatus(option.value);
+                      }}
+                      activeOpacity={0.85}
+                      disabled={saving}
+                    >
+                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.inlineFooter}>
+              <View style={styles.inlineFooterLinks}>
+                {onVisit ? (
+                  <TouchableOpacity
+                    style={styles.inlineUtilityButton}
+                    onPress={handleVisit}
+                    disabled={saving}
+                  >
+                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.inlineUtilityButton, styles.inlineUtilityButtonDanger]}
+                  onPress={handleDelete}
+                  disabled={saving}
+                >
+                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
+                  <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inlineActionButtons}>
+                <TouchableOpacity
+                  style={styles.inlineCancelButton}
+                  onPress={handleToggle}
+                  activeOpacity={0.7}
+                  disabled={saving}
+                >
+                  <Text style={styles.inlineCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={tokens.colors.surface} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
+                      <Text style={styles.inlineSaveText}>حفظ</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </View>
     );
   },
   (prev, next) => {
-    // Only re-render if actual data changed, not callbacks
+    const prevPhotoUrl = prev.spouseData.spouse_profile?.photo_url;
+    const nextPhotoUrl = next.spouseData.spouse_profile?.photo_url;
     return (
       prev.spouseData.marriage_id === next.spouseData.marriage_id &&
       prev.spouseData.children_count === next.spouseData.children_count &&
       prev.spouseData.spouse_profile?.name === next.spouseData.spouse_profile?.name &&
-      prev.spouseData.spouse_profile?.photo_url === next.spouseData.spouse_profile?.photo_url &&
-      prev.inactive === next.inactive
+      prevPhotoUrl === nextPhotoUrl &&
+      prev.inactive === next.inactive &&
+      prev.isEditing === next.isEditing
     );
   }
 );
 SpouseRow.displayName = 'SpouseRow';
 
 const ChildRow = React.memo(
-  ({ child, onEdit, onDelete, onVisit }) => {
+  ({ child, onEdit, onDelete, onVisit, isEditing = false, onSave, onCancelEdit }) => {
     if (!child) return null;
+
+    const [editingName, setEditingName] = useState('');
+    const [editingGender, setEditingGender] = useState('male');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+      if (isEditing) {
+        setEditingName(child.name || '');
+        setEditingGender(child.gender || 'male');
+        setSaving(false);
+      }
+    }, [isEditing, child.name, child.gender]);
 
     const initials = getInitials(child.name);
     const photoUrl = child.photo_url || child.profile?.photo_url || null;
+    const displayName = isEditing ? editingName || '—' : child.name;
+    const subtitle = !isEditing && child.birth_year ? `مواليد ${child.birth_year}` : null;
 
-    const subtitleParts = [];
-    if (child.birth_year) {
-      subtitleParts.push(`مواليد ${child.birth_year}`);
-    }
+    const handleToggle = () => {
+      if (isEditing) {
+        Haptics.selectionAsync();
+        onCancelEdit?.();
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onEdit?.(child);
+      }
+    };
 
-    const subtitle = subtitleParts.join(' • ');
+    const handleDelete = () => {
+      Haptics.selectionAsync();
+      onDelete?.(child);
+    };
 
-    const handleVisit = useCallback(() => onVisit?.(child), [child, onVisit]);
-    const handleEdit = useCallback(() => onEdit?.(child), [child, onEdit]);
-    const handleDelete = useCallback(() => onDelete?.(child), [child, onDelete]);
-    const handleActions = useCallback(() => {
-      showCardActionSheet({
-        subject: child.name,
-        onVisit: handleVisit,
-        onEdit: handleEdit,
-        onDelete: handleDelete,
-      });
-    }, [child.name, handleDelete, handleEdit, handleVisit]);
+    const handleVisit = () => {
+      if (onVisit) {
+        Haptics.selectionAsync();
+        onVisit();
+      }
+    };
+
+    const handleSave = async () => {
+      const trimmedName = editingName.trim();
+      if (!trimmedName) {
+        Alert.alert('خطأ', 'يرجى كتابة اسم الابن/الابنة');
+        return;
+      }
+
+      const nameChanged = trimmedName !== child.name;
+      const genderChanged = editingGender !== child.gender;
+
+      if (!nameChanged && !genderChanged) {
+        onSave?.(child);
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const { error } = await supabase.rpc('admin_update_profile', {
+          p_id: child.id,
+          p_version: child.version || 1,
+          p_updates: {
+            name: trimmedName,
+            gender: editingGender,
+          },
+        });
+        if (error) throw error;
+
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const updatedChild = { ...child, name: trimmedName, gender: editingGender };
+        onSave?.(updatedChild);
+      } catch (error) {
+        if (__DEV__) {
+          console.error('Error updating child:', error);
+        }
+        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
+      } finally {
+        setSaving(false);
+      }
+    };
 
     return (
-      <TouchableOpacity
-        style={styles.memberCard}
-        activeOpacity={0.82}
-        onPress={handleActions}
-        accessibilityRole="button"
-        accessibilityLabel={`إجراءات ${child.name}`}
-      >
+      <View style={[styles.memberCard, isEditing && styles.memberCardEditing]}>
         <View style={styles.memberHeader}>
           <AvatarThumbnail photoUrl={photoUrl} fallbackLabel={initials} />
           <View style={styles.memberDetails}>
             <View style={styles.memberTitleRow}>
-              <Text
-                style={styles.memberName}
-                numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {child.name}
+              <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
+                {displayName}
               </Text>
-              <CardActionMenu
-                subject={child.name}
-                onVisit={handleVisit}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
+              <TouchableOpacity
+                style={styles.memberChevron}
+                onPress={handleToggle}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل بيانات الابن/الابنة'}
+              >
+                <Ionicons
+                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={20}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              </TouchableOpacity>
             </View>
             {subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
@@ -1231,20 +1546,115 @@ const ChildRow = React.memo(
             ) : null}
           </View>
         </View>
-      </TouchableOpacity>
+
+        {isEditing ? (
+          <View style={styles.inlineEditor}>
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>الاسم الكامل</Text>
+              <TextInput
+                style={styles.inlineTextInput}
+                value={editingName}
+                onChangeText={setEditingName}
+                placeholder="اكتب الاسم"
+                placeholderTextColor={tokens.colors.najdi.textMuted}
+                autoCapitalize="words"
+                autoCorrect={false}
+                editable={!saving}
+              />
+            </View>
+
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>الجنس</Text>
+              <View style={styles.inlineSegments}>
+                {[
+                  { label: 'ذكر', value: 'male' },
+                  { label: 'أنثى', value: 'female' },
+                ].map((option) => {
+                  const active = editingGender === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setEditingGender(option.value);
+                      }}
+                      activeOpacity={0.85}
+                      disabled={saving}
+                    >
+                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.inlineFooter}>
+              <View style={styles.inlineFooterLinks}>
+                {onVisit ? (
+                  <TouchableOpacity
+                    style={styles.inlineUtilityButton}
+                    onPress={handleVisit}
+                    disabled={saving}
+                  >
+                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.inlineUtilityButton, styles.inlineUtilityButtonDanger]}
+                  onPress={handleDelete}
+                  disabled={saving}
+                >
+                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
+                  <Text style={styles.inlineUtilityText}>حذف من العائلة</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inlineActionButtons}>
+                <TouchableOpacity
+                  style={styles.inlineCancelButton}
+                  onPress={handleToggle}
+                  activeOpacity={0.7}
+                  disabled={saving}
+                >
+                  <Text style={styles.inlineCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={tokens.colors.surface} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
+                      <Text style={styles.inlineSaveText}>حفظ</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : null}
+      </View>
     );
   },
   (prev, next) => {
-    // Only re-render if actual data changed, not callbacks
     const prevPhotoUrl = prev.child.photo_url || prev.child.profile?.photo_url || null;
     const nextPhotoUrl = next.child.photo_url || next.child.profile?.photo_url || null;
 
     return (
       prev.child.id === next.child.id &&
       prev.child.name === next.child.name &&
-      prev.child.mother_name === next.child.mother_name &&
+      prev.child.gender === next.child.gender &&
       prev.child.birth_year === next.child.birth_year &&
-      prevPhotoUrl === nextPhotoUrl
+      prevPhotoUrl === nextPhotoUrl &&
+      prev.isEditing === next.isEditing
     );
   }
 );
@@ -1763,11 +2173,140 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: tokens.colors.najdi.text,
   },
-  memberMenuButton: {
+  memberChevron: {
     width: tokens.touchTarget.minimum,
     height: tokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  memberCardEditing: {
+    backgroundColor: tokens.colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  inlineEditor: {
+    marginTop: tokens.spacing.sm,
+    paddingTop: tokens.spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.colors.divider,
+    gap: tokens.spacing.md,
+  },
+  inlineField: {
+    gap: tokens.spacing.xs,
+  },
+  inlineFieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.textMuted,
+  },
+  inlineTextInput: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    fontSize: 16,
+    color: tokens.colors.najdi.text,
+  },
+  inlineSegments: {
+    flexDirection: 'row',
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.lg,
+    padding: 4,
+    gap: 4,
+  },
+  inlineSegmentButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radii.md,
+  },
+  inlineSegmentButtonActive: {
+    backgroundColor: tokens.colors.najdi.primary,
+  },
+  inlineSegmentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  inlineSegmentLabelActive: {
+    color: tokens.colors.surface,
+  },
+  inlineFooter: {
+    gap: tokens.spacing.md,
+  },
+  inlineFooterLinks: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
+    flexWrap: 'nowrap',
+    gap: tokens.spacing.sm,
+  },
+  inlineUtilityButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+    backgroundColor: tokens.colors.surface,
+  },
+  inlineUtilityButtonDanger: {
+    borderColor: tokens.colors.divider,
+  },
+  inlineUtilityText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
+  },
+  inlineActionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+  },
+  inlineCancelButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: tokens.colors.najdi.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.divider,
+  },
+  inlineCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+  },
+  inlineSaveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.xs,
+    backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: tokens.radii.lg,
+    paddingVertical: tokens.spacing.sm,
+  },
+  inlineSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  inlineSaveText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.surface,
   },
 
   addActionButton: {

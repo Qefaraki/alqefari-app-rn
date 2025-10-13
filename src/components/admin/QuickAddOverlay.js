@@ -35,7 +35,37 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [selectedFatherId, setSelectedFatherId] = useState(null);
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
-  const [husbands, setHusbands] = useState([]);
+
+  const applyOrdering = useCallback((children) => {
+    let orderChanged = false;
+    let needsUpdate = false;
+
+    children.forEach((child, index) => {
+      const originalOrder =
+        child.original_sibling_order !== undefined && child.original_sibling_order !== null
+          ? child.original_sibling_order
+          : index;
+
+      if (child.isExisting && originalOrder !== index) {
+        orderChanged = true;
+      }
+
+      if (child.sibling_order !== index) {
+        needsUpdate = true;
+      }
+    });
+
+    setHasReordered(orderChanged);
+
+    if (!needsUpdate) {
+      return children;
+    }
+
+    return children.map((child, index) => ({
+      ...child,
+      sibling_order: index,
+    }));
+  }, []);
   const inputRef = useRef(null);
   const { refreshProfile } = useStore();
   const insets = useSafeAreaInsets();
@@ -55,32 +85,33 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           }
           return orderA - orderB;
         })
-        .map((s, index) => {
-          // Preserve isEdited state from current allChildren if it exists
-          const existing = allChildren.find(c => c.id === s.id);
-          return {
-            ...s,
-            isNew: false,
-            isExisting: true,
-            isEdited: existing?.isEdited || false, // Preserve edited state
+        .map((s, index) => ({
+          ...s,
+          isNew: false,
+          isExisting: true,
+          isEdited: false,
+          mother_id: s?.mother_id || s?.parent2 || null,
+          mother_name: s?.mother_name || null,
+          sibling_order: index,
+          original_sibling_order: index,
+          original_snapshot: {
+            name: s.name,
+            gender: s.gender,
             mother_id: s?.mother_id || s?.parent2 || null,
-            mother_name: s?.mother_name || null,
-            sibling_order: index,
-          };
-        });
+          },
+        }));
 
-      setAllChildren(sortedSiblings);
+      setAllChildren(applyOrdering(sortedSiblings));
       setCurrentName("");
       setCurrentGender("male");
       setSelectedMotherId(null);
-      setHasReordered(false);
 
       // Auto-focus after modal animation
       setTimeout(() => {
         inputRef.current?.focus();
       }, 400);
     }
-  }, [visible, parentNode, siblings]);
+  }, [visible, parentNode, siblings, applyOrdering]);
 
   // Auto-add child on Return key
   const handleAutoAdd = () => {
@@ -101,12 +132,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       return;
     }
 
-    // Calculate the next sibling_order
-    const maxOrder = allChildren.reduce(
-      (max, child) => Math.max(max, child.sibling_order ?? 0),
-      -1
-    );
-
     const newChild = {
       id: `new-${Date.now()}`,
       name: trimmedName,
@@ -118,10 +143,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       isNew: true,
       isExisting: false,
       isEdited: false,
-      sibling_order: maxOrder + 1,
+      sibling_order: allChildren.length,
+      original_sibling_order: null,
+      original_snapshot: {
+        name: trimmedName,
+        gender: currentGender,
+        mother_id: selectedMotherId,
+      },
     };
 
-    setAllChildren((prev) => [...prev, newChild]);
+    setAllChildren((prev) => applyOrdering([...prev, newChild]));
     setCurrentName("");
     // Keep gender and mother selection for next child
     inputRef.current?.focus();
@@ -132,40 +163,54 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Handle updating a child
   const handleUpdateChild = (childId, updates) => {
     setAllChildren((prev) =>
-      prev.map((child) =>
-        child.id === childId
-          ? {
-              ...child,
-              ...updates,
-              isEdited: child.isExisting ? true : child.isEdited,
-              mother_name:
-                updates.mother_id && mothers
-                  ? mothers.find((m) => m.id === updates.mother_id)?.name
-                  : child.mother_name,
-            }
-          : child
-      )
+      prev.map((child) => {
+        if (child.id !== childId) {
+          return child;
+        }
+
+        const updatedChild = {
+          ...child,
+          ...updates,
+        };
+
+        if (updates.hasOwnProperty("mother_id")) {
+          if (updates.mother_id) {
+            const match = mothers.find((m) => m.id === updates.mother_id || m.wife_id === updates.mother_id);
+            updatedChild.mother_name = match?.name || child.mother_name || null;
+          } else {
+            updatedChild.mother_name = null;
+          }
+        }
+
+        if (child.isExisting) {
+          const original = child.original_snapshot || {};
+          const originalMother = original.mother_id ?? null;
+          const currentMother = updatedChild.mother_id ?? null;
+
+          const hasDiff =
+            original.name !== updatedChild.name ||
+            original.gender !== updatedChild.gender ||
+            originalMother !== currentMother;
+
+          updatedChild.isEdited = hasDiff;
+        }
+
+        return updatedChild;
+      })
     );
   };
 
   // Handle deleting a child
   const handleDeleteChild = (child) => {
-    setAllChildren((prev) =>
-      prev
-        .filter((c) => c.id !== child.id)
-        .map((c, i) => ({
-          ...c,
-          sibling_order: i,
-          isEdited: c.isExisting ? true : c.isEdited,
-        }))
-    );
-    setHasReordered(true);
+    setAllChildren((prev) => applyOrdering(prev.filter((c) => c.id !== child.id)));
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   };
 
   // Handle moving child (unified function with functional setState for performance)
   const handleMove = useCallback((childId, direction) => {
-    setAllChildren(prev => {
+    let moved = false;
+
+    setAllChildren((prev) => {
       const currentIndex = prev.findIndex((c) => c.id === childId);
 
       // Calculate target index based on direction
@@ -181,45 +226,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       const [movedChild] = newChildren.splice(currentIndex, 1);
       newChildren.splice(targetIndex, 0, movedChild);
 
-      // Update sibling_order and mark ONLY moved child as edited
-      return newChildren.map((child, index) => ({
-        ...child,
-        sibling_order: index,
-        isEdited: (child.id === childId && child.isExisting) ? true : child.isEdited,
-      }));
+      moved = true;
+      return applyOrdering(newChildren);
     });
 
-    setHasReordered(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []); // Empty deps - stable reference!
-
-  // Batch move to specific position (for PositionPicker)
-  const handleMoveToPosition = useCallback((childId, targetPosition) => {
-    setAllChildren(prev => {
-      const currentIndex = prev.findIndex((c) => c.id === childId);
-      const targetIndex = targetPosition - 1; // Convert 1-based to 0-based
-
-      // No move needed
-      if (currentIndex === targetIndex || currentIndex === -1) {
-        return prev;
-      }
-
-      // Perform the move
-      const newChildren = [...prev];
-      const [movedChild] = newChildren.splice(currentIndex, 1);
-      newChildren.splice(targetIndex, 0, movedChild);
-
-      // Update sibling_order and mark ONLY moved child as edited
-      return newChildren.map((child, index) => ({
-        ...child,
-        sibling_order: index,
-        isEdited: (child.id === childId && child.isExisting) ? true : child.isEdited,
-      }));
-    });
-
-    setHasReordered(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  }, []);
+    if (moved) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [applyOrdering]);
 
   // Convenience wrappers for backward compatibility
   const handleMoveUp = useCallback((childId) => handleMove(childId, 'up'), [handleMove]);
@@ -333,9 +347,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       if (failed === 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("نجاح", "تم حفظ التغييرات بنجاح", [
-          { text: "حسناً", onPress: onClose },
-        ]);
+        onClose?.();
       } else if (successful > 0) {
         Alert.alert(
           "تحديث جزئي",
@@ -392,11 +404,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         onDelete={handleDeleteChild}
         onMoveUp={handleMoveUp}
         onMoveDown={handleMoveDown}
-        onMoveToPosition={handleMoveToPosition}
         mothers={mothers}
       />
     ),
-    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown, handleMoveToPosition]
+    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown]
   );
 
   if (!visible) return null;
@@ -415,102 +426,111 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
               behavior={Platform.OS === "ios" ? "padding" : "height"}
               style={styles.flex}
             >
-              {/* Header */}
-              <View style={styles.header}>
-                <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-                  <Ionicons name="chevron-back" size={28} color={COLORS.text} />
+              <View style={styles.navBar}>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={styles.navAction}
+                  accessibilityRole="button"
+                  accessibilityLabel="إغلاق النافذة"
+                >
+                  <Text style={styles.navActionText}>إلغاء</Text>
                 </TouchableOpacity>
-                <View style={styles.headerCenter}>
-                  <Text style={styles.headerTitle}>إضافة أطفال</Text>
-                  <Text style={styles.headerSubtitle}>
+
+                <View style={styles.navTitleBlock}>
+                  <Text style={styles.navTitle}>إضافة أطفال</Text>
+                  <Text style={styles.navSubtitle} numberOfLines={1}>
                     {parentNode?.arabic_name || parentNode?.name}
                   </Text>
                 </View>
-                <View style={styles.headerStats}>
-                  <Text style={styles.statsText}>{allChildren.length}</Text>
-                  <Text style={styles.statsLabel}>طفل</Text>
-                </View>
+
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={!hasChanges || loading}
+                  style={[styles.navActionSave, (!hasChanges || loading) && styles.navActionDisabled]}
+                  accessibilityRole="button"
+                  accessibilityLabel="حفظ التغييرات"
+                  accessibilityState={{ disabled: !hasChanges || loading }}
+                >
+                  <Text
+                    style={[styles.navSaveText, (!hasChanges || loading) && styles.navSaveTextDisabled]}
+                  >
+                    {loading ? "جاري..." : "تم"}
+                  </Text>
+                  {hasChanges && totalChanges > 0 && !loading && (
+                    <View style={styles.navBadge}>
+                      <Text style={styles.navBadgeText}>{totalChanges}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               </View>
 
-              {/* Quick Add Input (Sticky) */}
-              <View style={styles.quickAddContainer}>
-                <View style={styles.nameInputContainer}>
+              {hasChanges && (
+                <View style={styles.changesSummary}>
+                  <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
+                  <Text style={styles.changesSummaryText}>{getSaveButtonText()}</Text>
+                </View>
+              )}
+
+              <View style={styles.quickAddSection}>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>اسم الطفل</Text>
                   <TextInput
                     ref={inputRef}
-                    style={styles.nameInput}
-                    placeholder="اسم الطفل الجديد..."
-                    placeholderTextColor={COLORS.textMuted}
+                    style={styles.inputField}
+                    placeholder="اكتب الاسم الكامل"
+                    placeholderTextColor={COLORS.textMuted + "AA"}
                     value={currentName}
                     onChangeText={setCurrentName}
                     onSubmitEditing={handleAutoAdd}
                     returnKeyType="done"
-                    textAlign="right"
                     blurOnSubmit={false}
+                    allowFontScaling
                   />
+                </View>
 
-                  {/* Inline Gender Toggles */}
-                  <View style={styles.genderToggleContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.genderToggle,
-                        currentGender === "male" && styles.genderToggleActive,
-                      ]}
-                      onPress={() => {
-                        setCurrentGender("male");
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.genderToggleText,
-                          currentGender === "male" &&
-                            styles.genderToggleTextActive,
-                        ]}
-                      >
-                        ذكر
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.genderToggle,
-                        currentGender === "female" &&
-                          styles.genderToggleActive,
-                      ]}
-                      onPress={() => {
-                        setCurrentGender("female");
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.genderToggleText,
-                          currentGender === "female" &&
-                            styles.genderToggleTextActive,
-                        ]}
-                      >
-                        أنثى
-                      </Text>
-                    </TouchableOpacity>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>الجنس</Text>
+                  <View style={styles.segmentedRow}>
+                    {[
+                      { value: "male", label: "ذكر" },
+                      { value: "female", label: "أنثى" },
+                    ].map((option) => {
+                      const active = currentGender === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[styles.segmentButton, active && styles.segmentButtonActive]}
+                          onPress={() => {
+                            setCurrentGender(option.value);
+                            Haptics.selectionAsync();
+                          }}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                        >
+                          <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 
-                {/* Mother Selector (for male parents) */}
                 {parentNode?.gender === "male" && (
-                  <View style={styles.motherSelectorSection}>
+                  <View style={styles.selectorWrapper}>
                     <MotherSelectorSimple
                       fatherId={parentNode.id}
                       value={selectedMotherId}
                       onChange={(id, mothersData) => {
                         setSelectedMotherId(id);
                         if (mothersData) {
-                          // Transform wives data to format expected by ChildListCard
-                          const formattedMothers = mothersData.map(w => ({
+                          const formattedMothers = mothersData.map((w) => ({
                             id: w.wife_id,
                             name: w.wife_name,
+                            display_name: w.display_name,
                           }));
                           setMothers(formattedMothers);
                         } else if (id) {
-                          // Mother ID selected but data failed to load
                           Alert.alert("تنبيه", "تعذر تحميل بيانات الأم");
                         }
                       }}
@@ -519,37 +539,32 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                   </View>
                 )}
 
-                {/* Father Selector (for female parents) */}
                 {parentNode?.gender === "female" && (
-                  <View style={styles.fatherSelectorSection}>
+                  <View style={styles.selectorWrapper}>
                     <FatherSelectorSimple
                       motherId={parentNode.id}
                       value={selectedFatherId}
                       onChange={(id, husbandsData) => {
                         setSelectedFatherId(id);
-                        if (husbandsData) {
-                          setHusbands(husbandsData);
-                        } else if (id) {
+                        if (!husbandsData && id) {
                           Alert.alert("تنبيه", "تعذر تحميل بيانات الزوج");
                         }
                       }}
                       label="الأب (مطلوب)"
-                      required={true}
+                      required
                     />
                   </View>
                 )}
+
               </View>
 
-              {/* Children List */}
               <View style={styles.childrenListSection}>
                 {allChildren.length === 0 ? (
                   <View style={styles.emptyState}>
                     <Text style={styles.emptyStateIcon}>👶</Text>
-                    <Text style={styles.emptyStateTitle}>
-                      ابدأ بإضافة الأطفال
-                    </Text>
+                    <Text style={styles.emptyStateTitle}>ابدأ بإضافة الأطفال</Text>
                     <Text style={styles.emptyStateSubtitle}>
-                      اكتب الاسم في الحقل أعلاه واضغط Enter للإضافة
+                      اكتب الاسم في الحقل أعلاه واضغط إدخال للإضافة
                     </Text>
                   </View>
                 ) : (
@@ -557,48 +572,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                     data={allChildren}
                     keyExtractor={(item) => item.id}
                     renderItem={renderChild}
-                    contentContainerStyle={styles.listContent}
+                    contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, tokens.spacing.xl) }]}
                     showsVerticalScrollIndicator={false}
                     maxToRenderPerBatch={10}
                     windowSize={5}
-                    removeClippedSubviews={true}
+                    removeClippedSubviews
                     initialNumToRender={10}
                   />
                 )}
-              </View>
-
-              {/* Bottom Actions */}
-              <View
-                style={[
-                  styles.bottomActions,
-                  { paddingBottom: Math.max(insets.bottom, tokens.spacing.sm) },
-                ]}
-              >
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={onClose}
-                >
-                  <Text style={styles.cancelButtonText}>إلغاء</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.saveButton,
-                    !hasChanges && styles.saveButtonDisabled,
-                    loading && styles.saveButtonLoading,
-                  ]}
-                  onPress={handleSave}
-                  disabled={!hasChanges || loading}
-                >
-                  <Text style={styles.saveButtonText}>
-                    {getSaveButtonText()}
-                  </Text>
-                  {hasChanges && totalChanges > 0 && !loading && (
-                    <View style={styles.changeCountBadge}>
-                      <Text style={styles.changeCountText}>{totalChanges}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
               </View>
             </KeyboardAvoidingView>
           </TouchableWithoutFeedback>
@@ -616,211 +597,178 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
+  navBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.md, // 16px
-    paddingVertical: tokens.spacing.sm, // 12px
+    justifyContent: "space-between",
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.container + "33",
     backgroundColor: COLORS.background,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "20",
   },
-  headerButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "center",
+  navAction: {
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
   },
-  headerCenter: {
-    flex: 1,
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
+  navActionText: {
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "500",
     color: COLORS.text,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: tokens.spacing.xxs, // 4px
-  },
-  headerStats: {
+  navTitleBlock: {
+    flex: 1,
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.sm, // 12px
+    gap: 2,
+    paddingHorizontal: tokens.spacing.sm,
   },
-  statsText: {
-    fontSize: 20,
+  navTitle: {
+    fontSize: tokens.typography.headline.fontSize,
     fontWeight: "700",
     color: COLORS.text,
   },
-  statsLabel: {
-    fontSize: 11,
+  navSubtitle: {
+    fontSize: tokens.typography.footnote.fontSize,
     color: COLORS.textMuted,
-    marginTop: tokens.spacing.xxs, // 4px
   },
-  quickAddContainer: {
-    backgroundColor: COLORS.background,
-    paddingHorizontal: tokens.spacing.md, // 16px
-    paddingVertical: tokens.spacing.md, // 16px
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "20",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
-    zIndex: 100, // Ensure dropdown appears above cards below
-  },
-  nameInputContainer: {
+  navActionSave: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.container + "15",
-    borderRadius: tokens.radii.md, // 12px
-    borderWidth: 1.5,
-    borderColor: COLORS.container + "40",
-    paddingHorizontal: tokens.spacing.sm, // 12px
-    minHeight: 48,
+    gap: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+    borderRadius: tokens.radii.md,
+    backgroundColor: COLORS.primary,
   },
-  nameInput: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: "400",
+  navActionDisabled: {
+    backgroundColor: COLORS.container + "33",
+  },
+  navSaveText: {
+    fontSize: tokens.typography.body.fontSize,
+    fontWeight: "700",
+    color: COLORS.background,
+  },
+  navSaveTextDisabled: {
+    color: COLORS.textMuted,
+  },
+  navBadge: {
+    minWidth: 24,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: COLORS.background + "30",
+    alignItems: "center",
+  },
+  navBadgeText: {
+    fontSize: tokens.typography.caption1.fontSize,
+    fontWeight: "700",
+    color: COLORS.background,
+  },
+  changesSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.xs,
+    marginHorizontal: tokens.spacing.lg,
+    marginTop: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.md,
+    backgroundColor: COLORS.container + "18",
+  },
+  changesSummaryText: {
+    fontSize: tokens.typography.subheadline.fontSize,
     color: COLORS.text,
-    textAlign: "left", // Native RTL mode flips this automatically
-    paddingVertical: tokens.spacing.xs, // 8px
+    fontWeight: "500",
   },
-  genderToggleContainer: {
-    flexDirection: "row",
-    gap: tokens.spacing.xxs, // 4px
-    marginLeft: tokens.spacing.xs, // 8px
+  quickAddSection: {
+    marginTop: tokens.spacing.sm,
+    marginHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    borderRadius: tokens.radii.md,
+    backgroundColor: COLORS.container + "10",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "2A",
+    gap: tokens.spacing.sm,
   },
-  genderToggle: {
-    minWidth: 44, // iOS minimum touch target
-    height: 44, // iOS minimum touch target
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "transparent",
+  fieldGroup: {
+    gap: tokens.spacing.xxs,
+  },
+  fieldLabel: {
+    fontSize: tokens.typography.subheadline.fontSize,
+    fontWeight: "500",
+    color: COLORS.text,
+  },
+  inputField: {
+    borderRadius: tokens.radii.lg,
     borderWidth: 1,
     borderColor: COLORS.container + "40",
-    paddingHorizontal: tokens.spacing.xs, // 8px for text
+    backgroundColor: COLORS.background,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.text,
+    textAlign: "auto",
   },
-  genderToggleActive: {
+  segmentedRow: {
+    flexDirection: "row",
+    gap: tokens.spacing.xs,
+  },
+  segmentButton: {
+    flex: 1,
+    height: tokens.touchTarget.minimum,
+    borderRadius: tokens.radii.lg,
+    borderWidth: 1,
+    borderColor: COLORS.container + "40",
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentButtonActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
-  genderToggleText: {
-    fontSize: 15, // iOS subheadline
+  segmentText: {
+    fontSize: tokens.typography.subheadline.fontSize,
     fontWeight: "600",
     color: COLORS.text,
   },
-  genderToggleTextActive: {
+  segmentTextActive: {
     color: COLORS.background,
   },
-  motherSelectorSection: {
-    marginTop: tokens.spacing.sm, // 12px
-    width: "100%",
-  },
-  fatherSelectorSection: {
-    marginTop: tokens.spacing.sm, // 12px
-    width: "100%",
-  },
-  quickAddHint: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginTop: tokens.spacing.xs, // 8px
-    textAlign: "center",
+  selectorWrapper: {
+    gap: tokens.spacing.xs,
   },
   childrenListSection: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    marginTop: tokens.spacing.md,
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: tokens.spacing.xxl, // 32px
-    paddingVertical: tokens.spacing.xxl * 2, // 64px
+    paddingHorizontal: tokens.spacing.xxl,
   },
   emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: tokens.spacing.md, // 16px
+    fontSize: 56,
+    marginBottom: tokens.spacing.md,
     opacity: 0.3,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: tokens.typography.title3.fontSize,
+    fontWeight: "700",
     color: COLORS.text,
     textAlign: "center",
-    marginBottom: tokens.spacing.xs, // 8px
+    marginBottom: tokens.spacing.xs,
   },
   emptyStateSubtitle: {
-    fontSize: 15,
-    fontWeight: "400",
+    fontSize: tokens.typography.subheadline.fontSize,
     color: COLORS.textMuted,
     textAlign: "center",
     lineHeight: 22,
   },
   listContent: {
-    paddingVertical: tokens.spacing.xs, // 8px
-  },
-  bottomActions: {
-    flexDirection: "row",
-    paddingHorizontal: tokens.spacing.md, // 16px
-    paddingVertical: tokens.spacing.sm, // 12px
-    backgroundColor: COLORS.background,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.container + "20",
-    gap: tokens.spacing.sm, // 12px
-  },
-  cancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: tokens.radii.md, // 12px
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.container + "20",
-  },
-  cancelButtonText: {
-    fontSize: 17,
-    fontWeight: "500",
-    color: COLORS.text,
-  },
-  saveButton: {
-    flex: 2,
-    height: 48,
-    borderRadius: tokens.radii.md, // 12px
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-  },
-  saveButtonDisabled: {
-    backgroundColor: COLORS.container + "40",
-    opacity: 0.5,
-  },
-  saveButtonLoading: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: COLORS.background,
-  },
-  changeCountBadge: {
-    backgroundColor: COLORS.background + "30",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 24,
-    alignItems: "center",
-  },
-  changeCountText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: COLORS.background,
+    paddingTop: tokens.spacing.xs,
   },
 });
 

@@ -113,28 +113,33 @@ export const InlineMarriageEditor = ({
 
     setSaving(true);
     try {
-      const updates = {
-        status,
-      };
-
-      const { error } = await supabase.rpc('admin_update_marriage', {
-        p_marriage_id: marriage.marriage_id,
-        p_updates: updates,
-      });
-      if (error) throw error;
+      if (marriage.status !== status) {
+        const { error } = await supabase.rpc('admin_update_marriage', {
+          p_marriage_id: marriage.marriage_id,
+          p_updates: { status },
+        });
+        if (error) throw error;
+      }
 
       const originalName = marriage.spouse_profile?.name?.trim() || '';
       if (marriage.spouse_profile?.id && trimmedName && trimmedName !== originalName) {
         const { error: nameError } = await supabase.rpc('admin_update_profile', {
           p_id: marriage.spouse_profile.id,
-          p_version: marriage.spouse_profile.version || 1,
           p_updates: { name: trimmedName },
         });
         if (nameError) throw nameError;
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onSaved?.();
+      const updatedMarriage = {
+        ...marriage,
+        status,
+        spouse_profile: {
+          ...marriage.spouse_profile,
+          name: trimmedName,
+        },
+      };
+      onSaved?.(updatedMarriage);
     } catch (error) {
       if (__DEV__) {
         console.error('Error updating marriage:', error);
@@ -185,86 +190,6 @@ export const InlineMarriageEditor = ({
             { label: 'سابق', value: 'past' },
           ]}
           onChange={setStatus}
-        />
-      </InlineFieldGroup>
-
-      <InlineActions
-        onCancel={onCancel}
-        onSave={handleSave}
-        saving={saving}
-        saveLabel="حفظ"
-      />
-    </InlineCard>
-  );
-};
-
-export const InlineChildEditor = ({ child, onSaved, onCancel }) => {
-  const [fullName, setFullName] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (child) {
-      setFullName(child.name || '');
-    }
-  }, [child]);
-
-  const trimmedName = fullName.trim();
-
-  const handleSave = async () => {
-    if (!child || !trimmedName) {
-      Alert.alert('خطأ', 'يرجى كتابة اسم الابن/الابنة');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const { error } = await supabase.rpc('admin_update_profile', {
-        p_id: child.id,
-        p_version: child.version || 1,
-        p_updates: { name: trimmedName },
-      });
-      if (error) throw error;
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onSaved?.();
-    } catch (error) {
-      if (__DEV__) {
-        console.error('Error updating child name:', error);
-      }
-      Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!child) return null;
-
-  const displayTitle = trimmedName || child.name || '—';
-
-  return (
-    <InlineCard>
-      <View style={styles.inlineHeader}>
-        <Text style={styles.inlineEyebrow}>الابن/الابنة</Text>
-        <TouchableOpacity
-          onPress={onCancel}
-          style={styles.inlineClose}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="close" size={18} color={tokens.colors.najdi.textMuted} />
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.inlineTitle} numberOfLines={2} ellipsizeMode="tail">
-        {displayTitle}
-      </Text>
-
-      <InlineFieldGroup label="الاسم الكامل">
-        <TextInput
-          style={styles.textInput}
-          value={fullName}
-          onChangeText={setFullName}
-          placeholder="اكتب الاسم"
-          placeholderTextColor={tokens.colors.najdi.textMuted}
-          autoCapitalize="words"
         />
       </InlineFieldGroup>
 
