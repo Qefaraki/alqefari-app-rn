@@ -16,7 +16,7 @@ AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM profiles
-    WHERE profiles.id = p_user_id
+    WHERE profiles.user_id = p_user_id
     AND profiles.role = 'super_admin'
     AND profiles.deleted_at IS NULL
   );
@@ -58,7 +58,7 @@ BEGIN
   -- Return empty if not admin or super_admin
   IF NOT EXISTS (
     SELECT 1 FROM profiles
-    WHERE profiles.id = auth.uid()
+    WHERE profiles.user_id = auth.uid()
     AND profiles.role IN ('admin', 'super_admin')
     AND profiles.deleted_at IS NULL
   ) THEN
@@ -237,7 +237,7 @@ BEGIN
   -- Check if admin or super_admin
   IF NOT EXISTS (
     SELECT 1 FROM profiles
-    WHERE profiles.id = v_actor_id
+    WHERE profiles.user_id = v_actor_id
     AND profiles.role IN ('admin', 'super_admin')
     AND profiles.deleted_at IS NULL
   ) THEN
