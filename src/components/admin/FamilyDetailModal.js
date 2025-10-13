@@ -9,6 +9,7 @@ import {
   Modal,
   Animated,
   Linking,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,39 +23,11 @@ import SkeletonLoader from "../ui/SkeletonLoader";
 const MarriageCardSkeleton = () => (
   <View style={styles.memberCard}>
     <View style={styles.cardContent}>
-      {/* Munasib Section */}
-      <View style={styles.personSection}>
-        <View style={styles.personRow}>
-          <SkeletonLoader width={40} height={40} borderRadius={20} />
-          <View style={styles.nameColumn}>
-            <SkeletonLoader width={140} height={18} style={{ marginBottom: 6 }} />
-            <SkeletonLoader width={100} height={14} />
-          </View>
-        </View>
+      <View style={styles.personInfoContainer}>
+        <SkeletonLoader width={140} height={20} style={{ marginBottom: 8 }} />
+        <SkeletonLoader width={180} height={16} style={{ marginBottom: 4 }} />
+        <SkeletonLoader width={100} height={14} />
       </View>
-
-      {/* Marriage Connection Icon */}
-      <View style={styles.connectionSection}>
-        <View style={styles.connectionIconContainer}>
-          <SkeletonLoader width={32} height={32} borderRadius={16} />
-        </View>
-      </View>
-
-      {/* Al-Qefari Section */}
-      <View style={styles.personSection}>
-        <View style={styles.personRow}>
-          <SkeletonLoader width={40} height={40} borderRadius={20} />
-          <View style={styles.nameColumn}>
-            <SkeletonLoader width={160} height={18} style={{ marginBottom: 6 }} />
-            <View style={styles.badgeRow}>
-              <SkeletonLoader width={60} height={20} borderRadius={10} />
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Chevron */}
-      <SkeletonLoader width={20} height={20} borderRadius={4} />
     </View>
   </View>
 );
@@ -84,12 +57,12 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
     try {
       setLoading(true);
 
-      // Get ALL profiles to build chains properly (like ProfileSheet does)
+      // Get ALL profiles to build chains properly
       const { data: allProfilesData } = await supabase
         .from("profiles")
         .select("id, name, father_id, gender, generation, phone");
 
-      // Create a Map for O(1) lookups like ProfileSheet
+      // Create a Map for O(1) lookups
       const profilesMap = new Map();
       allProfilesData?.forEach(p => profilesMap.set(p.id, p));
 
@@ -183,13 +156,12 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
   const renderMemberCard = ({ item }) => {
     // Get Munasib name (spouse from other family)
     const munasibName = item.munasib ? item.munasib.name : "غير معروف";
-    const munasibOrigin = item.munasib?.family_origin || "";
 
-    // Build full name chain for Al-Qefari member (like ProfileSheet does)
+    // Build name chain for Al-Qefari member WITHOUT first name
     let alqefariChain = "";
     if (item.alqefari) {
       const names = [];
-      let currentId = item.alqefari.id;
+      let currentId = item.alqefari.father_id; // Start from father, not self
 
       // Build the ancestry chain by traversing father_id links
       const profilesMap = new Map();
@@ -205,13 +177,10 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
       // Add family name at the end
       names.push("القفاري");
 
-      // Build the chain with proper connector
-      if (names.length > 1) {
+      // Join names with " بن " or " بنت " connector
+      if (names.length > 0) {
         const connector = item.alqefari.gender === "female" ? "بنت" : "بن";
-        // Join all names with the connector for the first relationship
-        alqefariChain = names[0] + " " + connector + " " + names.slice(1).join(" ");
-      } else {
-        alqefariChain = names.join(" ");
+        alqefariChain = connector + " " + names.join(" ");
       }
     }
 
@@ -219,7 +188,6 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
       <MarriageCard
         item={item}
         munasibName={munasibName}
-        munasibOrigin={munasibOrigin}
         alqefariChain={alqefariChain}
         onPress={() => handleMemberPress(item)}
         onWhatsAppPress={handleWhatsAppPress}
@@ -237,24 +205,24 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
-        {/* Header - Refined */}
+        {/* Header with Count Badge */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color="#242121" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>عائلة {family.family_name}</Text>
-            <Text style={styles.subtitle}>
-              {filteredMembers.length} علاقة زواج
-            </Text>
           </View>
-          <View style={{ width: 28 }} />
+          {/* Count Badge in Corner */}
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{filteredMembers.length}</Text>
+          </View>
         </View>
 
-        {/* Search Bar - Enhanced */}
+        {/* Search Bar - Matches MunasibManager */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={22} color="#24212160" />
+            <Ionicons name="search" size={20} color="#24212160" />
             <TextInput
               style={styles.searchInput}
               placeholder="ابحث عن شخص..."
@@ -269,7 +237,7 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Ionicons name="close-circle" size={22} color="#24212160" />
+                <Ionicons name="close-circle" size={20} color="#24212160" />
               </TouchableOpacity>
             )}
           </View>
@@ -291,12 +259,10 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconContainer}>
-                  <Ionicons name="heart-dislike-outline" size={64} color="#24212130" />
-                </View>
-                <Text style={styles.emptyTitle}>لا توجد علاقات زواج</Text>
+                <Ionicons name="people-outline" size={64} color="#24212130" />
+                <Text style={styles.emptyTitle}>لا توجد نتائج</Text>
                 <Text style={styles.emptySubtitle}>
-                  سيتم عرض علاقات الزواج هنا عند إضافتها
+                  جرب البحث بكلمات مختلفة
                 </Text>
               </View>
             }
@@ -308,7 +274,7 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
 }
 
 // Separate MarriageCard component for better organization and animations
-const MarriageCard = ({ item, munasibName, munasibOrigin, alqefariChain, onPress, onWhatsAppPress }) => {
+const MarriageCard = ({ item, munasibName, alqefariChain, onPress, onWhatsAppPress }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
@@ -329,24 +295,6 @@ const MarriageCard = ({ item, munasibName, munasibOrigin, alqefariChain, onPress
     }).start();
   };
 
-  const getStatusConfig = (status) => {
-    if (status === "divorced") {
-      return {
-        label: "منفصل",
-        color: "#24212160",
-        backgroundColor: "#24212110",
-      };
-    }
-    // Default for "current" or any other status
-    return {
-      label: "نشط",
-      color: "#D58C4A",
-      backgroundColor: "#D58C4A20",
-    };
-  };
-
-  const statusConfig = getStatusConfig(item.status);
-
   return (
     <TouchableOpacity
       onPressIn={handlePressIn}
@@ -361,114 +309,40 @@ const MarriageCard = ({ item, munasibName, munasibOrigin, alqefariChain, onPress
         ]}
       >
         <View style={styles.cardContent}>
-          {/* Munasib Section (Top) */}
-          <View style={styles.personSection}>
-            <View style={styles.personRow}>
-              {/* Profile Photo Placeholder */}
-              <View style={[
-                styles.photoPlaceholder,
-                { backgroundColor: item.munasib?.gender === "male" ? "#A1333320" : "#D58C4A20" }
-              ]}>
-                <Ionicons
-                  name={item.munasib?.gender === "male" ? "man" : "woman"}
-                  size={20}
-                  color={item.munasib?.gender === "male" ? "#A13333" : "#D58C4A"}
-                />
-              </View>
-
-              <View style={styles.nameColumn}>
-                <View style={styles.nameWithGender}>
-                  <Text style={styles.personName} numberOfLines={1}>
-                    {munasibName}
-                  </Text>
-                  <View style={styles.genderBadge}>
-                    <Text style={styles.genderText}>
-                      {item.munasib?.gender === "male" ? "♂" : "♀"}
-                    </Text>
-                  </View>
-                </View>
-                {munasibOrigin ? (
-                  <Text style={styles.originText} numberOfLines={1}>
-                    {munasibOrigin}
-                  </Text>
-                ) : null}
-              </View>
-
+          {/* Munasib Name (Full Name) */}
+          <View style={styles.personInfoContainer}>
+            <View style={styles.nameRow}>
+              <Text style={styles.munasibName} numberOfLines={1}>
+                {munasibName}
+              </Text>
               {/* WhatsApp Button */}
               {item.munasib?.phone && (
                 <TouchableOpacity
                   style={styles.whatsappButton}
-                  onPress={() => onWhatsAppPress(item.munasib.phone)}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onWhatsAppPress(item.munasib.phone);
+                  }}
                 >
                   <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
                 </TouchableOpacity>
               )}
             </View>
-          </View>
 
-          {/* Marriage Connection Icon (Center) */}
-          <View style={styles.connectionSection}>
-            <View style={styles.connectionIconContainer}>
-              <Ionicons name="heart" size={20} color="#A13333" />
-            </View>
-            <View style={styles.connectionLine} />
-          </View>
+            {/* Al-Qefari Name Chain (Without First Name) */}
+            <Text style={styles.chainText} numberOfLines={2}>
+              {alqefariChain || "غير معروف"}
+            </Text>
 
-          {/* Al-Qefari Section (Bottom) */}
-          <View style={styles.personSection}>
-            <View style={styles.personRow}>
-              {/* Profile Photo Placeholder */}
-              <View style={[
-                styles.photoPlaceholder,
-                { backgroundColor: item.alqefari?.gender === "male" ? "#A1333320" : "#D58C4A20" }
-              ]}>
-                <Ionicons
-                  name={item.alqefari?.gender === "male" ? "man" : "woman"}
-                  size={20}
-                  color={item.alqefari?.gender === "male" ? "#A13333" : "#D58C4A"}
-                />
+            {/* Generation Badge */}
+            {item.alqefari?.generation && (
+              <View style={styles.generationBadge}>
+                <Text style={styles.generationText}>
+                  الجيل {item.alqefari.generation}
+                </Text>
               </View>
-
-              <View style={styles.nameColumn}>
-                <View style={styles.nameWithGender}>
-                  <Text style={styles.personName} numberOfLines={1}>
-                    {item.alqefari?.name || "غير معروف"}
-                  </Text>
-                  <View style={styles.genderBadge}>
-                    <Text style={styles.genderText}>
-                      {item.alqefari?.gender === "male" ? "♂" : "♀"}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.badgeRow}>
-                  {item.alqefari?.generation && (
-                    <View style={styles.generationBadge}>
-                      <Text style={styles.generationText}>
-                        الجيل {item.alqefari.generation}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={[styles.statusBadge, { backgroundColor: statusConfig.backgroundColor }]}>
-                    <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                      {statusConfig.label}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
+            )}
           </View>
-
-          {/* Chevron Indicator */}
-          <View style={styles.chevronContainer}>
-            <Ionicons name="chevron-forward" size={22} color="#24212140" />
-          </View>
-        </View>
-
-        {/* Full Name Chain at Bottom */}
-        <View style={styles.chainContainer}>
-          <Text style={styles.chainText} numberOfLines={2}>
-            {alqefariChain || "غير معروف"}
-          </Text>
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -481,36 +355,59 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F7F3", // Al-Jass White
   },
 
-  // Header - Refined (no border)
+  // Header with Count Badge
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   closeButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: -8,
   },
   titleContainer: {
+    flex: 1,
     alignItems: "center",
   },
   title: {
-    fontSize: 22,
-    fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: "#242121", // Sadu Night
+    fontSize: 20,
+    fontWeight: "600",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+    color: "#242121",
   },
-  subtitle: {
+  countBadge: {
+    backgroundColor: "#A13333",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    minWidth: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  countText: {
     fontSize: 15,
-    fontFamily: "SF Arabic",
-    color: "#24212199", // Sadu Night 60%
-    marginTop: 4,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+    fontWeight: "700",
+    color: "#F9F7F3",
   },
 
-  // Search Bar - Enhanced
+  // Search Bar - Matches MunasibManager
   searchContainer: {
     paddingHorizontal: 20,
+    paddingTop: 12,
     paddingBottom: 16,
   },
   searchBar: {
@@ -529,7 +426,10 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
     marginHorizontal: 8,
     color: "#242121",
   },
@@ -537,74 +437,45 @@ const styles = StyleSheet.create({
   // List
   listContent: {
     paddingHorizontal: 20,
+    paddingTop: 4,
     paddingBottom: 32,
   },
 
-  // Marriage Card - Completely Redesigned
+  // Marriage Card - Clean iOS Design
   memberCard: {
     backgroundColor: "#FFFFFF",
-    marginVertical: 8,
+    marginVertical: 6,
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   cardContent: {
     padding: 20,
-    minHeight: 120,
   },
 
-  // Person Section (Munasib or Al-Qefari)
-  personSection: {
-    marginBottom: 12,
+  // Person Info Container
+  personInfoContainer: {
+    gap: 8,
   },
-  personRow: {
+  nameRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 12,
   },
-  photoPlaceholder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  nameColumn: {
+  munasibName: {
     flex: 1,
-  },
-  nameWithGender: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 6,
-  },
-  personName: {
-    fontSize: 18,
-    fontFamily: "SF Arabic",
-    fontWeight: "700",
+    fontSize: 20,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+    fontWeight: "600",
     color: "#242121",
-    flex: 1,
-  },
-  genderBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#D1BBA340",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  genderText: {
-    fontSize: 14,
-    color: "#242121",
-  },
-  originText: {
-    fontSize: 14,
-    fontFamily: "SF Arabic",
-    color: "#242121B3", // 70% opacity
   },
 
   // WhatsApp Button
@@ -612,112 +483,65 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#25D36610",
+    backgroundColor: "#25D36615",
     justifyContent: "center",
     alignItems: "center",
   },
 
-  // Badge Row
-  badgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
+  // Chain Text
+  chainText: {
+    fontSize: 16,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+    color: "#242121B3",
+    lineHeight: 24,
   },
+
+  // Generation Badge - iOS Style
   generationBadge: {
-    backgroundColor: "#D58C4A20",
+    alignSelf: "flex-start",
+    backgroundColor: "#D1BBA340",
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginTop: 4,
   },
   generationText: {
     fontSize: 13,
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
     fontWeight: "600",
-    color: "#D58C4A",
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  statusText: {
-    fontSize: 14,
-    fontFamily: "SF Arabic",
-    fontWeight: "600",
+    color: "#242121",
   },
 
-  // Connection Section (Marriage Icon)
-  connectionSection: {
-    alignItems: "center",
-    marginVertical: 12,
-  },
-  connectionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#A1333310",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  connectionLine: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 2,
-    backgroundColor: "#D1BBA340",
-    zIndex: -1,
-  },
-
-  // Chevron Container
-  chevronContainer: {
-    position: "absolute",
-    left: 16,
-    top: "50%",
-    marginTop: -11,
-  },
-
-  // Full Name Chain at Bottom
-  chainContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: "#D1BBA320",
-  },
-  chainText: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: "#24212199",
-    lineHeight: 20,
-  },
-
-  // Empty State - Enhanced
+  // Empty State
   emptyContainer: {
     flex: 1,
     paddingTop: 120,
     alignItems: "center",
     paddingHorizontal: 40,
   },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#D1BBA320",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
   emptyTitle: {
     fontSize: 20,
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
     fontWeight: "600",
     color: "#242121",
+    marginTop: 24,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 15,
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
     color: "#24212160",
     textAlign: "center",
     lineHeight: 22,
