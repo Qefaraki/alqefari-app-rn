@@ -65,6 +65,99 @@ export const profilesService = {
   },
 
   /**
+   * Transforms raw marriage data to include nested spouse_profile structure
+   * for component compatibility (FamilyCard expects marriage.spouse_profile.photo_url).
+   *
+   * @param {Array} rawMarriages - Raw marriage records with flat spouse fields
+   * @param {string} source - Source identifier for logging ('RPC' or 'fallback')
+   * @returns {Array} Transformed marriages with nested spouse_profile
+   *
+   * Expected raw marriage schema (from both RPC and fallback):
+   * {
+   *   id: UUID,
+   *   marriage_id?: UUID,
+   *   status: 'current' | 'past',
+   *   start_date: string?,
+   *   end_date: string?,
+   *   munasib: string?,
+   *   spouse_id: UUID,
+   *   spouse_name: string,
+   *   spouse_photo: string?,
+   *   spouse_gender: 'male' | 'female',
+   *   spouse_hid: string?,
+   *   spouse_deleted_at: timestamp?,
+   *   spouse_version: number?,
+   *   spouse_full_name_chain: string?,
+   *   children_count?: number
+   * }
+   */
+  _transformMarriageData(rawMarriages, source = 'unknown') {
+    // Guard against invalid input
+    if (!Array.isArray(rawMarriages)) {
+      console.warn(`[transformMarriageData:${source}] Expected array, got:`, typeof rawMarriages);
+      return [];
+    }
+
+    const UNKNOWN_NAME = 'غير محدد';
+
+    return rawMarriages
+      .filter(m => {
+        // Guard against null/undefined marriage record
+        if (!m) {
+          console.warn(`[transformMarriageData:${source}] Skipping null marriage record`);
+          return false;
+        }
+
+        // Validate required fields
+        const required = ['id', 'status', 'spouse_id'];
+        const missing = required.filter(field => !(field in m));
+
+        if (missing.length > 0) {
+          console.error(`[transformMarriageData:${source}] Invalid marriage schema, missing:`, missing, m);
+          return false;
+        }
+
+        return true;
+      })
+      .map((m) => ({
+        // Handle both old (marriage_id) and new (id) RPC versions
+        id: m.id || m.marriage_id,
+        marriage_id: m.marriage_id || m.id,
+
+        // Nested structure for modern components (FamilyCard, etc.)
+        spouse_profile: {
+          id: m.spouse_id,
+          name: m.spouse_name || UNKNOWN_NAME,
+          photo_url: m.spouse_photo || null,  // Map spouse_photo → photo_url
+          gender: m.spouse_gender,
+          hid: m.spouse_hid,
+          full_name_chain: m.spouse_full_name_chain || m.spouse_name || UNKNOWN_NAME,
+          deleted_at: m.spouse_deleted_at || null,  // Use actual value from database
+          version: m.spouse_version || 1,  // Required for optimistic locking
+        },
+
+        // Keep flat fields for backward compatibility
+        spouse_id: m.spouse_id,
+        spouse_name: m.spouse_name,
+        spouse_photo: m.spouse_photo,
+        spouse_gender: m.spouse_gender,
+        spouse_hid: m.spouse_hid,
+
+        munasib: m.munasib,
+        status: m.status,
+        start_date: m.start_date,
+        end_date: m.end_date,
+        children_count: m.children_count || 0,
+
+        // Deprecated fields (for backward compatibility only)
+        husband_id: m.husband_id,
+        wife_id: m.wife_id,
+        husband_name: m.husband_name || m.spouse_name,
+        wife_name: m.wife_name || m.spouse_name,
+      }));
+  },
+
+  /**
    * Fetches all marriage and spouse details for a given person in a single,
    * efficient backend call.
    * @param {string} personId - The UUID of the person.
@@ -72,9 +165,12 @@ export const profilesService = {
    */
   async getPersonMarriages(personId) {
     if (!personId) {
-      console.warn("getPersonMarriages called with no personId");
+      console.warn("[getPersonMarriages] Called with no personId");
       return [];
     }
+
+    console.log('[getPersonMarriages] Fetching marriages for profile:', personId);
+
     try {
       // Try the RPC function first
       const { data, error } = await supabase.rpc("get_person_marriages", {
@@ -82,7 +178,9 @@ export const profilesService = {
       });
 
       if (error) {
-        // If RPC doesn't exist, fallback to direct query
+        console.warn('[getPersonMarriages] RPC failed, using fallback. Error:', error.message);
+
+        // Fallback to direct query
         const { data: person } = await supabase
           .from("profiles")
           .select("gender")
@@ -91,7 +189,7 @@ export const profilesService = {
 
         const isHusband = person?.gender === "male";
 
-        // Query marriages directly
+        // Query marriages directly with ALL required spouse fields
         const { data: marriages, error: marriageError } = await supabase
           .from("marriages")
           .select(
@@ -103,8 +201,26 @@ export const profilesService = {
             start_date,
             end_date,
             munasib,
-            husband:profiles!marriages_husband_id_fkey(id, name, photo_url),
-            wife:profiles!marriages_wife_id_fkey(id, name, photo_url)
+            husband:profiles!marriages_husband_id_fkey(
+              id,
+              name,
+              photo_url,
+              gender,
+              hid,
+              deleted_at,
+              version,
+              full_name_chain
+            ),
+            wife:profiles!marriages_wife_id_fkey(
+              id,
+              name,
+              photo_url,
+              gender,
+              hid,
+              deleted_at,
+              version,
+              full_name_chain
+            )
           `,
           )
           .or(`husband_id.eq.${personId},wife_id.eq.${personId}`)
@@ -112,74 +228,53 @@ export const profilesService = {
 
         if (marriageError) throw marriageError;
 
-        // Format the data to match nested structure (for FamilyCard compatibility)
-        return (marriages || []).map((m) => {
+        console.log('[getPersonMarriages] Fallback succeeded, raw count:', marriages?.length || 0);
+
+        // Transform fallback data to match expected format
+        const rawMarriages = (marriages || []).map((m) => {
           const spouse = isHusband ? m.wife : m.husband;
           return {
-            id: m.id,  // Use id consistently for key prop
+            id: m.id,
             marriage_id: m.id,
-
-            // Nested structure for FamilyCard compatibility
-            spouse_profile: {
-              id: spouse?.id,
-              name: spouse?.name,
-              photo_url: spouse?.photo_url,
-              deleted_at: null  // Fallback query doesn't return deleted profiles
-            },
-
-            // Keep flat fields for backward compatibility
-            spouse_id: spouse?.id,
-            spouse_name: spouse?.name,
-            spouse_photo: spouse?.photo_url,
-
-            munasib: m.munasib,
             status: m.status,
             start_date: m.start_date,
             end_date: m.end_date,
-            // Also include for backward compatibility
+            munasib: m.munasib,
             husband_id: m.husband_id,
             wife_id: m.wife_id,
             husband_name: m.husband?.name,
             wife_name: m.wife?.name,
+            // Flatten spouse fields for transformer
+            spouse_id: spouse?.id,
+            spouse_name: spouse?.name,
+            spouse_photo: spouse?.photo_url,
+            spouse_gender: spouse?.gender,
+            spouse_hid: spouse?.hid,
+            spouse_deleted_at: spouse?.deleted_at,
+            spouse_version: spouse?.version,
+            spouse_full_name_chain: spouse?.full_name_chain,
           };
         });
+
+        const transformed = this._transformMarriageData(rawMarriages, 'fallback');
+        console.log('[getPersonMarriages] Transformed count:', transformed.length);
+        return transformed;
       }
 
-      // Transform RPC response to include nested spouse_profile structure
-      if (data && Array.isArray(data)) {
-        return data.map(m => ({
-          // Handle both old (marriage_id) and new (id) RPC versions
-          id: m.id || m.marriage_id,
-          marriage_id: m.marriage_id || m.id,
+      // RPC path succeeded
+      console.log('[getPersonMarriages] RPC path succeeded, raw count:', data?.length || 0);
 
-          // Nested structure for FamilyCard compatibility
-          spouse_profile: {
-            id: m.spouse_id,
-            name: m.spouse_name,
-            photo_url: m.spouse_photo,  // Map spouse_photo → photo_url
-            deleted_at: null  // RPC filters deleted profiles
-          },
-
-          // Keep flat fields for backward compatibility
-          spouse_id: m.spouse_id,
-          spouse_name: m.spouse_name,
-          spouse_photo: m.spouse_photo,
-
-          munasib: m.munasib,
-          status: m.status,
-          start_date: m.start_date,
-          end_date: m.end_date,
-          children_count: m.children_count || 0,
-
-          // Deprecated fields
-          husband_name: m.spouse_name,
-          wife_name: m.spouse_name,
-        }));
+      if (!data || !Array.isArray(data)) {
+        console.warn('[getPersonMarriages] RPC returned invalid data type:', typeof data);
+        return [];
       }
 
-      return data || [];
+      const transformed = this._transformMarriageData(data, 'RPC');
+      console.log('[getPersonMarriages] Transformed count:', transformed.length);
+      return transformed;
+
     } catch (error) {
-      console.error("Error loading marriages:", error);
+      console.error("[getPersonMarriages] Unexpected error:", error);
       return [];
     }
   },
