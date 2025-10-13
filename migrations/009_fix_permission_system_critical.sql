@@ -284,13 +284,6 @@ GRANT EXECUTE ON FUNCTION get_user_permissions_summary TO authenticated;
 GRANT EXECUTE ON FUNCTION super_admin_assign_branch_moderator TO authenticated;
 GRANT EXECUTE ON FUNCTION super_admin_remove_branch_moderator TO authenticated;
 
--- Record migration
-INSERT INTO migrations (version, name, executed_at)
-VALUES (9, 'fix_permission_system_critical', NOW())
-ON CONFLICT (version) DO UPDATE
-SET name = EXCLUDED.name,
-    executed_at = NOW();
-
 COMMIT;
 
 -- =====================================================
