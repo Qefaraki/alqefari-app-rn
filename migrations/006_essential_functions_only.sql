@@ -16,9 +16,9 @@ AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM profiles
-    WHERE id = p_user_id
-    AND role = 'super_admin'
-    AND deleted_at IS NULL
+    WHERE profiles.id = p_user_id
+    AND profiles.role = 'super_admin'
+    AND profiles.deleted_at IS NULL
   );
 END;
 $$;
@@ -58,9 +58,9 @@ BEGIN
   -- Return empty if not admin or super_admin
   IF NOT EXISTS (
     SELECT 1 FROM profiles
-    WHERE id = auth.uid()
-    AND role IN ('admin', 'super_admin')
-    AND deleted_at IS NULL
+    WHERE profiles.id = auth.uid()
+    AND profiles.role IN ('admin', 'super_admin')
+    AND profiles.deleted_at IS NULL
   ) THEN
     RETURN;
   END IF;
@@ -158,8 +158,8 @@ BEGIN
   END IF;
 
   -- Get old role and name
-  SELECT role, name INTO v_old_role, v_target_name
-  FROM profiles WHERE id = p_target_user_id;
+  SELECT profiles.role, profiles.name INTO v_old_role, v_target_name
+  FROM profiles WHERE profiles.id = p_target_user_id;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'User not found';
@@ -174,7 +174,7 @@ BEGIN
   UPDATE profiles
   SET role = p_new_role,
       updated_at = NOW()
-  WHERE id = p_target_user_id;
+  WHERE profiles.id = p_target_user_id;
 
   -- Log to audit if table exists
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_log') THEN
@@ -237,16 +237,16 @@ BEGIN
   -- Check if admin or super_admin
   IF NOT EXISTS (
     SELECT 1 FROM profiles
-    WHERE id = v_actor_id
-    AND role IN ('admin', 'super_admin')
-    AND deleted_at IS NULL
+    WHERE profiles.id = v_actor_id
+    AND profiles.role IN ('admin', 'super_admin')
+    AND profiles.deleted_at IS NULL
   ) THEN
     RAISE EXCEPTION 'Only admins can manage suggestion blocks';
   END IF;
 
   -- Get user name
-  SELECT name INTO v_user_name
-  FROM profiles WHERE id = p_user_id;
+  SELECT profiles.name INTO v_user_name
+  FROM profiles WHERE profiles.id = p_user_id;
 
   IF v_user_name IS NULL THEN
     RAISE EXCEPTION 'User not found';
