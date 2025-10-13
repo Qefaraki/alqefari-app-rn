@@ -97,8 +97,12 @@ $$;
 -- =====================================================
 -- STEP 2: Add server-side HID validation
 -- =====================================================
--- Update super_admin_assign_branch_moderator to validate HID format
+-- Drop existing function versions first to avoid ambiguity
+DROP FUNCTION IF EXISTS super_admin_assign_branch_moderator(UUID, TEXT, TEXT);
+DROP FUNCTION IF EXISTS super_admin_assign_branch_moderator(UUID, TEXT);
+DROP FUNCTION IF EXISTS super_admin_assign_branch_moderator(UUID, UUID, TEXT);
 
+-- Create new version with HID validation
 CREATE OR REPLACE FUNCTION super_admin_assign_branch_moderator(
   p_user_id UUID,
   p_branch_hid TEXT,
@@ -198,8 +202,11 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =====================================================
 -- STEP 3: Update super_admin_remove_branch_moderator
 -- =====================================================
--- Ensure it uses branch_hid correctly
+-- Drop existing function versions first to avoid ambiguity
+DROP FUNCTION IF EXISTS super_admin_remove_branch_moderator(UUID, TEXT);
+DROP FUNCTION IF EXISTS super_admin_remove_branch_moderator(UUID, UUID);
 
+-- Create new version with HID
 CREATE OR REPLACE FUNCTION super_admin_remove_branch_moderator(
   p_user_id UUID,
   p_branch_hid TEXT
