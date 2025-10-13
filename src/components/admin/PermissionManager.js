@@ -253,44 +253,16 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
     setLoading(true);
     setHasSearched(true);
     try {
-      // Use search_name_chain and enrich with permission data
-      const { data: searchData, error: searchError } = await supabase.rpc(
-        "search_name_chain",
+      // Use super_admin_search_by_name_chain (migration 006)
+      // This function returns all needed fields: id, name, full_name_chain, role,
+      // is_branch_moderator, branch_count, is_blocked
+      const { data, error } = await supabase.rpc(
+        "super_admin_search_by_name_chain",
         { p_search_text: query }
       );
 
-      if (searchError) throw searchError;
-
-      // Enrich each result with permission summary
-      const enrichedResults = await Promise.all(
-        (searchData || []).map(async (user) => {
-          try {
-            const { data: permData } = await supabase.rpc(
-              "get_user_permissions_summary",
-              { p_user_id: user.id }
-            );
-
-            return {
-              ...user,
-              role: permData?.role || null,
-              is_branch_moderator: permData?.is_branch_moderator || false,
-              branch_count: permData?.moderated_branches?.length || 0,
-              is_blocked: permData?.is_blocked || false,
-            };
-          } catch (err) {
-            console.error(`Error enriching user ${user.id}:`, err);
-            return {
-              ...user,
-              role: null,
-              is_branch_moderator: false,
-              branch_count: 0,
-              is_blocked: false,
-            };
-          }
-        })
-      );
-
-      setSearchResults(enrichedResults);
+      if (error) throw error;
+      setSearchResults(data || []);
     } catch (error) {
       console.error("Error searching users:", error);
       Alert.alert("خطأ", "فشل البحث عن المستخدمين");
