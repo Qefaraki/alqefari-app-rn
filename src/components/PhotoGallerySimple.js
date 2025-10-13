@@ -84,7 +84,37 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
         .order('display_order', { ascending: true });
 
       if (!error && data) {
-        setPhotos(data);
+        // Defensive filtering: Skip invalid/orphaned photo records
+        // Prevents console errors from broken image URLs
+        const validPhotos = data.filter(photo => {
+          // Basic validation checks
+          if (!photo.photo_url || !photo.storage_path) {
+            if (__DEV__) {
+              console.warn(`[PhotoGallerySimple] Skipping photo ${photo.id}: missing URL or storage path`);
+            }
+            return false;
+          }
+
+          // Validate URL format
+          try {
+            new URL(photo.photo_url);
+            return true;
+          } catch {
+            if (__DEV__) {
+              console.warn(`[PhotoGallerySimple] Skipping photo ${photo.id}: invalid URL format`);
+            }
+            return false;
+          }
+        });
+
+        setPhotos(validPhotos);
+
+        // Log if we filtered out orphaned records (helps with debugging)
+        if (__DEV__ && validPhotos.length < data.length) {
+          console.info(
+            `[PhotoGallerySimple] Filtered ${data.length - validPhotos.length} invalid photo records for profile ${profileId}`
+          );
+        }
       }
     } catch (error) {
       console.error('Error loading photos:', error);
@@ -114,13 +144,15 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
     }
   }, [uploading]);
 
-  // Log image errors for diagnostics
+  // Log image errors for diagnostics (downgraded to warning for filtered records)
   const handleImageError = (photoId, error) => {
-    console.error('[PhotoGallerySimple] Image load error:', {
-      photoId,
-      profileId,
-      error: error?.message || 'Unknown error',
-    });
+    if (__DEV__) {
+      console.warn('[PhotoGallerySimple] Image load error:', {
+        photoId,
+        profileId,
+        error: error?.message || 'Unknown error',
+      });
+    }
   };
 
   // Compress image
