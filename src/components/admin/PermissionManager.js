@@ -209,11 +209,21 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [searchTimer, setSearchTimer] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // Track loading state for actions
 
   // Load current user's role
   useEffect(() => {
     loadCurrentUserRole();
   }, []);
+
+  // Cleanup search timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimer) {
+        clearTimeout(searchTimer);
+      }
+    };
+  }, [searchTimer]);
 
   const loadCurrentUserRole = async () => {
     try {
@@ -272,16 +282,20 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
       return;
     }
 
-    // Debounce search for 300ms
+    // Debounce search for 150ms (optimal for modern UX)
     const timer = setTimeout(() => {
       searchUsers(text);
-    }, 300);
+    }, 150);
     setSearchTimer(timer);
   };
 
   // Change user role
   const changeUserRole = async (userId, newRole) => {
+    if (actionLoading) return; // Prevent duplicate calls
+
     try {
+      setActionLoading('role');
+
       const { data, error } = await supabase.rpc(
         "super_admin_set_user_role",
         {
@@ -302,50 +316,92 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
 
       // Refresh search results with current query
       if (searchText) {
-        searchUsers(searchText);
+        await searchUsers(searchText);
       }
     } catch (error) {
       console.error("Error changing role:", error);
       Alert.alert("خطأ", error.message || "فشل تغيير الصلاحية");
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  // Toggle suggestion block
+  // Toggle suggestion block (Android-compatible)
   const toggleSuggestionBlock = async (userId, currentlyBlocked) => {
+    if (actionLoading) return; // Prevent duplicate calls
+
     try {
       const shouldBlock = !currentlyBlocked;
 
       if (shouldBlock) {
-        // Show reason input dialog
-        Alert.prompt(
-          "حظر الاقتراحات",
-          "أدخل سبب الحظر:",
-          [
-            { text: "إلغاء", style: "cancel" },
-            {
-              text: "حظر",
-              onPress: async (reason) => {
-                const { data, error } = await supabase.rpc(
-                  "admin_toggle_suggestion_block",
-                  {
-                    p_user_id: userId,
-                    p_block: true,
-                    p_reason: reason || "بدون سبب محدد"
+        // Android doesn't support Alert.prompt - use Alert.alert with default reason
+        if (Platform.OS === 'android') {
+          Alert.alert(
+            "حظر الاقتراحات",
+            "هل تريد حظر هذا المستخدم من تقديم الاقتراحات؟",
+            [
+              { text: "إلغاء", style: "cancel" },
+              {
+                text: "حظر",
+                onPress: async () => {
+                  setActionLoading('block');
+                  const { data, error } = await supabase.rpc(
+                    "admin_toggle_suggestion_block",
+                    {
+                      p_user_id: userId,
+                      p_block: true,
+                      p_reason: "محظور من قبل المشرف"
+                    }
+                  );
+
+                  if (error) throw error;
+
+                  Alert.alert("تم الحظر", "تم حظر المستخدم من تقديم الاقتراحات");
+                  if (searchText) {
+                    await searchUsers(searchText);
                   }
-                );
-
-                if (error) throw error;
-
-                Alert.alert("تم الحظر", "تم حظر المستخدم من تقديم الاقتراحات");
-                searchUsers();
+                  setActionLoading(null);
+                }
               }
-            }
-          ],
-          "plain-text"
-        );
+            ]
+          );
+        } else {
+          // iOS supports Alert.prompt
+          Alert.prompt(
+            "حظر الاقتراحات",
+            "أدخل سبب الحظر:",
+            [
+              { text: "إلغاء", style: "cancel" },
+              {
+                text: "حظر",
+                onPress: async (reason) => {
+                  setActionLoading('block');
+                  const { data, error } = await supabase.rpc(
+                    "admin_toggle_suggestion_block",
+                    {
+                      p_user_id: userId,
+                      p_block: true,
+                      p_reason: reason || "بدون سبب محدد"
+                    }
+                  );
+
+                  if (error) throw error;
+
+                  Alert.alert("تم الحظر", "تم حظر المستخدم من تقديم الاقتراحات");
+                  if (searchText) {
+                    await searchUsers(searchText);
+                  }
+                  setActionLoading(null);
+                }
+              }
+            ],
+            "plain-text"
+          );
+        }
       } else {
         // Unblock
+        setActionLoading('unblock');
         const { data, error } = await supabase.rpc(
           "admin_toggle_suggestion_block",
           {
@@ -357,11 +413,15 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
         if (error) throw error;
 
         Alert.alert("تم إلغاء الحظر", "يمكن للمستخدم الآن تقديم الاقتراحات");
-        searchUsers();
+        if (searchText) {
+          await searchUsers(searchText);
+        }
+        setActionLoading(null);
       }
     } catch (error) {
       console.error("Error toggling block:", error);
       Alert.alert("خطأ", "فشل تغيير حالة الحظر");
+      setActionLoading(null);
     }
   };
 
@@ -611,6 +671,8 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                   keyExtractor={(item) => item.id}
                   renderItem={renderUserCard}
                   contentContainerStyle={styles.listContent}
+                  keyboardDismissMode="on-drag"
+                  keyboardShouldPersistTaps="handled"
                   ListEmptyComponent={
                     hasSearched && !loading ? (
                       <View style={styles.emptyContainer}>

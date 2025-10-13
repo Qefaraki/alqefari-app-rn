@@ -49,19 +49,28 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
   const treeData = useTreeStore((state) => state.treeData);
   const nodesMap = useTreeStore((state) => state.nodesMap);
 
-  // Memoized descendants count calculation (performance optimization)
+  // Memoized descendants count calculation (O(n) optimization)
   const descendantsCounts = useMemo(() => {
     if (!treeData || treeData.length === 0) return {};
 
+    // Initialize counts for all HIDs
     const counts = {};
+    treeData.forEach(node => {
+      if (node.hid) counts[node.hid] = 0;
+    });
+
+    // Single pass: increment ancestor counts for each node
     treeData.forEach(node => {
       if (!node.hid) return;
 
-      // Count only strict descendants (not including self)
-      // Fixed: Proper parentheses for operator precedence
-      counts[node.hid] = treeData.filter(n =>
-        n.hid && n.hid !== node.hid && n.hid.startsWith(node.hid + ".")
-      ).length;
+      const hidParts = node.hid.split('.');
+      // For each ancestor in the chain, increment count
+      for (let i = 1; i < hidParts.length; i++) {
+        const ancestorHid = hidParts.slice(0, i).join('.');
+        if (counts.hasOwnProperty(ancestorHid)) {
+          counts[ancestorHid]++;
+        }
+      }
     });
 
     return counts;
@@ -290,6 +299,8 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
           keyExtractor={(item) => item.id}
           renderItem={renderBranchCard}
           contentContainerStyle={styles.listContent}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={true}
           initialNumToRender={20}
           maxToRenderPerBatch={20}
