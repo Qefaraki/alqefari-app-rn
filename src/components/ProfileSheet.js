@@ -1815,7 +1815,9 @@ const ProfileSheet = ({ editMode = false }) => {
                         },
                       ]
                     : []),
-                  ...(person.birth_place
+                  ...(person.birth_place &&
+                    (!person.current_residence ||
+                      person.birth_place !== person.current_residence)
                     ? [{ label: "مكان الميلاد", value: person.birth_place }]
                     : []),
                   ...(person.current_residence
