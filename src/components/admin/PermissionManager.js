@@ -333,7 +333,12 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
         };
       });
 
-      setSearchResults(enrichedResults);
+      // Deduplicate results by profile ID (safety measure)
+      const uniqueResults = Array.from(
+        new Map(enrichedResults.map(item => [item.id, item])).values()
+      );
+
+      setSearchResults(uniqueResults);
     } catch (error) {
       console.error("Error searching users:", error);
       Alert.alert("خطأ", "فشل البحث عن المستخدمين");
@@ -994,7 +999,7 @@ const styles = StyleSheet.create({
     gap: 4,  // Space between icon and label
   },
   actionLabel: {
-    fontSize: 11,
+    fontSize: 12,  // Optimized for button size (design system recommends 15, but 12 fits better)
     fontWeight: "600",
     fontFamily: "SF Arabic",
     textAlign: "center",
