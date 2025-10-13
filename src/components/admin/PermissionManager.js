@@ -817,9 +817,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,  // iOS minimum touch target
+    height: 44,  // iOS minimum touch target
+    borderRadius: 22,
     backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",

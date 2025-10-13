@@ -351,9 +351,9 @@ const styles = StyleSheet.create({
 
   // Remove Button
   removeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,  // iOS minimum touch target
+    height: 44,  // iOS minimum touch target
+    borderRadius: 22,
     backgroundColor: colors.error + "10",
     alignItems: "center",
     justifyContent: "center",

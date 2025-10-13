@@ -89,11 +89,37 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
     });
   }, [treeData, searchQuery]);
 
+  // Validate HID format (numeric segments separated by dots)
+  const validateHID = (hid) => {
+    if (!hid || typeof hid !== 'string') {
+      return { valid: false, error: 'HID is missing or invalid' };
+    }
+
+    // HID format: numeric segments separated by dots (e.g., "1", "1.2", "1.2.3")
+    const hidPattern = /^(\d+\.)*\d+$/;
+    if (!hidPattern.test(hid)) {
+      return { valid: false, error: 'HID format must be numeric segments separated by dots (e.g., "1.2.3")' };
+    }
+
+    return { valid: true };
+  };
+
   const handleBranchSelect = (branch) => {
     setSelectedBranch(branch);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const descendantsCount = getDescendantsCount(branch.hid);
+    // Validate HID format before assignment
+    const validation = validateHID(branch.hid);
+    if (!validation.valid) {
+      Alert.alert(
+        "خطأ في التحقق",
+        `HID غير صالح: ${validation.error}\n\nلا يمكن تعيين هذا الفرع.`,
+        [{ text: "حسناً", onPress: () => setSelectedBranch(null) }]
+      );
+      return;
+    }
+
+    const descendantsCount = descendantsCounts[branch.hid] || 0;
 
     Alert.alert(
       "تأكيد التعيين",
@@ -126,7 +152,7 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
   };
 
   const renderBranchCard = ({ item, index }) => {
-    const descendantsCount = getDescendantsCount(item.hid);
+    const descendantsCount = descendantsCounts[item.hid] || 0;
     const depth = (item.hid || "").split(".").length;
     const isSelected = selectedBranch?.id === item.id;
 
