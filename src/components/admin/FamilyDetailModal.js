@@ -66,7 +66,8 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
         )
         .or(
           `husband_id.in.(${memberIds.join(",")}),wife_id.in.(${memberIds.join(",")})`,
-        );
+        )
+        .is("deleted_at", null); // Defense in depth: explicit soft-delete filter
 
       if (error) throw error;
 
@@ -247,7 +248,7 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="people-outline" size={48} color="#24212140" />
-                <Text style={styles.emptyText}>لا توجد بيانات</Text>
+                <Text style={styles.emptyText}>لا توجد علاقات عائلية نشطة</Text>
               </View>
             }
           />

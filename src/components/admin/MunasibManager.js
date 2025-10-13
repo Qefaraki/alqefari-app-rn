@@ -37,7 +37,7 @@ export default function MunasibManager({ onClose }) {
     try {
       setLoading(true);
 
-      // Get all Munasib profiles with family_origin
+      // Step 1: Get all Munasib profiles with family_origin
       const { data: profiles, error } = await supabase
         .from("profiles")
         .select("*")
@@ -46,9 +46,31 @@ export default function MunasibManager({ onClose }) {
 
       if (error) throw error;
 
-      // Group by family_origin
+      // Step 2: Filter to only profiles with active marriages
+      let activeProfiles = profiles || [];
+
+      if (profiles && profiles.length > 0) {
+        const profileIds = profiles.map(p => p.id);
+
+        // Query marriages table (RLS auto-filters deleted_at IS NULL)
+        const { data: activeMarriages, error: marriagesError } = await supabase
+          .from("marriages")
+          .select("wife_id")
+          .in("wife_id", profileIds);
+
+        if (marriagesError) {
+          console.error("Error loading marriages:", marriagesError);
+          // Continue with all profiles if marriages query fails
+        } else {
+          // Filter to only profiles with active marriages
+          const activeWifeIds = new Set(activeMarriages?.map(m => m.wife_id) || []);
+          activeProfiles = profiles.filter(p => activeWifeIds.has(p.id));
+        }
+      }
+
+      // Step 3: Group by family_origin
       const familyGroups = {};
-      profiles?.forEach((profile) => {
+      activeProfiles.forEach((profile) => {
         const familyName = profile.family_origin;
         if (!familyGroups[familyName]) {
           familyGroups[familyName] = {
