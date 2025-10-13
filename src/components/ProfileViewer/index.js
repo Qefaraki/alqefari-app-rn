@@ -24,6 +24,7 @@ import BottomSheet, {
   BottomSheetBackdrop,
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Hero from './Hero/Hero';
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
 import PersonalCard from './ViewMode/cards/PersonalCard';
@@ -314,6 +315,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const scrollY = useRef(new Animated.Value(0)).current;
   const animatedPosition = useSharedValue(0);
   const screenHeight = useMemo(() => Dimensions.get('window').height, []);
+  const screenWidth = useMemo(() => Dimensions.get('window').width, []);
 
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(
     person?.id,
@@ -411,11 +413,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   }, [person?.id, hideSkeletonImmediately]);
 
   // Track permission loading state
+  // person?.id dependency ensures skeleton hides even when switching to cached profiles
   useEffect(() => {
     if (!permissionLoading) {
       hideSkeletonImmediately('permissions');
     }
-  }, [permissionLoading, hideSkeletonImmediately]);
+  }, [person?.id, permissionLoading, hideSkeletonImmediately]);
 
   // Note: profileSheetProgress (shared value) not in dependency array.
   // Per Reanimated docs, dependencies only needed without Babel plugin.
@@ -444,6 +447,41 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setMode('view');
     bottomSheetRef.current?.close?.();
   }, []);
+
+  // iOS-style edge swipe to dismiss (RTL-aware)
+  const edgeSwipeGesture = useMemo(() => {
+    let gestureStartX = 0;
+    let isEdgeGesture = false;
+
+    return Gesture.Pan()
+      .enabled(mode === 'view' && !form.isDirty)
+      .activeOffsetX([-10, 10]) // Allow horizontal swipes
+      .failOffsetY([-20, 20]) // Cancel if mostly vertical
+      .onBegin((event) => {
+        gestureStartX = event.absoluteX;
+        // RTL: Right edge is trailing edge (where iOS back button is)
+        isEdgeGesture = gestureStartX > screenWidth - 50;
+
+        if (isEdgeGesture) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+      })
+      .onUpdate((event) => {
+        // RTL: Swipe left (negative translationX) from right edge
+        if (isEdgeGesture && event.translationX < -100) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          isEdgeGesture = false; // Prevent multiple triggers
+          bottomSheetRef.current?.close?.();
+        }
+      })
+      .onEnd((event) => {
+        // Also trigger on fast swipe (velocity check)
+        if (isEdgeGesture && event.velocityX < -800) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          bottomSheetRef.current?.close?.();
+        }
+      });
+  }, [mode, form.isDirty, screenWidth]);
 
   // Image compression helper
   const compressImage = useCallback(async (uri) => {
@@ -804,21 +842,22 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   return (
     <>
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={Math.max(-1, Math.min(2, currentSnapIndex))}
-        snapPoints={snapPoints}
-        enablePanDownToClose={mode !== 'edit'}
-        backdropComponent={renderBackdrop}
-        handleComponent={handleComponent}
-        animatedPosition={animatedPosition}
-        animateOnMount={true}
-        onClose={() => {
-          onClose?.();
-        }}
-        onChange={handleSheetChange}
-        backgroundStyle={styles.sheetBackground}
-      >
+      <GestureDetector gesture={edgeSwipeGesture}>
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={Math.max(-1, Math.min(2, currentSnapIndex))}
+          snapPoints={snapPoints}
+          enablePanDownToClose={mode !== 'edit'}
+          backdropComponent={renderBackdrop}
+          handleComponent={handleComponent}
+          animatedPosition={animatedPosition}
+          animateOnMount={true}
+          onClose={() => {
+            onClose?.();
+          }}
+          onChange={handleSheetChange}
+          backgroundStyle={styles.sheetBackground}
+        >
         {/* Conditional rendering - only ONE mode exists at a time for better performance */}
         {mode === 'view' ? (
           <ViewModeContent
@@ -863,6 +902,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           />
         )}
       </BottomSheet>
+      </GestureDetector>
 
       <PreEditModal
         visible={preEditVisible}
