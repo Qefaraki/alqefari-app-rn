@@ -1365,6 +1365,13 @@ const SpouseRow = React.memo(
         return;
       }
 
+      // Validate minimum 2 words (name + surname)
+      const words = trimmedName.split(/\s+/);
+      if (words.length < 2) {
+        Alert.alert('خطأ', 'يجب إدخال الاسم الكامل مع اسم العائلة (كلمتان على الأقل)');
+        return;
+      }
+
       const originalName = spouse.name?.trim() || '';
       const statusChanged = spouseData.status !== editingStatus;
       const nameChanged = trimmedName !== originalName;
@@ -1375,6 +1382,10 @@ const SpouseRow = React.memo(
       }
 
       setSaving(true);
+
+      // Declare parsed at function scope (not inside if block)
+      let parsed = null;
+
       try {
         if (statusChanged) {
           const { error } = await supabase.rpc('admin_update_marriage', {
@@ -1385,10 +1396,20 @@ const SpouseRow = React.memo(
         }
 
         if (nameChanged && spouse.id) {
+          // Parse name to extract family_origin
+          const spouseGender = spouse.gender || 'female';
+          parsed = familyNameService.parseFullName(trimmedName, spouseGender);
+
+          // Update both name AND family_origin atomically
+          const profileUpdates = {
+            name: trimmedName,
+            family_origin: parsed.familyOrigin, // null for Al-Qefari (cousin marriage)
+          };
+
           const { error: nameError } = await supabase.rpc('admin_update_profile', {
             p_id: spouse.id,
             p_version: spouse.version || 1,
-            p_updates: { name: trimmedName },
+            p_updates: profileUpdates,
           });
           if (nameError) throw nameError;
         }
@@ -1400,6 +1421,7 @@ const SpouseRow = React.memo(
           spouse_profile: {
             ...spouse,
             name: trimmedName,
+            family_origin: parsed?.familyOrigin, // Update local state too
           },
         };
         onSave?.(updatedMarriage);
