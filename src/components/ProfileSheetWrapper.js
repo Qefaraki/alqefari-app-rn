@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator, Alert, StyleSheet } from "react-native";
+import { Alert } from "react-native";
 import { runOnUI } from "react-native-reanimated";
 import ProfileSheet from "./ProfileSheet";
 import ProfileViewer from "./ProfileViewer";
@@ -147,20 +147,13 @@ const ProfileSheetWrapper = ({ editMode }) => {
     setSelectedPersonId(null);
   };
 
-  // Show loading spinner while fetching Munasib profile
-  if (loadingMunasib && !person && selectedPersonId) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#A13333" />
-        <Text style={styles.loadingText}>جاري التحميل...</Text>
-      </View>
-    );
-  }
-
-  if (featureFlags.profileViewer && person) {
+  // Always render ProfileViewer (with loading state if needed)
+  // This provides consistent skeleton loading instead of ActivityIndicator
+  if (featureFlags.profileViewer) {
     return (
       <ProfileViewer
         person={person}
+        loading={loadingMunasib && !person}
         onClose={handleClose}
         onNavigateToProfile={navigateToProfile}
         onUpdate={handleUpdate}
@@ -171,20 +164,5 @@ const ProfileSheetWrapper = ({ editMode }) => {
   // Show ProfileSheet with edit mode enabled when in admin mode
   return <ProfileSheet editMode={editMode || isAdminMode} />;
 };
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F9F7F3', // Al-Jass White
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 17,
-    fontFamily: 'SF Arabic',
-    color: '#242121', // Sadu Night
-  },
-});
 
 export default ProfileSheetWrapper;

@@ -259,7 +259,7 @@ const EditModeContent = React.memo(({
 ));
 EditModeContent.displayName = 'EditModeContent';
 
-const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
+const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading = false }) => {
   const insets = useSafeAreaInsets();
   const { isAdminMode } = useAdminMode();
   const bottomSheetRef = useRef(null);
@@ -741,6 +741,43 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate }) => {
     }
   }, [person?.common_name, person?.name]);
 
+  // Show skeleton when loading (e.g., Munasib profile fetch)
+  if (!person && loading) {
+    return (
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={Math.max(-1, Math.min(2, currentSnapIndex))}
+        snapPoints={snapPoints}
+        enablePanDownToClose={false} // Prevent close while loading
+        backdropComponent={renderBackdrop}
+        handleComponent={handleComponent}
+        animatedPosition={animatedPosition}
+        animateOnMount={true}
+        onClose={onClose}
+        onChange={handleSheetChange}
+        backgroundStyle={styles.sheetBackground}
+      >
+        <BottomSheetScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 12,
+            paddingBottom: insets.bottom + 80,
+            gap: 20,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          <HeroSkeleton withPhoto={true} />
+          <GenericCardSkeleton rows={3} titleWidth={80} />
+          <GenericCardSkeleton rows={2} titleWidth={100} />
+          <GenericCardSkeleton rows={3} titleWidth={90} />
+          <GenericCardSkeleton rows={2} titleWidth={100} />
+          <FamilyCardSkeleton tileCount={4} />
+        </BottomSheetScrollView>
+      </BottomSheet>
+    );
+  }
+
+  // Show empty state only when not loading and no person selected
   if (!person) {
     return (
       <View style={styles.empty}>
