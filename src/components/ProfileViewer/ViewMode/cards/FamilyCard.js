@@ -47,9 +47,37 @@ const FamilyCard = React.memo(
         list.push({ ...buildRelative(mother, { label: 'الوالدة' }), type: 'parent' });
       }
 
-      // Add divider if we have both parents and children
+      // Add CURRENT spouses only (Munasib profiles only to avoid UX change)
+      if (marriages && marriages.length > 0 && person?.hid === null) {
+        // Filter: ONLY current marriages (no divorced/past spouses)
+        const currentMarriages = marriages.filter(m =>
+          m.status === 'current' || m.status === 'married' // Backward compat
+        );
+
+        if (currentMarriages.length > 0) {
+          // Add divider if we have parents above
+          if (list.length > 0) {
+            list.push({ type: 'divider', key: 'divider-spouses' });
+          }
+
+          currentMarriages.forEach((marriage, index) => {
+            const spouse = marriage.spouse_profile;
+            // Safety checks: exists, not deleted, not circular reference
+            if (spouse && !spouse.deleted_at && spouse.id !== person.id) {
+              const label = person.gender === 'male' ? 'الزوجة' : 'الزوج';
+              list.push({
+                ...buildRelative(spouse, { label }),
+                type: 'spouse',
+                key: `spouse-${spouse.id || index}`
+              });
+            }
+          });
+        }
+      }
+
+      // Add divider before children
       if (list.length > 0 && children.length > 0) {
-        list.push({ type: 'divider', key: 'divider' });
+        list.push({ type: 'divider', key: 'divider-children' });
       }
 
       // Sort children by sibling_order (0 = oldest)
@@ -65,7 +93,7 @@ const FamilyCard = React.memo(
       });
 
       return list;
-    }, [children, father, mother]);
+    }, [children, father, mother, marriages, person]);
 
   if (allMembers.length === 0) {
     return null;
@@ -141,6 +169,8 @@ const FamilyCard = React.memo(
     prevProps.mother?.id === nextProps.mother?.id &&
     prevProps.children?.length === nextProps.children?.length &&
     prevProps.children?.every((child, index) => child.id === nextProps.children?.[index]?.id) &&
+    prevProps.marriages?.length === nextProps.marriages?.length &&
+    prevProps.person?.hid === nextProps.person?.hid &&
     prevProps.showMarriages === nextProps.showMarriages
   );
 }

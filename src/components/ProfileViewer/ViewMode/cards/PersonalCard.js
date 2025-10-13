@@ -9,7 +9,7 @@ const PersonalCard = React.memo(
 
     const rows = [
       person.birth_place ? { label: 'مكان الميلاد', value: person.birth_place } : null,
-      person.family_origin ? { label: 'الأصل العائلي', value: person.family_origin } : null,
+      // Removed family_origin - redundant (already in person's name)
     ].filter(Boolean);
 
     if (rows.length === 0) return null;
@@ -32,8 +32,8 @@ const PersonalCard = React.memo(
   (prevProps, nextProps) => {
     // Only re-render if actual data changed (prevents re-render on object reference change)
     return (
-      prevProps.person?.birth_place === nextProps.person?.birth_place &&
-      prevProps.person?.family_origin === nextProps.person?.family_origin
+      prevProps.person?.birth_place === nextProps.person?.birth_place
+      // Removed family_origin comparison
     );
   }
 );
