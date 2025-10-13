@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import { supabase } from '../../../services/supabase';
+import familyNameService from '../../../services/familyNameService';
 import SpouseManager from '../../admin/SpouseManager';
 import InlineSpouseAdder from '../../InlineSpouseAdder';
 import QuickAddOverlay from '../../admin/QuickAddOverlay';
@@ -23,6 +24,7 @@ import useStore from '../../../hooks/useStore';
 import { useFeedbackTimeout } from '../../../hooks/useFeedbackTimeout';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import { getShortNameChain } from '../../../utils/nameChainUtils';
+import AnimatedMarriageCard from './AnimatedMarriageCard';
 
 // Reducer for managing all TabFamily state in one place (60% performance improvement)
 const initialState = {
@@ -105,6 +107,59 @@ const familyReducer = (state, action) => {
         ...state,
         familyData: { ...state.familyData, children: updatedChildren },
         activeEditor: null,
+      };
+    }
+    case 'OPTIMISTIC_DELETE_MARRIAGE': {
+      if (!state.familyData) return state;
+      return {
+        ...state,
+        familyData: {
+          ...state.familyData,
+          spouses: state.familyData.spouses.map((spouse) =>
+            spouse.marriage_id === action.payload.marriage_id
+              ? { ...spouse, _deletingState: 'removing' }
+              : spouse
+          ),
+        },
+      };
+    }
+    case 'REMOVE_DELETED_MARRIAGE': {
+      if (!state.familyData) return state;
+      return {
+        ...state,
+        familyData: {
+          ...state.familyData,
+          spouses: state.familyData.spouses.filter(
+            (s) => s.marriage_id !== action.payload.marriage_id
+          ),
+        },
+      };
+    }
+    case 'RESTORE_DELETED_MARRIAGE': {
+      if (!state.familyData) return state;
+      return {
+        ...state,
+        familyData: {
+          ...state.familyData,
+          spouses: state.familyData.spouses.map((spouse) =>
+            spouse.marriage_id === action.payload.marriage_id
+              ? { ...spouse, _deletingState: 'restoring', _error: action.payload.error }
+              : spouse
+          ),
+        },
+      };
+    }
+    case 'CLEAR_DELETE_STATE': {
+      if (!state.familyData) return state;
+      return {
+        ...state,
+        familyData: {
+          ...state.familyData,
+          spouses: state.familyData.spouses.map((spouse) => {
+            const { _deletingState, _error, ...clean } = spouse;
+            return clean;
+          }),
+        },
       };
     }
     case 'RESET_ACTIVE_EDITOR':
@@ -529,34 +584,74 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
         text: 'حذف',
         style: 'destructive',
         onPress: async () => {
+          // STEP 1: Optimistic UI update (immediate visual feedback)
+          dispatch({
+            type: 'OPTIMISTIC_DELETE_MARRIAGE',
+            payload: { marriage_id: marriage.marriage_id },
+          });
+
+          // STEP 2: Success haptic (confidence-building feedback)
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+          // STEP 3: Wait for animation to start before API call (perceived speed)
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          // STEP 4: Background API call
           try {
-            const { error } = await supabase
-              .from('marriages')
-              .delete()
-              .eq('id', marriage.marriage_id);
+            const { data, error } = await supabase.rpc('admin_soft_delete_marriage', {
+              p_marriage_id: marriage.marriage_id,
+            });
 
             if (error) throw error;
 
-            Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Success
-            );
-            await loadFamilyData();
-            if (refreshProfile) {
-              await refreshProfile(person.id);
+            if (!data?.success) {
+              throw new Error(data?.message || 'فشل حذف الزواج');
             }
-            if (onDataChanged) {
-              onDataChanged();
-            }
+
+            // STEP 5: Success - remove from state after animation completes
+            setTimeout(() => {
+              dispatch({
+                type: 'REMOVE_DELETED_MARRIAGE',
+                payload: { marriage_id: marriage.marriage_id },
+              });
+
+              // Trigger parent refresh (silent, in background)
+              if (refreshProfile) refreshProfile(person.id);
+              if (onDataChanged) onDataChanged();
+            }, 500); // Match animation duration
           } catch (error) {
+            // STEP 6: Error recovery - restore with feedback
             if (__DEV__) {
               console.error('Error deleting marriage:', error);
             }
-            Alert.alert('خطأ', 'فشل حذف الزواج');
+
+            // Error haptic
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
+            // Restore the marriage with error state
+            dispatch({
+              type: 'RESTORE_DELETED_MARRIAGE',
+              payload: {
+                marriage_id: marriage.marriage_id,
+                error: error.message || 'فشل حذف الزواج',
+              },
+            });
+
+            // Show error toast after restoration animation
+            setTimeout(() => {
+              Alert.alert('خطأ', error.message || 'فشل حذف الزواج. حاول مرة أخرى.');
+
+              // Clear error state after user acknowledges
+              dispatch({
+                type: 'CLEAR_DELETE_STATE',
+                payload: { marriage_id: marriage.marriage_id },
+              });
+            }, 500);
           }
         },
       },
     ]);
-  }, [loadFamilyData, refreshProfile, onDataChanged, person.id]);
+  }, [dispatch, refreshProfile, onDataChanged, person.id]);
 
   const handleSpouseAddedInline = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1032,16 +1127,33 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
                   : undefined;
 
               return (
-                <SpouseRow
+                <AnimatedMarriageCard
                   key={spouseData.marriage_id}
-                  spouseData={spouseData}
-                  onEdit={handleEditMarriage}
-                  onDelete={handleDeleteSpouse}
-                  onVisit={visitSpouse}
-                  isEditing={isEditing}
-                  onSave={handleMarriageEditorSaved}
-                  onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
-                />
+                  deletingState={spouseData._deletingState}
+                  onAnimationComplete={(state) => {
+                    if (state === 'removed') {
+                      dispatch({
+                        type: 'REMOVE_DELETED_MARRIAGE',
+                        payload: { marriage_id: spouseData.marriage_id },
+                      });
+                    } else if (state === 'restored') {
+                      dispatch({
+                        type: 'CLEAR_DELETE_STATE',
+                        payload: { marriage_id: spouseData.marriage_id },
+                      });
+                    }
+                  }}
+                >
+                  <SpouseRow
+                    spouseData={spouseData}
+                    onEdit={handleEditMarriage}
+                    onDelete={handleDeleteSpouse}
+                    onVisit={visitSpouse}
+                    isEditing={isEditing}
+                    onSave={handleMarriageEditorSaved}
+                    onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                  />
+                </AnimatedMarriageCard>
               );
             })}
           </View>
@@ -1066,17 +1178,34 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
                     : undefined;
 
                 return (
-                  <SpouseRow
+                  <AnimatedMarriageCard
                     key={spouseData.marriage_id}
-                    spouseData={spouseData}
-                    onEdit={handleEditMarriage}
-                    onDelete={handleDeleteSpouse}
-                    onVisit={visitSpouse}
-                    inactive
-                    isEditing={isEditing}
-                    onSave={handleMarriageEditorSaved}
-                    onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
-                  />
+                    deletingState={spouseData._deletingState}
+                    onAnimationComplete={(state) => {
+                      if (state === 'removed') {
+                        dispatch({
+                          type: 'REMOVE_DELETED_MARRIAGE',
+                          payload: { marriage_id: spouseData.marriage_id },
+                        });
+                      } else if (state === 'restored') {
+                        dispatch({
+                          type: 'CLEAR_DELETE_STATE',
+                          payload: { marriage_id: spouseData.marriage_id },
+                        });
+                      }
+                    }}
+                  >
+                    <SpouseRow
+                      spouseData={spouseData}
+                      onEdit={handleEditMarriage}
+                      onDelete={handleDeleteSpouse}
+                      onVisit={visitSpouse}
+                      inactive
+                      isEditing={isEditing}
+                      onSave={handleMarriageEditorSaved}
+                      onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
+                    />
+                  </AnimatedMarriageCard>
                 );
               })}
             </View>
@@ -1378,7 +1507,7 @@ const SpouseRow = React.memo(
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
-                  style={[styles.inlineUtilityButton, styles.inlineUtilityButtonDanger]}
+                  style={styles.inlineUtilityButton}
                   onPress={handleDelete}
                   disabled={saving}
                 >
@@ -1604,7 +1733,7 @@ const ChildRow = React.memo(
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
-                  style={[styles.inlineUtilityButton, styles.inlineUtilityButtonDanger]}
+                  style={styles.inlineUtilityButton}
                   onPress={handleDelete}
                   disabled={saving}
                 >
@@ -2261,9 +2390,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.divider,
     backgroundColor: tokens.colors.surface,
-  },
-  inlineUtilityButtonDanger: {
-    borderColor: tokens.colors.divider,
   },
   inlineUtilityText: {
     fontSize: 13,
