@@ -393,7 +393,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
           // Show user-friendly error based on type
           if (error.message && error.message.includes('timeout')) {
-            Alert.alert('بطيء', 'استغرق التحميل وقتاً طويلاً. يرجى المحاولة مرة أخرى.');
+            Alert.alert(
+              'عفواً عمي...',
+              'التحميل استغرق وقتاً أطول من المتوقع. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.'
+            );
           } else {
             Alert.alert('خطأ', 'فشل تحميل بيانات الزواج');
           }

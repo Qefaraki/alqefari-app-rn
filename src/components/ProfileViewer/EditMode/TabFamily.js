@@ -1146,12 +1146,7 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
                     >
                       <SpouseRow
                         spouseData={spouseData}
-                        onEdit={handleEditMarriage}
-                        onDelete={handleDeleteSpouse}
                         onVisit={visitSpouse}
-                        isEditing={isEditing}
-                        onSave={handleMarriageEditorSaved}
-                        onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
                       />
                     </AnimatedMarriageCard>
                   );
@@ -1227,22 +1222,13 @@ const TabFamily = ({ person, onDataChanged, onNavigateToProfile }) => {
       >
         {children.length > 0 ? (
           <View style={styles.sectionStack}>
-            {children.map((child) => {
-              const isEditing = editingChildId === child.id;
-
-              return (
-                <ChildRow
-                  key={child.id}
-                  child={child}
-                  onEdit={handleEditChild}
-                  onDelete={handleDeleteChild}
-                  onVisit={handleVisitChild}
-                  isEditing={isEditing}
-                  onCancelEdit={() => dispatch({ type: 'RESET_ACTIVE_EDITOR' })}
-                  onSave={handleChildEditorSaved}
-                />
-              );
-            })}
+            {children.map((child) => (
+              <ChildRow
+                key={child.id}
+                child={child}
+                onVisit={handleVisitChild}
+              />
+            ))}
           </View>
         ) : (
           <EmptyState
@@ -1302,35 +1288,14 @@ AvatarThumbnail.displayName = 'AvatarThumbnail';
 const SpouseRow = React.memo(
   ({
     spouseData,
-    onEdit,
-    onDelete,
     onVisit,
     inactive = false,
-    isEditing = false,
-    onSave,
-    onCancelEdit,
   }) => {
     const spouse = spouseData.spouse_profile;
-    const [editingName, setEditingName] = useState('');
-    const [editingStatus, setEditingStatus] = useState('current');
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-      if (isEditing) {
-        setEditingName(spouse?.name || '');
-        const rawStatus = spouseData.status || 'current';
-        setEditingStatus(
-          rawStatus === 'past' || rawStatus === 'divorced' || rawStatus === 'widowed'
-            ? 'past'
-            : 'current'
-        );
-        setSaving(false);
-      }
-    }, [isEditing, spouse?.name, spouseData.status]);
 
     if (!spouse) return null;
 
-    const displayName = isEditing ? editingName || '—' : spouse.name;
+    const displayName = spouse.name;
 
     const subtitleParts = [];
     if (spouseData.children_count > 0) {
@@ -1343,21 +1308,6 @@ const SpouseRow = React.memo(
     }
     const subtitle = subtitleParts.join(' • ');
 
-    const handleToggle = () => {
-      if (isEditing) {
-        Haptics.selectionAsync();
-        onCancelEdit?.();
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onEdit?.(spouseData);
-      }
-    };
-
-    const handleDelete = () => {
-      Haptics.selectionAsync();
-      onDelete?.(spouseData);
-    };
-
     const handleVisit = () => {
       if (onVisit) {
         Haptics.selectionAsync();
@@ -1365,218 +1315,36 @@ const SpouseRow = React.memo(
       }
     };
 
-    const handleSave = async () => {
-      const trimmedName = editingName.trim();
-      if (!trimmedName) {
-        Alert.alert('خطأ', 'يرجى كتابة اسم الزوجة');
-        return;
-      }
-
-      // Validate minimum 2 words (name + surname), encourage full names
-      const words = trimmedName.split(/\s+/);
-      if (words.length < 2) {
-        Alert.alert(
-          'عفواً عمي...',
-          'أدخل الاسم كاملاً من فضلك\n\nمثال: مريم محمد علي السعوي\nالحد الأدنى: اسمان (الاسم الأول + العائلة)'
-        );
-        return;
-      }
-
-      const originalName = spouse.name?.trim() || '';
-      const statusChanged = spouseData.status !== editingStatus;
-      const nameChanged = trimmedName !== originalName;
-
-      if (!statusChanged && !nameChanged) {
-        onSave?.(spouseData);
-        return;
-      }
-
-      setSaving(true);
-
-      // Declare parsed at function scope (not inside if block)
-      let parsed = null;
-
-      try {
-        if (statusChanged) {
-          const { error } = await supabase.rpc('admin_update_marriage', {
-            p_marriage_id: spouseData.marriage_id,
-            p_updates: { status: editingStatus },
-          });
-          if (error) throw error;
-        }
-
-        if (nameChanged && spouse.id) {
-          // Parse name to extract family_origin
-          const spouseGender = spouse.gender || 'female';
-          parsed = familyNameService.parseFullName(trimmedName, spouseGender);
-
-          // Update both name AND family_origin atomically
-          const profileUpdates = {
-            name: trimmedName,
-            family_origin: parsed.familyOrigin, // null for Al-Qefari (cousin marriage)
-          };
-
-          const { error: nameError } = await supabase.rpc('admin_update_profile', {
-            p_id: spouse.id,
-            p_version: spouse.version || 1,
-            p_updates: profileUpdates,
-          });
-          if (nameError) throw nameError;
-        }
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const updatedMarriage = {
-          ...spouseData,
-          status: editingStatus,
-          spouse_profile: {
-            ...spouse,
-            name: trimmedName,
-            family_origin: parsed?.familyOrigin, // Update local state too
-          },
-        };
-        onSave?.(updatedMarriage);
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error updating marriage:', error);
-        }
-        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
-      } finally {
-        setSaving(false);
-      }
-    };
-
     return (
-      <View
-        style={[
-          styles.memberCard,
-          inactive && styles.memberCardInactive,
-          isEditing && styles.memberCardEditing,
-        ]}
-      >
-        <View style={styles.memberHeader}>
+      <View style={[styles.memberCard, inactive && styles.memberCardInactive]}>
+        <TouchableOpacity
+          style={styles.memberHeader}
+          onPress={handleVisit}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`فتح ملف ${spouse.name}`}
+          disabled={!onVisit}
+        >
           <AvatarThumbnail photoUrl={spouse.photo_url} fallbackLabel={getInitials(spouse.name)} />
           <View style={styles.memberDetails}>
-            <View style={styles.memberTitleRow}>
-              <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
-                {displayName}
-              </Text>
-              <TouchableOpacity
-                style={styles.memberChevron}
-                onPress={handleToggle}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل الزواج'}
-              >
-                <Ionicons
-                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
-                  size={20}
-                  color={tokens.colors.najdi.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-            {!isEditing && subtitle ? (
+            <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
+              {displayName}
+            </Text>
+            {subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
               </Text>
             ) : null}
           </View>
-        </View>
-
-        {isEditing ? (
-          <View style={styles.inlineEditor}>
-            <View style={styles.inlineField}>
-              <Text style={styles.inlineFieldLabel}>اسم الزوجة</Text>
-              <TextInput
-                style={styles.inlineTextInput}
-                value={editingName}
-                onChangeText={setEditingName}
-                placeholder="اكتب الاسم الكامل"
-                placeholderTextColor={tokens.colors.najdi.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!saving}
-                clearButtonMode="never"
-              />
-            </View>
-
-            <View style={styles.inlineField}>
-              <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
-              <View style={styles.inlineSegments}>
-                {[
-                  { label: 'حالي', value: 'current' },
-                  { label: 'سابق', value: 'past' },
-                ].map((option) => {
-                  const active = editingStatus === option.value;
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setEditingStatus(option.value);
-                      }}
-                      activeOpacity={0.85}
-                      disabled={saving}
-                    >
-                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.inlineFooter}>
-              <View style={styles.inlineFooterLinks}>
-                {onVisit ? (
-                  <TouchableOpacity
-                    style={styles.inlineUtilityButton}
-                    onPress={handleVisit}
-                    disabled={saving}
-                  >
-                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
-                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.inlineUtilityButton}
-                  onPress={handleDelete}
-                  disabled={saving}
-                >
-                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
-                  <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inlineActionButtons}>
-                <TouchableOpacity
-                  style={styles.inlineCancelButton}
-                  onPress={handleToggle}
-                  activeOpacity={0.7}
-                  disabled={saving}
-                >
-                  <Text style={styles.inlineCancelText}>إلغاء</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
-                  onPress={handleSave}
-                  activeOpacity={0.85}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color={tokens.colors.surface} />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
-                      <Text style={styles.inlineSaveText}>حفظ</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        ) : null}
+          {onVisit && (
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={tokens.colors.najdi.textMuted}
+              style={styles.memberChevron}
+            />
+          )}
+        </TouchableOpacity>
       </View>
     );
   },
@@ -1589,7 +1357,6 @@ const SpouseRow = React.memo(
       prev.spouseData.spouse_profile?.name === next.spouseData.spouse_profile?.name &&
       prevPhotoUrl === nextPhotoUrl &&
       prev.inactive === next.inactive &&
-      prev.isEditing === next.isEditing &&
       prev.spouseData._deletingState === next.spouseData._deletingState // Required for delete animation
     );
   }
@@ -1597,214 +1364,51 @@ const SpouseRow = React.memo(
 SpouseRow.displayName = 'SpouseRow';
 
 const ChildRow = React.memo(
-  ({ child, onEdit, onDelete, onVisit, isEditing = false, onSave, onCancelEdit }) => {
+  ({ child, onVisit }) => {
     if (!child) return null;
-
-    const [editingName, setEditingName] = useState('');
-    const [editingGender, setEditingGender] = useState('male');
-    const [saving, setSaving] = useState(false);
-
-    useEffect(() => {
-      if (isEditing) {
-        setEditingName(child.name || '');
-        setEditingGender(child.gender || 'male');
-        setSaving(false);
-      }
-    }, [isEditing, child.name, child.gender]);
 
     const initials = getInitials(child.name);
     const photoUrl = child.photo_url || child.profile?.photo_url || null;
-    const displayName = isEditing ? editingName || '—' : child.name;
-    const subtitle = !isEditing && child.birth_year ? `مواليد ${child.birth_year}` : null;
-
-    const handleToggle = () => {
-      if (isEditing) {
-        Haptics.selectionAsync();
-        onCancelEdit?.();
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onEdit?.(child);
-      }
-    };
-
-    const handleDelete = () => {
-      Haptics.selectionAsync();
-      onDelete?.(child);
-    };
+    const displayName = child.name;
+    const subtitle = child.birth_year ? `مواليد ${child.birth_year}` : null;
 
     const handleVisit = () => {
       if (onVisit) {
         Haptics.selectionAsync();
-        onVisit();
-      }
-    };
-
-    const handleSave = async () => {
-      const trimmedName = editingName.trim();
-      if (!trimmedName) {
-        Alert.alert('خطأ', 'يرجى كتابة اسم الابن/الابنة');
-        return;
-      }
-
-      const nameChanged = trimmedName !== child.name;
-      const genderChanged = editingGender !== child.gender;
-
-      if (!nameChanged && !genderChanged) {
-        onSave?.(child);
-        return;
-      }
-
-      setSaving(true);
-      try {
-        const { error } = await supabase.rpc('admin_update_profile', {
-          p_id: child.id,
-          p_version: child.version || 1,
-          p_updates: {
-            name: trimmedName,
-            gender: editingGender,
-          },
-        });
-        if (error) throw error;
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const updatedChild = { ...child, name: trimmedName, gender: editingGender };
-        onSave?.(updatedChild);
-      } catch (error) {
-        if (__DEV__) {
-          console.error('Error updating child:', error);
-        }
-        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
-      } finally {
-        setSaving(false);
+        onVisit(child);
       }
     };
 
     return (
-      <View style={[styles.memberCard, isEditing && styles.memberCardEditing]}>
-        <View style={styles.memberHeader}>
+      <View style={styles.memberCard}>
+        <TouchableOpacity
+          style={styles.memberHeader}
+          onPress={handleVisit}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`فتح ملف ${child.name}`}
+          disabled={!onVisit}
+        >
           <AvatarThumbnail photoUrl={photoUrl} fallbackLabel={initials} />
           <View style={styles.memberDetails}>
-            <View style={styles.memberTitleRow}>
-              <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
-                {displayName}
-              </Text>
-              <TouchableOpacity
-                style={styles.memberChevron}
-                onPress={handleToggle}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل بيانات الابن/الابنة'}
-              >
-                <Ionicons
-                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
-                  size={20}
-                  color={tokens.colors.najdi.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
+              {displayName}
+            </Text>
             {subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
                 {subtitle}
               </Text>
             ) : null}
           </View>
-        </View>
-
-        {isEditing ? (
-          <View style={styles.inlineEditor}>
-            <View style={styles.inlineField}>
-              <Text style={styles.inlineFieldLabel}>الاسم الكامل</Text>
-              <TextInput
-                style={styles.inlineTextInput}
-                value={editingName}
-                onChangeText={setEditingName}
-                placeholder="اكتب الاسم"
-                placeholderTextColor={tokens.colors.najdi.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!saving}
-                clearButtonMode="never"
-              />
-            </View>
-
-            <View style={styles.inlineField}>
-              <Text style={styles.inlineFieldLabel}>الجنس</Text>
-              <View style={styles.inlineSegments}>
-                {[
-                  { label: 'ذكر', value: 'male' },
-                  { label: 'أنثى', value: 'female' },
-                ].map((option) => {
-                  const active = editingGender === option.value;
-                  return (
-                    <TouchableOpacity
-                      key={option.value}
-                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setEditingGender(option.value);
-                      }}
-                      activeOpacity={0.85}
-                      disabled={saving}
-                    >
-                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.inlineFooter}>
-              <View style={styles.inlineFooterLinks}>
-                {onVisit ? (
-                  <TouchableOpacity
-                    style={styles.inlineUtilityButton}
-                    onPress={handleVisit}
-                    disabled={saving}
-                  >
-                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
-                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.inlineUtilityButton}
-                  onPress={handleDelete}
-                  disabled={saving}
-                >
-                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
-                  <Text style={styles.inlineUtilityText}>حذف من العائلة</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.inlineActionButtons}>
-                <TouchableOpacity
-                  style={styles.inlineCancelButton}
-                  onPress={handleToggle}
-                  activeOpacity={0.7}
-                  disabled={saving}
-                >
-                  <Text style={styles.inlineCancelText}>إلغاء</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
-                  onPress={handleSave}
-                  activeOpacity={0.85}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color={tokens.colors.surface} />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
-                      <Text style={styles.inlineSaveText}>حفظ</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        ) : null}
+          {onVisit && (
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={tokens.colors.najdi.textMuted}
+              style={styles.memberChevron}
+            />
+          )}
+        </TouchableOpacity>
       </View>
     );
   },
@@ -1815,10 +1419,8 @@ const ChildRow = React.memo(
     return (
       prev.child.id === next.child.id &&
       prev.child.name === next.child.name &&
-      prev.child.gender === next.child.gender &&
       prev.child.birth_year === next.child.birth_year &&
-      prevPhotoUrl === nextPhotoUrl &&
-      prev.isEditing === next.isEditing
+      prevPhotoUrl === nextPhotoUrl
     );
   }
 );
