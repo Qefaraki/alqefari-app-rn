@@ -320,6 +320,12 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
         const branchCount = branchCounts[profile.id] || 0;
         const isBlocked = blockedSet.has(profile.id);
 
+        // Debug logging to see what we're getting
+        if (!profile.name_chain) {
+          console.log('Missing name_chain for profile:', profile.id, profile.name);
+          console.log('Profile keys:', Object.keys(profile));
+        }
+
         return {
           id: profile.id,
           name: profile.name,
