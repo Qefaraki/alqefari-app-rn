@@ -48,13 +48,23 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
   const treeData = useTreeStore((state) => state.treeData);
   const nodesMap = useTreeStore((state) => state.nodesMap);
 
-  // Calculate descendants count for each node
-  const getDescendantsCount = (hid) => {
-    if (!hid) return 0;
-    return treeData.filter(node =>
-      node.hid && node.hid.startsWith(hid + ".") || node.hid === hid
-    ).length;
-  };
+  // Memoized descendants count calculation (performance optimization)
+  const descendantsCounts = useMemo(() => {
+    if (!treeData || treeData.length === 0) return {};
+
+    const counts = {};
+    treeData.forEach(node => {
+      if (!node.hid) return;
+
+      // Count only strict descendants (not including self)
+      // Fixed: Proper parentheses for operator precedence
+      counts[node.hid] = treeData.filter(n =>
+        n.hid && n.hid !== node.hid && n.hid.startsWith(node.hid + ".")
+      ).length;
+    });
+
+    return counts;
+  }, [treeData]);
 
   // Filter branches by search query
   const filteredBranches = useMemo(() => {

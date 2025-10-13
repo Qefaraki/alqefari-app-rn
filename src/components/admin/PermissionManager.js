@@ -44,6 +44,159 @@ const colors = {
   whatsapp: "#A13333",  // Changed to Najdi Crimson as requested
 };
 
+/**
+ * AnimatedUserCard Component
+ *
+ * Extracted from renderUserCard to fix memory leak issue.
+ * Proper component lifecycle with cleanup for Animated.Value.
+ */
+const AnimatedUserCard = ({
+  item,
+  index,
+  currentUserRole,
+  getRoleColor,
+  getRoleLabel,
+  onUserSelect,
+  onShowRoleMenu,
+  onManageBranch,
+  onToggleBlock,
+}) => {
+  const userRole = item.role || "user";
+  const canEditThisUser = currentUserRole === "super_admin";
+  const animatedValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Start entrance animation
+    const animation = Animated.timing(animatedValue, {
+      toValue: 1,
+      duration: 400,
+      delay: Math.min(index * 50, 300),
+      useNativeDriver: true,
+    });
+    animation.start();
+
+    // CLEANUP: Stop animation on unmount to prevent memory leak
+    return () => {
+      animation.stop();
+      animatedValue.stopAnimation();
+    };
+  }, [index]);
+
+  const translateY = animatedValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [20, 0],
+  });
+
+  return (
+    <Animated.View
+      style={[
+        {
+          opacity: animatedValue,
+          transform: [{ translateY }],
+        },
+      ]}
+    >
+      <TouchableOpacity
+        style={styles.userCard}
+        onPress={() => {
+          onUserSelect(item);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+        activeOpacity={0.95}
+      >
+        <View style={styles.userInfo}>
+          {/* User name and chain */}
+          <Text style={styles.userName}>{item.name}</Text>
+          <Text style={styles.userChain} numberOfLines={1}>
+            {item.full_name_chain}
+          </Text>
+
+          {/* Role and status badges */}
+          <View style={styles.badgeRow}>
+            <View style={[styles.roleBadge, { backgroundColor: getRoleColor(userRole) + "20" }]}>
+              <Text style={[styles.roleText, { color: getRoleColor(userRole) }]}>
+                {getRoleLabel(userRole)}
+              </Text>
+            </View>
+
+            {item.is_branch_moderator && (
+              <View style={styles.badge}>
+                <Ionicons name="git-branch" size={12} color={colors.secondary} />
+                <Text style={styles.badgeText}>
+                  مشرف فرع ({item.branch_count})
+                </Text>
+              </View>
+            )}
+
+            {item.is_blocked && (
+              <View style={[styles.badge, styles.blockedBadge]}>
+                <Ionicons name="ban" size={12} color={colors.error} />
+                <Text style={[styles.badgeText, { color: colors.error }]}>
+                  محظور
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Actions with better visual design */}
+        {canEditThisUser && (
+          <View style={styles.actions}>
+            {/* Role selector */}
+            {userRole !== "super_admin" && (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.primaryAction]}
+                onPress={() => {
+                  onShowRoleMenu(item);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+              >
+                <Ionicons name="key" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
+            {/* Branch moderator */}
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                item.is_branch_moderator && styles.activeAction
+              ]}
+              onPress={() => {
+                onManageBranch(item);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Ionicons
+                name="git-branch"
+                size={18}
+                color={item.is_branch_moderator ? colors.secondary : colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            {/* Suggestion block toggle */}
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                item.is_blocked && styles.dangerAction
+              ]}
+              onPress={() => {
+                onToggleBlock(item.id, item.is_blocked);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              }}
+            >
+              <Ionicons
+                name={item.is_blocked ? "checkmark-circle" : "ban"}
+                size={18}
+                color={item.is_blocked ? colors.success : colors.error}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
 const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const [searchText, setSearchText] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -235,132 +388,18 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
 
   // Render user card with animations
   const renderUserCard = ({ item, index }) => {
-    const userRole = item.role || "user";
-    const canEditThisUser = currentUserRole === "super_admin";
-    const animatedValue = useRef(new Animated.Value(0)).current;
-
-    // Entrance animation
-    React.useEffect(() => {
-      Animated.timing(animatedValue, {
-        toValue: 1,
-        duration: 400,
-        delay: Math.min(index * 50, 300),
-        useNativeDriver: true,
-      }).start();
-    }, []);
-
-    const translateY = animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [20, 0],
-    });
-
     return (
-      <Animated.View
-        style={[
-          {
-            opacity: animatedValue,
-            transform: [{ translateY }],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.userCard}
-          onPress={() => {
-            setSelectedUser(item);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
-          activeOpacity={0.95}
-        >
-        <View style={styles.userInfo}>
-          {/* User name and chain */}
-          <Text style={styles.userName}>{item.name}</Text>
-          <Text style={styles.userChain} numberOfLines={1}>
-            {item.full_name_chain}
-          </Text>
-
-          {/* Role and status badges */}
-          <View style={styles.badgeRow}>
-            <View style={[styles.roleBadge, { backgroundColor: getRoleColor(userRole) + "20" }]}>
-              <Text style={[styles.roleText, { color: getRoleColor(userRole) }]}>
-                {getRoleLabel(userRole)}
-              </Text>
-            </View>
-
-            {item.is_branch_moderator && (
-              <View style={styles.badge}>
-                <Ionicons name="git-branch" size={12} color={colors.secondary} />
-                <Text style={styles.badgeText}>
-                  مشرف فرع ({item.branch_count})
-                </Text>
-              </View>
-            )}
-
-            {item.is_blocked && (
-              <View style={[styles.badge, styles.blockedBadge]}>
-                <Ionicons name="ban" size={12} color={colors.error} />
-                <Text style={[styles.badgeText, { color: colors.error }]}>
-                  محظور
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Actions with better visual design */}
-        {canEditThisUser && (
-          <View style={styles.actions}>
-            {/* Role selector */}
-            {userRole !== "super_admin" && (
-              <TouchableOpacity
-                style={[styles.actionButton, styles.primaryAction]}
-                onPress={() => {
-                  showRoleMenu(item);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Ionicons name="key" size={18} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-
-            {/* Branch moderator */}
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                item.is_branch_moderator && styles.activeAction
-              ]}
-              onPress={() => {
-                manageBranchModerator(item);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-            >
-              <Ionicons
-                name="git-branch"
-                size={18}
-                color={item.is_branch_moderator ? colors.secondary : colors.textMuted}
-              />
-            </TouchableOpacity>
-
-            {/* Suggestion block toggle */}
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                item.is_blocked && styles.dangerAction
-              ]}
-              onPress={() => {
-                toggleSuggestionBlock(item.id, item.is_blocked);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              }}
-            >
-              <Ionicons
-                name={item.is_blocked ? "checkmark-circle" : "ban"}
-                size={18}
-                color={item.is_blocked ? colors.success : colors.error}
-              />
-            </TouchableOpacity>
-          </View>
-        )}
-        </TouchableOpacity>
-      </Animated.View>
+      <AnimatedUserCard
+        item={item}
+        index={index}
+        currentUserRole={currentUserRole}
+        getRoleColor={getRoleColor}
+        getRoleLabel={getRoleLabel}
+        onUserSelect={setSelectedUser}
+        onShowRoleMenu={showRoleMenu}
+        onManageBranch={manageBranchModerator}
+        onToggleBlock={toggleSuggestionBlock}
+      />
     );
   };
 
