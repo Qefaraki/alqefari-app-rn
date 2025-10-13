@@ -23,6 +23,7 @@ import * as Haptics from "expo-haptics";
 import BranchSelector from "./BranchSelector";
 import BranchList from "./BranchList";
 import PermissionSummary from "./PermissionSummary";
+import { SkeletonUserCard } from "../ui/Skeleton";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -596,9 +597,13 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
 
               {/* Results */}
               {loading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.loadingText}>جاري البحث...</Text>
+                <View style={styles.listContent}>
+                  {/* Skeleton loading cards */}
+                  <SkeletonUserCard />
+                  <SkeletonUserCard />
+                  <SkeletonUserCard />
+                  <SkeletonUserCard />
+                  <SkeletonUserCard />
                 </View>
               ) : (
                 <FlatList

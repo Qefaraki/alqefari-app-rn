@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTreeStore } from "../../stores/useTreeStore";
 import * as Haptics from "expo-haptics";
+import { SkeletonBranchCard } from "../ui/Skeleton";
 
 // Najdi Sadu palette
 const colors = {
@@ -268,9 +269,14 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
 
       {/* Results List */}
       {treeData.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.emptyText}>جاري تحميل بيانات الشجرة...</Text>
+        <View style={styles.listContent}>
+          {/* Skeleton loading cards */}
+          <SkeletonBranchCard />
+          <SkeletonBranchCard />
+          <SkeletonBranchCard />
+          <SkeletonBranchCard />
+          <SkeletonBranchCard />
+          <SkeletonBranchCard />
         </View>
       ) : filteredBranches.length === 0 ? (
         <View style={styles.emptyContainer}>
