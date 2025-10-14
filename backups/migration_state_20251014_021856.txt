@@ -1,0 +1,87 @@
+Initialising cli_login_postgres role...
+Connecting to remote database...
+Skipping migration .DS_Store... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration 084a_batch_permission_validator.sql... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration 084b_cascade_soft_delete_complete.sql... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration admin_rpc_functions.sql... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration archive... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration consolidation-report.json... (file name must match pattern "<timestamp>_name.sql")
+Skipping migration create_notifications_system.sql... (file name must match pattern "<timestamp>_name.sql")
+
+  
+   Local          | Remote | Time (UTC)          
+  ----------------|--------|---------------------
+   000            |        | 000                 
+   005            |        | 005                 
+   007            |        | 007                 
+   007            |        | 007                 
+   008            |        | 008                 
+   009            |        | 009                 
+   009            |        | 009                 
+   011            |        | 011                 
+   012            |        | 012                 
+   012            |        | 012                 
+   013            |        | 013                 
+   013            |        | 013                 
+   015            |        | 015                 
+   016            |        | 016                 
+   057            |        | 057                 
+   057            |        | 057                 
+   058            |        | 058                 
+   059            |        | 059                 
+   059            |        | 059                 
+   059            |        | 059                 
+   060            |        | 060                 
+   061            |        | 061                 
+   062            |        | 062                 
+   063            |        | 063                 
+   064            |        | 064                 
+   064            |        | 064                 
+   065            |        | 065                 
+   066            |        | 066                 
+   067            |        | 067                 
+   068            |        | 068                 
+   069            |        | 069                 
+   070            |        | 070                 
+   071            |        | 071                 
+   072            |        | 072                 
+   073            |        | 073                 
+   074            |        | 074                 
+   075            |        | 075                 
+   075            |        | 075                 
+   075            |        | 075                 
+   076            |        | 076                 
+   077            |        | 077                 
+   078            |        | 078                 
+   078            |        | 078                 
+   079            |        | 079                 
+   079            |        | 079                 
+   079            |        | 079                 
+   080            |        | 080                 
+   081            |        | 081                 
+   082            |        | 082                 
+   083            |        | 083                 
+   083            |        | 083                 
+   083            |        | 083                 
+   083            |        | 083                 
+   085            |        | 085                 
+   086            |        | 086                 
+   087            |        | 087                 
+   088            |        | 088                 
+   089            |        | 089                 
+   090            |        | 090                 
+   100            |        | 100                 
+   20250128       |        | 20250128            
+   20250129       |        | 20250129            
+   20250129       |        | 20250129            
+   20250927114554 |        | 2025-09-27 11:45:54 
+   20250927134328 |        | 2025-09-27 13:43:28 
+   20250927134329 |        | 2025-09-27 13:43:29 
+   20250928       |        | 20250928            
+   20250929       |        | 20250929            
+   20250929       |        | 20250929            
+   20250930       |        | 20250930            
+   20251014000451 |        | 2025-10-14 00:04:51 
+
+A new version of Supabase CLI is available: v2.51.0 (currently installed v2.34.3)
+We recommend updating regularly for new features and bug fixes: https://supabase.com/docs/guides/cli/getting-started#updating-the-supabase-cli
