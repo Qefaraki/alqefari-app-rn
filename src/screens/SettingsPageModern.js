@@ -639,22 +639,24 @@ export default function SettingsPageModern({ user }) {
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        <LargeTitleHeader
-          title="الإعدادات"
-          emblemSource={require("../../assets/logo/AlqefariEmblem.png")}
-          rightSlot={
-            !isGuestMode ? (
-              <NotificationBadge
-                onPress={() => {
-                  requestAnimationFrame(() => {
-                    setShowNotificationCenter(true);
-                  });
-                }}
-              />
-            ) : null
-          }
-          style={{ paddingTop: insets.top, paddingBottom: 12 }}
-        />
+        <View style={{ paddingTop: Math.max(insets.top - 24, 0) }}>
+          <LargeTitleHeader
+            title="الإعدادات"
+            emblemSource={require("../../assets/logo/AlqefariEmblem.png")}
+            rightSlot={
+              !isGuestMode ? (
+                <NotificationBadge
+                  onPress={() => {
+                    requestAnimationFrame(() => {
+                      setShowNotificationCenter(true);
+                    });
+                  }}
+                />
+              ) : null
+            }
+            style={{ paddingTop: 12, paddingBottom: 12 }}
+          />
+        </View>
 
         {/* Notification Center - Only render when needed */}
         {showNotificationCenter && (
@@ -1356,8 +1358,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
     ...fontStyles.semibold,
     marginBottom: 10,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   collapsibleHeader: {
     flexDirection: "row",

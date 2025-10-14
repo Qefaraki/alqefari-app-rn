@@ -339,6 +339,13 @@ const SmartNameDisplay = React.memo(({
 export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
   const { profile } = useAuth();
 
+  // DEBUG LOG #1: Profile state
+  console.log('🔍 [ActivityLog] Profile loaded:', {
+    hasProfile: !!profile,
+    profileId: profile?.id,
+    profileRole: profile?.role
+  });
+
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -484,6 +491,19 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
         setActivities(prev => [...prev, ...(data || [])]);
       } else {
         setActivities(data || []);
+
+        // DEBUG LOG #2: Activity data structure
+        if (data && data.length > 0) {
+          console.log('🔍 [ActivityLog] First activity data:', {
+            id: data[0].id,
+            action_type: data[0].action_type,
+            is_undoable: data[0].is_undoable,
+            is_undoable_type: typeof data[0].is_undoable,
+            undone_at: data[0].undone_at,
+            created_at: data[0].created_at,
+            all_fields: Object.keys(data[0])
+          });
+        }
       }
 
       setPage(currentPage + 1);
@@ -806,6 +826,9 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
 
   // Handle undo action
   const handleUndo = useCallback(async (activityId, actionType) => {
+    // DEBUG LOG #4: Function call tracker
+    console.log('🔍 [Undo] Button clicked:', { activityId, actionType });
+
     if (!profile?.id) {
       showToast('يجب تسجيل الدخول للتراجع', 'error');
       return;
@@ -1236,6 +1259,26 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
                 <Text style={styles.activityTime}>
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
                 </Text>
+
+                {/* DEBUG LOG #3: Condition breakdown */}
+                {(() => {
+                  const condition1 = !!profile?.id;
+                  const condition2 = !activity.undone_at;
+                  const condition3 = activity.is_undoable === true;
+                  const allConditions = condition1 && condition2 && condition3;
+
+                  console.log(`🔍 [Undo] Activity ${activity.id.slice(0,8)} (${activity.action_type}):`, {
+                    '1_has_profile': condition1,
+                    '2_not_undone': condition2,
+                    '3_is_undoable': condition3,
+                    'is_undoable_value': activity.is_undoable,
+                    'is_undoable_type': typeof activity.is_undoable,
+                    'SHOULD_SHOW': allConditions
+                  });
+
+                  return null;
+                })()}
+
                 {/* Undo button for undoable actions */}
                 {profile?.id && !activity.undone_at && activity.is_undoable === true && (
                   <TouchableOpacity

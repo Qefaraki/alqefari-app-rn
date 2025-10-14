@@ -529,11 +529,20 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
               }
               title="مراجعة الاقتراحات"
               trailing={
-                <Ionicons
-                  name="chevron-back"
-                  size={18}
-                  color={tokens.colors.najdi.textMuted}
-                />
+                <View style={styles.trailingCluster}>
+                  {pendingSuggestionsCount > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {formatCount(pendingSuggestionsCount)}
+                      </Text>
+                    </View>
+                  )}
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                </View>
               }
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -813,7 +822,10 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
       {renderIOSModal(
         showSuggestionReview,
-        () => setShowSuggestionReview(false),
+        () => {
+          setShowSuggestionReview(false);
+          loadPendingSuggestionsCount();
+        },
         SuggestionReviewManager
       )}
 
@@ -925,16 +937,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badge: {
-    backgroundColor: tokens.colors.danger,
+    backgroundColor: tokens.colors.najdi.primary,
     borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    minWidth: 26,
+    minWidth: 24,
+    height: 24,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 6,
   },
   badgeText: {
-    color: tokens.colors.surface,
+    color: tokens.colors.najdi.background,
     fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
     fontFamily: Platform.select({
