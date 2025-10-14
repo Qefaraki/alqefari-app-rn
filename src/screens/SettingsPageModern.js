@@ -991,6 +991,23 @@ export default function SettingsPageModern({ user }) {
           </SettingsSection>
         )}
 
+        {/* My Suggestions - Only for authenticated users */}
+        {!isGuestMode && (
+          <SettingsSection title="الاقتراحات">
+            <SettingsCell
+              label="اقتراحاتي"
+              description="عرض حالة اقتراحاتك المرسلة"
+              onPress={() => {
+                handleFeedback();
+                router.push('/(app)/my-suggestions');
+              }}
+              rightAccessory={
+                <Ionicons name="list-outline" size={18} color={colors.muted} />
+              }
+            />
+          </SettingsSection>
+        )}
+
         {/* Upcoming Features (Hidden by default) */}
         <View style={styles.sectionContainer}>
           <TouchableOpacity
