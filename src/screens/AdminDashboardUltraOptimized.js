@@ -832,7 +832,21 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       {renderIOSModal(
         showMunasibManager,
         () => setShowMunasibManager(false),
-        MunasibManager
+        MunasibManager,
+        {
+          onNavigateToProfile: async (profileId) => {
+            // Close MunasibManager first
+            setShowMunasibManager(false);
+
+            // Wait for modal close animation
+            setTimeout(() => {
+              router.push({
+                pathname: "/",
+                params: { openProfileId: profileId }
+              });
+            }, 300);
+          }
+        }
       )}
 
       {renderIOSModal(

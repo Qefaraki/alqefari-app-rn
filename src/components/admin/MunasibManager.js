@@ -101,7 +101,7 @@ const FamilyCardSkeleton = () => (
   </View>
 );
 
-export default function MunasibManager({ onClose }) {
+export default function MunasibManager({ onClose, onNavigateToProfile }) {
   const [familyStats, setFamilyStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -320,6 +320,7 @@ export default function MunasibManager({ onClose }) {
             setShowFamilyDetail(false);
             setSelectedFamily(null);
           }}
+          onNavigateToProfile={onNavigateToProfile}
         />
       </SafeAreaView>
   );

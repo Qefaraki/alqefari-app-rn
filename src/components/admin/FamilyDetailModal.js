@@ -33,7 +33,7 @@ const MarriageCardSkeleton = () => (
   </View>
 );
 
-export default function FamilyDetailModal({ visible, family, onClose }) {
+export default function FamilyDetailModal({ visible, family, onClose, onNavigateToProfile }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -138,16 +138,21 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
     if (member.munasib?.id) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-      // Close modal first
+      // Close this modal first
       onClose();
 
-      // Navigate to tree screen with profile ID parameter
-      router.push({
-        pathname: "/",
-        params: {
-          openProfileId: member.munasib.id,
-        },
-      });
+      // Use callback if provided (closes parent modals + navigates)
+      if (onNavigateToProfile) {
+        onNavigateToProfile(member.munasib.id);
+      } else {
+        // Fallback for standalone usage
+        router.push({
+          pathname: "/",
+          params: {
+            openProfileId: member.munasib.id,
+          },
+        });
+      }
     }
   };
 
