@@ -49,22 +49,7 @@ CREATE TABLE audit_log_enhanced (
 );
 ```
 
-### 2. Legacy Table: `audit_log` (Still Active)
-
-```sql
-CREATE TABLE audit_log (
-    id UUID PRIMARY KEY,
-    created_at TIMESTAMP,
-    user_id UUID,
-    action TEXT,
-    table_name TEXT,
-    record_id UUID,
-    old_data JSONB,
-    new_data JSONB,
-    ip_address TEXT,
-    user_agent TEXT
-);
-```
+**Note**: The legacy `audit_log` table was deprecated and removed in January 2025. All audit logging now uses `audit_log_enhanced` exclusively as the single source of truth.
 
 ## 🔄 Automatic Logging Triggers
 
@@ -199,31 +184,13 @@ supabase
   .subscribe();
 ```
 
-## 🔄 Data Migration System
+## 📜 Migration History
 
-```sql
--- Migration from legacy to enhanced (056_migrate_audit_logs.sql)
-INSERT INTO audit_log_enhanced (
-    id, created_at, actor_id, action_type,
-    table_name, record_id, old_data, new_data,
-    description, ip_address, user_agent
-)
-SELECT
-    id, created_at, user_id,
-    CASE action
-        WHEN 'إضافة عضو' THEN 'create_node'
-        WHEN 'تحديث بيانات' THEN 'update_node'
-        WHEN 'حذف عضو' THEN 'delete_node'
-        -- ... more mappings
-    END,
-    table_name, record_id, old_data, new_data,
-    action, ip_address::inet, user_agent
-FROM audit_log
-WHERE NOT EXISTS (
-    SELECT 1 FROM audit_log_enhanced
-    WHERE audit_log_enhanced.id = audit_log.id
-);
-```
+**January 2025**: Consolidated audit logging system
+- Removed legacy `audit_log` table (migration: `drop_legacy_audit_log_table`)
+- `audit_log_enhanced` is now the single audit table
+- All triggers write exclusively to `audit_log_enhanced`
+- No data migration needed (pre-production cleanup)
 
 ## 🎨 View Layer: `activity_log_detailed`
 
@@ -380,11 +347,11 @@ $$ LANGUAGE plpgsql STABLE;
 
 ## 🎯 Key Design Decisions
 
-1. **Dual Table System**: Maintains backward compatibility while adding features
+1. **Single Source of Truth**: `audit_log_enhanced` is the only audit table (legacy table removed Jan 2025)
 2. **JSONB Storage**: Flexible schema for old/new data comparison
 3. **Trigger-based**: Automatic, consistent logging without app code
 4. **Severity Levels**: Prioritizes admin attention to critical events
-5. **Revert Capability**: Stores enough data to undo destructive actions
+5. **Undo Capability**: Stores enough data to reverse destructive actions
 6. **View Abstraction**: Simplifies queries with pre-joined actor/target data
 
 ## 📈 Usage Patterns
