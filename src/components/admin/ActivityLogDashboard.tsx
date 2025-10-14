@@ -255,7 +255,11 @@ const ActivityRow = memo<ActivityRowProps>(
       locale: ar,
     });
 
-    const handleUndo = useCallback(() => {
+    const handleUndo = useCallback((e: any) => {
+      // Prevent event from bubbling up to parent TouchableOpacity
+      if (e && e.stopPropagation) {
+        e.stopPropagation();
+      }
       if (onUndo) {
         onUndo(activity.id);
       }
@@ -299,6 +303,7 @@ const ActivityRow = memo<ActivityRowProps>(
             {canUndo && onUndo && (
               <TouchableOpacity
                 onPress={handleUndo}
+                onPressIn={(e) => e.stopPropagation()}
                 style={styles.undoButton}
                 activeOpacity={0.7}
               >
