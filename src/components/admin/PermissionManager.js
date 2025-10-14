@@ -138,11 +138,28 @@ const AnimatedUserCard = ({
                 </Text>
               </View>
             )}
+
+            {/* Generation badge */}
+            {item.generation && (
+              <View style={styles.generationBadge}>
+                <Text style={styles.generationText}>
+                  الجيل {item.generation}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Actions with improved icons and labels */}
-        {canEditThisUser && (
+        {/* Chevron affordance - indicates card is tappable */}
+        <Ionicons
+          name="chevron-back"
+          size={20}
+          color={colors.textMuted}
+          style={styles.chevronIcon}
+        />
+
+        {/* REMOVED: Action buttons moved to PermissionSummary detail view */}
+        {false && canEditThisUser && (
           <View style={styles.actions}>
             {/* Role selector */}
             {userRole !== "super_admin" && (
@@ -819,6 +836,16 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                     searchUsers(searchText);
                   }
                 }}
+                currentUserRole={currentUserRole}
+                onRoleChange={(userId, currentRole) => {
+                  showRoleMenu(selectedUser);
+                }}
+                onBranchManage={(user) => {
+                  manageBranchModerator(user);
+                }}
+                onBlockToggle={(userId, isBlocked) => {
+                  toggleSuggestionBlock(userId, isBlocked);
+                }}
               />
             )}
           </Modal>
@@ -989,35 +1016,22 @@ const styles = StyleSheet.create({
   blockedBadge: {
     backgroundColor: colors.error + "10",
   },
-  actions: {
+  generationBadge: {
     flexDirection: "row",
-    gap: 12,
-    alignItems: "flex-start",
-  },
-  actionButton: {
-    minWidth: 52,  // Wider to accommodate labels
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: colors.background,
     alignItems: "center",
-    justifyContent: "center",
-    gap: 4,  // Space between icon and label
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: colors.container + "40", // Camel Hair Beige 40%
   },
-  actionLabel: {
-    fontSize: 12,  // Optimized for button size (design system recommends 15, but 12 fits better)
-    fontWeight: "600",
+  generationText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.text,
     fontFamily: "SF Arabic",
-    textAlign: "center",
   },
-  primaryAction: {
-    backgroundColor: colors.primary + "10",
-  },
-  activeAction: {
-    backgroundColor: colors.secondary + "10",
-  },
-  dangerAction: {
-    backgroundColor: colors.error + "10",
+  chevronIcon: {
+    marginLeft: 8,
   },
   emptyContainer: {
     padding: 48,

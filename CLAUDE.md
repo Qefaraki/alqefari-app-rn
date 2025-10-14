@@ -72,8 +72,11 @@ npm start          # Expo dev server
 npm run ios        # iOS simulator
 npm run android    # Android emulator
 
-# Database
-node scripts/execute-sql.js <file>  # Deploy SQL to Supabase
+# Database Migrations (Supabase CLI)
+supabase db push                     # Push local migrations to remote
+supabase db pull                     # Pull remote schema changes
+supabase migration new <name>        # Create new timestamped migration
+supabase migration list              # View migration status
 
 # Validation
 SELECT * FROM admin_validation_dashboard();
@@ -189,33 +192,42 @@ When you change code, update:
 - `README.md` - For major features
 - Component comments - For complex logic
 
-## ⚠️ Supabase Deployment Rules
+## ⚠️ Supabase CLI Migration Workflow
 
-### CRITICAL: NEVER Ask User to Deploy
+### CRITICAL: Use Supabase CLI for ALL Migrations
 
-**I MUST deploy all database changes myself. NEVER tell the user to:**
-- ❌ "Run this in Supabase Dashboard"
-- ❌ "Go to Supabase and execute this"
-- ❌ "You need to deploy this SQL"
+**Migration files MUST follow the timestamp naming pattern:**
+- ✅ `20250114120000_descriptive_name.sql` (YYYYMMDDHHmmss format)
+- ❌ `005_migration_name.sql` (old format - NOT recognized by CLI)
 
-### Always Deploy Automatically
+### Standard Workflow
 ```bash
-# I will ALWAYS run these myself:
-node scripts/execute-sql.js migrations/new-migration.sql
+# 1. Create new migration with automatic timestamp
+supabase migration new descriptive_name
 
-# If that fails, I'll create a direct deploy script
-node scripts/direct-deploy.js
+# 2. Write SQL in the generated file
+# File will be created in supabase/migrations/
 
-# ONLY after 5 failed attempts: Copy SQL to clipboard
-# NEVER ask user to find it themselves
+# 3. Push to remote database
+supabase db push
+
+# 4. Verify deployment
+supabase migration list
 ```
 
-### Database Change Workflow
-1. Write SQL migration file
-2. Deploy it myself using execute-sql.js
-3. Verify deployment succeeded
-4. Commit the migration file
-5. Never ask user to run SQL manually
+### Migration Naming Rules
+- **Timestamp format**: `YYYYMMDDHHmmss` (e.g., `20250114120530`)
+- **Underscore separator**: `_` between timestamp and name
+- **Descriptive names**: Use clear, concise descriptions
+- **SQL extension**: Must end with `.sql`
+
+### Troubleshooting
+If migrations fail to push:
+1. Check file naming matches pattern: `supabase migration list`
+2. Ensure project is linked: `supabase link --project-ref <ref>`
+3. Verify migration history: `supabase db pull` (if needed)
+
+**Never use custom scripts or manual SQL execution - always use the CLI.**
 
 ## 🛠️ Tool Usage Constraints
 
@@ -308,10 +320,13 @@ _See full documentation: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md)_
 ### Deployment Order
 ```bash
 # Check deployed migrations
-SELECT version, name FROM migrations ORDER BY version;
+supabase migration list
 
-# Deploy missing migrations
-node scripts/execute-sql.js migrations/XXX_migration_name.sql
+# Push pending migrations
+supabase db push
+
+# View migration details
+supabase migration list --debug
 ```
 
 ## 🗑️ Soft Delete Pattern

@@ -30,13 +30,26 @@ const colors = {
  *
  * Comprehensive panel showing all permission details for a selected user.
  * Displays role, branch assignments, block status, and permission statistics.
+ * NOW INCLUDES: Admin action sections (Role, Branch, Block management)
  *
  * Props:
  * - user: object - User data with id, name, role, etc.
  * - onClose: () => void - Called when panel is closed
  * - onRefresh: () => void - Called when data needs refresh
+ * - currentUserRole: string - Role of the user viewing this (for permission checks)
+ * - onRoleChange: (userId, newRole) => Promise - Callback to change user role
+ * - onBranchManage: (user) => void - Callback to manage branch assignments
+ * - onBlockToggle: (userId, isBlocked) => Promise - Callback to toggle block status
  */
-const PermissionSummary = ({ user, onClose, onRefresh }) => {
+const PermissionSummary = ({
+  user,
+  onClose,
+  onRefresh,
+  currentUserRole,
+  onRoleChange,
+  onBranchManage,
+  onBlockToggle,
+}) => {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
@@ -284,6 +297,138 @@ const PermissionSummary = ({ user, onClose, onRefresh }) => {
             <Ionicons name="chevron-back" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
+
+        {/* Role Management Section - Only for super_admin */}
+        {currentUserRole === "super_admin" && userRole !== "super_admin" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>إدارة الصلاحية</Text>
+            </View>
+            <View style={styles.actionSectionCard}>
+              <Text style={styles.actionSectionInfo}>
+                الصلاحية الحالية: {roleLabel}
+              </Text>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (onRoleChange) onRoleChange(user.id, user.role);
+                }}
+              >
+                <Text style={styles.primaryButtonText}>تغيير الصلاحية</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Branch Moderation Section - Only for super_admin */}
+        {currentUserRole === "super_admin" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="git-branch" size={20} color={colors.secondary} />
+              <Text style={styles.sectionTitle}>إدارة الفروع</Text>
+            </View>
+            <View style={styles.actionSectionCard}>
+              {summary?.moderated_branches?.length > 0 ? (
+                <>
+                  <Text style={styles.actionSectionInfo}>
+                    يدير {summary.moderated_branches.length} {summary.moderated_branches.length === 1 ? "فرع" : "فروع"}
+                  </Text>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                      style={[styles.secondaryButton, { flex: 1 }]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        if (onBranchManage) onBranchManage(user);
+                      }}
+                    >
+                      <Ionicons name="eye" size={16} color={colors.primary} />
+                      <Text style={styles.secondaryButtonText}>عرض الفروع</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.primaryButton, { flex: 1 }]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        if (onBranchManage) onBranchManage(user);
+                      }}
+                    >
+                      <Ionicons name="add" size={16} color={colors.white} />
+                      <Text style={styles.primaryButtonText}>إضافة فرع</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.actionSectionInfo}>
+                    لم يتم تعيين أي فروع لهذا المستخدم
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (onBranchManage) onBranchManage(user);
+                    }}
+                  >
+                    <Ionicons name="add" size={16} color={colors.white} />
+                    <Text style={styles.primaryButtonText}>تعيين كمشرف فرع</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Block Management Section - Only for super_admin (Danger Zone) */}
+        {currentUserRole === "super_admin" && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="warning" size={20} color={colors.error} />
+              <Text style={[styles.sectionTitle, { color: colors.error }]}>
+                منطقة الخطر
+              </Text>
+            </View>
+            <View style={styles.dangerZoneCard}>
+              {user.is_blocked ? (
+                <>
+                  <Ionicons name="ban" size={32} color={colors.error} style={{ marginBottom: 8 }} />
+                  <Text style={styles.dangerZoneTitle}>المستخدم محظور</Text>
+                  <Text style={styles.dangerZoneText}>
+                    لا يمكن لهذا المستخدم إرسال اقتراحات تعديل
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.unblockButton}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      if (onBlockToggle) onBlockToggle(user.id, false);
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle" size={16} color={colors.white} />
+                    <Text style={styles.unblockButtonText}>إلغاء الحظر</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="lock-closed" size={32} color={colors.error} style={{ marginBottom: 8 }} />
+                  <Text style={styles.dangerZoneTitle}>حظر الاقتراحات</Text>
+                  <Text style={styles.dangerZoneText}>
+                    منع هذا المستخدم من إرسال اقتراحات تعديل جديدة
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.blockButton}
+                    onPress={() => {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                      if (onBlockToggle) onBlockToggle(user.id, true);
+                    }}
+                  >
+                    <Ionicons name="ban" size={16} color={colors.white} />
+                    <Text style={styles.blockButtonText}>حظر من الاقتراحات</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -600,6 +745,132 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: colors.text,
+    fontFamily: "SF Arabic",
+  },
+
+  // Action Section Cards (Role, Branch, Block)
+  actionSectionCard: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  actionSectionInfo: {
+    fontSize: 14,
+    color: colors.textMuted,
+    marginBottom: 12,
+    fontFamily: "SF Arabic",
+  },
+
+  // Button Row
+  buttonRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  // Primary Button
+  primaryButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
+    fontFamily: "SF Arabic",
+  },
+
+  // Secondary Button
+  secondaryButton: {
+    backgroundColor: "transparent",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.primary,
+    fontFamily: "SF Arabic",
+  },
+
+  // Danger Zone Card
+  dangerZoneCard: {
+    backgroundColor: colors.error + "08",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.error + "20",
+    alignItems: "center",
+  },
+  dangerZoneTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 8,
+    fontFamily: "SF Arabic",
+  },
+  dangerZoneText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginBottom: 16,
+    fontFamily: "SF Arabic",
+  },
+
+  // Block Button
+  blockButton: {
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
+  },
+  blockButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
+    fontFamily: "SF Arabic",
+  },
+
+  // Unblock Button
+  unblockButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    minHeight: 44,
+  },
+  unblockButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
     fontFamily: "SF Arabic",
   },
 });

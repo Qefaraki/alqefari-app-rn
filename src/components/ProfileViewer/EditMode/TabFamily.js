@@ -25,6 +25,7 @@ import { useFeedbackTimeout } from '../../../hooks/useFeedbackTimeout';
 import { ErrorBoundary } from '../../ErrorBoundary';
 import { getShortNameChain } from '../../../utils/nameChainUtils';
 import AnimatedMarriageCard from './AnimatedMarriageCard';
+import { PERMISSION_MESSAGES, ERROR_MESSAGES, WARNING_MESSAGES } from './permissionMessages';
 
 // Context for sharing permission state across family components
 const TabFamilyContext = React.createContext({
@@ -888,10 +889,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   const handleQuickMotherSelect = async (motherId) => {
     if (!canEditFamily) {
-      Alert.alert(
-        'غير مصرح',
-        'ليس لديك صلاحية لتعديل الأم.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-      );
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.message);
       return;
     }
     if (!person?.id || !motherId || motherId === person?.mother_id) return;
@@ -927,10 +925,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   const handleClearMother = async () => {
     if (!canEditFamily) {
-      Alert.alert(
-        'غير مصرح',
-        'ليس لديك صلاحية لإزالة الأم.'
-      );
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_CLEAR.title, PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_CLEAR.message);
       return;
     }
     if (!person?.id || !person?.mother_id) return;
@@ -971,10 +966,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   const handleChangeMother = () => {
     if (!canEditFamily) {
-      Alert.alert(
-        'غير مصرح',
-        'ليس لديك صلاحية لتعديل الأم.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-      );
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.message);
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1090,8 +1082,11 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   // Calculate permission for family editing based on parent profile permission
   const canEditFamily = accessMode === 'direct';
 
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({ canEditFamily }), [canEditFamily]);
+
   return (
-    <TabFamilyContext.Provider value={{ canEditFamily }}>
+    <TabFamilyContext.Provider value={contextValue}>
       <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
