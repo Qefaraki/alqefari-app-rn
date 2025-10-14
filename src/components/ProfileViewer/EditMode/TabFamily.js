@@ -1026,10 +1026,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   const handleAddSpousePress = () => {
     if (!canEditFamily) {
-      Alert.alert(
-        'غير مصرح',
-        'ليس لديك صلاحية لإضافة زواج.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-      );
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1038,10 +1035,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   const handleOpenInlineSpouseAdder = () => {
     if (!canEditFamily) {
-      Alert.alert(
-        'غير مصرح',
-        'ليس لديك صلاحية لإضافة زواج.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-      );
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
       return;
     }
     dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: true } });
@@ -1053,20 +1047,17 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onNavigateToProfile(father.id);
     } else {
-      Alert.alert('تنبيه', 'أضف الأب أولاً لتتمكن من الانتقال إلى ملفه.');
+      Alert.alert(WARNING_MESSAGES.ADD_FATHER_FIRST.title, WARNING_MESSAGES.ADD_FATHER_FIRST.message);
     }
   };
 
   const handleAddChildPress = () => {
     if (!canEditFamily) {
-      Alert.alert(
-        'غير مصرح',
-        'ليس لديك صلاحية لإضافة ابن/ابنة.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-      );
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.message);
       return;
     }
     if (person.gender === 'female' && spouses.length === 0) {
-      Alert.alert('تنبيه', 'يجب إضافة زوج أولاً قبل إضافة الأبناء', [
+      Alert.alert(WARNING_MESSAGES.ADD_SPOUSE_BEFORE_CHILDREN.title, WARNING_MESSAGES.ADD_SPOUSE_BEFORE_CHILDREN.message, [
         {
           text: 'إضافة زوج',
           onPress: () => dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true }),
@@ -1400,10 +1391,7 @@ const SpouseRow = React.memo(
         onCancelEdit?.();
       } else {
         if (!canEditFamily) {
-          Alert.alert(
-            'غير مصرح',
-            'ليس لديك صلاحية لتعديل هذا الملف الشخصي.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-          );
+          Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_EDIT.message);
           return;
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

@@ -400,7 +400,7 @@ const PermissionSummary = ({
                     style={styles.unblockButton}
                     onPress={() => {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                      if (onBlockToggle) onBlockToggle(user.id, false);
+                      if (onBlockToggle) onBlockToggle(user.id, true); // true = currently blocked, so unblock
                     }}
                   >
                     <Ionicons name="checkmark-circle" size={16} color={colors.white} />
@@ -418,7 +418,7 @@ const PermissionSummary = ({
                     style={styles.blockButton}
                     onPress={() => {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                      if (onBlockToggle) onBlockToggle(user.id, true);
+                      if (onBlockToggle) onBlockToggle(user.id, false); // false = not blocked, so block
                     }}
                   >
                     <Ionicons name="ban" size={16} color={colors.white} />
