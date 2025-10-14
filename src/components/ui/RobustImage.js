@@ -38,16 +38,16 @@ const RobustImage = ({
   const mountedRef = useRef(true);
 
   useEffect(() => {
-    // 🔍 DEBUG: Track component lifecycle
-    console.log('🔍 [RobustImage DEBUG] MOUNTED:', imageUrl.slice(-40));
+    // Reset retry state when URL changes
+    setRetryCount(0);
+    setImageKey(prev => prev + 1);
+    setLoadState('loading');
 
     return () => {
       mountedRef.current = false;
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-      // 🔍 DEBUG: Track unmount
-      console.log('🔍 [RobustImage DEBUG] UNMOUNTED:', imageUrl.slice(-40));
     };
   }, [imageUrl]);
 
@@ -62,52 +62,43 @@ const RobustImage = ({
 
   // Auto-retry with exponential backoff
   const scheduleRetry = useCallback(() => {
-    // 🔍 DEBUG: Track retry scheduling
-    console.log('🔍 [RobustImage DEBUG] scheduleRetry called:', {
-      retryCount,
-      maxRetries,
-      shouldRetry: retryCount < maxRetries,
-      imageUrl: imageUrl.slice(-40)
-    });
-
     if (retryCount >= maxRetries) {
-      console.error('[RobustImage] Max retries reached for:', imageUrl);
       return;
     }
 
     const delay = Math.min(1000 * Math.pow(2, retryCount), 8000);
-    console.log(`[RobustImage] Scheduling retry ${retryCount + 1}/${maxRetries} in ${delay}ms for:`, imageUrl);
+
+    if (__DEV__) {
+      console.log(`[RobustImage] Scheduling retry ${retryCount + 1}/${maxRetries} in ${delay}ms`);
+    }
 
     retryTimeoutRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
-
-      // 🔍 DEBUG: Track actual retry execution
-      console.log('🔍 [RobustImage DEBUG] Executing retry:', {
-        oldRetryCount: retryCount,
-        willBecome: retryCount + 1
-      });
 
       setRetryCount(prev => prev + 1);
       setImageKey(prev => prev + 1);
       setLoadState('loading');
     }, delay);
-  }, [retryCount, maxRetries, imageUrl]);
+  }, [retryCount, maxRetries]);
 
   // Manual retry (user-triggered)
   const handleManualRetry = useCallback(() => {
-    // CRITICAL FIX: Clear auto-retry timeout to prevent race condition
+    // Clear auto-retry timeout to prevent race condition
     if (retryTimeoutRef.current) {
       clearTimeout(retryTimeoutRef.current);
       retryTimeoutRef.current = null;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    console.log('[RobustImage] Manual retry triggered for:', imageUrl);
+
+    if (__DEV__) {
+      console.log('[RobustImage] Manual retry triggered');
+    }
 
     setRetryCount(0); // Reset retry count
     setImageKey(prev => prev + 1);
     setLoadState('loading');
-  }, [imageUrl]);
+  }, []);
 
   // Handle load start
   const handleLoadStart = useCallback(() => {
@@ -120,25 +111,15 @@ const RobustImage = ({
     if (!mountedRef.current) return;
 
     setLoadState('success');
-    if (retryCount > 0) {
-      console.log(`[RobustImage] ✅ Success after ${retryCount} retries:`, imageUrl);
+    if (retryCount > 0 && __DEV__) {
+      console.log(`[RobustImage] ✅ Success after ${retryCount} retries`);
     }
     onLoadEnd?.();
-  }, [retryCount, imageUrl, onLoadEnd]);
+  }, [retryCount, onLoadEnd]);
 
   // Handle load error
   const handleError = useCallback((error) => {
     if (!mountedRef.current) return;
-
-    // 🔍 DEBUG: Track which version is running and state
-    console.log('🔍 [RobustImage DEBUG] handleError called:', {
-      version: 'v2-fixed',
-      retryCount,
-      maxRetries,
-      willLogError: retryCount >= maxRetries,
-      willRetry: retryCount < maxRetries,
-      imageUrl: imageUrl.slice(-40)
-    });
 
     setLoadState('error');
     externalOnError?.(error);
@@ -146,7 +127,6 @@ const RobustImage = ({
     // Only log ERROR after max retries exhausted
     if (retryCount >= maxRetries) {
       console.error('[RobustImage] Load failed after max retries:', {
-        url: imageUrl,
         attempts: retryCount + 1,
         maxRetries,
         error: error?.message || 'Unknown error',
@@ -155,7 +135,6 @@ const RobustImage = ({
       // Log WARN for intermediate failures (only in dev)
       const nextRetryDelay = Math.min(1000 * Math.pow(2, retryCount), 8000);
       console.warn('[RobustImage] Load error (retry scheduled):', {
-        url: imageUrl,
         attempt: retryCount + 1,
         nextRetryIn: `${nextRetryDelay}ms`,
       });
@@ -165,7 +144,7 @@ const RobustImage = ({
     if (retryCount < maxRetries) {
       scheduleRetry();
     }
-  }, [retryCount, maxRetries, imageUrl, scheduleRetry, externalOnError]);
+  }, [retryCount, maxRetries, scheduleRetry, externalOnError]);
 
   // Build source with cache-busting if retrying
   const buildSource = () => {
