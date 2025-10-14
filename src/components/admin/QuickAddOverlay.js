@@ -254,6 +254,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
     setLoading(true);
 
     try {
+      // Validate before creating promises
+      for (const child of newChildren) {
+        if (!child.name || child.name.trim().length < 2) {
+          Alert.alert("خطأ", `اسم الطفل غير صالح: "${child.name}"`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const promises = [];
 
       // 1. Create new children
@@ -340,24 +349,36 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       const results = await Promise.allSettled(promises);
 
+      // Log detailed errors for debugging
+      results.forEach((result, index) => {
+        if (result.status === "rejected") {
+          console.error(`Child ${index + 1} creation failed:`, result.reason);
+        }
+      });
+
       const successful = results.filter((r) => r.status === "fulfilled").length;
-      const failed = results.filter((r) => r.status === "rejected").length;
+      const failed = results.filter((r) => r.status === "rejected");
 
       await refreshProfile(parentNode.id);
 
-      if (failed === 0) {
+      if (failed.length === 0) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onClose?.();
       } else if (successful > 0) {
         Alert.alert(
           "تحديث جزئي",
-          `تم حفظ ${successful} من ${results.length} بنجاح. فشل ${failed} عملية.`,
+          `تم حفظ ${successful} من ${results.length} بنجاح. فشل ${failed.length} عملية.`,
           [{ text: "حسناً", onPress: onClose }]
         );
       } else {
+        // Extract first error for user display
+        const firstError = failed[0]?.reason?.message || failed[0]?.reason || "خطأ غير معروف";
+
+        console.error("All failed operations:", failed.map(f => f.reason));
+
         Alert.alert(
           "خطأ",
-          "فشل حفظ جميع التعديلات. يرجى المحاولة مرة أخرى.",
+          `فشل حفظ ${failed.length} من ${results.length} طفل.\n\nالخطأ: ${firstError}`,
           [{ text: "حسناً" }]
         );
       }
