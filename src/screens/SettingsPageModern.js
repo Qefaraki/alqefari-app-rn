@@ -10,6 +10,7 @@ import {
   Image,
   ActivityIndicator,
   Platform,
+  Modal,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,6 +34,7 @@ import adminContactService from "../services/adminContact";
 import { formatNameWithTitle } from "../services/professionalTitleService";
 import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 import tokens from '../components/ui/tokens';
+import MySuggestions from "./MySuggestions";
 
 // Use design system tokens
 const colors = {
@@ -310,6 +312,7 @@ export default function SettingsPageModern({ user }) {
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [showMySuggestions, setShowMySuggestions] = useState(false);
 
   // New settings states
   const [notifications, setNotifications] = useState({
@@ -1139,41 +1142,8 @@ export default function SettingsPageModern({ user }) {
               label="اقتراحاتي"
               description="عرض حالة اقتراحاتك المرسلة"
               onPress={() => {
-                console.log('=== MySuggestions Navigation Debug ===');
-                console.log('Guest mode:', isGuestMode);
-                console.log('Router exists:', !!router);
-                console.log('Router push function:', typeof router?.push);
-                console.log('User profile:', userProfile?.id, userProfile?.name);
-
-                try {
-                  handleFeedback();
-                  console.log('✅ Haptic feedback triggered');
-
-                  const route = '/(app)/my-suggestions';
-                  console.log('🚀 Navigating to:', route);
-                  router.push(route);
-                  console.log('✅ Navigation call completed');
-                } catch (error) {
-                  console.error('❌ Navigation error:', error);
-                  console.error('Error stack:', error.stack);
-                  Alert.alert(
-                    'خطأ في التنقل',
-                    `فشل فتح صفحة الاقتراحات: ${error.message}`,
-                    [
-                      { text: 'حسناً', style: 'cancel' },
-                      {
-                        text: 'إعادة المحاولة',
-                        onPress: () => {
-                          try {
-                            router.replace('/(app)/my-suggestions');
-                          } catch (retryError) {
-                            console.error('❌ Retry also failed:', retryError);
-                          }
-                        }
-                      }
-                    ]
-                  );
-                }
+                handleFeedback();
+                setShowMySuggestions(true);
               }}
               rightAccessory={
                 <Ionicons name="list-outline" size={18} color={colors.muted} />
@@ -1313,6 +1283,16 @@ export default function SettingsPageModern({ user }) {
           <Text style={styles.appVersion}>الإصدار 2.0.0</Text>
         </View>
       </ScrollView>
+
+      {/* MySuggestions Modal */}
+      <Modal
+        visible={showMySuggestions}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowMySuggestions(false)}
+      >
+        <MySuggestions onClose={() => setShowMySuggestions(false)} />
+      </Modal>
     </SafeAreaView>
   );
 }

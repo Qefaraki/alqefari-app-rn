@@ -7,6 +7,7 @@
 - **[Field Mapping](docs/FIELD_MAPPING.md)** - RPC function field maintenance
 - **[Migration Guide](docs/MIGRATION_GUIDE.md)** - Database migration details
 - **[Soft Delete Pattern](docs/SOFT_DELETE_PATTERN.md)** - Soft delete & optimistic locking
+- **[Undo System](docs/UNDO_SYSTEM_TEST_CHECKLIST.md)** - Activity log undo functionality
 - **[Message Templates](docs/MESSAGE_TEMPLATE_SYSTEM.md)** - WhatsApp template system
 
 ## ⚠️ IMPORTANT: Native RTL Mode is ENABLED
@@ -291,6 +292,104 @@ await supabase.rpc('admin_cascade_delete_profile', {
 ```
 
 **Common Error**: Missing `p_version` parameter causes function not found error.
+
+## 🔄 Undo System (January 2025)
+
+**Status**: ✅ Deployed and operational
+
+### Quick Summary
+
+Complete undo functionality for audit log entries with permission checks, time limits, and safety mechanisms.
+
+### Supported Action Types
+
+| Action Type | RPC Function | Admin Only | Time Limit | Dangerous |
+|-------------|-------------|-----------|-----------|-----------|
+| `profile_update` | `undo_profile_update` | ❌ | 30 days | ❌ |
+| `profile_soft_delete` | `undo_profile_delete` | ❌ | 30 days | ❌ |
+| `profile_cascade_delete` | `undo_cascade_delete` | ✅ | 7 days | ✅ |
+| `add_marriage` | `undo_marriage_create` | ✅ | Unlimited | ✅ |
+| `admin_update` | `undo_profile_update` | ❌ | 30 days | ❌ |
+| `admin_delete` | `undo_profile_delete` | ❌ | 30 days | ❌ |
+
+### Using the Undo System
+
+**From Activity Log Dashboard**:
+```javascript
+import undoService from '../../services/undoService';
+
+// Check if action can be undone
+const permission = await undoService.checkUndoPermission(auditLogId, userProfileId);
+if (permission.can_undo) {
+  // Perform undo
+  const result = await undoService.undoAction(auditLogId, userProfileId, actionType);
+  if (result.success) {
+    console.log(result.message);  // "تم التراجع بنجاح"
+  }
+}
+```
+
+**Helper Methods**:
+```javascript
+undoService.isDangerousAction(actionType)       // Returns true for cascade_delete, add_marriage
+undoService.requiresAdminApproval(actionType)   // Returns true for admin-only operations
+undoService.getActionDescription(actionType)    // Returns Arabic description
+undoService.getUndoTimeRemaining(createdAt)     // Returns time remaining (30 days for users)
+```
+
+### Permission Rules
+
+- **Regular Users**: Can undo their own actions within 30 days
+- **Admins/Super Admins**: Can undo any action, unlimited time
+- **Dangerous Operations**: Require confirmation dialog (cascade delete, marriage operations)
+- **Already Undone**: Cannot undo the same action twice
+
+### Database Functions
+
+1. **`check_undo_permission(p_audit_log_id, p_user_profile_id)`**
+   - Returns: `{can_undo: boolean, reason: string}`
+   - Checks user role, time limits, and action type
+
+2. **`undo_profile_update(p_audit_log_id, p_undo_reason)`**
+   - Restores profile data from `old_data` in audit log
+   - Creates new audit entry for the undo action
+
+3. **`undo_profile_delete(p_audit_log_id, p_undo_reason)`**
+   - Clears `deleted_at` to restore soft-deleted profile
+   - Creates new audit entry for restoration
+
+4. **`undo_cascade_delete(p_audit_log_id, p_undo_reason)`**
+   - Restores entire family subtree using `batch_id`
+   - Admin-only, 7-day limit
+   - Returns count of restored profiles
+
+5. **`undo_marriage_create(p_audit_log_id, p_undo_reason)`**
+   - Soft deletes incorrectly created marriage
+   - Admin-only operation
+
+### UI Features
+
+- **Undo Button**: Appears on undoable activity log entries
+- **Dangerous Badge**: ⚠️ Warning icon for dangerous operations
+- **Confirmation Dialog**: Shown before dangerous operations
+- **Loading States**: Activity indicator during undo operation
+- **Arabic Messages**: All errors and success messages in Arabic
+
+### Testing
+
+See comprehensive test checklist: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/UNDO_SYSTEM_TEST_CHECKLIST.md)
+
+### Architecture
+
+**Registry Pattern** in `undoService.js`:
+- `ACTION_TYPE_CONFIG` maps each action type to its RPC function
+- No substring matching - explicit whitelist
+- Type-safe with built-in safety flags (dangerous, requiresAdmin, timeLimitDays)
+
+**Audit Trail**:
+- Every undo creates a new audit log entry
+- Original entry marked with `undone_at`, `undone_by`, `undo_reason`
+- Full traceability of who undid what and when
 
 ## 📰 News Screen Additions (January 2025)
 

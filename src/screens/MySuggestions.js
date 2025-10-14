@@ -49,7 +49,7 @@ const COLORS = {
   danger: tokens.colors.danger,
 };
 
-export default function MySuggestions() {
+export default function MySuggestions({ onClose }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -116,7 +116,13 @@ export default function MySuggestions() {
 
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.back();
+    if (onClose) {
+      // If opened as modal, use onClose callback
+      onClose();
+    } else if (router.canGoBack()) {
+      // Fallback to router if not in modal
+      router.back();
+    }
   };
 
   // Filter suggestions by active tab
