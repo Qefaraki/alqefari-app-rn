@@ -71,37 +71,12 @@ _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 npm start          # Expo dev server
 npm run ios        # iOS simulator
 npm run android    # Android emulator
-
-# Database Migrations (Supabase CLI)
-supabase db push                     # Push local migrations to remote
-supabase db pull                     # Pull remote schema changes
-supabase migration new <name>        # Create new timestamped migration
-supabase migration list              # View migration status
-
-# Validation
-SELECT * FROM admin_validation_dashboard();
-SELECT * FROM admin_auto_fix_issues();
 ```
 
-## 📄 PDF Export System
-
-The app includes comprehensive PDF export for Arabic-first family tree reports:
-
-### Available Exports
-1. **Full Family Tree** - All profiles organized by generation
-2. **Individual Profile** - Single person report with relationships
-3. **Munasib Report** - Profiles of spouses married into the family
-
-### Usage
-```javascript
-import pdfExportService from './services/pdfExport';
-
-await pdfExportService.exportFamilyTreePDF({
-  title: "شجرة عائلة القفاري",
-  includePhotos: true,
-  includeMunasib: true
-});
-```
+### Database Operations (MCP Only)
+- **Queries**: Use `mcp__supabase__execute_sql`
+- **Migrations**: Use `mcp__supabase__apply_migration`
+- **Schema**: Use `mcp__supabase__list_tables`
 
 ## 👥 Munasib Management System
 
@@ -192,65 +167,28 @@ When you change code, update:
 - `README.md` - For major features
 - Component comments - For complex logic
 
-## ⚠️ Supabase CLI Migration Workflow
+## ⚠️ Database Migrations
 
-### CRITICAL: Use Supabase CLI for ALL Migrations
+### CRITICAL: Use MCP Only
 
-**Migration files MUST follow the timestamp naming pattern:**
-- ✅ `20250114120000_descriptive_name.sql` (YYYYMMDDHHmmss format)
-- ❌ `005_migration_name.sql` (old format - NOT recognized by CLI)
+**All migrations use `mcp__supabase__apply_migration`. No CLI, no alternatives.**
 
-### Standard Workflow
-```bash
-# 1. Create new migration with automatic timestamp
-supabase migration new descriptive_name
-
-# 2. Write SQL in the generated file
-# File will be created in supabase/migrations/
-
-# 3. Push to remote database
-supabase db push
-
-# 4. Verify deployment
-supabase migration list
-```
-
-### Migration Naming Rules
-- **Timestamp format**: `YYYYMMDDHHmmss` (e.g., `20250114120530`)
-- **Underscore separator**: `_` between timestamp and name
-- **Descriptive names**: Use clear, concise descriptions
-- **SQL extension**: Must end with `.sql`
-
-### Troubleshooting
-If migrations fail to push:
-1. Check file naming matches pattern: `supabase migration list`
-2. Ensure project is linked: `supabase link --project-ref <ref>`
-3. Verify migration history: `supabase db pull` (if needed)
-
-**Never use custom scripts or manual SQL execution - always use the CLI.**
+Migration naming: `snake_case_descriptive_name`
 
 ## 🛠️ Tool Usage Constraints
 
-### CRITICAL: MCP and CLI Only
+### CRITICAL: Backend Operations = MCP Only
 
-**I MUST only use MCP servers and CLI tools. If they fail:**
-- ✅ Use Supabase MCP for database queries
-- ✅ Use CLI commands (npm, git, etc.) for development tasks
-- ❌ DO NOT look for alternative methods or workarounds
-- ❌ DO NOT try to access Supabase through other means
-- ❌ DO NOT attempt to create custom scripts to bypass limitations
+**All backend operations MUST use Supabase MCP tools. No alternatives.**
 
-### When Tools Fail
-If MCP or CLI tools don't work:
-1. **Tell the user exactly what needs to be done**
-2. **Wait for their response**
-3. **Do not attempt alternatives**
+- ✅ Database queries → `mcp__supabase__execute_sql`
+- ✅ Migrations → `mcp__supabase__apply_migration`
+- ✅ Schema inspection → `mcp__supabase__list_tables`
+- ❌ NO Bash/psql/supabase CLI for queries
+- ❌ NO direct database connections
+- ❌ NO workarounds or alternatives
 
-### No Fallback Strategies
-- If database queries fail → Tell user what SQL to run
-- If file operations fail → Tell user what to check
-- If deployments fail → Tell user what to deploy
-- Never attempt to work around tool limitations
+If MCP fails: Tell user what needs to be done, then wait.
 
 ## 🔒 Security
 
@@ -317,17 +255,8 @@ When adding a **new column** to `profiles` table:
 
 _See full documentation: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md)_
 
-### Deployment Order
-```bash
-# Check deployed migrations
-supabase migration list
-
-# Push pending migrations
-supabase db push
-
-# View migration details
-supabase migration list --debug
-```
+### Deployment
+Use `mcp__supabase__apply_migration` only. No CLI commands.
 
 ## 🗑️ Soft Delete Pattern
 
