@@ -1,4 +1,5 @@
 import React, { useReducer, useEffect, useMemo, useCallback, useState } from 'react';
+import PropTypes from 'prop-types';
 import {
   View,
   Text,
@@ -10,6 +11,7 @@ import {
   Alert,
   RefreshControl,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -863,7 +865,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
               if (__DEV__) {
                 console.error('Error deleting child:', error);
               }
-              Alert.alert('خطأ', 'فشل حذف الملف الشخصي');
+              Alert.alert(ERROR_MESSAGES.DELETE_FAILED.title, ERROR_MESSAGES.DELETE_FAILED.message);
             }
           },
         },
@@ -917,7 +919,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       if (__DEV__) {
         console.error('Error assigning mother:', error);
       }
-      Alert.alert('خطأ', 'فشل تعيين الأم');
+      Alert.alert(ERROR_MESSAGES.ASSIGN_MOTHER_FAILED.title, ERROR_MESSAGES.ASSIGN_MOTHER_FAILED.message);
     } finally {
       dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: null });
     }
@@ -953,7 +955,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       if (__DEV__) {
         console.error('Error clearing mother:', error);
       }
-      Alert.alert('خطأ', 'فشل إزالة الأم');
+      Alert.alert(ERROR_MESSAGES.CLEAR_MOTHER_FAILED.title, ERROR_MESSAGES.CLEAR_MOTHER_FAILED.message);
     } finally {
       dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: null });
     }
@@ -1387,6 +1389,7 @@ const SpouseRow = React.memo(
 
     const handleToggle = () => {
       if (isEditing) {
+        Keyboard.dismiss();
         Haptics.selectionAsync();
         onCancelEdit?.();
       } else {
@@ -1416,6 +1419,8 @@ const SpouseRow = React.memo(
     };
 
     const handleSave = async () => {
+      Keyboard.dismiss();
+
       if (!canEditFamily) {
         Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.title, PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.message);
         return;
@@ -1675,6 +1680,26 @@ const SpouseRow = React.memo(
 );
 SpouseRow.displayName = 'SpouseRow';
 
+// PropTypes for SpouseRow component
+SpouseRow.propTypes = {
+  spouseData: PropTypes.shape({
+    spouse_profile: PropTypes.shape({
+      id: PropTypes.string,
+      name: PropTypes.string,
+      photo_url: PropTypes.string,
+    }),
+    marriage_id: PropTypes.string,
+    status: PropTypes.string,
+  }).isRequired,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+  onVisit: PropTypes.func,
+  inactive: PropTypes.bool,
+  isEditing: PropTypes.bool,
+  onSave: PropTypes.func,
+  onCancelEdit: PropTypes.func,
+};
+
 const ChildRow = React.memo(
   ({ child, onEdit, onDelete, onVisit, isEditing = false, onSave, onCancelEdit }) => {
     const { canEditFamily } = React.useContext(TabFamilyContext);
@@ -1699,14 +1724,12 @@ const ChildRow = React.memo(
 
     const handleToggle = () => {
       if (isEditing) {
+        Keyboard.dismiss();
         Haptics.selectionAsync();
         onCancelEdit?.();
       } else {
         if (!canEditFamily) {
-          Alert.alert(
-            'غير مصرح',
-            'ليس لديك صلاحية لتعديل هذا الملف الشخصي.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-          );
+          Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_EDIT.message);
           return;
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1716,10 +1739,7 @@ const ChildRow = React.memo(
 
     const handleDelete = () => {
       if (!canEditFamily) {
-        Alert.alert(
-          'غير مصرح',
-          'ليس لديك صلاحية لحذف هذا السجل.'
-        );
+        Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_DELETE.title, PERMISSION_MESSAGES.UNAUTHORIZED_DELETE.message);
         return;
       }
       Haptics.selectionAsync();
@@ -1734,6 +1754,8 @@ const ChildRow = React.memo(
     };
 
     const handleSave = async () => {
+      Keyboard.dismiss();
+
       if (!canEditFamily) {
         Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.title, PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.message);
         return;
@@ -1945,6 +1967,24 @@ const ChildRow = React.memo(
   }
 );
 ChildRow.displayName = 'ChildRow';
+
+// PropTypes for ChildRow component
+ChildRow.propTypes = {
+  child: PropTypes.shape({
+    id: PropTypes.string,
+    name: PropTypes.string,
+    gender: PropTypes.oneOf(['male', 'female']),
+    birth_year: PropTypes.number,
+    photo_url: PropTypes.string,
+    version: PropTypes.number,
+  }).isRequired,
+  onEdit: PropTypes.func,
+  onDelete: PropTypes.func,
+  onVisit: PropTypes.func,
+  isEditing: PropTypes.bool,
+  onSave: PropTypes.func,
+  onCancelEdit: PropTypes.func,
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -2631,5 +2671,20 @@ const styles = StyleSheet.create({
     marginStart: tokens.spacing.xs,
   },
 });
+
+// PropTypes for TabFamily component
+TabFamily.propTypes = {
+  person: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string,
+    gender: PropTypes.oneOf(['male', 'female']),
+    mother_id: PropTypes.string,
+    father_id: PropTypes.string,
+    version: PropTypes.number,
+  }).isRequired,
+  accessMode: PropTypes.oneOf(['direct', 'review', 'readonly']).isRequired,
+  onDataChanged: PropTypes.func.isRequired,
+  onNavigateToProfile: PropTypes.func.isRequired,
+};
 
 export default TabFamily;

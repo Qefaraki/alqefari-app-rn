@@ -1,0 +1,7 @@
+{
+  "timestamp": "2025-09-27T12:14:48.706Z",
+  "archivedMigrations": 63,
+  "keptMigrations": 6,
+  "consolidatedFile": "000_consolidated_baseline.sql",
+  "archiveDirectory": "supabase/migrations/archive/"
+}
