@@ -31,6 +31,7 @@ import { PERMISSION_MESSAGES, ERROR_MESSAGES, WARNING_MESSAGES } from './permiss
 import { SectionCard, ParentProfileCard, getInitials, AvatarThumbnail } from './FamilyHelpers';
 import SpouseRow, { TabFamilyContext } from './SpouseRow';
 import ChildRow from './ChildRow';
+import FamilySkeleton from './FamilySkeleton';
 
 // Re-export context for child components (SpouseRow, ChildRow)
 export { TabFamilyContext };
@@ -869,10 +870,12 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   if (state.loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-        <Text style={styles.loadingText}>جاري تحميل بيانات العائلة...</Text>
-      </View>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
+        <FamilySkeleton />
+      </ScrollView>
     );
   }
 
