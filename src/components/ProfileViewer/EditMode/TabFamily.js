@@ -1401,10 +1401,7 @@ const SpouseRow = React.memo(
 
     const handleDelete = () => {
       if (!canEditFamily) {
-        Alert.alert(
-          'غير مصرح',
-          'ليس لديك صلاحية لحذف هذا السجل.'
-        );
+        Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_DELETE.title, PERMISSION_MESSAGES.UNAUTHORIZED_DELETE.message);
         return;
       }
       Haptics.selectionAsync();
@@ -1420,26 +1417,20 @@ const SpouseRow = React.memo(
 
     const handleSave = async () => {
       if (!canEditFamily) {
-        Alert.alert(
-          'غير مصرح',
-          'ليس لديك صلاحية لحفظ التعديلات.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-        );
+        Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.title, PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.message);
         return;
       }
 
       const trimmedName = editingName.trim();
       if (!trimmedName) {
-        Alert.alert('خطأ', 'يرجى كتابة اسم الزوجة');
+        Alert.alert(ERROR_MESSAGES.EMPTY_SPOUSE_NAME.title, ERROR_MESSAGES.EMPTY_SPOUSE_NAME.message);
         return;
       }
 
       // Validate minimum 2 words (name + surname), encourage 5 names
       const words = trimmedName.split(/\s+/);
       if (words.length < 2) {
-        Alert.alert(
-          'عفواً عمي...',
-          'أدخل الاسم كاملاً من فضلك\n\nمثال: مريم محمد علي سليمان السعوي\nالحد الأدنى: اسمان (الاسم الأول + العائلة)'
-        );
+        Alert.alert(ERROR_MESSAGES.INVALID_NAME_FORMAT.title, ERROR_MESSAGES.INVALID_NAME_FORMAT.message);
         return;
       }
 
@@ -1457,7 +1448,7 @@ const SpouseRow = React.memo(
         if (__DEV__) {
           console.error('Missing marriage_id for spouse:', spouseData);
         }
-        Alert.alert('خطأ', 'بيانات الزواج غير مكتملة. يرجى التواصل مع المسؤول.');
+        Alert.alert(ERROR_MESSAGES.MISSING_MARRIAGE_DATA.title, ERROR_MESSAGES.MISSING_MARRIAGE_DATA.message);
         return;
       }
 
@@ -1465,7 +1456,7 @@ const SpouseRow = React.memo(
         if (__DEV__) {
           console.error('Missing spouse.id for spouse:', spouse);
         }
-        Alert.alert('خطأ', 'بيانات الملف الشخصي غير مكتملة. يرجى التواصل مع المسؤول.');
+        Alert.alert(ERROR_MESSAGES.MISSING_PROFILE_DATA.title, ERROR_MESSAGES.MISSING_PROFILE_DATA.message);
         return;
       }
 
@@ -1523,14 +1514,11 @@ const SpouseRow = React.memo(
         const errorMessage = error.message || '';
         if (errorMessage.includes('version') || errorMessage.includes('تم تحديث البيانات') || error.code === 'P0001') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          Alert.alert(
-            'تعارض في التعديلات',
-            'تم تعديل هذا الملف الشخصي من قبل شخص آخر. يرجى تحديث الصفحة والمحاولة مرة أخرى.'
-          );
+          Alert.alert(ERROR_MESSAGES.VERSION_CONFLICT.title, ERROR_MESSAGES.VERSION_CONFLICT.message);
           return;
         }
 
-        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
+        Alert.alert(ERROR_MESSAGES.SAVE_FAILED.title, ERROR_MESSAGES.SAVE_FAILED.message);
       } finally {
         setSaving(false);
       }
@@ -1747,16 +1735,13 @@ const ChildRow = React.memo(
 
     const handleSave = async () => {
       if (!canEditFamily) {
-        Alert.alert(
-          'غير مصرح',
-          'ليس لديك صلاحية لحفظ التعديلات.\n\nيمكنك فقط تعديل:\n• ملفك الشخصي\n• ملفات زوجتك\n• ملفات والديك\n• ملفات إخوتك\n• ملفات أبنائك وأحفادك'
-        );
+        Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.title, PERMISSION_MESSAGES.UNAUTHORIZED_SAVE.message);
         return;
       }
 
       const trimmedName = editingName.trim();
       if (!trimmedName) {
-        Alert.alert('خطأ', 'يرجى كتابة اسم الابن/الابنة');
+        Alert.alert(ERROR_MESSAGES.EMPTY_CHILD_NAME.title, ERROR_MESSAGES.EMPTY_CHILD_NAME.message);
         return;
       }
 
@@ -1773,7 +1758,7 @@ const ChildRow = React.memo(
         if (__DEV__) {
           console.error('Missing child.id for child:', child);
         }
-        Alert.alert('خطأ', 'بيانات الملف الشخصي غير مكتملة. يرجى التواصل مع المسؤول.');
+        Alert.alert(ERROR_MESSAGES.MISSING_PROFILE_DATA.title, ERROR_MESSAGES.MISSING_PROFILE_DATA.message);
         return;
       }
 
@@ -1806,14 +1791,11 @@ const ChildRow = React.memo(
         const errorMessage = error.message || '';
         if (errorMessage.includes('version') || errorMessage.includes('تم تحديث البيانات') || error.code === 'P0001') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          Alert.alert(
-            'تعارض في التعديلات',
-            'تم تعديل هذا الملف الشخصي من قبل شخص آخر. يرجى تحديث الصفحة والمحاولة مرة أخرى.'
-          );
+          Alert.alert(ERROR_MESSAGES.VERSION_CONFLICT.title, ERROR_MESSAGES.VERSION_CONFLICT.message);
           return;
         }
 
-        Alert.alert('خطأ', 'تعذر حفظ التعديلات، حاول مرة أخرى');
+        Alert.alert(ERROR_MESSAGES.SAVE_FAILED.title, ERROR_MESSAGES.SAVE_FAILED.message);
       } finally {
         setSaving(false);
       }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
+import React, { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,11 @@ import { ar } from 'date-fns/locale';
 
 // Import design tokens
 import { tokens } from '../ui/tokens';
+// Import undo functionality
+import undoService from '../../services/undoService';
+import { useUndoStore } from '../../stores/undoStore';
+import Toast from '../ui/Toast';
+import { supabase } from '../../services/supabase';
 
 // Types
 interface ActivityLog {
@@ -235,10 +240,12 @@ interface ActivityRowProps {
   activity: ActivityLog;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  onUndo?: (activityId: string) => void;
+  canUndo?: boolean;
 }
 
 const ActivityRow = memo<ActivityRowProps>(
-  ({ activity, isExpanded, onToggleExpand }) => {
+  ({ activity, isExpanded, onToggleExpand, onUndo, canUndo = false }) => {
     const activityStyle = ACTIVITY_ICONS[activity.action_type] || {
       icon: 'ellipse-outline',
       color: tokens.colors.text.secondary,
@@ -247,6 +254,12 @@ const ActivityRow = memo<ActivityRowProps>(
     const timeString = format(new Date(activity.created_at), 'hh:mm a', {
       locale: ar,
     });
+
+    const handleUndo = useCallback(() => {
+      if (onUndo) {
+        onUndo(activity.id);
+      }
+    }, [activity.id, onUndo]);
 
     return (
       <View style={styles.activityRow}>
@@ -280,9 +293,22 @@ const ActivityRow = memo<ActivityRowProps>(
             </Text>
           </View>
 
-          {/* Time & Chevron */}
+          {/* Time, Undo Button & Chevron */}
           <View style={styles.activityMeta}>
             <Text style={styles.activityTime}>{timeString}</Text>
+            {canUndo && onUndo && (
+              <TouchableOpacity
+                onPress={handleUndo}
+                style={styles.undoButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="arrow-undo-outline"
+                  size={18}
+                  color={tokens.colors.najdi.crimson}
+                />
+              </TouchableOpacity>
+            )}
             <Ionicons
               name={isExpanded ? 'chevron-up' : 'chevron-down'}
               size={20}
@@ -313,10 +339,12 @@ interface DateGroupCardProps {
   group: GroupedActivity;
   expandedIds: Set<string>;
   onToggleExpand: (id: string) => void;
+  onUndo?: (activityId: string) => void;
+  canUndo?: boolean;
 }
 
 const DateGroupCard = memo<DateGroupCardProps>(
-  ({ group, expandedIds, onToggleExpand }) => (
+  ({ group, expandedIds, onToggleExpand, onUndo, canUndo }) => (
     <View style={styles.dateGroup}>
       <Text style={styles.dateHeader}>{group.dateLabel}</Text>
       <View style={styles.dateCard}>
@@ -326,6 +354,8 @@ const DateGroupCard = memo<DateGroupCardProps>(
               activity={activity}
               isExpanded={expandedIds.has(activity.id)}
               onToggleExpand={() => onToggleExpand(activity.id)}
+              onUndo={onUndo}
+              canUndo={canUndo}
             />
             {index < group.activities.length - 1 && (
               <View style={styles.activityDivider} />
@@ -350,6 +380,32 @@ export const ActivityLogDashboard: React.FC = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [userProfileId, setUserProfileId] = useState<string | null>(null);
+
+  // Undo store
+  const { showToast, hideToast, toastVisible, toastMessage, toastType } = useUndoStore();
+
+  // Get current user's profile ID
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+          if (profile) {
+            setUserProfileId(profile.id);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+    fetchUserProfile();
+  }, []);
 
   // Memoized filtered activities
   const filteredActivities = useMemo(() => {
@@ -458,6 +514,51 @@ export const ActivityLogDashboard: React.FC = () => {
     });
   }, []);
 
+  const handleUndo = useCallback(async (activityId: string) => {
+    if (!userProfileId) {
+      showToast('يجب تسجيل الدخول للتراجع', 'error');
+      return;
+    }
+
+    try {
+      // Get the activity details
+      const activity = activities.find((a) => a.id === activityId);
+      if (!activity) {
+        showToast('لم يتم العثور على النشاط', 'error');
+        return;
+      }
+
+      // Check permission first
+      const permissionCheck = await undoService.checkUndoPermission(
+        activityId,
+        userProfileId
+      );
+
+      if (!permissionCheck.can_undo) {
+        showToast(permissionCheck.reason || 'لا يمكن التراجع عن هذا الإجراء', 'error');
+        return;
+      }
+
+      // Perform undo based on action type
+      const result = await undoService.undoAction(
+        activityId,
+        activity.action_type,
+        'تراجع من لوحة السجل'
+      );
+
+      if (result.success) {
+        showToast('✓ تم التراجع بنجاح', 'success');
+        // Refresh activities
+        handleRefresh();
+      } else {
+        showToast(result.error || 'فشل التراجع', 'error');
+      }
+    } catch (error: any) {
+      console.error('Undo error:', error);
+      showToast(error.message || 'حدث خطأ أثناء التراجع', 'error');
+    }
+  }, [userProfileId, activities, showToast, handleRefresh]);
+
   // List header component (all non-scrolling header elements)
   const renderListHeader = useCallback(
     () => (
@@ -544,6 +645,8 @@ export const ActivityLogDashboard: React.FC = () => {
             group={item}
             expandedIds={expandedIds}
             onToggleExpand={handleToggleExpand}
+            onUndo={handleUndo}
+            canUndo={!!userProfileId}
           />
         )}
         ListHeaderComponent={renderListHeader}
@@ -553,6 +656,14 @@ export const ActivityLogDashboard: React.FC = () => {
         showsVerticalScrollIndicator={false}
         refreshing={isRefreshing}
         onRefresh={handleRefresh}
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onDismiss={hideToast}
       />
     </SafeAreaView>
   );
@@ -830,6 +941,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontFamily: 'SF Arabic',
     color: tokens.colors.text.tertiary,
+  },
+
+  undoButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tokens.colors.najdi.crimson + '10',
+    borderRadius: 8,
   },
 
   activityDivider: {
