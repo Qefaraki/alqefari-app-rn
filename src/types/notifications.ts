@@ -13,6 +13,7 @@ export const NOTIFICATION_TYPES = {
   NEW_FAMILY_MEMBER: 'new_family_member',
   ADMIN_MESSAGE: 'admin_message',
   SYSTEM_MESSAGE: 'system_message',
+  ADMIN_BROADCAST: 'admin_broadcast', // NEW: Broadcast notifications from super admins
 } as const;
 
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
@@ -36,6 +37,7 @@ export const NOTIFICATION_TYPE_ALIASES: Record<string, NotificationType> = {
   new_family_member: 'new_family_member',
   admin_message: 'admin_message',
   system_message: 'system_message',
+  admin_broadcast: 'admin_broadcast', // Broadcast notifications
 };
 
 /**
@@ -49,6 +51,10 @@ export interface NotificationData {
   approved_at?: string;
   rejected_at?: string;
   reason?: string;
+  // Broadcast-specific fields
+  broadcast_id?: string;
+  sent_by_profile_id?: string;
+  criteria?: BroadcastCriteria;
   [key: string]: any; // Allow additional fields
 }
 
@@ -71,6 +77,10 @@ export interface Notification {
   push_sent: boolean;
   push_sent_at: string | null;
   push_error: string | null;
+  // Broadcast-specific fields
+  broadcast_id?: string | null;
+  recipient_metadata?: Record<string, any>;
+  priority?: 'normal' | 'high' | 'urgent';
 }
 
 /**
@@ -152,4 +162,105 @@ export const NOTIFICATION_CONFIG = {
   DEDUP_WINDOW_MS: 5 * 60 * 1000, // 5 minutes
   EXPIRY_DAYS: 30,
   CLEANUP_READ_DAYS: 7,
+  BROADCAST_EXPIRY_DAYS: 90, // Broadcasts have longer retention
+  MAX_BROADCAST_RECIPIENTS: 1000, // Maximum recipients per broadcast
 } as const;
+
+// ============================================================================
+// BROADCAST NOTIFICATION TYPES
+// ============================================================================
+
+/**
+ * Broadcast targeting criteria
+ */
+export interface BroadcastCriteria {
+  type: 'all' | 'role' | 'gender' | 'location' | 'custom';
+  values?: string[];
+}
+
+/**
+ * Broadcast recipient preview
+ */
+export interface BroadcastRecipient {
+  user_id: string;
+  profile_id: string;
+  name: string;
+  phone: string | null;
+  hid: string | null;
+}
+
+/**
+ * Broadcast message (metadata)
+ */
+export interface BroadcastMessage {
+  id: string;
+  title: string;
+  body: string;
+  sent_by: string;
+  sent_at: string;
+  target_criteria: BroadcastCriteria;
+  total_recipients: number;
+  delivered_count: number;
+  read_count: number;
+  priority: 'normal' | 'high' | 'urgent';
+  expires_at: string | null;
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Broadcast statistics
+ */
+export interface BroadcastStatistics {
+  broadcast_id: string;
+  total_recipients: number;
+  delivered_count: number;
+  read_count: number;
+  read_percentage: number;
+  unread_count: number;
+  sent_at: string;
+  title: string;
+  body: string;
+}
+
+/**
+ * Broadcast history item (with sender info)
+ */
+export interface BroadcastHistoryItem {
+  id: string;
+  title: string;
+  body: string;
+  sender_name: string;
+  sender_id: string;
+  sent_at: string;
+  total_recipients: number;
+  delivered_count: number;
+  read_count: number;
+  read_percentage: number;
+  target_criteria: BroadcastCriteria;
+  priority: 'normal' | 'high' | 'urgent';
+}
+
+/**
+ * Create broadcast parameters
+ */
+export interface CreateBroadcastParams {
+  title: string;
+  body: string;
+  criteria: BroadcastCriteria;
+  priority?: 'normal' | 'high' | 'urgent';
+  expiresAt?: string;
+}
+
+/**
+ * Create broadcast response
+ */
+export interface CreateBroadcastResponse {
+  success: boolean;
+  broadcast_id: string;
+  total_recipients: number;
+  delivered_count: number;
+  sent_at: string;
+  message: string;
+}

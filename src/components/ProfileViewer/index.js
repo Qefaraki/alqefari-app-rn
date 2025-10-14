@@ -268,6 +268,11 @@ EditModeContent.displayName = 'EditModeContent';
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading = false }) => {
   const insets = useSafeAreaInsets();
   const { isAdminMode } = useAdminMode();
+
+  // ✅ FIX #1: Memoize person to prevent excessive re-renders
+  // Only recreate when ID or version changes, not on every parent render
+  const stablePerson = useMemo(() => person, [person?.id, person?.version]);
+
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
   const editScrollRef = useRef(null);
@@ -319,12 +324,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
 
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(
-    person?.id,
+    stablePerson?.id,
   );
-  const form = useProfileForm(person);
-  const metrics = useProfileMetrics(person);
+  const form = useProfileForm(stablePerson);
+  const metrics = useProfileMetrics(stablePerson);
   const { pending, refresh: refreshPending } = usePendingChanges(
-    person?.id,
+    stablePerson?.id,
     accessMode,
   );
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
@@ -394,13 +399,13 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           setMarriages([]);
           hideSkeletonImmediately('marriages');
 
-          // Show user-friendly error based on type
+          // ✅ FIX #4: Make timeout handling non-blocking
+          // Log timeout warnings instead of showing blocking alerts
           if (error.message && error.message.includes('timeout')) {
-            Alert.alert(
-              'عفواً عمي...',
-              'التحميل استغرق وقتاً أطول من المتوقع. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.'
-            );
+            console.warn('[ProfileViewer] Marriages loading timeout - showing empty state. User can continue using app.');
+            // Don't block the app with an alert - just show empty state
           } else {
+            // Only show alert for critical non-timeout errors
             Alert.alert('خطأ', 'فشل تحميل بيانات الزواج');
           }
         }
@@ -421,20 +426,26 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person?.id, permissionLoading, hideSkeletonImmediately]);
 
-  // Note: profileSheetProgress (shared value) not in dependency array.
-  // Per Reanimated docs, dependencies only needed without Babel plugin.
-  // Worklet tracks .value changes internally.
-  useAnimatedReaction(
-    () => animatedPosition.value,
-    (current, previous) => {
-      if (current === previous || !profileSheetProgress) return;
-      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
-      profileSheetProgress.value = progress;
-    },
-    [screenHeight],
-  );
+  // ✅ FIX #2: Wrap useAnimatedReaction in useEffect with cleanup to prevent memory leaks
+  useEffect(() => {
+    if (!profileSheetProgress || !animatedPosition) return;
 
-  // Cleanup handled by parent component
+    const cleanup = useAnimatedReaction(
+      () => animatedPosition.value,
+      (current, previous) => {
+        'worklet';
+        if (current === previous) return;
+        const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
+        profileSheetProgress.value = progress;
+      },
+      [screenHeight]
+    );
+
+    return () => {
+      // Cancel the reaction when component unmounts or dependencies change
+      cleanup?.();
+    };
+  }, [animatedPosition, screenHeight, profileSheetProgress]);
 
   const canEdit = accessMode !== 'readonly';
 
@@ -449,6 +460,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     bottomSheetRef.current?.close?.();
   }, []);
 
+  // ✅ FIX #3: Create worklet-safe close function for gesture handlers
+  const closeSheetFromGesture = useCallback(() => {
+    'worklet';
+    runOnJS(closeSheet)();
+  }, [closeSheet]);
+
   // iOS-style edge swipe to dismiss (RTL-aware)
   const edgeSwipeGesture = useMemo(() => {
     let gestureStartX = 0;
@@ -459,30 +476,33 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       .activeOffsetX([-10, 10]) // Allow horizontal swipes
       .failOffsetY([-20, 20]) // Cancel if mostly vertical
       .onBegin((event) => {
+        'worklet';
         gestureStartX = event.absoluteX;
         // RTL: Right edge is trailing edge (where iOS back button is)
         isEdgeGesture = gestureStartX > screenWidth - 50;
 
         if (isEdgeGesture) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
         }
       })
       .onUpdate((event) => {
+        'worklet';
         // RTL: Swipe left (negative translationX) from right edge
         if (isEdgeGesture && event.translationX < -100) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
           isEdgeGesture = false; // Prevent multiple triggers
-          bottomSheetRef.current?.close?.();
+          closeSheetFromGesture();
         }
       })
       .onEnd((event) => {
+        'worklet';
         // Also trigger on fast swipe (velocity check)
         if (isEdgeGesture && event.velocityX < -800) {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          bottomSheetRef.current?.close?.();
+          runOnJS(Haptics.notificationAsync)(Haptics.NotificationFeedbackType.Success);
+          closeSheetFromGesture();
         }
       });
-  }, [mode, form.isDirty, screenWidth]);
+  }, [mode, form.isDirty, screenWidth, closeSheetFromGesture]);
 
   // Image compression helper
   const compressImage = useCallback(async (uri) => {

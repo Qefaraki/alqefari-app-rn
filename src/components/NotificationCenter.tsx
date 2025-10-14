@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Animated,
   SafeAreaView,
   RefreshControl,
   ActivityIndicator,
@@ -53,7 +52,7 @@ const getNotificationStyle = (type: NotificationType): { icon: string; color: st
       return { icon: "time-outline", color: NAJDI_COLORS.secondary };
     case 'new_link_request':
     case 'new_profile_link_request':
-      return { icon: "person-add-outline", color: NAJDI_COLORS.primary };
+      return { icon: "person", color: NAJDI_COLORS.primary };
     case 'admin_message':
       return { icon: "megaphone-outline", color: NAJDI_COLORS.primary };
     case 'family_update':
@@ -131,9 +130,6 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
   const abortControllerRef = useRef<AbortController | null>(null);
   const swipeableRefs = useRef<Record<string, any>>({});
 
-  // Animation value for fade in/out
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     if (visible && user) {
       // Create abort controller for cleanup
@@ -146,13 +142,6 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
       setTimeout(() => {
         setupRealtimeSubscription();
       }, 100);
-
-      // Animate in with fade
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
     } else {
       // Clean up subscription when closing
       if (abortControllerRef.current) {
@@ -163,12 +152,6 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
         subscriptionRef.current.unsubscribe();
         subscriptionRef.current = null;
       }
-      // Animate out with fade
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
     }
   }, [visible, user]);
 
@@ -611,16 +594,11 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
     <Modal
       visible={visible}
       transparent={false}
-      animationType="none"
+      animationType="slide"
       onRequestClose={onClose}
-      presentationStyle="fullScreen"
+      presentationStyle="pageSheet"
     >
-      <Animated.View
-        style={[
-          styles.container,
-          { opacity: fadeAnim },
-        ]}
-      >
+      <View style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <GestureHandlerRootView style={styles.gestureRoot}>
             {/* Header - iOS Standard Pattern (matches Settings/News) */}
@@ -709,7 +687,7 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
             </ScrollView>
           </GestureHandlerRootView>
         </SafeAreaView>
-      </Animated.View>
+      </View>
     </Modal>
   );
 }
