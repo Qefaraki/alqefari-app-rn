@@ -246,10 +246,14 @@ const SmartNameDisplay = React.memo(({
     normalizedCurrent &&
     !isNameChainEquivalent(normalizedHistorical, normalizedCurrent);
 
-  const handlePress = useCallback(() => {
+  const handlePress = useCallback((e) => {
     if (!onNavigate || !profileId) return;
 
     try {
+      // Stop event propagation to prevent expanding the activity card
+      if (e && typeof e.stopPropagation === 'function') {
+        e.stopPropagation();
+      }
       // Fire haptics FIRST for immediate tactile feedback
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onNavigate(profileId);
@@ -269,6 +273,7 @@ const SmartNameDisplay = React.memo(({
     return (
       <TouchableOpacity
         onPress={handlePress}
+        onPressIn={(e) => e?.stopPropagation && e.stopPropagation()}
         disabled={!onNavigate || !profileId}
         activeOpacity={0.7}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
@@ -291,6 +296,7 @@ const SmartNameDisplay = React.memo(({
   return (
     <TouchableOpacity
       onPress={handlePress}
+      onPressIn={(e) => e?.stopPropagation && e.stopPropagation()}
       disabled={!onNavigate || !profileId}
       activeOpacity={0.7}
       accessibilityLabel={`الاسم تغير من ${normalizedHistorical} إلى ${normalizedCurrent}. اضغط للانتقال إلى الملف`}
