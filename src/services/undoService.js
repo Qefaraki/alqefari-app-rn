@@ -19,6 +19,52 @@ const ERROR_MESSAGES = {
   'UNKNOWN': 'حدث خطأ غير متوقع'
 };
 
+// Action type configuration registry
+const ACTION_TYPE_CONFIG = {
+  'profile_update': {
+    rpcFunction: 'undo_profile_update',
+    description: 'تحديث الملف',
+    requiresAdmin: false,
+    timeLimitDays: 30,
+    dangerous: false,
+  },
+  'profile_soft_delete': {
+    rpcFunction: 'undo_profile_delete',
+    description: 'حذف الملف',
+    requiresAdmin: false,
+    timeLimitDays: 30,
+    dangerous: false,
+  },
+  'profile_cascade_delete': {
+    rpcFunction: 'undo_cascade_delete',
+    description: 'حذف متعدد',
+    requiresAdmin: true,
+    timeLimitDays: 7,
+    dangerous: true,
+  },
+  'add_marriage': {
+    rpcFunction: 'undo_marriage_create',
+    description: 'إضافة زواج',
+    requiresAdmin: true,
+    timeLimitDays: null,
+    dangerous: true,
+  },
+  'admin_update': {
+    rpcFunction: 'undo_profile_update',
+    description: 'تحديث من المسؤول',
+    requiresAdmin: false,
+    timeLimitDays: 30,
+    dangerous: false,
+  },
+  'admin_delete': {
+    rpcFunction: 'undo_profile_delete',
+    description: 'حذف من المسؤول',
+    requiresAdmin: false,
+    timeLimitDays: 30,
+    dangerous: false,
+  },
+};
+
 class UndoService {
   /**
    * Check if current user can undo a specific audit log entry
@@ -50,73 +96,7 @@ class UndoService {
   }
 
   /**
-   * Undo a profile update by restoring old data from audit log
-   * @param {string} auditLogId - UUID of the audit log entry to undo
-   * @param {string} reason - Optional reason for undo
-   * @returns {Promise<Object>} - {success: boolean, message?: string, error?: string}
-   */
-  async undoProfileUpdate(auditLogId, reason = null) {
-    try {
-      const { data, error } = await supabase.rpc('undo_profile_update', {
-        p_audit_log_id: auditLogId,
-        p_undo_reason: reason
-      });
-
-      if (error) {
-        if (__DEV__) {
-          console.error('Undo profile update error:', error);
-        }
-        throw new Error(this._parseErrorMessage(error));
-      }
-
-      if (data && !data.success) {
-        throw new Error(data.error || ERROR_MESSAGES.UNKNOWN);
-      }
-
-      return data;
-    } catch (error) {
-      if (__DEV__) {
-        console.error('undoProfileUpdate error:', error);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Undo a profile soft delete by clearing deleted_at
-   * @param {string} auditLogId - UUID of the audit log entry to undo
-   * @param {string} reason - Optional reason for undo
-   * @returns {Promise<Object>} - {success: boolean, message?: string, error?: string}
-   */
-  async undoProfileDelete(auditLogId, reason = null) {
-    try {
-      const { data, error } = await supabase.rpc('undo_profile_delete', {
-        p_audit_log_id: auditLogId,
-        p_undo_reason: reason
-      });
-
-      if (error) {
-        if (__DEV__) {
-          console.error('Undo profile delete error:', error);
-        }
-        throw new Error(this._parseErrorMessage(error));
-      }
-
-      if (data && !data.success) {
-        throw new Error(data.error || ERROR_MESSAGES.UNKNOWN);
-      }
-
-      return data;
-    } catch (error) {
-      if (__DEV__) {
-        console.error('undoProfileDelete error:', error);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Smart undo that automatically determines the action type
+   * Smart undo that automatically determines the action type using registry
    * @param {string} auditLogId - UUID of the audit log entry to undo
    * @param {string} userProfileId - UUID of the current user's profile
    * @param {string} actionType - The action_type from audit log (e.g., 'profile_update', 'profile_delete')
@@ -124,21 +104,26 @@ class UndoService {
    * @returns {Promise<Object>} - {success: boolean, message?: string, error?: string}
    */
   async undoAction(auditLogId, userProfileId, actionType, reason = null) {
-    try {
-      // Route to appropriate undo function based on action type
-      if (actionType.includes('delete')) {
-        return await this.undoProfileDelete(auditLogId, reason);
-      } else if (actionType.includes('update')) {
-        return await this.undoProfileUpdate(auditLogId, reason);
-      } else {
-        throw new Error('نوع الإجراء غير مدعوم للتراجع حالياً');
-      }
-    } catch (error) {
-      if (__DEV__) {
-        console.error('undoAction error:', error);
-      }
-      throw error;
+    const config = ACTION_TYPE_CONFIG[actionType];
+
+    if (!config) {
+      throw new Error(`نوع الإجراء '${actionType}' غير مدعوم للتراجع`);
     }
+
+    const { data, error } = await supabase.rpc(config.rpcFunction, {
+      p_audit_log_id: auditLogId,
+      p_undo_reason: reason
+    });
+
+    if (error) {
+      throw new Error(this._parseErrorMessage(error));
+    }
+
+    if (data && !data.success) {
+      throw new Error(data.error || ERROR_MESSAGES.UNKNOWN);
+    }
+
+    return data;
   }
 
   /**
@@ -155,7 +140,7 @@ class UndoService {
         .eq('record_id', profileId)
         .is('undone_at', null)
         .eq('is_undoable', true)
-        .in('action_type', ['profile_update', 'profile_delete', 'admin_update'])
+        .in('action_type', ['profile_update', 'profile_soft_delete', 'admin_update', 'admin_delete'])
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -240,23 +225,39 @@ class UndoService {
   }
 
   /**
-   * Format action type for display in Arabic
+   * Check if action is dangerous (requires extra confirmation)
+   * @param {string} actionType - The action_type from audit log
+   * @returns {boolean} - True if action is dangerous
+   */
+  isDangerousAction(actionType) {
+    return ACTION_TYPE_CONFIG[actionType]?.dangerous || false;
+  }
+
+  /**
+   * Check if action requires admin approval
+   * @param {string} actionType - The action_type from audit log
+   * @returns {boolean} - True if requires admin approval
+   */
+  requiresAdminApproval(actionType) {
+    return ACTION_TYPE_CONFIG[actionType]?.requiresAdmin || false;
+  }
+
+  /**
+   * Get action description in Arabic
+   * @param {string} actionType - The action_type from audit log
+   * @returns {string} - Arabic description of action
+   */
+  getActionDescription(actionType) {
+    return ACTION_TYPE_CONFIG[actionType]?.description || actionType;
+  }
+
+  /**
+   * Format action type for display in Arabic (uses registry)
    * @param {string} actionType - The action_type from audit log
    * @returns {string} - Arabic formatted action type
    */
   formatActionType(actionType) {
-    const actionLabels = {
-      'profile_update': 'تحديث الملف',
-      'profile_delete': 'حذف الملف',
-      'admin_update': 'تحديث من المسؤول',
-      'admin_delete': 'حذف من المسؤول',
-      'cascade_delete': 'حذف متعدد',
-      'undo_profile_update': 'تراجع عن تحديث',
-      'undo_profile_delete': 'تراجع عن حذف',
-      'undo_delete': 'استعادة ملف'
-    };
-
-    return actionLabels[actionType] || actionType;
+    return this.getActionDescription(actionType);
   }
 
   /**
