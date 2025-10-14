@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: tokens.fontWeights.semibold,
+    fontWeight: '600',
     color: tokens.colors.najdi.text,
     fontFamily: 'SF-Arabic-Semibold',
   },
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   sectionBadgeText: {
     fontSize: 14,
-    fontWeight: tokens.fontWeights.semibold,
+    fontWeight: '600',
     color: tokens.colors.najdi.primary,
     fontFamily: 'SF-Arabic-Semibold',
   },
@@ -380,7 +380,7 @@ const styles = StyleSheet.create({
   },
   parentAvatarInitial: {
     fontSize: 20,
-    fontWeight: tokens.fontWeights.semibold,
+    fontWeight: '600',
     color: tokens.colors.najdi.secondary,
     fontFamily: 'SF-Arabic-Semibold',
   },
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   },
   parentName: {
     fontSize: 17,
-    fontWeight: tokens.fontWeights.semibold,
+    fontWeight: '600',
     color: tokens.colors.najdi.text,
     fontFamily: 'SF-Arabic-Semibold',
   },
@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
   },
   parentActionButtonText: {
     fontSize: 15,
-    fontWeight: tokens.fontWeights.semibold,
+    fontWeight: '600',
     color: tokens.colors.surface,
     fontFamily: 'SF-Arabic-Semibold',
   },
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   },
   memberAvatarInitial: {
     fontSize: 18,
-    fontWeight: tokens.fontWeights.semibold,
+    fontWeight: '600',
     color: tokens.colors.najdi.secondary,
     fontFamily: 'SF-Arabic-Semibold',
   },
