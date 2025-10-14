@@ -337,10 +337,11 @@ const SmartNameDisplay = React.memo(({
 });
 
 export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
-  const { profile } = useAuth();
+  const { profile, isLoading: authLoading } = useAuth();
 
   // DEBUG LOG #1: Profile state
-  console.log('🔍 [ActivityLog] Profile loaded:', {
+  console.log('🔍 [ActivityLog] Profile state:', {
+    authLoading,
     hasProfile: !!profile,
     profileId: profile?.id,
     profileRole: profile?.role
@@ -1437,7 +1438,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
   ), [expandedCards, toggleCardExpansion, formatTimestamp, getDisplayField]);
 
   // Loading state
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.header}>
