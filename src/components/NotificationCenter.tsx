@@ -406,7 +406,7 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
     setRefreshing(false);
   };
 
-  const renderNotification = (notification: Notification) => {
+  const renderNotification = (notification: Notification, isLast: boolean) => {
     const { icon, color } = getNotificationStyle(notification.type);
     const timeAgo = formatDistanceToNow(new Date(notification.createdAt), {
       addSuffix: true,
@@ -415,17 +415,34 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
 
     const renderRightActions = () => {
       return (
-        <TouchableOpacity
-          style={styles.deleteAction}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            deleteNotification(notification.id);
-          }}
-          accessibilityLabel="حذف الإشعار"
-          accessibilityRole="button"
-        >
-          <Ionicons name="trash-outline" size={24} color={NAJDI_COLORS.white} />
-        </TouchableOpacity>
+        <View style={styles.swipeActionsContainer}>
+          {!notification.read && (
+            <TouchableOpacity
+              style={styles.markReadAction}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                markAsRead(notification.id);
+                // Close swipeable after marking as read
+                swipeableRefs.current[notification.id]?.close();
+              }}
+              accessibilityLabel="تعليم كمقروء"
+              accessibilityRole="button"
+            >
+              <Ionicons name="checkmark" size={24} color={NAJDI_COLORS.white} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.deleteAction}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              deleteNotification(notification.id);
+            }}
+            accessibilityLabel="حذف الإشعار"
+            accessibilityRole="button"
+          >
+            <Ionicons name="trash-outline" size={22} color={NAJDI_COLORS.white} />
+          </TouchableOpacity>
+        </View>
       );
     };
 
@@ -474,6 +491,8 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
         overshootRight={false}
         key={notification.id}
         shouldCancelWhenOutside={false}
+        friction={2}
+        rightThreshold={40}
         onSwipeableOpen={() => {
           // Close other open swipeables
           Object.keys(swipeableRefs.current).forEach(key => {
@@ -484,9 +503,12 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
         }}
       >
         <TouchableOpacity
-          style={styles.notificationItem}
+          style={[
+            styles.notificationItem,
+            !isLast && styles.notificationItemWithBorder,
+          ]}
           onPress={handleNotificationPress}
-          activeOpacity={0.6}
+          activeOpacity={0.7}
           accessibilityLabel={`${notification.title}. ${notification.body}. ${timeAgo}`}
           accessibilityRole="button"
           accessibilityState={{ selected: !notification.read }}
@@ -499,7 +521,7 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
           )}
           <Ionicons
             name={icon as any}
-            size={20}
+            size={24}
             color={color}
             style={styles.notificationIcon}
           />
@@ -510,7 +532,9 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
             <Text style={styles.notificationBody} numberOfLines={2}>
               {notification.body}
             </Text>
-            <Text style={styles.notificationTime}>{timeAgo}</Text>
+            <View style={styles.notificationMeta}>
+              <Text style={styles.notificationTime}>{timeAgo}</Text>
+            </View>
           </View>
         </TouchableOpacity>
       </Swipeable>
@@ -521,7 +545,11 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
     return (
       <View key={group.label}>
         <Text style={styles.dateHeader}>{group.label}</Text>
-        {group.notifications.map(renderNotification)}
+        <View style={styles.groupContainer}>
+          {group.notifications.map((notification, index) =>
+            renderNotification(notification, index === group.notifications.length - 1)
+          )}
+        </View>
       </View>
     );
   };
@@ -545,16 +573,35 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
 
   const renderSkeletonLoader = () => (
     <View style={styles.skeletonContainer}>
-      {[1, 2, 3, 4, 5].map((i) => (
-        <View key={i} style={styles.skeletonItem}>
-          <View style={styles.skeletonIcon} />
-          <View style={styles.skeletonContent}>
-            <View style={styles.skeletonTitle} />
-            <View style={styles.skeletonBody} />
-            <View style={styles.skeletonTime} />
+      {/* Today group skeleton */}
+      <Text style={styles.dateHeader}>اليوم</Text>
+      <View style={styles.skeletonGroup}>
+        {[1, 2, 3].map((i) => (
+          <View key={`today-${i}`} style={[styles.skeletonItem, i === 3 && styles.skeletonItemLast]}>
+            <View style={styles.skeletonIcon} />
+            <View style={styles.skeletonContent}>
+              <View style={styles.skeletonTitle} />
+              <View style={styles.skeletonBody} />
+              <View style={styles.skeletonTime} />
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
+
+      {/* Earlier group skeleton */}
+      <Text style={styles.dateHeader}>أقدم</Text>
+      <View style={styles.skeletonGroup}>
+        {[1, 2].map((i) => (
+          <View key={`earlier-${i}`} style={[styles.skeletonItem, i === 2 && styles.skeletonItemLast]}>
+            <View style={styles.skeletonIcon} />
+            <View style={styles.skeletonContent}>
+              <View style={styles.skeletonTitle} />
+              <View style={styles.skeletonBody} />
+              <View style={styles.skeletonTime} />
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   );
 
@@ -576,8 +623,9 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
       >
         <SafeAreaView style={styles.safeArea}>
           <GestureHandlerRootView style={styles.gestureRoot}>
-            {/* Header - Settings Style */}
+            {/* Header - iOS Navigation Bar Style */}
             <View style={styles.header}>
+              {/* Large Title with Badge */}
               <View style={styles.headerLeft}>
                 <Image
                   source={require('../../assets/logo/AlqefariEmblem.png')}
@@ -585,6 +633,8 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
                   resizeMode="contain"
                   accessibilityLabel="شعار عائلة القفاري"
                 />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={styles.headerTitle}>الإشعارات</Text>
                 {unreadCount > 0 && (
                   <View
@@ -595,6 +645,8 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
                   </View>
                 )}
               </View>
+
+              {/* iOS Toolbar - Text Buttons */}
               <View style={styles.headerActions}>
                 {notifications.length > 0 && (
                   <TouchableOpacity
@@ -609,12 +661,11 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
                     }}
                     accessibilityLabel={unreadCount > 0 ? "تعليم الكل كمقروء" : "مسح جميع الإشعارات"}
                     accessibilityRole="button"
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Ionicons
-                      name={unreadCount > 0 ? "checkmark-done" : "trash-outline"}
-                      size={22}
-                      color={NAJDI_COLORS.text}
-                    />
+                    <Text style={styles.headerActionText}>
+                      {unreadCount > 0 ? "قراءة الكل" : "مسح الكل"}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
@@ -622,8 +673,9 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
                   onPress={onClose}
                   accessibilityLabel="إغلاق"
                   accessibilityRole="button"
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons name="close" size={28} color={NAJDI_COLORS.text} />
+                  <Text style={styles.closeButtonText}>تم</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -677,122 +729,153 @@ const styles = StyleSheet.create({
   gestureRoot: {
     flex: 1,
   },
+  // iOS-style navigation bar
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: NAJDI_COLORS.background,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: NAJDI_COLORS.border,
+    borderBottomColor: `${NAJDI_COLORS.text}20`,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
+    marginBottom: 8,
   },
   emblem: {
-    width: 44,
-    height: 44,
+    width: 32,
+    height: 32,
     tintColor: NAJDI_COLORS.text,
     marginRight: 8,
   },
+  // iOS Large Title style
   headerTitle: {
     fontSize: TYPOGRAPHY.largeTitle,
     fontWeight: "700",
     color: NAJDI_COLORS.text,
     fontFamily: "SF Arabic",
+    marginBottom: 8,
   },
   headerBadge: {
     backgroundColor: NAJDI_COLORS.primary,
-    borderRadius: 12,
-    paddingHorizontal: 8,
+    borderRadius: 10,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    minWidth: 24,
+    minWidth: 20,
+    height: 20,
     alignItems: "center",
-    marginLeft: 12,
+    justifyContent: "center",
+    marginLeft: 8,
   },
   headerBadgeText: {
     color: NAJDI_COLORS.white,
-    fontSize: TYPOGRAPHY.caption1,
+    fontSize: TYPOGRAPHY.caption2,
     fontWeight: "700",
     fontFamily: "SF Arabic",
   },
+  // iOS toolbar style
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "space-between",
   },
   headerActionButton: {
-    padding: 8,
-    minWidth: 44,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
     minHeight: 44,
-    alignItems: "center",
     justifyContent: "center",
   },
+  headerActionText: {
+    fontSize: TYPOGRAPHY.body,
+    color: NAJDI_COLORS.primary,
+    fontFamily: "SF Arabic",
+    fontWeight: "400",
+  },
   closeButton: {
-    padding: 8,
-    minWidth: 44,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
     minHeight: 44,
-    alignItems: "center",
     justifyContent: "center",
+  },
+  closeButtonText: {
+    fontSize: TYPOGRAPHY.body,
+    color: NAJDI_COLORS.primary,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
   },
   notificationsList: {
-    paddingTop: 8,
+    // Groups of notifications - no padding needed, groups handle it
   },
+  // iOS-style section header (sticky)
   dateHeader: {
-    fontSize: TYPOGRAPHY.subheadline,
+    fontSize: TYPOGRAPHY.footnote,
     fontWeight: "600",
     color: NAJDI_COLORS.muted,
     fontFamily: "SF Arabic",
-    marginTop: 20,
-    marginBottom: 12,
-    marginHorizontal: 16,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    paddingTop: 16,
+    paddingBottom: 8,
+    paddingHorizontal: 32,
+    backgroundColor: NAJDI_COLORS.background,
   },
-  notificationItem: {
+  // iOS Inset Grouped List Container
+  groupContainer: {
     backgroundColor: NAJDI_COLORS.white,
     marginHorizontal: 16,
-    marginVertical: 2,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    minHeight: 44,
-    shadowColor: NAJDI_COLORS.text,
-    shadowOffset: { width: 0, height: 0.5 },
-    shadowOpacity: 0.03,
-    shadowRadius: 1,
+    overflow: "hidden",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 1,
   },
+  // Individual notification list item (iOS style - no card)
+  notificationItem: {
+    backgroundColor: NAJDI_COLORS.white,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    minHeight: 72,
+  },
+  notificationItemWithBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: `${NAJDI_COLORS.text}10`,
+  },
+  // iOS blue dot for unread
   unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: NAJDI_COLORS.primary,
-    marginRight: 8,
-    marginTop: 6,
+    marginRight: 12,
+    marginTop: 8,
   },
   notificationIcon: {
     marginRight: 12,
-    marginTop: 2,
+    marginTop: 4,
   },
   notificationContent: {
     flex: 1,
   },
+  // iOS two-line list item text hierarchy
   notificationTitle: {
-    fontSize: TYPOGRAPHY.callout,
+    fontSize: TYPOGRAPHY.body,
     fontWeight: "400",
     color: NAJDI_COLORS.text,
     fontFamily: "SF Arabic",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   notificationTitleUnread: {
     fontWeight: "600",
@@ -802,47 +885,64 @@ const styles = StyleSheet.create({
     color: NAJDI_COLORS.muted,
     fontFamily: "SF Arabic",
     lineHeight: 20,
-    marginBottom: 8,
+    marginBottom: 4,
+  },
+  // iOS-style right-aligned timestamp
+  notificationMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   notificationTime: {
     fontSize: TYPOGRAPHY.footnote,
     color: NAJDI_COLORS.muted,
     fontFamily: "SF Arabic",
   },
+  // iOS swipe actions
+  swipeActionsContainer: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
   deleteAction: {
     backgroundColor: NAJDI_COLORS.error,
     justifyContent: "center",
     alignItems: "center",
     width: 80,
-    height: "100%",
-    borderRadius: 10,
-    marginVertical: 2,
   },
+  markReadAction: {
+    backgroundColor: NAJDI_COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    width: 80,
+  },
+  swipeActionIcon: {
+    // Icon styling handled inline
+  },
+  // iOS-style empty state
   emptyState: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 100,
-    paddingHorizontal: 32,
+    paddingVertical: 120,
+    paddingHorizontal: 40,
   },
   emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: `${NAJDI_COLORS.container}30`,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: `${NAJDI_COLORS.container}20`,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 24,
-    padding: 20,
+    marginBottom: 20,
   },
   emptyEmblem: {
-    width: 80,
-    height: 80,
+    width: 64,
+    height: 64,
     tintColor: NAJDI_COLORS.container,
-    opacity: 0.6,
+    opacity: 0.5,
   },
   emptyTitle: {
-    fontSize: TYPOGRAPHY.title3,
+    fontSize: TYPOGRAPHY.title2,
     fontWeight: "600",
     color: NAJDI_COLORS.text,
     fontFamily: "SF Arabic",
@@ -850,51 +950,59 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   emptySubtitle: {
-    fontSize: TYPOGRAPHY.subheadline,
+    fontSize: TYPOGRAPHY.body,
     color: NAJDI_COLORS.muted,
     fontFamily: "SF Arabic",
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: 24,
   },
+  // Subtle inline banner (iOS style)
   errorBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: `${NAJDI_COLORS.secondary}15`,
+    backgroundColor: `${NAJDI_COLORS.secondary}10`,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: `${NAJDI_COLORS.secondary}30`,
+    marginBottom: 12,
+    borderRadius: 8,
   },
   errorBannerText: {
-    fontSize: TYPOGRAPHY.subheadline,
-    color: NAJDI_COLORS.text,
+    fontSize: TYPOGRAPHY.footnote,
+    color: NAJDI_COLORS.muted,
     fontFamily: "SF Arabic",
     marginLeft: 8,
     flex: 1,
   },
-  // Skeleton loading states
+  // iOS-style skeleton (shimmer effect would be ideal)
   skeletonContainer: {
     paddingTop: 20,
   },
-  skeletonItem: {
+  skeletonGroup: {
     backgroundColor: NAJDI_COLORS.white,
     marginHorizontal: 16,
-    marginVertical: 2,
+    borderRadius: 10,
+    overflow: "hidden",
+    marginBottom: 16,
+  },
+  skeletonItem: {
+    backgroundColor: NAJDI_COLORS.white,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 10,
     flexDirection: "row",
     alignItems: "flex-start",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: `${NAJDI_COLORS.text}10`,
+  },
+  skeletonItemLast: {
+    borderBottomWidth: 0,
   },
   skeletonIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: NAJDI_COLORS.container,
-    opacity: 0.3,
+    opacity: 0.2,
     marginRight: 12,
     marginTop: 2,
   },
@@ -902,26 +1010,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   skeletonTitle: {
-    height: 16,
+    height: 17,
     backgroundColor: NAJDI_COLORS.container,
-    opacity: 0.3,
+    opacity: 0.2,
     borderRadius: 4,
     marginBottom: 8,
-    width: '70%',
+    width: '65%',
   },
   skeletonBody: {
-    height: 14,
+    height: 15,
     backgroundColor: NAJDI_COLORS.container,
-    opacity: 0.3,
+    opacity: 0.2,
     borderRadius: 4,
-    marginBottom: 8,
+    marginBottom: 6,
     width: '90%',
   },
   skeletonTime: {
-    height: 12,
+    height: 13,
     backgroundColor: NAJDI_COLORS.container,
-    opacity: 0.3,
+    opacity: 0.2,
     borderRadius: 4,
-    width: '30%',
+    width: '25%',
   },
 });

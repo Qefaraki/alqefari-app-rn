@@ -18,6 +18,7 @@ export const NAJDI_COLORS = {
   // Text Variations
   textLight: "#24212199",    // Sadu Night 60% - Muted text
   textMedium: "#242121CC",   // Sadu Night 80% - Secondary text
+  muted: "#73637280",        // Muted gray for secondary text/labels
 
   // Utility Colors
   white: "#FFFFFF",

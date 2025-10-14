@@ -203,7 +203,8 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
         const compressedUri = await compressImage(asset.uri);
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(7);
-        const storagePath = `${profileId}/${timestamp}_${random}_${i}.jpg`;
+        // CRITICAL FIX: Include profiles/ prefix to match actual storage location
+        const storagePath = `profiles/${profileId}/${timestamp}_${random}_${i}.jpg`;
 
         const { url, error: uploadError } = await storageService.uploadProfilePhoto(
           compressedUri,
@@ -213,7 +214,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false }) => {
 
         if (uploadError) throw uploadError;
 
-        // Insert to database (no primary logic)
+        // Insert to database with correct storage path
         await supabase.from('profile_photos').insert({
           profile_id: profileId,
           photo_url: url,
