@@ -30,7 +30,7 @@ class UndoService {
     try {
       const { data, error } = await supabase.rpc('check_undo_permission', {
         p_audit_log_id: auditLogId,
-        p_user_profile_id: userProfileId
+        p_user_id: userProfileId
       });
 
       if (error) {
@@ -52,14 +52,15 @@ class UndoService {
   /**
    * Undo a profile update by restoring old data from audit log
    * @param {string} auditLogId - UUID of the audit log entry to undo
+   * @param {string} userProfileId - UUID of the current user's profile
    * @param {string} reason - Optional reason for undo
    * @returns {Promise<Object>} - {success: boolean, message?: string, error?: string}
    */
-  async undoProfileUpdate(auditLogId, reason = null) {
+  async undoProfileUpdate(auditLogId, userProfileId, reason = null) {
     try {
       const { data, error } = await supabase.rpc('undo_profile_update', {
-        p_audit_log_id: auditLogId,
-        p_undo_reason: reason
+        p_user_id: userProfileId,
+        p_audit_log_id: auditLogId
       });
 
       if (error) {
@@ -85,14 +86,15 @@ class UndoService {
   /**
    * Undo a profile soft delete by clearing deleted_at
    * @param {string} auditLogId - UUID of the audit log entry to undo
+   * @param {string} userProfileId - UUID of the current user's profile
    * @param {string} reason - Optional reason for undo
    * @returns {Promise<Object>} - {success: boolean, message?: string, error?: string}
    */
-  async undoProfileDelete(auditLogId, reason = null) {
+  async undoProfileDelete(auditLogId, userProfileId, reason = null) {
     try {
       const { data, error } = await supabase.rpc('undo_profile_delete', {
-        p_audit_log_id: auditLogId,
-        p_undo_reason: reason
+        p_user_id: userProfileId,
+        p_audit_log_id: auditLogId
       });
 
       if (error) {
@@ -118,17 +120,18 @@ class UndoService {
   /**
    * Smart undo that automatically determines the action type
    * @param {string} auditLogId - UUID of the audit log entry to undo
+   * @param {string} userProfileId - UUID of the current user's profile
    * @param {string} actionType - The action_type from audit log (e.g., 'profile_update', 'profile_delete')
    * @param {string} reason - Optional reason for undo
    * @returns {Promise<Object>} - {success: boolean, message?: string, error?: string}
    */
-  async undoAction(auditLogId, actionType, reason = null) {
+  async undoAction(auditLogId, userProfileId, actionType, reason = null) {
     try {
       // Route to appropriate undo function based on action type
       if (actionType.includes('delete')) {
-        return await this.undoProfileDelete(auditLogId, reason);
+        return await this.undoProfileDelete(auditLogId, userProfileId, reason);
       } else if (actionType.includes('update')) {
-        return await this.undoProfileUpdate(auditLogId, reason);
+        return await this.undoProfileUpdate(auditLogId, userProfileId, reason);
       } else {
         throw new Error('نوع الإجراء غير مدعوم للتراجع حالياً');
       }

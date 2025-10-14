@@ -826,6 +826,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
       // Perform undo based on action type
       const result = await undoService.undoAction(
         activityId,
+        userProfile.id,
         actionType,
         'تراجع من لوحة السجل'
       );

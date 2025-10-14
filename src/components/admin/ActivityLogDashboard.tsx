@@ -547,6 +547,7 @@ export const ActivityLogDashboard: React.FC = () => {
       // Perform undo based on action type
       const result = await undoService.undoAction(
         activityId,
+        userProfileId,
         activity.action_type,
         'تراجع من لوحة السجل'
       );
