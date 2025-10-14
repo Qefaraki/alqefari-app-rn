@@ -521,7 +521,7 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
           )}
           <Ionicons
             name={icon as any}
-            size={24}
+            size={20}
             color={color}
             style={styles.notificationIcon}
           />
@@ -623,9 +623,8 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
       >
         <SafeAreaView style={styles.safeArea}>
           <GestureHandlerRootView style={styles.gestureRoot}>
-            {/* Header - iOS Navigation Bar Style */}
+            {/* Header - iOS Standard Pattern (matches Settings/News) */}
             <View style={styles.header}>
-              {/* Large Title with Badge */}
               <View style={styles.headerLeft}>
                 <Image
                   source={require('../../assets/logo/AlqefariEmblem.png')}
@@ -633,52 +632,49 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
                   resizeMode="contain"
                   accessibilityLabel="شعار عائلة القفاري"
                 />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={styles.headerTitle}>الإشعارات</Text>
-                {unreadCount > 0 && (
-                  <View
-                    style={styles.headerBadge}
-                    accessibilityLabel={`${unreadCount} إشعار غير مقروء`}
-                  >
-                    <Text style={styles.headerBadgeText}>{unreadCount}</Text>
-                  </View>
-                )}
               </View>
-
-              {/* iOS Toolbar - Text Buttons */}
-              <View style={styles.headerActions}>
-                {notifications.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.headerActionButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      if (unreadCount > 0) {
-                        markAllAsRead();
-                      } else {
-                        clearAll();
-                      }
-                    }}
-                    accessibilityLabel={unreadCount > 0 ? "تعليم الكل كمقروء" : "مسح جميع الإشعارات"}
-                    accessibilityRole="button"
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Text style={styles.headerActionText}>
-                      {unreadCount > 0 ? "قراءة الكل" : "مسح الكل"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={onClose}
-                  accessibilityLabel="إغلاق"
-                  accessibilityRole="button"
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              {unreadCount > 0 && (
+                <View
+                  style={styles.headerBadge}
+                  accessibilityLabel={`${unreadCount} إشعار غير مقروء`}
                 >
-                  <Text style={styles.closeButtonText}>تم</Text>
+                  <Text style={styles.headerBadgeText}>{unreadCount}</Text>
+                </View>
+              )}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onClose}
+                accessibilityLabel="إغلاق"
+                accessibilityRole="button"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={28} color={NAJDI_COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Action Buttons Row */}
+            {notifications.length > 0 && (
+              <View style={styles.actionButtonsRow}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    if (unreadCount > 0) {
+                      markAllAsRead();
+                    } else {
+                      clearAll();
+                    }
+                  }}
+                  accessibilityLabel={unreadCount > 0 ? "تعليم الكل كمقروء" : "مسح جميع الإشعارات"}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.actionButtonText}>
+                    {unreadCount > 0 ? "قراءة الكل" : "مسح الكل"}
+                  </Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            )}
 
             {/* Notifications List */}
             <ScrollView
@@ -729,10 +725,13 @@ const styles = StyleSheet.create({
   gestureRoot: {
     flex: 1,
   },
-  // iOS-style navigation bar
+  // iOS-style header (matches Settings/News pattern)
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 20,
     paddingBottom: 8,
     backgroundColor: NAJDI_COLORS.background,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -741,21 +740,19 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    flex: 1,
   },
   emblem: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
     tintColor: NAJDI_COLORS.text,
     marginRight: 8,
   },
-  // iOS Large Title style
   headerTitle: {
     fontSize: TYPOGRAPHY.largeTitle,
     fontWeight: "700",
     color: NAJDI_COLORS.text,
     fontFamily: "SF Arabic",
-    marginBottom: 8,
   },
   headerBadge: {
     backgroundColor: NAJDI_COLORS.primary,
@@ -766,7 +763,7 @@ const styles = StyleSheet.create({
     height: 20,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 8,
+    marginRight: 8,
   },
   headerBadgeText: {
     color: NAJDI_COLORS.white,
@@ -774,35 +771,28 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "SF Arabic",
   },
-  // iOS toolbar style
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerActionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    minHeight: 44,
+  closeButton: {
+    width: 44,
+    height: 44,
     justifyContent: "center",
+    alignItems: "center",
   },
-  headerActionText: {
+  // Action buttons row (below header)
+  actionButtonsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: NAJDI_COLORS.background,
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  actionButtonText: {
     fontSize: TYPOGRAPHY.body,
     color: NAJDI_COLORS.primary,
     fontFamily: "SF Arabic",
     fontWeight: "400",
-  },
-  closeButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 0,
-    minHeight: 44,
-    justifyContent: "center",
-  },
-  closeButtonText: {
-    fontSize: TYPOGRAPHY.body,
-    color: NAJDI_COLORS.primary,
-    fontFamily: "SF Arabic",
-    fontWeight: "600",
   },
   scrollView: {
     flex: 1,
