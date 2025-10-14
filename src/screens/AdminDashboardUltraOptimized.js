@@ -24,8 +24,7 @@ import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
-import AdminNotificationComposer from "../components/admin/AdminNotificationComposer";
-import AdminNotificationHistory from "../components/admin/AdminNotificationHistory";
+import AdminBroadcastManager from "../components/admin/AdminBroadcastManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import pdfExportService from "../services/pdfExport";
@@ -102,8 +101,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
-  const [showBroadcastComposer, setShowBroadcastComposer] = useState(false);
-  const [showBroadcastHistory, setShowBroadcastHistory] = useState(false);
+  const [showBroadcastManager, setShowBroadcastManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -677,30 +675,15 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
                 <>
                   <View style={styles.separator} />
                   <AnimatedTouchable
-                    style={styles.listItem}
+                    style={[styles.listItem, styles.listItemLast]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowBroadcastComposer(true);
+                      setShowBroadcastManager(true);
                     }}
                   >
                     <View style={styles.listItemContent}>
                       <Ionicons name="mail-outline" size={22} color="#A13333" style={styles.listItemIcon} />
-                      <Text style={styles.listItemText}>إرسال إشعار</Text>
-                    </View>
-                    <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-                  </AnimatedTouchable>
-
-                  <View style={styles.separator} />
-                  <AnimatedTouchable
-                    style={[styles.listItem, styles.listItemLast]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowBroadcastHistory(true);
-                    }}
-                  >
-                    <View style={styles.listItemContent}>
-                      <Ionicons name="time-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
-                      <Text style={styles.listItemText}>سجل الإشعارات</Text>
+                      <Text style={styles.listItemText}>إشعارات جماعية</Text>
                     </View>
                     <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
                   </AnimatedTouchable>
@@ -874,44 +857,20 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         SuggestionReviewManager
       )}
 
-      {/* Broadcast Notification Composer */}
-      {showBroadcastComposer && renderIOSModal(
-        showBroadcastComposer,
-        () => setShowBroadcastComposer(false),
+      {/* Unified Broadcast Manager */}
+      {showBroadcastManager && renderIOSModal(
+        showBroadcastManager,
+        () => setShowBroadcastManager(false),
         ({ onClose }) => (
           <View style={{ flex: 1 }}>
             <View style={styles.iosModalHeader}>
               <TouchableOpacity style={styles.iosBackButton} onPress={onClose}>
                 <Ionicons name="chevron-back" size={28} color="#242121" />
               </TouchableOpacity>
-              <Text style={styles.iosModalTitle}>إرسال إشعار</Text>
+              <Text style={styles.iosModalTitle}>إشعارات جماعية</Text>
               <View style={{ width: 44 }} />
             </View>
-            <AdminNotificationComposer
-              onSuccess={() => {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                onClose();
-              }}
-              onCancel={onClose}
-            />
-          </View>
-        )
-      )}
-
-      {/* Broadcast Notification History */}
-      {showBroadcastHistory && renderIOSModal(
-        showBroadcastHistory,
-        () => setShowBroadcastHistory(false),
-        ({ onClose }) => (
-          <View style={{ flex: 1 }}>
-            <View style={styles.iosModalHeader}>
-              <TouchableOpacity style={styles.iosBackButton} onPress={onClose}>
-                <Ionicons name="chevron-back" size={28} color="#242121" />
-              </TouchableOpacity>
-              <Text style={styles.iosModalTitle}>سجل الإشعارات</Text>
-              <View style={{ width: 44 }} />
-            </View>
-            <AdminNotificationHistory />
+            <AdminBroadcastManager onClose={onClose} />
           </View>
         )
       )}

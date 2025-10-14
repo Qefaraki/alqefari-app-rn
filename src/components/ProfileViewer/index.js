@@ -298,6 +298,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [mode, setMode] = useState('view');
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
 
+  // Track previous person ID to prevent mode reset on first open (only on navigation between profiles)
+  const prevPersonIdRef = useRef(null);
+
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -398,22 +401,30 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Reset scroll position and loading states when person changes
   useEffect(() => {
     if (person?.id) {
-      // Reset scroll to top for both view and edit modes
-      viewScrollRef.current?.scrollTo?.({ y: 0, animated: false });
-      editScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+      // Only reset scroll and mode when switching between profiles (not on first open)
+      // This prevents interference with the bottom sheet opening animation
+      if (prevPersonIdRef.current && prevPersonIdRef.current !== person.id) {
+        // Reset scroll to top for both view and edit modes
+        viewScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+        editScrollRef.current?.scrollTo?.({ y: 0, animated: false });
 
-      // Reset loading states
+        // Reset mode to view when navigating to a different profile
+        // This ensures spouse/child navigation always opens in view mode
+        setMode('view');
+      }
+
+      // Always reset loading states
       setLoadingStates({
         marriages: true,
         permissions: true,
       });
 
-      // Reset mode to view when navigating to a different profile
-      // This ensures spouse/child navigation always opens in view mode
-      setMode('view');
+      prevPersonIdRef.current = person.id;
 
       // Note: We don't reset currentSnapIndex here - maintain the drawer position
       // This allows users to stay at 100% when navigating between profiles
+    } else {
+      prevPersonIdRef.current = null;
     }
   }, [person?.id]);
 

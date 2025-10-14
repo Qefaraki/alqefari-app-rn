@@ -298,8 +298,9 @@ export function getTargetingLabel(criteria: BroadcastCriteria): string {
         return 'حسب الدور';
       }
       const roleLabels = criteria.values.map((role) => {
+        if (role === 'super_admin') return 'مشرف رئيسي';
         if (role === 'admin') return 'مسؤول';
-        if (role === 'moderator') return 'مشرف';
+        if (role === 'moderator') return 'مشرف فرع';
         if (role === 'user') return 'مستخدم';
         return role;
       });
@@ -423,7 +424,7 @@ export function validateBroadcastCriteria(
   }
 
   if (criteria.type === 'role') {
-    const validRoles = ['admin', 'moderator', 'user'];
+    const validRoles = ['super_admin', 'admin', 'moderator', 'user'];
     const invalidRoles = criteria.values!.filter(
       (r) => !validRoles.includes(r)
     );
