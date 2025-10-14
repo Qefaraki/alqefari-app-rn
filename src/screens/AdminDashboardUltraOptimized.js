@@ -659,7 +659,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
               <View style={styles.separator} />
 
               <AnimatedTouchable
-                style={[styles.listItem, styles.listItemLast]}
+                style={isSuperAdmin ? styles.listItem : [styles.listItem, styles.listItemLast]}
                 onPress={() => setShowTemplateManager(true)}
               >
                 <View style={styles.listItemContent}>
@@ -668,6 +668,40 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
                 </View>
                 <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
               </AnimatedTouchable>
+
+              {isSuperAdmin && (
+                <>
+                  <View style={styles.separator} />
+                  <AnimatedTouchable
+                    style={styles.listItem}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push('/admin/broadcast-notification');
+                    }}
+                  >
+                    <View style={styles.listItemContent}>
+                      <Ionicons name="mail-outline" size={22} color="#A13333" style={styles.listItemIcon} />
+                      <Text style={styles.listItemText}>إرسال إشعار</Text>
+                    </View>
+                    <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+                  </AnimatedTouchable>
+
+                  <View style={styles.separator} />
+                  <AnimatedTouchable
+                    style={[styles.listItem, styles.listItemLast]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push('/admin/notification-history');
+                    }}
+                  >
+                    <View style={styles.listItemContent}>
+                      <Ionicons name="time-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
+                      <Text style={styles.listItemText}>سجل الإشعارات</Text>
+                    </View>
+                    <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+                  </AnimatedTouchable>
+                </>
+              )}
             </View>
           </Animated.View>
         </View>

@@ -159,9 +159,9 @@ export default function NotificationBadge({ onPress }: NotificationBadgeProps) {
       {Platform.OS === 'ios' ? (
         <SymbolView
           name="bell"
-          size={24}
           tintColor={NAJDI_COLORS.text}
           style={styles.symbolIcon}
+          type="hierarchical"
         />
       ) : (
         <Ionicons name="notifications-outline" size={24} color={NAJDI_COLORS.text} />

@@ -192,7 +192,7 @@ export default function AdminNotificationHistory() {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Image
-        source={require('../../../assets/AlqefariEmblem-TabIcon@3x.png')}
+        source={require('../../../assets/AlqefariEmblem-TabIcon.png')}
         style={styles.emptyEmblem}
         resizeMode="contain"
       />
