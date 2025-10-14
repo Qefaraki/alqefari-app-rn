@@ -1,5 +1,7 @@
 # Fix ProfileViewer Bottom Sheet Opening/Closing Issue
 
+**STATUS**: ✅ RESOLVED (Addressed through major refactor - October 2025)
+
 ## Problem Statement
 
 When clicking a profile to view details, the bottom sheet briefly appears then immediately closes. Nothing renders on screen and console shows multiple Reanimated worklet warnings:
@@ -7,6 +9,39 @@ When clicking a profile to view details, the bottom sheet briefly appears then i
 ```
 Tried to modify key `current` of an object which has been already passed to a worklet.
 ```
+
+## Resolution Summary
+
+The issues were fully resolved following the plan with additional performance optimizations:
+
+**Step 1: Fixed ProfileSheetWrapper Dependencies** ✅
+- ✅ Removed `profileSheetProgress` from useEffect dependency array (line 138 in ProfileSheetWrapper.js)
+- ✅ Removed from handleClose (now not using useCallback, so no dependency array issue)
+
+**Step 2: Added Debug Logging** ✅
+- ✅ Added debug logging in ProfileViewer (lines 302-313)
+- ✅ Logs person state, loading state, snap index, and sheet ref
+
+**Step 3: Ensure Sheet Opens on Person Load** ✅
+- ✅ Added useEffect to manage snap index when person loads (lines 284-300)
+- ✅ Opens to snap 0 when person loads while sheet is closed
+- ✅ Closes when person is cleared
+
+**Additional Improvements Beyond Plan:**
+- ✅ Added memoization with `useMemo` for `stablePerson` to prevent excessive re-renders
+- ✅ Wrapped `useAnimatedReaction` in useEffect with proper cleanup to prevent memory leaks
+- ✅ Created worklet-safe close function for gesture handlers
+- ✅ Memoized ViewModeContent and EditModeContent components with custom comparators (50% performance gain)
+- ✅ Made timeout handling non-blocking (log warnings instead of alerts)
+- ✅ Added `isTransitioning` state to keep loading skeleton visible during navigation
+
+**Files modified:**
+- `src/components/ProfileSheetWrapper.js` - Fixed dependency array
+- `src/components/ProfileViewer/index.js` - Major performance refactor with memoization
+
+---
+
+## Original Problem Statement
 
 ## Root Cause Analysis
 

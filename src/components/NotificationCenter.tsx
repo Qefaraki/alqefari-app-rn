@@ -55,6 +55,8 @@ const getNotificationStyle = (type: NotificationType): { icon: string; color: st
       return { icon: "person", color: NAJDI_COLORS.primary };
     case 'admin_message':
       return { icon: "megaphone-outline", color: NAJDI_COLORS.primary };
+    case 'admin_broadcast':
+      return { icon: "mail-outline", color: NAJDI_COLORS.primary };
     case 'family_update':
     case 'profile_updated':
       return { icon: "people-outline", color: NAJDI_COLORS.secondary };
@@ -462,6 +464,10 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
       } else if (notification.type === 'admin_message') {
         onClose();
         router.push('/');
+      } else if (notification.type === 'admin_broadcast') {
+        // Broadcast notifications don't need special navigation
+        // Just mark as read and close (user has already read the content)
+        onClose();
       }
     };
 

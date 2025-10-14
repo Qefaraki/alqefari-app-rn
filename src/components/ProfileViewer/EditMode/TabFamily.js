@@ -321,6 +321,29 @@ const AddActionButton = React.memo(({ label, onPress, icon = 'add' }) => (
 ));
 AddActionButton.displayName = 'AddActionButton';
 
+/**
+ * Pure helper function to calculate generation depth for descendants
+ * Moved outside component for performance (prevents recreation on every render)
+ */
+const buildGenerationMap = (descendants, parentId) => {
+  const generationMap = {};
+
+  const findChildren = (currentParentId, currentGeneration) => {
+    const children = descendants.filter(
+      (d) =>
+        (d.father_id === currentParentId || d.mother_id === currentParentId) &&
+        !generationMap[d.id] // Prevent circular references
+    );
+
+    children.forEach((child) => {
+      generationMap[child.id] = currentGeneration;
+      findChildren(child.id, currentGeneration + 1);
+    });
+  };
+
+  findChildren(parentId, 1);
+  return generationMap;
+};
 
 const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) => {
   // Early validation - show error if person not provided
@@ -426,7 +449,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     }
   }, [person?.id, loadFamilyData]);
 
-  const handleSpouseAdded = async (marriage) => {
+  const handleSpouseAdded = useCallback(async (marriage) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await loadFamilyData();
     if (refreshProfile) {
@@ -436,9 +459,9 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       onDataChanged();
     }
     dispatch({ type: 'CLOSE_SPOUSE_MODAL' });
-  };
+  }, [loadFamilyData, refreshProfile, person.id, onDataChanged]);
 
-  const handleChildAdded = async () => {
+  const handleChildAdded = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await loadFamilyData();
     if (refreshProfile) {
@@ -448,7 +471,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       onDataChanged();
     }
     dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: false });
-  };
+  }, [loadFamilyData, refreshProfile, person.id, onDataChanged]);
 
   const handleDeleteSpouse = useCallback(async (marriage) => {
     const childrenCount = marriage.children_count || 0;
@@ -532,7 +555,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     ]);
   }, [dispatch, refreshProfile, onDataChanged, person.id]);
 
-  const handleSpouseAddedInline = async () => {
+  const handleSpouseAddedInline = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     dispatch({ type: 'SET_SPOUSE_FEEDBACK', payload: 'تمت إضافة الزواج بنجاح' });
     await loadFamilyData();
@@ -543,15 +566,15 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       onDataChanged();
     }
     dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: false } });
-  };
+  }, [loadFamilyData, refreshProfile, person.id, onDataChanged]);
 
-  const handleNeedsAlQefariSearch = (prefilledName) => {
+  const handleNeedsAlQefariSearch = useCallback((prefilledName) => {
     dispatch({
       type: 'SET_SPOUSE_ADDER',
       payload: { visible: false, prefilledName },
     });
     dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true });
-  };
+  }, []);
 
   const handleEditMarriage = useCallback((marriage) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -594,27 +617,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     },
     [onDataChanged, person.id, refreshProfile]
   );
-
-  // Helper function to calculate generation depth for descendants
-  const buildGenerationMap = (descendants, parentId) => {
-    const generationMap = {};
-
-    const findChildren = (currentParentId, currentGeneration) => {
-      const children = descendants.filter(
-        (d) =>
-          (d.father_id === currentParentId || d.mother_id === currentParentId) &&
-          !generationMap[d.id] // Prevent circular references
-      );
-
-      children.forEach((child) => {
-        generationMap[child.id] = currentGeneration;
-        findChildren(child.id, currentGeneration + 1);
-      });
-    };
-
-    findChildren(parentId, 1);
-    return generationMap;
-  };
 
   const handleDeleteChild = useCallback(async (child) => {
     try {
@@ -763,7 +765,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   const editingChildId =
     state.activeEditor?.type === 'child' ? state.activeEditor.entity?.id : null;
 
-  const handleQuickMotherSelect = async (motherId) => {
+  const handleQuickMotherSelect = useCallback(async (motherId) => {
     if (!canEditFamily) {
       Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.message);
       return;
@@ -797,9 +799,9 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     } finally {
       dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: null });
     }
-  };
+  }, [canEditFamily, person, loadFamilyData, refreshProfile, onDataChanged]);
 
-  const handleClearMother = async () => {
+  const handleClearMother = useCallback(async () => {
     if (!canEditFamily) {
       Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_CLEAR.title, PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_CLEAR.message);
       return;
@@ -833,14 +835,14 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     } finally {
       dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: null });
     }
-  };
+  }, [canEditFamily, person, loadFamilyData, refreshProfile, onDataChanged]);
 
   const motherSuggestions = useMemo(() => {
     if (!state.motherOptions || state.motherOptions.length === 0) return [];
     return state.motherOptions;
   }, [state.motherOptions]);
 
-  const handleChangeMother = () => {
+  const handleChangeMother = useCallback(() => {
     if (!canEditFamily) {
       Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_MOTHER_EDIT.message);
       return;
@@ -848,7 +850,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_MOTHER_FEEDBACK', payload: null });
     dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: !state.motherPickerVisible });
-  };
+  }, [canEditFamily, state.motherPickerVisible]);
 
   // Memoize spouse filtering to prevent unnecessary iterations on every render
   // MUST be before conditional returns to comply with Rules of Hooks
@@ -892,34 +894,36 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   const { father, mother, spouses = [], children = [] } = state.familyData;
 
-  const parentCount = [father, mother].filter(Boolean).length;
-  const spousesTitle = person.gender === 'male' ? 'الزوجات' : 'الأزواج';
-  const addSpouseLabel = person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج';
-  const spouseEmptyTitle =
-    person.gender === 'male' ? 'لم تتم إضافة زوجات بعد' : 'لم تتم إضافة أزواج بعد';
-  const spouseEmptyCaption =
-    person.gender === 'male'
+  // Memoize gender-dependent text to prevent recomputation on every render
+  const genderDependentText = useMemo(() => ({
+    spousesTitle: person.gender === 'male' ? 'الزوجات' : 'الأزواج',
+    addSpouseLabel: person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج',
+    spouseEmptyTitle: person.gender === 'male' ? 'لم تتم إضافة زوجات بعد' : 'لم تتم إضافة أزواج بعد',
+    spouseEmptyCaption: person.gender === 'male'
       ? 'أضف شريكة حياة لتظهر هنا مع تفاصيل الزواج'
-      : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج';
+      : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج',
+  }), [person.gender]);
 
-  const handleAddSpousePress = () => {
+  const parentCount = [father, mother].filter(Boolean).length;
+
+  const handleAddSpousePress = useCallback(() => {
     if (!canEditFamily) {
       Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true });
-  };
+  }, [canEditFamily]);
 
-  const handleOpenInlineSpouseAdder = () => {
+  const handleOpenInlineSpouseAdder = useCallback(() => {
     if (!canEditFamily) {
       Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
       return;
     }
     dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: true } });
-  };
+  }, [canEditFamily]);
 
-  const handleGoToFatherProfile = () => {
+  const handleGoToFatherProfile = useCallback(() => {
     if (father?.id && typeof onNavigateToProfile === 'function') {
       dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: false });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -927,9 +931,9 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     } else {
       Alert.alert(WARNING_MESSAGES.ADD_FATHER_FIRST.title, WARNING_MESSAGES.ADD_FATHER_FIRST.message);
     }
-  };
+  }, [father?.id, onNavigateToProfile]);
 
-  const handleAddChildPress = () => {
+  const handleAddChildPress = useCallback(() => {
     if (!canEditFamily) {
       Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.message);
       return;
@@ -946,7 +950,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: true });
-  };
+  }, [canEditFamily, person.gender, spouses.length]);
 
   // Calculate permission for family editing based on parent profile permission
   const canEditFamily = accessMode === 'direct';
@@ -1010,13 +1014,13 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       </SectionCard>
 
       <SectionCard
-        title={spousesTitle}
+        title={genderDependentText.spousesTitle}
         badge={`${spouses.length}`}
         footer={
           <View>
             {!state.spouseAdderVisible ? (
               <AddActionButton
-                label={addSpouseLabel}
+                label={genderDependentText.addSpouseLabel}
                 onPress={handleOpenInlineSpouseAdder}
               />
             ) : null}
@@ -1133,8 +1137,8 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         ) : (
           <EmptyState
             icon="heart-dislike-outline"
-            title={spouseEmptyTitle}
-            caption={spouseEmptyCaption}
+            title={genderDependentText.spouseEmptyTitle}
+            caption={genderDependentText.spouseEmptyCaption}
           />
         )}
       </SectionCard>

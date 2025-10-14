@@ -18,6 +18,16 @@ const ProfileSheetWrapper = ({ editMode }) => {
   // Local state for non-tree profiles (Munasib/spouses from outside family)
   const [munasibProfile, setMunasibProfile] = useState(null);
   const [loadingMunasib, setLoadingMunasib] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Track transitioning state to keep loading skeleton visible
+  useEffect(() => {
+    if (selectedPersonId) {
+      setIsTransitioning(true);
+    } else {
+      setIsTransitioning(false);
+    }
+  }, [selectedPersonId]);
 
   // Lazy-load Munasib profiles when not found in nodesMap
   useEffect(() => {
@@ -31,6 +41,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
     if (nodesMap.has(selectedPersonId)) {
       setMunasibProfile(null);
       setLoadingMunasib(false);
+      setIsTransitioning(false); // Person loaded from tree
       return;
     }
 
@@ -62,6 +73,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
         if (data) {
           console.log('[ProfileSheetWrapper] Loaded Munasib profile:', data.name);
           setMunasibProfile(data);
+          setIsTransitioning(false); // Person loaded
         } else {
           Alert.alert('خطأ', 'الملف الشخصي غير موجود');
           setSelectedPersonId(null);
@@ -121,11 +133,10 @@ const ProfileSheetWrapper = ({ editMode }) => {
     // When admin mode changes or person selection changes, ensure clean state
     if (!selectedPersonId && profileSheetProgress) {
       runOnUI(() => {
-        'worklet';
         profileSheetProgress.value = 0;
       })();
     }
-  }, [selectedPersonId, profileSheetProgress]);
+  }, [selectedPersonId]);
 
   const navigateToProfile = (targetId) => {
     if (!targetId) return;
@@ -140,7 +151,6 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const handleClose = () => {
     if (profileSheetProgress) {
       runOnUI(() => {
-        'worklet';
         profileSheetProgress.value = 0;
       })();
     }
@@ -159,7 +169,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
     return (
       <ProfileViewer
         person={person}
-        loading={loadingMunasib && !person}
+        loading={(loadingMunasib && !person) || isTransitioning}
         onClose={handleClose}
         onNavigateToProfile={navigateToProfile}
         onUpdate={handleUpdate}

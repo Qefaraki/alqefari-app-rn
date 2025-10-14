@@ -281,6 +281,37 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [mode, setMode] = useState('view');
   const [currentSnapIndex, setCurrentSnapIndex] = useState(0);
 
+  // ✅ FIX: Controlled state pattern - ensure sheet opens when person loads
+  useEffect(() => {
+    if (person && currentSnapIndex === -1) {
+      if (__DEV__) {
+        console.log('[ProfileViewer] Person loaded while sheet closed, opening to snap 0');
+      }
+      setCurrentSnapIndex(0);
+    }
+
+    // Reset to closed when person is cleared
+    if (!person && currentSnapIndex !== -1) {
+      if (__DEV__) {
+        console.log('[ProfileViewer] Person cleared, closing sheet');
+      }
+      setCurrentSnapIndex(-1);
+    }
+  }, [person?.id]); // Only depend on person ID change
+
+  // ✅ Debug logging for diagnostics
+  useEffect(() => {
+    if (__DEV__) {
+      console.log('[ProfileViewer] State:', {
+        personId: person?.id,
+        personName: person?.name,
+        loading,
+        currentSnapIndex,
+        hasSheetRef: !!bottomSheetRef.current,
+      });
+    }
+  }, [person?.id, loading, currentSnapIndex]);
+
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop

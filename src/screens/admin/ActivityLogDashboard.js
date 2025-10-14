@@ -1236,7 +1236,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
                 </Text>
                 {/* Undo button for undoable actions */}
-                {userProfile?.id && !activity.undone_at && (
+                {userProfile?.id && !activity.undone_at && activity.is_undoable !== false && (
                   <TouchableOpacity
                     onPress={(e) => {
                       e.stopPropagation();
