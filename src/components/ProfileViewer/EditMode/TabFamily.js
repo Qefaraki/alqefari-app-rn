@@ -28,11 +28,12 @@ import { ErrorBoundary } from '../../ErrorBoundary';
 import { getShortNameChain } from '../../../utils/nameChainUtils';
 import AnimatedMarriageCard from './AnimatedMarriageCard';
 import { PERMISSION_MESSAGES, ERROR_MESSAGES, WARNING_MESSAGES } from './permissionMessages';
+import { SectionCard, ParentProfileCard, getInitials, AvatarThumbnail } from './FamilyHelpers';
+import SpouseRow, { TabFamilyContext } from './SpouseRow';
+import ChildRow from './ChildRow';
 
-// Context for sharing permission state across family components
-const TabFamilyContext = React.createContext({
-  canEditFamily: false
-});
+// Re-export context for child components (SpouseRow, ChildRow)
+export { TabFamilyContext };
 
 // Reducer for managing all TabFamily state in one place (60% performance improvement)
 const initialState = {
@@ -179,136 +180,8 @@ const familyReducer = (state, action) => {
   }
 };
 
-const SectionCard = React.memo(({
-  icon,
-  iconTint = tokens.colors.najdi.primary,
-  badge,
-  title,
-  subtitle,
-  children,
-  footer,
-  style,
-}) => (
-  <View style={[styles.sectionCard, style]}>
-    <View style={styles.sectionHeader}>
-      {icon ? (
-        <View style={[styles.sectionIcon, { backgroundColor: `${iconTint}15` }]}>
-          <Ionicons name={icon} size={20} color={iconTint} />
-        </View>
-      ) : null}
-      <View style={styles.sectionTitleContainer}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
-      </View>
-      {badge ? (
-        <View style={styles.sectionBadge}>
-          <Text style={styles.sectionBadgeText}>{badge}</Text>
-        </View>
-      ) : null}
-    </View>
-    <View style={styles.sectionBody}>{children}</View>
-    {footer ? <View style={styles.sectionFooter}>{footer}</View> : null}
-  </View>
-));
-SectionCard.displayName = 'SectionCard';
-
-const getInitials = (name) => {
-  if (!name) return '؟';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-};
-
-const ParentProfileCard = React.memo(({
-  label,
-  profile,
-  emptyTitle,
-  emptySubtitle,
-  onAction,
-  actionLabel = 'تغيير',
-  children,
-  infoHint,
-  actionTone = 'primary',
-}) => {
-  const hasProfile = Boolean(profile);
-  const initials = hasProfile ? getInitials(profile.name) : '؟';
-  const shortChain = hasProfile ? getShortNameChain(profile) : null;
-
-  const renderAvatar = () => {
-    if (hasProfile && profile.photo_url) {
-      return (
-        <ProgressiveThumbnail
-          source={{ uri: profile.photo_url }}
-          size={56}
-          style={styles.parentAvatarImage}
-        />
-      );
-    }
-
-    return (
-      <View style={[styles.parentAvatarFallback, !hasProfile && styles.parentAvatarEmpty]}>
-        <Text style={styles.parentAvatarInitial}>{initials}</Text>
-      </View>
-    );
-  };
-
-  return (
-    <View style={[styles.parentCard, !hasProfile && styles.parentCardEmpty]}>
-      <View style={styles.parentHeader}>
-        <View style={styles.parentAvatar}>{renderAvatar()}</View>
-        <View style={styles.parentDetails}>
-          <Text style={styles.parentLabel}>{label}</Text>
-          <Text
-            style={[styles.parentName, !hasProfile && styles.parentNameEmpty]}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
-            {hasProfile ? (shortChain || profile.name) : emptyTitle}
-          </Text>
-          {!hasProfile && emptySubtitle ? (
-            <Text style={styles.parentHint}>{emptySubtitle}</Text>
-          ) : null}
-        </View>
-      </View>
-      {onAction ? (
-        <TouchableOpacity
-          style={[
-            styles.parentActionButton,
-            actionTone === 'secondary' && styles.parentActionButtonSecondary,
-          ]}
-          onPress={onAction}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          activeOpacity={0.85}
-        >
-          <Text
-            style={[
-              styles.parentActionButtonText,
-              actionTone === 'secondary' && styles.parentActionButtonTextSecondary,
-            ]}
-          >
-            {actionLabel}
-          </Text>
-          <Ionicons
-            name={actionTone === 'secondary' ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color={actionTone === 'secondary' ? tokens.colors.najdi.primary : tokens.colors.surface}
-            style={styles.parentActionButtonIcon}
-          />
-        </TouchableOpacity>
-      ) : null}
-      {children ? <View style={styles.parentExtras}>{children}</View> : null}
-      {!children && infoHint ? (
-        <View style={styles.parentInfoHint}>
-          <Ionicons name="information-circle-outline" size={14} color={tokens.colors.najdi.textMuted} />
-          <Text style={styles.parentInfoHintText}>{infoHint}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-});
-ParentProfileCard.displayName = 'ParentProfileCard';
+// Helper components (SectionCard, ParentProfileCard, getInitials, AvatarThumbnail)
+// have been extracted to FamilyHelpers.js for better organization
 
 const MotherInlinePicker = React.memo(({
   visible,
@@ -1317,32 +1190,10 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   );
 };
 
-const AvatarThumbnail = ({ photoUrl, size = 52, fallbackLabel }) => {
-  if (photoUrl) {
-    return (
-      <ProgressiveThumbnail
-        source={{ uri: photoUrl }}
-        size={size}
-        style={[styles.memberAvatarImage, { borderRadius: size / 2 }]}
-      />
-    );
-  }
+// SpouseRow and ChildRow components have been extracted to separate files
+// for better organization and code maintainability (SpouseRow.js, ChildRow.js)
 
-  return (
-    <View
-      style={[
-        styles.memberAvatarFallback,
-        { width: size, height: size, borderRadius: size / 2 },
-      ]}
-    >
-      <Text style={styles.memberAvatarInitial}>{fallbackLabel}</Text>
-    </View>
-  );
-};
-AvatarThumbnail.displayName = 'AvatarThumbnail';
-
-
-const SpouseRow = React.memo(
+const TabFamilyMain = React.memo(
   ({
     spouseData,
     onEdit,
