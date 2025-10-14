@@ -71,8 +71,8 @@ const SuggestionModal = ({
 
     setSubmitting(true);
     try {
-      // If user has full permission, update directly
-      if (permissionLevel === "full") {
+      // v4.2: Direct edit for admin, moderator, or inner circle
+      if (['admin', 'moderator', 'inner'].includes(permissionLevel)) {
         const updates = {
           [selectedField]: newValue,
           updated_at: new Date().toISOString(),
@@ -93,7 +93,7 @@ const SuggestionModal = ({
         }
         onClose();
       } else {
-        // Create a suggestion using v4 service
+        // v4.2: Suggest-only for family or extended circle
         const result = await suggestionService.submitEditSuggestion(
           profile.id,
           selectedField,
@@ -101,19 +101,19 @@ const SuggestionModal = ({
           reason || null
         );
 
-        // Get permission level to show appropriate message
-        const { data: user } = await supabase.auth.getUser();
-        const permission = await suggestionService.checkPermission(user.user?.id, profile.id);
-        const message = suggestionService.getPermissionMessage(permission);
+        // Show appropriate message based on permission level
+        let message = "";
+        let title = "تم الإرسال";
 
-        if (result === null) {
-          message.message = `${message.message || ''}\n\nتم حفظ التغيير مباشرة.`.trim();
+        if (permissionLevel === 'family') {
+          message = "تم إرسال اقتراحك للمراجعة.\n\nسيتم الموافقة عليه تلقائياً خلال 48 ساعة إذا لم يتم رفضه.";
+        } else if (permissionLevel === 'extended') {
+          message = "تم إرسال اقتراحك للمراجعة.\n\nيحتاج موافقة المشرف قبل التطبيق.";
+        } else {
+          message = "تم إرسال اقتراح التعديل للمراجعة.";
         }
 
-        Alert.alert(
-          message.title || "تم الإرسال",
-          message.message || "تم إرسال اقتراح التعديل للمراجعة. سيتم إشعارك عند الموافقة."
-        );
+        Alert.alert(title, message);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onClose();
       }
@@ -160,7 +160,7 @@ const SuggestionModal = ({
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>
-              {permissionLevel === "full" ? "تعديل الملف" : "اقتراح تعديل"}
+              {['admin', 'moderator', 'inner'].includes(permissionLevel) ? "تعديل الملف" : "اقتراح تعديل"}
             </Text>
 
             <TouchableOpacity
@@ -185,7 +185,7 @@ const SuggestionModal = ({
                       styles.disabledText,
                   ]}
                 >
-                  {permissionLevel === "full" ? "حفظ" : "إرسال"}
+                  {['admin', 'moderator', 'inner'].includes(permissionLevel) ? "حفظ" : "إرسال"}
                 </Text>
               )}
             </TouchableOpacity>
@@ -269,8 +269,8 @@ const SuggestionModal = ({
                   />
                 </View>
 
-                {/* Reason (for suggestions only) */}
-                {permissionLevel === "suggest" && (
+                {/* Reason (for suggestions only - family or extended) */}
+                {['family', 'extended'].includes(permissionLevel) && (
                   <View style={styles.valueSection}>
                     <Text style={styles.valueSectionTitle}>
                       سبب التعديل (اختياري):
@@ -291,7 +291,7 @@ const SuggestionModal = ({
             )}
 
             {/* Info Message */}
-            {permissionLevel === "suggest" && !selectedField && (
+            {['family', 'extended'].includes(permissionLevel) && !selectedField && (
               <View style={styles.infoBox}>
                 <Ionicons
                   name="information-circle"
@@ -299,7 +299,9 @@ const SuggestionModal = ({
                   color={COLORS.secondary}
                 />
                 <Text style={styles.infoText}>
-                  ستتم مراجعة اقتراحك من قبل المشرفين قبل اعتماده
+                  {permissionLevel === 'family'
+                    ? "ستتم مراجعة اقتراحك وسيتم الموافقة عليه تلقائياً خلال 48 ساعة"
+                    : "ستتم مراجعة اقتراحك من قبل المشرفين قبل اعتماده"}
                 </Text>
               </View>
             )}
