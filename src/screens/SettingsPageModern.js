@@ -32,17 +32,14 @@ import { featureFlags } from "../config/featureFlags";
 import adminContactService from "../services/adminContact";
 import { formatNameWithTitle } from "../services/professionalTitleService";
 import LargeTitleHeader from "../components/ios/LargeTitleHeader";
+import tokens from '../components/ui/tokens';
 
-// Najdi Sadu Color Palette
+// Use design system tokens
 const colors = {
-  background: "#F9F7F3", // Al-Jass White
-  container: "#D1BBA3", // Camel Hair Beige
-  text: "#242121", // Sadu Night
-  primary: "#A13333", // Najdi Crimson
-  secondary: "#D58C4A", // Desert Ochre
-  muted: "#73637280", // Muted text
-  border: "#D1BBA320", // Light border
-  white: "#FFFFFF",
+  ...tokens.colors.najdi,
+  white: '#FFFFFF',
+  muted: tokens.colors.najdi.textMuted,
+  border: tokens.colors.najdi.container + '20',
 };
 
 // Cross-platform font fallbacks to keep typography close to iOS San Francisco
@@ -215,9 +212,89 @@ const SettingsCell = ({
   );
 };
 
-// User-specific profile cache (Map<userId, {profile, timestamp}>)
-const profileCaches = new Map();
+// AsyncStorage cache configuration
+const CACHE_KEY_PREFIX = 'user_profile_v1_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Helper functions for persistent caching
+const profileCacheUtils = {
+  async get(userId) {
+    try {
+      const cacheKey = `${CACHE_KEY_PREFIX}${userId}`;
+      const cached = await AsyncStorage.getItem(cacheKey);
+      if (!cached) return null;
+
+      const { profile, timestamp } = JSON.parse(cached);
+      const age = Date.now() - timestamp;
+
+      if (age > CACHE_DURATION) return null; // Expired
+      return profile;
+    } catch (error) {
+      console.warn('Cache read error:', error);
+      return null;
+    }
+  },
+
+  async set(userId, profile) {
+    try {
+      const cacheKey = `${CACHE_KEY_PREFIX}${userId}`;
+      // Cache minimal fields only to reduce storage
+      const minimalProfile = {
+        id: profile.id,
+        name: profile.name,
+        fullNameChain: profile.fullNameChain,
+        photo_url: profile.photo_url,
+        professional_title: profile.professional_title,
+        title_abbreviation: profile.title_abbreviation,
+        user_id: profile.user_id,
+      };
+      await AsyncStorage.setItem(
+        cacheKey,
+        JSON.stringify({ profile: minimalProfile, timestamp: Date.now() })
+      );
+    } catch (error) {
+      console.warn('Cache write error:', error);
+      // Non-fatal, continue
+    }
+  },
+
+  async invalidate(userId) {
+    try {
+      const cacheKey = `${CACHE_KEY_PREFIX}${userId}`;
+      await AsyncStorage.removeItem(cacheKey);
+    } catch (error) {
+      console.warn('Cache invalidation error:', error);
+    }
+  },
+
+  async clear() {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const profileKeys = keys.filter(k => k.startsWith(CACHE_KEY_PREFIX));
+      if (profileKeys.length > 0) {
+        await AsyncStorage.multiRemove(profileKeys);
+      }
+    } catch (error) {
+      console.warn('Cache clear error:', error);
+    }
+  }
+};
+
+// Skeleton loader component for loading states
+const SkeletonLine = ({ width, height = 18, style }) => (
+  <View
+    style={[
+      {
+        height,
+        width,
+        backgroundColor: '#E5E5EA',
+        borderRadius: 4,
+        opacity: 0.6,
+      },
+      style
+    ]}
+  />
+);
 
 export default function SettingsPageModern({ user }) {
   const router = useRouter();
@@ -229,6 +306,7 @@ export default function SettingsPageModern({ user }) {
   const [userProfile, setUserProfile] = useState(null);
   const [pendingRequest, setPendingRequest] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [profileError, setProfileError] = useState(null);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -264,76 +342,92 @@ export default function SettingsPageModern({ user }) {
 
   const loadUserProfile = async () => {
     setLoadingProfile(true);
+    setProfileError(null);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
 
-      if (user) {
-        // Check user-specific cache first
-        const now = Date.now();
-        const cached = profileCaches.get(user.id);
-        if (cached && now - cached.timestamp < CACHE_DURATION) {
-          setUserProfile(cached.profile);
-          setLoadingProfile(false);
-          return;
-        }
+      if (!user) {
+        setLoadingProfile(false);
+        return;
+      }
 
-        // Find profile linked to this user
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq('user_id', user.id)
-          .single();
+      // Try AsyncStorage cache first
+      const cached = await profileCacheUtils.get(user.id);
+      if (cached) {
+        setUserProfile(cached);
+        setLoadingProfile(false);
+        return; // Cache hit - done!
+      }
 
-        setUserProfile(profile);
+      // Cache miss - fetch from database
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, name, father_id, user_id, photo_url, professional_title, title_abbreviation")
+        .eq('user_id', user.id)
+        .single();
 
-        // Build full name chain for linked profile
-        if (profile) {
-          const { data: allProfiles } = await supabase
-            .from("profiles")
-            .select("id, name, father_id");
+      if (profileError) {
+        if (profileError.code === 'PGRST116') {
+          // No profile found - check for pending request
+          if (featureFlags.profileLinkRequests) {
+            const { data: requests } = await supabase
+              .from("profile_link_requests")
+              .select(`
+                *,
+                profile:profile_id(id, name, father_id)
+              `)
+              .eq("user_id", user.id)
+              .eq("status", "pending")
+              .order("created_at", { ascending: false })
+              .limit(1);
 
-          if (allProfiles) {
-            const fullChain = buildNameChain(profile, allProfiles);
-            profile.fullNameChain = fullChain;
-          }
-        }
-        // If no linked profile, check for pending request
-        else if (featureFlags.profileLinkRequests) {
-          const { data: requests } = await supabase
-            .from("profile_link_requests")
-            .select(`
-              *,
-              profile:profile_id(*)
-            `)
-            .eq("user_id", user.id)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false })
-            .limit(1);
+            if (requests && requests.length > 0) {
+              setPendingRequest(requests[0]);
 
-          if (requests && requests.length > 0) {
-            setPendingRequest(requests[0]);
-
-            // Build full name chain
-            if (requests[0].profile) {
-              const { data: allProfiles } = await supabase
-                .from("profiles")
-                .select("id, name, father_id");
-
-              if (allProfiles) {
-                const fullChain = buildNameChain(requests[0].profile, allProfiles);
-                requests[0].fullNameChain = fullChain;
+              // Build name chain for pending request profile
+              if (requests[0].profile) {
+                const { data: chainData } = await supabase.rpc('build_name_chain', {
+                  profile_id: requests[0].profile.id
+                });
+                requests[0].fullNameChain = chainData || requests[0].profile.name;
               }
             }
           }
+          setLoadingProfile(false);
+          return;
+        }
+        throw profileError;
+      }
+
+      // Build full name chain using RPC function
+      if (profile) {
+        const { data: chainData, error: chainError } = await supabase.rpc('build_name_chain', {
+          profile_id: profile.id
+        });
+
+        if (!chainError && chainData) {
+          profile.fullNameChain = chainData;
+        } else {
+          profile.fullNameChain = profile.name; // Fallback
         }
 
-        // Update user-specific cache
-        profileCaches.set(user.id, { profile, timestamp: Date.now() });
+        setUserProfile(profile);
+
+        // Cache the result
+        await profileCacheUtils.set(user.id, profile);
       }
+
     } catch (error) {
       console.error("Error loading user profile:", error);
+
+      // User-friendly error messages
+      let errorMessage = "تعذر تحميل البيانات";
+      if (error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
+        errorMessage = "لا يوجد اتصال بالإنترنت";
+      }
+      setProfileError(errorMessage);
     } finally {
       setLoadingProfile(false);
     }
@@ -355,7 +449,7 @@ export default function SettingsPageModern({ user }) {
             // Clear local settings and caches first
             resetSettings();
             if (currentUser?.id) {
-              profileCaches.delete(currentUser.id);
+              await profileCacheUtils.invalidate(currentUser.id);
             }
 
             // Clear any component-level stores
@@ -408,11 +502,10 @@ export default function SettingsPageModern({ user }) {
       }
 
       resetSettings();
-      // Clear any cached profile details for this user
       if (currentUser?.id) {
-        profileCaches.delete(currentUser.id);
+        await profileCacheUtils.invalidate(currentUser.id);
       } else {
-        profileCaches.clear();
+        await profileCacheUtils.clear();
       }
 
       await forceCompleteSignOut();
@@ -495,7 +588,7 @@ export default function SettingsPageModern({ user }) {
     handleFeedback();
 
     // Clear all cached data
-    profileCaches.clear();
+    await profileCacheUtils.clear();
     resetSettings();
 
     // Clear tree store
@@ -760,7 +853,11 @@ export default function SettingsPageModern({ user }) {
                 </View>
                 <View style={styles.profileInfo}>
                   {loadingProfile ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
+                    <>
+                      <SkeletonLine width={160} height={21} style={{ marginBottom: 4 }} />
+                      <SkeletonLine width={120} height={16} style={{ marginBottom: 2 }} />
+                      <SkeletonLine width={100} height={17} style={{ marginTop: 4 }} />
+                    </>
                   ) : (
                     <>
                       <Text style={styles.profileName}>
@@ -808,6 +905,25 @@ export default function SettingsPageModern({ user }) {
               <Text style={styles.profileStatusNote}>{profileCardAction.hint}</Text>
             ) : null}
           </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Error State */}
+        {profileError && !loadingProfile && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={20} color={colors.primary} />
+            <Text style={styles.errorText}>{profileError}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                setProfileError(null);
+                loadUserProfile();
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="refresh-outline" size={16} color={colors.white} />
+              <Text style={styles.retryButtonText}>إعادة المحاولة</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1064,7 +1180,7 @@ export default function SettingsPageModern({ user }) {
               onPress={handleSignOut}
               rightAccessory={
                 isSigningOut ? (
-                  <ActivityIndicator size="small" color={colors.muted} />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
                   <Ionicons name="log-out-outline" size={18} color={colors.muted} />
                 )
@@ -1116,7 +1232,7 @@ export default function SettingsPageModern({ user }) {
               onPress={handleDeleteAccount}
               rightAccessory={
                 isDeletingAccount ? (
-                  <ActivityIndicator size="small" color="#DC2626" />
+                  <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
                   <Ionicons name="trash-outline" size={18} color="#DC2626" />
                 )
@@ -1540,6 +1656,46 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: colors.text,
+    ...fontStyles.semibold,
+  },
+
+  // Error State
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '10',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    flexWrap: 'wrap',
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    marginLeft: 8,
+    marginRight: 8,
+    ...fontStyles.regular,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
     ...fontStyles.semibold,
   },
 });
