@@ -3,8 +3,9 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  Pressable,
   Alert,
   ActivityIndicator,
   RefreshControl,
@@ -206,84 +207,103 @@ const SuggestionReviewManager = () => {
     }
   };
 
-  const renderSuggestion = (suggestion) => (
-    <View key={suggestion.id} style={styles.suggestionCard}>
-      {/* Header */}
-      <View style={styles.cardHeader}>
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "approved":
+        return "checkmark-circle";
+      case "rejected":
+        return "close-circle";
+      case "pending":
+        return "time-outline";
+      default:
+        return "help-circle-outline";
+    }
+  };
+
+  const getStatusBadgeStyle = (status) => {
+    switch (status) {
+      case "approved":
+        return styles.statusBadgeApproved;
+      case "rejected":
+        return styles.statusBadgeRejected;
+      case "pending":
+        return styles.statusBadgePending;
+      default:
+        return {};
+    }
+  };
+
+  const getStatusTextStyle = (status) => {
+    switch (status) {
+      case "approved":
+        return styles.statusTextApproved;
+      case "rejected":
+        return styles.statusTextRejected;
+      case "pending":
+        return styles.statusTextPending;
+      default:
+        return {};
+    }
+  };
+
+  const renderSuggestion = ({ item: suggestion }) => (
+    <Pressable style={styles.card}>
+      {/* Inline header */}
+      <View style={styles.headerRow}>
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>
-            {suggestion.profile?.name || "غير معروف"}
+            {suggestion.profile?.name || "غير معروف"}{" "}
+            {suggestion.profile?.hid && (
+              <Text style={styles.profileHID}>#{suggestion.profile.hid}</Text>
+            )}
           </Text>
-          <Text style={styles.profileHID}>#{suggestion.profile?.hid}</Text>
         </View>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(suggestion.status) + "20" },
-          ]}
-        >
-          <Text
-            style={[styles.statusText, { color: getStatusColor(suggestion.status) }]}
-          >
+        <View style={[styles.statusBadge, getStatusBadgeStyle(suggestion.status)]}>
+          <Ionicons
+            name={getStatusIcon(suggestion.status)}
+            size={14}
+            color={getStatusColor(suggestion.status)}
+          />
+          <Text style={[styles.statusText, getStatusTextStyle(suggestion.status)]}>
             {getStatusLabel(suggestion.status)}
           </Text>
         </View>
       </View>
 
-      {/* Field Change */}
-      <View style={styles.changeSection}>
-        <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}</Text>
-        <View style={styles.changeValues}>
-          <View style={styles.oldValue}>
-            <Text style={styles.valueLabel}>من:</Text>
-            <Text style={styles.valueText}>
-              {suggestion.old_value ?? "فارغ"}
-            </Text>
-          </View>
-          <Ionicons
-            name="arrow-forward"
-            size={20}
-            color={COLORS.textLight}
-            style={styles.arrow}
-          />
-          <View style={styles.newValue}>
-            <Text style={styles.valueLabel}>إلى:</Text>
-            <Text style={[styles.valueText, styles.newValueText]}>
-              {suggestion.new_value ?? ""}
-            </Text>
-          </View>
+      {/* Inline diff */}
+      <View style={styles.diffRow}>
+        <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}:</Text>
+        <View style={styles.diffValues}>
+          <Text style={styles.valueOld} numberOfLines={1}>
+            {suggestion.old_value ?? "فارغ"}
+          </Text>
+          <Ionicons name="arrow-forward" size={16} color={COLORS.textLight} style={styles.arrowIcon} />
+          <Text style={styles.valueNew} numberOfLines={1}>
+            {suggestion.new_value}
+          </Text>
         </View>
       </View>
 
-      {/* Reason if provided */}
+      {/* Collapsible reason */}
       {suggestion.reason && (
-        <View style={styles.reasonSection}>
-          <Text style={styles.reasonLabel}>السبب:</Text>
-          <Text style={styles.reasonText}>{suggestion.reason}</Text>
+        <Text style={styles.reasonText} numberOfLines={2}>
+          السبب: {suggestion.reason}
+        </Text>
+      )}
+
+      {/* Auto-approval timer */}
+      {suggestion.status === "pending" && suggestion.permission_level === "family" && (
+        <View style={styles.timerRow}>
+          <Ionicons name="timer-outline" size={14} color={COLORS.secondary} />
+          <Text style={styles.timerText}>
+            موافقة تلقائية خلال: {suggestionService.getAutoApprovalTimeRemaining(suggestion.created_at)}
+          </Text>
         </View>
       )}
 
-      {/* Auto-approval timer for family circle suggestions */}
-      {suggestion.status === "pending" &&
-        suggestion.permission_level === "family" && (
-          <View style={styles.autoApprovalBanner}>
-            <Ionicons
-              name="timer-outline"
-              size={16}
-              color={COLORS.secondary}
-            />
-            <Text style={styles.autoApprovalText}>
-              موافقة تلقائية خلال:{" "}
-              {suggestionService.getAutoApprovalTimeRemaining(
-                suggestion.created_at
-              )}
-            </Text>
-          </View>
-        )}
-
-      {/* Suggester Info */}
-      <View style={styles.suggesterSection}>
-        <Text style={styles.suggesterText}>
+      {/* Footer */}
+      <View style={styles.footerRow}>
+        <Text style={styles.timestampText}>
           اقترح بواسطة: {suggestion.suggester?.name || "غير معروف"}
         </Text>
         <Text style={styles.dateText}>
@@ -291,42 +311,36 @@ const SuggestionReviewManager = () => {
         </Text>
       </View>
 
-      {/* Actions for pending suggestions */}
+      {/* Action buttons (only for pending) */}
       {suggestion.status === "pending" && (
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.actionButton, styles.rejectButton]}
             onPress={() => confirmReject(suggestion)}
           >
-            <Ionicons name="close-circle" size={20} color={COLORS.error} />
+            <Ionicons name="close-circle" size={18} color={COLORS.error} />
             <Text style={[styles.actionText, { color: COLORS.error }]}>رفض</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.approveButton]}
             onPress={() => confirmApprove(suggestion)}
           >
-            <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+            <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
             <Text style={[styles.actionText, { color: COLORS.success }]}>قبول</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* Result for processed suggestions */}
-      {suggestion.status !== "pending" && (
-        <View style={styles.resultSection}>
-          {suggestion.status === "approved" && suggestion.reviewed_by && (
-            <Text style={styles.resultText}>
-              تم القبول بواسطة المشرف • {new Date(suggestion.reviewed_at).toLocaleDateString("ar-SA")}
-            </Text>
-          )}
-          {suggestion.status === "rejected" && suggestion.rejection_reason && (
-            <Text style={styles.rejectionReason}>
-              سبب الرفض: {suggestion.rejection_reason}
-            </Text>
-          )}
+      {/* Rejection reason for rejected suggestions */}
+      {suggestion.status === "rejected" && suggestion.rejection_reason && (
+        <View style={styles.rejectionSection}>
+          <Ionicons name="information-circle-outline" size={14} color={COLORS.error} />
+          <Text style={styles.rejectionReason}>
+            سبب الرفض: {suggestion.rejection_reason}
+          </Text>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 
   return (
@@ -366,34 +380,45 @@ const SuggestionReviewManager = () => {
       </View>
 
       {/* Content */}
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              loadSuggestions();
-            }}
-            tintColor={COLORS.primary}
-          />
-        }
-      >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>جاري التحميل...</Text>
-          </View>
-        ) : suggestions.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={64} color={COLORS.textLight} />
-            <Text style={styles.emptyText}>لا توجد اقتراحات</Text>
-          </View>
-        ) : (
-          suggestions.map(renderSuggestion)
-        )}
-      </ScrollView>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>جاري التحميل...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={suggestions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderSuggestion}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                loadSuggestions();
+              }}
+              tintColor={COLORS.primary}
+            />
+          }
+          getItemLayout={(data, index) => ({
+            length: 140,
+            offset: 140 * index + 12 * index,
+            index,
+          })}
+          windowSize={5}
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          removeClippedSubviews={true}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="document-text-outline" size={64} color={COLORS.textLight} />
+              <Text style={styles.emptyText}>لا توجد اقتراحات</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 };
@@ -429,26 +454,28 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: "600",
   },
-  scrollView: {
-    flex: 1,
+  listContent: {
     padding: 16,
   },
-  suggestionCard: {
+  card: {
     backgroundColor: "white",
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: COLORS.container + "40",
   },
-  cardHeader: {
+
+  // Header
+  headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   profileInfo: {
     flex: 1,
+    marginRight: 8,
   },
   profileName: {
     fontSize: 16,
@@ -456,120 +483,132 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   profileHID: {
-    fontSize: 12,
+    fontSize: 13,
     color: COLORS.textMedium,
-    marginTop: 2,
+    fontWeight: "400",
   },
+
+  // Status Badge
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 20,
+    gap: 4,
+  },
+  statusBadgeApproved: {
+    backgroundColor: COLORS.success + "15",
+  },
+  statusBadgeRejected: {
+    backgroundColor: COLORS.error + "15",
+  },
+  statusBadgePending: {
+    backgroundColor: COLORS.warning + "15",
   },
   statusText: {
     fontSize: 12,
     fontWeight: "600",
   },
-  changeSection: {
-    marginBottom: 16,
+  statusTextApproved: {
+    color: COLORS.success,
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.textMedium,
+  statusTextRejected: {
+    color: COLORS.error,
+  },
+  statusTextPending: {
+    color: COLORS.warning,
+  },
+
+  // Diff Row
+  diffRow: {
     marginBottom: 8,
   },
-  changeValues: {
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.textMedium,
+    marginBottom: 4,
+  },
+  diffValues: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
   },
-  oldValue: {
+  valueOld: {
     flex: 1,
-    padding: 12,
-    backgroundColor: COLORS.container + "10",
-    borderRadius: 8,
+    fontSize: 13,
+    color: COLORS.text + '99',
   },
-  arrow: {
-    marginHorizontal: 12,
+  arrowIcon: {
+    marginHorizontal: 4,
   },
-  newValue: {
+  valueNew: {
     flex: 1,
-    padding: 12,
-    backgroundColor: COLORS.success + "10",
-    borderRadius: 8,
-  },
-  valueLabel: {
-    fontSize: 12,
-    color: COLORS.textMedium,
-    marginBottom: 4,
-  },
-  valueText: {
-    fontSize: 14,
-    color: COLORS.text,
-  },
-  newValueText: {
+    fontSize: 13,
     fontWeight: "600",
+    color: COLORS.primary,
   },
-  reasonSection: {
-    backgroundColor: COLORS.container + "10",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  reasonLabel: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.textMedium,
-    marginBottom: 4,
-  },
+
+  // Reason
   reasonText: {
-    fontSize: 14,
-    color: COLORS.text,
+    fontSize: 12,
+    color: COLORS.textMedium,
+    marginBottom: 8,
+    lineHeight: 18,
   },
-  autoApprovalBanner: {
+
+  // Timer Row
+  timerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: COLORS.secondary + "15",
     padding: 8,
     borderRadius: 6,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  autoApprovalText: {
-    fontSize: 13,
+  timerText: {
+    fontSize: 12,
     color: COLORS.secondary,
     fontWeight: "500",
+    flex: 1,
   },
-  suggesterSection: {
+
+  // Footer
+  footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 12,
+    alignItems: "center",
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: COLORS.container + "40",
+    marginBottom: 8,
   },
-  suggesterText: {
-    fontSize: 12,
+  timestampText: {
+    fontSize: 11,
     color: COLORS.textMedium,
   },
   dateText: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textLight,
   },
+
+  // Actions
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
+    gap: 8,
+    paddingTop: 8,
   },
   actionButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
-    marginHorizontal: 4,
+    minHeight: 44,
   },
   rejectButton: {
     backgroundColor: COLORS.error + "10",
@@ -582,21 +621,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 6,
   },
-  resultSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
-  },
-  resultText: {
-    fontSize: 12,
-    color: COLORS.textMedium,
-    fontStyle: "italic",
+
+  // Rejection Section
+  rejectionSection: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: COLORS.error + "10",
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 8,
   },
   rejectionReason: {
     fontSize: 12,
     color: COLORS.error,
-    fontStyle: "italic",
+    flex: 1,
+    lineHeight: 18,
   },
   loadingContainer: {
     flex: 1,

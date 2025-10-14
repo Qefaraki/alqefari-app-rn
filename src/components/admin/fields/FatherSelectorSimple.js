@@ -65,7 +65,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
         .select(`
           id,
           husband_id,
-          marriage_date,
+          start_date,
           status,
           husband:profiles!marriages_husband_id_fkey(
             id,
@@ -76,7 +76,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
         `)
         .eq("wife_id", motherId)
         .in("status", ["current", "past", "married", "widowed", "divorced"]) // Support both old and new values
-        .order("marriage_date", { ascending: false, nullsFirst: false });
+        .order("start_date", { ascending: false, nullsFirst: false });
 
       if (error) {
         console.error("Error loading husbands:", error);

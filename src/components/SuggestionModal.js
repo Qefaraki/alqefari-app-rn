@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -44,6 +45,36 @@ const SuggestionModal = ({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Field categories for better organization
+  const FIELD_CATEGORIES = {
+    basic: {
+      title: "معلومات أساسية",
+      icon: "person-outline",
+      fields: ["name", "bio"],
+    },
+    contact: {
+      title: "معلومات التواصل",
+      icon: "call-outline",
+      fields: ["phone", "email", "current_location"],
+    },
+    professional: {
+      title: "معلومات مهنية وتعليمية",
+      icon: "briefcase-outline",
+      fields: ["occupation", "education"],
+    },
+    additional: {
+      title: "معلومات إضافية",
+      icon: "information-circle-outline",
+      fields: [
+        "date_of_birth",
+        "place_of_birth",
+        "instagram",
+        "twitter",
+        "linkedin",
+      ],
+    },
+  };
+
   // Available fields for editing/suggestions
   const editableFields = [
     { key: "name", label: "الاسم", type: "text" },
@@ -59,6 +90,14 @@ const SuggestionModal = ({
     { key: "twitter", label: "تويتر", type: "text" },
     { key: "linkedin", label: "لينكد إن", type: "text" },
   ];
+
+  // Map fields to categories
+  const editableFieldsWithCategory = editableFields.map((field) => ({
+    ...field,
+    category: Object.keys(FIELD_CATEGORIES).find((cat) =>
+      FIELD_CATEGORIES[cat].fields.includes(field.key)
+    ),
+  }));
 
   // Load current value when field is selected
   const handleFieldSelect = (field) => {
@@ -207,50 +246,101 @@ const SuggestionModal = ({
             {!selectedField ? (
               <View style={styles.fieldSelection}>
                 <Text style={styles.sectionTitle}>اختر الحقل للتعديل:</Text>
-                {editableFields.map((field) => (
-                  <TouchableOpacity
-                    key={field.key}
-                    style={styles.fieldOption}
-                    onPress={() => handleFieldSelect(field)}
-                  >
-                    <Text style={styles.fieldLabel}>{field.label}</Text>
-                    <Text style={styles.fieldValue} numberOfLines={1}>
-                      {profile[field.key] || "غير محدد"}
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={COLORS.textLight}
-                    />
-                  </TouchableOpacity>
-                ))}
+
+                {Object.entries(FIELD_CATEGORIES).map(
+                  ([categoryKey, category]) => {
+                    const categoryFields = editableFieldsWithCategory.filter(
+                      (f) => f.category === categoryKey
+                    );
+
+                    if (categoryFields.length === 0) return null;
+
+                    return (
+                      <View key={categoryKey} style={styles.categorySection}>
+                        {/* Category header */}
+                        <View style={styles.categoryHeader}>
+                          <Ionicons
+                            name={category.icon}
+                            size={18}
+                            color={COLORS.textMedium}
+                          />
+                          <Text style={styles.categoryTitle}>
+                            {category.title}
+                          </Text>
+                          <View style={styles.countBadge}>
+                            <Text style={styles.countText}>
+                              {categoryFields.length}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Field items */}
+                        {categoryFields.map((field) => (
+                          <TouchableOpacity
+                            key={field.key}
+                            style={styles.fieldOption}
+                            onPress={() => handleFieldSelect(field)}
+                          >
+                            <View style={styles.fieldInfo}>
+                              <Text style={styles.fieldLabel}>
+                                {field.label}
+                              </Text>
+                              <Text
+                                style={styles.fieldValue}
+                                numberOfLines={1}
+                              >
+                                {profile[field.key] || "غير محدد"}
+                              </Text>
+                            </View>
+                            <Ionicons
+                              name="chevron-forward"
+                              size={18}
+                              color={COLORS.textLight}
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    );
+                  }
+                )}
               </View>
             ) : (
               <View style={styles.editSection}>
                 {/* Selected Field Header */}
-                <TouchableOpacity
-                  style={styles.selectedFieldHeader}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.selectedFieldHeader,
+                    pressed && { opacity: 0.6 },
+                  ]}
                   onPress={() => setSelectedField("")}
                 >
                   <Ionicons
                     name="chevron-back"
-                    size={24}
+                    size={26}
                     color={COLORS.primary}
                   />
                   <Text style={styles.selectedFieldLabel}>
                     {editableFields.find((f) => f.key === selectedField)?.label}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
 
                 {/* Current Value */}
                 <View style={styles.valueSection}>
                   <Text style={styles.valueSectionTitle}>القيمة الحالية:</Text>
                   <View style={styles.currentValueBox}>
-                    <Text style={styles.currentValueText}>
+                    <Text style={styles.currentValueText} selectable>
                       {currentValue || "غير محدد"}
                     </Text>
                   </View>
                 </View>
+
+                {/* Arrow indicator */}
+                <Ionicons
+                  name="arrow-down"
+                  size={20}
+                  color={COLORS.primary}
+                  style={styles.arrowDown}
+                />
 
                 {/* New Value */}
                 <View style={styles.valueSection}>
@@ -269,7 +359,7 @@ const SuggestionModal = ({
                       editableFields.find((f) => f.key === selectedField)
                         ?.multiline
                     }
-                    textAlign="right"
+                    textAlign="left"
                     autoFocus
                   />
                 </View>
@@ -288,7 +378,7 @@ const SuggestionModal = ({
                       placeholderTextColor={COLORS.textLight}
                       multiline
                       numberOfLines={3}
-                      textAlign="right"
+                      textAlign="left"
                     />
                   </View>
                 )}
@@ -380,32 +470,66 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.text,
     marginBottom: 16,
-    textAlign: "right",
+    textAlign: "left",
   },
   fieldSelection: {
     marginBottom: 24,
   },
+  categorySection: {
+    marginBottom: 20,
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  categoryTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.textMedium,
+  },
+  countBadge: {
+    backgroundColor: COLORS.textLight + "20",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 24,
+    alignItems: "center",
+    marginRight: "auto",
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textMedium,
+  },
   fieldOption: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "white",
-    padding: 16,
-    borderRadius: 12,
+    padding: 14,
+    borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: COLORS.container + "40",
+    minHeight: 60,
+  },
+  fieldInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   fieldLabel: {
-    fontSize: 14,
-    color: COLORS.textMedium,
-    marginRight: 8,
+    fontSize: 16,
+    fontWeight: "500",
+    color: COLORS.text,
+    marginBottom: 4,
   },
   fieldValue: {
-    fontSize: 16,
-    color: COLORS.text,
-    flex: 1,
-    marginRight: 8,
-    textAlign: "right",
+    fontSize: 14,
+    color: COLORS.textLight,
+    marginTop: 2,
   },
   editSection: {
     marginBottom: 24,
@@ -413,13 +537,20 @@ const styles = StyleSheet.create({
   selectedFieldHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.container + "20",
   },
   selectedFieldLabel: {
     fontSize: 18,
     fontWeight: "600",
     color: COLORS.text,
     marginLeft: 12,
+  },
+  arrowDown: {
+    alignSelf: "center",
+    marginVertical: 8,
   },
   valueSection: {
     marginBottom: 20,
@@ -429,7 +560,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.textMedium,
     marginBottom: 8,
-    textAlign: "right",
+    textAlign: "left",
   },
   currentValueBox: {
     backgroundColor: COLORS.container + "20",
@@ -441,7 +572,7 @@ const styles = StyleSheet.create({
   currentValueText: {
     fontSize: 16,
     color: COLORS.text,
-    textAlign: "right",
+    textAlign: "left",
   },
   input: {
     backgroundColor: "white",
@@ -470,7 +601,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMedium,
     marginLeft: 8,
     flex: 1,
-    textAlign: "right",
+    textAlign: "left",
   },
 });
 

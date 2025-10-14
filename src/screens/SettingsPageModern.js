@@ -213,7 +213,7 @@ const SettingsCell = ({
 };
 
 // AsyncStorage cache configuration
-const CACHE_KEY_PREFIX = 'user_profile_v1_';
+const CACHE_KEY_PREFIX = 'user_profile_v2_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Helper functions for persistent caching
@@ -389,7 +389,7 @@ export default function SettingsPageModern({ user }) {
               // Build name chain for pending request profile
               if (requests[0].profile) {
                 const { data: chainData } = await supabase.rpc('build_name_chain', {
-                  profile_id: requests[0].profile.id
+                  p_profile_id: requests[0].profile.id
                 });
                 requests[0].fullNameChain = chainData || requests[0].profile.name;
               }
@@ -404,7 +404,7 @@ export default function SettingsPageModern({ user }) {
       // Build full name chain using RPC function
       if (profile) {
         const { data: chainData, error: chainError } = await supabase.rpc('build_name_chain', {
-          profile_id: profile.id
+          p_profile_id: profile.id
         });
 
         if (!chainError && chainData) {
@@ -564,7 +564,7 @@ export default function SettingsPageModern({ user }) {
 
     handleFeedback();
     router.push({
-      pathname: "/(app)/index",
+      pathname: "/",
       params: {
         openProfileId: userProfile.id,
         focusOnProfile: "true",

@@ -732,6 +732,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         () => setShowActivityLog(false),
         ActivityLogDashboard,
         {
+          profile: profile,  // Pass profile from AdminDashboard
           onNavigateToProfile: async (profileId) => {
             try {
               // Check if profile exists in currently loaded tree

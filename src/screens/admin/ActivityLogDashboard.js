@@ -336,15 +336,20 @@ const SmartNameDisplay = React.memo(({
   );
 });
 
-export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
-  const { profile, isLoading: authLoading } = useAuth();
+export default function ActivityLogDashboard({ onClose, onNavigateToProfile, profile: profileProp }) {
+  const authContext = useAuth();
+
+  // Use prop if provided, otherwise fall back to useAuth()
+  const profile = profileProp || authContext.profile;
+  const authLoading = authContext.isLoading;
 
   // DEBUG LOG #1: Profile state
   console.log('🔍 [ActivityLog] Profile state:', {
     authLoading,
     hasProfile: !!profile,
     profileId: profile?.id,
-    profileRole: profile?.role
+    profileRole: profile?.role,
+    profileSource: profileProp ? 'prop' : (authContext.profile ? 'authContext' : 'none')
   });
 
   const [activities, setActivities] = useState([]);
