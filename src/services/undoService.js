@@ -63,6 +63,20 @@ const ACTION_TYPE_CONFIG = {
     timeLimitDays: 30,
     dangerous: false,
   },
+  'profile_insert': {
+    rpcFunction: null, // Not undoable
+    description: 'إنشاء ملف',
+    requiresAdmin: false,
+    timeLimitDays: null,
+    dangerous: false,
+  },
+  'profile_hard_delete': {
+    rpcFunction: null, // Not undoable (hard deletes are permanent)
+    description: 'حذف نهائي',
+    requiresAdmin: true,
+    timeLimitDays: null,
+    dangerous: true,
+  },
 };
 
 class UndoService {
@@ -110,6 +124,10 @@ class UndoService {
       throw new Error(`نوع الإجراء '${actionType}' غير مدعوم للتراجع`);
     }
 
+    if (!config.rpcFunction) {
+      throw new Error(`لا يمكن التراجع عن هذا النوع من الإجراءات: ${config.description}`);
+    }
+
     const { data, error } = await supabase.rpc(config.rpcFunction, {
       p_audit_log_id: auditLogId,
       p_undo_reason: reason
@@ -134,13 +152,18 @@ class UndoService {
    */
   async getUndoableActions(profileId, limit = 20) {
     try {
+      // Get all action types that have an RPC function (i.e., are actually undoable)
+      const undoableActionTypes = Object.keys(ACTION_TYPE_CONFIG).filter(
+        type => ACTION_TYPE_CONFIG[type].rpcFunction !== null
+      );
+
       const { data, error } = await supabase
         .from('audit_log_enhanced')
         .select('*')
         .eq('record_id', profileId)
         .is('undone_at', null)
         .eq('is_undoable', true)
-        .in('action_type', ['profile_update', 'profile_soft_delete', 'admin_update', 'admin_delete'])
+        .in('action_type', undoableActionTypes)
         .order('created_at', { ascending: false })
         .limit(limit);
 
