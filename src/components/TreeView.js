@@ -2082,6 +2082,7 @@ const TreeView = ({
                     // Use admin RPC for profile deletion instead of direct table write
                     const { error } = await profilesService.deleteProfile(
                       contextMenuNode.id,
+                      contextMenuNode.version || 1  // Add version parameter for optimistic locking
                     );
 
                     if (error) throw error;

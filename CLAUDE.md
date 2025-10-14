@@ -244,6 +244,9 @@ const { data: permission } = await supabase.rpc('check_family_permission_v4', {
 | **083** | Optimized Mother Picker Query | ✅ Deployed |
 | **084a** | Batch Permission Validator | ✅ Deployed |
 | **084b** | Cascade Soft Delete | ✅ Deployed |
+| **20251014120000** | Undo System (initial) | ✅ Deployed |
+| **20251015010000-050000** | Undo Safety Mechanisms (5 migrations) | ✅ Deployed |
+| **20251015040000** | Operation Groups Integration | ✅ Deployed |
 
 ### Field Mapping Checklist
 
@@ -299,7 +302,19 @@ await supabase.rpc('admin_cascade_delete_profile', {
 
 ### Quick Summary
 
-Complete undo functionality for audit log entries with permission checks, time limits, and safety mechanisms.
+Production-ready undo functionality for audit log entries with comprehensive safety mechanisms, permission checks, and time limits.
+
+### Migrations
+
+| Migration | Purpose | Status |
+|-----------|---------|--------|
+| **20251014120000_undo_system.sql** | Initial undo system with 3 RPC functions | ✅ Deployed |
+| **20251014150000_fix_undo_permission_actor_comparison.sql** | Fix actor_id mapping bug | ✅ Deployed |
+| **20251015010000_fix_undo_profile_update_safety.sql** | Add version checking, parent validation, idempotency, locking | ✅ Deployed |
+| **20251015020000_fix_undo_profile_delete_safety.sql** | Add idempotency, locking, version increment | ✅ Deployed |
+| **20251015030000_fix_undo_cascade_delete_safety.sql** | Add safety checks to cascade undo | ✅ Deployed |
+| **20251015040000_integrate_operation_groups_with_cascade_delete.sql** | Link cascade delete to operation_groups | ✅ Deployed |
+| **20251015050000_fix_parent_validation_toctou.sql** | Fix parent locking TOCTOU vulnerability | ✅ Deployed |
 
 ### Supported Action Types
 
@@ -311,6 +326,38 @@ Complete undo functionality for audit log entries with permission checks, time l
 | `add_marriage` | `undo_marriage_create` | ✅ | Unlimited | ✅ |
 | `admin_update` | `undo_profile_update` | ❌ | 30 days | ❌ |
 | `admin_delete` | `undo_profile_delete` | ❌ | 30 days | ❌ |
+
+### Safety Mechanisms
+
+**Version Conflict Prevention**:
+- Checks current version vs expected version before undo
+- Increments version after restore to prevent concurrent modifications
+- Prevents overwriting newer changes with stale data
+- Returns clear error message when version mismatch detected
+
+**Parent Validation with Locking**:
+- Locks parent profiles during validation (SELECT FOR UPDATE NOWAIT)
+- Prevents orphan creation by verifying parent exists and is not deleted
+- Eliminates TOCTOU (Time-of-Check-Time-of-Use) race conditions
+- Maintains referential integrity throughout restore operation
+
+**Idempotency Protection**:
+- Checks `undone_at` timestamp before executing undo
+- Prevents double-undo operations that could cause data corruption
+- Shows friendly error message with timestamp when already undone
+- Ensures operations can be safely retried without side effects
+
+**Concurrent Operation Control**:
+- Advisory locks (pg_advisory_xact_lock) for transaction-level coordination
+- Row-level locks with NOWAIT for immediate failure on conflicts
+- Clear error messages for lock conflicts ("عملية أخرى قيد التنفيذ")
+- Prevents race conditions between multiple admin operations
+
+**Batch Operation Tracking**:
+- `operation_groups` table links related operations (cascade deletes)
+- Cascade delete creates groups automatically via `admin_cascade_delete_profile`
+- `undo_operation_group(group_id)` for atomic batch undo
+- Maintains consistency across multi-profile operations
 
 ### Using the Undo System
 
@@ -337,43 +384,74 @@ undoService.getActionDescription(actionType)    // Returns Arabic description
 undoService.getUndoTimeRemaining(createdAt)     // Returns time remaining (30 days for users)
 ```
 
+**Batch Undo (Operation Groups)**:
+```javascript
+// Undo entire cascade delete operation as a group
+const result = await supabase.rpc('undo_operation_group', {
+  p_group_id: operationGroupId,
+  p_undo_reason: 'استرجاع جماعي للحذف المتسلسل'
+});
+// Returns: { success: true, restored_count: number }
+```
+
 ### Permission Rules
 
 - **Regular Users**: Can undo their own actions within 30 days
 - **Admins/Super Admins**: Can undo any action, unlimited time
 - **Dangerous Operations**: Require confirmation dialog (cascade delete, marriage operations)
-- **Already Undone**: Cannot undo the same action twice
+- **Already Undone**: Cannot undo the same action twice (idempotency)
 
 ### Database Functions
 
 1. **`check_undo_permission(p_audit_log_id, p_user_profile_id)`**
    - Returns: `{can_undo: boolean, reason: string}`
-   - Checks user role, time limits, and action type
+   - Checks user role, time limits, action type, and undone status
 
 2. **`undo_profile_update(p_audit_log_id, p_undo_reason)`**
    - Restores profile data from `old_data` in audit log
+   - Version conflict prevention (checks current vs expected version)
+   - Parent validation with locking (for father_id, mother_id changes)
+   - Idempotency protection (checks undone_at)
    - Creates new audit entry for the undo action
 
 3. **`undo_profile_delete(p_audit_log_id, p_undo_reason)`**
    - Clears `deleted_at` to restore soft-deleted profile
+   - Idempotency protection (checks undone_at and current deleted_at)
+   - Row-level locking with NOWAIT
+   - Version increment after restore
    - Creates new audit entry for restoration
 
 4. **`undo_cascade_delete(p_audit_log_id, p_undo_reason)`**
    - Restores entire family subtree using `batch_id`
-   - Admin-only, 7-day limit
+   - Admin-only, 7-day time limit
+   - Idempotency protection across all descendants
+   - Advisory locking for batch coordination
    - Returns count of restored profiles
 
 5. **`undo_marriage_create(p_audit_log_id, p_undo_reason)`**
    - Soft deletes incorrectly created marriage
    - Admin-only operation
+   - Creates audit trail for marriage deletion
+
+6. **`undo_operation_group(p_group_id, p_undo_reason)`**
+   - Batch undo for operation groups (cascade deletes)
+   - Atomically undoes all operations in group
+   - Returns restored_count for UI feedback
+
+### Known Limitations
+
+- **Descendant Version Checking**: Cascade undo doesn't validate each descendant's version (acceptable risk - admin-only operation, rarely concurrent edits on deleted profiles)
+- **Parent Lock Duration**: Holds parent locks during entire restore transaction (acceptable - rare operation, typical duration <100ms)
+- **No Rollback for Partial Failures**: If batch undo fails midway, completed undos remain (mitigated by transaction atomicity and idempotency)
 
 ### UI Features
 
 - **Undo Button**: Appears on undoable activity log entries
 - **Dangerous Badge**: ⚠️ Warning icon for dangerous operations
-- **Confirmation Dialog**: Shown before dangerous operations
+- **Confirmation Dialog**: Shown before dangerous operations with clear warnings
 - **Loading States**: Activity indicator during undo operation
 - **Arabic Messages**: All errors and success messages in Arabic
+- **Disabled State**: Shows "تم التراجع" badge when already undone
 
 ### Testing
 
@@ -383,13 +461,20 @@ See comprehensive test checklist: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/U
 
 **Registry Pattern** in `undoService.js`:
 - `ACTION_TYPE_CONFIG` maps each action type to its RPC function
-- No substring matching - explicit whitelist
+- No substring matching - explicit whitelist for safety
 - Type-safe with built-in safety flags (dangerous, requiresAdmin, timeLimitDays)
 
 **Audit Trail**:
-- Every undo creates a new audit log entry
+- Every undo creates a new audit log entry with action_type 'undo'
 - Original entry marked with `undone_at`, `undone_by`, `undo_reason`
-- Full traceability of who undid what and when
+- Full traceability of who undid what, when, and why
+- Permanent record for compliance and debugging
+
+**Operation Groups**:
+- Links related operations (cascade deletes) for batch undo
+- `operation_groups` table with group_id, description, created_at
+- Foreign key from `audit_log` to `operation_groups` (optional)
+- Enables "Undo All" functionality for complex operations
 
 ## 📰 News Screen Additions (January 2025)
 

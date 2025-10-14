@@ -427,27 +427,46 @@ export const profilesService = {
   },
 
   /**
-   * Admin: Delete profile
+   * Delete profile with intelligent parameter detection
    * @param {string} profileId - Profile ID to delete
-   * @param {number} currentVersion - Current version for optimistic locking
+   * @param {number|boolean} versionOrCascade - Either version number for optimistic locking, or boolean for cascade delete
+   * @returns {Promise<{data, error}>}
    */
-  async deleteProfile(profileId, currentVersion) {
+  async deleteProfile(profileId, versionOrCascade = 1) {
     try {
-      const { data, error } = await supabase.rpc("admin_delete_profile", {
-        p_id: profileId,
-        p_version: currentVersion,
-      });
+      // Smart detection: boolean = cascade mode, number = version mode
+      if (typeof versionOrCascade === 'boolean') {
+        // Cascade delete path
+        const { data, error } = await supabase.rpc("admin_cascade_delete_profile", {
+          p_profile_id: profileId,
+          p_version: 1, // Default version for cascade
+          p_confirm_cascade: versionOrCascade,
+          p_max_descendants: 100
+        });
 
-      if (error) {
-        if (error.message.includes("has children")) {
-          throw new Error("Cannot delete profile with children");
+        if (error) throw error;
+        return { data, error: null };
+      } else {
+        // Optimistic locking path
+        const version = versionOrCascade;
+        const { data, error } = await supabase.rpc("admin_delete_profile", {
+          p_id: profileId,
+          p_version: version,
+        });
+
+        if (error) {
+          if (error.message && error.message.includes("has children")) {
+            throw new Error("Cannot delete profile with children");
+          }
+          throw error;
         }
-        throw error;
+        return { data, error: null };
       }
-
-      return { data, error: null };
     } catch (error) {
-      return { data: null, error: error.message || handleSupabaseError(error) };
+      return {
+        data: null,
+        error: error.message || handleSupabaseError(error)
+      };
     }
   },
 
@@ -513,27 +532,6 @@ export const profilesService = {
     }
   },
 
-  /**
-   * Admin: Delete profile with optional cascade
-   * @param {string} profileId - Profile to delete
-   * @param {boolean} cascade - Whether to cascade delete all descendants
-   */
-  async deleteProfile(profileId, cascade = false) {
-    try {
-      const { data, error } = await supabase.rpc(
-        "admin_cascade_delete_profile",
-        {
-          p_profile_id: profileId,
-          p_confirm_cascade: cascade,
-        },
-      );
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error: handleSupabaseError(error) };
-    }
-  },
 
   /**
    * Admin: Restore soft-deleted profile

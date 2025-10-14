@@ -41,10 +41,7 @@ import { ar } from "date-fns/locale";
 import tokens from "../../components/ui/tokens";
 import SkeletonLoader from "../../components/ui/SkeletonLoader";
 import InlineDiff from "../../components/ui/InlineDiff";
-import {
-  getFieldLabel,
-  groupFieldsByCategory,
-} from "../../services/activityLogTranslations";
+import { getFieldLabel } from "../../services/activityLogTranslations";
 import { formatRelativeTime } from "../../utils/formatTimestamp";
 import UserFilterModal from "../../components/admin/UserFilterModal";
 import DateRangePickerModal from "../../components/admin/DateRangePickerModal";
@@ -55,11 +52,6 @@ import Toast from "../../components/ui/Toast";
 
 const colors = {
   ...tokens.colors.najdi,
-  success: tokens.colors.success,
-  danger: tokens.colors.danger,
-  warning: "#FF9800",
-  error: "#FF3B30",
-  info: tokens.colors.accent,
   textMuted: tokens.colors.najdi.textMuted,
 };
 
@@ -95,27 +87,26 @@ const SEVERITY_OPTIONS = [
 ];
 
 const SEVERITY_BADGES = {
-  high: {
-    label: "عالي",
-    color: "#D58C4A",
-    text: "#F9F7F3",
-  },
-  critical: {
-    label: "حرج",
-    color: tokens.colors.najdi.crimson,
-    text: "#F9F7F3",
-  },
+  high: { label: "عالي", color: "#D58C4A", text: "#F9F7F3" },
+  critical: { label: "حرج", color: tokens.colors.najdi.crimson, text: "#F9F7F3" },
 };
+
+const METADATA_FIELDS = new Set([
+  "version",
+  "updated_at",
+  "created_at",
+  "request_id",
+  "time_since_previous",
+  "updated_by",
+  "updated_by_id",
+  "updated_by_profile_id",
+]);
 
 const formatSimpleValue = (value) => {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "نعم" : "لا";
-  if (typeof value === "object") {
-    return "بيانات";
-  }
-  if (typeof value === "string" && value.length > 80) {
-    return value.substring(0, 80) + "…";
-  }
+  if (typeof value === "object") return "بيانات";
+  if (typeof value === "string" && value.length > 80) return `${value.substring(0, 80)}…`;
   return String(value);
 };
 
@@ -136,13 +127,18 @@ const formatAbsoluteTimestamp = (timestamp) => {
   if (!timestamp) return "";
   try {
     const date = parseISO(timestamp);
-    if (isToday(date)) {
-      return `اليوم ${format(date, "h:mm a", { locale: ar })}`;
-    }
-    if (isYesterday(date)) {
-      return `أمس ${format(date, "h:mm a", { locale: ar })}`;
-    }
+    if (isToday(date)) return `اليوم ${format(date, "h:mm a", { locale: ar })}`;
+    if (isYesterday(date)) return `أمس ${format(date, "h:mm a", { locale: ar })}`;
     return format(date, "d MMMM yyyy h:mm a", { locale: ar });
+  } catch (error) {
+    return timestamp;
+  }
+};
+
+const formatRelativeSince = (timestamp) => {
+  if (!timestamp) return "";
+  try {
+    return formatDistanceToNow(parseISO(timestamp), { addSuffix: true, locale: ar });
   } catch (error) {
     return timestamp;
   }
@@ -153,39 +149,37 @@ const getSeverityBadge = (severity) => {
   return key && SEVERITY_BADGES[key] ? SEVERITY_BADGES[key] : null;
 };
 
-const buildActivitySummary = (activity) => {
-  const actorName = activity.actor_name_current || activity.actor_name_historical || "مستخدم";
-  const targetName =
-    activity.target_name_current || activity.target_name_historical || "الملف";
-  const actionConfig = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
-  const changedFieldsCount = activity.changed_fields?.length || 0;
-
-  if (changedFieldsCount > 1) {
-    return `${actorName} حدّث ${changedFieldsCount} حقول في ${targetName}`;
-  }
-
-  if (changedFieldsCount === 1) {
-    const fieldLabel = getFieldLabel(activity.changed_fields[0]);
-    return `${actorName} حدّث ${fieldLabel} في ${targetName}`;
-  }
-
-  return `${actorName} ${actionConfig.label} ${targetName}`;
+const getShortName = (name) => {
+  if (!name) return null;
+  const parts = name.trim().split(/\s+/);
+  return parts[0];
 };
+
+const getMeaningfulFields = (fields = []) => fields.filter((field) => !METADATA_FIELDS.has(field));
 
 const getPrimaryField = (activity) => {
   const changed = activity.changed_fields || [];
   if (!changed.length) return null;
-  const metadataFields = ["version", "updated_at", "created_at"];
-  return changed.find((field) => !metadataFields.includes(field)) || changed[0];
+  const meaningful = getMeaningfulFields(changed);
+  return meaningful[0] || changed[0];
 };
 
-const formatRelativeSince = (timestamp) => {
-  if (!timestamp) return "";
-  try {
-    return formatDistanceToNow(parseISO(timestamp), { addSuffix: true, locale: ar });
-  } catch (error) {
-    return timestamp;
+const buildActivitySummary = (activity) => {
+  const actorShort = getShortName(activity.actor_name_current || activity.actor_name_historical) || "مستخدم";
+  const targetShort = getShortName(activity.target_name_current || activity.target_name_historical) || "الملف";
+  const actionConfig = ACTION_CONFIGS[activity.action_type] || ACTION_CONFIGS.default;
+  const meaningfulFields = getMeaningfulFields(activity.changed_fields || []);
+
+  if (meaningfulFields.length === 1) {
+    const fieldLabel = getFieldLabel(meaningfulFields[0]);
+    return `${actorShort} عدّل ${fieldLabel} لـ ${targetShort}`;
   }
+
+  if (meaningfulFields.length > 1) {
+    return `${actorShort} حدّث ${meaningfulFields.length} حقول لـ ${targetShort}`;
+  }
+
+  return `${actorShort} ${actionConfig.label} ${targetShort}`;
 };
 
 const isNameChainEquivalent = (historical, current) => {
@@ -203,9 +197,7 @@ const isNameChainEquivalent = (historical, current) => {
     if (str.includes(" بن ")) {
       return str.split(" بن ").map((p) => p.trim());
     }
-    return str
-      .split(/\s+/)
-      .filter((p) => p.length > 0);
+    return str.split(/\s+/).filter((p) => p.length > 0);
   };
 
   const hParts = splitChain(hClean);
@@ -242,15 +234,11 @@ const SmartNameDisplay = React.memo(
     const handlePress = useCallback(
       (e) => {
         if (!onNavigate || !profileId) return;
-        try {
-          if (e && typeof e.stopPropagation === "function") {
-            e.stopPropagation();
-          }
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onNavigate(profileId);
-        } catch (error) {
-          console.error("[SmartNameDisplay] Navigation error", error);
+        if (e && typeof e.stopPropagation === "function") {
+          e.stopPropagation();
         }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onNavigate(profileId);
       },
       [onNavigate, profileId]
     );
@@ -303,136 +291,72 @@ const SmartNameDisplay = React.memo(
   }
 );
 
-const StatusHeader = ({ latestTimestamp, onClose }) => {
-  const lastActivity = latestTimestamp ? formatRelativeTime(latestTimestamp) : "لا توجد أنشطة";
-
-  return (
-    <View style={styles.statusHeader}>
-      <View style={styles.headerTopRow}>
-        <Image
-          source={require("../../../assets/logo/AlqefariEmblem.png")}
-          style={styles.emblem}
-          resizeMode="contain"
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.screenTitle}>سجل النشاط</Text>
-        </View>
-        {onClose && (
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chevron-forward" size={24} color={tokens.colors.najdi.text} />
-          </TouchableOpacity>
-        )}
-      </View>
-      <Text style={styles.screenSubtitle}>آخر تحديث {lastActivity}</Text>
-    </View>
-  );
+const getDatePresetLabel = (preset) => {
+  switch (preset) {
+    case "today":
+      return "اليوم";
+    case "week":
+      return "هذا الأسبوع";
+    case "month":
+      return "هذا الشهر";
+    case "custom":
+      return "نطاق مخصص";
+    default:
+      return "كل الأوقات";
+  }
 };
 
-const FiltersToolbar = ({
-  categoryFilter,
-  severityFilter,
-  datePreset,
-  selectedUser,
-  onCategoryChange,
-  onSeverityChange,
-  onDatePress,
-  onUserPress,
-  onReset,
-  searchText,
-  onSearchChange,
-}) => {
+const StatusHeader = ({ latestTimestamp, onClose }) => (
+  <View style={styles.statusHeader}>
+    <View style={styles.headerRow}>
+      <Image
+        source={require("../../../assets/logo/AlqefariEmblem.png")}
+        style={styles.emblem}
+        resizeMode="contain"
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={styles.screenTitle}>سجل النشاط</Text>
+        <Text style={styles.screenSubtitle}>آخر تحديث {latestTimestamp ? formatRelativeTime(latestTimestamp) : "لا توجد أنشطة"}</Text>
+      </View>
+      {onClose && (
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="chevron-forward" size={24} color={tokens.colors.najdi.text} />
+        </TouchableOpacity>
+      )}
+    </View>
+  </View>
+);
+
+const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchChange }) => {
+  const hasFilters = activeFiltersCount > 0;
+  const label = hasFilters ? `المصفيات (${activeFiltersCount})` : "المصفيات";
+
   return (
-    <View style={styles.filtersToolbar}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryRow}
+    <View style={styles.controlsRow}>
+      <TouchableOpacity
+        style={[styles.filterChip, hasFilters && styles.filterChipActive]}
+        onPress={onOpenFilters}
+        activeOpacity={0.75}
       >
-        {CATEGORY_OPTIONS.map((option) => {
-          const isActive = categoryFilter === option.key;
-          return (
-            <TouchableOpacity
-              key={option.key}
-              style={[styles.categoryChip, isActive && styles.categoryChipActive]}
-              onPress={() => onCategoryChange(option.key)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.categoryChipText, isActive && styles.categoryChipTextActive]}>
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-
-      <View style={styles.toolbarRow}>
-        <View style={styles.severityGroup}>
-          {SEVERITY_OPTIONS.map((option) => {
-            const isActive = severityFilter === option.key;
-            return (
-              <TouchableOpacity
-                key={option.key}
-                style={[styles.severityButton, isActive && styles.severityButtonActive]}
-                onPress={() => onSeverityChange(option.key)}
-                activeOpacity={0.75}
-              >
-                <Text
-                  style={[styles.severityButtonText, isActive && styles.severityButtonTextActive]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={onDatePress}
-          activeOpacity={0.75}
-        >
-          <Ionicons name="calendar" size={16} color={tokens.colors.najdi.text} />
-          <Text style={styles.dateButtonText}>{getDatePresetLabel(datePreset)}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.toolbarRow}>
-        <TouchableOpacity
-          style={[styles.userChip, selectedUser && styles.userChipActive]}
-          onPress={onUserPress}
-          activeOpacity={0.75}
-        >
-          <Ionicons
-            name="person"
-            size={14}
-            color={selectedUser ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
-          />
-          <Text style={[styles.userChipText, selectedUser && styles.userChipTextActive]}>
-            {selectedUser ? selectedUser.actor_name : "تصفية حسب المستخدم"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.resetButton} onPress={onReset} activeOpacity={0.75}>
-          <Ionicons name="refresh" size={14} color={tokens.colors.najdi.crimson} />
-          <Text style={styles.resetButtonText}>إعادة الضبط</Text>
-        </TouchableOpacity>
-      </View>
-
+        <Ionicons
+          name="options-outline"
+          size={16}
+          color={hasFilters ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
+        />
+        <Text style={[styles.filterChipText, hasFilters && styles.filterChipTextActive]}>{label}</Text>
+      </TouchableOpacity>
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={tokens.colors.najdi.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="ابحث بالاسم، الهاتف أو النشاط"
+          placeholder="بحث سريع"
           placeholderTextColor={tokens.colors.najdi.textMuted}
           value={searchText}
           onChangeText={onSearchChange}
           returnKeyType="search"
         />
         {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => onSearchChange("")}>
+          <TouchableOpacity onPress={() => onSearchChange("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close-circle" size={18} color={tokens.colors.najdi.textMuted} />
           </TouchableOpacity>
         )}
@@ -441,10 +365,100 @@ const FiltersToolbar = ({
   );
 };
 
+const FiltersSheet = ({
+  visible,
+  onClose,
+  categoryFilter,
+  severityFilter,
+  datePreset,
+  onSelectCategory,
+  onSelectSeverity,
+  onOpenDate,
+  onOpenUser,
+  selectedUser,
+  onClear,
+}) => (
+  <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <View style={styles.filtersSheetOverlay}>
+      <TouchableOpacity style={styles.filtersSheetBackdrop} activeOpacity={1} onPress={onClose} />
+      <View style={styles.filtersSheetContainer}>
+        <View style={styles.filtersSheetHeader}>
+          <Text style={styles.filtersSheetTitle}>المصفيات</Text>
+          <TouchableOpacity onPress={onClear} activeOpacity={0.7}>
+            <Text style={styles.filtersSheetReset}>إعادة الضبط</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.filtersSheetSection}>
+          <Text style={styles.filtersSheetLabel}>نوع النشاط</Text>
+          <View style={styles.filtersSheetRow}>
+            {CATEGORY_OPTIONS.map((option) => {
+              const isActive = categoryFilter === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.filtersSheetChip, isActive && styles.filtersSheetChipActive]}
+                  onPress={() => onSelectCategory(option.key)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[styles.filtersSheetChipText, isActive && styles.filtersSheetChipTextActive]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.filtersSheetSection}>
+          <Text style={styles.filtersSheetLabel}>الأهمية</Text>
+          <View style={styles.filtersSheetRow}>
+            {SEVERITY_OPTIONS.map((option) => {
+              const isActive = severityFilter === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.filtersSheetChipSmall, isActive && styles.filtersSheetChipSmallActive]}
+                  onPress={() => onSelectSeverity(option.key)}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[styles.filtersSheetChipTextSmall, isActive && styles.filtersSheetChipTextSmallActive]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.filtersSheetRowButton} onPress={onOpenDate} activeOpacity={0.75}>
+          <Ionicons name="calendar-outline" size={18} color={tokens.colors.najdi.text} />
+          <Text style={styles.filtersSheetRowButtonText}>التاريخ: {getDatePresetLabel(datePreset)}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.filtersSheetRowButton} onPress={onOpenUser} activeOpacity={0.75}>
+          <Ionicons name="person-outline" size={18} color={tokens.colors.najdi.text} />
+          <Text style={styles.filtersSheetRowButtonText}>
+            {selectedUser ? selectedUser.actor_name : "اختر المستخدم"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.filtersSheetDone} onPress={onClose} activeOpacity={0.8}>
+          <Text style={styles.filtersSheetDoneText}>تم</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </Modal>
+);
+
 const ActivityListCard = ({ activity, onPress, onUndo }) => {
   const summary = buildActivitySummary(activity);
   const relativeTime = formatRelativeSince(activity.created_at);
-  const changedFields = activity.changed_fields || [];
+  const changedFields = getMeaningfulFields(activity.changed_fields || []);
   const primaryField = getPrimaryField(activity);
   const severityBadge = getSeverityBadge(activity.severity);
   const showUndo = activity.is_undoable === true && !activity.undone_at;
@@ -452,16 +466,12 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
   return (
     <TouchableOpacity style={styles.activityCard} onPress={onPress} activeOpacity={0.8}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.activitySummary} numberOfLines={2}>
-          {summary}
-        </Text>
+        <Text style={styles.activitySummary} numberOfLines={2}>{summary}</Text>
         <View style={styles.activityMetaRow}>
           <Text style={styles.activityTime}>{relativeTime}</Text>
           {severityBadge && (
             <View style={[styles.severityPill, { backgroundColor: severityBadge.color }]}>
-              <Text style={[styles.severityPillText, { color: severityBadge.text }]}>
-                {severityBadge.label}
-              </Text>
+              <Text style={[styles.severityPillText, { color: severityBadge.text }]}>{severityBadge.label}</Text>
             </View>
           )}
         </View>
@@ -498,20 +508,10 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
   );
 };
 
-const ActivityDetailsSheet = ({
-  activity,
-  visible,
-  onClose,
-  onUndo,
-  onNavigateToProfile,
-  showAdvanced,
-  onToggleAdvanced,
-}) => {
-  const changedFields = activity?.changed_fields || [];
-  const groupedChanges = useMemo(() => groupFieldsByCategory(changedFields), [changedFields]);
-
+const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateToProfile, onOpenAdvanced }) => {
   if (!activity) return null;
 
+  const meaningfulFields = getMeaningfulFields(activity.changed_fields || []);
   const severityBadge = getSeverityBadge(activity.severity);
   const summary = buildActivitySummary(activity);
   const actorName = activity.actor_name_current || activity.actor_name_historical;
@@ -519,45 +519,52 @@ const ActivityDetailsSheet = ({
   const showUndo = activity.is_undoable === true && !activity.undone_at;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={styles.sheetOverlay}>
         <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheetContainer}>
           <View style={styles.sheetHandleRow}>
             <View style={styles.sheetHandle} />
           </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.sheetContent}
-          >
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
             <Text style={styles.sheetTitle}>{summary}</Text>
             <Text style={styles.sheetTimestamp}>{formatAbsoluteTimestamp(activity.created_at)}</Text>
 
             {severityBadge && (
               <View style={[styles.sheetSeverity, { backgroundColor: severityBadge.color }]}>
-                <Text style={[styles.sheetSeverityText, { color: severityBadge.text }]}>
-                  {severityBadge.label}
-                </Text>
+                <Text style={[styles.sheetSeverityText, { color: severityBadge.text }]}>{severityBadge.label}</Text>
               </View>
             )}
 
             <View style={styles.sheetSection}>
-              <Text style={styles.sheetSectionTitle}>المستخدم</Text>
-              <Text style={styles.sheetValue}>{actorName || "—"}</Text>
-              {activity.actor_phone && (
-                <Text style={styles.sheetValueMuted}>{activity.actor_phone}</Text>
+              <Text style={styles.sheetSectionTitle}>ما الذي تغيّر؟</Text>
+              {meaningfulFields.length === 0 && (
+                <Text style={styles.sheetValueMuted}>لا توجد تفاصيل إضافية</Text>
               )}
+              {meaningfulFields.map((field) => {
+                const oldValue = formatSimpleValue(activity.old_data?.[field]);
+                const newValue = formatSimpleValue(activity.new_data?.[field]);
+                return (
+                  <View key={field} style={styles.changeRow}>
+                    <Text style={styles.changeBullet}>•</Text>
+                    <View style={styles.changeContent}>
+                      <Text style={styles.changeFieldLabel}>{getFieldLabel(field)}</Text>
+                      <Text style={styles.changeFieldValue}>{`${oldValue} → ${newValue}`}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+
+            <View style={styles.sheetSection}>
+              <Text style={styles.sheetSectionTitle}>من قام بذلك؟</Text>
+              <Text style={styles.sheetValue}>{actorName || "—"}</Text>
+              {activity.actor_phone && <Text style={styles.sheetValueMuted}>{activity.actor_phone}</Text>}
             </View>
 
             {targetName && (
               <View style={styles.sheetSection}>
-                <Text style={styles.sheetSectionTitle}>الملف المتأثر</Text>
+                <Text style={styles.sheetSectionTitle}>على من؟</Text>
                 <SmartNameDisplay
                   historicalName={activity.target_name_historical}
                   currentName={activity.target_name_current}
@@ -565,59 +572,20 @@ const ActivityDetailsSheet = ({
                   onNavigate={onNavigateToProfile}
                   style={styles.sheetValue}
                 />
-                {activity.target_phone && (
-                  <Text style={styles.sheetValueMuted}>{activity.target_phone}</Text>
-                )}
+                {activity.target_phone && <Text style={styles.sheetValueMuted}>{activity.target_phone}</Text>}
               </View>
             )}
 
             <View style={styles.sheetSection}>
-              <Text style={styles.sheetSectionTitle}>تفاصيل التغييرات</Text>
-              {changedFields.length === 0 && (
-                <Text style={styles.sheetValueMuted}>لا توجد تفاصيل إضافية</Text>
-              )}
-
-              {Object.entries(groupedChanges).map(([categoryKey, category]) => (
-                <View key={categoryKey} style={styles.sheetCategoryBlock}>
-                  <Text style={styles.sheetCategoryTitle}>{category.label}</Text>
-                  {category.fields.map((field) => (
-                    <View key={field} style={styles.sheetFieldRow}>
-                      <Text style={styles.sheetFieldLabel}>{getFieldLabel(field)}</Text>
-                      <InlineDiff
-                        field={field}
-                        oldValue={activity.old_data?.[field]}
-                        newValue={activity.new_data?.[field]}
-                        showLabels
-                      />
-                    </View>
-                  ))}
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.sheetSection}>
-              <Text style={styles.sheetSectionTitle}>سياق إضافي</Text>
-              {activity.description && (
-                <Text style={styles.sheetValue}>{activity.description}</Text>
-              )}
+              <Text style={styles.sheetSectionTitle}>السياق</Text>
+              {activity.description && <Text style={styles.sheetValue}>{activity.description}</Text>}
               <Text style={styles.sheetValueMuted}>{`تم منذ ${formatRelativeSince(activity.created_at)}`}</Text>
             </View>
 
-            <View style={styles.sheetSection}>
-              <TouchableOpacity
-                style={styles.advancedToggle}
-                onPress={onToggleAdvanced}
-                activeOpacity={0.75}
-              >
-                <Text style={styles.advancedToggleText}>معلومات متقدمة</Text>
-                <Ionicons
-                  name={showAdvanced ? "chevron-up" : "chevron-down"}
-                  size={16}
-                  color={tokens.colors.najdi.text}
-                />
-              </TouchableOpacity>
-              {showAdvanced && <AdvancedDetails activity={activity} />}
-            </View>
+            <TouchableOpacity style={styles.advancedLink} onPress={() => onOpenAdvanced(activity)} activeOpacity={0.75}>
+              <Ionicons name="information-circle-outline" size={18} color={tokens.colors.najdi.text} />
+              <Text style={styles.advancedLinkText}>معلومات متقدمة</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           <View style={styles.sheetActions}>
@@ -625,11 +593,7 @@ const ActivityDetailsSheet = ({
               <Text style={styles.sheetCloseText}>إغلاق</Text>
             </TouchableOpacity>
             {showUndo && (
-              <TouchableOpacity
-                style={styles.sheetUndoButton}
-                onPress={() => onUndo(activity)}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.sheetUndoButton} onPress={() => onUndo(activity)} activeOpacity={0.8}>
                 <Ionicons name="arrow-undo" size={18} color="#F9F7F3" style={{ marginLeft: 4 }} />
                 <Text style={styles.sheetUndoText}>تراجع</Text>
               </TouchableOpacity>
@@ -666,61 +630,101 @@ const AdvancedDetails = ({ activity }) => {
       <View style={styles.advancedJsonBlock}>
         <Text style={styles.advancedLabel}>البيانات الجديدة</Text>
         <ScrollView style={styles.jsonScroll} horizontal>
-          <Text style={styles.jsonText}>
-            {JSON.stringify(activity.new_data || {}, null, 2)}
-          </Text>
+          <Text style={styles.jsonText}>{JSON.stringify(activity.new_data || {}, null, 2)}</Text>
         </ScrollView>
       </View>
 
       <View style={styles.advancedJsonBlock}>
         <Text style={styles.advancedLabel}>البيانات السابقة</Text>
         <ScrollView style={styles.jsonScroll} horizontal>
-          <Text style={styles.jsonText}>
-            {JSON.stringify(activity.old_data || {}, null, 2)}
-          </Text>
+          <Text style={styles.jsonText}>{JSON.stringify(activity.old_data || {}, null, 2)}</Text>
         </ScrollView>
       </View>
     </View>
   );
 };
 
-const getDatePresetLabel = (preset) => {
-  switch (preset) {
-    case "today":
-      return "اليوم";
-    case "week":
-      return "هذا الأسبوع";
-    case "month":
-      return "هذا الشهر";
-    case "custom":
-      return "نطاق مخصص";
-    default:
-      return "كل الأوقات";
-  }
+const AdvancedDetailsModal = ({ activity, visible, onClose }) => {
+  if (!activity) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.advancedOverlay}>
+        <View style={styles.advancedModalContainer}>
+          <View style={styles.advancedModalHeader}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close" size={24} color={tokens.colors.najdi.text} />
+            </TouchableOpacity>
+            <Text style={styles.advancedModalTitle}>معلومات متقدمة</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={styles.advancedModalContent} showsVerticalScrollIndicator={false}>
+            <AdvancedDetails activity={activity} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
 };
 
 const ActivityLogSkeleton = () => (
   <SafeAreaView style={styles.container}>
     <View style={styles.statusHeader}>
-      <SkeletonLoader width="100%" height={48} borderRadius={12} />
-      <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
-        <SkeletonLoader width="25%" height={64} borderRadius={12} />
-        <SkeletonLoader width="25%" height={64} borderRadius={12} />
-        <SkeletonLoader width="25%" height={64} borderRadius={12} />
-      </View>
+      <SkeletonLoader width="100%" height={56} borderRadius={16} />
     </View>
-    <View style={styles.filtersToolbar}>
-      <SkeletonLoader width="100%" height={36} borderRadius={18} style={{ marginBottom: 12 }} />
-      <SkeletonLoader width="100%" height={36} borderRadius={12} style={{ marginBottom: 12 }} />
-      <SkeletonLoader width="100%" height={44} borderRadius={12} />
+    <View style={styles.controlsRow}>
+      <SkeletonLoader width={120} height={36} borderRadius={18} />
+      <SkeletonLoader width="60%" height={36} borderRadius={12} />
     </View>
     <View style={{ paddingHorizontal: 16, gap: 12 }}>
-      <SkeletonLoader width="60%" height={16} borderRadius={4} />
       <SkeletonLoader width="100%" height={96} borderRadius={16} />
       <SkeletonLoader width="100%" height={96} borderRadius={16} />
     </View>
   </SafeAreaView>
 );
+
+const getDateRangeForPreset = (preset) => {
+  const now = new Date();
+  switch (preset) {
+    case "today":
+      return { start: startOfDay(now), end: endOfDay(now) };
+    case "week":
+      return { start: startOfWeek(now), end: endOfWeek(now) };
+    case "month":
+      return { start: startOfMonth(now), end: endOfMonth(now) };
+    default:
+      return { start: null, end: null };
+  }
+};
+
+const matchesCategoryFilter = (activity, category) => {
+  if (category === "all") return true;
+  switch (category) {
+    case "tree":
+      return ["create_node", "update_node", "delete_node", "merge_nodes"].includes(activity.action_type);
+    case "marriages":
+      return ["add_marriage", "update_marriage", "delete_marriage"].includes(activity.action_type);
+    case "photos":
+      return ["upload_photo", "update_photo", "delete_photo"].includes(activity.action_type);
+    case "admin":
+      return ["grant_admin", "revoke_admin", "update_settings"].includes(activity.action_type) ||
+        activity.actor_role === "super_admin" ||
+        activity.actor_role === "admin";
+    default:
+      return true;
+  }
+};
+
+const matchesSeverityFilter = (activity, severity) => {
+  if (severity === "all") return true;
+  if (severity === "high") {
+    return activity.severity === "high" || activity.severity === "critical";
+  }
+  if (severity === "critical") {
+    return activity.severity === "critical";
+  }
+  return true;
+};
 
 export default function ActivityLogDashboard({ onClose, onNavigateToProfile, profile: profileProp }) {
   const authContext = useAuth();
@@ -741,6 +745,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserFilter, setShowUserFilter] = useState(false);
+  const [filtersSheetVisible, setFiltersSheetVisible] = useState(false);
 
   const [datePreset, setDatePreset] = useState("all");
   const [customDateFrom, setCustomDateFrom] = useState(null);
@@ -749,19 +754,17 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
-  const [showAdvancedDetails, setShowAdvancedDetails] = useState(false);
+  const [advancedActivity, setAdvancedActivity] = useState(null);
+  const [advancedModalVisible, setAdvancedModalVisible] = useState(false);
 
   const { showToast, hideToast, toastVisible, toastMessage, toastType } = useUndoStore();
 
   const requestIdRef = useRef(0);
-  const statsRequestIdRef = useRef(0);
   const selectedUserRef = useRef(selectedUser);
   const datePresetRef = useRef(datePreset);
   const customDateRangeRef = useRef({ from: customDateFrom, to: customDateTo });
   const categoryFilterRef = useRef(categoryFilter);
   const severityFilterRef = useRef(severityFilter);
-
-  const [stats, setStats] = useState({ total: 0, today: 0, critical: 0, users: 0 });
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
@@ -769,20 +772,10 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     customDateRangeRef.current = { from: customDateFrom, to: customDateTo };
     categoryFilterRef.current = categoryFilter;
     severityFilterRef.current = severityFilter;
-  }, [
-    selectedUser,
-    datePreset,
-    customDateFrom,
-    customDateTo,
-    categoryFilter,
-    severityFilter,
-  ]);
+  }, [selectedUser, datePreset, customDateFrom, customDateTo, categoryFilter, severityFilter]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(searchText);
-    }, 300);
-
+    const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
     return () => clearTimeout(timer);
   }, [searchText]);
 
@@ -855,47 +848,8 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     [page]
   );
 
-  const fetchStats = useCallback(async () => {
-    statsRequestIdRef.current += 1;
-    const currentRequestId = statsRequestIdRef.current;
-
-    try {
-      const dateRange = datePreset === "custom"
-        ? { start: customDateFrom, end: customDateTo }
-        : getDateRangeForPreset(datePreset);
-
-      const { data, error } = await supabase.rpc("get_activity_stats", {
-        p_user_filter: selectedUser?.actor_id || null,
-        p_date_from: dateRange.start?.toISOString() || null,
-        p_date_to: dateRange.end?.toISOString() || null,
-        p_action_filter: null,
-      });
-
-      if (currentRequestId !== statsRequestIdRef.current) {
-        return;
-      }
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const result = data[0];
-        setStats({
-          total: parseInt(result.total_count, 10) || 0,
-          today: parseInt(result.today_count, 10) || 0,
-          critical: parseInt(result.critical_count, 10) || 0,
-          users: parseInt(result.users_count, 10) || 0,
-        });
-      }
-    } catch (error) {
-      if (currentRequestId === statsRequestIdRef.current) {
-        console.error("Error fetching stats:", error);
-      }
-    }
-  }, [selectedUser, datePreset, customDateFrom, customDateTo]);
-
   useEffect(() => {
     fetchActivities(false);
-    fetchStats();
 
     const channel = supabase
       .channel("activity_log_changes")
@@ -928,12 +882,11 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchActivities, fetchStats, showToast]);
+  }, [fetchActivities, showToast]);
 
   useEffect(() => {
     setPage(0);
     fetchActivities(false);
-    fetchStats();
   }, [selectedUser, datePreset, customDateFrom, customDateTo]);
 
   useEffect(() => {
@@ -944,9 +897,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     }
 
     if (severityFilter === "high") {
-      filtered = filtered.filter((activity) =>
-        activity.severity === "high" || activity.severity === "critical"
-      );
+      filtered = filtered.filter((activity) => activity.severity === "high" || activity.severity === "critical");
     } else if (severityFilter === "critical") {
       filtered = filtered.filter((activity) => activity.severity === "critical");
     }
@@ -991,9 +942,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     return Object.entries(groups)
       .map(([title, data]) => ({
         title,
-        data: data.sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        ),
+        data: data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
       }))
       .sort((a, b) => {
         const first = a.data[0];
@@ -1003,6 +952,15 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   }, [filteredActivities]);
 
   const latestActivityTimestamp = activities.length > 0 ? activities[0].created_at : null;
+
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (categoryFilter !== "all") count += 1;
+    if (severityFilter !== "all") count += 1;
+    if (datePreset !== "all" || (datePreset === "custom" && (customDateFrom || customDateTo))) count += 1;
+    if (selectedUser) count += 1;
+    return count;
+  }, [categoryFilter, severityFilter, datePreset, customDateFrom, customDateTo, selectedUser]);
 
   const handleUndo = useCallback(
     async (activity) => {
@@ -1042,13 +1000,22 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   const handleOpenDetails = (activity) => {
     setSelectedActivity(activity);
-    setShowAdvancedDetails(false);
     setDetailsVisible(true);
   };
 
   const handleCloseDetails = () => {
     setDetailsVisible(false);
     setSelectedActivity(null);
+  };
+
+  const handleOpenAdvanced = (activity) => {
+    setAdvancedActivity(activity);
+    setAdvancedModalVisible(true);
+  };
+
+  const handleCloseAdvanced = () => {
+    setAdvancedModalVisible(false);
+    setAdvancedActivity(null);
   };
 
   const handleResetFilters = () => {
@@ -1069,24 +1036,11 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusHeader
-        stats={stats}
-        latestTimestamp={latestActivityTimestamp}
-        onShowCritical={() => setSeverityFilter("critical")}
-        onShowToday={() => setDatePreset("today")}
-        onClose={onClose}
-      />
+      <StatusHeader latestTimestamp={latestActivityTimestamp} onClose={onClose} />
 
-      <FiltersToolbar
-        categoryFilter={categoryFilter}
-        severityFilter={severityFilter}
-        datePreset={datePreset}
-        selectedUser={selectedUser}
-        onCategoryChange={setCategoryFilter}
-        onSeverityChange={setSeverityFilter}
-        onDatePress={() => setShowDateFilter(true)}
-        onUserPress={() => setShowUserFilter(true)}
-        onReset={handleResetFilters}
+      <ControlsRow
+        onOpenFilters={() => setFiltersSheetVisible(true)}
+        activeFiltersCount={activeFiltersCount}
         searchText={searchText}
         onSearchChange={setSearchText}
       />
@@ -1095,11 +1049,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         sections={groupedSections}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <ActivityListCard
-            activity={item}
-            onPress={() => handleOpenDetails(item)}
-            onUndo={handleUndo}
-          />
+          <ActivityListCard activity={item} onPress={() => handleOpenDetails(item)} onUndo={handleUndo} />
         )}
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.sectionHeader}>
@@ -1151,10 +1101,29 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           onClose={handleCloseDetails}
           onUndo={handleUndo}
           onNavigateToProfile={onNavigateToProfile}
-          showAdvanced={showAdvancedDetails}
-          onToggleAdvanced={() => setShowAdvancedDetails((prev) => !prev)}
+          onOpenAdvanced={handleOpenAdvanced}
         />
       )}
+
+      <FiltersSheet
+        visible={filtersSheetVisible}
+        onClose={() => setFiltersSheetVisible(false)}
+        categoryFilter={categoryFilter}
+        severityFilter={severityFilter}
+        datePreset={datePreset}
+        onSelectCategory={setCategoryFilter}
+        onSelectSeverity={setSeverityFilter}
+        onOpenDate={() => {
+          setFiltersSheetVisible(false);
+          setShowDateFilter(true);
+        }}
+        onOpenUser={() => {
+          setFiltersSheetVisible(false);
+          setShowUserFilter(true);
+        }}
+        selectedUser={selectedUser}
+        onClear={handleResetFilters}
+      />
 
       <UserFilterModal
         visible={showUserFilter}
@@ -1182,53 +1151,16 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         customRange={{ from: customDateFrom, to: customDateTo }}
       />
 
+      <AdvancedDetailsModal
+        activity={advancedActivity}
+        visible={advancedModalVisible}
+        onClose={handleCloseAdvanced}
+      />
+
       <Toast visible={toastVisible} message={toastMessage} type={toastType} onDismiss={hideToast} />
     </SafeAreaView>
   );
 }
-
-const matchesCategoryFilter = (activity, category) => {
-  if (category === "all") return true;
-  switch (category) {
-    case "tree":
-      return ["create_node", "update_node", "delete_node", "merge_nodes"].includes(activity.action_type);
-    case "marriages":
-      return ["add_marriage", "update_marriage", "delete_marriage"].includes(activity.action_type);
-    case "photos":
-      return ["upload_photo", "update_photo", "delete_photo"].includes(activity.action_type);
-    case "admin":
-      return ["grant_admin", "revoke_admin", "update_settings"].includes(activity.action_type) ||
-        activity.actor_role === "super_admin" ||
-        activity.actor_role === "admin";
-    default:
-      return true;
-  }
-};
-
-const matchesSeverityFilter = (activity, severity) => {
-  if (severity === "all") return true;
-  if (severity === "high") {
-    return activity.severity === "high" || activity.severity === "critical";
-  }
-  if (severity === "critical") {
-    return activity.severity === "critical";
-  }
-  return true;
-};
-
-const getDateRangeForPreset = (preset) => {
-  const now = new Date();
-  switch (preset) {
-    case "today":
-      return { start: startOfDay(now), end: endOfDay(now) };
-    case "week":
-      return { start: startOfWeek(now), end: endOfWeek(now) };
-    case "month":
-      return { start: startOfMonth(now), end: endOfMonth(now) };
-    default:
-      return { start: null, end: null };
-  }
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -1238,17 +1170,16 @@ const styles = StyleSheet.create({
   statusHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
-    backgroundColor: tokens.colors.najdi.background,
+    paddingBottom: 4,
   },
-  headerTopRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
   emblem: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     tintColor: tokens.colors.najdi.text,
   },
   screenTitle: {
@@ -1259,170 +1190,42 @@ const styles = StyleSheet.create({
   },
   screenSubtitle: {
     fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     marginTop: 4,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  closeButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  statusCardsRow: {
+  controlsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 16,
-    gap: 12,
-  },
-  statusCard: {
-    flex: 1,
-    borderRadius: 12,
-    backgroundColor: tokens.colors.najdi.container + "26",
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    alignItems: "center",
-  },
-  statusCardHighlight: {
-    backgroundColor: tokens.colors.najdi.crimson,
-  },
-  statusCardValue: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  statusCardValueHighlight: {
-    color: tokens.colors.najdi.alJass,
-  },
-  statusCardLabel: {
-    fontSize: 12,
-    color: tokens.colors.najdi.textMuted,
-    marginTop: 4,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  statusCardLabelHighlight: {
-    color: tokens.colors.najdi.alJass,
-  },
-  filtersToolbar: {
     paddingHorizontal: 16,
     paddingBottom: 12,
     gap: 12,
   },
-  categoryRow: {
-    gap: 8,
-    paddingVertical: 4,
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
+  filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: tokens.colors.najdi.container,
-    backgroundColor: "transparent",
   },
-  categoryChipActive: {
+  filterChipActive: {
     backgroundColor: tokens.colors.najdi.text,
   },
-  categoryChipText: {
+  filterChipText: {
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  categoryChipTextActive: {
+  filterChipTextActive: {
     color: tokens.colors.najdi.alJass,
-  },
-  toolbarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  severityGroup: {
-    flexDirection: "row",
-    gap: 8,
-    flex: 1,
-  },
-  severityButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
-    alignItems: "center",
-  },
-  severityButtonActive: {
-    backgroundColor: tokens.colors.najdi.crimson,
-    borderColor: tokens.colors.najdi.crimson,
-  },
-  severityButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  severityButtonTextActive: {
-    color: tokens.colors.najdi.alJass,
-  },
-  dateButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
-    backgroundColor: tokens.colors.najdi.container + "20",
-  },
-  dateButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  userChip: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
-    backgroundColor: "transparent",
-  },
-  userChipActive: {
-    backgroundColor: tokens.colors.najdi.crimson,
-    borderColor: tokens.colors.najdi.crimson,
-  },
-  userChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  userChipTextActive: {
-    color: tokens.colors.najdi.alJass,
-  },
-  resetButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.crimson,
-  },
-  resetButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: tokens.colors.najdi.crimson,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   searchContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -1468,17 +1271,17 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    marginBottom: 6,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityMetaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 6,
   },
   activityTime: {
     fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   severityPill: {
@@ -1492,12 +1295,12 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffPreview: {
-    marginTop: 8,
+    marginTop: 10,
   },
   fieldsCountText: {
-    marginTop: 8,
+    marginTop: 10,
     fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   cardActions: {
@@ -1523,7 +1326,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 15,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     textAlign: "center",
   },
@@ -1548,7 +1351,7 @@ const styles = StyleSheet.create({
   sheetOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
   sheetBackdrop: {
     flex: 1,
@@ -1557,7 +1360,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: "85%",
+    maxHeight: "90%",
   },
   sheetHandleRow: {
     alignItems: "center",
@@ -1567,7 +1370,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 4,
     borderRadius: 2,
-    backgroundColor: tokens.colors.najdi.textMuted + "55",
+    backgroundColor: colors.textMuted + "55",
   },
   sheetContent: {
     paddingHorizontal: 20,
@@ -1582,7 +1385,7 @@ const styles = StyleSheet.create({
   },
   sheetTimestamp: {
     fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetSeverity: {
@@ -1597,7 +1400,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetSection: {
-    gap: 8,
+    gap: 10,
   },
   sheetSectionTitle: {
     fontSize: 15,
@@ -1612,24 +1415,42 @@ const styles = StyleSheet.create({
   },
   sheetValueMuted: {
     fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  sheetCategoryBlock: {
-    gap: 12,
-  },
-  sheetCategoryTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: tokens.colors.najdi.crimson,
-    marginTop: 4,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  sheetFieldRow: {
+  changeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 8,
   },
-  sheetFieldLabel: {
+  changeBullet: {
+    fontSize: 18,
+    color: tokens.colors.najdi.crimson,
+    marginTop: -2,
+  },
+  changeContent: {
+    flex: 1,
+    gap: 4,
+  },
+  changeFieldLabel: {
     fontSize: 13,
+    fontWeight: "600",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  changeFieldValue: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  advancedLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+  },
+  advancedLinkText: {
+    fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
@@ -1653,7 +1474,7 @@ const styles = StyleSheet.create({
   sheetCloseText: {
     fontSize: 15,
     fontWeight: "600",
-    color: tokens.colors.najdi.text,
+    color: tokens.colors.najدي.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetUndoButton: {
@@ -1672,20 +1493,8 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.alJass,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  advancedToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  advancedToggleText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
   advancedContainer: {
-    gap: 12,
+    gap: 16,
   },
   advancedRow: {
     gap: 4,
@@ -1698,14 +1507,14 @@ const styles = StyleSheet.create({
   },
   advancedValue: {
     fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   advancedJsonBlock: {
     gap: 8,
   },
   jsonScroll: {
-    maxHeight: 160,
+    maxHeight: 180,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: tokens.colors.najdi.container,
@@ -1717,20 +1526,145 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
     color: tokens.colors.najdi.text,
   },
-  nameRow: {
+  filtersSheetOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  filtersSheetBackdrop: {
+    flex: 1,
+  },
+  filtersSheetContainer: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    gap: 16,
+  },
+  filtersSheetHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "space-between",
   },
-  nowBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: "#D58C4A15",
+  filtersSheetTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  nowBadgeText: {
-    fontSize: 10,
-    color: "#73637280",
+  filtersSheetReset: {
+    fontSize: 13,
     fontWeight: "600",
+    color: tokens.colors.najdi.crimson,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filtersSheetSection: {
+    gap: 12,
+  },
+  filtersSheetLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filtersSheetRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  filtersSheetChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container,
+  },
+  filtersSheetChipActive: {
+    backgroundColor: tokens.colors.najdi.text,
+  },
+  filtersSheetChipText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filtersSheetChipTextActive: {
+    color: tokens.colors.najdi.alJass,
+  },
+  filtersSheetChipSmall: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container,
+  },
+  filtersSheetChipSmallActive: {
+    backgroundColor: tokens.colors.najdi.crimson,
+    borderColor: tokens.colors.najdi.crimson,
+  },
+  filtersSheetChipTextSmall: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filtersSheetChipTextSmallActive: {
+    color: tokens.colors.najdi.alJass,
+  },
+  filtersSheetRowButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: tokens.colors.najdi.container,
+  },
+  filtersSheetRowButtonText: {
+    fontSize: 15,
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filtersSheetDone: {
+    marginTop: 4,
+    borderRadius: 12,
+    backgroundColor: tokens.colors.najdi.text,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  filtersSheetDoneText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: tokens.colors.najdi.alJass,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  advancedOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.3)",
+  },
+  advancedModalContainer: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "90%",
+  },
+  advancedModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  advancedModalTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  advancedModalContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    gap: 20,
   },
 });
