@@ -167,7 +167,6 @@ const PermissionSummary = ({
       >
         {/* User Info Card */}
         <View style={styles.card}>
-          <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userChain}>{user.full_name_chain}</Text>
 
           {/* Role Badge */}
@@ -278,26 +277,6 @@ const PermissionSummary = ({
           </View>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>إجراءات سريعة</Text>
-
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onRefresh();
-              handleClose();
-            }}
-          >
-            <View style={styles.actionContent}>
-              <Ionicons name="refresh" size={20} color={colors.primary} />
-              <Text style={styles.actionText}>تحديث البيانات</Text>
-            </View>
-            <Ionicons name="chevron-back" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-
         {/* Role Management Section - Only for super_admin */}
         {currentUserRole === "super_admin" && userRole !== "super_admin" && (
           <View style={styles.section}>
@@ -322,8 +301,8 @@ const PermissionSummary = ({
           </View>
         )}
 
-        {/* Branch Moderation Section - Only for super_admin */}
-        {currentUserRole === "super_admin" && (
+        {/* Branch Moderation Section - Only for super_admin, not for admin/super_admin users */}
+        {currentUserRole === "super_admin" && userRole !== "admin" && userRole !== "super_admin" && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="git-branch" size={20} color={colors.secondary} />
@@ -379,8 +358,8 @@ const PermissionSummary = ({
           </View>
         )}
 
-        {/* Block Management Section - Only for super_admin (Danger Zone) */}
-        {currentUserRole === "super_admin" && (
+        {/* Block Management Section - Only for super_admin, not for admin/super_admin users (Danger Zone) */}
+        {currentUserRole === "super_admin" && userRole !== "admin" && userRole !== "super_admin" && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="warning" size={20} color={colors.error} />
@@ -550,8 +529,9 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
   },
   userChain: {
-    fontSize: 14,
-    color: colors.textMuted,
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
     marginBottom: 12,
     fontFamily: "SF Arabic",
   },
