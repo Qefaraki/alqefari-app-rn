@@ -36,6 +36,32 @@ import FamilySkeleton from './FamilySkeleton';
 // Re-export context for child components (SpouseRow, ChildRow)
 export { TabFamilyContext };
 
+/**
+ * Validate and sanitize family data from RPC
+ * Ensures all fields have correct types to prevent runtime errors
+ */
+const validateFamilyData = (data, profileId) => {
+  if (!data || typeof data !== 'object') {
+    if (__DEV__) {
+      console.warn('⚠️ Invalid family data structure:', { type: typeof data, data });
+    }
+    return { father: null, mother: null, spouses: [], children: [] };
+  }
+
+  const isValidProfile = (p) => p && typeof p === 'object' && p.id;
+
+  return {
+    father: isValidProfile(data.father) ? data.father : null,
+    mother: isValidProfile(data.mother) ? data.mother : null,
+    spouses: Array.isArray(data.spouses)
+      ? data.spouses.filter(s => isValidProfile(s) && s.id !== profileId)
+      : [],
+    children: Array.isArray(data.children)
+      ? data.children.filter(isValidProfile)
+      : [],
+  };
+};
+
 // Reducer for managing all TabFamily state in one place (60% performance improvement)
 const initialState = {
   familyData: null,
@@ -99,7 +125,9 @@ const familyReducer = (state, action) => {
       return { ...state, spouseModalVisible: false, prefilledSpouseName: null };
     case 'PATCH_MARRIAGE': {
       if (!state.familyData) return state;
-      const updatedSpouses = state.familyData.spouses.map((spouse) =>
+      // Defensive: Ensure spouses is an array before mapping
+      const spouses = Array.isArray(state.familyData.spouses) ? state.familyData.spouses : [];
+      const updatedSpouses = spouses.map((spouse) =>
         spouse.marriage_id === action.payload.marriage_id ? { ...spouse, ...action.payload } : spouse
       );
       return {
@@ -110,7 +138,9 @@ const familyReducer = (state, action) => {
     }
     case 'PATCH_CHILD': {
       if (!state.familyData) return state;
-      const updatedChildren = state.familyData.children.map((child) =>
+      // Defensive: Ensure children is an array before mapping
+      const children = Array.isArray(state.familyData.children) ? state.familyData.children : [];
+      const updatedChildren = children.map((child) =>
         child.id === action.payload.id ? { ...child, ...action.payload } : child
       );
       return {
@@ -403,7 +433,32 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         return;
       }
 
-      dispatch({ type: 'SET_FAMILY_DATA', payload: data });
+      // Phase 2.3: Diagnostic logging for debugging data structure issues
+      if (__DEV__) {
+        console.group('📊 Family Data Debug');
+        console.log('Profile ID:', person.id);
+        console.log('Data structure:', {
+          hasData: !!data,
+          keys: data ? Object.keys(data) : null,
+          spouses: {
+            exists: !!data?.spouses,
+            isArray: Array.isArray(data?.spouses),
+            type: typeof data?.spouses,
+            length: data?.spouses?.length,
+          },
+          children: {
+            exists: !!data?.children,
+            isArray: Array.isArray(data?.children),
+            type: typeof data?.children,
+            length: data?.children?.length,
+          },
+        });
+        console.groupEnd();
+      }
+
+      // Phase 2.2: Validate and sanitize RPC response before entering state
+      const validated = validateFamilyData(data, person.id);
+      dispatch({ type: 'SET_FAMILY_DATA', payload: validated });
 
       // Inline mother options loading with optimized RPC (80-90% bandwidth reduction)
       if (data?.father?.id) {
@@ -799,7 +854,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     } finally {
       dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: null });
     }
-  }, [canEditFamily, person, loadFamilyData, refreshProfile, onDataChanged]);
+  }, [canEditFamily, person?.id, person?.version, loadFamilyData, refreshProfile, onDataChanged]);
 
   const handleClearMother = useCallback(async () => {
     if (!canEditFamily) {
@@ -835,7 +890,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     } finally {
       dispatch({ type: 'SET_UPDATING_MOTHER_ID', payload: null });
     }
-  }, [canEditFamily, person, loadFamilyData, refreshProfile, onDataChanged]);
+  }, [canEditFamily, person?.id, person?.version, loadFamilyData, refreshProfile, onDataChanged]);
 
   const motherSuggestions = useMemo(() => {
     if (!state.motherOptions || state.motherOptions.length === 0) return [];
@@ -850,7 +905,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_MOTHER_FEEDBACK', payload: null });
     dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: !state.motherPickerVisible });
-  }, [canEditFamily, state.motherPickerVisible]);
+  }, [canEditFamily, state.motherPickerVisible, dispatch]);
 
   // Memoize spouse filtering to prevent unnecessary iterations on every render
   // MUST be before conditional returns to comply with Rules of Hooks
@@ -869,6 +924,9 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
     return { activeSpouses: active, inactiveSpouses: inactive };
   }, [state.familyData?.spouses]);
+
+  // Calculate permission for family editing based on parent profile permission
+  const canEditFamily = accessMode === 'direct';
 
   if (state.loading) {
     return (
@@ -902,7 +960,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     spouseEmptyCaption: person.gender === 'male'
       ? 'أضف شريكة حياة لتظهر هنا مع تفاصيل الزواج'
       : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج',
-  }), [person.gender]);
+  }), [person?.gender]);
 
   const parentCount = [father, mother].filter(Boolean).length;
 
@@ -951,9 +1009,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: true });
   }, [canEditFamily, person.gender, spouses.length]);
-
-  // Calculate permission for family editing based on parent profile permission
-  const canEditFamily = accessMode === 'direct';
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({ canEditFamily }), [canEditFamily]);
