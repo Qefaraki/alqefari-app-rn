@@ -248,14 +248,6 @@ const ModernProfileEditorContent = ({ profile, onSave, onCancel }) => {
                 <Text style={styles.marriageName}>
                   {marriage.spouse_name || "غير محدد"}
                 </Text>
-                {marriage.marriage_date && (
-                  <Text style={styles.marriageDate}>
-                    {formatDateByPreference(
-                      marriage.marriage_date,
-                      settings.defaultCalendar,
-                    )}
-                  </Text>
-                )}
                 <Text style={styles.marriageStatus}>
                   {marriage.status === "married"
                     ? "متزوج"

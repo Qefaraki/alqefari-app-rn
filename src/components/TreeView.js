@@ -939,9 +939,9 @@ const TreeView = ({
               marriages:
                 payload.new.marriages?.map((marriage) => ({
                   ...marriage,
-                  marriage_date: marriage.marriage_date
+                  start_date: marriage.start_date
                     ? formatDateByPreference(
-                        marriage.marriage_date,
+                        marriage.start_date,
                         currentSettings?.defaultCalendar || 'gregorian',
                       )
                     : null,
@@ -959,9 +959,9 @@ const TreeView = ({
               marriages:
                 payload.new.marriages?.map((marriage) => ({
                   ...marriage,
-                  marriage_date: marriage.marriage_date
+                  start_date: marriage.start_date
                     ? formatDateByPreference(
-                        marriage.marriage_date,
+                        marriage.start_date,
                         currentSettings?.defaultCalendar || 'gregorian',
                       )
                     : null,

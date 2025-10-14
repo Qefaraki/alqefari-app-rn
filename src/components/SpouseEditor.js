@@ -47,8 +47,8 @@ export default function SpouseEditor({
           ? marriage.wife_name || ""
           : marriage.husband_name || "",
       );
-      setMarriageDate(marriage.marriage_date);
-      setDivorceDate(marriage.divorce_date);
+      setMarriageDate(marriage.start_date);
+      setDivorceDate(marriage.end_date);
       // Map old status values to new ones
       const oldStatus = marriage.status || "married";
       const mappedStatus = oldStatus === "married" ? "current" : "past";
@@ -113,8 +113,8 @@ export default function SpouseEditor({
       const data = {
         [person?.gender === "male" ? "wife_name" : "husband_name"]:
           spouseName.trim(),
-        marriage_date: marriageDate,
-        divorce_date: divorceDate,
+        start_date: marriageDate,
+        end_date: divorceDate,
         status,
       };
 

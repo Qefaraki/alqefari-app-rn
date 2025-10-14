@@ -335,12 +335,21 @@ export default function SettingsPageModern({ user }) {
 
   // Load user profile and notification settings
   useEffect(() => {
+    // Clear old v1 cache entries on first load
+    AsyncStorage.getAllKeys().then(keys => {
+      const v1Keys = keys.filter(k => k.startsWith('user_profile_v1_'));
+      if (v1Keys.length > 0) {
+        console.log('[Cache] Cleaning up old v1 cache:', v1Keys.length, 'entries');
+        AsyncStorage.multiRemove(v1Keys);
+      }
+    }).catch(err => console.warn('[Cache] Error cleaning v1 cache:', err));
+
     loadUserProfile();
     loadNotificationSettings();
     checkNotificationPermission();
   }, []);
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = async (forceRefresh = false) => {
     setLoadingProfile(true);
     setProfileError(null);
 
@@ -353,12 +362,17 @@ export default function SettingsPageModern({ user }) {
         return;
       }
 
-      // Try AsyncStorage cache first
-      const cached = await profileCacheUtils.get(user.id);
-      if (cached) {
-        setUserProfile(cached);
-        setLoadingProfile(false);
-        return; // Cache hit - done!
+      // Try AsyncStorage cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = await profileCacheUtils.get(user.id);
+        if (cached) {
+          console.log('[Cache] Using cached profile');
+          setUserProfile(cached);
+          setLoadingProfile(false);
+          return; // Cache hit - done!
+        }
+      } else {
+        console.log('[Cache] Force refresh - bypassing cache');
       }
 
       // Cache miss - fetch from database
@@ -388,9 +402,11 @@ export default function SettingsPageModern({ user }) {
 
               // Build name chain for pending request profile
               if (requests[0].profile) {
-                const { data: chainData } = await supabase.rpc('build_name_chain', {
+                console.log('[NameChain] Building chain for pending request:', requests[0].profile.id);
+                const { data: chainData, error: chainError } = await supabase.rpc('build_name_chain', {
                   p_profile_id: requests[0].profile.id
                 });
+                console.log('[NameChain] Pending request result:', { chainData, error: chainError?.message });
                 requests[0].fullNameChain = chainData || requests[0].profile.name;
               }
             }
@@ -403,20 +419,31 @@ export default function SettingsPageModern({ user }) {
 
       // Build full name chain using RPC function
       if (profile) {
+        console.log('[NameChain] Building chain for profile:', profile.id, profile.name);
         const { data: chainData, error: chainError } = await supabase.rpc('build_name_chain', {
           p_profile_id: profile.id
+        });
+        console.log('[NameChain] RPC result:', {
+          success: !chainError,
+          chainLength: chainData?.length,
+          chainData,
+          error: chainError?.message
         });
 
         if (!chainError && chainData) {
           profile.fullNameChain = chainData;
+          console.log('[NameChain] ✅ Successfully built chain:', chainData);
+
+          setUserProfile(profile);
+          // Only cache if RPC succeeded
+          await profileCacheUtils.set(user.id, profile);
         } else {
+          console.error('[NameChain] ❌ RPC failed, using fallback:', chainError?.message || 'No data returned');
           profile.fullNameChain = profile.name; // Fallback
+
+          setUserProfile(profile);
+          // Do NOT cache broken data - let it retry next time
         }
-
-        setUserProfile(profile);
-
-        // Cache the result
-        await profileCacheUtils.set(user.id, profile);
       }
 
     } catch (error) {
@@ -917,7 +944,7 @@ export default function SettingsPageModern({ user }) {
               style={styles.retryButton}
               onPress={() => {
                 setProfileError(null);
-                loadUserProfile();
+                loadUserProfile(true); // Force refresh - bypass cache
               }}
               activeOpacity={0.7}
             >

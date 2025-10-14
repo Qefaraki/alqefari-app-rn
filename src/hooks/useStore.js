@@ -37,7 +37,7 @@ const useStore = () => {
           marriages:
             person.marriages?.map((marriage) => ({
               ...marriage,
-              marriage_date: marriage.marriage_date || null,
+              start_date: marriage.start_date || null,
             })) || [],
         }));
 

@@ -460,7 +460,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                 <View style={styles.navTitleBlock}>
                   <Text style={styles.navTitle}>إضافة أطفال</Text>
                   <Text style={styles.navSubtitle} numberOfLines={1}>
-                    {parentNode?.arabic_name || parentNode?.name}
+                    {parentNode?.name}
                   </Text>
                 </View>
 

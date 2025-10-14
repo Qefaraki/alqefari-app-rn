@@ -800,9 +800,9 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
               marriages:
                 payload.new.marriages?.map((marriage) => ({
                   ...marriage,
-                  marriage_date: marriage.marriage_date
+                  start_date: marriage.start_date
                     ? formatDateByPreference(
-                        marriage.marriage_date,
+                        marriage.start_date,
                         settings.defaultCalendar,
                       )
                     : null,
@@ -819,9 +819,9 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
               marriages:
                 payload.new.marriages?.map((marriage) => ({
                   ...marriage,
-                  marriage_date: marriage.marriage_date
+                  start_date: marriage.start_date
                     ? formatDateByPreference(
-                        marriage.marriage_date,
+                        marriage.start_date,
                         settings.defaultCalendar,
                       )
                     : null,
