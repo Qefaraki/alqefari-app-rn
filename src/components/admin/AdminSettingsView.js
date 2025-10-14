@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,323 +10,554 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import adminContactService from '../../services/adminContact';
-import * as Haptics from 'expo-haptics';
+  Animated,
+  Image,
+  Easing,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
+import * as Haptics from "expo-haptics";
+import adminContactService from "../../services/adminContact";
+import Surface from "../ui/Surface";
+import tokens from "../ui/tokens";
 
-// Najdi Sadu Color Palette
-const colors = {
-  background: "#F9F7F3", // Al-Jass White
-  container: "#D1BBA3", // Camel Hair Beige
-  text: "#242121", // Sadu Night
-  primary: "#A13333", // Najdi Crimson
-  secondary: "#D58C4A", // Desert Ochre
-  muted: "#73637280", // Muted text
-  border: "#D1BBA320", // Light border
-  white: "#FFFFFF",
-  whatsapp: "#25D366",
+const palette = tokens.colors.najdi;
+const emblemSource = require("../../../assets/logo/AlqefariEmblem.png");
+
+const renderSFSymbol = (name, fallback, color, size = 22) => {
+  const map = {
+    xmark: "close",
+    "bubble.left.and.bubble.right.fill": "chatbubbles",
+    "checkmark.circle.fill": "checkmark-circle",
+    "doc.on.doc": "copy",
+    "paperplane.fill": "send",
+    "info.circle": "information-circle-outline",
+  };
+
+  return <Ionicons name={map[name] || fallback} size={size} color={color} />;
 };
 
 const AdminSettingsView = ({ onClose }) => {
-  const [whatsappNumber, setWhatsappNumber] = useState('');
-  const [displayNumber, setDisplayNumber] = useState('');
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [displayNumber, setDisplayNumber] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const contentAnimation = useRef(new Animated.Value(0)).current;
 
-  // Load current settings
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
-      // Load WhatsApp number
-      const number = await adminContactService.getAdminWhatsAppNumber();
-      const display = await adminContactService.getDisplayNumber();
+      const [number, display] = await Promise.all([
+        adminContactService.getAdminWhatsAppNumber(),
+        adminContactService.getDisplayNumber(),
+      ]);
       setWhatsappNumber(number);
       setDisplayNumber(display);
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error("Error loading settings:", error);
+      Alert.alert("خطأ", "تعذر تحميل إعدادات الواتساب. حاول مرة أخرى لاحقاً.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleSaveWhatsApp = async () => {
-    if (!whatsappNumber || whatsappNumber.trim() === '') {
-      Alert.alert('خطأ', 'يرجى إدخال رقم الواتساب');
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    Animated.timing(contentAnimation, {
+      toValue: 1,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [contentAnimation]);
+
+  const handleSaveWhatsApp = useCallback(async () => {
+    if (!whatsappNumber || whatsappNumber.trim() === "") {
+      Alert.alert("تنبيه", "يرجى إدخال رقم الواتساب قبل الحفظ.");
       return;
     }
 
     setSaving(true);
-    const result = await adminContactService.setAdminWhatsAppNumber(whatsappNumber);
+    try {
+      const result = await adminContactService.setAdminWhatsAppNumber(
+        whatsappNumber,
+      );
 
-    if (result.success) {
-      const newDisplay = await adminContactService.getDisplayNumber();
-      setDisplayNumber(newDisplay);
+      if (!result.success) {
+        throw new Error(result.error || "فشل حفظ رقم الواتساب");
+      }
+
+      await loadSettings();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('نجح', 'تم حفظ رقم الواتساب بنجاح');
-    } else {
+      Alert.alert("تم الحفظ", "تم تحديث رقم الواتساب بنجاح.");
+    } catch (error) {
+      console.error("Error saving WhatsApp number:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('خطأ', result.error || 'فشل حفظ رقم الواتساب');
+      Alert.alert("خطأ", error.message || "فشل حفظ رقم الواتساب.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-  };
+  }, [loadSettings, whatsappNumber]);
 
-  const handleFeedback = () => {
+  const handleTestWhatsApp = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+    setTesting(true);
+    try {
+      const result = await adminContactService.openAdminWhatsApp();
+      if (!result?.success) {
+        Alert.alert(
+          "تنبيه",
+          "لم نتمكن من فتح واتساب تلقائياً. تحقق من تثبيت التطبيق أو استخدم رابط الويب.",
+        );
+      }
+    } catch (error) {
+      console.error("Error testing WhatsApp number:", error);
+      Alert.alert("خطأ", "تعذر فتح واتساب. تحقق من الرقم الحالي وحاول مجدداً.");
+    } finally {
+      setTesting(false);
+    }
+  }, []);
+
+  const handleCopyNumber = useCallback(async () => {
+    if (!whatsappNumber) {
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(whatsappNumber);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Alert.alert("تم النسخ", "تم نسخ رقم الواتساب إلى الحافظة.");
+    } catch (error) {
+      console.error("Error copying WhatsApp number:", error);
+    }
+  }, [whatsappNumber]);
+
+  const handleClose = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose]);
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={tokens.colors.accent} />
+          <Text style={styles.loadingText}>جاري تحميل إعدادات الواتساب...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  const slideUp = contentAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [24, 0],
+  });
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => {
-              handleFeedback();
-              onClose();
-            }}
+        <View style={styles.flex}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <Ionicons name="chevron-forward" size={28} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>إعدادات الواتساب</Text>
-          <View style={{ width: 44 }} />
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* WhatsApp Number Section */}
-          <View style={styles.settingsCard}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="logo-whatsapp" size={24} color={colors.whatsapp} />
-              <Text style={styles.sectionTitle}>رقم الواتساب</Text>
+            <View style={styles.header}>
+              <View style={styles.headerRow}>
+                <Image
+                  source={emblemSource}
+                  style={styles.emblem}
+                  resizeMode="contain"
+                />
+                <View style={styles.titleBlock}>
+                  <Text style={styles.title}>إعدادات الواتساب</Text>
+                  <Text style={styles.subtitle}>
+                    إدارة قناة التواصل الرسمية مع الإدارة
+                  </Text>
+                </View>
+                {onClose ? (
+                  <TouchableOpacity
+                    onPress={handleClose}
+                    style={styles.closeButton}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityLabel="إغلاق الإعدادات"
+                    accessibilityRole="button"
+                  >
+                    {renderSFSymbol("xmark", "close", palette.text, 20)}
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.closeButtonPlaceholder} />
+                )}
+              </View>
             </View>
 
-            <Text style={styles.fieldLabel}>الرقم الحالي</Text>
-            <View style={styles.currentNumberBox}>
-              <Text style={styles.currentNumber}>{displayNumber}</Text>
-            </View>
-
-            <Text style={styles.fieldLabel}>تغيير الرقم</Text>
-            <TextInput
-              style={styles.input}
-              value={whatsappNumber}
-              onChangeText={setWhatsappNumber}
-              placeholder="+966501234567"
-              keyboardType="phone-pad"
-              textAlign="left"
-              placeholderTextColor={colors.muted}
-            />
-            <Text style={styles.helpText}>
-              أدخل الرقم بالصيغة الدولية (مثل: +966501234567)
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.primaryButton, saving && styles.buttonDisabled]}
-              onPress={handleSaveWhatsApp}
-              disabled={saving}
-              activeOpacity={0.8}
+            <Animated.View
+              style={[
+                styles.animatedBlock,
+                { opacity: contentAnimation, transform: [{ translateY: slideUp }] },
+              ]}
             >
-              {saving ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color={colors.white} style={{ marginRight: 8 }} />
-                  <Text style={styles.primaryButtonText}>حفظ الرقم</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+              <Surface style={styles.surface} contentStyle={styles.surfaceContent}>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIcon}>
+                    {renderSFSymbol(
+                      "bubble.left.and.bubble.right.fill",
+                      "chatbubbles",
+                      tokens.colors.accent,
+                      20,
+                    )}
+                  </View>
+                  <View style={styles.sectionText}>
+                    <Text style={styles.sectionTitle}>رقم التواصل عبر واتساب</Text>
+                    <Text style={styles.sectionSubtitle}>
+                      هذا الرقم يظهر في كامل لوحة التحكم ويستخدم للرد على الأعضاء.
+                    </Text>
+                  </View>
+                </View>
 
-          {/* Info Section */}
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={20} color={colors.muted} style={{ marginRight: 10 }} />
-            <Text style={styles.infoText}>
-              سيتم استخدام هذا الرقم في جميع أنحاء التطبيق عند التواصل مع الإدارة. لإدارة رسائل الواتساب، استخدم "قوالب الرسائل" من لوحة التحكم.
-            </Text>
-          </View>
-        </ScrollView>
+                <Text style={styles.fieldLabel}>الرقم الحالي</Text>
+                <View style={styles.currentNumberRow}>
+                  <Text style={styles.currentNumber}>
+                    {displayNumber || "—"}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.inlineAction}
+                    onPress={handleCopyNumber}
+                    activeOpacity={0.8}
+                    accessibilityLabel="نسخ رقم الواتساب"
+                    disabled={!whatsappNumber}
+                  >
+                    {renderSFSymbol("doc.on.doc", "copy", palette.textMuted, 18)}
+                    <Text style={styles.inlineActionText}>نسخ</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.fieldLabel}>تحديث الرقم</Text>
+                <TextInput
+                  style={styles.input}
+                  value={whatsappNumber}
+                  onChangeText={setWhatsappNumber}
+                  placeholder="+966501234567"
+                  keyboardType="phone-pad"
+                  textAlign="left"
+                  placeholderTextColor={`${palette.textMuted}66`}
+                  accessibilityLabel="حقل إدخال رقم الواتساب"
+                  returnKeyType="done"
+                  autoCapitalize="none"
+                />
+                <Text style={styles.helperText}>
+                  استخدم الصيغة الدولية مع رمز الدولة (مثال: +966501234567).
+                </Text>
+
+                <View style={styles.buttonStack}>
+                  <TouchableOpacity
+                    style={[styles.primaryButton, saving && styles.disabledButton]}
+                    onPress={handleSaveWhatsApp}
+                    activeOpacity={0.85}
+                    disabled={saving}
+                    accessibilityLabel="حفظ رقم الواتساب"
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <View style={styles.buttonContent}>
+                        {renderSFSymbol(
+                          "checkmark.circle.fill",
+                          "checkmark-circle",
+                          "#FFFFFF",
+                          20,
+                        )}
+                        <Text style={styles.primaryButtonText}>حفظ الرقم</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.secondaryButton,
+                      testing && styles.disabledButton,
+                    ]}
+                    onPress={handleTestWhatsApp}
+                    activeOpacity={0.85}
+                    disabled={testing}
+                    accessibilityLabel="اختبار فتح واتساب"
+                  >
+                    {testing ? (
+                      <ActivityIndicator size="small" color={tokens.colors.accent} />
+                    ) : (
+                      <View style={styles.buttonContent}>
+                        {renderSFSymbol(
+                          "paperplane.fill",
+                          "send",
+                          tokens.colors.accent,
+                          18,
+                        )}
+                        <Text style={styles.secondaryButtonText}>
+                          اختبار فتح واتساب
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </Surface>
+            </Animated.View>
+
+            <Animated.View
+              style={[
+                styles.animatedBlock,
+                styles.infoWrapper,
+                {
+                  opacity: contentAnimation,
+                  transform: [{ translateY: slideUp }],
+                },
+              ]}
+            >
+              <View style={styles.infoCard}>
+                <View style={styles.infoIcon}>
+                  {renderSFSymbol(
+                    "info.circle",
+                    "information-circle-outline",
+                    palette.secondary,
+                    20,
+                  )}
+                </View>
+                <Text style={styles.infoText}>
+                  يتم استخدام هذا الرقم في كل مكان يتواصل فيه الأعضاء مع
+                  الإدارة. لضبط الرسائل الجاهزة، توجه إلى قسم قوالب رسائل
+                  الواتساب في لوحة التحكم.
+                </Text>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: palette.background,
   },
-  loadingContainer: {
+  flex: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.text,
-    fontFamily: 'SF Arabic',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: tokens.spacing.xxl,
   },
-  settingsCard: {
-    backgroundColor: colors.white,
-    marginHorizontal: 16,
-    marginTop: 20,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+  header: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.md,
+    paddingBottom: tokens.spacing.sm,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  emblem: {
+    width: 44,
+    height: 44,
+    tintColor: palette.text,
+  },
+  titleBlock: {
+    flex: 1,
+    marginHorizontal: tokens.spacing.sm,
+  },
+  title: {
+    ...tokens.typography.largeTitle,
+    color: palette.text,
+    textAlign: "right",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  subtitle: {
+    ...tokens.typography.subheadline,
+    color: palette.textMuted,
+    marginTop: 4,
+    textAlign: "right",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  closeButton: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeButtonPlaceholder: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+  },
+  animatedBlock: {
+    paddingHorizontal: tokens.spacing.lg,
+  },
+  surface: {
+    marginTop: tokens.spacing.md,
+  },
+  surfaceContent: {
+    padding: tokens.spacing.lg,
+    gap: tokens.spacing.md,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: tokens.spacing.sm,
+  },
+  sectionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${tokens.colors.accent}12`,
+  },
+  sectionText: {
+    flex: 1,
+    gap: 4,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    fontFamily: 'SF Arabic',
-    marginLeft: 10,
+    ...tokens.typography.title3,
+    color: palette.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  sectionSubtitle: {
+    ...tokens.typography.footnote,
+    color: palette.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.muted,
-    fontFamily: 'SF Arabic',
-    marginBottom: 8,
+    ...tokens.typography.subheadline,
+    color: palette.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  currentNumberBox: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: colors.container + '40',
+  currentNumberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+    backgroundColor: `${palette.container}22`,
+    borderRadius: tokens.radii.md,
   },
   currentNumber: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    fontFamily: 'SF Arabic',
-    textAlign: 'left',
+    ...tokens.typography.headline,
+    color: palette.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  inlineAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  inlineActionText: {
+    ...tokens.typography.footnote,
+    color: palette.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   input: {
-    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.container + '60',
-    borderRadius: 10,
-    padding: 14,
+    borderColor: tokens.colors.outline,
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: 14,
     fontSize: 16,
-    color: colors.text,
-    fontFamily: 'SF Arabic',
+    color: palette.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    backgroundColor: tokens.colors.surface,
   },
-  messageInput: {
-    height: 80,
-    paddingTop: 14,
+  helperText: {
+    ...tokens.typography.caption1,
+    color: palette.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  helpText: {
-    fontSize: 12,
-    color: colors.muted,
-    fontFamily: 'SF Arabic',
-    marginTop: 6,
-    marginBottom: 20,
+  buttonStack: {
+    gap: tokens.spacing.sm,
   },
   primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: tokens.colors.accent,
+    borderRadius: tokens.radii.md,
+    minHeight: tokens.touchTarget.minimum,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  buttonDisabled: {
+  secondaryButton: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: tokens.colors.outline,
+    minHeight: tokens.touchTarget.minimum,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  disabledButton: {
     opacity: 0.6,
   },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   primaryButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'SF Arabic',
+    ...tokens.typography.callout,
+    color: "#FFFFFF",
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  actionsContainer: {
-    paddingHorizontal: 16,
-    marginTop: 20,
+  secondaryButtonText: {
+    ...tokens.typography.callout,
+    color: tokens.colors.accent,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  testButton: {
-    backgroundColor: colors.whatsapp + '15',
-    borderWidth: 1.5,
-    borderColor: colors.whatsapp,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  infoWrapper: {
+    marginTop: tokens.spacing.md,
   },
-  testButtonText: {
-    color: colors.whatsapp,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'SF Arabic',
+  infoCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: tokens.spacing.sm,
+    backgroundColor: `${palette.container}26`,
+    borderRadius: tokens.radii.md,
+    padding: tokens.spacing.md,
   },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.container + '20',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 16,
-    marginTop: 20,
+  infoIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${palette.secondary}22`,
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
-    color: colors.text,
-    fontFamily: 'SF Arabic',
+    ...tokens.typography.footnote,
     lineHeight: 20,
+    color: palette.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.xl,
+  },
+  loadingText: {
+    ...tokens.typography.body,
+    textAlign: "center",
+    color: palette.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
 });
 

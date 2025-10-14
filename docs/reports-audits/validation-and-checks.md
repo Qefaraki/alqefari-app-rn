@@ -11,9 +11,8 @@ This document outlines all validation rules, integrity checks, and error recover
 1. [Schema-Level Validations](#schema-level-validations)
 2. [JSONB Structure Validations](#jsonb-structure-validations)
 3. [Relationship Validations](#relationship-validations)
-4. [Admin Dashboard Checks](#admin-dashboard-checks)
-5. [Error Codes and Recovery](#error-codes-and-recovery)
-6. [Best Practices](#best-practices)
+4. [Error Codes and Recovery](#error-codes-and-recovery)
+5. [Best Practices](#best-practices)
 
 ---
 
@@ -177,48 +176,6 @@ Enforced by foreign key constraints:
 father_id UUID REFERENCES profiles(id) ON DELETE SET NULL
 mother_id UUID REFERENCES profiles(id) ON DELETE SET NULL
 ```
-
----
-
-## Admin Dashboard Checks
-
-The `admin_validation_dashboard()` function performs comprehensive health checks:
-
-### 1. Orphaned Nodes Check
-- **What it checks**: Profiles with non-existent parent references
-- **Severity**: Error
-- **Auto-fix**: Not available (requires manual intervention)
-
-### 2. Generation Consistency Check
-- **What it checks**: Children with generation ≤ parent generation
-- **Severity**: Error
-- **Auto-fix**: Update generation numbers maintaining hierarchy
-
-### 3. Duplicate HIDs Check
-- **What it checks**: Multiple profiles sharing the same HID
-- **Severity**: Critical
-- **Auto-fix**: Regenerate HIDs using `admin_auto_fix_issues()`
-
-### 4. Missing Layout Positions
-- **What it checks**: Profiles without calculated layout positions
-- **Severity**: Warning
-- **Auto-fix**: Queue for recalculation
-
-### 5. Invalid Date Formats
-- **What it checks**: Malformed date JSONB structures
-- **Severity**: Warning
-- **Auto-fix**: Manual correction required
-
-### 6. Circular Relationships
-- **What it checks**: Circular parent-child chains
-- **Severity**: Critical
-- **Auto-fix**: Break circular chain manually
-
-### 7. Overall Health Summary
-- **What it provides**: Statistics on data completeness
-- **Includes**: Total profiles, photos, bios, dates, last update
-
----
 
 ## Error Codes and Recovery
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useSettings } from "../contexts/SettingsContext";
@@ -31,6 +31,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { featureFlags } from "../config/featureFlags";
 import adminContactService from "../services/adminContact";
 import { formatNameWithTitle } from "../services/professionalTitleService";
+import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -43,6 +44,34 @@ const colors = {
   border: "#D1BBA320", // Light border
   white: "#FFFFFF",
 };
+
+// Cross-platform font fallbacks to keep typography close to iOS San Francisco
+const fontStyles = {
+  regular: Platform.OS === "ios" ? {} : { fontFamily: "sans-serif" },
+  medium: Platform.OS === "ios" ? {} : { fontFamily: "sans-serif-medium" },
+  semibold: Platform.OS === "ios" ? {} : { fontFamily: "sans-serif-medium" },
+};
+
+const upcomingFeatures = [
+  {
+    key: "dark-mode",
+    label: "الوضع الليلي",
+    description: "مظهر داكن متوافق مع إعدادات النظام",
+    icon: "moon-outline",
+  },
+  {
+    key: "share-card",
+    label: "مشاركة بطاقة العائلة",
+    description: "شارك بطاقة العائلة كصورة أو رابط آمن",
+    icon: "share-outline",
+  },
+  {
+    key: "smart-reminders",
+    label: "تذكيرات ذكية",
+    description: "تنبيهات مخصصة بالمناسبات المهمّة للعائلة",
+    icon: "notifications-outline",
+  },
+];
 
 // Custom Segmented Control Component
 const SegmentedControl = ({ values, selectedIndex, onChange, style }) => {
@@ -113,12 +142,78 @@ const segmentedStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
-    fontFamily: 'SF Arabic',
+    ...fontStyles.semibold,
   },
   selectedText: {
     color: colors.primary,
   },
 });
+
+const SettingsSection = ({ title, children, footer, style }) => {
+  const items = React.Children.toArray(children);
+
+  return (
+    <View style={[styles.sectionContainer, style]}>
+      {title ? <Text style={styles.sectionTitle}>{title}</Text> : null}
+      <View style={styles.sectionCard}>
+        {items.map((child, index) => {
+          if (!React.isValidElement(child)) {
+            return child;
+          }
+          return React.cloneElement(child, {
+            isLast: index === items.length - 1,
+          });
+        })}
+      </View>
+      {footer}
+    </View>
+  );
+};
+
+const SettingsCell = ({
+  label,
+  description,
+  rightAccessory,
+  isLast,
+  onPress,
+  disabled = false,
+  labelStyle,
+  descriptionStyle,
+}) => {
+  const Container = onPress ? TouchableOpacity : View;
+  const containerProps = onPress
+    ? {
+        onPress: disabled ? undefined : onPress,
+        activeOpacity: 0.7,
+        disabled,
+      }
+    : {};
+
+  return (
+    <Container
+      style={[
+        styles.settingRow,
+        isLast && styles.settingRowLast,
+        onPress && styles.settingRowInteractive,
+        disabled && styles.settingRowDisabled,
+      ]}
+      {...containerProps}
+    >
+      <View style={styles.settingTextContainer}>
+        <Text style={[styles.settingLabel, labelStyle]}>{label}</Text>
+        {description ? (
+          <Text style={[styles.settingDescription, descriptionStyle]}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+      {rightAccessory ||
+        (onPress ? (
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        ) : null)}
+    </Container>
+  );
+};
 
 // User-specific profile cache (Map<userId, {profile, timestamp}>)
 const profileCaches = new Map();
@@ -128,6 +223,7 @@ export default function SettingsPageModern({ user }) {
   const router = useRouter();
   const { settings, updateSetting, resetSettings } = useSettings();
   const { isAdmin, isGuestMode, exitGuestMode, signOut } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [currentUser, setCurrentUser] = useState(user);
   const [userProfile, setUserProfile] = useState(null);
@@ -149,6 +245,7 @@ export default function SettingsPageModern({ user }) {
     showPhotos: true,
     highlightMyLine: true,
   });
+  const [showUpcomingFeatures, setShowUpcomingFeatures] = useState(false);
 
   // Sample date for preview
   const sampleGregorian = { day: 15, month: 3, year: 2024 };
@@ -311,8 +408,12 @@ export default function SettingsPageModern({ user }) {
       }
 
       resetSettings();
-      profileCache = null;
-      cacheTimestamp = null;
+      // Clear any cached profile details for this user
+      if (currentUser?.id) {
+        profileCaches.delete(currentUser.id);
+      } else {
+        profileCaches.clear();
+      }
 
       await forceCompleteSignOut();
 
@@ -357,12 +458,44 @@ export default function SettingsPageModern({ user }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
+  const handleStartProfileLink = () => {
+    handleFeedback();
+    router.push("/(auth)/profile-linking");
+  };
+
+  const handleViewFamilyCard = () => {
+    if (!userProfile) {
+      handleStartProfileLink();
+      return;
+    }
+
+    handleFeedback();
+    router.push({
+      pathname: "/(app)/index",
+      params: {
+        openProfileId: userProfile.id,
+        focusOnProfile: "true",
+      },
+    });
+  };
+
+  const handleFollowUpLinkRequest = () => {
+    handleFeedback();
+    if (featureFlags.profileLinkRequests) {
+      setShowNotificationCenter(true);
+    } else {
+      Alert.alert(
+        "قيد المراجعة",
+        "طلبك قيد المراجعة لدى الإدارة. سنخطرك فور اعتماد الملف."
+      );
+    }
+  };
+
   const handleGuestSignIn = async () => {
     handleFeedback();
 
     // Clear all cached data
-    profileCache = null;
-    cacheTimestamp = null;
+    profileCaches.clear();
     resetSettings();
 
     // Clear tree store
@@ -426,36 +559,102 @@ export default function SettingsPageModern({ user }) {
     await AsyncStorage.setItem('notificationSettings', JSON.stringify(newNotifications));
   };
 
+  const hasLinkedProfile = Boolean(userProfile);
+  const hasPendingRequest = Boolean(pendingRequest);
+
+  const profileStatus = useMemo(() => {
+    if (loadingProfile) {
+      return {
+        label: "جارٍ التحديث",
+        color: colors.muted,
+      };
+    }
+
+    if (hasLinkedProfile) {
+      return { label: null, color: colors.muted };
+    }
+
+    if (hasPendingRequest) {
+      return {
+        label: "طلبك قيد المراجعة",
+        color: "#B45309",
+      };
+    }
+
+    return {
+      label: "لم يتم ربط الملف بعد",
+      color: colors.primary,
+    };
+  }, [hasLinkedProfile, hasPendingRequest, loadingProfile]);
+
+  const pendingHelperText = useMemo(() => {
+    if (!pendingRequest) return null;
+    const target =
+      pendingRequest.fullNameChain ||
+      pendingRequest.profile?.name ||
+      "الملف المختار";
+
+    return `تم إرسال طلب ربط ${target} وهو قيد المراجعة لدى الإدارة.`;
+  }, [pendingRequest]);
+
+  const profileCardAction = (() => {
+    if (loadingProfile) {
+      return {
+        onPress: null,
+        chevron: false,
+        hint: "جارٍ تحديث بيانات الملف...",
+      };
+    }
+
+    if (hasLinkedProfile && userProfile?.id) {
+      return {
+        onPress: handleViewFamilyCard,
+        chevron: true,
+        hint: null,
+      };
+    }
+
+    if (hasPendingRequest) {
+      return {
+        onPress: handleFollowUpLinkRequest,
+        chevron: featureFlags.profileLinkRequests,
+        hint:
+          pendingHelperText ||
+          "طلبك قيد المراجعة لدى الإدارة. سنخطرك فور اعتماد الملف.",
+      };
+    }
+
+    return {
+      onPress: handleStartProfileLink,
+      chevron: true,
+      hint: "لن يستغرق الأمر سوى دقيقة لبدء عملية الربط.",
+    };
+  })();
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 48 }]}
+        contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Image
-              source={require('../../assets/logo/AlqefariEmblem.png')}
-              style={styles.emblem}
-              resizeMode="contain"
-            />
-            <Text style={styles.title}>الإعدادات</Text>
-          </View>
-          {!isGuestMode && (
-            <NotificationBadge
-              onPress={() => {
-                console.log('🔍 [Settings] NotificationBadge pressed');
-                // Small delay to prevent UI freeze
-                requestAnimationFrame(() => {
-                  console.log('🔍 [Settings] Setting showNotificationCenter to true');
-                  setShowNotificationCenter(true);
-                });
-              }}
-            />
-          )}
-        </View>
+        <LargeTitleHeader
+          title="الإعدادات"
+          emblemSource={require("../../assets/logo/AlqefariEmblem.png")}
+          rightSlot={
+            !isGuestMode ? (
+              <NotificationBadge
+                onPress={() => {
+                  requestAnimationFrame(() => {
+                    setShowNotificationCenter(true);
+                  });
+                }}
+              />
+            ) : null
+          }
+          style={{ paddingTop: insets.top, paddingBottom: 12 }}
+        />
 
         {/* Notification Center - Only render when needed */}
         {showNotificationCenter && (
@@ -530,251 +729,335 @@ export default function SettingsPageModern({ user }) {
         {/* Profile Section - Show for authenticated users */}
         {currentUser && !isGuestMode && (
           <View style={styles.profileSection}>
-            <ProfileLinkStatusIndicator />
-
-            <View style={styles.profileCard}>
-              <View style={styles.profileImageContainer}>
-                {userProfile?.photo_url ? (
-                  <Image
-                    source={{ uri: userProfile.photo_url }}
-                    style={styles.profileImage}
-                  />
-                ) : (
-                  <View style={styles.profilePlaceholder}>
-                    <Ionicons name="person-circle" size={40} color={colors.primary} />
-                  </View>
-                )}
+            {featureFlags.profileLinkRequests && (
+              <View style={styles.profileStatusIndicatorWrapper}>
+                <ProfileLinkStatusIndicator />
               </View>
-              <View style={styles.profileInfo}>
-                {loadingProfile ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <>
-                    <Text style={styles.profileName}>
-                      {(() => {
-                        // Get the formatted name with title
-                        let displayName = "";
-                        if (userProfile) {
-                          displayName = formatNameWithTitle(userProfile) || getProfileDisplayName(userProfile);
-                        } else if (pendingRequest?.profile) {
-                          displayName = pendingRequest.fullNameChain || pendingRequest.profile.name;
-                        } else {
-                          return "مستخدم جديد";
-                        }
-
-                        // Add القفاري suffix if not already present
-                        return displayName.includes("القفاري") ? displayName : `${displayName} القفاري`;
-                      })()}
-                    </Text>
-                    <Text style={styles.profilePhone}>
-                      {currentUser?.phone || currentUser?.email || ""}
-                    </Text>
-                  </>
-                )}
-              </View>
-            </View>
+            )}
 
             <TouchableOpacity
-              style={[styles.signOutButton, isSigningOut && { opacity: 0.7 }]}
-              onPress={handleSignOut}
-              disabled={isSigningOut}
+              style={[
+                styles.profileCard,
+                profileCardAction.onPress && styles.profileCardPressable,
+                !profileCardAction.onPress && styles.profileCardDisabled,
+              ]}
+              onPress={profileCardAction.onPress}
+              activeOpacity={profileCardAction.onPress ? 0.75 : 1}
+              disabled={!profileCardAction.onPress}
             >
-              {isSigningOut ? (
-                <>
-                  <ActivityIndicator size="small" color={colors.white} />
-                  <Text style={styles.signOutText}>جاري تسجيل الخروج...</Text>
-                </>
-              ) : (
-                <>
-                  <Ionicons name="log-out-outline" size={20} color={colors.white} />
-                  <Text style={styles.signOutText}>تسجيل الخروج</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              <View style={styles.profileIdentityRow}>
+                <View style={styles.profileImageContainer}>
+                  {userProfile?.photo_url ? (
+                    <Image
+                      source={{ uri: userProfile.photo_url }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.profilePlaceholder}>
+                      <Ionicons name="person-outline" size={28} color={colors.primary} />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.profileInfo}>
+                  {loadingProfile ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <Text style={styles.profileName}>
+                        {(() => {
+                          let displayName = "";
+                          if (userProfile) {
+                            displayName =
+                              formatNameWithTitle(userProfile) ||
+                              getProfileDisplayName(userProfile);
+                          } else if (pendingRequest?.profile) {
+                            displayName =
+                              pendingRequest.fullNameChain ||
+                              pendingRequest.profile.name;
+                          } else {
+                            return "مستخدم جديد";
+                          }
+
+                          return displayName.includes("القفاري")
+                            ? displayName
+                            : `${displayName} القفاري`;
+                        })()}
+                      </Text>
+                      {profileStatus.label ? (
+                        <Text
+                          style={[
+                            styles.profileStatusText,
+                            { color: profileStatus.color },
+                          ]}
+                        >
+                          {profileStatus.label}
+                        </Text>
+                      ) : null}
+                      <Text style={styles.profilePhone}>
+                        {currentUser?.phone || currentUser?.email || ""}
+                      </Text>
+                    </>
+                  )}
+                </View>
+                {profileCardAction.chevron ? (
+                  <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                ) : null}
+              </View>
+
+            {!loadingProfile && profileCardAction.hint ? (
+              <Text style={styles.profileStatusNote}>{profileCardAction.hint}</Text>
+            ) : null}
+          </TouchableOpacity>
           </View>
         )}
 
         {/* Display Settings */}
-        <View style={styles.settingsCard}>
-          <Text style={styles.sectionTitle}>العرض والمظهر</Text>
-
-          {/* Date Preview */}
+        <SettingsSection title="العرض والمظهر">
           <View style={styles.datePreviewContainer}>
             <Text style={styles.datePreviewLabel}>مثال على التاريخ:</Text>
             <Text style={styles.datePreviewText}>
               {formatDateByPreference(sampleDate, {
-                defaultCalendar: settings.dateDisplay === 'both' ? settings.defaultCalendar : settings.dateDisplay,
-                showBothCalendars: settings.dateDisplay === 'both',
+                defaultCalendar:
+                  settings.dateDisplay === "both"
+                    ? settings.defaultCalendar
+                    : settings.dateDisplay,
+                showBothCalendars: settings.dateDisplay === "both",
                 dateFormat: settings.dateFormat,
-                arabicNumerals: settings.arabicNumerals
+                arabicNumerals: settings.arabicNumerals,
               })}
             </Text>
           </View>
-
-          {/* Calendar Type */}
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>التقويم</Text>
-            <SegmentedControl
-              values={['هجري', 'ميلادي', 'كلاهما']}
-              selectedIndex={settings.dateDisplay === 'hijri' ? 0 : settings.dateDisplay === 'gregorian' ? 1 : 2}
-              onChange={(event) => {
-                handleFeedback();
-                const index = event.nativeEvent.selectedSegmentIndex;
-                updateSetting('dateDisplay', index === 0 ? 'hijri' : index === 1 ? 'gregorian' : 'both');
-              }}
-              style={styles.segmentedControl}
-            />
-          </View>
-
-          {/* Date Format */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>استخدام الكلمات</Text>
-            </View>
-            <Switch
-              value={settings.dateFormat === "words"}
-              onValueChange={(value) => {
-                handleFeedback();
-                updateSetting("dateFormat", value ? "words" : "numeric");
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-
-          {/* Arabic Numerals */}
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>الأرقام العربية</Text>
-            </View>
-            <Switch
-              value={settings.arabicNumerals}
-              onValueChange={(value) => {
-                handleFeedback();
-                updateSetting("arabicNumerals", value);
-              }}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-            />
-          </View>
-        </View>
+          <SettingsCell
+            label="التقويم"
+            rightAccessory={
+              <SegmentedControl
+                values={["هجري", "ميلادي", "كلاهما"]}
+                selectedIndex={
+                  settings.dateDisplay === "hijri"
+                    ? 0
+                    : settings.dateDisplay === "gregorian"
+                      ? 1
+                      : 2
+                }
+                onChange={(event) => {
+                  handleFeedback();
+                  const index = event.nativeEvent.selectedSegmentIndex;
+                  updateSetting(
+                    "dateDisplay",
+                    index === 0 ? "hijri" : index === 1 ? "gregorian" : "both",
+                  );
+                }}
+                style={styles.segmentedControl}
+              />
+            }
+          />
+          <SettingsCell
+            label="استخدام الكلمات"
+            rightAccessory={
+              <Switch
+                value={settings.dateFormat === "words"}
+                onValueChange={(value) => {
+                  handleFeedback();
+                  updateSetting("dateFormat", value ? "words" : "numeric");
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            }
+          />
+          <SettingsCell
+            label="الأرقام العربية"
+            rightAccessory={
+              <Switch
+                value={settings.arabicNumerals}
+                onValueChange={(value) => {
+                  handleFeedback();
+                  updateSetting("arabicNumerals", value);
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            }
+          />
+        </SettingsSection>
 
         {/* Tree View Settings - Admin Only (Not Implemented) */}
         {isAdmin && (
-          <View style={styles.settingsCard}>
-            <Text style={styles.sectionTitle}>عرض الشجرة (قيد التطوير)</Text>
-
-            <View style={styles.settingRow}>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>إظهار الصور</Text>
-                <Text style={styles.settingDescription}>عرض صور الأعضاء في الشجرة</Text>
-              </View>
-              <Switch
-                value={treeView.showPhotos}
-                onValueChange={(value) => {
-                  handleFeedback();
-                  setTreeView({ ...treeView, showPhotos: value });
-                }}
-                trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
-
-            <View style={[styles.settingRow, styles.lastRow]}>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingLabel}>تمييز خطي المباشر</Text>
-                <Text style={styles.settingDescription}>إبراز سلسلة النسب الخاصة بي</Text>
-              </View>
-              <Switch
-                value={treeView.highlightMyLine}
-                onValueChange={(value) => {
-                  handleFeedback();
-                  setTreeView({ ...treeView, highlightMyLine: value });
-                }}
-                trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                thumbColor={colors.white}
-              />
-            </View>
-          </View>
+          <SettingsSection title="عرض الشجرة (قيد التطوير)">
+            <SettingsCell
+              label="إظهار الصور"
+              description="عرض صور الأعضاء في الشجرة"
+              rightAccessory={
+                <Switch
+                  value={treeView.showPhotos}
+                  onValueChange={(value) => {
+                    handleFeedback();
+                    setTreeView({ ...treeView, showPhotos: value });
+                  }}
+                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+            <SettingsCell
+              label="تمييز خطي المباشر"
+              description="إبراز سلسلة النسب الخاصة بي"
+              rightAccessory={
+                <Switch
+                  value={treeView.highlightMyLine}
+                  onValueChange={(value) => {
+                    handleFeedback();
+                    setTreeView({ ...treeView, highlightMyLine: value });
+                  }}
+                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
+            />
+          </SettingsSection>
         )}
 
         {/* Notifications Settings - Only for authenticated users */}
         {!isGuestMode && (
-          <View style={styles.settingsCard}>
-          <Text style={styles.sectionTitle}>الإشعارات</Text>
-
-          {/* Push Notifications Master Toggle */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>تفعيل الإشعارات</Text>
-              <Text style={styles.settingDescription}>
-                {notificationPermissionGranted
+          <SettingsSection title="الإشعارات">
+            <SettingsCell
+              label="تفعيل الإشعارات"
+              description={
+                notificationPermissionGranted
                   ? "تلقي الإشعارات الفورية"
-                  : "يتطلب إذن من الجهاز"}
-              </Text>
-            </View>
-            <Switch
-              value={notifications.pushEnabled}
-              onValueChange={(value) => handleNotificationToggle('pushEnabled', value)}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
+                  : "يتطلب إذن من الجهاز"
+              }
+              rightAccessory={
+                <Switch
+                  value={notifications.pushEnabled}
+                  onValueChange={(value) =>
+                    handleNotificationToggle("pushEnabled", value)
+                  }
+                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                  thumbColor={colors.white}
+                />
+              }
             />
-          </View>
-
-          {/* Profile Link Requests */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>طلبات ربط الملف</Text>
-              <Text style={styles.settingDescription}>الموافقة أو الرفض على طلبك</Text>
-            </View>
-            <Switch
-              value={notifications.profileRequests}
-              disabled={!notifications.pushEnabled}
-              onValueChange={(value) => handleNotificationToggle('profileRequests', value)}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-              style={{ opacity: notifications.pushEnabled ? 1 : 0.5 }}
+            <SettingsCell
+              label="طلبات ربط الملف"
+              description="الموافقة أو الرفض على طلبك"
+              rightAccessory={
+                <Switch
+                  value={notifications.profileRequests}
+                  disabled={!notifications.pushEnabled}
+                  onValueChange={(value) =>
+                    handleNotificationToggle("profileRequests", value)
+                  }
+                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                  thumbColor={colors.white}
+                  style={!notifications.pushEnabled ? styles.switchDisabled : null}
+                />
+              }
             />
-          </View>
-
-          {/* Family Updates */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>تحديثات العائلة</Text>
-              <Text style={styles.settingDescription}>أخبار ومناسبات العائلة</Text>
-            </View>
-            <Switch
-              value={notifications.familyUpdates}
-              disabled={!notifications.pushEnabled}
-              onValueChange={(value) => handleNotificationToggle('familyUpdates', value)}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-              style={{ opacity: notifications.pushEnabled ? 1 : 0.5 }}
+            <SettingsCell
+              label="تحديثات العائلة"
+              description="أخبار ومناسبات العائلة"
+              rightAccessory={
+                <Switch
+                  value={notifications.familyUpdates}
+                  disabled={!notifications.pushEnabled}
+                  onValueChange={(value) =>
+                    handleNotificationToggle("familyUpdates", value)
+                  }
+                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                  thumbColor={colors.white}
+                  style={!notifications.pushEnabled ? styles.switchDisabled : null}
+                />
+              }
             />
-          </View>
-
-          {/* Admin Messages */}
-          <View style={[styles.settingRow, styles.lastRow]}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingLabel}>رسائل الإدارة</Text>
-              <Text style={styles.settingDescription}>إشعارات مهمة من مدير التطبيق</Text>
-            </View>
-            <Switch
-              value={notifications.adminMessages}
-              disabled={!notifications.pushEnabled}
-              onValueChange={(value) => handleNotificationToggle('adminMessages', value)}
-              trackColor={{ false: "#E5E5EA", true: colors.primary }}
-              thumbColor={colors.white}
-              style={{ opacity: notifications.pushEnabled ? 1 : 0.5 }}
+            <SettingsCell
+              label="رسائل الإدارة"
+              description="إشعارات مهمة من مدير التطبيق"
+              rightAccessory={
+                <Switch
+                  value={notifications.adminMessages}
+                  disabled={!notifications.pushEnabled}
+                  onValueChange={(value) =>
+                    handleNotificationToggle("adminMessages", value)
+                  }
+                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                  thumbColor={colors.white}
+                  style={!notifications.pushEnabled ? styles.switchDisabled : null}
+                />
+              }
             />
-          </View>
-        </View>
+          </SettingsSection>
         )}
 
-        {/* Actions */}
-        <View style={styles.actionsContainer}>
+        {/* Upcoming Features (Hidden by default) */}
+        <View style={styles.sectionContainer}>
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={styles.collapsibleHeader}
+            onPress={() => {
+              handleFeedback();
+              setShowUpcomingFeatures((prev) => !prev);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.collapsibleHeaderInfo}>
+              <View style={styles.comingSoonSparkIcon}>
+                <Ionicons name="star-outline" size={18} color={colors.primary} />
+              </View>
+              <Text style={styles.collapsibleTitle}>ميزات قادمة</Text>
+            </View>
+            <Ionicons
+              name={showUpcomingFeatures ? "chevron-up" : "chevron-down"}
+              size={18}
+              color={colors.muted}
+            />
+          </TouchableOpacity>
+
+          {showUpcomingFeatures && (
+            <View style={[styles.sectionCard, styles.sectionCardMuted]}>
+              {upcomingFeatures.map((feature, index) => (
+                <View
+                  key={feature.key}
+                  style={[
+                    styles.comingSoonRow,
+                    index !== upcomingFeatures.length - 1 && styles.comingSoonRowDivider,
+                  ]}
+                >
+                  <View style={styles.comingSoonIcon}>
+                    <Ionicons name={feature.icon} size={18} color={colors.secondary} />
+                  </View>
+                  <View style={styles.comingSoonCopy}>
+                    <Text style={styles.comingSoonTitle}>{feature.label}</Text>
+                    <Text style={styles.comingSoonDescription}>{feature.description}</Text>
+                  </View>
+                  <View style={styles.comingSoonBadge}>
+                    <Text style={styles.comingSoonBadgeText}>قريباً</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Account Actions */}
+        <SettingsSection title="إدارة الحساب">
+          {currentUser && !isGuestMode && (
+            <SettingsCell
+              label="تسجيل الخروج"
+              description={isSigningOut ? "جاري تنفيذ تسجيل الخروج..." : "إنهاء الجلسة الحالية"}
+              onPress={handleSignOut}
+              rightAccessory={
+                isSigningOut ? (
+                  <ActivityIndicator size="small" color={colors.muted} />
+                ) : (
+                  <Ionicons name="log-out-outline" size={18} color={colors.muted} />
+                )
+              }
+              disabled={isSigningOut}
+            />
+          )}
+          <SettingsCell
+            label="إعادة تعيين الإعدادات"
+            description="إرجاع التفضيلات إلى القيم الافتراضية"
             onPress={() => {
               Alert.alert(
                 "إعادة تعيين الإعدادات",
@@ -789,17 +1072,13 @@ export default function SettingsPageModern({ user }) {
                 ],
               );
             }}
-          >
-            <Ionicons name="refresh-outline" size={20} color={colors.text} style={{ marginRight: 8 }} />
-            <Text style={styles.secondaryButtonText}>إعادة تعيين الإعدادات</Text>
-          </TouchableOpacity>
-
-          {/* Contact Admins Button */}
-          <TouchableOpacity
-            style={styles.contactAdminButton}
+            rightAccessory={<Ionicons name="refresh-outline" size={18} color={colors.muted} />}
+          />
+          <SettingsCell
+            label="تواصل مع الإدارة"
+            description="أرسل رسالة فورية عبر الواتساب"
             onPress={async () => {
               handleFeedback();
-              // Get the saved default message or use fallback
               const savedMessage = await AsyncStorage.getItem('admin_default_message');
               const message = savedMessage || 'السلام عليكم';
               const result = await adminContactService.openAdminWhatsApp(message);
@@ -811,32 +1090,26 @@ export default function SettingsPageModern({ user }) {
                 );
               }
             }}
-          >
-            <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-            <Text style={styles.contactAdminButtonText}>تواصل مع الإدارة</Text>
-          </TouchableOpacity>
-
+            rightAccessory={<Ionicons name="logo-whatsapp" size={18} color="#25D366" />}
+          />
           {currentUser && !isGuestMode && (
-            <TouchableOpacity
-              style={[
-                styles.dangerButton,
-                isDeletingAccount && styles.dangerButtonDisabled,
-              ]}
+            <SettingsCell
+              label="حذف الحساب"
+              description="إزالة حسابك وبياناتك نهائياً"
               onPress={handleDeleteAccount}
-              activeOpacity={0.8}
+              rightAccessory={
+                isDeletingAccount ? (
+                  <ActivityIndicator size="small" color="#DC2626" />
+                ) : (
+                  <Ionicons name="trash-outline" size={18} color="#DC2626" />
+                )
+              }
               disabled={isDeletingAccount}
-            >
-              {isDeletingAccount ? (
-                <ActivityIndicator size="small" color="#DC2626" />
-              ) : (
-                <>
-                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
-                  <Text style={styles.dangerButtonText}>حذف الحساب</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              labelStyle={styles.destructiveLabel}
+              descriptionStyle={styles.destructiveDescription}
+            />
           )}
-        </View>
+        </SettingsSection>
 
         {/* App Info */}
         <View style={styles.appInfoSection}>
@@ -860,33 +1133,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 32,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  emblem: {
-    width: 44,
-    height: 44,
-    tintColor: colors.text,
-    marginRight: 8,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: "700",
-    color: colors.text,
-    fontFamily: "SF Arabic",
-  },
-
   // Guest Sign In Card
   guestSignInCard: {
     backgroundColor: colors.white,
@@ -929,14 +1177,14 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "700",
     color: colors.text,
-    fontFamily: "SF Arabic",
+    ...fontStyles.semibold,
     marginBottom: 12,
     letterSpacing: -0.5,
   },
   guestSubtitle: {
     fontSize: 16,
     color: colors.muted,
-    fontFamily: "SF Arabic",
+    ...fontStyles.regular,
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 24,
@@ -971,7 +1219,7 @@ const styles = StyleSheet.create({
   guestBenefitText: {
     fontSize: 15,
     color: colors.text,
-    fontFamily: "SF Arabic",
+    ...fontStyles.regular,
     flex: 1,
     lineHeight: 22,
   },
@@ -994,39 +1242,52 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 16,
     fontWeight: "600",
-    fontFamily: "SF Arabic",
+    ...fontStyles.semibold,
     textAlign: "center",
   },
 
   // Profile Section
   profileSection: {
-    backgroundColor: colors.white,
     marginHorizontal: 16,
     marginVertical: 12,
-    borderRadius: 16,
-    padding: 16,
+  },
+  profileStatusIndicatorWrapper: {
+    marginBottom: 12,
+  },
+  profileCard: {
+    backgroundColor: colors.white,
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowRadius: 10,
     elevation: 3,
   },
-  profileCard: {
+  profileIdentityRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   profileImageContainer: {
-    marginRight: 12,
-  },
-  profileImage: {
+    marginRight: 14,
     width: 60,
     height: 60,
     borderRadius: 30,
+    overflow: "hidden",
+    backgroundColor: "#F2F2F7",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  profileImage: {
+    width: "100%",
+    height: "100%",
   },
   profilePlaceholder: {
-    width: 60,
-    height: 60,
+    width: "100%",
+    height: "100%",
     borderRadius: 30,
     backgroundColor: "#F2F2F7",
     justifyContent: "center",
@@ -1039,53 +1300,89 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: colors.text,
-    fontFamily: "SF Arabic",
+    ...fontStyles.semibold,
     marginBottom: 4,
+  },
+  profileStatusText: {
+    fontSize: 13,
+    fontWeight: "600",
+    ...fontStyles.semibold,
+    marginBottom: 2,
   },
   profilePhone: {
     fontSize: 14,
     color: colors.muted,
-    fontFamily: "SF Arabic",
+    ...fontStyles.regular,
+    marginTop: 4,
   },
-  signOutButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
+  profileStatusNote: {
+    marginTop: 8,
+    fontSize: 13,
+    color: colors.muted,
+    lineHeight: 20,
+    ...fontStyles.regular,
   },
-  signOutText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
+  profileCardPressable: {
+    opacity: 0.95,
+  },
+  profileCardDisabled: {
+    opacity: 0.9,
   },
 
-  // Settings Card
-  settingsCard: {
-    backgroundColor: colors.white,
+  // Settings Sections
+  sectionContainer: {
     marginHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 20,
+  },
+  sectionCard: {
+    backgroundColor: colors.white,
     borderRadius: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
     shadowRadius: 8,
     elevation: 2,
   },
+  sectionCardMuted: {
+    opacity: 0.9,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: "600",
     color: colors.muted,
-    fontFamily: "SF Arabic",
-    marginTop: 8,
-    marginBottom: 12,
+    ...fontStyles.semibold,
+    marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  collapsibleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  collapsibleHeaderInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  comingSoonSparkIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: colors.primary + "12",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  collapsibleTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+    ...fontStyles.semibold,
   },
 
   // Setting Row
@@ -1093,12 +1390,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  lastRow: {
+  settingRowLast: {
     borderBottomWidth: 0,
+  },
+  settingRowInteractive: {
+    paddingRight: 4,
+  },
+  settingRowDisabled: {
+    opacity: 0.5,
   },
   settingTextContainer: {
     flex: 1,
@@ -1107,13 +1410,62 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 16,
     color: colors.text,
-    fontFamily: "SF Arabic",
+    ...fontStyles.semibold,
     marginBottom: 2,
   },
   settingDescription: {
     fontSize: 13,
     color: colors.muted,
-    fontFamily: "SF Arabic",
+    ...fontStyles.regular,
+  },
+  switchDisabled: {
+    opacity: 0.4,
+  },
+  comingSoonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  comingSoonRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  comingSoonIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: colors.secondary + "15",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  comingSoonCopy: {
+    flex: 1,
+  },
+  comingSoonTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+    ...fontStyles.semibold,
+    marginBottom: 2,
+  },
+  comingSoonDescription: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.muted,
+    ...fontStyles.regular,
+  },
+  comingSoonBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: colors.primary + "12",
+  },
+  comingSoonBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.primary,
+    ...fontStyles.semibold,
   },
 
   // Controls
@@ -1121,67 +1473,12 @@ const styles = StyleSheet.create({
     width: 180,
     height: 32,
   },
-
-  // Actions
-  actionsContainer: {
-    paddingHorizontal: 16,
-    marginTop: 20,
-    gap: 12,
-  },
-  secondaryButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: colors.container,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  secondaryButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-  },
-  contactAdminButton: {
-    backgroundColor: "#25D366" + "15",
-    borderWidth: 1.5,
-    borderColor: "#25D366",
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  contactAdminButtonText: {
-    color: "#25D366",
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    marginLeft: 8,
-  },
-  dangerButton: {
-    backgroundColor: "#DC262610",
-    borderWidth: 1.5,
-    borderColor: "#DC2626",
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  dangerButtonDisabled: {
-    opacity: 0.6,
-  },
-  dangerButtonText: {
+  destructiveLabel: {
     color: "#DC2626",
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
+  },
+  destructiveDescription: {
+    color: "#DC2626",
+    opacity: 0.75,
   },
 
   // App Info
@@ -1198,13 +1495,13 @@ const styles = StyleSheet.create({
   appVersion: {
     fontSize: 14,
     color: colors.muted,
-    fontFamily: "SF Arabic",
+    ...fontStyles.regular,
     marginBottom: 4,
   },
   developerCredit: {
     fontSize: 13,
     color: colors.primary,
-    fontFamily: "SF Arabic",
+    ...fontStyles.semibold,
     marginTop: 8,
     textAlign: "center",
   },
@@ -1220,13 +1517,13 @@ const styles = StyleSheet.create({
   datePreviewLabel: {
     fontSize: 13,
     color: colors.muted,
-    fontFamily: "SF Arabic",
+    ...fontStyles.regular,
     marginBottom: 4,
   },
   datePreviewText: {
     fontSize: 18,
     fontWeight: "600",
     color: colors.text,
-    fontFamily: "SF Arabic",
+    ...fontStyles.semibold,
   },
 });

@@ -733,24 +733,6 @@ export const profilesService = {
   },
 
   /**
-   * Admin: Get validation dashboard
-   */
-  async getValidationDashboard() {
-    try {
-      const { data, error } = await supabase.rpc("admin_validation_dashboard");
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      // Return empty array as fallback (matching what the component expects)
-      return {
-        data: [],
-        error: null,
-      };
-    }
-  },
-
-  /**
    * Admin: Run auto-fix for validation issues
    */
   async runAutoFix() {

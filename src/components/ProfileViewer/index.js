@@ -361,15 +361,13 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   }, []);
 
   // Open/close sheet when person changes
-  // animateOnMount={true} at line 526 handles timing issues
+  // Pure declarative control - state drives BottomSheet index prop
   useEffect(() => {
-    if (person) {
+    if (person?.id) {
       console.log('[ProfileViewer] Opening sheet for person:', person.id);
-      bottomSheetRef.current?.snapToIndex(0);
-      setCurrentSnapIndex(0);
+      setCurrentSnapIndex(0); // State drives sheet position
     } else if (!loading) {
       console.log('[ProfileViewer] Closing sheet (no person)');
-      bottomSheetRef.current?.close();
       setCurrentSnapIndex(-1);
     }
   }, [person?.id, loading]);

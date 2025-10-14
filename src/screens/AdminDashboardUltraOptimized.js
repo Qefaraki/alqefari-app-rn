@@ -3,7 +3,6 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
@@ -11,26 +10,24 @@ import {
   Platform,
   Animated,
   Modal,
-  Image,
-  Easing,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
 import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
 import { featureFlags } from "../config/featureFlags";
 import AdminMessagesManager from "../components/admin/AdminMessagesManager";
 import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
-import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
 import AdminBroadcastManager from "../components/admin/AdminBroadcastManager";
+import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
+import suggestionService from "../services/suggestionService";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
 import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
@@ -41,25 +38,6 @@ import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 import WidgetCard from "../components/ios/WidgetCard";
 import { ListSection, ListItem } from "../components/ios/GroupedList";
 
-const ISSUE_META = {
-  missing_hid: {
-    label: "معرفات مفقودة",
-    tone: "warning",
-  },
-  duplicate_sibling_order: {
-    label: "ترتيب أشقاء مكرر",
-    tone: "critical",
-  },
-  missing_gender: {
-    label: "جنس غير محدد",
-    tone: "info",
-  },
-  orphaned_children: {
-    label: "علاقات بدون والد",
-    tone: "critical",
-  },
-};
-
 const formatCount = (value) => {
   const numeric = Number.isFinite(value) ? value : 0;
   try {
@@ -69,75 +47,27 @@ const formatCount = (value) => {
   }
 };
 
-// Animated TouchableOpacity for iOS-like press feedback
-const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
-  const scaleValue = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleValue, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 10,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleValue, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 40,
-      friction: 7,
-    }).start();
-  };
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-      {...props}
-    >
-      <Animated.View
-        style={[
-          style,
-          {
-            transform: [{ scale: scaleValue }]
-          }
-        ]}
-      >
-        {children}
-      </Animated.View>
-    </TouchableOpacity>
-  );
-};
-
 const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, openLinkRequests = false }) => {
   // Loading states for each section
   const [statsLoading, setStatsLoading] = useState(true);
   const [enhancedLoading, setEnhancedLoading] = useState(true);
-  const [validationLoading, setValidationLoading] = useState(true);
 
   // Data states
   const [stats, setStats] = useState(null);
-  const [validationIssues, setValidationIssues] = useState([]);
-  const [dataHealth, setDataHealth] = useState(100);
   const [refreshing, setRefreshing] = useState(false);
 
   // Modal states
-  const [showValidationDashboard, setShowValidationDashboard] = useState(false);
-  
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showLinkRequests, setShowLinkRequests] = useState(false);
   const [showMessagesManager, setShowMessagesManager] = useState(false);
   const [showMunasibManager, setShowMunasibManager] = useState(false);
   const [showPermissionManager, setShowPermissionManager] = useState(false);
-  const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [showBroadcastManager, setShowBroadcastManager] = useState(false);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
   // Get safe area insets for dynamic bottom padding
@@ -152,7 +82,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
 
   // Start animations immediately on mount
   useEffect(() => {
@@ -177,33 +106,17 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     }
   }, []);
 
-  useEffect(() => {
-    if (validationLoading) {
-      return;
-    }
-
-    const normalized = Math.max(0, Math.min(100, dataHealth)) / 100;
-
-    Animated.timing(progressAnim, {
-      toValue: normalized,
-      duration: 600,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [dataHealth, validationLoading]);
-
   // Load data progressively
   useEffect(() => {
     const timer1 = setTimeout(() => loadEnhancedStats(), 300);
-    const timer2 = setTimeout(() => loadValidationData(), 600);
 
     loadBasicStats();
     loadPendingRequestsCount();
+    loadPendingSuggestionsCount();
 
     // Cleanup timers on unmount
     return () => {
       clearTimeout(timer1);
-      clearTimeout(timer2);
     };
   }, []);
 
@@ -211,10 +124,10 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     // Load basic stats first (fastest)
     loadBasicStats();
     loadPendingRequestsCount();
+    loadPendingSuggestionsCount();
 
     // Load other sections with delays (NO CLEANUP - only used in refresh)
     setTimeout(() => loadEnhancedStats(), 300);
-    setTimeout(() => loadValidationData(), 600);
   };
 
   const loadPendingRequestsCount = async () => {
@@ -231,6 +144,15 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       setPendingRequestsCount(count || 0);
     } catch (error) {
       console.log("Error loading pending requests:", error);
+    }
+  };
+
+  const loadPendingSuggestionsCount = async () => {
+    try {
+      const count = await suggestionService.getPendingSuggestionsCount();
+      setPendingSuggestionsCount(count || 0);
+    } catch (error) {
+      console.log("Error loading pending suggestions:", error);
     }
   };
 
@@ -289,27 +211,10 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     }
   };
 
-  const loadValidationData = async () => {
-    try {
-      const { data } = await supabase.rpc("admin_validation_dashboard");
-      if (data) {
-        setValidationIssues(data);
-        const healthScore = Math.max(0, 100 - data.length * 2);
-        setDataHealth(Math.round(healthScore));
-      }
-    } catch (error) {
-      console.error("Validation failed:", error);
-    } finally {
-      setValidationLoading(false);
-    }
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     setStatsLoading(true);
     setEnhancedLoading(true);
-    setValidationLoading(true);
-
     await loadDataProgressively();
     setRefreshing(false);
   };
@@ -443,85 +348,66 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
   // Skeleton components
   const StatsGridSkeleton = () => (
-    <View style={styles.statsGrid}>
-      {[...Array(6)].map((_, i) => (
-        <View key={i} style={styles.statBox}>
-          <SkeletonLoader width={50} height={24} style={{ marginBottom: 8 }} />
-          <SkeletonLoader width="70%" height={12} />
+    <View style={styles.metricGrid}>
+      {[...Array(4)].map((_, i) => (
+        <View key={i} style={[styles.metricCard, styles.metricCardSkeleton]}>
+          <SkeletonLoader width="60%" height={28} style={{ marginBottom: 8 }} />
+          <SkeletonLoader width="50%" height={12} />
         </View>
       ))}
     </View>
   );
 
-  const CardSkeleton = () => (
-    <Animated.View
-      style={[
-        styles.card,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <SkeletonLoader width="40%" height={18} style={{ marginBottom: 16 }} />
-      <View style={{ gap: 12 }}>
-        <SkeletonLoader width="100%" height={60} borderRadius={12} />
-        <View style={{ flexDirection: "row-reverse", gap: 12 }}>
-          <SkeletonLoader width="48%" height={40} borderRadius={8} />
-          <SkeletonLoader width="48%" height={40} borderRadius={8} />
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  const ActivitySkeleton = () => (
-    <View style={styles.card}>
-      {[...Array(2)].map((_, i) => (
-        <View
-          key={i}
-          style={[styles.activityItem, i === 0 && styles.activityItemBorder]}
-        >
-          <View style={{ flex: 1 }}>
-            <SkeletonLoader
-              width="60%"
-              height={16}
-              style={{ marginBottom: 6 }}
-            />
-            <SkeletonLoader width="40%" height={12} />
-          </View>
-          <SkeletonLoader width={50} height={12} />
-        </View>
-      ))}
-    </View>
-  );
+  const metrics = [
+    {
+      key: "total_profiles",
+      label: "إجمالي الملفات",
+      value: stats?.total_profiles,
+      tone: "crimson",
+    },
+    {
+      key: "alive_count",
+      label: "الأحياء",
+      value: stats?.alive_count,
+      tone: "neutral",
+    },
+    {
+      key: "male_count",
+      label: "الذكور",
+      value: stats?.male_count,
+      tone: "neutral",
+    },
+    {
+      key: "female_count",
+      label: "الإناث",
+      value: stats?.female_count,
+      tone: "ochre",
+    },
+  ];
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header - matching SettingsPage pattern */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Image
-            source={require('../../assets/logo/AlqefariEmblem.png')}
-            style={styles.emblem}
-            resizeMode="contain"
-          />
-          <View style={styles.titleContent}>
-            <Text style={styles.title}>الإدارة</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <NotificationBadge
-              onPress={() => {
-                // Small delay to prevent UI freeze
-                requestAnimationFrame(() => {
-                  setShowNotificationCenter(true);
-                });
-              }}
-            />
-          </View>
-        </View>
-      </View>
+      <LinearGradient
+        pointerEvents="none"
+        colors={["#FFFFFF", "rgba(249, 247, 243, 0.96)", tokens.colors.najdi.background]}
+        locations={[0, 0.45, 1]}
+        style={styles.backgroundGlow}
+      />
 
-      {/* Notification Center - Only render when needed */}
+      <LargeTitleHeader
+        title="الإدارة"
+        emblemSource={require("../../assets/logo/AlqefariEmblem.png")}
+        actions={
+          <NotificationBadge
+            onPress={() => {
+              requestAnimationFrame(() => {
+                setShowNotificationCenter(true);
+              });
+            }}
+          />
+        }
+      />
+
       {showNotificationCenter && (
         <NotificationCenter
           visible={showNotificationCenter}
@@ -531,259 +417,302 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: Math.max(insets.bottom, 20) + 40, // Dynamic bottom padding: safe area + extra space
-        }}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 40 },
+        ]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {/* iOS Widget Style Statistics Card */}
         <Animated.View
           style={[
-            styles.statsWidget,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
+            styles.sectionWrapper,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
           ]}
         >
-          {statsLoading ? (
-            <View style={styles.statsWidgetContent}>
-              <View style={styles.statsRow}>
-                <SkeletonLoader width={80} height={32} />
-                <SkeletonLoader width={80} height={32} />
-              </View>
-              <View style={styles.statsDivider} />
-              <View style={styles.statsRow}>
-                <SkeletonLoader width={80} height={32} />
-                <SkeletonLoader width={80} height={32} />
-              </View>
-            </View>
-          ) : (
-            <View style={styles.statsWidgetContent}>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumberLarge, { color: "#A13333" }]}>
-                    {stats?.total_profiles || 0}
-                  </Text>
-                  <Text style={styles.statLabelSmall}>تاريخي</Text>
+          <WidgetCard>
+            {statsLoading ? (
+              <StatsGridSkeleton />
+            ) : (
+              <>
+                <View style={styles.widgetHeader}>
+                  <Text style={styles.widgetTitle}>مؤشرات العائلة</Text>
                 </View>
-                <View style={styles.statVerticalDivider} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumberLarge, { color: "#242121" }]}>
-                    {stats?.alive_count || 0}
-                  </Text>
-                  <Text style={styles.statLabelSmall}>حالي</Text>
+                <View style={styles.metricGrid}>
+                  {metrics.map((metric) => (
+                    <View
+                      key={metric.key}
+                      style={[
+                        styles.metricCard,
+                        metric.tone === "crimson" && styles.metricCardCrimson,
+                        metric.tone === "ochre" && styles.metricCardOchre,
+                      ]}
+                    >
+                      <Text style={styles.metricValue}>
+                        {formatCount(metric.value)}
+                      </Text>
+                      <Text style={styles.metricLabel}>{metric.label}</Text>
+                    </View>
+                  ))}
                 </View>
-              </View>
-
-              <View style={styles.statsDivider} />
-
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumberLarge, { color: "#242121" }]}>
-                    {stats?.male_count || 0}
-                  </Text>
-                  <Text style={styles.statLabelSmall}>ذكور</Text>
-                </View>
-                <View style={styles.statVerticalDivider} />
-                <View style={styles.statItem}>
-                  <Text style={[styles.statNumberLarge, { color: "#D58C4A" }]}>
-                    {stats?.female_count || 0}
-                  </Text>
-                  <Text style={styles.statLabelSmall}>إناث</Text>
-                </View>
-              </View>
-            </View>
-          )}
+              </>
+            )}
+          </WidgetCard>
         </Animated.View>
 
-
-
-        {/* iOS-Style Grouped List Sections */}
-        <View style={styles.listSectionsContainer}>
-          {/* Primary Actions Section */}
-          <Animated.View
-            style={[
-              styles.listSection,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.sectionHeader}>الإدارة الأساسية</Text>
-            <View style={styles.listGroup}>
-              <AnimatedTouchable
-                style={[styles.listItem, styles.listItemFirst]}
-                onPress={() => setShowLinkRequests(true)}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="link-outline" size={22} color="#A13333" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>ربط الملفات</Text>
-                </View>
-                <View style={styles.listItemRight}>
+        <Animated.View
+          style={[
+            styles.sectionWrapper,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <ListSection title="الإدارة الأساسية">
+            <ListItem
+              leading={
+                <Ionicons
+                  name="link-outline"
+                  size={22}
+                  color={tokens.colors.najdi.primary}
+                />
+              }
+              title="ربط الملفات"
+              trailing={
+                <View style={styles.trailingCluster}>
                   {pendingRequestsCount > 0 && (
-                    <View style={styles.listBadge}>
-                      <Text style={styles.listBadgeText}>{pendingRequestsCount}</Text>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>
+                        {formatCount(pendingRequestsCount)}
+                      </Text>
                     </View>
                   )}
-                  <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
                 </View>
-              </AnimatedTouchable>
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowLinkRequests(true);
+              }}
+            />
+            <ListItem
+              leading={
+                <Ionicons
+                  name="people-outline"
+                  size={22}
+                  color={tokens.colors.najdi.secondary}
+                />
+              }
+              title="المناسبين"
+              trailing={
+                <Ionicons
+                  name="chevron-back"
+                  size={18}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowMunasibManager(true);
+              }}
+            />
+            <ListItem
+              leading={
+                <Ionicons
+                  name="document-text-outline"
+                  size={22}
+                  color={tokens.colors.najdi.text}
+                />
+              }
+              title="مراجعة الاقتراحات"
+              trailing={
+                <Ionicons
+                  name="chevron-back"
+                  size={18}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowSuggestionReview(true);
+              }}
+              showDivider={isSuperAdmin}
+            />
+            {isSuperAdmin && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="star-outline"
+                    size={22}
+                    color={tokens.colors.najdi.primary}
+                  />
+                }
+                title="إدارة الصلاحيات"
+                trailing={
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowPermissionManager(true);
+                }}
+                showDivider={false}
+              />
+            )}
+          </ListSection>
 
-              <View style={styles.separator} />
+          <ListSection title="أدوات النظام">
+            <ListItem
+              leading={
+                <Ionicons
+                  name="time-outline"
+                  size={21}
+                  color={tokens.colors.najdi.text}
+                />
+              }
+              title="سجل النشاط"
+              trailing={
+                <Ionicons
+                  name="chevron-back"
+                  size={18}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowActivityLog(true);
+              }}
+            />
+            <ListItem
+              leading={
+                <Ionicons
+                  name="logo-whatsapp"
+                  size={21}
+                  color="#25D366"
+                />
+              }
+              title="التواصل"
+              trailing={
+                <Ionicons
+                  name="chevron-back"
+                  size={18}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowTemplateManager(true);
+              }}
+            />
+            {isSuperAdmin && (
+              <>
+                <ListItem
+                  leading={
+                    <Ionicons
+                      name="cloud-download-outline"
+                      size={21}
+                      color={tokens.colors.najdi.primary}
+                    />
+                  }
+                  title="تصدير الشجرة"
+                  trailing={
+                    exporting ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={tokens.colors.najdi.primary}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="chevron-back"
+                        size={18}
+                        color={tokens.colors.najdi.textMuted}
+                      />
+                    )
+                  }
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    handleExportDatabase();
+                  }}
+                />
+                <ListItem
+                  leading={
+                    <Ionicons
+                      name="mail-outline"
+                      size={21}
+                      color={tokens.colors.najdi.primary}
+                    />
+                  }
+                  title="إشعارات جماعية"
+                  trailing={
+                    <Ionicons
+                      name="chevron-back"
+                      size={18}
+                      color={tokens.colors.najdi.textMuted}
+                    />
+                  }
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setShowBroadcastManager(true);
+                  }}
+                  showDivider={false}
+                />
+              </>
+            )}
+          </ListSection>
+        </Animated.View>
 
-              <AnimatedTouchable
-                style={styles.listItem}
-                onPress={() => setShowMunasibManager(true)}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="people-outline" size={22} color="#D58C4A" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>المناسبين</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
-
-              <View style={styles.separator} />
-
-              <AnimatedTouchable
-                style={isSuperAdmin ? styles.listItem : [styles.listItem, styles.listItemLast]}
-                onPress={() => setShowSuggestionReview(true)}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>مراجعة الاقتراحات</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
-
-              {isSuperAdmin && (
-                <>
-                  <View style={styles.separator} />
-                  <AnimatedTouchable
-                    style={[styles.listItem, styles.listItemLast]}
-                    onPress={() => setShowPermissionManager(true)}
-                  >
-                    <View style={styles.listItemContent}>
-                      <Ionicons name="star-outline" size={22} color="#A13333" style={styles.listItemIcon} />
-                      <Text style={styles.listItemText}>إدارة الصلاحيات</Text>
-                    </View>
-                    <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-                  </AnimatedTouchable>
-                </>
-              )}
-
-            </View>
-          </Animated.View>
-
-          {/* System Tools Section */}
-          <Animated.View
-            style={[
-              styles.listSection,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.sectionHeader}>أدوات النظام</Text>
-            <View style={styles.listGroup}>
-              <AnimatedTouchable
-                style={[styles.listItem, styles.listItemFirst]}
-                onPress={() => setShowActivityLog(true)}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="document-text-outline" size={22} color="#242121" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>السجل</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
-
-              <View style={styles.separator} />
-
-              <AnimatedTouchable
-                style={isSuperAdmin ? styles.listItem : [styles.listItem, styles.listItemLast]}
-                onPress={() => setShowTemplateManager(true)}
-              >
-                <View style={styles.listItemContent}>
-                  <Ionicons name="logo-whatsapp" size={22} color="#25D366" style={styles.listItemIcon} />
-                  <Text style={styles.listItemText}>إعدادات الواتساب</Text>
-                </View>
-                <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-              </AnimatedTouchable>
-
-              {isSuperAdmin && (
-                <>
-                  <View style={styles.separator} />
-                  <AnimatedTouchable
-                    style={[styles.listItem, styles.listItemLast]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowBroadcastManager(true);
-                    }}
-                  >
-                    <View style={styles.listItemContent}>
-                      <Ionicons name="mail-outline" size={22} color="#A13333" style={styles.listItemIcon} />
-                      <Text style={styles.listItemText}>إشعارات جماعية</Text>
-                    </View>
-                    <Ionicons name="chevron-back" size={17} color="#C7C7CC" />
-                  </AnimatedTouchable>
-                </>
-              )}
-            </View>
-          </Animated.View>
-        </View>
-
-        {/* Munasib families - Shows after enhanced stats load */}
         {!enhancedLoading &&
           stats?.munasib &&
           stats.munasib.top_families?.length > 0 && (
             <Animated.View
               style={[
-                styles.card,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                  marginTop: 16,
-                  marginBottom: 20,
-                },
+                styles.sectionWrapper,
+                styles.munasibWrapper,
+                { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
               ]}
             >
-              <View style={styles.munasibHeader}>
-                <Text style={styles.cardTitle}>العائلات المنتسبة</Text>
-                <View style={styles.munasibBadge}>
-                  <Text style={styles.munasibBadgeText}>
-                    {stats.munasib.total_munasib} منتسب
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.topFamiliesContainer}>
-                {stats.munasib.top_families.slice(0, 3).map((family, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.topFamilyCard,
-                      index === 0 && styles.topFamilyFirst,
-                    ]}
-                  >
-                    <View style={styles.topFamilyRank}>
-                      <Text style={styles.topFamilyRankText}>{index + 1}</Text>
-                    </View>
-                    <Text style={styles.topFamilyName} numberOfLines={1}>
-                      {family.family_name}
+              <WidgetCard>
+                <View style={styles.munasibHeader}>
+                  <Text style={styles.cardTitle}>العائلات المنتسبة</Text>
+                  <View style={styles.munasibBadge}>
+                    <Ionicons
+                      name="people-outline"
+                      size={16}
+                      color={tokens.colors.najdi.primary}
+                    />
+                    <Text style={styles.munasibBadgeText}>
+                      {formatCount(stats.munasib.total_munasib)} منتسب
                     </Text>
-                    <View style={styles.topFamilyStats}>
-                      <Text style={styles.topFamilyCount}>{family.count}</Text>
-                      <Text style={styles.topFamilyPercentage}>
-                        {family.percentage}%
-                      </Text>
-                    </View>
                   </View>
-                ))}
-              </View>
+                </View>
+
+                <View style={styles.topFamiliesContainer}>
+                  {stats.munasib.top_families.slice(0, 3).map((family, index) => (
+                    <View key={family.family_name || index} style={styles.topFamilyCard}>
+                      <View style={styles.topFamilyRank}>
+                        <Text style={styles.topFamilyRankText}>{index + 1}</Text>
+                      </View>
+                      <Text style={styles.topFamilyName} numberOfLines={1}>
+                        {family.family_name}
+                      </Text>
+                      <View style={styles.topFamilyStats}>
+                        <Text style={styles.topFamilyCount}>
+                          {formatCount(family.count)}
+                        </Text>
+                        <Text style={styles.topFamilyPercentage}>
+                          {family.percentage}%
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </WidgetCard>
             </Animated.View>
           )}
       </ScrollView>
@@ -883,18 +812,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       )}
 
       {renderIOSModal(
-        showValidationDashboard,
-        () => setShowValidationDashboard(false),
-        ValidationDashboard
-      )}
-
-      {renderIOSModal(
-        showTemplateManager,
-        () => setShowTemplateManager(false),
-        MessageTemplateManager
-      )}
-
-      {renderIOSModal(
         showSuggestionReview,
         () => setShowSuggestionReview(false),
         SuggestionReviewManager
@@ -906,6 +823,11 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         () => setShowBroadcastManager(false),
         AdminBroadcastManager
       )}
+      {renderIOSModal(
+        showTemplateManager,
+        () => setShowTemplateManager(false),
+        MessageTemplateManager
+      )}
     </SafeAreaView>
   );
 };
@@ -913,461 +835,198 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F7F3", // Al-Jass White
+    backgroundColor: tokens.colors.najdi.background,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
+  backgroundGlow: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
+  scrollContent: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.lg,
   },
-  emblem: {
-    width: 52,
-    height: 52,
-    tintColor: '#242121',
-    marginRight: 3,
-    marginTop: -5,
-    marginLeft: -5,
+  sectionWrapper: {
+    marginBottom: tokens.spacing.xl,
   },
-  titleContent: {
-    flex: 1,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 5,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: "700",
-    color: "#242121", // Sadu Night
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
-  },
-  closeButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  card: {
-    backgroundColor: "#F9F7F3", // Al-Jass White
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D1BBA340", // Camel Hair Beige 40%
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  // iOS Widget Style Stats
-  statsWidget: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    borderRadius: 13,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 0.5 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  statsWidgetContent: {
-    padding: 16,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-  },
-  statVerticalDivider: {
-    width: 0.5,
-    height: 40,
-    backgroundColor: "#C7C7CC",
-    opacity: 0.3,
-  },
-  statsDivider: {
-    height: 0.5,
-    backgroundColor: "#C7C7CC",
-    opacity: 0.3,
-    marginHorizontal: 16,
-  },
-  statNumberLarge: {
-    fontSize: 32,
-    fontWeight: "700",
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
-  },
-  statLabelSmall: {
-    fontSize: 13,
-    color: "#8E8E93",
-    marginTop: 2,
-    fontWeight: "400",
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
-  },
-  // iOS List Sections
-  listSectionsContainer: {
-    marginTop: 20,
-  },
-  listSection: {
-    marginBottom: 35,
-  },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#24212180", // Sadu Night 50%
-    textTransform: "uppercase",
-    marginHorizontal: 32,
-    marginBottom: 8,
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#242121", // Sadu Night
-    marginHorizontal: 16,
-    marginBottom: 12,
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
-  },
-  listGroup: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 16,
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  listItem: {
+  widgetHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minHeight: 52,
-    backgroundColor: "#FFFFFF",
+    marginBottom: tokens.spacing.md,
   },
-  listItemFirst: {
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-  },
-  listItemLast: {
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-  },
-  listItemContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  listItemIcon: {
-    marginRight: 12,
-    width: 24,
-  },
-  listItemText: {
-    fontSize: 17,
-    color: "#242121",
-    fontWeight: "400",
+  widgetTitle: {
+    fontSize: tokens.typography.title3.fontSize,
+    fontWeight: tokens.typography.title3.fontWeight,
+    color: tokens.colors.najdi.text,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
   },
-  listItemRight: {
+  metricGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: tokens.spacing.sm,
   },
-  listBadge: {
-    backgroundColor: "#FF3B30",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    minWidth: 24,
-    alignItems: "center",
-    justifyContent: "center",
+  metricCard: {
+    width: "48%",
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(209, 187, 163, 0.25)",
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
   },
-  listBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
+  metricCardCrimson: {
+    backgroundColor: "rgba(161, 51, 51, 0.12)",
+    borderColor: "rgba(161, 51, 51, 0.24)",
   },
-  separator: {
-    height: 0.5,
-    backgroundColor: "#C7C7CC",
-    marginLeft: 52,
-    opacity: 0.4,
+  metricCardOchre: {
+    backgroundColor: "rgba(213, 140, 74, 0.14)",
+    borderColor: "rgba(213, 140, 74, 0.24)",
   },
-  statsCard: {
-    marginTop: 16,
+  metricCardSkeleton: {
+    backgroundColor: "rgba(209, 187, 163, 0.18)",
+  },
+  metricValue: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+  },
+  metricLabel: {
+    marginTop: 4,
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.najdi.textMuted,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#242121", // Sadu Night
-    fontFamily: "SF Arabic",
-    marginBottom: 16,
-    textAlign: "right",
+    fontSize: tokens.typography.title3.fontSize,
+    fontWeight: tokens.typography.title3.fontWeight,
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
-  completenessGrid: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  completenessItem: {
-    width: "48%",
-  },
-  completenessHeader: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  completenessPercentage: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#242121", // Sadu Night
-  },
-  completenessIcon: {
-    fontSize: 20,
-  },
-  completenessBarContainer: {
-    height: 8,
-    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
-    borderRadius: 4,
-    overflow: "hidden",
-    marginBottom: 8,
-  },
-  completenessBar: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  completenessLabel: {
-    fontSize: 12,
-    color: "#24212199", // Sadu Night 60%
-  },
-  dataHealthHeader: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  healthPercentage: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#D58C4A", // Desert Ochre
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: "#D1BBA340", // Camel Hair Beige 40%
-    borderRadius: 999,
-    overflow: "hidden",
-    marginBottom: 20,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: "#D58C4A", // Desert Ochre
-    borderRadius: 999,
-  },
-  issuesTags: {
-    flexDirection: "row-reverse",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 20,
-  },
-  tagSuccess: {
-    backgroundColor: "#D58C4A" + "1A", // Desert Ochre 10%
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagSuccessText: {
-    color: "#D58C4A", // Desert Ochre
-    fontSize: 14,
-  },
-  tagWarning: {
-    backgroundColor: "#A13333" + "1A", // Najdi Crimson 10%
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  tagWarningText: {
-    color: "#A13333", // Najdi Crimson
-    fontSize: 14,
-  },
-  primaryButton: {
-    backgroundColor: "#A13333", // Najdi Crimson
-    paddingVertical: 14,
-    borderRadius: 10,
-    flexDirection: "row-reverse",
-    justifyContent: "center",
+  trailingCluster: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  primaryButtonText: {
-    color: "#F9F7F3", // Al-Jass White
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-  },
-  activityItem: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-  },
-  activityItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityName: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#242121", // Sadu Night
-  },
-  activityDescription: {
-    fontSize: 14,
-    color: "#24212199", // Sadu Night 60%
-    marginTop: 2,
-  },
-  activityTime: {
-    fontSize: 14,
-    color: "#24212166", // Sadu Night 40%
-  },
-  viewAllButton: {
-    flexDirection: "row-reverse",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 16,
-    gap: 4,
-  },
-  viewAllText: {
-    color: "#A13333", // Najdi Crimson
-    fontSize: 16,
-    fontWeight: "500",
   },
   badge: {
-    backgroundColor: "#A13333",
+    backgroundColor: tokens.colors.danger,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    marginLeft: 8,
-    minWidth: 24,
+    minWidth: 26,
     alignItems: "center",
+    justifyContent: "center",
   },
   badgeText: {
-    color: "#F9F7F3", // Al-Jass White
-    fontSize: 12,
+    color: tokens.colors.surface,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
-    fontFamily: "SF Arabic",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+  },
+  munasibWrapper: {
+    marginBottom: tokens.spacing.xl,
   },
   munasibHeader: {
-    flexDirection: "row-reverse",
-    justifyContent: "space-between",
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "space-between",
+    marginBottom: tokens.spacing.md,
   },
   munasibBadge: {
-    backgroundColor: "#D58C4A" + "20", // Desert Ochre 20%
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D58C4A" + "60", // Desert Ochre 60%
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(161, 51, 51, 0.12)",
+    borderRadius: 999,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: 6,
   },
   munasibBadgeText: {
-    fontSize: 12,
+    color: tokens.colors.najdi.primary,
+    fontSize: tokens.typography.footnote.fontSize,
     fontWeight: "600",
-    color: "#242121", // Sadu Night
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
   topFamiliesContainer: {
-    gap: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: tokens.spacing.sm,
   },
   topFamilyCard: {
-    backgroundColor: "#F9F7F3", // Al-Jass White
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#D1BBA340", // Camel Hair Beige 40%
-    position: "relative",
-  },
-  topFamilyFirst: {
-    borderColor: "#D58C4A", // Desert Ochre
-    borderWidth: 2,
+    flex: 1,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(209, 187, 163, 0.35)",
+    padding: tokens.spacing.md,
+    alignItems: "flex-start",
   },
   topFamilyRank: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#F9F7F3", // Al-Jass White
-    justifyContent: "center",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: tokens.colors.najdi.primary,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    justifyContent: "center",
+    marginBottom: tokens.spacing.sm,
   },
   topFamilyRankText: {
-    fontSize: 12,
+    color: tokens.colors.najdi.background,
     fontWeight: "700",
-    color: "#242121", // Sadu Night
   },
   topFamilyName: {
-    fontSize: 16,
+    fontSize: tokens.typography.body.fontSize,
+    color: tokens.colors.najdi.text,
     fontWeight: "600",
-    color: "#242121", // Sadu Night
-    marginRight: 32,
-    textAlign: "right",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
   topFamilyStats: {
-    flexDirection: "row-reverse",
-    alignItems: "baseline",
-    gap: 8,
-    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.xs,
+    marginTop: tokens.spacing.sm,
   },
   topFamilyCount: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#242121", // Sadu Night
+    fontSize: tokens.typography.subheadline.fontSize,
+    color: tokens.colors.najdi.text,
+    fontWeight: "600",
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
   topFamilyPercentage: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#24212199", // Sadu Night 60%
+    fontSize: tokens.typography.caption1.fontSize,
+    color: tokens.colors.najdi.textMuted,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
   },
 });
 

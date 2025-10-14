@@ -69,7 +69,6 @@ export const ListItem = ({
 
 const styles = StyleSheet.create({
   section: {
-    marginHorizontal: tokens.spacing.lg,
     marginBottom: tokens.spacing.xl,
   },
   sectionTitle: {
@@ -78,11 +77,7 @@ const styles = StyleSheet.create({
     lineHeight: tokens.typography.footnote.lineHeight,
     color: tokens.colors.najdi.textMuted,
     marginBottom: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.sm,
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-    textAlign: "right",
-    writingDirection: "rtl",
+    paddingHorizontal: 0,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
@@ -111,7 +106,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   itemContent: {
-    flexDirection: "row-reverse",
+    flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
@@ -123,14 +118,13 @@ const styles = StyleSheet.create({
   },
   textWrapper: {
     flex: 1,
-    alignItems: "flex-end",
+    alignItems: "flex-start",
   },
   title: {
     fontSize: tokens.typography.body.fontSize,
     fontWeight: "500",
     color: tokens.colors.najdi.text,
-    textAlign: "right",
-    writingDirection: "rtl",
+    textAlign: "auto",
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
@@ -140,17 +134,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.textMuted,
-    textAlign: "right",
-    writingDirection: "rtl",
+    textAlign: "auto",
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
   },
   trailing: {
-    marginRight: "auto",
-    marginLeft: -4,
-    flexDirection: "row-reverse",
+    marginStart: "auto",
+    marginEnd: -4,
+    flexDirection: "row",
     alignItems: "center",
     gap: tokens.spacing.xs,
   },

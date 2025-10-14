@@ -263,6 +263,24 @@ const SuggestionReviewManager = () => {
         </View>
       )}
 
+      {/* Auto-approval timer for family circle suggestions */}
+      {suggestion.status === "pending" &&
+        suggestion.permission_level === "family" && (
+          <View style={styles.autoApprovalBanner}>
+            <Ionicons
+              name="timer-outline"
+              size={16}
+              color={COLORS.secondary}
+            />
+            <Text style={styles.autoApprovalText}>
+              موافقة تلقائية خلال:{" "}
+              {suggestionService.getAutoApprovalTimeRemaining(
+                suggestion.created_at
+              )}
+            </Text>
+          </View>
+        )}
+
       {/* Suggester Info */}
       <View style={styles.suggesterSection}>
         <Text style={styles.suggesterText}>
@@ -506,6 +524,20 @@ const styles = StyleSheet.create({
   reasonText: {
     fontSize: 14,
     color: COLORS.text,
+  },
+  autoApprovalBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: COLORS.secondary + "15",
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  autoApprovalText: {
+    fontSize: 13,
+    color: COLORS.secondary,
+    fontWeight: "500",
   },
   suggesterSection: {
     flexDirection: "row",

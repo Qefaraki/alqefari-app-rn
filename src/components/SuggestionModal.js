@@ -50,9 +50,14 @@ const SuggestionModal = ({
     { key: "bio", label: "السيرة الذاتية", type: "text", multiline: true },
     { key: "phone", label: "رقم الهاتف", type: "phone" },
     { key: "email", label: "البريد الإلكتروني", type: "email" },
-    { key: "current_residence", label: "مكان الإقامة", type: "text" },
+    { key: "current_location", label: "مكان الإقامة", type: "text" },
     { key: "occupation", label: "المهنة", type: "text" },
     { key: "education", label: "التعليم", type: "text" },
+    { key: "date_of_birth", label: "تاريخ الميلاد", type: "text" },
+    { key: "place_of_birth", label: "مكان الميلاد", type: "text" },
+    { key: "instagram", label: "إنستجرام", type: "text" },
+    { key: "twitter", label: "تويتر", type: "text" },
+    { key: "linkedin", label: "لينكد إن", type: "text" },
   ];
 
   // Load current value when field is selected

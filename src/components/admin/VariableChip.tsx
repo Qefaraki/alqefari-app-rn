@@ -6,9 +6,12 @@
  */
 
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { TemplateVariable } from '../../services/messageTemplates/types';
+import tokens from '../ui/tokens';
+
+const palette = tokens.colors.najdi;
 
 interface VariableChipProps {
   variable: TemplateVariable;
@@ -36,18 +39,18 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#D58C4A15', // Desert Ochre 15%
+    backgroundColor: `${palette.secondary}15`,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D58C4A60', // Desert Ochre 60%
+    borderColor: `${palette.secondary}55`,
     marginRight: 8,
     marginBottom: 8,
   },
   chipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#D58C4A', // Desert Ochre
-    fontFamily: 'SF Arabic',
+    color: palette.secondary,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
 });
 

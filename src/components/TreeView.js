@@ -1803,11 +1803,15 @@ const TreeView = ({
   const handleNodeTap = useCallback(
     (nodeId) => {
       // console.log('TreeView: Node tapped, isAdminMode:', isAdminMode);
+
+      // Clear search highlight when tapping any node
+      clearAllHighlights();
+
       setSelectedPersonId(nodeId);
       setProfileEditMode(isAdminMode);
       // console.log('TreeView: Setting profileEditMode to:', isAdminMode);
     },
-    [setSelectedPersonId, isAdminMode],
+    [setSelectedPersonId, isAdminMode, clearAllHighlights],
   );
 
   // Tap gesture for selection with movement/time thresholds

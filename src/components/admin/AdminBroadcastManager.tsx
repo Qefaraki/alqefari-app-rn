@@ -18,13 +18,13 @@ import {
   Image,
   FlatList,
   I18nManager,
-  ActivityIndicator,
 } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import tokens from '../ui/tokens';
+import SkeletonLoader from '../ui/SkeletonLoader';
 import {
   previewBroadcastRecipients,
   createBroadcast,
@@ -35,8 +35,6 @@ import {
   getPriorityColor,
 } from '../../services/broadcastNotifications';
 import type { BroadcastCriteria, BroadcastHistoryItem } from '../../types/notifications';
-
-const EMPTY_HISTORY: BroadcastHistoryItem[] = [];
 
 // ============================================================================
 // TYPES
@@ -60,20 +58,22 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   // ========== COMPOSE STATE ==========
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [targetingType, setTargetingType] = useState<TargetingType>('all');
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedGenders, setSelectedGenders] = useState<string[]>([]);
   const [importance, setImportance] = useState<Importance>('normal');
+  const [roleFilterEnabled, setRoleFilterEnabled] = useState(false);
+  const [genderFilterEnabled, setGenderFilterEnabled] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
   const [sending, setSending] = useState(false);
   const [previewState, setPreviewState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
   const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [resolvedCriteria, setResolvedCriteria] = useState<BroadcastCriteria>({ type: 'all' });
 
   // ========== HISTORY STATE ==========
-  const [historyExpanded, setHistoryExpanded] = useState(false);
   const [history, setHistory] = useState<BroadcastHistoryItem[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   // ========== VALIDATION ==========
   const titleValid = title.trim().length >= 3 && title.length <= 200;
@@ -87,20 +87,24 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
 
   // ========== LOAD HISTORY ==========
   useEffect(() => {
-    if (historyExpanded && history.length === 0) {
-      loadHistory();
-    }
-  }, [historyExpanded]);
+    loadHistory();
+  }, []);
 
   const loadHistory = async () => {
     setLoadingHistory(true);
+    setHistoryError(null);
     try {
       const { data, error } = await getBroadcastHistory(20, 0);
-      if (!error && data) {
+      if (error) {
+        setHistory([]);
+        setHistoryError(error.message || 'تعذر تحميل سجل الإشعارات');
+      } else if (data) {
         setHistory(data);
       }
     } catch (err) {
       console.error('Error loading history:', err);
+      setHistory([]);
+      setHistoryError('حدث خطأ أثناء تحميل سجل الإشعارات');
     } finally {
       setLoadingHistory(false);
     }
@@ -120,11 +124,34 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
 
   const handleFilterChange = (value: TargetingType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setTargetingType(value);
 
     if (value === 'all') {
+      setRoleFilterEnabled(false);
+      setGenderFilterEnabled(false);
       setSelectedRoles([]);
       setSelectedGenders([]);
+      setResolvedCriteria({ type: 'all' });
+      return;
+    }
+
+    if (value === 'role') {
+      const next = !roleFilterEnabled;
+      setRoleFilterEnabled(next);
+      if (!next && !genderFilterEnabled) {
+        // Revert to all when no filters are active
+        setSelectedRoles([]);
+        setSelectedGenders([]);
+      }
+      return;
+    }
+
+    if (value === 'gender') {
+      const next = !genderFilterEnabled;
+      setGenderFilterEnabled(next);
+      if (!next && !roleFilterEnabled) {
+        setSelectedRoles([]);
+        setSelectedGenders([]);
+      }
     }
   };
 
@@ -160,10 +187,10 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
     </View>
   );
 
-  const historyListData = historyExpanded ? history : EMPTY_HISTORY;
+  const historyListData = history;
   const listExtraData = useMemo(
-    () => ({ expandedCardId, historyExpanded, previewState, recipientCount }),
-    [expandedCardId, historyExpanded, previewState, recipientCount]
+    () => ({ expandedCardId, previewState, recipientCount, history, loadingHistory, historyError }),
+    [expandedCardId, previewState, recipientCount, history, loadingHistory, historyError]
   );
 
   const renderHistoryItem: ListRenderItem<BroadcastHistoryItem> = ({ item }) => {
@@ -262,15 +289,32 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   };
 
   const renderHistoryEmpty = () => {
-    if (!historyExpanded) {
-      return null;
-    }
-
     if (loadingHistory) {
       return (
-        <View style={styles.historyLoading}>
-          <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
-          <Text style={styles.historyLoadingText}>جاري تحميل سجل الإشعارات...</Text>
+        <View style={styles.historySkeletonContainer}>
+          {[0, 1, 2].map((index) => (
+            <View key={index} style={styles.historySkeletonCard}>
+              <SkeletonLoader width="60%" height={18} style={styles.historySkeletonLine} />
+              <SkeletonLoader width="90%" height={12} style={styles.historySkeletonLine} />
+              <SkeletonLoader width="45%" height={12} />
+            </View>
+          ))}
+        </View>
+      );
+    }
+
+    if (historyError) {
+      return (
+        <View style={styles.historyError}>
+          <Ionicons name="warning-outline" size={36} color={tokens.colors.danger} />
+          <Text style={styles.historyErrorText}>{historyError}</Text>
+          <TouchableOpacity
+            style={styles.historyRetryButton}
+            onPress={loadHistory}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.historyRetryText}>إعادة المحاولة</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -344,13 +388,52 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
           .join(' و ')
       : 'حدد الجنس المستهدف';
 
-    const chevronIcon = I18nManager.isRTL ? 'chevron-back' : 'chevron-forward';
+    const roleSummaryDisplay = selectedRoles.length ? roleSummary : 'لم يتم اختيار أدوار بعد';
+    const genderSummaryDisplay = selectedGenders.length ? genderSummary : 'لم يتم اختيار جنس بعد';
 
-    const filterOptionData: Array<{ value: TargetingType; title: string; description: string }> = [
-      { value: 'all', title: 'إرسال لجميع الأعضاء', description: 'بدون تحديد أو استثناءات' },
-      { value: 'role', title: 'تصفية بالدور الإداري', description: roleSummary },
-      { value: 'gender', title: 'تصفية بالجنس', description: genderSummary },
+    const filterOptionData: Array<{
+      value: TargetingType;
+      title: string;
+      icon: string;
+      badge?: number;
+    }> = [
+      {
+        value: 'all',
+        title: 'كل الأعضاء',
+        icon: 'people-outline',
+      },
+      {
+        value: 'role',
+        title: 'تحديد الأدوار',
+        icon: 'briefcase-outline',
+        badge: selectedRoles.length,
+      },
+      {
+        value: 'gender',
+        title: 'تحديد الجنس',
+        icon: 'male-female-outline',
+        badge: selectedGenders.length,
+      },
     ];
+
+    const totalBroadcasts = historyListData.length;
+    const totalRecipients = historyListData.reduce((sum, item) => sum + item.total_recipients, 0);
+    const averageReadRate = totalBroadcasts
+      ? Math.round(
+          historyListData.reduce((sum, item) => sum + item.read_percentage, 0) / totalBroadcasts
+        )
+      : 0;
+    const lastBroadcast = historyListData[0];
+    const lastSentLabel = lastBroadcast ? formatRelativeTime(lastBroadcast.sent_at) : '—';
+    const allSelected = !roleFilterEnabled && !genderFilterEnabled;
+    const summaryParts: string[] = [];
+    if (roleFilterEnabled) {
+      summaryParts.push(`الأدوار: ${roleSummaryDisplay}`);
+    }
+    if (genderFilterEnabled) {
+      summaryParts.push(`الجنس: ${genderSummaryDisplay}`);
+    }
+    const summaryText = summaryParts.join(' • ');
 
     return (
       <View style={styles.composer}>
@@ -403,49 +486,69 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
           <Text style={styles.label}>تصفية المستلمين</Text>
           <Text style={styles.helperText}>ابدأ بالإرسال للجميع ثم قم بالتصفية عند الحاجة</Text>
 
-          <View style={styles.filterOptions}>
-            {filterOptionData.map(({ value, title, description }) => {
-              const isActive = targetingType === value;
+          <View style={styles.filterChipRow}>
+            {filterOptionData.map(({ value, title, icon, badge }) => {
+              const isActive =
+                value === 'all'
+                  ? allSelected
+                  : value === 'role'
+                  ? roleFilterEnabled
+                  : genderFilterEnabled;
               return (
                 <TouchableOpacity
                   key={value}
-                  style={[styles.filterOption, isActive && styles.filterOptionActive]}
+                  style={[styles.filterChip, isActive && styles.filterChipActive]}
                   onPress={() => handleFilterChange(value)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
-                  accessibilityLabel={title}
+                  accessibilityLabel={`${title}${badge ? ` (${badge})` : ''}`}
                   activeOpacity={0.9}
                 >
-                  <View style={styles.filterOptionCopy}>
-                    <Text
-                      style={[styles.filterOptionTitle, isActive && styles.filterOptionTitleActive]}
-                    >
-                      {title}
-                    </Text>
-                    <Text style={styles.filterOptionDescription}>{description}</Text>
-                  </View>
                   <Ionicons
-                    name={isActive ? 'checkmark-circle' : chevronIcon}
-                    size={24}
-                    color={
-                      isActive
-                        ? tokens.colors.najdi.primary
-                        : tokens.colors.najdi.textMuted
-                    }
+                    name={icon as any}
+                    size={18}
+                    color={isActive ? '#FFFFFF' : tokens.colors.najdi.textMuted}
                   />
+                  <Text style={[styles.filterChipLabel, isActive && styles.filterChipLabelActive]}>
+                    {title}
+                  </Text>
+                  {badge ? (
+                    <View style={[styles.filterChipBadge, isActive && styles.filterChipBadgeActive]}>
+                      <Text
+                        style={[styles.filterChipBadgeText, isActive && styles.filterChipBadgeTextActive]}
+                      >
+                        {badge}
+                      </Text>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {targetingType === 'role' && (
+          {summaryText.length > 0 && (
+            <View style={styles.filterSummaryRow}>
+              <Ionicons name="funnel-outline" size={16} color={tokens.colors.najdi.textMuted} />
+              <Text style={styles.filterSummaryText}>{summaryText}</Text>
+              <TouchableOpacity
+                onPress={() => handleFilterChange('all')}
+                style={styles.filterClearButton}
+                activeOpacity={0.8}
+                accessibilityLabel="إزالة عوامل التصفية"
+              >
+                <Text style={styles.filterClearText}>مسح التصفية</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {roleFilterEnabled && (
             <View style={styles.subSection}>
               <Text style={styles.subSectionTitle}>الأدوار المستهدفة</Text>
               {renderMultiSelect(roleOptions, selectedRoles, toggleRole)}
             </View>
           )}
 
-          {targetingType === 'gender' && (
+          {genderFilterEnabled && (
             <View style={styles.subSection}>
               <Text style={styles.subSectionTitle}>الجنس المستهدف</Text>
               {renderMultiSelect(genderOptions, selectedGenders, toggleGender)}
@@ -470,11 +573,6 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
                 high: 'مهمة',
                 urgent: 'عاجلة',
               };
-              const descriptionMap: Record<Importance, string> = {
-                normal: 'إشعار عادي بدون تنبيه إضافي',
-                high: 'يتم عرضه بشكل بارز للمستخدمين',
-                urgent: 'تنبيه عاجل مع إبراز إضافي',
-              };
 
               return (
                 <TouchableOpacity
@@ -488,24 +586,12 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
                 >
                   <Ionicons
                     name={iconMap[level] as any}
-                    size={20}
+                    size={18}
                     color={active ? '#FFFFFF' : '#8E8E93'}
                   />
-                  <View style={styles.importanceContent}>
-                    <Text
-                      style={[styles.importanceLabel, active && styles.importanceLabelActive]}
-                    >
-                      {labelMap[level]}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.importanceDescription,
-                        active && styles.importanceDescriptionActive,
-                      ]}
-                    >
-                      {descriptionMap[level]}
-                    </Text>
-                  </View>
+                  <Text style={[styles.importanceLabel, active && styles.importanceLabelActive]}>
+                    {labelMap[level]}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -514,35 +600,35 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
 
         {renderPreviewStatus()}
 
-        <TouchableOpacity
-          style={styles.historyHeader}
-          onPress={toggleHistoryExpanded}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: historyExpanded }}
-          accessibilityLabel="عرض سجل الإشعارات"
-          activeOpacity={0.9}
-        >
-          <View>
-            <Text style={styles.historyHeaderTitle}>سجل الإشعارات</Text>
-            <Text style={styles.historyHeaderSubtitle}>
-              {history.length > 0
-                ? `آخر إرسال منذ ${formatRelativeTime(history[0].sent_at)}`
-                : 'تابع أداء الإشعارات السابقة'}
+        <View style={styles.section}>
+          <View style={styles.historySectionHeader}>
+            <Text style={styles.label}>سجل الإشعارات</Text>
+            <Text style={styles.historySectionMeta}>
+              {totalBroadcasts > 0 ? `آخر إرسال ${lastSentLabel}` : 'لم يتم إرسال إشعارات بعد'}
             </Text>
           </View>
-          <View style={styles.historyHeaderRight}>
-            {history.length > 0 && (
-              <View style={styles.historyBadge}>
-                <Text style={styles.historyBadgeText}>{history.length}</Text>
+
+          {loadingHistory && historyListData.length === 0 ? (
+            <View style={styles.historySummarySkeleton}>
+              <SkeletonLoader width="100%" height={72} borderRadius={tokens.radii.md} />
+            </View>
+          ) : (
+            <View style={styles.historySummaryRow}>
+              <View style={styles.historySummaryCard}>
+                <Text style={styles.historySummaryValue}>{totalBroadcasts}</Text>
+                <Text style={styles.historySummaryLabel}>إشعار مرسل</Text>
               </View>
-            )}
-            <Ionicons
-              name={historyExpanded ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={tokens.colors.najdi.text}
-            />
-          </View>
-        </TouchableOpacity>
+              <View style={styles.historySummaryCard}>
+                <Text style={styles.historySummaryValue}>{totalRecipients}</Text>
+                <Text style={styles.historySummaryLabel}>إجمالي المستلمين</Text>
+              </View>
+              <View style={styles.historySummaryCard}>
+                <Text style={styles.historySummaryValue}>{averageReadRate}%</Text>
+                <Text style={styles.historySummaryLabel}>متوسط القراءة</Text>
+              </View>
+            </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -556,66 +642,207 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [targetingType, selectedRoles, selectedGenders]);
+  }, [roleFilterEnabled, genderFilterEnabled, selectedRoles, selectedGenders]);
 
   const loadRecipientPreview = async () => {
     setPreviewState('loading');
     setPreviewMessage(null);
 
     try {
-      const criteria = buildCriteria();
-      const validationError = validateBroadcastCriteria(criteria);
+      const rolesActive = roleFilterEnabled && selectedRoles.length > 0;
+      const gendersActive = genderFilterEnabled && selectedGenders.length > 0;
 
-      if (validationError) {
+      if (roleFilterEnabled && !rolesActive) {
         setRecipientCount(0);
         setPreviewState('error');
-        setPreviewMessage(validationError);
+        setPreviewMessage('اختر دوراً واحداً على الأقل ضمن التصفية');
+        setResolvedCriteria({ type: 'all' });
         return;
       }
 
-      const { data, error } = await previewBroadcastRecipients(criteria);
-
-      if (error) {
-        console.error('Preview error:', error);
+      if (genderFilterEnabled && !gendersActive) {
         setRecipientCount(0);
         setPreviewState('error');
-        setPreviewMessage(error.message || 'تعذر تحميل المستلمين. حاول مرة أخرى.');
+        setPreviewMessage('اختر جنساً واحداً على الأقل ضمن التصفية');
+        setResolvedCriteria({ type: 'all' });
         return;
       }
 
-      const count = data?.length || 0;
-      setRecipientCount(count);
+      if (!rolesActive && !gendersActive) {
+        const criteria: BroadcastCriteria = { type: 'all' };
+        const validationError = validateBroadcastCriteria(criteria);
+        if (validationError) {
+          setRecipientCount(0);
+          setPreviewState('error');
+          setPreviewMessage(validationError);
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
 
-      if (count === 0) {
+        const { data, error } = await previewBroadcastRecipients(criteria);
+        if (error) {
+          console.error('Preview error:', error);
+          setRecipientCount(0);
+          setPreviewState('error');
+          setPreviewMessage(error.message || 'تعذر تحميل المستلمين. حاول مرة أخرى.');
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        const count = data?.length || 0;
+        setRecipientCount(count);
+        if (count === 0) {
+          setPreviewState('error');
+          setPreviewMessage('لا يوجد مستلمون مطابقون للمعايير الحالية');
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        setResolvedCriteria(criteria);
+        setPreviewState('ready');
+        return;
+      }
+
+      if (rolesActive && !gendersActive) {
+        const criteria: BroadcastCriteria = { type: 'role', values: selectedRoles };
+        const validationError = validateBroadcastCriteria(criteria);
+        if (validationError) {
+          setRecipientCount(0);
+          setPreviewState('error');
+          setPreviewMessage(validationError);
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        const { data, error } = await previewBroadcastRecipients(criteria);
+        if (error) {
+          console.error('Preview error:', error);
+          setRecipientCount(0);
+          setPreviewState('error');
+          setPreviewMessage(error.message || 'تعذر تحميل المستلمين. حاول مرة أخرى.');
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        const count = data?.length || 0;
+        setRecipientCount(count);
+        if (count === 0) {
+          setPreviewState('error');
+          setPreviewMessage('لا يوجد مستلمون مطابقون للأدوار المختارة');
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        setResolvedCriteria(criteria);
+        setPreviewState('ready');
+        return;
+      }
+
+      if (!rolesActive && gendersActive) {
+        const criteria: BroadcastCriteria = { type: 'gender', values: selectedGenders };
+        const validationError = validateBroadcastCriteria(criteria);
+        if (validationError) {
+          setRecipientCount(0);
+          setPreviewState('error');
+          setPreviewMessage(validationError);
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        const { data, error } = await previewBroadcastRecipients(criteria);
+        if (error) {
+          console.error('Preview error:', error);
+          setRecipientCount(0);
+          setPreviewState('error');
+          setPreviewMessage(error.message || 'تعذر تحميل المستلمين. حاول مرة أخرى.');
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        const count = data?.length || 0;
+        setRecipientCount(count);
+        if (count === 0) {
+          setPreviewState('error');
+          setPreviewMessage('لا يوجد مستلمون مطابقون للجنس المختار');
+          setResolvedCriteria({ type: 'all' });
+          return;
+        }
+
+        setResolvedCriteria(criteria);
+        setPreviewState('ready');
+        return;
+      }
+
+      // Both roles and genders active
+      const roleCriteria: BroadcastCriteria = { type: 'role', values: selectedRoles };
+      const genderCriteria: BroadcastCriteria = { type: 'gender', values: selectedGenders };
+
+      const validationRole = validateBroadcastCriteria(roleCriteria);
+      const validationGender = validateBroadcastCriteria(genderCriteria);
+      if (validationRole) {
+        setRecipientCount(0);
         setPreviewState('error');
-        setPreviewMessage('لا يوجد مستلمون مطابقون للمعايير الحالية');
+        setPreviewMessage(validationRole);
+        setResolvedCriteria({ type: 'all' });
+        return;
+      }
+      if (validationGender) {
+        setRecipientCount(0);
+        setPreviewState('error');
+        setPreviewMessage(validationGender);
+        setResolvedCriteria({ type: 'all' });
         return;
       }
 
+      const [roleResponse, genderResponse] = await Promise.all([
+        previewBroadcastRecipients(roleCriteria),
+        previewBroadcastRecipients(genderCriteria),
+      ]);
+
+      if (roleResponse.error) {
+        console.error('Preview error (role):', roleResponse.error);
+        setRecipientCount(0);
+        setPreviewState('error');
+        setPreviewMessage(roleResponse.error.message || 'تعذر تحميل المستلمين للأدوار المختارة');
+        setResolvedCriteria({ type: 'all' });
+        return;
+      }
+      if (genderResponse.error) {
+        console.error('Preview error (gender):', genderResponse.error);
+        setRecipientCount(0);
+        setPreviewState('error');
+        setPreviewMessage(genderResponse.error.message || 'تعذر تحميل المستلمين للجنس المختار');
+        setResolvedCriteria({ type: 'all' });
+        return;
+      }
+
+      const roleRecipients = roleResponse.data || [];
+      const genderRecipients = genderResponse.data || [];
+      const genderProfileSet = new Set(genderRecipients.map((r) => r.profile_id));
+      const intersection = roleRecipients.filter((r) => genderProfileSet.has(r.profile_id));
+      const uniqueProfileIds = Array.from(new Set(intersection.map((r) => r.profile_id)));
+
+      if (uniqueProfileIds.length === 0) {
+        setRecipientCount(0);
+        setPreviewState('error');
+        setPreviewMessage('لا يوجد مستلمون يطابقون الجمع بين الأدوار والجنس المختار');
+        setResolvedCriteria({ type: 'all' });
+        return;
+      }
+
+      setRecipientCount(uniqueProfileIds.length);
+      setResolvedCriteria({
+        type: 'custom',
+        values: uniqueProfileIds,
+      });
       setPreviewState('ready');
     } catch (err) {
       console.error('Preview exception:', err);
       setRecipientCount(0);
       setPreviewState('error');
       setPreviewMessage('تعذر تحميل المستلمين. حاول مرة أخرى.');
+      setResolvedCriteria({ type: 'all' });
     }
-  };
-
-  // ========== BUILD CRITERIA ==========
-  const buildCriteria = (): BroadcastCriteria => {
-    if (targetingType === 'all') {
-      return { type: 'all' };
-    }
-
-    if (targetingType === 'role') {
-      return { type: 'role', values: selectedRoles };
-    }
-
-    if (targetingType === 'gender') {
-      return { type: 'gender', values: selectedGenders };
-    }
-
-    return { type: 'all' };
   };
 
   // ========== HANDLERS ==========
@@ -648,7 +875,12 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
     setSending(true);
 
     try {
-      const criteria = buildCriteria();
+      const criteria = resolvedCriteria;
+      const validationError = validateBroadcastCriteria(criteria);
+      if (validationError) {
+        Alert.alert('خطأ', validationError);
+        return;
+      }
       const { data, error } = await createBroadcast({
         title: title.trim(),
         body: body.trim(),
@@ -680,19 +912,19 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
         // Reset form
         setTitle('');
         setBody('');
-        setTargetingType('all');
+        setRoleFilterEnabled(false);
+        setGenderFilterEnabled(false);
         setSelectedRoles([]);
         setSelectedGenders([]);
         setImportance('normal');
         setRecipientCount(0);
         setPreviewState('loading');
         setPreviewMessage(null);
+        setResolvedCriteria({ type: 'all' });
         loadRecipientPreview();
 
         // Refresh history
-        if (historyExpanded) {
-          loadHistory();
-        }
+        loadHistory();
 
         Alert.alert(
           'تم الإرسال بنجاح',
@@ -733,11 +965,6 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   const toggleImportance = (level: Importance) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setImportance(level);
-  };
-
-  const toggleHistoryExpanded = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setHistoryExpanded(!historyExpanded);
   };
 
   const toggleCardExpanded = (id: string) => {
@@ -952,40 +1179,78 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.danger,
   },
-  filterOptions: {
+  filterChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.sm,
     marginTop: tokens.spacing.sm,
-    gap: tokens.spacing.xs,
   },
-  filterOption: {
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: tokens.radii.md,
+    gap: tokens.spacing.xs,
     borderWidth: 1,
     borderColor: tokens.colors.outline,
+    borderRadius: tokens.radii.md,
+    paddingVertical: 10,
+    paddingHorizontal: tokens.spacing.md,
     backgroundColor: tokens.colors.surface,
-    paddingVertical: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.sm,
   },
-  filterOptionActive: {
+  filterChipActive: {
+    backgroundColor: tokens.colors.najdi.primary,
     borderColor: tokens.colors.najdi.primary,
-    backgroundColor: 'rgba(161, 51, 51, 0.08)',
   },
-  filterOptionCopy: {
-    flex: 1,
-    gap: 4,
-  },
-  filterOptionTitle: {
+  filterChipLabel: {
     fontSize: tokens.typography.callout.fontSize,
     color: tokens.colors.najdi.text,
     fontWeight: '600',
   },
-  filterOptionTitleActive: {
-    color: tokens.colors.najdi.primary,
+  filterChipLabelActive: {
+    color: '#FFFFFF',
   },
-  filterOptionDescription: {
+  filterChipBadge: {
+    minWidth: 24,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 12,
+    backgroundColor: tokens.colors.najdi.container,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipBadgeActive: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+  },
+  filterChipBadgeText: {
+    fontSize: tokens.typography.caption1.fontSize,
+    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+  },
+  filterChipBadgeTextActive: {
+    color: '#FFFFFF',
+  },
+  filterSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+    marginTop: tokens.spacing.xs,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderRadius: tokens.radii.md,
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  filterSummaryText: {
+    flex: 1,
     fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.textMuted,
+  },
+  filterClearButton: {
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 4,
+  },
+  filterClearText: {
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.najdi.primary,
+    fontWeight: '600',
   },
   subSection: {
     marginTop: tokens.spacing.sm,
@@ -1025,26 +1290,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   importanceRow: {
-    flexDirection: 'column',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: tokens.spacing.sm,
   },
   importanceChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.spacing.sm,
+    justifyContent: 'center',
+    flexGrow: 1,
+    minWidth: 96,
+    gap: tokens.spacing.xs,
     borderWidth: 1,
     borderColor: tokens.colors.outline,
     borderRadius: tokens.radii.md,
     paddingVertical: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
     backgroundColor: tokens.colors.surface,
   },
   importanceChipActive: {
     backgroundColor: tokens.colors.najdi.primary,
     borderColor: tokens.colors.najdi.primary,
-  },
-  importanceContent: {
-    flex: 1,
   },
   importanceLabel: {
     fontSize: tokens.typography.callout.fontSize,
@@ -1052,13 +1318,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   importanceLabelActive: {
-    color: '#FFFFFF',
-  },
-  importanceDescription: {
-    fontSize: tokens.typography.footnote.fontSize,
-    color: tokens.colors.najdi.textMuted,
-  },
-  importanceDescriptionActive: {
     color: '#FFFFFF',
   },
   previewCard: {
@@ -1119,46 +1378,43 @@ const styles = StyleSheet.create({
     fontSize: tokens.typography.callout.fontSize,
     fontWeight: '700',
   },
-  historyHeader: {
-    marginTop: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.sm,
+  historySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  historySectionMeta: {
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.najdi.textMuted,
+  },
+  historySummaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.sm,
+    marginTop: tokens.spacing.sm,
+  },
+  historySummarySkeleton: {
+    marginTop: tokens.spacing.sm,
+  },
+  historySummaryCard: {
+    flex: 1,
     borderRadius: tokens.radii.md,
     backgroundColor: tokens.colors.surface,
     borderWidth: 1,
     borderColor: tokens.colors.outline,
-    flexDirection: 'row',
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: tokens.spacing.sm,
   },
-  historyHeaderTitle: {
-    fontSize: tokens.typography.headline.fontSize,
-    fontWeight: '600',
+  historySummaryValue: {
+    fontSize: 20,
+    fontWeight: '700',
     color: tokens.colors.najdi.text,
   },
-  historyHeaderSubtitle: {
+  historySummaryLabel: {
     fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.textMuted,
-    marginTop: 2,
-  },
-  historyHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: tokens.spacing.xs,
-  },
-  historyBadge: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: tokens.colors.najdi.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  historyBadgeText: {
-    color: '#FFFFFF',
-    fontSize: tokens.typography.caption1.fontSize,
-    fontWeight: '700',
+    marginTop: 4,
   },
   historyCard: {
     borderRadius: tokens.radii.lg,
@@ -1265,14 +1521,42 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.textMuted,
     lineHeight: 22,
   },
-  historyLoading: {
-    marginTop: tokens.spacing.lg,
-    alignItems: 'center',
+  historySkeletonContainer: {
+    marginTop: tokens.spacing.md,
+    gap: tokens.spacing.sm,
+  },
+  historySkeletonCard: {
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: tokens.colors.outline,
+    backgroundColor: tokens.colors.surface,
+    padding: tokens.spacing.md,
     gap: tokens.spacing.xs,
   },
-  historyLoadingText: {
-    fontSize: tokens.typography.footnote.fontSize,
-    color: tokens.colors.najdi.textMuted,
+  historySkeletonLine: {
+    marginBottom: 8,
+  },
+  historyError: {
+    marginTop: tokens.spacing.lg,
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+  },
+  historyErrorText: {
+    fontSize: tokens.typography.callout.fontSize,
+    color: tokens.colors.najdi.text,
+    textAlign: 'center',
+  },
+  historyRetryButton: {
+    marginTop: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.md,
+    backgroundColor: tokens.colors.najdi.primary,
+  },
+  historyRetryText: {
+    color: '#FFFFFF',
+    fontSize: tokens.typography.callout.fontSize,
+    fontWeight: '600',
   },
   historyEmpty: {
     marginTop: tokens.spacing.lg,

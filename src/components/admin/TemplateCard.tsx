@@ -1,11 +1,8 @@
 /**
- * Template Card Component
+ * Template Card
  *
- * Displays a single message template with:
- * - Template name, description, icon
- * - Available variables (clickable chips)
- * - Text input for editing message
- * - Save and Test buttons
+ * Editable surface for a single WhatsApp template.
+ * Allows saving, testing, and resetting to the default message.
  */
 
 import React, { useState, useRef } from 'react';
@@ -18,141 +15,157 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+
 import { TemplateWithValue } from '../../services/messageTemplates/types';
 import templateService from '../../services/messageTemplates';
 import adminContactService from '../../services/adminContact';
 import VariableChip from './VariableChip';
-
-// Najdi Sadu colors
-const colors = {
-  background: '#F9F7F3',
-  container: '#D1BBA3',
-  text: '#242121',
-  textMuted: '#24212199',
-  primary: '#A13333',
-  secondary: '#D58C4A',
-  white: '#FFFFFF',
-  whatsapp: '#25D366',
-};
+import Surface from '../ui/Surface';
+import tokens from '../ui/tokens';
 
 interface TemplateCardProps {
   template: TemplateWithValue;
   onSave?: () => void;
 }
 
+const palette = tokens.colors.najdi;
+
 const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSave }) => {
   const [message, setMessage] = useState(template.currentMessage);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const textInputRef = useRef<TextInput>(null);
 
   const handleSave = async () => {
-    if (!message || message.trim() === '') {
-      Alert.alert('خطأ', 'يرجى إدخال نص الرسالة');
+    if (!message.trim()) {
+      Alert.alert('تنبيه', 'أدخل نص الرسالة قبل الحفظ.');
       return;
     }
 
     setSaving(true);
-    const result = await templateService.setTemplateMessage(template.id, message);
+    try {
+      const result = await templateService.setTemplateMessage(
+        template.id,
+        message,
+      );
 
-    if (result.success) {
+      if (!result.success) {
+        throw new Error(result.error || 'تعذر حفظ القالب.');
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('نجح', `تم حفظ ${template.name} بنجاح`);
+      Alert.alert('تم الحفظ', 'تم تحديث نص القالب بنجاح.');
       onSave?.();
-    } else {
+    } catch (error: any) {
+      console.error('Error saving template:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('خطأ', result.error || 'فشل حفظ القالب');
+      Alert.alert('خطأ', error.message || 'فشل حفظ القالب.');
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
   };
 
   const handleTest = async () => {
     setTesting(true);
-
     try {
-      // Use test mock data if available, otherwise use example data
       const testData = template.testMockData || {};
+      const messageWithData = await templateService.replaceVariables(
+        message,
+        testData,
+      );
 
-      // Replace variables with test data
-      const messageWithData = await templateService.replaceVariables(message, testData);
-
-      // Open WhatsApp with the message
-      const result = await adminContactService.openAdminWhatsApp(messageWithData);
+      const result =
+        await adminContactService.openAdminWhatsApp(messageWithData);
 
       if (!result.success) {
-        Alert.alert('خطأ', 'فشل فتح الواتساب');
+        Alert.alert('تنبيه', 'تعذر فتح واتساب للاختبار.');
       }
     } catch (error) {
       console.error('Error testing template:', error);
-      Alert.alert('خطأ', 'حدث خطأ أثناء اختبار القالب');
+      Alert.alert('خطأ', 'حدث خطأ أثناء اختبار القالب.');
     } finally {
       setTesting(false);
     }
   };
 
   const handleReset = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
-      'إعادة تعيين',
-      'هل تريد إعادة تعيين القالب للرسالة الافتراضية؟',
+      'إرجاع النص الأصلي',
+      'سيتم استرجاع الرسالة الافتراضية لهذا القالب.',
       [
         { text: 'إلغاء', style: 'cancel' },
         {
-          text: 'إعادة تعيين',
+          text: 'استرجاع',
           style: 'destructive',
           onPress: async () => {
-            const result = await templateService.resetTemplate(template.id);
-            if (result.success) {
+            setResetting(true);
+            try {
+              const result = await templateService.resetTemplate(template.id);
+              if (!result.success) {
+                throw new Error(result.error || 'فشل استرجاع القالب.');
+              }
+
               setMessage(template.defaultMessage);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('نجح', 'تم إعادة تعيين القالب');
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              );
+              Alert.alert('تم الاسترجاع', 'تمت إعادة القالب للنص الأصلي.');
               onSave?.();
+            } catch (error: any) {
+              console.error('Error resetting template:', error);
+              Alert.alert('خطأ', error.message || 'تعذر إعادة القالب.');
+            } finally {
+              setResetting(false);
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const insertVariable = (variableKey: string) => {
-    // Insert variable at cursor position (or end of text)
     const currentText = message || '';
-    const newText = currentText + (currentText ? '\n' : '') + variableKey;
-    setMessage(newText);
+    const newText = currentText
+      ? `${currentText}\n${variableKey}`
+      : variableKey;
 
-    // Focus text input
+    setMessage(newText);
     textInputRef.current?.focus();
   };
 
   return (
-    <View style={styles.card}>
-      {/* Header */}
+    <Surface style={styles.surface} contentStyle={styles.surfaceContent}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name={template.icon as any} size={24} color={colors.primary} />
-          <View style={styles.headerText}>
-            <Text style={styles.title}>{template.name}</Text>
-            {template.isCustomized && (
-              <Text style={styles.customizedBadge}>• معدّل</Text>
-            )}
-          </View>
+        <View style={styles.iconWrap}>
+          <Ionicons
+            name={template.icon as any}
+            size={22}
+            color={palette.primary}
+          />
+        </View>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>{template.name}</Text>
+          {template.isCustomized ? (
+            <Text style={styles.badge}>معدّل</Text>
+          ) : null}
         </View>
       </View>
 
-      {/* Description */}
       <Text style={styles.description}>{template.description}</Text>
 
-      {/* Variables (if any) */}
       {template.variables.length > 0 && (
         <View style={styles.variablesSection}>
-          <Text style={styles.variablesLabel}>المتغيرات المتاحة:</Text>
+          <Text style={styles.variablesLabel}>المتغيرات المتاحة</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.variablesScroll}
+            contentContainerStyle={styles.variablesRow}
           >
             {template.variables.map((variable) => (
               <VariableChip
@@ -165,201 +178,210 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSave }) => {
         </View>
       )}
 
-      {/* Message Input */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>نص الرسالة</Text>
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>نص القالب</Text>
         <TextInput
           ref={textInputRef}
           style={styles.textArea}
           value={message}
           onChangeText={setMessage}
           placeholder={template.defaultMessage}
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={`${palette.textMuted}80`}
           multiline
           numberOfLines={6}
           textAlignVertical="top"
         />
       </View>
 
-      {/* Action Buttons */}
-      <View style={styles.actions}>
+      <View style={styles.actionsRow}>
         <TouchableOpacity
           style={[styles.primaryButton, saving && styles.disabledButton]}
           onPress={handleSave}
           disabled={saving}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
           {saving ? (
-            <ActivityIndicator size="small" color={colors.white} />
+            <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={20} color={colors.white} />
-              <Text style={styles.primaryButtonText}>حفظ</Text>
-            </>
+            <View style={styles.buttonContent}>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color="#FFFFFF"
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.primaryButtonText}>حفظ القالب</Text>
+            </View>
           )}
         </TouchableOpacity>
 
-        {template.testable && (
-          <TouchableOpacity
-            style={[styles.testButton, testing && styles.disabledButton]}
-            onPress={handleTest}
-            disabled={testing}
-            activeOpacity={0.8}
-          >
-            {testing ? (
-              <ActivityIndicator size="small" color={colors.whatsapp} />
-            ) : (
-              <>
-                <Ionicons name="logo-whatsapp" size={20} color={colors.whatsapp} />
-                <Text style={styles.testButtonText}>اختبار</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-
-        {template.isCustomized && (
-          <TouchableOpacity
-            style={styles.resetButton}
-            onPress={handleReset}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="refresh" size={20} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[styles.secondaryButton, testing && styles.disabledButton]}
+          onPress={handleTest}
+          disabled={testing}
+          activeOpacity={0.85}
+        >
+          {testing ? (
+            <ActivityIndicator size="small" color={tokens.colors.accent} />
+          ) : (
+            <View style={styles.buttonContent}>
+              <Ionicons
+                name="send"
+                size={18}
+                color={palette.primary}
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.secondaryButtonText}>اختبار الرسالة</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
-    </View>
+
+      <TouchableOpacity
+        style={[styles.resetButton, resetting && styles.disabledButton]}
+        onPress={handleReset}
+        disabled={resetting}
+        activeOpacity={0.85}
+      >
+        {resetting ? (
+          <ActivityIndicator size="small" color={palette.textMuted} />
+        ) : (
+          <Text style={styles.resetButtonText}>إرجاع النص الأصلي</Text>
+        )}
+      </TouchableOpacity>
+    </Surface>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+  surface: {
+    borderRadius: tokens.radii.lg,
+  },
+  surfaceContent: {
+    padding: tokens.spacing.lg,
+    gap: tokens.spacing.md,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    gap: tokens.spacing.sm,
   },
-  headerLeft: {
-    flexDirection: 'row',
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: `${palette.primary}18`,
   },
-  headerText: {
-    marginLeft: 12,
+  titleBlock: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   title: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.text,
-    fontFamily: 'SF Arabic',
+    ...tokens.typography.headline,
+    color: palette.text,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
-  customizedBadge: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.secondary,
-    marginLeft: 8,
+  badge: {
+    ...tokens.typography.caption1,
+    color: palette.primary,
+    marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   description: {
-    fontSize: 14,
-    color: colors.textMuted,
-    fontFamily: 'SF Arabic',
+    ...tokens.typography.footnote,
+    color: palette.textMuted,
     lineHeight: 20,
-    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   variablesSection: {
-    marginBottom: 16,
+    gap: tokens.spacing.xs,
   },
   variablesLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textMuted,
-    fontFamily: 'SF Arabic',
-    marginBottom: 8,
+    ...tokens.typography.caption1,
+    color: palette.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
-  variablesScroll: {
-    flexDirection: 'row',
+  variablesRow: {
+    paddingVertical: tokens.spacing.xs,
   },
-  inputContainer: {
-    marginBottom: 16,
+  inputGroup: {
+    gap: tokens.spacing.xs,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    fontFamily: 'SF Arabic',
-    marginBottom: 8,
+    ...tokens.typography.subheadline,
+    color: palette.textMuted,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   textArea: {
-    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: colors.container + '60',
-    borderRadius: 10,
-    padding: 14,
-    fontSize: 15,
-    color: colors.text,
-    fontFamily: 'SF Arabic',
-    minHeight: 120,
+    borderColor: tokens.colors.outline,
+    borderRadius: tokens.radii.md,
+    padding: tokens.spacing.md,
+    fontSize: 16,
+    color: palette.text,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+    minHeight: 140,
+    backgroundColor: tokens.colors.surface,
   },
-  actions: {
+  actionsRow: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    flexWrap: 'wrap',
   },
   primaryButton: {
     flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
+    backgroundColor: palette.primary,
+    borderRadius: tokens.radii.md,
+    minHeight: tokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
   },
-  primaryButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'SF Arabic',
-  },
-  testButton: {
+  secondaryButton: {
     flex: 1,
-    backgroundColor: colors.whatsapp + '15',
-    borderWidth: 1.5,
-    borderColor: colors.whatsapp,
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  testButtonText: {
-    color: colors.whatsapp,
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'SF Arabic',
-  },
-  resetButton: {
-    width: 48,
-    backgroundColor: colors.background,
-    borderRadius: 12,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: `${palette.primary}33`,
+    minHeight: tokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonIcon: {
+    marginHorizontal: 6,
+  },
+  primaryButtonText: {
+    ...tokens.typography.callout,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+  },
+  secondaryButtonText: {
+    ...tokens.typography.callout,
+    color: palette.primary,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+  },
+  resetButton: {
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: `${palette.primary}1F`,
+    paddingVertical: tokens.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  resetButtonText: {
+    ...tokens.typography.caption1,
+    color: palette.primary,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
 });
 
