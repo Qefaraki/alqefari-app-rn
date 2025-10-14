@@ -1056,27 +1056,30 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         />
       }
     >
-      <SectionCard
-        title="الوالدان"
-        badge={`${parentCount}/2`}
-      >
-        <View style={styles.parentGrid}>
-          {/* Diagnostic logging for Munasib hid investigation (Phase 2) */}
-          {__DEV__ && (() => {
-            console.log('[TabFamily] Munasib Debug:', {
-              personId: person?.id,
-              personName: person?.name,
-              personHid: person?.hid,
-              hidType: typeof person?.hid,
-              isMunasibStrict: person?.hid === null,
-              isMunasibLoose: person?.hid == null,
-              hasFather: !!father,
-              canEditFamily,
-              shouldShowMotherEdit: !!(father && canEditFamily && person?.hid !== null),
-            });
-            return null;
-          })()}
-          <ParentProfileCard
+      {/* Only show parent section for Al-Qefari family members (hid !== null) */}
+      {/* Munasib (spouses from outside family) don't have parents in our tree */}
+      {person?.hid !== null && (
+        <SectionCard
+          title="الوالدان"
+          badge={`${parentCount}/2`}
+        >
+          <View style={styles.parentGrid}>
+            {/* Diagnostic logging for Munasib hid investigation (Phase 2) */}
+            {__DEV__ && (() => {
+              console.log('[TabFamily] Munasib Debug:', {
+                personId: person?.id,
+                personName: person?.name,
+                personHid: person?.hid,
+                hidType: typeof person?.hid,
+                isMunasibStrict: person?.hid === null,
+                isMunasibLoose: person?.hid == null,
+                hasFather: !!father,
+                canEditFamily,
+                shouldShowMotherEdit: !!(father && canEditFamily && person?.hid !== null),
+              });
+              return null;
+            })()}
+            <ParentProfileCard
             label="الأب"
             profile={father}
             emptyTitle="لم يتم تحديد الأب"
@@ -1128,6 +1131,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
           </ParentProfileCard>
         </View>
       </SectionCard>
+      )}
 
       <SectionCard
         title={genderDependentText.spousesTitle}

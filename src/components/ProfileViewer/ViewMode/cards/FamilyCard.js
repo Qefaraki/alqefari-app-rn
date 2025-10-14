@@ -8,24 +8,43 @@ import {
 } from 'react-native';
 import InfoCard from '../components/InfoCard';
 import { ProgressiveThumbnail } from '../../../ProgressiveImage';
-import { formatNameWithTitle } from '../../../../services/professionalTitleService';
+import { formatNameWithTitle, getTitleAbbreviation } from '../../../../services/professionalTitleService';
 
-// Helper to shorten names for compact tile display (first + last word only)
+// Particles and titles to skip when finding the "real" first name
+const SKIP_PARTICLES = new Set(['بنت', 'بن', 'بني', 'آل', 'د.', 'م.', 'أ.د.', 'الشيخ', 'اللواء', 'عميد']);
+
 const getFirstAndLastWord = (name) => {
   if (!name) return '';
   const words = name.trim().split(/\s+/);
   if (words.length <= 2) return name;
-  return `${words[0]} ${words[words.length - 1]}`;
+
+  // Find first real name (skip Arabic particles and titles)
+  const firstName = words.find(w => !SKIP_PARTICLES.has(w)) || words[0];
+  const lastName = words[words.length - 1];
+
+  return firstName !== lastName ? `${firstName} ${lastName}` : firstName;
 };
 
 const buildRelative = (node, { fallbackId, fallbackName, label }) => {
   if (!node && !fallbackName) return null;
 
-  let name = formatNameWithTitle(node) || node?.name || fallbackName || '';
+  let name;
 
-  // Shorten wife names only (first + last word) for space efficiency in tiles
+  // Shorten wife names only (first + last word) for space efficiency
   if (label === 'الزوجة') {
-    name = getFirstAndLastWord(name);
+    // Get base name WITHOUT title first
+    const baseName = node?.name_chain || node?.fullNameChain || node?.name || fallbackName || '';
+    const shortened = getFirstAndLastWord(baseName);
+
+    // Safety: If shortening failed, use original base name
+    const finalShortened = shortened || baseName;
+
+    // NOW add title to the shortened name (correct order)
+    const abbrev = getTitleAbbreviation(node || {});
+    name = abbrev ? `${abbrev} ${finalShortened}`.trim() : finalShortened;
+  } else {
+    // For others: Use standard formatting
+    name = formatNameWithTitle(node) || node?.name || fallbackName || '';
   }
 
   const id = node?.id ?? fallbackId ?? null;

@@ -12,14 +12,18 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   Alert,
   StyleSheet,
   Platform,
+  Image,
+  FlatList,
 } from 'react-native';
+import type { ListRenderItem } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import tokens from '../ui/tokens';
+import SegmentedControl from '../ui/SegmentedControl';
 import {
   previewBroadcastRecipients,
   createBroadcast,
@@ -47,6 +51,8 @@ type Importance = 'normal' | 'high' | 'urgent';
 // ============================================================================
 
 export default function AdminBroadcastManager({ onClose }: AdminBroadcastManagerProps) {
+  const insets = useSafeAreaInsets();
+
   // ========== COMPOSE STATE ==========
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -56,6 +62,8 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   const [importance, setImportance] = useState<Importance>('normal');
   const [recipientCount, setRecipientCount] = useState(0);
   const [sending, setSending] = useState(false);
+  const [previewState, setPreviewState] = useState<'idle' | 'loading' | 'error' | 'ready'>('idle');
+  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
 
   // ========== HISTORY STATE ==========
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -66,7 +74,12 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   // ========== VALIDATION ==========
   const titleValid = title.trim().length >= 3 && title.length <= 200;
   const bodyValid = body.trim().length >= 10 && body.length <= 1000;
-  const canSend = titleValid && bodyValid && recipientCount > 0 && !sending;
+  const canSend =
+    titleValid &&
+    bodyValid &&
+    recipientCount > 0 &&
+    !sending &&
+    previewState === 'ready';
 
   // ========== LOAD HISTORY ==========
   useEffect(() => {
@@ -99,24 +112,45 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   }, [targetingType, selectedRoles, selectedGenders]);
 
   const loadRecipientPreview = async () => {
+    setPreviewState('loading');
+    setPreviewMessage(null);
+
     try {
       const criteria = buildCriteria();
       const validationError = validateBroadcastCriteria(criteria);
+
       if (validationError) {
         setRecipientCount(0);
+        setPreviewState('error');
+        setPreviewMessage(validationError);
         return;
       }
 
       const { data, error } = await previewBroadcastRecipients(criteria);
+
       if (error) {
         console.error('Preview error:', error);
         setRecipientCount(0);
-      } else {
-        setRecipientCount(data?.length || 0);
+        setPreviewState('error');
+        setPreviewMessage(error.message || 'تعذر تحميل المستلمين. حاول مرة أخرى.');
+        return;
       }
+
+      const count = data?.length || 0;
+      setRecipientCount(count);
+
+      if (count === 0) {
+        setPreviewState('error');
+        setPreviewMessage('لا يوجد مستلمون مطابقون للمعايير الحالية');
+        return;
+      }
+
+      setPreviewState('ready');
     } catch (err) {
       console.error('Preview exception:', err);
       setRecipientCount(0);
+      setPreviewState('error');
+      setPreviewMessage('تعذر تحميل المستلمين. حاول مرة أخرى.');
     }
   };
 
