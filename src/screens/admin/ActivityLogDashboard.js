@@ -54,6 +54,9 @@ import {
 import UserFilterModal from "../../components/admin/UserFilterModal";
 import DateRangePickerModal from "../../components/admin/DateRangePickerModal";
 import { useAuth } from "../../contexts/AuthContext";
+import undoService from "../../services/undoService";
+import { useUndoStore } from "../../stores/undoStore";
+import Toast from "../../components/ui/Toast";
 
 // Use Najdi Sadu Color Palette from tokens
 const colors = {
@@ -344,6 +347,9 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedCards, setExpandedCards] = useState(new Set());
+
+  // Undo functionality
+  const { showToast, hideToast, toastVisible, toastMessage, toastType } = useUndoStore();
 
   // Pagination state
   const [page, setPage] = useState(0);
@@ -798,6 +804,45 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
     });
   }, []);
 
+  // Handle undo action
+  const handleUndo = useCallback(async (activityId, actionType) => {
+    if (!userProfile?.id) {
+      showToast('يجب تسجيل الدخول للتراجع', 'error');
+      return;
+    }
+
+    try {
+      // Check permission first
+      const permissionCheck = await undoService.checkUndoPermission(
+        activityId,
+        userProfile.id
+      );
+
+      if (!permissionCheck.can_undo) {
+        showToast(permissionCheck.reason || 'لا يمكن التراجع عن هذا الإجراء', 'error');
+        return;
+      }
+
+      // Perform undo based on action type
+      const result = await undoService.undoAction(
+        activityId,
+        actionType,
+        'تراجع من لوحة السجل'
+      );
+
+      if (result.success) {
+        showToast('✓ تم التراجع بنجاح', 'success');
+        // Refresh activities to show the undo
+        fetchActivities(false);
+      } else {
+        showToast(result.error || 'فشل التراجع', 'error');
+      }
+    } catch (error) {
+      console.error('Undo error:', error);
+      showToast(error.message || 'حدث خطأ أثناء التراجع', 'error');
+    }
+  }, [userProfile, showToast, fetchActivities]);
+
   // Handle stat widget taps to apply filters
   const handleStatPress = useCallback((filterType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1190,6 +1235,25 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
                 <Text style={styles.activityTime}>
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
                 </Text>
+                {/* Undo button for undoable actions */}
+                {userProfile?.id && !activity.undone_at && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleUndo(activity.id, activity.action_type);
+                    }}
+                    onPressIn={(e) => e.stopPropagation()}
+                    style={styles.undoButton}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name="arrow-undo-outline"
+                      size={18}
+                      color="#A13333"
+                    />
+                  </TouchableOpacity>
+                )}
                 <Ionicons name="chevron-back" size={18} color="#24212140" />
               </TouchableOpacity>
 
@@ -1496,6 +1560,14 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
         }}
         activePreset={datePreset}
         customRange={customDateRange}
+      />
+
+      {/* Toast notifications */}
+      <Toast
+        visible={toastVisible}
+        message={toastMessage}
+        type={toastType}
+        onDismiss={hideToast}
       />
     </SafeAreaView>
   );
@@ -2032,5 +2104,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: tokens.colors.najdi.crimson,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+
+  // Undo Button
+  undoButton: {
+    padding: 8,
+    borderRadius: 8,
+    minHeight: 44,  // Accessibility touch target
+    minWidth: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

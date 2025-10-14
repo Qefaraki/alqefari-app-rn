@@ -18,6 +18,27 @@ export const NOTIFICATION_TYPES = {
 export type NotificationType = typeof NOTIFICATION_TYPES[keyof typeof NOTIFICATION_TYPES];
 
 /**
+ * Legacy/alias mapping for notification type values coming from the backend
+ * Maps old database trigger notification types to standardized frontend types
+ */
+export const NOTIFICATION_TYPE_ALIASES: Record<string, NotificationType> = {
+  profile_link_approved: 'link_request_approved',
+  profile_link_rejected: 'link_request_rejected',
+  link_approved: 'link_request_approved',
+  link_rejected: 'link_request_rejected',
+  new_profile_link_request: 'new_profile_link_request',
+  profile_link_request: 'new_profile_link_request',
+  // Direct mappings for types that match
+  link_request_approved: 'link_request_approved',
+  link_request_rejected: 'link_request_rejected',
+  link_request_pending: 'link_request_pending',
+  profile_updated: 'profile_updated',
+  new_family_member: 'new_family_member',
+  admin_message: 'admin_message',
+  system_message: 'system_message',
+};
+
+/**
  * Notification data payload structure
  */
 export interface NotificationData {
