@@ -10,10 +10,24 @@ import InfoCard from '../components/InfoCard';
 import { ProgressiveThumbnail } from '../../../ProgressiveImage';
 import { formatNameWithTitle } from '../../../../services/professionalTitleService';
 
+// Helper to shorten names for compact tile display (first + last word only)
+const getFirstAndLastWord = (name) => {
+  if (!name) return '';
+  const words = name.trim().split(/\s+/);
+  if (words.length <= 2) return name;
+  return `${words[0]} ${words[words.length - 1]}`;
+};
+
 const buildRelative = (node, { fallbackId, fallbackName, label }) => {
   if (!node && !fallbackName) return null;
 
-  const name = formatNameWithTitle(node) || node?.name || fallbackName || '';
+  let name = formatNameWithTitle(node) || node?.name || fallbackName || '';
+
+  // Shorten wife names only (first + last word) for space efficiency in tiles
+  if (label === 'الزوجة') {
+    name = getFirstAndLastWord(name);
+  }
+
   const id = node?.id ?? fallbackId ?? null;
 
   return {
