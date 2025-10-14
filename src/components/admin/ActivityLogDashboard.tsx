@@ -23,7 +23,24 @@ import { useUndoStore } from '../../stores/undoStore';
 import Toast from '../ui/Toast';
 import { supabase } from '../../services/supabase';
 
-// Types
+// Database Schema Type
+interface ActivityLogDetailedRow {
+  id: string;
+  created_at: string;
+  actor_name_current: string | null;
+  actor_name_historical: string | null;
+  target_name_current: string | null;
+  target_name_historical: string | null;
+  action_type: string;
+  action_category: string | null;
+  description: string | null;
+  severity: string | null;
+  is_undoable: boolean | null;
+  undone_at: string | null;
+  metadata: Record<string, any> | null;
+}
+
+// UI Interface Type
 interface ActivityLog {
   id: string;
   action_type: 'TREE' | 'MUNASIB' | 'PHOTO' | 'ADMIN' | 'CRITICAL';
@@ -32,6 +49,8 @@ interface ActivityLog {
   target_name?: string;
   metadata?: Record<string, any>;
   created_at: string;
+  severity?: string;
+  is_undoable?: boolean;
 }
 
 interface FilterOption {
@@ -64,6 +83,32 @@ const ACTIVITY_ICONS: Record<string, { icon: string; color: string }> = {
   PHOTO: { icon: 'image-outline', color: tokens.colors.najdi.ochre },
   ADMIN: { icon: 'shield-outline', color: tokens.colors.najdi.crimson },
   CRITICAL: { icon: 'warning-outline', color: '#D32F2F' },
+};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Map database action_category to UI action_type
+ * CRITICAL: Database schema != UI interface
+ * - Database has: action_category ('tree'/'marriage'/'photo'/'admin'/'notification')
+ * - UI expects: action_type ('TREE'/'MUNASIB'/'PHOTO'/'ADMIN'/'CRITICAL')
+ */
+const mapToUIType = (log: ActivityLogDetailedRow): 'TREE' | 'MUNASIB' | 'PHOTO' | 'ADMIN' | 'CRITICAL' => {
+  // Critical severity always takes precedence for UI display
+  if (log.severity === 'critical') return 'CRITICAL';
+
+  // Map database category to UI type
+  const categoryMap: Record<string, 'TREE' | 'MUNASIB' | 'PHOTO' | 'ADMIN'> = {
+    'tree': 'TREE',
+    'marriage': 'MUNASIB',
+    'photo': 'PHOTO',
+    'admin': 'ADMIN',
+    'notification': 'ADMIN', // Notifications are admin actions
+  };
+
+  return categoryMap[log.action_category || ''] || 'TREE';
 };
 
 // ============================================================================
@@ -300,7 +345,7 @@ const ActivityRow = memo<ActivityRowProps>(
           {/* Time, Undo Button & Chevron */}
           <View style={styles.activityMeta}>
             <Text style={styles.activityTime}>{timeString}</Text>
-            {canUndo && onUndo && (
+            {canUndo && onUndo && activity.is_undoable && (
               <TouchableOpacity
                 onPress={handleUndo}
                 onPressIn={(e) => e.stopPropagation()}
@@ -412,13 +457,24 @@ export const ActivityLogDashboard: React.FC = () => {
     fetchUserProfile();
   }, []);
 
+  // Load initial data on component mount
+  useEffect(() => {
+    handleRefresh();
+  }, [handleRefresh]);
+
   // Memoized filtered activities
   const filteredActivities = useMemo(() => {
     let filtered = activities;
 
     // Apply filter
     if (activeFilter !== 'all') {
-      filtered = filtered.filter((a) => a.action_type === activeFilter);
+      if (activeFilter === 'CRITICAL') {
+        // Show all critical items regardless of category
+        filtered = filtered.filter((a) => a.severity === 'critical');
+      } else {
+        // Show items matching this category
+        filtered = filtered.filter((a) => a.action_type === activeFilter);
+      }
     }
 
     // Apply search
@@ -479,8 +535,7 @@ export const ActivityLogDashboard: React.FC = () => {
       todayCount: activities.filter(
         (a) => new Date(a.created_at) >= todayStart
       ).length,
-      criticalCount: activities.filter((a) => a.action_type === 'CRITICAL')
-        .length,
+      criticalCount: activities.filter((a) => a.severity === 'critical').length,
       pendingCount: 0, // TODO: Implement pending logic
     };
   }, [activities]);
@@ -489,15 +544,33 @@ export const ActivityLogDashboard: React.FC = () => {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      // TODO: Fetch from Supabase
-      // const { data, error } = await supabase.from('audit_log').select('*').order('created_at', { ascending: false });
-      // if (error) throw error;
-      // setActivities(data);
+      const { data, error } = await supabase
+        .from('activity_log_detailed')
+        .select('*')
+        .is('undone_at', null) // Exclude undone actions
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-      // Mock data for now
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    } catch (error) {
-      Alert.alert('خطأ', 'فشل تحديث البيانات');
+      if (error) throw error;
+
+      // Transform database schema to UI interface
+      const transformedActivities: ActivityLog[] = (data || []).map((log: ActivityLogDetailedRow) => ({
+        id: log.id,
+        action_type: mapToUIType(log),
+        action: log.description || 'إجراء غير محدد',
+        actor_name: log.actor_name_current || 'مستخدم غير معروف',
+        target_name: log.target_name_current || undefined,
+        metadata: log.metadata || {},
+        created_at: log.created_at,
+        severity: log.severity || undefined,
+        is_undoable: log.is_undoable && !log.undone_at,
+      }));
+
+      setActivities(transformedActivities);
+    } catch (error: any) {
+      console.error('Activity log fetch error:', error);
+      const message = error?.message || 'فشل تحميل السجلات';
+      Alert.alert('خطأ في تحميل السجلات', message);
     } finally {
       setIsRefreshing(false);
     }
@@ -652,7 +725,7 @@ export const ActivityLogDashboard: React.FC = () => {
             expandedIds={expandedIds}
             onToggleExpand={handleToggleExpand}
             onUndo={handleUndo}
-            canUndo={!!userProfileId}
+            canUndo={!!userProfileId} // ActivityRow will check item.is_undoable
           />
         )}
         ListHeaderComponent={renderListHeader}
