@@ -12,9 +12,11 @@ import {
   Animated,
   Modal,
   Image,
+  Easing,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import ValidationDashboard from "./ValidationDashboard";
 import ActivityLogDashboard from "./admin/ActivityLogDashboard"; // Unified Activity Dashboard
 import ProfileConnectionManagerV2 from "../components/admin/ProfileConnectionManagerV2";
@@ -34,6 +36,38 @@ import NotificationCenter from "../components/NotificationCenter";
 import NotificationBadge from "../components/NotificationBadge";
 import { useTreeStore } from "../stores/useTreeStore";
 import * as Haptics from 'expo-haptics';
+import tokens from "../components/ui/tokens";
+import LargeTitleHeader from "../components/ios/LargeTitleHeader";
+import WidgetCard from "../components/ios/WidgetCard";
+import { ListSection, ListItem } from "../components/ios/GroupedList";
+
+const ISSUE_META = {
+  missing_hid: {
+    label: "معرفات مفقودة",
+    tone: "warning",
+  },
+  duplicate_sibling_order: {
+    label: "ترتيب أشقاء مكرر",
+    tone: "critical",
+  },
+  missing_gender: {
+    label: "جنس غير محدد",
+    tone: "info",
+  },
+  orphaned_children: {
+    label: "علاقات بدون والد",
+    tone: "critical",
+  },
+};
+
+const formatCount = (value) => {
+  const numeric = Number.isFinite(value) ? value : 0;
+  try {
+    return numeric.toLocaleString("ar-SA");
+  } catch (error) {
+    return `${numeric}`;
+  }
+};
 
 // Animated TouchableOpacity for iOS-like press feedback
 const AnimatedTouchable = ({ children, style, onPress, ...props }) => {
@@ -133,12 +167,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         duration: 400,
         useNativeDriver: true,
       }),
-      Animated.timing(progressAnim, {
-        toValue: 1,
-        duration: 800,
-        delay: 200,
-        useNativeDriver: false,
-      }),
     ]).start();
 
     // Open link requests modal if requested via navigation
@@ -148,6 +176,21 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       }, 500); // Small delay to let the dashboard load first
     }
   }, []);
+
+  useEffect(() => {
+    if (validationLoading) {
+      return;
+    }
+
+    const normalized = Math.max(0, Math.min(100, dataHealth)) / 100;
+
+    Animated.timing(progressAnim, {
+      toValue: normalized,
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [dataHealth, validationLoading]);
 
   // Load data progressively
   useEffect(() => {

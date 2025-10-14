@@ -30,8 +30,8 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
 
   let name;
 
-  // Shorten wife names only (first + last word) for space efficiency
-  if (label === 'الزوجة') {
+  // Shorten mother names only (first + last word) for space efficiency in tiles
+  if (label === 'الوالدة') {
     // Get base name WITHOUT title first
     const baseName = node?.full_name_chain || node?.name_chain || node?.fullNameChain || node?.name || fallbackName || '';
     const shortened = getFirstAndLastWord(baseName);

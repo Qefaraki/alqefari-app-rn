@@ -160,7 +160,11 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
     </View>
   );
 
-  const historyData = historyExpanded ? history : [];
+  const historyListData = historyExpanded ? history : EMPTY_HISTORY;
+  const listExtraData = useMemo(
+    () => ({ expandedCardId, historyExpanded, previewState, recipientCount }),
+    [expandedCardId, historyExpanded, previewState, recipientCount]
+  );
 
   const renderHistoryItem: ListRenderItem<BroadcastHistoryItem> = ({ item }) => {
     const isExpanded = expandedCardId === item.id;
@@ -801,19 +805,14 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
         </View>
 
         <FlatList
-          data={historyData}
+          data={historyListData}
           keyExtractor={(item) => item.id}
           renderItem={renderHistoryItem}
           ListHeaderComponent={renderComposeSections}
           ListEmptyComponent={renderHistoryEmpty}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          extraData={{
-            expandedCardId,
-            historyExpanded,
-            previewState,
-            recipientCount,
-          }}
+          extraData={listExtraData}
           contentContainerStyle={[
             styles.listContent,
             {

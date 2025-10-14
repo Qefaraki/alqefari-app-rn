@@ -870,7 +870,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       <GestureDetector gesture={edgeSwipeGesture}>
         <BottomSheet
           ref={bottomSheetRef}
-          index={-1}
+          index={currentSnapIndex}
           snapPoints={snapPoints}
           enablePanDownToClose={mode !== 'edit'}
           enableContentPanningGesture={true}

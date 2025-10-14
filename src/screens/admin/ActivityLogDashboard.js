@@ -337,18 +337,7 @@ const SmartNameDisplay = React.memo(({
 });
 
 export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
-  const { userProfile } = useAuth();
-
-  // Debug: Log userProfile on load
-  useEffect(() => {
-    if (__DEV__) {
-      console.log('✅ [ActivityLog OLD] userProfile loaded:', {
-        hasProfile: !!userProfile,
-        hasId: !!userProfile?.id,
-        id: userProfile?.id,
-      });
-    }
-  }, [userProfile]);
+  const { profile } = useAuth();
 
   const [activities, setActivities] = useState([]);
   const [filteredActivities, setFilteredActivities] = useState([]);
@@ -490,21 +479,6 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
       }
 
       if (error) throw error;
-
-      // Debug: Log fetched activities
-      if (__DEV__ && data && data.length > 0) {
-        const undoableCount = data.filter(a => a.is_undoable !== false).length;
-        console.log('🔍 [fetchActivities OLD] Data loaded:', {
-          totalRecords: data.length,
-          undoableCount,
-          firstActivity: {
-            id: data[0].id.slice(0, 8),
-            is_undoable: data[0].is_undoable,
-            undone_at: data[0].undone_at,
-            action_type: data[0].action_type,
-          },
-        });
-      }
 
       if (isLoadMore) {
         setActivities(prev => [...prev, ...(data || [])]);
@@ -832,7 +806,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
 
   // Handle undo action
   const handleUndo = useCallback(async (activityId, actionType) => {
-    if (!userProfile?.id) {
+    if (!profile?.id) {
       showToast('يجب تسجيل الدخول للتراجع', 'error');
       return;
     }
@@ -841,7 +815,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
       // Check permission first
       const permissionCheck = await undoService.checkUndoPermission(
         activityId,
-        userProfile.id
+        profile.id
       );
 
       if (!permissionCheck.can_undo) {
@@ -852,7 +826,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
       // Perform undo based on action type
       const result = await undoService.undoAction(
         activityId,
-        userProfile.id,
+        profile.id,
         actionType,
         'تراجع من لوحة السجل'
       );
@@ -868,7 +842,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
       console.error('Undo error:', error);
       showToast(error.message || 'حدث خطأ أثناء التراجع', 'error');
     }
-  }, [userProfile, showToast, fetchActivities]);
+  }, [profile, showToast, fetchActivities]);
 
   // Handle stat widget taps to apply filters
   const handleStatPress = useCallback((filterType) => {
@@ -1263,45 +1237,24 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
                   {format(parseISO(activity.created_at), "h:mm a", { locale: ar })}
                 </Text>
                 {/* Undo button for undoable actions */}
-                {(() => {
-                  // Debug logging to diagnose undo button
-                  const hasUser = !!userProfile?.id;
-                  const notUndone = !activity.undone_at;
-                  const isUndoable = activity.is_undoable !== false;
-                  const shouldShow = hasUser && notUndone && isUndoable;
-
-                  if (__DEV__) {
-                    console.log(`🔍 [UndoButton OLD] Activity ${activity.id.slice(0, 8)}:`, {
-                      hasUser,
-                      userProfileId: userProfile?.id,
-                      notUndone,
-                      undone_at: activity.undone_at,
-                      isUndoable,
-                      is_undoable_raw: activity.is_undoable,
-                      shouldShow,
-                      action: activity.action_type,
-                    });
-                  }
-
-                  return shouldShow ? (
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        handleUndo(activity.id, activity.action_type);
-                      }}
-                      onPressIn={(e) => e.stopPropagation()}
-                      style={styles.undoButton}
-                      activeOpacity={0.7}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Ionicons
-                        name="arrow-undo-outline"
-                        size={18}
-                        color="#A13333"
-                      />
-                    </TouchableOpacity>
-                  ) : null;
-                })()}
+                {profile?.id && !activity.undone_at && activity.is_undoable !== false && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleUndo(activity.id, activity.action_type);
+                    }}
+                    onPressIn={(e) => e.stopPropagation()}
+                    style={styles.undoButton}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name="arrow-undo-outline"
+                      size={18}
+                      color="#A13333"
+                    />
+                  </TouchableOpacity>
+                )}
                 <Ionicons name="chevron-back" size={18} color="#24212140" />
               </TouchableOpacity>
 
@@ -1591,7 +1544,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile }) {
           setShowUserFilter(false);
         }}
         selectedUser={selectedUser}
-        currentUserId={userProfile?.id}
+        currentUserId={profile?.id}
       />
 
       {/* Date Range Picker Modal */}
