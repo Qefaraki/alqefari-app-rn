@@ -155,7 +155,7 @@ export default function NotificationBadge({ onPress }: NotificationBadgeProps) {
       accessibilityRole="button"
       accessibilityHint="افتح مركز الإشعارات"
     >
-      <Ionicons name="notifications-outline" size={24} color={NAJDI_COLORS.text} />
+      <Ionicons name="bell" size={24} color={NAJDI_COLORS.text} />
       {unreadCount > 0 && (
         <View
           style={styles.badge}

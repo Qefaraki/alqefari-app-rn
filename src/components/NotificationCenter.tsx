@@ -638,23 +638,19 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
             </View>
 
             {/* Action Buttons Row */}
-            {notifications.length > 0 && (
+            {unreadCount > 0 && (
               <View style={styles.actionButtonsRow}>
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    if (unreadCount > 0) {
-                      markAllAsRead();
-                    } else {
-                      clearAll();
-                    }
+                    markAllAsRead();
                   }}
-                  accessibilityLabel={unreadCount > 0 ? "تعليم الكل كمقروء" : "مسح جميع الإشعارات"}
+                  accessibilityLabel="تعليم الكل كمقروء"
                   accessibilityRole="button"
                 >
                   <Text style={styles.actionButtonText}>
-                    {unreadCount > 0 ? "قراءة الكل" : "مسح الكل"}
+                    قراءة الكل
                   </Text>
                 </TouchableOpacity>
               </View>

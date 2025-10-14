@@ -269,10 +269,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const insets = useSafeAreaInsets();
   const { isAdminMode } = useAdminMode();
 
-  // ✅ FIX #1: Memoize person to prevent excessive re-renders
-  // Only recreate when ID or version changes, not on every parent render
-  const stablePerson = useMemo(() => person, [person?.id, person?.version]);
-
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
   const editScrollRef = useRef(null);
@@ -355,12 +351,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const screenWidth = useMemo(() => Dimensions.get('window').width, []);
 
   const { permission, accessMode, loading: permissionLoading } = useProfilePermissions(
-    stablePerson?.id,
+    person?.id,
   );
-  const form = useProfileForm(stablePerson);
-  const metrics = useProfileMetrics(stablePerson);
+  const form = useProfileForm(person);
+  const metrics = useProfileMetrics(person);
   const { pending, refresh: refreshPending } = usePendingChanges(
-    stablePerson?.id,
+    person?.id,
     accessMode,
   );
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
