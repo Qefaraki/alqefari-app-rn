@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import { supabase } from "../services/supabase";
 import { useAuth } from "../contexts/AuthContextSimple";
 import * as Haptics from "expo-haptics";
@@ -155,7 +156,16 @@ export default function NotificationBadge({ onPress }: NotificationBadgeProps) {
       accessibilityRole="button"
       accessibilityHint="افتح مركز الإشعارات"
     >
-      <Ionicons name="bell" size={24} color={NAJDI_COLORS.text} />
+      {Platform.OS === 'ios' ? (
+        <SymbolView
+          name="bell"
+          size={24}
+          tintColor={NAJDI_COLORS.text}
+          style={styles.symbolIcon}
+        />
+      ) : (
+        <Ionicons name="notifications-outline" size={24} color={NAJDI_COLORS.text} />
+      )}
       {unreadCount > 0 && (
         <View
           style={styles.badge}
@@ -178,6 +188,10 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
+  },
+  symbolIcon: {
+    width: 24,
+    height: 24,
   },
   // iOS-style notification badge (smaller, tighter)
   badge: {
