@@ -21,13 +21,18 @@ const ProfileSheetWrapper = ({ editMode }) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   // Track transitioning state to keep loading skeleton visible
+  // Only transition when data is NOT immediately available from cache
   useEffect(() => {
     if (selectedPersonId) {
-      setIsTransitioning(true);
+      // Check if data is cached (either in tree or already loaded as Munasib)
+      const isInCache = nodesMap.has(selectedPersonId) ||
+                        (munasibProfile?.id === selectedPersonId);
+      // Show transition only when NOT cached AND currently loading
+      setIsTransitioning(!isInCache && loadingMunasib);
     } else {
       setIsTransitioning(false);
     }
-  }, [selectedPersonId]);
+  }, [selectedPersonId, nodesMap, loadingMunasib, munasibProfile?.id]);
 
   // Lazy-load Munasib profiles when not found in nodesMap
   useEffect(() => {
@@ -95,6 +100,8 @@ const ProfileSheetWrapper = ({ editMode }) => {
 
     return () => {
       cancelled = true; // Cleanup: prevent race conditions on rapid navigation
+      setMunasibProfile(null); // Clear stale data
+      setLoadingMunasib(false); // Reset loading state
     };
   }, [selectedPersonId, nodesMap, setSelectedPersonId]);
 

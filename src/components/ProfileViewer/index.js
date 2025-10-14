@@ -360,7 +360,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setLoadingStates((prev) => ({ ...prev, [key]: false }));
   }, []);
 
-  // ✅ FIX: Imperative API for reliable sheet control
+  // Open/close sheet when person changes
+  // animateOnMount={true} at line 526 handles timing issues
   useEffect(() => {
     if (person) {
       console.log('[ProfileViewer] Opening sheet for person:', person.id);
@@ -413,7 +414,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         setMode('view');
       }
 
-      // Always reset loading states
+      // Reset loading states immediately when person changes
+      // The skeleton will hide quickly via existing effects when data arrives
       setLoadingStates({
         marriages: true,
         permissions: true,
@@ -430,9 +432,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   useEffect(() => {
     let isCancelled = false; // Prevents race conditions on rapid profile switches
-
-    // Set loading state synchronously before async operation
-    setLoadingStates((prev) => ({ ...prev, marriages: true }));
 
     const loadMarriages = async () => {
       if (!person?.id || typeof profilesService?.getPersonMarriages !== 'function') {

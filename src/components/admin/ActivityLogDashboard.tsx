@@ -345,20 +345,33 @@ const ActivityRow = memo<ActivityRowProps>(
           {/* Time, Undo Button & Chevron */}
           <View style={styles.activityMeta}>
             <Text style={styles.activityTime}>{timeString}</Text>
-            {canUndo && onUndo && activity.is_undoable && (
-              <TouchableOpacity
-                onPress={handleUndo}
-                onPressIn={(e) => e.stopPropagation()}
-                style={styles.undoButton}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="arrow-undo-outline"
-                  size={18}
-                  color={tokens.colors.najdi.crimson}
-                />
-              </TouchableOpacity>
-            )}
+            {(() => {
+              // Debug: Log exact undo button conditions
+              if (__DEV__ && activity.id) {
+                const shouldShow = canUndo && onUndo && activity.is_undoable;
+                console.log(`🔍 [UndoButton] Activity ${activity.id.slice(0, 8)}:`, {
+                  canUndo,
+                  hasOnUndo: !!onUndo,
+                  is_undoable: activity.is_undoable,
+                  shouldShow,
+                  actor: activity.actor_name,
+                });
+              }
+              return canUndo && onUndo && activity.is_undoable ? (
+                <TouchableOpacity
+                  onPress={handleUndo}
+                  onPressIn={(e) => e.stopPropagation()}
+                  style={styles.undoButton}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="arrow-undo-outline"
+                    size={18}
+                    color={tokens.colors.najdi.crimson}
+                  />
+                </TouchableOpacity>
+              ) : null;
+            })()}
             <Ionicons
               name={isExpanded ? 'chevron-up' : 'chevron-down'}
               size={20}
@@ -447,11 +460,16 @@ export const ActivityLogDashboard: React.FC = () => {
             .eq('user_id', user.id)
             .single();
           if (profile) {
+            console.log('✅ [ActivityLog] User profile loaded:', profile.id);
             setUserProfileId(profile.id);
+          } else {
+            console.warn('⚠️ [ActivityLog] No profile found for user:', user.id);
           }
+        } else {
+          console.warn('⚠️ [ActivityLog] No authenticated user');
         }
       } catch (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('❌ [ActivityLog] Error fetching user profile:', error);
       }
     };
     fetchUserProfile();
@@ -567,6 +585,30 @@ export const ActivityLogDashboard: React.FC = () => {
       }));
 
       setActivities(transformedActivities);
+
+      // Debug: Log transformation results
+      if (__DEV__) {
+        console.log('🔍 [ActivityLog] Data loaded:', {
+          totalRecords: transformedActivities.length,
+          sampleActivity: transformedActivities[0],
+        });
+
+        // Check undoable activities
+        const undoableCount = transformedActivities.filter(a => a.is_undoable).length;
+        console.log(`🔍 [ActivityLog] Undoable activities: ${undoableCount}/${transformedActivities.length}`);
+
+        const firstUndoable = transformedActivities.find(a => a.is_undoable);
+        if (firstUndoable) {
+          console.log('🔍 [ActivityLog] First undoable activity:', {
+            id: firstUndoable.id.slice(0, 8),
+            action: firstUndoable.action,
+            is_undoable: firstUndoable.is_undoable,
+            actor_name: firstUndoable.actor_name,
+          });
+        } else {
+          console.warn('⚠️ [ActivityLog] No undoable activities found in transformed data!');
+        }
+      }
     } catch (error: any) {
       console.error('Activity log fetch error:', error);
       const message = error?.message || 'فشل تحميل السجلات';

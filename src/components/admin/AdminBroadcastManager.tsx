@@ -6,7 +6,7 @@
  * Follows Najdi Sadu design system
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -17,13 +17,14 @@ import {
   Platform,
   Image,
   FlatList,
+  I18nManager,
+  ActivityIndicator,
 } from 'react-native';
 import type { ListRenderItem } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import tokens from '../ui/tokens';
-import SegmentedControl from '../ui/SegmentedControl';
 import {
   previewBroadcastRecipients,
   createBroadcast,
@@ -34,6 +35,8 @@ import {
   getPriorityColor,
 } from '../../services/broadcastNotifications';
 import type { BroadcastCriteria, BroadcastHistoryItem } from '../../types/notifications';
+
+const EMPTY_HISTORY: BroadcastHistoryItem[] = [];
 
 // ============================================================================
 // TYPES
@@ -52,6 +55,7 @@ type Importance = 'normal' | 'high' | 'urgent';
 
 export default function AdminBroadcastManager({ onClose }: AdminBroadcastManagerProps) {
   const insets = useSafeAreaInsets();
+  const dismissIcon = I18nManager.isRTL ? 'chevron-back' : 'chevron-forward';
 
   // ========== COMPOSE STATE ==========
   const [title, setTitle] = useState('');
@@ -102,8 +106,447 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
     }
   };
 
+  const roleOptions = [
+    { value: 'super_admin', label: 'مشرف رئيسي' },
+    { value: 'admin', label: 'مسؤول' },
+    { value: 'moderator', label: 'مشرف فرع' },
+    { value: 'user', label: 'مستخدم' },
+  ];
+
+  const genderOptions = [
+    { value: 'male', label: 'ذكور' },
+    { value: 'female', label: 'إناث' },
+  ];
+
+  const handleFilterChange = (value: TargetingType) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setTargetingType(value);
+
+    if (value === 'all') {
+      setSelectedRoles([]);
+      setSelectedGenders([]);
+    }
+  };
+
+  const renderMultiSelect = (
+    options: { value: string; label: string }[],
+    selectedValues: string[],
+    toggleValue: (value: string) => void
+  ) => (
+    <View style={styles.multiSelectGrid}>
+      {options.map((option) => {
+        const active = selectedValues.includes(option.value);
+        return (
+          <TouchableOpacity
+            key={option.value}
+            style={[styles.multiSelectChip, active && styles.multiSelectChipActive]}
+            onPress={() => toggleValue(option.value)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: active }}
+            accessibilityLabel={option.label}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={active ? 'checkbox' : 'square-outline'}
+              size={18}
+              color={active ? '#FFFFFF' : tokens.colors.najdi.text}
+            />
+            <Text style={[styles.multiSelectLabel, active && styles.multiSelectLabelActive]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
+  const historyData = historyExpanded ? history : [];
+
+  const renderHistoryItem: ListRenderItem<BroadcastHistoryItem> = ({ item }) => {
+    const isExpanded = expandedCardId === item.id;
+
+    return (
+      <TouchableOpacity
+        style={styles.historyCard}
+        onPress={() => toggleCardExpanded(item.id)}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        accessibilityLabel={`إشعار بعنوان ${item.title}`}
+      >
+        <View style={styles.historyCardHeader}>
+          <Ionicons
+            name={getPriorityIcon(item.priority)}
+            size={20}
+            color={getPriorityColor(item.priority)}
+          />
+          <Text style={styles.historyCardTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+        </View>
+
+        {!isExpanded && (
+          <Text style={styles.historyCardPreview} numberOfLines={2}>
+            {item.body}
+          </Text>
+        )}
+
+        <View style={styles.historyStats}>
+          <View style={styles.historyStat}>
+            <Text style={styles.historyStatValue}>{item.total_recipients}</Text>
+            <Text style={styles.historyStatLabel}>مستلم</Text>
+          </View>
+          <View style={styles.historyStatDivider} />
+          <View style={styles.historyStat}>
+            <Text style={styles.historyStatValue}>{item.read_count}</Text>
+            <Text style={styles.historyStatLabel}>تمت قراءته</Text>
+          </View>
+          <View style={styles.historyStatDivider} />
+          <View style={styles.historyStat}>
+            <Text
+              style={[styles.historyStatValue, { color: getReadColor(item.read_percentage) }]}
+            >
+              {item.read_percentage.toFixed(0)}%
+            </Text>
+            <Text style={styles.historyStatLabel}>نسبة القراءة</Text>
+          </View>
+        </View>
+
+        <View style={styles.historyProgressContainer}>
+          <View
+            style={[
+              styles.historyProgressFill,
+              {
+                width: `${item.read_percentage}%`,
+                backgroundColor: getReadColor(item.read_percentage),
+              },
+            ]}
+          />
+        </View>
+
+        <View style={styles.historyFooter}>
+          <Text style={styles.historyTimestamp}>{formatRelativeTime(item.sent_at)}</Text>
+          <View
+            style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}
+          >
+            <Text style={styles.priorityBadgeText}>{getImportanceLabel(item.priority)}</Text>
+          </View>
+        </View>
+
+        {isExpanded && (
+          <View style={styles.historyExpandedSection}>
+            <View style={styles.historyDivider} />
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>النص الكامل</Text>
+              <Text style={styles.detailValue}>{item.body}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>المستهدفون</Text>
+              <Text style={styles.detailValue}>{getTargetingLabel(item.target_criteria)}</Text>
+            </View>
+
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>المرسل</Text>
+              <Text style={styles.detailValue}>{item.sender_name}</Text>
+            </View>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHistoryEmpty = () => {
+    if (!historyExpanded) {
+      return null;
+    }
+
+    if (loadingHistory) {
+      return (
+        <View style={styles.historyLoading}>
+          <ActivityIndicator size="small" color={tokens.colors.najdi.primary} />
+          <Text style={styles.historyLoadingText}>جاري تحميل سجل الإشعارات...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.historyEmpty}>
+        <Ionicons name="newspaper-outline" size={48} color={tokens.colors.najdi.container} />
+        <Text style={styles.historyEmptyTitle}>لا توجد إشعارات سابقة</Text>
+        <Text style={styles.historyEmptySubtitle}>
+          الإشعارات التي ترسلها ستظهر هنا
+        </Text>
+      </View>
+    );
+  };
+
+  const renderPreviewStatus = () => {
+    let icon = 'people-outline';
+    let iconColor = tokens.colors.najdi.primary;
+    let title = 'عدد المستلمين المتوقع';
+    let subtitle: string | null = 'اختر طريقة الاستهداف لمعرفة العدد المتوقع';
+    let containerStyle = styles.previewCardIdle;
+
+    if (previewState === 'loading') {
+      icon = 'time-outline';
+      iconColor = tokens.colors.najdi.secondary;
+      title = 'يتم تحديث عدد المستلمين';
+      subtitle = recipientCount > 0 ? `حالياً: ${recipientCount} مستخدم` : 'سيظهر العدد خلال لحظات';
+      containerStyle = styles.previewCardLoading;
+    } else if (previewState === 'error') {
+      icon = 'alert-circle-outline';
+      iconColor = tokens.colors.danger;
+      title = previewMessage || 'تعذر حساب المستلمين';
+      subtitle = 'راجع المعايير أو حاول مجدداً';
+      containerStyle = styles.previewCardError;
+    } else if (previewState === 'ready') {
+      icon = 'checkmark-circle';
+      iconColor = tokens.colors.success;
+      title = 'جاهز للإرسال';
+      subtitle = `سيتم الإرسال إلى ${recipientCount} مستخدم`;
+      containerStyle = styles.previewCardReady;
+    }
+
+    const badgeText = recipientCount > 0 ? `${recipientCount}` : '—';
+
+    return (
+      <View style={[styles.previewCard, containerStyle]}>
+        <View style={styles.previewIconCircle}>
+          <Ionicons name={icon as any} size={22} color={iconColor} />
+        </View>
+        <View style={styles.previewCopy}>
+          <Text style={styles.previewTitle}>{title}</Text>
+          {subtitle && <Text style={styles.previewSubtitle}>{subtitle}</Text>}
+        </View>
+        <View style={styles.previewBadge}>
+          <Text style={styles.previewBadgeText}>{badgeText}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderComposeSections = () => {
+    const roleSummary = selectedRoles.length
+      ? selectedRoles
+          .map((role) => roleOptions.find((option) => option.value === role)?.label || role)
+          .join('، ')
+      : 'اختر الأدوار المستهدفة';
+
+    const genderSummary = selectedGenders.length
+      ? selectedGenders
+          .map((gender) => genderOptions.find((option) => option.value === gender)?.label || gender)
+          .join(' و ')
+      : 'حدد الجنس المستهدف';
+
+    const chevronIcon = I18nManager.isRTL ? 'chevron-back' : 'chevron-forward';
+
+    const filterOptionData: Array<{ value: TargetingType; title: string; description: string }> = [
+      { value: 'all', title: 'إرسال لجميع الأعضاء', description: 'بدون تحديد أو استثناءات' },
+      { value: 'role', title: 'تصفية بالدور الإداري', description: roleSummary },
+      { value: 'gender', title: 'تصفية بالجنس', description: genderSummary },
+    ];
+
+    return (
+      <View style={styles.composer}>
+        <View style={styles.section}>
+          <Text style={styles.label}>العنوان</Text>
+          <TextInput
+            style={[styles.input, !titleValid && title.length > 0 && styles.inputError]}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="عنوان الإشعار (3-200 حرف)"
+            placeholderTextColor={tokens.colors.najdi.textMuted}
+            maxLength={200}
+            accessibilityLabel="عنوان الإشعار"
+          />
+          <View style={styles.helperRow}>
+            <Text style={styles.helperText}>{title.length}/200 حرف</Text>
+            {!titleValid && title.length > 0 && (
+              <Text style={styles.errorText}>الحد الأدنى 3 أحرف</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>نص الرسالة</Text>
+          <TextInput
+            style={[
+              styles.input,
+              styles.bodyInput,
+              !bodyValid && body.length > 0 && styles.inputError,
+            ]}
+            value={body}
+            onChangeText={setBody}
+            placeholder="نص الرسالة (10-1000 حرف)"
+            placeholderTextColor={tokens.colors.najdi.textMuted}
+            multiline
+            numberOfLines={6}
+            maxLength={1000}
+            textAlignVertical="top"
+            accessibilityLabel="نص الرسالة"
+          />
+          <View style={styles.helperRow}>
+            <Text style={styles.helperText}>{body.length}/1000 حرف</Text>
+            {!bodyValid && body.length > 0 && (
+              <Text style={styles.errorText}>الحد الأدنى 10 أحرف</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>تصفية المستلمين</Text>
+          <Text style={styles.helperText}>ابدأ بالإرسال للجميع ثم قم بالتصفية عند الحاجة</Text>
+
+          <View style={styles.filterOptions}>
+            {filterOptionData.map(({ value, title, description }) => {
+              const isActive = targetingType === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.filterOption, isActive && styles.filterOptionActive]}
+                  onPress={() => handleFilterChange(value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityLabel={title}
+                  activeOpacity={0.9}
+                >
+                  <View style={styles.filterOptionCopy}>
+                    <Text
+                      style={[styles.filterOptionTitle, isActive && styles.filterOptionTitleActive]}
+                    >
+                      {title}
+                    </Text>
+                    <Text style={styles.filterOptionDescription}>{description}</Text>
+                  </View>
+                  <Ionicons
+                    name={isActive ? 'checkmark-circle' : chevronIcon}
+                    size={24}
+                    color={
+                      isActive
+                        ? tokens.colors.najdi.primary
+                        : tokens.colors.najdi.textMuted
+                    }
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {targetingType === 'role' && (
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>الأدوار المستهدفة</Text>
+              {renderMultiSelect(roleOptions, selectedRoles, toggleRole)}
+            </View>
+          )}
+
+          {targetingType === 'gender' && (
+            <View style={styles.subSection}>
+              <Text style={styles.subSectionTitle}>الجنس المستهدف</Text>
+              {renderMultiSelect(genderOptions, selectedGenders, toggleGender)}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>مستوى الأهمية</Text>
+          <Text style={styles.helperText}>يحدد كيفية إبراز الإشعار للمستخدمين</Text>
+
+          <View style={styles.importanceRow}>
+            {(['normal', 'high', 'urgent'] as Importance[]).map((level) => {
+              const active = importance === level;
+              const iconMap: Record<Importance, string> = {
+                normal: 'notifications-outline',
+                high: 'alert-circle-outline',
+                urgent: 'warning-outline',
+              };
+              const labelMap: Record<Importance, string> = {
+                normal: 'عادية',
+                high: 'مهمة',
+                urgent: 'عاجلة',
+              };
+              const descriptionMap: Record<Importance, string> = {
+                normal: 'إشعار عادي بدون تنبيه إضافي',
+                high: 'يتم عرضه بشكل بارز للمستخدمين',
+                urgent: 'تنبيه عاجل مع إبراز إضافي',
+              };
+
+              return (
+                <TouchableOpacity
+                  key={level}
+                  style={[styles.importanceChip, active && styles.importanceChipActive]}
+                  onPress={() => toggleImportance(level)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`أهمية ${labelMap[level]}`}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons
+                    name={iconMap[level] as any}
+                    size={20}
+                    color={active ? '#FFFFFF' : '#8E8E93'}
+                  />
+                  <View style={styles.importanceContent}>
+                    <Text
+                      style={[styles.importanceLabel, active && styles.importanceLabelActive]}
+                    >
+                      {labelMap[level]}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.importanceDescription,
+                        active && styles.importanceDescriptionActive,
+                      ]}
+                    >
+                      {descriptionMap[level]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {renderPreviewStatus()}
+
+        <TouchableOpacity
+          style={styles.historyHeader}
+          onPress={toggleHistoryExpanded}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: historyExpanded }}
+          accessibilityLabel="عرض سجل الإشعارات"
+          activeOpacity={0.9}
+        >
+          <View>
+            <Text style={styles.historyHeaderTitle}>سجل الإشعارات</Text>
+            <Text style={styles.historyHeaderSubtitle}>
+              {history.length > 0
+                ? `آخر إرسال منذ ${formatRelativeTime(history[0].sent_at)}`
+                : 'تابع أداء الإشعارات السابقة'}
+            </Text>
+          </View>
+          <View style={styles.historyHeaderRight}>
+            {history.length > 0 && (
+              <View style={styles.historyBadge}>
+                <Text style={styles.historyBadgeText}>{history.length}</Text>
+              </View>
+            )}
+            <Ionicons
+              name={historyExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={tokens.colors.najdi.text}
+            />
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   // ========== PREVIEW RECIPIENTS (DEBOUNCED) ==========
   useEffect(() => {
+    setPreviewState('loading');
+    setPreviewMessage(null);
     const timer = setTimeout(() => {
       loadRecipientPreview();
     }, 300);
@@ -237,6 +680,10 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
         setSelectedRoles([]);
         setSelectedGenders([]);
         setImportance('normal');
+        setRecipientCount(0);
+        setPreviewState('loading');
+        setPreviewMessage(null);
+        loadRecipientPreview();
 
         // Refresh history
         if (historyExpanded) {
@@ -260,15 +707,6 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
       Alert.alert('خطأ', 'حدث خطأ أثناء إرسال الإشعار');
     } finally {
       setSending(false);
-    }
-  };
-
-  const toggleTargeting = (type: TargetingType) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (targetingType === type && type !== 'all') {
-      setTargetingType('all');
-    } else {
-      setTargetingType(type);
     }
   };
 
@@ -334,518 +772,89 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
 
   // ========== RENDER ==========
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ==================== COMPOSE SECTION ==================== */}
-
-        {/* Title Input */}
-        <View style={styles.section}>
-          <Text style={styles.label}>العنوان</Text>
-          <TextInput
-            style={[styles.input, !titleValid && title.length > 0 && styles.inputError]}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="عنوان الإشعار (3-200 حرف)"
-            placeholderTextColor={tokens.colors.najdi.textMuted}
-            maxLength={200}
-          />
-          <Text style={styles.helperText}>
-            {title.length}/200 حرف
-            {title.length > 0 && !titleValid && (
-              <Text style={styles.errorText}> - الحد الأدنى 3 أحرف</Text>
-            )}
-          </Text>
-        </View>
-
-        {/* Body Input */}
-        <View style={styles.section}>
-          <Text style={styles.label}>نص الرسالة</Text>
-          <TextInput
-            style={[
-              styles.input,
-              styles.bodyInput,
-              !bodyValid && body.length > 0 && styles.inputError,
-            ]}
-            value={body}
-            onChangeText={setBody}
-            placeholder="نص الرسالة (10-1000 حرف)"
-            placeholderTextColor={tokens.colors.najdi.textMuted}
-            multiline
-            numberOfLines={6}
-            maxLength={1000}
-            textAlignVertical="top"
-          />
-          <Text style={styles.helperText}>
-            {body.length}/1000 حرف
-            {body.length > 0 && !bodyValid && (
-              <Text style={styles.errorText}> - الحد الأدنى 10 أحرف</Text>
-            )}
-          </Text>
-        </View>
-
-        {/* Recipients Targeting */}
-        <View style={styles.section}>
-          <Text style={styles.label}>المستلمون</Text>
-
-          <View style={styles.chipRow}>
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                targetingType === 'all' && styles.chipActive,
-              ]}
-              onPress={() => toggleTargeting('all')}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  targetingType === 'all' && styles.chipTextActive,
-                ]}
-              >
-                الكل
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerRow}>
+            <View style={styles.titleGroup}>
+              <Image
+                source={require('../../../assets/logo/AlqefariEmblem.png')}
+                style={styles.emblem}
+                resizeMode="contain"
+              />
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                إشعارات جماعية
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                targetingType === 'role' && styles.chipActive,
-              ]}
-              onPress={() => toggleTargeting('role')}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  targetingType === 'role' && styles.chipTextActive,
-                ]}
-              >
-                حسب الدور
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.chip,
-                targetingType === 'gender' && styles.chipActive,
-              ]}
-              onPress={() => toggleTargeting('gender')}
-            >
-              <Text
-                style={[
-                  styles.chipText,
-                  targetingType === 'gender' && styles.chipTextActive,
-                ]}
-              >
-                حسب الجنس
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Role Sub-Selection - FIXED with actual app roles */}
-          {targetingType === 'role' && (
-            <View style={styles.subChipRow}>
-              <TouchableOpacity
-                style={[
-                  styles.subChip,
-                  selectedRoles.includes('super_admin') && styles.subChipActive,
-                ]}
-                onPress={() => toggleRole('super_admin')}
-              >
-                <Text
-                  style={[
-                    styles.subChipText,
-                    selectedRoles.includes('super_admin') && styles.subChipTextActive,
-                  ]}
-                >
-                  مشرف رئيسي
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.subChip,
-                  selectedRoles.includes('admin') && styles.subChipActive,
-                ]}
-                onPress={() => toggleRole('admin')}
-              >
-                <Text
-                  style={[
-                    styles.subChipText,
-                    selectedRoles.includes('admin') && styles.subChipTextActive,
-                  ]}
-                >
-                  مسؤول
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.subChip,
-                  selectedRoles.includes('moderator') && styles.subChipActive,
-                ]}
-                onPress={() => toggleRole('moderator')}
-              >
-                <Text
-                  style={[
-                    styles.subChipText,
-                    selectedRoles.includes('moderator') && styles.subChipTextActive,
-                  ]}
-                >
-                  مشرف فرع
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.subChip,
-                  selectedRoles.includes('user') && styles.subChipActive,
-                ]}
-                onPress={() => toggleRole('user')}
-              >
-                <Text
-                  style={[
-                    styles.subChipText,
-                    selectedRoles.includes('user') && styles.subChipTextActive,
-                  ]}
-                >
-                  مستخدم
-                </Text>
-              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Gender Sub-Selection */}
-          {targetingType === 'gender' && (
-            <View style={styles.subChipRow}>
-              <TouchableOpacity
-                style={[
-                  styles.subChip,
-                  selectedGenders.includes('male') && styles.subChipActive,
-                ]}
-                onPress={() => toggleGender('male')}
-              >
-                <Text
-                  style={[
-                    styles.subChipText,
-                    selectedGenders.includes('male') && styles.subChipTextActive,
-                  ]}
-                >
-                  ذكور
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.subChip,
-                  selectedGenders.includes('female') && styles.subChipActive,
-                ]}
-                onPress={() => toggleGender('female')}
-              >
-                <Text
-                  style={[
-                    styles.subChipText,
-                    selectedGenders.includes('female') && styles.subChipTextActive,
-                  ]}
-                >
-                  إناث
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Importance Level - RENAMED from Priority with descriptions */}
-        <View style={styles.section}>
-          <Text style={styles.label}>مستوى الأهمية</Text>
-          <Text style={styles.helperText}>
-            يحدد كيفية ظهور الإشعار للمستخدمين
-          </Text>
-
-          <View style={styles.importanceRow}>
             <TouchableOpacity
-              style={[
-                styles.importanceChip,
-                importance === 'normal' && styles.importanceChipActive,
-              ]}
-              onPress={() => toggleImportance('normal')}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onClose();
+              }}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="إغلاق"
             >
-              <Ionicons
-                name="notifications-outline"
-                size={20}
-                color={importance === 'normal' ? '#FFFFFF' : '#8E8E93'}
-              />
-              <View style={styles.importanceContent}>
-                <Text
-                  style={[
-                    styles.importanceLabel,
-                    importance === 'normal' && styles.importanceLabelActive,
-                  ]}
-                >
-                  عادية
-                </Text>
-                <Text
-                  style={[
-                    styles.importanceDescription,
-                    importance === 'normal' && styles.importanceDescriptionActive,
-                  ]}
-                >
-                  إشعارات عامة
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.importanceChip,
-                importance === 'high' && styles.importanceChipActive,
-              ]}
-              onPress={() => toggleImportance('high')}
-            >
-              <Ionicons
-                name="alert-circle-outline"
-                size={20}
-                color={importance === 'high' ? '#FFFFFF' : '#FF9500'}
-              />
-              <View style={styles.importanceContent}>
-                <Text
-                  style={[
-                    styles.importanceLabel,
-                    importance === 'high' && styles.importanceLabelActive,
-                  ]}
-                >
-                  مهمة
-                </Text>
-                <Text
-                  style={[
-                    styles.importanceDescription,
-                    importance === 'high' && styles.importanceDescriptionActive,
-                  ]}
-                >
-                  تحديثات مهمة
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.importanceChip,
-                importance === 'urgent' && styles.importanceChipActive,
-              ]}
-              onPress={() => toggleImportance('urgent')}
-            >
-              <Ionicons
-                name="warning-outline"
-                size={20}
-                color={importance === 'urgent' ? '#FFFFFF' : '#FF3B30'}
-              />
-              <View style={styles.importanceContent}>
-                <Text
-                  style={[
-                    styles.importanceLabel,
-                    importance === 'urgent' && styles.importanceLabelActive,
-                  ]}
-                >
-                  عاجلة
-                </Text>
-                <Text
-                  style={[
-                    styles.importanceDescription,
-                    importance === 'urgent' && styles.importanceDescriptionActive,
-                  ]}
-                >
-                  تنبيهات عاجلة
-                </Text>
-              </View>
+              <Ionicons name={dismissIcon} size={28} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Recipient Count Preview - NO SPINNER */}
-        <View style={styles.recipientPreview}>
-          <Ionicons name="people-outline" size={20} color={tokens.colors.najdi.text} />
-          <Text style={styles.recipientPreviewText}>
-            سيتم الإرسال إلى{' '}
-            <Text style={styles.recipientCount}>
-              {recipientCount === 0 ? '—' : recipientCount}
-            </Text>
-            {' '}مستخدم
-          </Text>
-        </View>
-
-        {/* ==================== HISTORY SECTION ==================== */}
-
-        <TouchableOpacity
-          style={styles.historyHeader}
-          onPress={toggleHistoryExpanded}
-        >
-          <Text style={styles.historyHeaderTitle}>
-            السجل السابق {history.length > 0 && `(${history.length})`}
-          </Text>
-          <Ionicons
-            name={historyExpanded ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={tokens.colors.najdi.textMuted}
-          />
-        </TouchableOpacity>
-
-        {historyExpanded && (
-          <View style={styles.historyContent}>
-            {loadingHistory ? (
-              <View style={styles.historyLoading}>
-                <Text style={styles.historyLoadingText}>جاري التحميل...</Text>
-              </View>
-            ) : history.length === 0 ? (
-              <View style={styles.historyEmpty}>
-                <Ionicons
-                  name="newspaper-outline"
-                  size={48}
-                  color={tokens.colors.najdi.container}
-                />
-                <Text style={styles.historyEmptyTitle}>لا توجد إشعارات سابقة</Text>
-                <Text style={styles.historyEmptySubtitle}>
-                  الإشعارات التي ترسلها ستظهر هنا
-                </Text>
-              </View>
-            ) : (
-              history.map((item) => {
-                const isExpanded = expandedCardId === item.id;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.historyCard}
-                    onPress={() => toggleCardExpanded(item.id)}
-                    activeOpacity={0.7}
-                  >
-                    {/* Header Row */}
-                    <View style={styles.historyCardHeader}>
-                      <Ionicons
-                        name={getPriorityIcon(item.priority)}
-                        size={20}
-                        color={getPriorityColor(item.priority)}
-                      />
-                      <Text style={styles.historyCardTitle} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                    </View>
-
-                    {/* Body Preview (collapsed) */}
-                    {!isExpanded && (
-                      <Text style={styles.historyCardPreview} numberOfLines={2}>
-                        {item.body}
-                      </Text>
-                    )}
-
-                    {/* Statistics Row */}
-                    <View style={styles.historyStats}>
-                      <View style={styles.historyStat}>
-                        <Text style={styles.historyStatValue}>{item.total_recipients}</Text>
-                        <Text style={styles.historyStatLabel}>مستلم</Text>
-                      </View>
-                      <View style={styles.historyStatDivider} />
-                      <View style={styles.historyStat}>
-                        <Text style={styles.historyStatValue}>{item.read_count}</Text>
-                        <Text style={styles.historyStatLabel}>تم القراءة</Text>
-                      </View>
-                      <View style={styles.historyStatDivider} />
-                      <View style={styles.historyStat}>
-                        <Text
-                          style={[
-                            styles.historyStatValue,
-                            { color: getReadColor(item.read_percentage) },
-                          ]}
-                        >
-                          {item.read_percentage.toFixed(0)}%
-                        </Text>
-                        <Text style={styles.historyStatLabel}>نسبة القراءة</Text>
-                      </View>
-                    </View>
-
-                    {/* Progress Bar */}
-                    <View style={styles.historyProgressContainer}>
-                      <View
-                        style={[
-                          styles.historyProgressFill,
-                          {
-                            width: `${item.read_percentage}%`,
-                            backgroundColor: getReadColor(item.read_percentage),
-                          },
-                        ]}
-                      />
-                    </View>
-
-                    {/* Timestamp + Priority Badge */}
-                    <View style={styles.historyFooter}>
-                      <Text style={styles.historyTimestamp}>
-                        {formatRelativeTime(item.sent_at)}
-                      </Text>
-                      <View
-                        style={[
-                          styles.priorityBadge,
-                          { backgroundColor: getPriorityColor(item.priority) },
-                        ]}
-                      >
-                        <Text style={styles.priorityBadgeText}>
-                          {getImportanceLabel(item.priority)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Expanded Details */}
-                    {isExpanded && (
-                      <View style={styles.historyExpandedSection}>
-                        <View style={styles.historyDivider} />
-
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>نص الرسالة الكامل:</Text>
-                          <Text style={styles.detailValue}>{item.body}</Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>المستهدفون:</Text>
-                          <Text style={styles.detailValue}>
-                            {getTargetingLabel(item.target_criteria)}
-                          </Text>
-                        </View>
-
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>المرسل:</Text>
-                          <Text style={styles.detailValue}>{item.sender_name}</Text>
-                        </View>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
-        )}
-      </ScrollView>
-
-      {/* ==================== ACTION FOOTER ==================== */}
-      <View style={styles.actionFooter}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onClose();
+        <FlatList
+          data={historyData}
+          keyExtractor={(item) => item.id}
+          renderItem={renderHistoryItem}
+          ListHeaderComponent={renderComposeSections}
+          ListEmptyComponent={renderHistoryEmpty}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          extraData={{
+            expandedCardId,
+            historyExpanded,
+            previewState,
+            recipientCount,
           }}
-        >
-          <Text style={styles.cancelButtonText}>إلغاء</Text>
-        </TouchableOpacity>
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              paddingBottom:
+                tokens.spacing.xl * 2 + Math.max(insets.bottom, tokens.spacing.md),
+            },
+          ]}
+        />
 
-        <TouchableOpacity
-          style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-          onPress={handleSend}
-          disabled={!canSend}
+        <View
+          style={[
+            styles.actionFooter,
+            { paddingBottom: Math.max(insets.bottom, tokens.spacing.sm) },
+          ]}
         >
-          <Ionicons name="send" size={18} color="#FFFFFF" />
-          <Text style={styles.sendButtonText}>إرسال</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="إغلاق مدير الإشعارات"
+          >
+            <Text style={styles.cancelButtonText}>إلغاء</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+            onPress={handleSend}
+            disabled={!canSend}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSend }}
+            accessibilityLabel="إرسال الإشعار الجماعي"
+          >
+            <Ionicons name="send" size={18} color="#FFFFFF" />
+            <Text style={styles.sendButtonText}>إرسال</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -854,128 +863,182 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
 // ============================================================================
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: tokens.colors.najdi.background,
+  },
   container: {
     flex: 1,
     backgroundColor: tokens.colors.najdi.background,
   },
-  scrollView: {
+  header: {
+    paddingHorizontal: tokens.spacing.md,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    paddingBottom: tokens.spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: tokens.colors.divider,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  titleGroup: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  scrollContent: {
-    padding: tokens.spacing.md,
-    paddingBottom: tokens.spacing.xl * 2,
+  emblem: {
+    width: 44,
+    height: 44,
+    marginLeft: -4,
   },
-
-  // ========== COMPOSE SECTION ==========
+  headerTitle: {
+    fontSize: tokens.typography.largeTitle.fontSize,
+    lineHeight: tokens.typography.largeTitle.lineHeight,
+    fontWeight: tokens.typography.largeTitle.fontWeight as any,
+    color: tokens.colors.najdi.text,
+    marginStart: tokens.spacing.sm,
+    fontFamily: 'SF Arabic',
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  listContent: {
+    paddingHorizontal: tokens.spacing.md,
+    paddingTop: tokens.spacing.md,
+  },
+  composer: {
+    gap: tokens.spacing.lg,
+  },
   section: {
-    marginBottom: tokens.spacing.lg,
+    gap: tokens.spacing.xs,
   },
   label: {
     fontSize: tokens.typography.headline.fontSize,
     fontWeight: tokens.typography.headline.fontWeight as any,
     color: tokens.colors.najdi.text,
-    marginBottom: tokens.spacing.xs,
   },
   input: {
     backgroundColor: tokens.colors.surface,
     borderWidth: 1,
     borderColor: tokens.colors.outline,
     borderRadius: tokens.radii.md,
-    padding: tokens.spacing.sm,
+    paddingVertical: 12,
+    paddingHorizontal: tokens.spacing.sm,
     fontSize: tokens.typography.body.fontSize,
     color: tokens.colors.najdi.text,
-    textAlign: 'left',
   },
   inputError: {
     borderColor: tokens.colors.danger,
   },
   bodyInput: {
-    minHeight: 120,
-    paddingTop: tokens.spacing.sm,
+    minHeight: 140,
+    lineHeight: 22,
+  },
+  helperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   helperText: {
     fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.textMuted,
-    marginTop: tokens.spacing.xxs,
-    textAlign: 'left',
   },
   errorText: {
+    fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.danger,
   },
-
-  // ========== TARGETING CHIPS ==========
-  chipRow: {
+  filterOptions: {
+    marginTop: tokens.spacing.sm,
+    gap: tokens.spacing.xs,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: tokens.colors.outline,
+    backgroundColor: tokens.colors.surface,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
+  },
+  filterOptionActive: {
+    borderColor: tokens.colors.najdi.primary,
+    backgroundColor: 'rgba(161, 51, 51, 0.08)',
+  },
+  filterOptionCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  filterOptionTitle: {
+    fontSize: tokens.typography.callout.fontSize,
+    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+  },
+  filterOptionTitleActive: {
+    color: tokens.colors.najdi.primary,
+  },
+  filterOptionDescription: {
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.najdi.textMuted,
+  },
+  subSection: {
+    marginTop: tokens.spacing.sm,
+    gap: tokens.spacing.xs,
+  },
+  subSectionTitle: {
+    fontSize: tokens.typography.callout.fontSize,
+    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+  },
+  multiSelectGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: tokens.spacing.xs,
   },
-  chip: {
-    paddingHorizontal: tokens.spacing.md,
+  multiSelectChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
     paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: tokens.spacing.md,
+    borderRadius: tokens.radii.md,
     backgroundColor: tokens.colors.surface,
     borderWidth: 1,
     borderColor: tokens.colors.outline,
-    minHeight: 44,
-    justifyContent: 'center',
   },
-  chipActive: {
-    backgroundColor: tokens.colors.najdi.primary,
-    borderColor: tokens.colors.najdi.primary,
-  },
-  chipText: {
-    fontSize: tokens.typography.callout.fontSize,
-    color: tokens.colors.najdi.text,
-  },
-  chipTextActive: {
-    color: '#FFFFFF',
-  },
-
-  // ========== SUB-CHIPS ==========
-  subChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.xs,
-    marginTop: tokens.spacing.xs,
-  },
-  subChip: {
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.md,
-    backgroundColor: tokens.colors.najdi.container,
-    borderWidth: 1,
-    borderColor: tokens.colors.outline,
-    minHeight: 36,
-    justifyContent: 'center',
-  },
-  subChipActive: {
+  multiSelectChipActive: {
     backgroundColor: tokens.colors.najdi.secondary,
     borderColor: tokens.colors.najdi.secondary,
   },
-  subChipText: {
-    fontSize: tokens.typography.footnote.fontSize,
+  multiSelectLabel: {
+    fontSize: tokens.typography.callout.fontSize,
     color: tokens.colors.najdi.text,
   },
-  subChipTextActive: {
+  multiSelectLabelActive: {
     color: '#FFFFFF',
+    fontWeight: '600',
   },
-
-  // ========== IMPORTANCE SELECTOR ==========
   importanceRow: {
-    flexDirection: 'row',
-    gap: tokens.spacing.xs,
-    marginTop: tokens.spacing.xs,
+    flexDirection: 'column',
+    gap: tokens.spacing.sm,
   },
   importanceChip: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.md,
+    gap: tokens.spacing.sm,
     borderWidth: 1,
     borderColor: tokens.colors.outline,
-    gap: 8,
+    borderRadius: tokens.radii.md,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
+    backgroundColor: tokens.colors.surface,
   },
   importanceChipActive: {
     backgroundColor: tokens.colors.najdi.primary,
@@ -985,130 +1048,153 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   importanceLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: tokens.typography.callout.fontSize,
     color: tokens.colors.najdi.text,
+    fontWeight: '600',
   },
   importanceLabelActive: {
     color: '#FFFFFF',
   },
   importanceDescription: {
-    fontSize: 12,
+    fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.textMuted,
-    marginTop: 2,
   },
   importanceDescriptionActive: {
-    color: 'rgba(255,255,255,0.8)',
+    color: '#FFFFFF',
   },
-
-  // ========== RECIPIENT PREVIEW ==========
-  recipientPreview: {
+  previewCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: `${tokens.colors.najdi.container}33`,
-    borderRadius: tokens.radii.md,
-    gap: 8,
-    marginTop: tokens.spacing.md,
+    borderRadius: tokens.radii.lg,
+    padding: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
+    borderWidth: 1,
   },
-  recipientPreviewText: {
-    fontSize: 15,
+  previewCardIdle: {
+    backgroundColor: tokens.colors.surface,
+    borderColor: tokens.colors.outline,
+  },
+  previewCardLoading: {
+    backgroundColor: tokens.colors.surface,
+    borderColor: tokens.colors.najdi.secondary,
+  },
+  previewCardReady: {
+    backgroundColor: '#E9F9EF',
+    borderColor: tokens.colors.success,
+  },
+  previewCardError: {
+    backgroundColor: '#FDECEF',
+    borderColor: tokens.colors.danger,
+  },
+  previewIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  previewCopy: {
+    flex: 1,
+  },
+  previewTitle: {
+    fontSize: tokens.typography.callout.fontSize,
+    fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  recipientCount: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: tokens.colors.najdi.primary,
+  previewSubtitle: {
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.najdi.textMuted,
   },
-
-  // ========== HISTORY SECTION ==========
+  previewBadge: {
+    minWidth: 44,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: tokens.radii.md,
+    backgroundColor: tokens.colors.najdi.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewBadgeText: {
+    color: '#FFFFFF',
+    fontSize: tokens.typography.callout.fontSize,
+    fontWeight: '700',
+  },
   historyHeader: {
+    marginTop: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.sm,
+    borderRadius: tokens.radii.md,
+    backgroundColor: tokens.colors.surface,
+    borderWidth: 1,
+    borderColor: tokens.colors.outline,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: tokens.spacing.md,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.md,
-    marginTop: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
   },
   historyHeaderTitle: {
     fontSize: tokens.typography.headline.fontSize,
-    fontWeight: tokens.typography.headline.fontWeight as any,
+    fontWeight: '600',
     color: tokens.colors.najdi.text,
   },
-  historyContent: {
-    marginTop: tokens.spacing.xs,
-  },
-  historyLoading: {
-    padding: tokens.spacing.xl,
-    alignItems: 'center',
-  },
-  historyLoadingText: {
-    fontSize: tokens.typography.body.fontSize,
+  historyHeaderSubtitle: {
+    fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.textMuted,
+    marginTop: 2,
   },
-  historyEmpty: {
+  historyHeaderRight: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: tokens.spacing.xl * 2,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.md,
+    gap: tokens.spacing.xs,
   },
-  historyEmptyTitle: {
-    fontSize: tokens.typography.headline.fontSize,
-    fontWeight: tokens.typography.headline.fontWeight as any,
-    color: tokens.colors.najdi.text,
-    marginTop: tokens.spacing.sm,
-    marginBottom: tokens.spacing.xxs,
+  historyBadge: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: tokens.colors.najdi.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  historyEmptySubtitle: {
-    fontSize: 15,
-    color: tokens.colors.najdi.textMuted,
-    textAlign: 'center',
+  historyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: tokens.typography.caption1.fontSize,
+    fontWeight: '700',
   },
-
-  // ========== HISTORY CARD ==========
   historyCard: {
+    borderRadius: tokens.radii.lg,
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: tokens.colors.outline,
     padding: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
+    marginTop: tokens.spacing.md,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-      },
-      android: {
-        elevation: 2,
-      },
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
     }),
   },
   historyCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: tokens.spacing.xs,
+    marginBottom: tokens.spacing.xs,
   },
   historyCardTitle: {
     flex: 1,
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: tokens.typography.headline.fontSize,
     color: tokens.colors.najdi.text,
+    fontWeight: '600',
   },
   historyCardPreview: {
-    fontSize: 15,
+    fontSize: tokens.typography.callout.fontSize,
     color: tokens.colors.najdi.textMuted,
-    lineHeight: 20,
-    marginBottom: 12,
+    lineHeight: 22,
+    marginBottom: tokens.spacing.sm,
   },
-
-  // ========== HISTORY STATS ==========
   historyStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: tokens.spacing.sm,
   },
   historyStat: {
     flex: 1,
@@ -1126,24 +1212,20 @@ const styles = StyleSheet.create({
   },
   historyStatDivider: {
     width: 1,
-    height: 30,
+    height: 32,
     backgroundColor: tokens.colors.divider,
   },
-
-  // ========== PROGRESS BAR ==========
   historyProgressContainer: {
     height: 4,
-    backgroundColor: tokens.colors.najdi.container,
     borderRadius: 2,
+    backgroundColor: tokens.colors.najdi.container,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: tokens.spacing.sm,
   },
   historyProgressFill: {
     height: '100%',
     borderRadius: 2,
   },
-
-  // ========== HISTORY FOOTER ==========
   historyFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1156,43 +1238,63 @@ const styles = StyleSheet.create({
   priorityBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   priorityBadgeText: {
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
-    color: '#FFFFFF',
   },
-
-  // ========== EXPANDED DETAILS ==========
   historyExpandedSection: {
-    marginTop: 12,
+    marginTop: tokens.spacing.sm,
+    gap: tokens.spacing.sm,
   },
   historyDivider: {
     height: 1,
     backgroundColor: tokens.colors.divider,
-    marginBottom: 12,
   },
   detailRow: {
-    marginBottom: 8,
+    gap: 4,
   },
   detailLabel: {
-    fontSize: 13,
+    fontSize: tokens.typography.callout.fontSize,
     fontWeight: '600',
     color: tokens.colors.najdi.text,
-    marginBottom: 2,
   },
   detailValue: {
-    fontSize: 15,
+    fontSize: tokens.typography.body.fontSize,
     color: tokens.colors.najdi.textMuted,
-    lineHeight: 20,
+    lineHeight: 22,
   },
-
-  // ========== ACTION FOOTER ==========
+  historyLoading: {
+    marginTop: tokens.spacing.lg,
+    alignItems: 'center',
+    gap: tokens.spacing.xs,
+  },
+  historyLoadingText: {
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.najdi.textMuted,
+  },
+  historyEmpty: {
+    marginTop: tokens.spacing.lg,
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.lg,
+  },
+  historyEmptyTitle: {
+    fontSize: tokens.typography.headline.fontSize,
+    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+  },
+  historyEmptySubtitle: {
+    fontSize: tokens.typography.callout.fontSize,
+    color: tokens.colors.najdi.textMuted,
+  },
   actionFooter: {
     flexDirection: 'row',
-    gap: 12,
-    padding: tokens.spacing.md,
+    gap: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingTop: tokens.spacing.sm,
     backgroundColor: tokens.colors.surface,
     borderTopWidth: 1,
     borderTopColor: tokens.colors.divider,
@@ -1219,7 +1321,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: tokens.spacing.xs,
   },
   sendButtonDisabled: {
     opacity: 0.4,

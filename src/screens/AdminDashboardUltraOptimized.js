@@ -858,21 +858,10 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       )}
 
       {/* Unified Broadcast Manager */}
-      {showBroadcastManager && renderIOSModal(
+      {renderIOSModal(
         showBroadcastManager,
         () => setShowBroadcastManager(false),
-        ({ onClose }) => (
-          <View style={{ flex: 1 }}>
-            <View style={styles.iosModalHeader}>
-              <TouchableOpacity style={styles.iosBackButton} onPress={onClose}>
-                <Ionicons name="chevron-back" size={28} color="#242121" />
-              </TouchableOpacity>
-              <Text style={styles.iosModalTitle}>إشعارات جماعية</Text>
-              <View style={{ width: 44 }} />
-            </View>
-            <AdminBroadcastManager onClose={onClose} />
-          </View>
-        )
+        AdminBroadcastManager
       )}
     </SafeAreaView>
   );
@@ -1088,32 +1077,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#C7C7CC",
     marginLeft: 52,
     opacity: 0.4,
-  },
-  // iOS Modal Header Styles
-  iosModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: "#F9F7F3",
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#C7C7CC",
-  },
-  iosBackButton: {
-    width: 44,
-    height: 44,
-    justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  iosModalTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#242121",
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
   },
   statsCard: {
     marginTop: 16,

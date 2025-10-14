@@ -33,7 +33,7 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
   // Shorten wife names only (first + last word) for space efficiency
   if (label === 'الزوجة') {
     // Get base name WITHOUT title first
-    const baseName = node?.name_chain || node?.fullNameChain || node?.name || fallbackName || '';
+    const baseName = node?.full_name_chain || node?.name_chain || node?.fullNameChain || node?.name || fallbackName || '';
     const shortened = getFirstAndLastWord(baseName);
 
     // Safety: If shortening failed, use original base name
