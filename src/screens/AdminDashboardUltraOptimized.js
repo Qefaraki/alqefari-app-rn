@@ -24,6 +24,8 @@ import MunasibManager from "../components/admin/MunasibManager";
 import PermissionManager from "../components/admin/PermissionManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
+import AdminNotificationComposer from "../components/admin/AdminNotificationComposer";
+import AdminNotificationHistory from "../components/admin/AdminNotificationHistory";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import pdfExportService from "../services/pdfExport";
@@ -100,6 +102,8 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [showPermissionManager, setShowPermissionManager] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
+  const [showBroadcastComposer, setShowBroadcastComposer] = useState(false);
+  const [showBroadcastHistory, setShowBroadcastHistory] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -676,7 +680,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
                     style={styles.listItem}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push('/admin/broadcast-notification');
+                      setShowBroadcastComposer(true);
                     }}
                   >
                     <View style={styles.listItemContent}>
@@ -691,7 +695,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
                     style={[styles.listItem, styles.listItemLast]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push('/admin/notification-history');
+                      setShowBroadcastHistory(true);
                     }}
                   >
                     <View style={styles.listItemContent}>
@@ -854,6 +858,48 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
         showSuggestionReview,
         () => setShowSuggestionReview(false),
         SuggestionReviewManager
+      )}
+
+      {/* Broadcast Notification Composer */}
+      {showBroadcastComposer && renderIOSModal(
+        showBroadcastComposer,
+        () => setShowBroadcastComposer(false),
+        ({ onClose }) => (
+          <View style={{ flex: 1 }}>
+            <View style={styles.iosModalHeader}>
+              <TouchableOpacity style={styles.iosBackButton} onPress={onClose}>
+                <Ionicons name="chevron-back" size={28} color="#242121" />
+              </TouchableOpacity>
+              <Text style={styles.iosModalTitle}>إرسال إشعار</Text>
+              <View style={{ width: 44 }} />
+            </View>
+            <AdminNotificationComposer
+              onSuccess={() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                onClose();
+              }}
+              onCancel={onClose}
+            />
+          </View>
+        )
+      )}
+
+      {/* Broadcast Notification History */}
+      {showBroadcastHistory && renderIOSModal(
+        showBroadcastHistory,
+        () => setShowBroadcastHistory(false),
+        ({ onClose }) => (
+          <View style={{ flex: 1 }}>
+            <View style={styles.iosModalHeader}>
+              <TouchableOpacity style={styles.iosBackButton} onPress={onClose}>
+                <Ionicons name="chevron-back" size={28} color="#242121" />
+              </TouchableOpacity>
+              <Text style={styles.iosModalTitle}>سجل الإشعارات</Text>
+              <View style={{ width: 44 }} />
+            </View>
+            <AdminNotificationHistory />
+          </View>
+        )
       )}
     </SafeAreaView>
   );

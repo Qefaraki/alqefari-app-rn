@@ -50,11 +50,23 @@ const validateFamilyData = (data, profileId) => {
 
   const isValidProfile = (p) => p && typeof p === 'object' && p.id;
 
+  // Validate marriage records (different structure from profile records)
+  // Marriage records have marriage_id and nested spouse_profile.id
+  const isValidMarriage = (m) =>
+    m &&
+    typeof m === 'object' &&
+    m.marriage_id &&
+    m.spouse_profile &&
+    typeof m.spouse_profile === 'object' &&
+    m.spouse_profile.id;
+
   return {
     father: isValidProfile(data.father) ? data.father : null,
     mother: isValidProfile(data.mother) ? data.mother : null,
+    // Don't filter by profileId - RPC returns marriage records with spouse_profile nested
+    // The spouse_profile is already the correct person (not self)
     spouses: Array.isArray(data.spouses)
-      ? data.spouses.filter(s => isValidProfile(s) && s.id !== profileId)
+      ? data.spouses.filter(isValidMarriage)
       : [],
     children: Array.isArray(data.children)
       ? data.children.filter(isValidProfile)
@@ -928,6 +940,84 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   // Calculate permission for family editing based on parent profile permission
   const canEditFamily = accessMode === 'direct';
 
+  // Phase 1: Safe destructuring with fallbacks (BEFORE conditional returns)
+  // This ensures all hooks below have access to these values consistently
+  const father = state.familyData?.father || null;
+  const mother = state.familyData?.mother || null;
+  const spouses = state.familyData?.spouses || [];
+  const children = state.familyData?.children || [];
+
+  // Memoize parent count calculation to prevent recalculation on every render
+  const parentCount = useMemo(() => {
+    return [father, mother].filter(Boolean).length;
+  }, [father, mother]);
+
+  // Phase 2: Move all hooks BEFORE conditional returns (React Hooks Rules compliance)
+  // Ensures consistent hook count (34 hooks) regardless of loading/error state
+
+  // Hook 1: Gender-dependent text memoization
+  const genderDependentText = useMemo(() => ({
+    spousesTitle: person.gender === 'male' ? 'الزوجات' : 'الأزواج',
+    addSpouseLabel: person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج',
+    spouseEmptyTitle: person.gender === 'male' ? 'لم تتم إضافة زوجات بعد' : 'لم تتم إضافة أزواج بعد',
+    spouseEmptyCaption: person.gender === 'male'
+      ? 'أضف شريكة حياة لتظهر هنا مع تفاصيل الزواج'
+      : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج',
+  }), [person?.gender]);
+
+  // Hook 2: Add spouse press handler
+  const handleAddSpousePress = useCallback(() => {
+    if (!canEditFamily) {
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true });
+  }, [canEditFamily]);
+
+  // Hook 3: Open inline spouse adder
+  const handleOpenInlineSpouseAdder = useCallback(() => {
+    if (!canEditFamily) {
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
+      return;
+    }
+    dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: true } });
+  }, [canEditFamily]);
+
+  // Hook 4: Go to father profile (UPDATED: uses father variable from Phase 1)
+  const handleGoToFatherProfile = useCallback(() => {
+    if (father?.id && typeof onNavigateToProfile === 'function') {
+      dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: false });
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onNavigateToProfile(father.id);
+    } else {
+      Alert.alert(WARNING_MESSAGES.ADD_FATHER_FIRST.title, WARNING_MESSAGES.ADD_FATHER_FIRST.message);
+    }
+  }, [father?.id, onNavigateToProfile]);
+
+  // Hook 5: Add child press handler (UPDATED: uses spouses variable from Phase 1)
+  const handleAddChildPress = useCallback(() => {
+    if (!canEditFamily) {
+      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.message);
+      return;
+    }
+    if (person.gender === 'female' && spouses.length === 0) {
+      Alert.alert(WARNING_MESSAGES.ADD_SPOUSE_BEFORE_CHILDREN.title, WARNING_MESSAGES.ADD_SPOUSE_BEFORE_CHILDREN.message, [
+        {
+          text: 'إضافة زوج',
+          onPress: () => dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true }),
+        },
+        { text: 'إلغاء', style: 'cancel' },
+      ]);
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: true });
+  }, [canEditFamily, person.gender, spouses.length]);
+
+  // Hook 6: Context value memoization
+  const contextValue = useMemo(() => ({ canEditFamily }), [canEditFamily]);
+
   if (state.loading) {
     return (
       <ScrollView
@@ -950,68 +1040,8 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     );
   }
 
-  const { father, mother, spouses = [], children = [] } = state.familyData;
-
-  // Memoize gender-dependent text to prevent recomputation on every render
-  const genderDependentText = useMemo(() => ({
-    spousesTitle: person.gender === 'male' ? 'الزوجات' : 'الأزواج',
-    addSpouseLabel: person.gender === 'male' ? 'إضافة زوجة' : 'إضافة زوج',
-    spouseEmptyTitle: person.gender === 'male' ? 'لم تتم إضافة زوجات بعد' : 'لم تتم إضافة أزواج بعد',
-    spouseEmptyCaption: person.gender === 'male'
-      ? 'أضف شريكة حياة لتظهر هنا مع تفاصيل الزواج'
-      : 'أضف شريك حياة ليظهر هنا مع تفاصيل الزواج',
-  }), [person?.gender]);
-
-  const parentCount = [father, mother].filter(Boolean).length;
-
-  const handleAddSpousePress = useCallback(() => {
-    if (!canEditFamily) {
-      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true });
-  }, [canEditFamily]);
-
-  const handleOpenInlineSpouseAdder = useCallback(() => {
-    if (!canEditFamily) {
-      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_SPOUSE.message);
-      return;
-    }
-    dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: true } });
-  }, [canEditFamily]);
-
-  const handleGoToFatherProfile = useCallback(() => {
-    if (father?.id && typeof onNavigateToProfile === 'function') {
-      dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: false });
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      onNavigateToProfile(father.id);
-    } else {
-      Alert.alert(WARNING_MESSAGES.ADD_FATHER_FIRST.title, WARNING_MESSAGES.ADD_FATHER_FIRST.message);
-    }
-  }, [father?.id, onNavigateToProfile]);
-
-  const handleAddChildPress = useCallback(() => {
-    if (!canEditFamily) {
-      Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.title, PERMISSION_MESSAGES.UNAUTHORIZED_ADD_CHILD.message);
-      return;
-    }
-    if (person.gender === 'female' && spouses.length === 0) {
-      Alert.alert(WARNING_MESSAGES.ADD_SPOUSE_BEFORE_CHILDREN.title, WARNING_MESSAGES.ADD_SPOUSE_BEFORE_CHILDREN.message, [
-        {
-          text: 'إضافة زوج',
-          onPress: () => dispatch({ type: 'SET_SPOUSE_MODAL_VISIBLE', payload: true }),
-        },
-        { text: 'إلغاء', style: 'cancel' },
-      ]);
-      return;
-    }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: true });
-  }, [canEditFamily, person.gender, spouses.length]);
-
-  // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({ canEditFamily }), [canEditFamily]);
+  // Phase 3: All hooks moved BEFORE conditional returns (lines 931-1007)
+  // This section previously contained duplicate hooks - now removed
 
   return (
     <TabFamilyContext.Provider value={contextValue}>
@@ -1035,17 +1065,33 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
             label="الأب"
             profile={father}
             emptyTitle="لم يتم تحديد الأب"
-            emptySubtitle="أدخل بيانات الأب لتكتمل العائلة"
+            emptySubtitle={
+              person?.hid === null
+                ? "هذا ملف مناسب من خارج العائلة"
+                : "أدخل بيانات الأب لتكتمل العائلة"
+            }
           />
           <ParentProfileCard
             label="الأم"
             profile={mother}
             emptyTitle="لم يتم ربط الأم"
-            emptySubtitle="أضف الأم ليكتمل ملفك الشخصي"
-            onAction={father && canEditFamily ? handleChangeMother : null}
+            emptySubtitle={
+              person?.hid === null
+                ? "هذا ملف مناسب من خارج العائلة"
+                : "أضف الأم ليكتمل ملفك الشخصي"
+            }
+            onAction={father && canEditFamily && person?.hid !== null ? handleChangeMother : null}
             actionLabel={state.motherPickerVisible ? 'إخفاء الخيارات' : mother ? 'تغيير الأم' : 'إضافة الأم'}
             actionTone={state.motherPickerVisible ? 'secondary' : 'primary'}
-            infoHint={!father ? 'أدخل بيانات الأب أولاً لتتمكن من اختيار الأم' : !canEditFamily ? 'ليس لديك صلاحية لتعديل الأم' : null}
+            infoHint={
+              person?.hid === null
+                ? 'المناسبون من خارج العائلة لا يُسجل والداهم في الشجرة'
+                : !father
+                  ? 'أدخل بيانات الأب أولاً لتتمكن من اختيار الأم'
+                  : !canEditFamily
+                    ? 'ليس لديك صلاحية لتعديل الأم'
+                    : null
+            }
           >
             <MotherInlinePicker
               visible={state.motherPickerVisible}
@@ -1524,10 +1570,10 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container + '40',
-    paddingVertical: tokens.spacing.md,
-    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.lg,
+    paddingHorizontal: tokens.spacing.lg,
     gap: tokens.spacing.sm,
-    marginTop: tokens.spacing.sm,
+    marginTop: tokens.spacing.md,
   },
   motherSheetTitle: {
     fontSize: 15,

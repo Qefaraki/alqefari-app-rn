@@ -251,6 +251,7 @@ export const NotificationTypes = {
   PROFILE_UPDATED: "profile_updated",
   NEW_FAMILY_MEMBER: "new_family_member",
   ADMIN_MESSAGE: "admin_message",
+  ADMIN_BROADCAST: "admin_broadcast",
 };
 
 // Helper function to send push notification via Supabase Edge Function
@@ -339,6 +340,59 @@ export async function notifyUserOfRejection(userId, reason = "") {
       reason,
     },
   );
+}
+
+// Helper to send broadcast push notifications
+export async function sendBroadcastPushNotifications(broadcastId, criteria, title, body) {
+  try {
+    // Get recipients with user_ids
+    const { data: recipients, error } = await supabase.rpc('get_broadcast_recipients', {
+      p_criteria: criteria
+    });
+
+    if (error) throw error;
+
+    if (!recipients || recipients.length === 0) {
+      console.log('No recipients found for broadcast push');
+      return { success: true, sent: 0 };
+    }
+
+    // Extract user_ids (filter out any nulls)
+    const userIds = recipients.map(r => r.user_id).filter(Boolean);
+
+    if (userIds.length === 0) {
+      console.log('No valid user IDs found for broadcast push');
+      return { success: true, sent: 0 };
+    }
+
+    console.log(`Sending broadcast push to ${userIds.length} users`);
+
+    // Invoke Edge Function with array of user IDs
+    const { data: result, error: pushError } = await supabase.functions.invoke("send-push-notification", {
+      body: {
+        userIds,  // Edge Function handles arrays
+        title,
+        body,
+        data: {
+          type: NotificationTypes.ADMIN_BROADCAST,
+          broadcast_id: broadcastId
+        },
+        priority: 'high',
+        sound: 'default'
+      },
+    });
+
+    if (pushError) {
+      console.error('Error invoking push notification Edge Function:', pushError);
+      return { success: false, error: pushError };
+    }
+
+    console.log('Broadcast push notification result:', result);
+    return result || { success: true, sent: 0 };
+  } catch (error) {
+    console.error("Error in sendBroadcastPushNotifications:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 export default notificationService;

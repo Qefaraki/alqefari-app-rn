@@ -265,6 +265,27 @@ const EditModeContent = React.memo(({
 ));
 EditModeContent.displayName = 'EditModeContent';
 
+// Skeleton content for loading state - Extracted for cleaner code
+const SkeletonContent = React.memo(({ insets }) => (
+  <BottomSheetScrollView
+    contentContainerStyle={{
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: insets.bottom + 80,
+      gap: 20,
+    }}
+    showsVerticalScrollIndicator={false}
+  >
+    <HeroSkeleton withPhoto={true} />
+    <GenericCardSkeleton rows={3} titleWidth={80} />
+    <GenericCardSkeleton rows={2} titleWidth={100} />
+    <GenericCardSkeleton rows={3} titleWidth={90} />
+    <GenericCardSkeleton rows={2} titleWidth={100} />
+    <FamilyCardSkeleton tileCount={4} />
+  </BottomSheetScrollView>
+));
+SkeletonContent.displayName = 'SkeletonContent';
+
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading = false }) => {
   const insets = useSafeAreaInsets();
   const { isAdminMode } = useAdminMode();
@@ -336,15 +357,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setLoadingStates((prev) => ({ ...prev, [key]: false }));
   }, []);
 
-  // ✅ FIX: Controlled state pattern - ensure sheet opens when person loads
+  // ✅ FIX: Imperative API for reliable sheet control
   useEffect(() => {
-    if (person && currentSnapIndex === -1) {
+    if (person) {
+      console.log('[ProfileViewer] Opening sheet for person:', person.id);
+      bottomSheetRef.current?.snapToIndex(0);
       setCurrentSnapIndex(0);
-    }
-    if (!person && currentSnapIndex !== -1) {
+    } else if (!loading) {
+      console.log('[ProfileViewer] Closing sheet (no person)');
+      bottomSheetRef.current?.close();
       setCurrentSnapIndex(-1);
     }
-  }, [person?.id]);
+  }, [person?.id, loading]);
 
   // ✅ Debug logging for diagnostics
   useEffect(() => {
@@ -383,6 +407,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         marriages: true,
         permissions: true,
       });
+
+      // Reset mode to view when navigating to a different profile
+      // This ensures spouse/child navigation always opens in view mode
+      setMode('view');
 
       // Note: We don't reset currentSnapIndex here - maintain the drawer position
       // This allows users to stay at 100% when navigating between profiles
@@ -449,26 +477,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person?.id, permissionLoading, hideSkeletonImmediately]);
 
-  // ✅ FIX #2: Wrap useAnimatedReaction in useEffect with cleanup to prevent memory leaks
-  useEffect(() => {
-    if (!profileSheetProgress || !animatedPosition) return;
-
-    const cleanup = useAnimatedReaction(
-      () => animatedPosition.value,
-      (current, previous) => {
-        'worklet';
-        if (current === previous) return;
-        const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
-        profileSheetProgress.value = progress;
-      },
-      [screenHeight]
-    );
-
-    return () => {
-      // Cancel the reaction when component unmounts or dependencies change
-      cleanup?.();
-    };
-  }, [animatedPosition, screenHeight, profileSheetProgress]);
+  // Track sheet position and update global store progress
+  // Follows established pattern from ProfileSheet.js
+  useAnimatedReaction(
+    () => animatedPosition.value,
+    (current, previous) => {
+      if (current === previous) return;
+      if (!profileSheetProgress) return;
+      const progress = Math.max(0, Math.min(1, 1 - current / screenHeight));
+      profileSheetProgress.value = progress;
+    },
+    [screenHeight]
+  );
 
   const canEdit = accessMode !== 'readonly';
 
@@ -833,59 +853,18 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person?.common_name, person?.name]);
 
-  // Show skeleton when loading (e.g., Munasib profile fetch)
-  if (!person && loading) {
-    return (
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={Math.max(-1, Math.min(2, currentSnapIndex))}
-        snapPoints={snapPoints}
-        enablePanDownToClose={false} // Prevent close while loading
-        backdropComponent={renderBackdrop}
-        handleComponent={handleComponent}
-        animatedPosition={animatedPosition}
-        animateOnMount={true}
-        onClose={onClose}
-        onChange={handleSheetChange}
-        backgroundStyle={styles.sheetBackground}
-      >
-        <BottomSheetScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 12,
-            paddingBottom: insets.bottom + 80,
-            gap: 20,
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          <HeroSkeleton withPhoto={true} />
-          <GenericCardSkeleton rows={3} titleWidth={80} />
-          <GenericCardSkeleton rows={2} titleWidth={100} />
-          <GenericCardSkeleton rows={3} titleWidth={90} />
-          <GenericCardSkeleton rows={2} titleWidth={100} />
-          <FamilyCardSkeleton tileCount={4} />
-        </BottomSheetScrollView>
-      </BottomSheet>
-    );
-  }
-
-  // Show empty state only when not loading and no person selected
-  if (!person) {
-    return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>لا يوجد ملف محدد.</Text>
-      </View>
-    );
-  }
-
+  // Always render BottomSheet (even when closed at index=-1)
+  // This allows smooth transition from closed → open when person loads
   return (
     <>
       <GestureDetector gesture={edgeSwipeGesture}>
         <BottomSheet
           ref={bottomSheetRef}
-          index={Math.max(-1, Math.min(2, currentSnapIndex))}
+          index={-1}
           snapPoints={snapPoints}
           enablePanDownToClose={mode !== 'edit'}
+          enableContentPanningGesture={true}
+          enableHandlePanningGesture={true}
           backdropComponent={renderBackdrop}
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
@@ -896,8 +875,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           onChange={handleSheetChange}
           backgroundStyle={styles.sheetBackground}
         >
-        {/* Conditional rendering - only ONE mode exists at a time for better performance */}
-        {mode === 'view' ? (
+        {/* Conditional content rendering - skeleton while loading, then view/edit modes */}
+        {!person && loading ? (
+          <SkeletonContent insets={insets} />
+        ) : mode === 'view' ? (
           <ViewModeContent
             insets={insets}
             handleMenuPress={handleMenuPress}

@@ -165,6 +165,20 @@ export default function AdminNotificationComposer({
       }
 
       if (data) {
+        // Send push notifications (non-blocking)
+        try {
+          const { sendBroadcastPushNotifications } = await import('../../services/notifications');
+          await sendBroadcastPushNotifications(
+            data.broadcast_id,
+            criteria,
+            title.trim(),
+            body.trim()
+          );
+        } catch (pushError) {
+          // Non-critical - database notifications already sent
+          console.error('Push notification error:', pushError);
+        }
+
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert(
           'تم الإرسال بنجاح',

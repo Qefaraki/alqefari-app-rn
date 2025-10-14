@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import { supabase } from "../../services/supabase";
 import { buildNameChain } from "../../utils/nameChainBuilder";
 import { useTreeStore } from "../../stores/useTreeStore";
@@ -40,6 +41,7 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
   const [allProfiles, setAllProfiles] = useState([]); // For name chain building
 
   const { setSelectedPersonId } = useTreeStore();
+  const router = useRouter();
 
   useEffect(() => {
     if (visible && family) {
@@ -132,12 +134,21 @@ export default function FamilyDetailModal({ visible, family, onClose }) {
   };
 
   const handleMemberPress = (member) => {
-    // Open the Al-Qefari member's profile
-    if (member.alqefari?.id) {
-      setSelectedPersonId(member.alqefari.id);
+    // Open the Munasib member's profile
+    if (member.munasib?.id) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Close modal first
       onClose();
+
+      // Navigate to tree screen with profile ID parameter
+      router.push({
+        pathname: "/",
+        params: {
+          openProfileId: member.munasib.id,
+        },
+      });
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleWhatsAppPress = (phone) => {

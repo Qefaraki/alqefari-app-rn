@@ -169,7 +169,7 @@ const ProfileSheetWrapper = ({ editMode }) => {
     return (
       <ProfileViewer
         person={person}
-        loading={(loadingMunasib && !person) || isTransitioning}
+        loading={loadingMunasib || isTransitioning || (!person && !!selectedPersonId)}
         onClose={handleClose}
         onNavigateToProfile={navigateToProfile}
         onUpdate={handleUpdate}

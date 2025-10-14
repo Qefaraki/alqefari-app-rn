@@ -292,8 +292,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: `${tokens.colors.najdi.border}40`,
   },
   sectionIcon: {
     width: 40,
@@ -358,9 +356,10 @@ const styles = StyleSheet.create({
   parentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   parentAvatar: {
-    marginLeft: 12,
+    // Gap handled by parentHeader
   },
   parentAvatarImage: {
     width: 56,

@@ -8,10 +8,12 @@ import PendingApprovalBanner from "../../src/components/PendingApprovalBanner";
 import { phoneAuthService } from "../../src/services/phoneAuth";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "../../src/contexts/AuthContextSimple";
+import { useTreeStore } from "../../src/stores/useTreeStore";
 
 export default function TreeScreen() {
   const { user, profile, isAdmin, isLoading } = useAuth();
   const params = useLocalSearchParams();
+  const { setSelectedPersonId } = useTreeStore();
   const [isGuest, setIsGuest] = useState(false);
   const [linkStatus, setLinkStatus] = useState(null);
   const [linkedProfileId, setLinkedProfileId] = useState(null);
@@ -26,6 +28,17 @@ export default function TreeScreen() {
       checkLinkStatus();
     }
   }, [user, profile, isLoading]);
+
+  // Handle profile opening from navigation params (e.g., from Admin screens)
+  useEffect(() => {
+    if (params.openProfileId) {
+      // 300ms delay ensures ProfileSheetWrapper is mounted and ready
+      const timer = setTimeout(() => {
+        setSelectedPersonId(params.openProfileId as string);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [params.openProfileId, setSelectedPersonId]);
 
   const checkLinkStatus = async () => {
     try {
