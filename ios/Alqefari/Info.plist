@@ -44,12 +44,6 @@
     <string>46</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-      <string>whatsapp</string>
-      <string>tel</string>
-      <string>mailto</string>
-    </array>
     <key>LSMinimumSystemVersion</key>
     <string>12.0</string>
     <key>LSRequiresIPhoneOS</key>
