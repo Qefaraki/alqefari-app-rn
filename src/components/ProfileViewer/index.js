@@ -330,6 +330,12 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   );
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
 
+  // Helper to hide skeleton immediately - defined early so useEffects can reference it
+  // No artificial delays - improves perceived performance
+  const hideSkeletonImmediately = useCallback((key) => {
+    setLoadingStates((prev) => ({ ...prev, [key]: false }));
+  }, []);
+
   // ✅ FIX: Controlled state pattern - ensure sheet opens when person loads
   useEffect(() => {
     if (person && currentSnapIndex === -1) {
@@ -465,12 +471,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   }, [animatedPosition, screenHeight, profileSheetProgress]);
 
   const canEdit = accessMode !== 'readonly';
-
-  // Helper to hide skeleton immediately
-  // No artificial delays - improves perceived performance
-  const hideSkeletonImmediately = useCallback((key) => {
-    setLoadingStates((prev) => ({ ...prev, [key]: false }));
-  }, []);
 
   const closeSheet = useCallback(() => {
     setMode('view');
