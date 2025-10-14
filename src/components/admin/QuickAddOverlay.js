@@ -251,6 +251,51 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       return;
     }
 
+    // =====================================================
+    // 🚀 START OF SAVE - Multi-child creation tracking
+    // =====================================================
+    console.log("\n🚀 ========== QUICK ADD SAVE START ==========");
+    console.log("📊 Total children to create:", newChildren.length);
+    console.log("📝 Total children to edit:", editedChildren.length);
+    console.log("🔄 Has reordered:", hasReordered);
+    console.log("\n👤 Parent context:");
+    console.log("  - Parent ID:", parentNode.id);
+    console.log("  - Parent name:", parentNode.name);
+    console.log("  - Parent gender:", parentNode.gender);
+    console.log("  - Parent generation:", parentNode.generation);
+
+    if (parentNode.gender === "male") {
+      console.log("  - Selected mother ID:", selectedMotherId || "(none)");
+    } else {
+      console.log("  - Selected father ID:", selectedFatherId || "(none)");
+    }
+
+    console.log("\n👶 Children to create:");
+    newChildren.forEach((child, index) => {
+      console.log(`\n  Child ${index + 1}:`);
+      console.log(`    - Temp ID: ${child.id}`);
+      console.log(`    - Name: ${child.name}`);
+      console.log(`    - Gender: ${child.gender}`);
+      console.log(`    - Mother ID: ${child.mother_id || "(none)"}`);
+      console.log(`    - Mother Name: ${child.mother_name || "(none)"}`);
+      console.log(`    - Kunya: ${child.kunya || "(none)"}`);
+      console.log(`    - Nickname: ${child.nickname || "(none)"}`);
+      console.log(`    - Sibling Order: ${child.sibling_order}`);
+    });
+
+    if (editedChildren.length > 0) {
+      console.log("\n✏️ Children to edit:");
+      editedChildren.forEach((child, index) => {
+        console.log(`\n  Child ${index + 1}:`);
+        console.log(`    - ID: ${child.id}`);
+        console.log(`    - Name: ${child.name}`);
+        console.log(`    - Changes:`, JSON.stringify(child.isEdited));
+      });
+    }
+
+    console.log("\n🚀 ==========================================\n");
+    // =====================================================
+
     setLoading(true);
 
     try {
@@ -308,6 +353,29 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
           profileData.mother_id = parentNode.id;
         }
 
+        // =====================================================
+        // 📤 PROFILE DATA - Before sending to createProfile
+        // =====================================================
+        console.log(`\n📤 Profile data for "${child.name}":`);
+        console.log("  ✅ Populated fields:");
+        Object.entries(profileData).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            console.log(`    - ${key}: ${value}`);
+          }
+        });
+        console.log("  ⚠️ Null/undefined fields:");
+        Object.entries(profileData).forEach(([key, value]) => {
+          if (value === null || value === undefined) {
+            console.log(`    - ${key}: ${value === null ? "null" : "undefined"}`);
+          }
+        });
+        // Optional fields from child object that aren't in profileData
+        console.log("  📋 Optional fields in child object:");
+        console.log(`    - kunya: ${child.kunya || "(not set)"}`);
+        console.log(`    - nickname: ${child.nickname || "(not set)"}`);
+        console.log(`    - mother_name: ${child.mother_name || "(not set)"}`);
+        // =====================================================
+
         promises.push(
           profilesService.createProfile(profileData).then(({ data, error }) => {
             if (error) throw error;
@@ -349,12 +417,53 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
       const results = await Promise.allSettled(promises);
 
-      // Log detailed errors for debugging
+      // =====================================================
+      // 📊 RESULTS - After Promise.allSettled
+      // =====================================================
+      console.log("\n📊 ========== PROMISE RESULTS ==========");
+      console.log(`Total promises: ${results.length}`);
+
+      let successCount = 0;
+      let failureCount = 0;
+
       results.forEach((result, index) => {
-        if (result.status === "rejected") {
-          console.error(`Child ${index + 1} creation failed:`, result.reason);
+        const operationNumber = index + 1;
+
+        if (result.status === "fulfilled") {
+          successCount++;
+          console.log(`\n✅ Operation ${operationNumber}: SUCCESS`);
+          if (result.value?.newId) {
+            console.log(`  - Created profile with ID: ${result.value.newId}`);
+            console.log(`  - Temp child ID: ${result.value.childId}`);
+          } else {
+            console.log(`  - Updated existing profile`);
+          }
+        } else {
+          failureCount++;
+          console.log(`\n❌ Operation ${operationNumber}: FAILED`);
+
+          const error = result.reason;
+          console.log("  📋 Full error details:");
+          console.log(`    - Message: ${error?.message || "(no message)"}`);
+          console.log(`    - Code: ${error?.code || "(no code)"}`);
+          console.log(`    - Hint: ${error?.hint || "(no hint)"}`);
+          console.log(`    - Details: ${error?.details || "(no details)"}`);
+
+          if (error?.error) {
+            console.log("  🔍 Nested error object:");
+            console.log(`    - Message: ${error.error.message || "(no message)"}`);
+            console.log(`    - Code: ${error.error.code || "(no code)"}`);
+          }
+
+          // Full error object for complete context
+          console.log("  🗂️ Raw error object:");
+          console.log(JSON.stringify(error, null, 2));
         }
       });
+
+      console.log(`\n📈 Summary: ${successCount} succeeded, ${failureCount} failed`);
+      console.log("📊 ==========================================\n");
+      // =====================================================
 
       const successful = results.filter((r) => r.status === "fulfilled").length;
       const failed = results.filter((r) => r.status === "rejected");

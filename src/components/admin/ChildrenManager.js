@@ -132,6 +132,7 @@ const ChildrenManager = ({ profile, onUpdate, isAdmin }) => {
       const { data, error } = await profilesService.deleteProfile(
         deleteTarget.id,
         cascade,
+        deleteTarget.version || 1,
       );
 
       if (error) {

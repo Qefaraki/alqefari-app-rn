@@ -287,7 +287,17 @@ export const profilesService = {
    * @param {Object} profileData - Profile data
    */
   async createProfile(profileData) {
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║  🆕 CREATE PROFILE - DETAILED DEBUG LOG                   ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+
     try {
+      // Log incoming profile data
+      console.log('\n📥 INCOMING PROFILE DATA:');
+      console.log('────────────────────────────────────────────────────────────');
+      console.log(JSON.stringify(profileData, null, 2));
+      console.log('────────────────────────────────────────────────────────────\n');
+
       // Map to RPC parameters
       const params = {
         p_name: profileData.name,
@@ -315,12 +325,46 @@ export const profilesService = {
         p_profile_visibility: profileData.profile_visibility || "public",
       };
 
+      console.log('📤 MAPPED RPC PARAMETERS:');
+      console.log('────────────────────────────────────────────────────────────');
+      console.log(JSON.stringify(params, null, 2));
+      console.log('────────────────────────────────────────────────────────────\n');
+
+      // Validate critical fields
+      const validationWarnings = [];
+      if (!params.p_name) validationWarnings.push('⚠️  Missing p_name');
+      if (!params.p_gender) validationWarnings.push('⚠️  Missing p_gender');
+      if (params.p_generation === null || params.p_generation === undefined) {
+        validationWarnings.push('⚠️  Missing p_generation (CRITICAL!)');
+      }
+
+      if (validationWarnings.length > 0) {
+        console.log('⚠️  VALIDATION WARNINGS:');
+        validationWarnings.forEach(w => console.log('   ' + w));
+        console.log('\n');
+      } else {
+        console.log('✅ All critical fields present\n');
+      }
+
+      console.log('🚀 Calling admin_create_profile RPC...\n');
+
       const { data, error } = await supabase.rpc(
         "admin_create_profile",
         params,
       );
 
       if (error) {
+        console.log('╔════════════════════════════════════════════════════════════╗');
+        console.log('║  ❌ RPC ERROR OCCURRED                                     ║');
+        console.log('╚════════════════════════════════════════════════════════════╝\n');
+        console.log('📍 Error Code:', error.code || 'N/A');
+        console.log('📍 Error Message:', error.message || 'N/A');
+        console.log('📍 Error Details:', error.details || 'N/A');
+        console.log('📍 Error Hint:', error.hint || 'N/A');
+        console.log('\n📍 Full Error Object:');
+        console.log(JSON.stringify(error, null, 2));
+        console.log('\n────────────────────────────────────────────────────────────\n');
+
         // Handle specific validation errors
         if (error.message.includes("Circular parent")) {
           throw new Error("Cannot create circular relationship");
@@ -331,8 +375,23 @@ export const profilesService = {
         throw error;
       }
 
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║  ✅ PROFILE CREATED SUCCESSFULLY                          ║');
+      console.log('╚════════════════════════════════════════════════════════════╝\n');
+      console.log('📍 Created Profile Data:');
+      console.log(JSON.stringify(data, null, 2));
+      console.log('\n────────────────────────────────────────────────────────────\n');
+
       return { data, error: null };
     } catch (error) {
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║  💥 EXCEPTION CAUGHT IN createProfile                     ║');
+      console.log('╚════════════════════════════════════════════════════════════╝\n');
+      console.log('📍 Exception Type:', error.constructor.name);
+      console.log('📍 Exception Message:', error.message);
+      console.log('📍 Exception Stack:', error.stack);
+      console.log('\n────────────────────────────────────────────────────────────\n');
+
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
@@ -429,17 +488,32 @@ export const profilesService = {
   /**
    * Delete profile with intelligent parameter detection
    * @param {string} profileId - Profile ID to delete
-   * @param {number|boolean} versionOrCascade - Either version number for optimistic locking, or boolean for cascade delete
+   * @param {number|boolean} versionOrCascade - Pass NUMBER for simple delete with version, or BOOLEAN true for cascade delete
+   * @param {number} profileVersion - Profile version for optimistic locking (required for cascade delete)
    * @returns {Promise<{data, error}>}
+   *
+   * @example Simple delete
+   * await deleteProfile(profile.id, profile.version || 1)
+   *
+   * @example Cascade delete
+   * await deleteProfile(profile.id, true, profile.version || 1)
    */
-  async deleteProfile(profileId, versionOrCascade = 1) {
+  async deleteProfile(profileId, versionOrCascade = 1, profileVersion = 1) {
     try {
+      // Validate boolean false edge case
+      if (typeof versionOrCascade === 'boolean' && versionOrCascade === false) {
+        return {
+          data: null,
+          error: 'Cascade delete requires explicit confirmation (pass true)'
+        };
+      }
+
       // Smart detection: boolean = cascade mode, number = version mode
       if (typeof versionOrCascade === 'boolean') {
         // Cascade delete path
         const { data, error } = await supabase.rpc("admin_cascade_delete_profile", {
           p_profile_id: profileId,
-          p_version: 1, // Default version for cascade
+          p_version: profileVersion, // Use actual profile version
           p_confirm_cascade: versionOrCascade,
           p_max_descendants: 100
         });
