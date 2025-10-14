@@ -1139,8 +1139,41 @@ export default function SettingsPageModern({ user }) {
               label="اقتراحاتي"
               description="عرض حالة اقتراحاتك المرسلة"
               onPress={() => {
-                handleFeedback();
-                router.push('/(app)/my-suggestions');
+                console.log('=== MySuggestions Navigation Debug ===');
+                console.log('Guest mode:', isGuestMode);
+                console.log('Router exists:', !!router);
+                console.log('Router push function:', typeof router?.push);
+                console.log('User profile:', userProfile?.id, userProfile?.name);
+
+                try {
+                  handleFeedback();
+                  console.log('✅ Haptic feedback triggered');
+
+                  const route = '/(app)/my-suggestions';
+                  console.log('🚀 Navigating to:', route);
+                  router.push(route);
+                  console.log('✅ Navigation call completed');
+                } catch (error) {
+                  console.error('❌ Navigation error:', error);
+                  console.error('Error stack:', error.stack);
+                  Alert.alert(
+                    'خطأ في التنقل',
+                    `فشل فتح صفحة الاقتراحات: ${error.message}`,
+                    [
+                      { text: 'حسناً', style: 'cancel' },
+                      {
+                        text: 'إعادة المحاولة',
+                        onPress: () => {
+                          try {
+                            router.replace('/(app)/my-suggestions');
+                          } catch (retryError) {
+                            console.error('❌ Retry also failed:', retryError);
+                          }
+                        }
+                      }
+                    ]
+                  );
+                }
               }}
               rightAccessory={
                 <Ionicons name="list-outline" size={18} color={colors.muted} />

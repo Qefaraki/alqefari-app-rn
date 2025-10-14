@@ -14,22 +14,24 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import suggestionService from "../../services/suggestionService";
 import * as Haptics from "expo-haptics";
+import LargeTitleHeader from "../ios/LargeTitleHeader";
+import tokens from "../../components/ui/tokens";
 
 // Najdi Sadu Design System Colors
 const COLORS = {
-  background: "#F9F7F3",
-  container: "#D1BBA3",
-  text: "#242121",
-  primary: "#A13333",
-  secondary: "#D58C4A",
-  textLight: "#24212199",
-  textMedium: "#242121CC",
-  success: "#22C55E",
-  error: "#EF4444",
+  background: tokens.colors.najdi.background,
+  container: tokens.colors.najdi.container,
+  text: tokens.colors.najdi.text,
+  primary: tokens.colors.najdi.primary,
+  secondary: tokens.colors.najdi.secondary,
+  textLight: tokens.colors.najdi.textMuted,
+  textMedium: tokens.colors.textMuted,
+  success: tokens.colors.success,
+  error: tokens.colors.danger,
   warning: "#F59E0B",
 };
 
-const SuggestionReviewManager = () => {
+const SuggestionReviewManager = ({ onClose, onBack }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -273,15 +275,18 @@ const SuggestionReviewManager = () => {
       {/* Inline diff */}
       <View style={styles.diffRow}>
         <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}:</Text>
-        <View style={styles.diffValues}>
-          <Text style={styles.valueOld} numberOfLines={1}>
-            {suggestion.old_value ?? "فارغ"}
-          </Text>
-          <Ionicons name="arrow-forward" size={16} color={COLORS.textLight} style={styles.arrowIcon} />
-          <Text style={styles.valueNew} numberOfLines={1}>
-            {suggestion.new_value}
-          </Text>
-        </View>
+        <Text style={styles.valueOld} numberOfLines={1}>
+          {suggestion.old_value ?? "فارغ"}
+        </Text>
+        <Ionicons
+          name="arrow-forward"
+          size={16}
+          color={COLORS.textMedium}
+          style={styles.arrowIcon}
+        />
+        <Text style={styles.valueNew} numberOfLines={1}>
+          {suggestion.new_value}
+        </Text>
       </View>
 
       {/* Collapsible reason */}
@@ -345,6 +350,21 @@ const SuggestionReviewManager = () => {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <LargeTitleHeader
+        title="مراجعة الاقتراحات"
+        emblemSource={require('../../../assets/logo/AlqefariEmblem.png')}
+        rightSlot={
+          <TouchableOpacity
+            onPress={onClose || onBack}
+            style={styles.backButton}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          >
+            <Ionicons name="chevron-back" size={28} color={COLORS.primary} />
+          </TouchableOpacity>
+        }
+      />
+
       {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -522,13 +542,17 @@ const styles = StyleSheet.create({
 
   // Diff Row
   diffRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 8,
   },
   fieldLabel: {
     fontSize: 13,
     fontWeight: "600",
     color: COLORS.textMedium,
-    marginBottom: 4,
+    minWidth: 80,
+    flexShrink: 0,
   },
   diffValues: {
     flexDirection: "row",
@@ -659,6 +683,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: COLORS.textMedium,
+  },
+  backButton: {
+    padding: 8,
   },
 });
 

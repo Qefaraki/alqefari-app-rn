@@ -355,6 +355,13 @@ function SuggestionCard({ suggestion }) {
         </View>
       </View>
 
+      {/* Reason text */}
+      {suggestion.reason && (
+        <Text style={styles.reasonText} numberOfLines={2}>
+          السبب: {suggestion.reason}
+        </Text>
+      )}
+
       {/* Collapsible timer (only if pending + family) */}
       {showTimer && (
         <View style={styles.timerRow}>
@@ -616,6 +623,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: COLORS.text,
     flex: 1,
+  },
+
+  // Reason Text
+  reasonText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontStyle: 'italic',
+    lineHeight: 18,
+    marginTop: 8,
   },
 
   // Timer Row

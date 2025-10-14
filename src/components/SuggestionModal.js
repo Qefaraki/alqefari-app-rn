@@ -18,18 +18,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
 import suggestionService from "../services/suggestionService";
 import * as Haptics from "expo-haptics";
+import tokens from "../components/ui/tokens";
 
 // Najdi Sadu Design System Colors
 const COLORS = {
-  background: "#F9F7F3", // Al-Jass White
-  container: "#D1BBA3", // Camel Hair Beige
-  text: "#242121", // Sadu Night
-  primary: "#A13333", // Najdi Crimson
-  secondary: "#D58C4A", // Desert Ochre
-  textLight: "#24212199", // Sadu Night 60%
-  textMedium: "#242121CC", // Sadu Night 80%
-  success: "#22C55E",
-  error: "#EF4444",
+  background: tokens.colors.najdi.background,
+  container: tokens.colors.najdi.container,
+  text: tokens.colors.najdi.text,
+  primary: tokens.colors.najdi.primary,
+  secondary: tokens.colors.najdi.secondary,
+  textLight: tokens.colors.najdi.textMuted,
+  textMedium: tokens.colors.textMuted,
+  success: tokens.colors.success,
+  error: tokens.colors.danger,
 };
 
 const SuggestionModal = ({
