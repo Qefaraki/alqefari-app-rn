@@ -42,27 +42,27 @@ const TYPOGRAPHY = {
   caption2: 11,
 };
 
-// Get icon and color for notification type
+// Get icon and color for notification type (iOS-style outline icons)
 const getNotificationStyle = (type: NotificationType): { icon: string; color: string } => {
   switch (type) {
     case 'link_request_approved':
-      return { icon: "checkmark-circle", color: NAJDI_COLORS.success };
+      return { icon: "checkmark-circle-outline", color: NAJDI_COLORS.success };
     case 'link_request_rejected':
-      return { icon: "close-circle", color: NAJDI_COLORS.error };
+      return { icon: "close-circle-outline", color: NAJDI_COLORS.error };
     case 'link_request_pending':
-      return { icon: "time", color: NAJDI_COLORS.secondary };
+      return { icon: "time-outline", color: NAJDI_COLORS.secondary };
     case 'new_link_request':
     case 'new_profile_link_request':
-      return { icon: "person-add", color: NAJDI_COLORS.primary };
+      return { icon: "person-add-outline", color: NAJDI_COLORS.primary };
     case 'admin_message':
-      return { icon: "megaphone", color: NAJDI_COLORS.primary };
+      return { icon: "megaphone-outline", color: NAJDI_COLORS.primary };
     case 'family_update':
     case 'profile_updated':
-      return { icon: "people", color: NAJDI_COLORS.secondary };
+      return { icon: "people-outline", color: NAJDI_COLORS.secondary };
     case 'system_message':
-      return { icon: "information-circle", color: NAJDI_COLORS.text };
+      return { icon: "information-circle-outline", color: NAJDI_COLORS.text };
     default:
-      return { icon: "notifications", color: NAJDI_COLORS.text };
+      return { icon: "notifications-outline", color: NAJDI_COLORS.text };
   }
 };
 
@@ -486,7 +486,7 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
         <TouchableOpacity
           style={styles.notificationItem}
           onPress={handleNotificationPress}
-          activeOpacity={0.95}
+          activeOpacity={0.6}
           accessibilityLabel={`${notification.title}. ${notification.body}. ${timeAgo}`}
           accessibilityRole="button"
           accessibilityState={{ selected: !notification.read }}
@@ -497,9 +497,12 @@ export default function NotificationCenter({ visible, onClose, onNavigateToAdmin
               accessibilityLabel="إشعار غير مقروء"
             />
           )}
-          <View style={styles.iconContainer}>
-            <Ionicons name={icon as any} size={24} color={color} />
-          </View>
+          <Ionicons
+            name={icon as any}
+            size={20}
+            color={color}
+            style={styles.notificationIcon}
+          />
           <View style={styles.notificationContent}>
             <Text style={[styles.notificationTitle, !notification.read && styles.notificationTitleUnread]}>
               {notification.title}
@@ -756,34 +759,30 @@ const styles = StyleSheet.create({
   notificationItem: {
     backgroundColor: NAJDI_COLORS.white,
     marginHorizontal: 16,
-    marginVertical: 4,
-    padding: 16,
-    borderRadius: 12,
+    marginVertical: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     flexDirection: "row",
     alignItems: "flex-start",
     minHeight: 44,
     shadowColor: NAJDI_COLORS.text,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 0.5 },
+    shadowOpacity: 0.03,
+    shadowRadius: 1,
+    elevation: 1,
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: NAJDI_COLORS.primary,
-    marginRight: 12,
-    marginTop: 8,
+    marginRight: 8,
+    marginTop: 6,
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${NAJDI_COLORS.container}40`,
-    alignItems: "center",
-    justifyContent: "center",
+  notificationIcon: {
     marginRight: 12,
+    marginTop: 2,
   },
   notificationContent: {
     flex: 1,
@@ -816,8 +815,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: 80,
     height: "100%",
-    borderRadius: 12,
-    marginVertical: 4,
+    borderRadius: 10,
+    marginVertical: 2,
   },
   emptyState: {
     flex: 1,
@@ -883,19 +882,21 @@ const styles = StyleSheet.create({
   skeletonItem: {
     backgroundColor: NAJDI_COLORS.white,
     marginHorizontal: 16,
-    marginVertical: 4,
-    padding: 16,
-    borderRadius: 12,
+    marginVertical: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
     flexDirection: "row",
     alignItems: "flex-start",
   },
   skeletonIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 20,
+    height: 20,
+    borderRadius: 4,
     backgroundColor: NAJDI_COLORS.container,
     opacity: 0.3,
     marginRight: 12,
+    marginTop: 2,
   },
   skeletonContent: {
     flex: 1,
