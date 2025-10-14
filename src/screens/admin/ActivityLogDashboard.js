@@ -107,7 +107,19 @@ const SEVERITY_BADGES = {
   },
 };
 
-const formatValue = (value) => {
+const formatSimpleValue = (value) => {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "نعم" : "لا";
+  if (typeof value === "object") {
+    return "بيانات";
+  }
+  if (typeof value === "string" && value.length > 80) {
+    return value.substring(0, 80) + "…";
+  }
+  return String(value);
+};
+
+const formatDetailedValue = (value) => {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "نعم" : "لا";
   if (typeof value === "object") {
@@ -116,9 +128,6 @@ const formatValue = (value) => {
     } catch (error) {
       return String(value);
     }
-  }
-  if (typeof value === "string" && value.length > 80) {
-    return value.substring(0, 80) + "…";
   }
   return String(value);
 };
@@ -294,7 +303,7 @@ const SmartNameDisplay = React.memo(
   }
 );
 
-const StatusHeader = ({ stats, latestTimestamp, onShowCritical, onShowToday, onClose }) => {
+const StatusHeader = ({ latestTimestamp, onClose }) => {
   const lastActivity = latestTimestamp ? formatRelativeTime(latestTimestamp) : "لا توجد أنشطة";
 
   return (
@@ -307,7 +316,6 @@ const StatusHeader = ({ stats, latestTimestamp, onShowCritical, onShowToday, onC
         />
         <View style={{ flex: 1 }}>
           <Text style={styles.screenTitle}>سجل النشاط</Text>
-          <Text style={styles.screenSubtitle}>آخر تحديث {lastActivity}</Text>
         </View>
         {onClose && (
           <TouchableOpacity
@@ -320,40 +328,8 @@ const StatusHeader = ({ stats, latestTimestamp, onShowCritical, onShowToday, onC
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.statusCardsRow}>
-        <StatusCard
-          label="اليوم"
-          value={stats.today}
-          onPress={onShowToday}
-        />
-        <StatusCard
-          label="حرج"
-          value={stats.critical}
-          highlight
-          onPress={onShowCritical}
-        />
-        <StatusCard label="الإجمالي" value={stats.total} />
-        <StatusCard label="مستخدمون" value={stats.users} />
-      </View>
+      <Text style={styles.screenSubtitle}>آخر تحديث {lastActivity}</Text>
     </View>
-  );
-};
-
-const StatusCard = ({ label, value, onPress, highlight }) => {
-  return (
-    <TouchableOpacity
-      style={[styles.statusCard, highlight && styles.statusCardHighlight]}
-      activeOpacity={0.75}
-      onPress={onPress}
-      disabled={!onPress}
-    >
-      <Text style={[styles.statusCardValue, highlight && styles.statusCardValueHighlight]}>
-        {value}
-      </Text>
-      <Text style={[styles.statusCardLabel, highlight && styles.statusCardLabelHighlight]}>
-        {label}
-      </Text>
-    </TouchableOpacity>
   );
 };
 
@@ -683,7 +659,7 @@ const AdvancedDetails = ({ activity }) => {
       {rows.map((row) => (
         <View key={row.label} style={styles.advancedRow}>
           <Text style={styles.advancedLabel}>{row.label}</Text>
-          <Text style={styles.advancedValue}>{formatValue(row.value)}</Text>
+          <Text style={styles.advancedValue}>{formatDetailedValue(row.value)}</Text>
         </View>
       ))}
 
