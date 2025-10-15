@@ -485,6 +485,49 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
   }, [person?.id, permissionLoading, hideSkeletonImmediately]);
 
+  // Real-time subscription to keep profile synchronized with database
+  // Prevents version staleness after undo operations or external edits
+  useEffect(() => {
+    if (!person?.id) return;
+
+    console.log('[ProfileViewer] Setting up real-time subscription for profile:', person.id);
+
+    const channel = supabase
+      .channel(`profile-updates-${person.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${person.id}`,
+        },
+        (payload) => {
+          console.log('[ProfileViewer] Real-time update received:', {
+            profileId: person.id,
+            oldVersion: person.version,
+            newVersion: payload.new.version,
+            updatedFields: Object.keys(payload.new || {}),
+          });
+
+          // Update tree store with fresh data from database
+          useTreeStore.getState().updateNode(person.id, payload.new);
+
+          // Notify parent component of the update (if callback exists)
+          // Using optional call to avoid dependency on onUpdate
+          if (onUpdate) {
+            onUpdate(payload.new);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('[ProfileViewer] Cleaning up real-time subscription for profile:', person.id);
+      supabase.removeChannel(channel);
+    };
+  }, [person?.id]); // Removed onUpdate from dependencies to prevent subscription recreation
+
   // Track sheet position and update global store progress
   // Follows established pattern from ProfileSheet.js
   useAnimatedReaction(
@@ -778,7 +821,100 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     } catch (error) {
       console.error('ProfileViewer save error', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('خطأ', error.message || 'تعذر حفظ التغييرات');
+
+      // Enhanced error handling for version conflicts
+      const errorMessage = error?.message || '';
+      const isVersionConflict = errorMessage.includes('تم تحديث البيانات من مستخدم آخر') ||
+                                errorMessage.includes('version') ||
+                                errorMessage.includes('الإصدار');
+
+      if (isVersionConflict) {
+        console.log('[ProfileViewer] Version conflict detected');
+
+        // Check if user has unsaved changes in edit mode
+        const hasUnsavedChanges = mode === 'edit' && form.isDirty;
+
+        if (hasUnsavedChanges) {
+          // User has unsaved changes - prompt before refreshing
+          Alert.alert(
+            'تعارض في النسخة',
+            'تم تحديث هذا الملف من مستخدم آخر. لديك تعديلات غير محفوظة. ماذا تريد أن تفعل؟',
+            [
+              {
+                text: 'تجاهل تعديلاتي وتحديث',
+                style: 'destructive',
+                onPress: async () => {
+                  const { data: freshProfile, error: refreshError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .is('deleted_at', null)
+                    .eq('id', person.id)
+                    .single();
+
+                  if (freshProfile && !refreshError) {
+                    console.log('[ProfileViewer] Profile refreshed after version conflict:', {
+                      oldVersion: person.version,
+                      newVersion: freshProfile.version
+                    });
+
+                    useTreeStore.getState().updateNode(person.id, freshProfile);
+                    onUpdate?.(freshProfile);
+
+                    // Exit edit mode and reset form
+                    setMode('view');
+                    form.reset();
+
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    Alert.alert('تم التحديث', 'تم تحديث البيانات بنجاح.');
+                  } else {
+                    console.error('[ProfileViewer] Failed to refresh after conflict:', refreshError);
+                    Alert.alert('خطأ', 'فشل تحديث البيانات');
+                  }
+                }
+              },
+              {
+                text: 'الاحتفاظ بتعديلاتي',
+                style: 'cancel',
+                onPress: () => {
+                  console.log('[ProfileViewer] User chose to keep their edits');
+                }
+              }
+            ]
+          );
+        } else {
+          // No unsaved changes - safe to auto-refresh
+          const { data: freshProfile, error: refreshError } = await supabase
+            .from('profiles')
+            .select('*')
+            .is('deleted_at', null)
+            .eq('id', person.id)
+            .single();
+
+          if (freshProfile && !refreshError) {
+            console.log('[ProfileViewer] Profile refreshed after version conflict:', {
+              oldVersion: person.version,
+              newVersion: freshProfile.version
+            });
+
+            useTreeStore.getState().updateNode(person.id, freshProfile);
+            onUpdate?.(freshProfile);
+
+            Alert.alert(
+              'تم تحديث الملف',
+              'تم تحديث الملف من مستخدم آخر. تم تحديث البيانات. يرجى المحاولة مرة أخرى.',
+              [
+                { text: 'حسناً', style: 'default' }
+              ]
+            );
+          } else {
+            console.error('[ProfileViewer] Failed to refresh profile after version conflict:', refreshError);
+            Alert.alert('خطأ', errorMessage);
+          }
+        }
+      } else {
+        // Show generic error for non-version conflicts
+        Alert.alert('خطأ', errorMessage || 'تعذر حفظ التغييرات');
+      }
     } finally {
       setSaving(false);
     }

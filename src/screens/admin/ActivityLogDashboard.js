@@ -26,6 +26,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { SymbolView } from "expo-symbols";
+import BottomSheet, { BottomSheetBackdrop, BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import {
@@ -51,6 +52,7 @@ import DateRangePickerModal from "../../components/admin/DateRangePickerModal";
 import { useAuth } from "../../contexts/AuthContext";
 import undoService from "../../services/undoService";
 import { useUndoStore } from "../../stores/undoStore";
+import { useTreeStore } from "../../stores/useTreeStore";
 import Toast from "../../components/ui/Toast";
 
 const colors = {
@@ -162,21 +164,6 @@ const SFIcon = ({ name, fallback, rtlFallback, size = 20, color, weight = "regul
 
   const iconName = I18nManager.isRTL && rtlFallback ? rtlFallback : fallback;
   return <Ionicons name={iconName} size={size} color={color} style={style} />;
-};
-
-const useModalOverlay = (visible) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.timing(opacity, {
-      toValue: visible ? 1 : 0,
-      duration: visible ? 160 : 120,
-      easing: visible ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [visible, opacity]);
-
-  return opacity;
 };
 
 const getMeaningfulFields = (fields = []) => fields.filter((field) => !METADATA_FIELDS.has(field));
@@ -303,7 +290,7 @@ const SmartNameDisplay = React.memo(
             <SFIcon name="person.circle" fallback="person-circle-outline" size={14} color="#73637280" />
             <Text style={[style, historicalStyle]}>{normalizedHistorical}</Text>
           </View>
-          <View style={[styles.nameRow, { marginRight: 18 }]}>
+          <View style={[styles.nameRow, { marginRight: 16 }]}>
             <View style={styles.nowBadge}>
               <Text style={styles.nowBadgeText}>الآن</Text>
             </View>
@@ -345,7 +332,7 @@ const StatusHeader = ({ latestTimestamp, onClose }) => (
         <Text style={styles.screenTitle}>سجل النشاط</Text>
       </View>
       {onClose && (
-        <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
           <SFIcon
             name="chevron.forward"
             fallback="chevron-forward"
@@ -361,23 +348,9 @@ const StatusHeader = ({ latestTimestamp, onClose }) => (
 
 const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchChange }) => {
   const hasFilters = activeFiltersCount > 0;
-  const label = hasFilters ? `المصفيات (${activeFiltersCount})` : "المصفيات";
 
   return (
     <View style={styles.controlsRow}>
-      <TouchableOpacity
-        style={[styles.filterChip, hasFilters && styles.filterChipActive]}
-        onPress={onOpenFilters}
-        activeOpacity={0.75}
-      >
-        <SFIcon
-          name="line.3.horizontal.decrease.circle"
-          fallback="options-outline"
-          size={18}
-          color={hasFilters ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
-        />
-        <Text style={[styles.filterChipText, hasFilters && styles.filterChipTextActive]}>{label}</Text>
-      </TouchableOpacity>
       <View style={styles.searchContainer}>
         <SFIcon name="magnifyingglass" fallback="search" size={18} color={tokens.colors.najdi.textMuted} />
         <TextInput
@@ -389,40 +362,80 @@ const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchCh
           returnKeyType="search"
         />
         {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => onSearchChange("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => onSearchChange("")} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <SFIcon name="xmark.circle.fill" fallback="close-circle" size={18} color={tokens.colors.najdi.textMuted} />
           </TouchableOpacity>
         )}
       </View>
+      <TouchableOpacity
+        style={[styles.filterFab, hasFilters && styles.filterFabActive]}
+        onPress={onOpenFilters}
+        activeOpacity={0.75}
+        accessibilityLabel="تصفية السجل"
+      >
+        <SFIcon
+          name="line.3.horizontal.decrease.circle"
+          fallback="options-outline"
+          size={18}
+          color={hasFilters ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
+        />
+        {hasFilters && <View style={styles.filterFabBadge} />}
+      </TouchableOpacity>
     </View>
   );
 };
 
-const FiltersSheet = ({
-  visible,
-  onClose,
-  categoryFilter,
-  severityFilter,
-  datePreset,
-  onSelectCategory,
-  onSelectSeverity,
-  onOpenDate,
-  onOpenUser,
-  selectedUser,
-  onClear,
-}) => {
-  const overlayOpacity = useModalOverlay(visible);
+const FiltersSheet = React.forwardRef((
+  {
+    visible,
+    onClose,
+    categoryFilter,
+    severityFilter,
+    datePreset,
+    onSelectCategory,
+    onSelectSeverity,
+    onOpenDate,
+    onOpenUser,
+    selectedUser,
+    onClear,
+    renderBackdrop,
+    renderHandle,
+    snapPoints,
+  },
+  ref,
+) => {
+  useEffect(() => {
+    if (visible) {
+      ref?.current?.snapToIndex(0);
+    } else {
+      ref?.current?.close();
+    }
+  }, [visible, ref]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Animated.View style={[styles.filtersSheetOverlay, { opacity: overlayOpacity }]}>
-      <TouchableOpacity style={styles.filtersSheetBackdrop} activeOpacity={1} onPress={onClose} />
-      <View style={styles.filtersSheetContainer}>
+    <BottomSheet
+      ref={ref}
+      index={-1}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      onClose={onClose}
+      backgroundStyle={styles.sheetBackground}
+      handleComponent={renderHandle}
+      backdropComponent={renderBackdrop}
+    >
+      <BottomSheetScrollView
+        contentContainerStyle={styles.filtersSheetContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.filtersSheetHeader}>
           <Text style={styles.filtersSheetTitle}>المصفيات</Text>
           <TouchableOpacity onPress={onClear} activeOpacity={0.7}>
             <Text style={styles.filtersSheetReset}>إعادة الضبط</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.filtersSheetIntro}>
+          <Text style={styles.filtersSheetIntroText}>اضبط ما يظهر في الخط الزمني الآن.</Text>
         </View>
 
         <View style={styles.filtersSheetSection}>
@@ -442,7 +455,6 @@ const FiltersSheet = ({
                     fallback={option.fallback}
                     size={16}
                     color={isActive ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
-                    style={styles.filtersSheetChipIcon}
                   />
                   <Text
                     style={[styles.filtersSheetChipText, isActive && styles.filtersSheetChipTextActive]}
@@ -472,7 +484,6 @@ const FiltersSheet = ({
                     fallback={option.fallback}
                     size={15}
                     color={isActive ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
-                    style={styles.filtersSheetChipIcon}
                   />
                   <Text
                     style={[styles.filtersSheetChipTextSmall, isActive && styles.filtersSheetChipTextSmallActive]}
@@ -500,11 +511,10 @@ const FiltersSheet = ({
         <TouchableOpacity style={styles.filtersSheetDone} onPress={onClose} activeOpacity={0.8}>
           <Text style={styles.filtersSheetDoneText}>تم</Text>
         </TouchableOpacity>
-      </View>
-      </Animated.View>
-    </Modal>
+      </BottomSheetScrollView>
+    </BottomSheet>
   );
-};
+});
 
 const ActivityListCard = ({ activity, onPress, onUndo }) => {
   const summary = buildActivitySummary(activity);
@@ -524,8 +534,16 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
         <View style={styles.activityMetaRow}>
           <Text style={styles.activityTime}>{relativeTime}</Text>
           {severityBadge && (
-            <View style={[styles.severityTag, { backgroundColor: severityBadge.color }]}>
-              <Text style={[styles.severityTagText, { color: severityBadge.text }]}>{severityBadge.label}</Text>
+            <View
+              style={[
+                styles.severityTag,
+                {
+                  backgroundColor: `${severityBadge.color}26`,
+                  borderColor: `${severityBadge.color}40`,
+                },
+              ]}
+            >
+              <Text style={[styles.severityTagText, { color: severityBadge.color }]}>{severityBadge.label}</Text>
             </View>
           )}
         </View>
@@ -570,117 +588,180 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
   );
 };
 
-const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateToProfile, onOpenAdvanced }) => {
-  if (!activity) return null;
+const ActivityDetailsSheet = React.forwardRef(
+  (
+    {
+      activity,
+      onClose,
+      onUndo,
+      onNavigateToProfile,
+      onOpenAdvanced,
+      renderBackdrop,
+      renderHandle,
+      snapPoints,
+    },
+    ref,
+  ) => {
+    const meaningfulFields = activity ? getMeaningfulFields(activity.changed_fields || []) : [];
+    const severityBadge = activity ? getSeverityBadge(activity.severity) : null;
+    const summary = activity ? buildActivitySummary(activity) : "";
+    const actorName = activity?.actor_name_current || activity?.actor_name_historical;
+    const targetName = activity?.target_name_current || activity?.target_name_historical;
+    const showUndo = activity?.is_undoable === true && !activity?.undone_at;
 
-  const overlayOpacity = useModalOverlay(visible);
-  const meaningfulFields = getMeaningfulFields(activity.changed_fields || []);
-  const severityBadge = getSeverityBadge(activity.severity);
-  const summary = buildActivitySummary(activity);
-  const actorName = activity.actor_name_current || activity.actor_name_historical;
-  const targetName = activity.target_name_current || activity.target_name_historical;
-  const showUndo = activity.is_undoable === true && !activity.undone_at;
+    return (
+      <BottomSheet
+        ref={ref}
+        index={-1}
+        snapPoints={snapPoints}
+        enablePanDownToClose
+        onClose={onClose}
+        backgroundStyle={styles.sheetBackground}
+        handleComponent={renderHandle}
+        backdropComponent={renderBackdrop}
+      >
+        <BottomSheetScrollView contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
+          {activity ? (
+            <>
+              <Text style={styles.sheetTitle}>{summary}</Text>
+              <Text style={styles.sheetTimestamp}>{formatAbsoluteTime(activity.created_at)}</Text>
 
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Animated.View style={[styles.sheetOverlay, { opacity: overlayOpacity }]}>
-        <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheetContainer}>
-          <View style={styles.sheetHandleRow}>
-            <View style={styles.sheetHandle} />
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
-            <Text style={styles.sheetTitle}>{summary}</Text>
-            <Text style={styles.sheetTimestamp}>{formatAbsoluteTime(activity.created_at)}</Text>
-
-            {severityBadge && (
-              <View style={[styles.sheetSeverity, { backgroundColor: severityBadge.color }]}>
-                <Text style={[styles.sheetSeverityText, { color: severityBadge.text }]}>{severityBadge.label}</Text>
-              </View>
-            )}
-
-            <View style={styles.sheetSection}>
-              <Text style={styles.sheetSectionTitle}>ما الذي تغيّر؟</Text>
-              {meaningfulFields.length === 0 && (
-                <Text style={styles.sheetValueMuted}>لا توجد تفاصيل إضافية</Text>
+              {severityBadge && (
+                <View
+                  style={[
+                    styles.sheetSeverity,
+                    {
+                      backgroundColor: `${severityBadge.color}26`,
+                      borderColor: `${severityBadge.color}40`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.sheetSeverityText, { color: severityBadge.color }]}>{severityBadge.label}</Text>
+                </View>
               )}
-              {meaningfulFields.map((field) => {
-                const oldValue = formatSimpleValue(activity.old_data?.[field]);
-                const newValue = formatSimpleValue(activity.new_data?.[field]);
-                return (
-                  <View key={field} style={styles.changeRow}>
-                    <Text style={styles.changeBullet}>•</Text>
-                    <View style={styles.changeContent}>
-                      <Text style={styles.changeFieldLabel}>{getFieldLabel(field)}</Text>
-                      <Text style={styles.changeFieldValue}>
-                        <Text style={styles.changeValueLabel}>من </Text>
-                        <Text style={styles.changeValueOld}>{oldValue}</Text>
-                        <Text style={styles.changeValueLabel}> إلى </Text>
-                        <Text style={styles.changeValueNew}>{newValue}</Text>
-                      </Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
 
-            <View style={styles.sheetSection}>
-              <Text style={styles.sheetSectionTitle}>من قام بذلك؟</Text>
-              {activity.actor_profile_id ? (
-                <SmartNameDisplay
-                  historicalName={activity.actor_name_historical}
-                  currentName={activity.actor_name_current}
-                  profileId={activity.actor_profile_id}
-                  onNavigate={onNavigateToProfile}
-                  style={styles.sheetValue}
-                />
-              ) : (
-                <Text style={styles.sheetValue}>{actorName || "—"}</Text>
-              )}
-              {activity.actor_phone && <Text style={styles.sheetValueMuted}>{activity.actor_phone}</Text>}
-            </View>
-
-            {targetName && (
               <View style={styles.sheetSection}>
-                <Text style={styles.sheetSectionTitle}>على من؟</Text>
-                <SmartNameDisplay
-                  historicalName={activity.target_name_historical}
-                  currentName={activity.target_name_current}
-                  profileId={activity.target_profile_id}
-                  onNavigate={onNavigateToProfile}
-                  style={styles.sheetValue}
-                />
-                {activity.target_phone && <Text style={styles.sheetValueMuted}>{activity.target_phone}</Text>}
+                <Text style={styles.sheetSectionTitle}>ما الذي تغيّر؟</Text>
+                {meaningfulFields.length === 0 && (
+                  <Text style={styles.sheetValueMuted}>لا توجد تفاصيل إضافية</Text>
+                )}
+                {meaningfulFields.map((field) => {
+                  const oldValue = formatSimpleValue(activity.old_data?.[field]);
+                  const newValue = formatSimpleValue(activity.new_data?.[field]);
+                  return (
+                    <View key={field} style={styles.changeCard}>
+                      <Text style={styles.changeFieldLabel}>{getFieldLabel(field)}</Text>
+                      <View style={styles.changeCardValues}>
+                        <View style={[styles.changeValueBox, styles.changeValueBoxOld]}>
+                          <Text style={styles.changeValueBoxLabel}>قبل</Text>
+                          <Text style={styles.changeValueBoxText}>{oldValue}</Text>
+                        </View>
+                        <SFIcon
+                          name="arrow.right"
+                          fallback="arrow-forward"
+                          rtlFallback="arrow-back"
+                          size={14}
+                          color={tokens.colors.najdi.text}
+                          style={styles.changeArrow}
+                        />
+                        <View style={[styles.changeValueBox, styles.changeValueBoxNew]}>
+                          <Text style={styles.changeValueBoxLabel}>بعد</Text>
+                          <Text style={[styles.changeValueBoxText, styles.changeValueBoxTextNew]}>{newValue}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
-            )}
 
-            <View style={styles.sheetSection}>
-              <Text style={styles.sheetSectionTitle}>السياق</Text>
-              {activity.description && <Text style={styles.sheetValue}>{activity.description}</Text>}
-              <Text style={styles.sheetValueMuted}>{formatRelativeTime(activity.created_at)}</Text>
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>من قام بذلك؟</Text>
+                {activity.actor_profile_id ? (
+                  <SmartNameDisplay
+                    historicalName={activity.actor_name_historical}
+                    currentName={activity.actor_name_current}
+                    profileId={activity.actor_profile_id}
+                    onNavigate={onNavigateToProfile}
+                    style={styles.sheetValue}
+                  />
+                ) : (
+                  <Text style={styles.sheetValue}>{actorName || "—"}</Text>
+                )}
+                {activity.actor_phone && <Text style={styles.sheetValueMuted}>{activity.actor_phone}</Text>}
+              </View>
+
+              {targetName && (
+                <View style={styles.sheetSection}>
+                  <Text style={styles.sheetSectionTitle}>على من؟</Text>
+                  <SmartNameDisplay
+                    historicalName={activity.target_name_historical}
+                    currentName={activity.target_name_current}
+                    profileId={activity.target_profile_id}
+                    onNavigate={onNavigateToProfile}
+                    style={styles.sheetValue}
+                  />
+                  {activity.target_phone && <Text style={styles.sheetValueMuted}>{activity.target_phone}</Text>}
+                </View>
+              )}
+
+              <View style={styles.sheetSection}>
+                <Text style={styles.sheetSectionTitle}>السياق</Text>
+                {activity.description && <Text style={styles.sheetValue}>{activity.description}</Text>}
+                <Text style={styles.sheetValueMuted}>{formatRelativeTime(activity.created_at)}</Text>
+              </View>
+
+              {onOpenAdvanced && (
+                <TouchableOpacity
+                  style={styles.advancedLink}
+                  onPress={() => activity && onOpenAdvanced(activity)}
+                  activeOpacity={0.75}
+                >
+                  <SFIcon
+                    name="info.circle"
+                    fallback="information-circle-outline"
+                    size={18}
+                    color={tokens.colors.najdi.text}
+                  />
+                  <Text style={styles.advancedLinkText}>معلومات متقدمة</Text>
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.sheetActions}>
+                <TouchableOpacity style={styles.sheetCloseButton} onPress={onClose} activeOpacity={0.75}>
+                  <Text style={styles.sheetCloseText}>إغلاق</Text>
+                </TouchableOpacity>
+                {showUndo && (
+                  <TouchableOpacity style={styles.sheetUndoButton} onPress={() => onUndo(activity)} activeOpacity={0.8}>
+                    <SFIcon name="arrow.uturn.backward" fallback="arrow-undo" size={18} color="#F9F7F3" style={styles.sheetUndoIcon} />
+                    <Text style={styles.sheetUndoText}>تراجع</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </>
+          ) : (
+            <View style={styles.emptySheetState}>
+              <Text style={styles.sheetValueMuted}>لا يوجد نشاط محدد</Text>
             </View>
+          )}
+        </BottomSheetScrollView>
+      </BottomSheet>
+    );
+  },
+);
 
-            <TouchableOpacity style={styles.advancedLink} onPress={() => onOpenAdvanced(activity)} activeOpacity={0.75}>
-              <SFIcon name="info.circle" fallback="information-circle-outline" size={18} color={tokens.colors.najdi.text} />
-              <Text style={styles.advancedLinkText}>معلومات متقدمة</Text>
-            </TouchableOpacity>
-          </ScrollView>
+const useModalOverlay = (isVisible) => {
+  const opacity = useRef(new Animated.Value(0)).current;
 
-          <View style={styles.sheetActions}>
-            <TouchableOpacity style={styles.sheetCloseButton} onPress={onClose} activeOpacity={0.75}>
-              <Text style={styles.sheetCloseText}>إغلاق</Text>
-            </TouchableOpacity>
-            {showUndo && (
-              <TouchableOpacity style={styles.sheetUndoButton} onPress={() => onUndo(activity)} activeOpacity={0.8}>
-                <SFIcon name="arrow.uturn.backward" fallback="arrow-undo" size={18} color="#F9F7F3" style={styles.sheetUndoIcon} />
-                <Text style={styles.sheetUndoText}>تراجع</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </Animated.View>
-    </Modal>
-  );
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: isVisible ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [isVisible, opacity]);
+
+  return opacity;
 };
 
 const AdvancedDetails = ({ activity }) => {
@@ -698,12 +779,14 @@ const AdvancedDetails = ({ activity }) => {
 
   return (
     <View style={styles.advancedContainer}>
-      {rows.map((row) => (
-        <View key={row.label} style={styles.advancedRow}>
-          <Text style={styles.advancedLabel}>{row.label}</Text>
-          <Text style={styles.advancedValue}>{formatDetailedValue(row.value)}</Text>
-        </View>
-      ))}
+      <View style={styles.advancedMetaGrid}>
+        {rows.map((row) => (
+          <View key={row.label} style={styles.advancedMetaCard}>
+            <Text style={styles.advancedLabel}>{row.label}</Text>
+            <Text style={styles.advancedMetaValue}>{formatDetailedValue(row.value)}</Text>
+          </View>
+        ))}
+      </View>
 
       <View style={styles.advancedJsonBlock}>
         <Text style={styles.advancedLabel}>البيانات الجديدة</Text>
@@ -723,16 +806,16 @@ const AdvancedDetails = ({ activity }) => {
 };
 
 const AdvancedDetailsModal = ({ activity, visible, onClose }) => {
-  if (!activity) return null;
+  const overlayOpacity = useModalOverlay(visible && !!activity);
 
-  const overlayOpacity = useModalOverlay(visible);
+  if (!activity) return null;
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Animated.View style={[styles.advancedOverlay, { opacity: overlayOpacity }]}>
         <View style={styles.advancedModalContainer}>
           <View style={styles.advancedModalHeader}>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
               <SFIcon name="xmark" fallback="close" size={24} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
             <Text style={styles.advancedModalTitle}>معلومات متقدمة</Text>
@@ -748,17 +831,19 @@ const AdvancedDetailsModal = ({ activity, visible, onClose }) => {
 };
 
 const ActivityLogSkeleton = () => (
-  <SafeAreaView style={styles.container}>
+  <SafeAreaView style={styles.container} edges={['top']}>
     <View style={styles.statusHeader}>
-      <SkeletonLoader width="100%" height={56} borderRadius={16} />
+      <SkeletonLoader width="100%" height={40} borderRadius={12} />
     </View>
-    <View style={styles.controlsRow}>
-      <SkeletonLoader width={120} height={36} borderRadius={18} />
-      <SkeletonLoader width="60%" height={36} borderRadius={12} />
+    <View style={[styles.controlsRow, { paddingBottom: 0 }]}>
+      <View style={{ flex: 1 }}>
+        <SkeletonLoader width="100%" height={36} borderRadius={12} />
+      </View>
+      <SkeletonLoader width={44} height={44} borderRadius={22} />
     </View>
-    <View style={{ paddingHorizontal: 16, gap: 12 }}>
-      <SkeletonLoader width="100%" height={96} borderRadius={16} />
-      <SkeletonLoader width="100%" height={96} borderRadius={16} />
+    <View style={{ paddingHorizontal: 16, gap: 12, paddingTop: 12 }}>
+      <SkeletonLoader width="100%" height={90} borderRadius={16} />
+      <SkeletonLoader width="100%" height={90} borderRadius={16} />
     </View>
   </SafeAreaView>
 );
@@ -806,6 +891,72 @@ const matchesSeverityFilter = (activity, severity) => {
   return true;
 };
 
+// Enhanced error message parser for undo operations
+const parseUndoError = (error) => {
+  const msg = error?.message || '';
+
+  // Version conflict - profile was updated after the change being undone
+  if (msg.includes('تم تحديث الملف من مستخدم آخر') || msg.includes('الإصدار الحالي')) {
+    return {
+      type: 'version_conflict',
+      message: 'توجد تغييرات أحدث. قم بالتراجع عن التغييرات الأحدث أولاً (بالترتيب العكسي).',
+      shouldRefresh: true
+    };
+  }
+
+  // Already undone
+  if (msg.includes('تم التراجع عن هذا الإجراء بالفعل')) {
+    return {
+      type: 'already_undone',
+      message: 'تم التراجع عن هذا الإجراء بالفعل',
+      shouldRefresh: true
+    };
+  }
+
+  // Parent profile deleted
+  if (msg.includes('محذوف')) {
+    return {
+      type: 'parent_deleted',
+      message: 'تم حذف ملف الأب/الأم. استعد الملف المحذوف أولاً.',
+      shouldRefresh: true
+    };
+  }
+
+  // Profile being edited or stale data
+  if (msg.includes('الملف قيد التعديل') || msg.includes('foreign key') || msg.includes('constraint')) {
+    return {
+      type: 'stale_data',
+      message: 'تم تحديث الملف. جاري تحديث الصفحة...',
+      shouldRefresh: true
+    };
+  }
+
+  // Network errors
+  if (msg.includes('network') || msg.includes('timeout') || msg.includes('Failed to fetch')) {
+    return {
+      type: 'network',
+      message: 'خطأ في الاتصال. تحقق من الإنترنت وحاول مرة أخرى.',
+      shouldRefresh: false
+    };
+  }
+
+  // Permission denied
+  if (msg.includes('غير مصرح') || msg.includes('صلاحية')) {
+    return {
+      type: 'permission',
+      message: msg,
+      shouldRefresh: false
+    };
+  }
+
+  // Generic fallback
+  return {
+    type: 'unknown',
+    message: msg || 'حدث خطأ أثناء التراجع',
+    shouldRefresh: false
+  };
+};
+
 export default function ActivityLogDashboard({ onClose, onNavigateToProfile, profile: profileProp }) {
   const authContext = useAuth();
   const profile = profileProp || authContext.profile;
@@ -838,6 +989,30 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   const [advancedModalVisible, setAdvancedModalVisible] = useState(false);
 
   const { showToast, hideToast, toastVisible, toastMessage, toastType } = useUndoStore();
+  const detailSheetRef = useRef(null);
+  const filterSheetRef = useRef(null);
+  const detailSnapPoints = useMemo(() => ['60%', '90%'], []);
+  const filterSnapPoints = useMemo(() => ['45%', '75%'], []);
+
+  const renderBottomSheetBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        pressBehavior="close"
+        opacity={0.08}
+      />
+    ),
+    []
+  );
+
+  const renderSheetHandle = useCallback(() => (
+    <View style={styles.sheetHandleRow}>
+      <View style={styles.sheetHandleIndicator} />
+    </View>
+  ), []);
+
 
   const requestIdRef = useRef(0);
   const selectedUserRef = useRef(selectedUser);
@@ -845,6 +1020,22 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   const customDateRangeRef = useRef({ from: customDateFrom, to: customDateTo });
   const categoryFilterRef = useRef(categoryFilter);
   const severityFilterRef = useRef(severityFilter);
+
+  useEffect(() => {
+    if (detailsVisible && selectedActivity) {
+      detailSheetRef.current?.snapToIndex(0);
+    } else {
+      detailSheetRef.current?.close();
+    }
+  }, [detailsVisible, selectedActivity]);
+
+  useEffect(() => {
+    if (filtersSheetVisible) {
+      filterSheetRef.current?.snapToIndex(0);
+    } else {
+      filterSheetRef.current?.close();
+    }
+  }, [filtersSheetVisible]);
 
   useEffect(() => {
     selectedUserRef.current = selectedUser;
@@ -1066,13 +1257,48 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
         if (result.success) {
           showToast("✓ تم التراجع بنجاح", "success");
+
+          // Refetch the affected profile to update tree store with new version
+          const profileId = activity.record_id;
+          if (profileId) {
+            const { data: freshProfile, error: fetchError } = await supabase
+              .from('profiles')
+              .select('*')
+              .is('deleted_at', null)
+              .eq('id', profileId)
+              .single();
+
+            if (freshProfile && !fetchError) {
+              // Update tree store with fresh data (including incremented version)
+              useTreeStore.getState().updateNode(profileId, freshProfile);
+              console.log('[ActivityLogDashboard] Profile refreshed after undo:', {
+                profileId,
+                oldVersion: activity.new_data?.version,
+                newVersion: freshProfile.version
+              });
+            } else if (fetchError) {
+              console.warn('[ActivityLogDashboard] Failed to refetch profile after undo:', fetchError);
+              showToast("⚠ تم التراجع ولكن فشل تحديث العرض. يرجى إعادة تحميل الصفحة.", "warning");
+            }
+          }
+
           fetchActivities(false);
         } else {
           showToast(result.error || "فشل التراجع", "error");
         }
       } catch (error) {
         console.error("Undo error:", error);
-        showToast(error.message || "حدث خطأ أثناء التراجع", "error");
+        const parsedError = parseUndoError(error);
+
+        showToast(parsedError.message, "error");
+
+        // Auto-refresh for errors indicating stale data
+        if (parsedError.shouldRefresh) {
+          setTimeout(() => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            fetchActivities(false);
+          }, 2000);
+        }
       }
     },
     [profile, showToast, fetchActivities]
@@ -1080,15 +1306,20 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   const handleOpenDetails = (activity) => {
     setSelectedActivity(activity);
+    setAdvancedActivity(null);
+    setAdvancedModalVisible(false);
     setDetailsVisible(true);
   };
 
   const handleCloseDetails = () => {
     setDetailsVisible(false);
     setSelectedActivity(null);
+    setAdvancedModalVisible(false);
+    setAdvancedActivity(null);
   };
 
   const handleOpenAdvanced = (activity) => {
+    if (!activity) return;
     setAdvancedActivity(activity);
     setAdvancedModalVisible(true);
   };
@@ -1176,12 +1407,16 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
       {selectedActivity && (
         <ActivityDetailsSheet
+          ref={detailSheetRef}
           activity={selectedActivity}
           visible={detailsVisible}
           onClose={handleCloseDetails}
           onUndo={handleUndo}
           onNavigateToProfile={onNavigateToProfile}
           onOpenAdvanced={handleOpenAdvanced}
+          renderBackdrop={renderBottomSheetBackdrop}
+          renderHandle={renderSheetHandle}
+          snapPoints={detailSnapPoints}
         />
       )}
 
@@ -1194,12 +1429,14 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         onSelectCategory={setCategoryFilter}
         onSelectSeverity={setSeverityFilter}
         onOpenDate={() => {
+          filterSheetRef.current?.close();
+          setFiltersSheetVisible(false);
           setShowDateFilter(true);
-          setTimeout(() => setFiltersSheetVisible(false), 0);
         }}
         onOpenUser={() => {
+          filterSheetRef.current?.close();
+          setFiltersSheetVisible(false);
           setShowUserFilter(true);
-          setTimeout(() => setFiltersSheetVisible(false), 0);
         }}
         selectedUser={selectedUser}
         onClear={handleResetFilters}
@@ -1276,26 +1513,25 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 12,
   },
-  filterChip: {
-    flexDirection: "row",
+  filterFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: tokens.colors.najdi.container + '24',
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: tokens.colors.najdi.container + '26',
+    justifyContent: "center",
   },
-  filterChipActive: {
+  filterFabActive: {
     backgroundColor: tokens.colors.najdi.crimson,
   },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  filterChipTextActive: {
-    color: tokens.colors.najdi.alJass,
+  filterFabBadge: {
+    position: 'absolute',
+    top: 8,
+    start: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: tokens.colors.najdi.alJass,
   },
   searchContainer: {
     flex: 1,
@@ -1303,6 +1539,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '30',
     backgroundColor: tokens.colors.najdi.container + '18',
     paddingHorizontal: 12,
     height: 44,
@@ -1319,13 +1557,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   nowBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
     backgroundColor: "#D58C4A15",
   },
   nowBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
     color: "#73637280",
     fontWeight: "600",
   },
@@ -1345,23 +1583,22 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityCard: {
-    backgroundColor: tokens.colors.najdi.container + '26',
-    borderRadius: 18,
-    paddingHorizontal: 18,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: 16,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: "row",
     gap: 12,
     alignItems: "center",
-    borderWidth: 0,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    elevation: 1,
   },
   activityCardContent: {
     flex: 1,
-    gap: 10,
+    gap: 12,
   },
   activityHeaderRow: {
     flexDirection: "row",
@@ -1374,9 +1611,10 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   severityTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
   },
   severityTagText: {
     fontSize: 11,
@@ -1390,9 +1628,9 @@ const styles = StyleSheet.create({
   undoPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     backgroundColor: tokens.colors.najdi.crimson + '12',
   },
@@ -1424,7 +1662,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   diffPreview: {
-    marginTop: 10,
+    marginTop: 8,
   },
   fieldsCountText: {
     marginTop: 8,
@@ -1436,7 +1674,7 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 64,
+    paddingVertical: 84,
     gap: 12,
   },
   emptyTitle: {
@@ -1453,8 +1691,8 @@ const styles = StyleSheet.create({
   },
   emptyReset: {
     marginTop: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 12,
     backgroundColor: tokens.colors.najdi.crimson,
   },
@@ -1472,7 +1710,7 @@ const styles = StyleSheet.create({
   sheetOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: 'transparent',
   },
   sheetBackdrop: {
     flex: 1,
@@ -1488,9 +1726,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   sheetHandle: {
-    width: 42,
+    width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 4,
     backgroundColor: colors.textMuted + "55",
   },
   sheetContent: {
@@ -1511,9 +1749,10 @@ const styles = StyleSheet.create({
   },
   sheetSeverity: {
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    borderWidth: 1,
   },
   sheetSeverityText: {
     fontSize: 12,
@@ -1521,7 +1760,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetSection: {
-    gap: 10,
+    gap: 12,
   },
   sheetSectionTitle: {
     fontSize: 15,
@@ -1539,53 +1778,62 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  changeRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
-  },
-  changeBullet: {
-    fontSize: 18,
-    color: tokens.colors.najdi.crimson,
-    marginTop: -2,
-  },
-  changeContent: {
-    flex: 1,
-    gap: 4,
-  },
   changeFieldLabel: {
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  changeFieldValue: {
+  changeCard: {
+    gap: 12,
+    padding: 12,
+    backgroundColor: tokens.colors.najdi.container + '18',
+    borderRadius: 16,
+  },
+  changeCardValues: {
+    flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
+    alignItems: 'center',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  changeValueBox: {
+    flex: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: tokens.colors.najdi.background,
+  },
+  changeValueBoxOld: {
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '40',
+  },
+  changeValueBoxNew: {
+    backgroundColor: tokens.colors.najdi.container + '26',
+  },
+  changeValueBoxLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+  },
+  changeValueBoxText: {
     fontSize: 13,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
-  changeValueLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  changeValueOld: {
-    fontSize: 13,
-    color: colors.textMuted,
-    textDecorationLine: 'line-through',
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  changeValueNew: {
-    fontSize: 13,
+  changeValueBoxTextNew: {
     color: tokens.colors.najdi.text,
-    fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    fontWeight: '600',
+  },
+  changeArrow: {
+    marginHorizontal: 4,
   },
   advancedLink: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
+    gap: 8,
+    paddingVertical: 8,
   },
   advancedLinkText: {
     fontSize: 15,
@@ -1620,7 +1868,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     backgroundColor: tokens.colors.najdi.crimson,
     borderRadius: 12,
     paddingVertical: 12,
@@ -1637,7 +1885,16 @@ const styles = StyleSheet.create({
   advancedContainer: {
     gap: 16,
   },
-  advancedRow: {
+  advancedMetaGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  advancedMetaCard: {
+    flexBasis: '48%',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: tokens.colors.najdi.container + '18',
     gap: 4,
   },
   advancedLabel: {
@@ -1646,10 +1903,11 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  advancedValue: {
+  advancedMetaValue: {
     fontSize: 13,
-    color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    color: tokens.colors.najdi.text,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   advancedJsonBlock: {
     gap: 8,
@@ -1670,7 +1928,7 @@ const styles = StyleSheet.create({
   filtersSheetOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: 'transparent',
   },
   filtersSheetBackdrop: {
     flex: 1,
@@ -1680,7 +1938,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: tokens.colors.najdi.container + '30',
     padding: 20,
     gap: 16,
   },
@@ -1712,6 +1970,7 @@ const styles = StyleSheet.create({
   },
   filtersSheetSection: {
     gap: 12,
+    marginBottom: 16,
   },
   filtersSheetLabel: {
     fontSize: 13,
@@ -1730,14 +1989,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 18,
-    backgroundColor: tokens.colors.najdi.container + '20',
+    borderRadius: 16,
+    backgroundColor: tokens.colors.najdi.container + '18',
   },
   filtersSheetChipActive: {
     backgroundColor: tokens.colors.najdi.crimson,
   },
   filtersSheetChipIcon: {
-    marginStart: -2,
+    marginStart: 0,
   },
   filtersSheetChipText: {
     fontSize: 13,
@@ -1751,11 +2010,11 @@ const styles = StyleSheet.create({
   filtersSheetChipSmall: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: tokens.colors.najdi.container + '18',
   },
   filtersSheetChipSmallActive: {
     backgroundColor: tokens.colors.najdi.crimson,
@@ -1772,14 +2031,16 @@ const styles = StyleSheet.create({
   filtersSheetRowButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 14,
-    backgroundColor: tokens.colors.najdi.container + '20',
+    borderRadius: 16,
+    backgroundColor: tokens.colors.najdi.container + '18',
+    marginBottom: 12,
   },
   filtersSheetRowButtonText: {
     fontSize: 15,
+    fontWeight: "600",
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
@@ -1799,14 +2060,14 @@ const styles = StyleSheet.create({
   advancedOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: 'rgba(0,0,0,0.18)',
+    backgroundColor: 'transparent',
   },
   advancedModalContainer: {
     backgroundColor: tokens.colors.najdi.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: tokens.colors.najdi.container + '30',
     maxHeight: "90%",
   },
   advancedModalHeader: {

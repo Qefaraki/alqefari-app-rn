@@ -35,6 +35,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const [selectedFatherId, setSelectedFatherId] = useState(null);
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
+  const [deletedExistingChildren, setDeletedExistingChildren] = useState([]);
 
   const applyOrdering = useCallback((children) => {
     let orderChanged = false;
@@ -105,6 +106,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
       setCurrentName("");
       setCurrentGender("male");
       setSelectedMotherId(null);
+      setDeletedExistingChildren([]);
 
       // Auto-focus after modal animation
       setTimeout(() => {
@@ -124,11 +126,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
     // Validate name length
     if (trimmedName.length < 2) {
-      Alert.alert("خطأ", "الاسم يجب أن يكون حرفين على الأقل");
+      Alert.alert("خطأ", "الاسم قصير جداً");
       return;
     }
     if (trimmedName.length > 100) {
-      Alert.alert("خطأ", "الاسم طويل جداً (100 حرف كحد أقصى)");
+      Alert.alert("خطأ", "الاسم طويل جداً (حد أقصى 100 حرف)");
       return;
     }
 
@@ -201,9 +203,45 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   };
 
   // Handle deleting a child
-  const handleDeleteChild = (child) => {
-    setAllChildren((prev) => applyOrdering(prev.filter((c) => c.id !== child.id)));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  const handleDeleteChild = async (child) => {
+    // New children (not yet in database) - just remove from state
+    if (child.isNew) {
+      setAllChildren((prev) => applyOrdering(prev.filter((c) => c.id !== child.id)));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      return;
+    }
+
+    // Existing children - check for descendants before allowing deletion
+    try {
+      // Use existing RPC for permission-aware descendant checking
+      const { data: impact, error } = await profilesService.previewDeleteImpact(child.id);
+
+      if (error) {
+        console.error('Error checking descendants:', error);
+        Alert.alert('خطأ', 'حدث خطأ في التحقق. حاول مرة أخرى');
+        return;
+      }
+
+      const descendantCount = impact?.total_descendants || 0;
+
+      if (descendantCount > 0) {
+        Alert.alert(
+          'لا يمكن الحذف',
+          `${child.name} ${child.gender === 'female' ? 'لديها' : 'لديه'} ${descendantCount} ${
+            descendantCount === 1 ? 'طفل' : 'أطفال'
+          }. احذفهم أولاً أو استخدم الحذف المتسلسل.`
+        );
+        return;
+      }
+
+      // Safe to delete - track for database deletion on save (no confirmation needed)
+      setDeletedExistingChildren((prev) => [...prev, child]);
+      setAllChildren((prev) => applyOrdering(prev.filter((c) => c.id !== child.id)));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (err) {
+      console.error('Error checking delete impact:', err);
+      Alert.alert('خطأ', 'حدث خطأ. حاول مرة أخرى');
+    }
   };
 
   // Handle moving child (unified function with functional setState for performance)
@@ -239,261 +277,231 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   const handleMoveUp = useCallback((childId) => handleMove(childId, 'up'), [handleMove]);
   const handleMoveDown = useCallback((childId) => handleMove(childId, 'down'), [handleMove]);
 
+  // Feature flag for batch save (set to false for emergency rollback via OTA)
+  const USE_BATCH_SAVE = true;
+
   // Save all changes
   const handleSave = async () => {
     if (!parentNode) return;
 
     const newChildren = allChildren.filter((c) => c.isNew);
     const editedChildren = allChildren.filter((c) => c.isEdited);
+    const reorderedChildren = hasReordered
+      ? allChildren.filter((c) => c.isExisting && !editedChildren.find(ec => ec.id === c.id))
+      : [];
 
-    if (newChildren.length === 0 && !hasReordered && editedChildren.length === 0) {
-      Alert.alert("تنبيه", "لا توجد تغييرات للحفظ");
+    if (newChildren.length === 0 && editedChildren.length === 0 && reorderedChildren.length === 0 && deletedExistingChildren.length === 0) {
+      // Silent - user can already see save button is disabled
+      console.log('[QuickAdd] No changes to save');
       return;
     }
 
-    // =====================================================
-    // 🚀 START OF SAVE - Multi-child creation tracking
-    // =====================================================
-    console.log("\n🚀 ========== QUICK ADD SAVE START ==========");
-    console.log("📊 Total children to create:", newChildren.length);
-    console.log("📝 Total children to edit:", editedChildren.length);
-    console.log("🔄 Has reordered:", hasReordered);
-    console.log("\n👤 Parent context:");
-    console.log("  - Parent ID:", parentNode.id);
-    console.log("  - Parent name:", parentNode.name);
-    console.log("  - Parent gender:", parentNode.gender);
-    console.log("  - Parent generation:", parentNode.generation);
-
-    if (parentNode.gender === "male") {
-      console.log("  - Selected mother ID:", selectedMotherId || "(none)");
-    } else {
-      console.log("  - Selected father ID:", selectedFatherId || "(none)");
-    }
-
-    console.log("\n👶 Children to create:");
-    newChildren.forEach((child, index) => {
-      console.log(`\n  Child ${index + 1}:`);
-      console.log(`    - Temp ID: ${child.id}`);
-      console.log(`    - Name: ${child.name}`);
-      console.log(`    - Gender: ${child.gender}`);
-      console.log(`    - Mother ID: ${child.mother_id || "(none)"}`);
-      console.log(`    - Mother Name: ${child.mother_name || "(none)"}`);
-      console.log(`    - Kunya: ${child.kunya || "(none)"}`);
-      console.log(`    - Nickname: ${child.nickname || "(none)"}`);
-      console.log(`    - Sibling Order: ${child.sibling_order}`);
-    });
-
-    if (editedChildren.length > 0) {
-      console.log("\n✏️ Children to edit:");
-      editedChildren.forEach((child, index) => {
-        console.log(`\n  Child ${index + 1}:`);
-        console.log(`    - ID: ${child.id}`);
-        console.log(`    - Name: ${child.name}`);
-        console.log(`    - Changes:`, JSON.stringify(child.isEdited));
-      });
-    }
-
-    console.log("\n🚀 ==========================================\n");
-    // =====================================================
-
     setLoading(true);
 
+    // Front-end validation (before sending to backend)
     try {
-      // Validate before creating promises
+      // Validate names
       for (const child of newChildren) {
         if (!child.name || child.name.trim().length < 2) {
-          Alert.alert("خطأ", `اسم الطفل غير صالح: "${child.name}"`);
+          Alert.alert("خطأ", `اسم غير صحيح: "${child.name}"`);
           setLoading(false);
           return;
         }
       }
 
-      const promises = [];
+      // Validate parent generation
+      if (parentNode.generation === null || parentNode.generation === undefined) {
+        Alert.alert("خطأ", "حدد جيل الوالد أولاً");
+        setLoading(false);
+        return;
+      }
 
-      // 1. Create new children
-      for (const child of newChildren) {
-        if (
-          parentNode.generation === null ||
-          parentNode.generation === undefined
-        ) {
-          Alert.alert(
-            "خطأ",
-            "لا يمكن إضافة أطفال لملف غير مكتمل. يرجى تعيين جيل الوالد أولاً."
-          );
-          setLoading(false);
-          return;
-        }
+      // Validate father selection for female parents
+      if (parentNode.gender === "female" && !selectedFatherId) {
+        Alert.alert("خطأ", "اختر الزوج من القائمة");
+        setLoading(false);
+        return;
+      }
 
-        // Validate father selection for female parents
-        if (parentNode.gender === "female" && !selectedFatherId) {
-          Alert.alert(
-            "خطأ",
-            "يجب اختيار والد الطفل. يرجى تحديد الزوج من القائمة."
-          );
-          setLoading(false);
-          return;
-        }
+      if (USE_BATCH_SAVE) {
+        // =========================================================================
+        // 🚀 NEW: BATCH SAVE PATH (95% reduction in RPC calls)
+        // =========================================================================
 
-        const profileData = {
+        // Prepare children arrays for batch RPC
+        const childrenToCreate = newChildren.map(child => ({
           name: child.name,
           gender: child.gender,
           sibling_order: child.sibling_order,
-          generation: (parentNode.generation || 0) + 1,
-          status: "alive",
-        };
+          kunya: child.kunya || null,
+          nickname: child.nickname || null,
+          status: 'alive',
+        }));
 
-        // Set parent IDs based on parent gender
-        if (parentNode.gender === "male") {
-          // For male parents: They are the father
-          profileData.father_id = parentNode.id;
-          profileData.mother_id = child.mother_id || selectedMotherId || null;
-        } else {
-          // For female parents: They are the mother
-          profileData.father_id = selectedFatherId; // Required for women
-          profileData.mother_id = parentNode.id;
-        }
+        const childrenToUpdate = [
+          ...editedChildren.map(child => ({
+            id: child.id,
+            version: child.version || 1,
+            name: child.name,
+            gender: child.gender,
+            sibling_order: child.sibling_order,
+            mother_id: child.mother_id !== undefined ? child.mother_id : null,
+          })),
+          ...reorderedChildren.map(child => ({
+            id: child.id,
+            version: child.version || 1,
+            sibling_order: child.sibling_order,
+          }))
+        ];
 
-        // =====================================================
-        // 📤 PROFILE DATA - Before sending to createProfile
-        // =====================================================
-        console.log(`\n📤 Profile data for "${child.name}":`);
-        console.log("  ✅ Populated fields:");
-        Object.entries(profileData).forEach(([key, value]) => {
-          if (value !== null && value !== undefined) {
-            console.log(`    - ${key}: ${value}`);
-          }
-        });
-        console.log("  ⚠️ Null/undefined fields:");
-        Object.entries(profileData).forEach(([key, value]) => {
-          if (value === null || value === undefined) {
-            console.log(`    - ${key}: ${value === null ? "null" : "undefined"}`);
-          }
-        });
-        // Optional fields from child object that aren't in profileData
-        console.log("  📋 Optional fields in child object:");
-        console.log(`    - kunya: ${child.kunya || "(not set)"}`);
-        console.log(`    - nickname: ${child.nickname || "(not set)"}`);
-        console.log(`    - mother_name: ${child.mother_name || "(not set)"}`);
-        // =====================================================
+        const childrenToDelete = deletedExistingChildren.map(child => ({
+          id: child.id,
+          version: child.version || 1,
+        }));
 
-        promises.push(
-          profilesService.createProfile(profileData).then(({ data, error }) => {
-            if (error) throw error;
-            return { childId: child.id, newId: data?.id };
-          })
+        // Single atomic RPC call (replaces 23+ individual calls)
+        const { data, error } = await profilesService.quickAddBatchSave(
+          parentNode.id,
+          parentNode.gender,
+          selectedMotherId,
+          selectedFatherId,
+          childrenToCreate,
+          childrenToUpdate,
+          childrenToDelete,
+          'إضافة سريعة جماعية'
         );
-      }
 
-      // 2. Update edited children (with sibling_order if reordered)
-      for (const child of editedChildren) {
-        const updates = {
-          name: child.name,
-          gender: child.gender,
-          sibling_order: child.sibling_order, // Always include sibling_order
-        };
-
-        if (child.mother_id !== undefined) {
-          updates.mother_id = child.mother_id;
+        if (error) {
+          console.error('Batch save error:', error);
+          // Humanize backend errors
+          let friendlyError = error;
+          if (error.includes('صلاحية')) {
+            friendlyError = 'ليس لديك صلاحية';
+          } else if (error.includes('version')) {
+            friendlyError = 'تم تحديث البيانات من مستخدم آخر. أغلق النافذة وحاول مرة أخرى';
+          } else if (error.includes('lock')) {
+            friendlyError = 'عملية أخرى قيد التنفيذ. انتظر قليلاً';
+          } else {
+            friendlyError = 'حدث خطأ. حاول مرة أخرى';
+          }
+          Alert.alert("خطأ", friendlyError);
+          setLoading(false);
+          return;
         }
 
-        promises.push(profilesService.updateProfile(child.id, child.version || 1, updates));
-      }
+        // Success!
+        await refreshProfile(parentNode.id);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // 3. Update sibling_order for children that were ONLY reordered (not edited)
-      if (hasReordered) {
-        const existingChildren = allChildren.filter((c) => c.isExisting);
-        for (const child of existingChildren) {
-          // Skip if already updated as edited child (avoid duplicate update)
-          if (editedChildren.find(ec => ec.id === child.id)) {
-            continue;
+        const created = data.results?.created || 0;
+        const updated = data.results?.updated || 0;
+        const deleted = data.results?.deleted || 0;
+
+        console.log(`✅ Batch save successful: ${created} created, ${updated} updated, ${deleted} deleted (${data.results?.duration_ms?.toFixed(0)}ms)`);
+
+        // Show success message
+        let successMessage = 'تم الحفظ';
+        if (created > 0) {
+          successMessage = `تمت إضافة ${created} ${created === 1 ? 'طفل' : 'أطفال'}`;
+        } else if (updated > 0 || deleted > 0) {
+          successMessage = 'تم حفظ التغييرات';
+        }
+
+        Alert.alert('تم', successMessage, [{ text: 'حسناً', onPress: onClose }]);
+      } else {
+        // =========================================================================
+        // 📦 FALLBACK: SEQUENTIAL SAVE PATH (legacy)
+        // =========================================================================
+
+        const promises = [];
+
+        // 1. Create new children
+        for (const child of newChildren) {
+          const profileData = {
+            name: child.name,
+            gender: child.gender,
+            sibling_order: child.sibling_order,
+            generation: (parentNode.generation || 0) + 1,
+            status: "alive",
+          };
+
+          // Set parent IDs based on parent gender
+          if (parentNode.gender === "male") {
+            profileData.father_id = parentNode.id;
+            profileData.mother_id = child.mother_id || selectedMotherId || null;
+          } else {
+            profileData.father_id = selectedFatherId;
+            profileData.mother_id = parentNode.id;
           }
+
+          promises.push(
+            profilesService.createProfile(profileData).then(({ data, error }) => {
+              if (error) throw error;
+              return { childId: child.id, newId: data?.id };
+            })
+          );
+        }
+
+        // 2. Update edited children
+        for (const child of editedChildren) {
+          const updates = {
+            name: child.name,
+            gender: child.gender,
+            sibling_order: child.sibling_order,
+          };
+          if (child.mother_id !== undefined) {
+            updates.mother_id = child.mother_id;
+          }
+          promises.push(profilesService.updateProfile(child.id, child.version || 1, updates));
+        }
+
+        // 3. Update reordered children
+        for (const child of reorderedChildren) {
           promises.push(
             profilesService.updateProfile(child.id, child.version || 1, {
               sibling_order: child.sibling_order,
             })
           );
         }
-      }
 
-      const results = await Promise.allSettled(promises);
-
-      // =====================================================
-      // 📊 RESULTS - After Promise.allSettled
-      // =====================================================
-      console.log("\n📊 ========== PROMISE RESULTS ==========");
-      console.log(`Total promises: ${results.length}`);
-
-      let successCount = 0;
-      let failureCount = 0;
-
-      results.forEach((result, index) => {
-        const operationNumber = index + 1;
-
-        if (result.status === "fulfilled") {
-          successCount++;
-          console.log(`\n✅ Operation ${operationNumber}: SUCCESS`);
-          if (result.value?.newId) {
-            console.log(`  - Created profile with ID: ${result.value.newId}`);
-            console.log(`  - Temp child ID: ${result.value.childId}`);
-          } else {
-            console.log(`  - Updated existing profile`);
-          }
-        } else {
-          failureCount++;
-          console.log(`\n❌ Operation ${operationNumber}: FAILED`);
-
-          const error = result.reason;
-          console.log("  📋 Full error details:");
-          console.log(`    - Message: ${error?.message || "(no message)"}`);
-          console.log(`    - Code: ${error?.code || "(no code)"}`);
-          console.log(`    - Hint: ${error?.hint || "(no hint)"}`);
-          console.log(`    - Details: ${error?.details || "(no details)"}`);
-
-          if (error?.error) {
-            console.log("  🔍 Nested error object:");
-            console.log(`    - Message: ${error.error.message || "(no message)"}`);
-            console.log(`    - Code: ${error.error.code || "(no code)"}`);
-          }
-
-          // Full error object for complete context
-          console.log("  🗂️ Raw error object:");
-          console.log(JSON.stringify(error, null, 2));
+        // 4. Delete removed children
+        for (const child of deletedExistingChildren) {
+          promises.push(
+            profilesService.deleteProfile(child.id, child.version || 1)
+              .then(({ data, error }) => {
+                if (error) throw error;
+                return { deleted: true, childId: child.id, childName: child.name };
+              })
+          );
         }
-      });
 
-      console.log(`\n📈 Summary: ${successCount} succeeded, ${failureCount} failed`);
-      console.log("📊 ==========================================\n");
-      // =====================================================
+        const results = await Promise.allSettled(promises);
+        const successful = results.filter((r) => r.status === "fulfilled").length;
+        const failed = results.filter((r) => r.status === "rejected");
 
-      const successful = results.filter((r) => r.status === "fulfilled").length;
-      const failed = results.filter((r) => r.status === "rejected");
+        await refreshProfile(parentNode.id);
 
-      await refreshProfile(parentNode.id);
-
-      if (failed.length === 0) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onClose?.();
-      } else if (successful > 0) {
-        Alert.alert(
-          "تحديث جزئي",
-          `تم حفظ ${successful} من ${results.length} بنجاح. فشل ${failed.length} عملية.`,
-          [{ text: "حسناً", onPress: onClose }]
-        );
-      } else {
-        // Extract first error for user display
-        const firstError = failed[0]?.reason?.message || failed[0]?.reason || "خطأ غير معروف";
-
-        console.error("All failed operations:", failed.map(f => f.reason));
-
-        Alert.alert(
-          "خطأ",
-          `فشل حفظ ${failed.length} من ${results.length} طفل.\n\nالخطأ: ${firstError}`,
-          [{ text: "حسناً" }]
-        );
+        if (failed.length === 0) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          onClose?.();
+        } else if (successful > 0) {
+          Alert.alert(
+            "تحديث جزئي",
+            `تم حفظ ${successful} من ${results.length} بنجاح.\n\nفشل ${failed.length} عملية.`,
+            [{ text: "حسناً", onPress: onClose }]
+          );
+        } else {
+          const firstError = failed[0]?.reason?.message || failed[0]?.reason || "خطأ غير معروف";
+          Alert.alert(
+            "خطأ",
+            `فشل حفظ ${failed.length} من ${results.length} عملية.\n\nالخطأ: ${firstError}`,
+            [{ text: "حسناً" }]
+          );
+        }
       }
     } catch (error) {
       console.error("Error saving children:", error);
-      Alert.alert("خطأ", "فشل حفظ التغييرات. يرجى المحاولة مرة أخرى.");
+      Alert.alert("خطأ", "فشل الحفظ. حاول مرة أخرى");
     } finally {
       setLoading(false);
     }
@@ -502,23 +510,28 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
   // Calculate totals
   const newChildrenCount = allChildren.filter((c) => c.isNew).length;
   const editedChildrenCount = allChildren.filter((c) => c.isEdited).length;
+  const deleteCount = deletedExistingChildren.length;
   const totalChanges = newChildrenCount + editedChildrenCount;
-  const hasChanges = totalChanges > 0 || hasReordered;
+  const hasChanges = totalChanges > 0 || hasReordered || deleteCount > 0;
 
   const getSaveButtonText = () => {
     if (loading) return "جاري الحفظ...";
-    if (newChildrenCount > 0 && editedChildrenCount === 0) {
-      return newChildrenCount === 1
-        ? "حفظ طفل واحد"
-        : `حفظ ${newChildrenCount} أطفال جدد`;
+
+    if (newChildrenCount > 0 && editedChildrenCount === 0 && deleteCount === 0) {
+      return newChildrenCount === 1 ? "حفظ طفل واحد" : `حفظ ${newChildrenCount} أطفال جدد`;
     }
-    if (editedChildrenCount > 0 && newChildrenCount === 0) {
-      return editedChildrenCount === 1
-        ? "حفظ تعديل واحد"
-        : `حفظ ${editedChildrenCount} تعديلات`;
+    if (editedChildrenCount > 0 && newChildrenCount === 0 && deleteCount === 0) {
+      return editedChildrenCount === 1 ? "حفظ تعديل واحد" : `حفظ ${editedChildrenCount} تعديلات`;
     }
-    if (totalChanges > 0) {
-      return `حفظ ${totalChanges} تغيير`;
+    if (deleteCount > 0 && newChildrenCount === 0 && editedChildrenCount === 0) {
+      return deleteCount === 1 ? "حذف طفل واحد" : `حذف ${deleteCount} أطفال`;
+    }
+    if (totalChanges > 0 || deleteCount > 0) {
+      const parts = [];
+      if (newChildrenCount > 0) parts.push(`${newChildrenCount} جديد`);
+      if (editedChildrenCount > 0) parts.push(`${editedChildrenCount} تعديل`);
+      if (deleteCount > 0) parts.push(`${deleteCount} حذف`);
+      return `حفظ (${parts.join('، ')})`;
     }
     return "حفظ";
   };
@@ -661,7 +674,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                           }));
                           setMothers(formattedMothers);
                         } else if (id) {
-                          Alert.alert("تنبيه", "تعذر تحميل بيانات الأم");
+                          Alert.alert("تنبيه", "لم نستطع تحميل بيانات الأمهات");
                         }
                       }}
                       label="الأم (اختياري)"
@@ -677,7 +690,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
                       onChange={(id, husbandsData) => {
                         setSelectedFatherId(id);
                         if (!husbandsData && id) {
-                          Alert.alert("تنبيه", "تعذر تحميل بيانات الزوج");
+                          Alert.alert("تنبيه", "لم نستطع تحميل بيانات الأزواج");
                         }
                       }}
                       label="الأب (مطلوب)"

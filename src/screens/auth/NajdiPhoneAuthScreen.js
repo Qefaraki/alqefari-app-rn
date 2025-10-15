@@ -459,6 +459,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                         <View style={styles.phoneInputWrapper}>
                           {/* Phone Number Input */}
                           <TextInput
+                            testID="phone-input"
                             style={[
                               styles.phoneInput,
                               {
@@ -504,6 +505,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                         {error && <Text style={styles.errorText}>{error}</Text>}
 
                         <TouchableOpacity
+                          testID="send-code-button"
                           style={[
                             styles.primaryButton,
                             (!phoneNumber || loading) && styles.buttonDisabled,
@@ -581,6 +583,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                         {error && <Text style={styles.errorText}>{error}</Text>}
 
                         <TouchableOpacity
+                          testID="verify-button"
                           style={[
                             styles.primaryButton,
                             (otp.length !== 4 || loading) &&

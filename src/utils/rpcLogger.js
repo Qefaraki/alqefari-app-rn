@@ -1,105 +1,55 @@
 /**
- * RPC Logger Utility
+ * RPC Logger Utility - Minimal Version
  *
- * Comprehensive logging for all Supabase RPC calls.
- * Tracks parameters, timing, responses, and errors with visual indicators.
+ * Logs RPC calls with minimal output:
+ * - Development: 1 line per successful call showing duration
+ * - Production: Only errors (silent on success)
+ * - Smart error handling: Downgrades expected errors (like PGRST202) to warnings
  */
 
 /**
- * Log RPC call initiation with parameters
- * @param {string} functionName - Name of the RPC function
- * @param {Object} params - Parameters being sent
- */
-export function logRPCCall(functionName, params) {
-  console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(`🔵 RPC CALL: ${functionName}`);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('⏱️  Started at:', new Date().toISOString());
-  console.log('📤 Parameters:', JSON.stringify(params, null, 2));
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-}
-
-/**
- * Log RPC response (success or error)
- * @param {string} functionName - Name of the RPC function
- * @param {Object} response - Supabase response object {data, error}
- * @param {number} duration - Call duration in milliseconds
- */
-export function logRPCResponse(functionName, response, duration) {
-  const { data, error } = response;
-
-  if (error) {
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`🔴 RPC ERROR: ${functionName}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('⏱️  Completed at:', new Date().toISOString());
-    console.log(`⏲️  Duration: ${duration}ms`);
-    console.log('❌ Error Details:');
-    console.log('   Code:', error.code || 'N/A');
-    console.log('   Message:', error.message || 'N/A');
-    console.log('   Details:', error.details || 'N/A');
-    console.log('   Hint:', error.hint || 'N/A');
-    console.log('   Full Error:', JSON.stringify(error, null, 2));
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  } else {
-    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`🟢 RPC SUCCESS: ${functionName}`);
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('⏱️  Completed at:', new Date().toISOString());
-    console.log(`⏲️  Duration: ${duration}ms`);
-    console.log('✅ Response Data:');
-
-    // Handle different data types
-    if (data === null || data === undefined) {
-      console.log('   (null or undefined)');
-    } else if (Array.isArray(data)) {
-      console.log(`   Array with ${data.length} items`);
-      if (data.length > 0) {
-        console.log('   First item:', JSON.stringify(data[0], null, 2));
-      }
-    } else if (typeof data === 'object') {
-      console.log('   Object:', JSON.stringify(data, null, 2));
-    } else {
-      console.log('   Primitive:', data);
-    }
-
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  }
-}
-
-/**
- * Log RPC timing information
- * @param {string} functionName - Name of the RPC function
- * @param {number} startTime - Performance.now() start timestamp
- * @returns {number} Duration in milliseconds
- */
-export function logRPCTiming(functionName, startTime) {
-  const duration = Math.round(performance.now() - startTime);
-  console.log(`⏲️  [${functionName}] Execution time: ${duration}ms`);
-  return duration;
-}
-
-/**
- * Create a wrapped RPC function with logging
+ * Create a wrapped RPC function with minimal logging
  * @param {Function} originalRpc - Original supabase.rpc function
- * @returns {Function} Wrapped function with logging
+ * @returns {Function} Wrapped function with minimal logging
  */
 export function wrapRPCWithLogging(originalRpc) {
   return async function wrappedRpc(functionName, params) {
     const startTime = performance.now();
 
-    // Log the call
-    logRPCCall(functionName, params);
+    try {
+      const response = await originalRpc.call(this, functionName, params);
+      const duration = Math.round(performance.now() - startTime);
 
-    // Execute the actual RPC
-    const response = await originalRpc.call(this, functionName, params);
+      if (response.error) {
+        const { code, message, details } = response.error;
 
-    // Calculate duration
-    const duration = Math.round(performance.now() - startTime);
+        // PGRST202 = Function not found (expected for optional RPCs with fallbacks)
+        // Downgrade to warning instead of error to avoid alarm
+        if (code === 'PGRST202') {
+          if (__DEV__) {
+            console.warn(
+              `[RPC] ${functionName} not found (${duration}ms) - using fallback if available`
+            );
+          }
+        } else {
+          // Real errors - always log with full context
+          console.error(
+            `[RPC] ${functionName} ERROR (${duration}ms):`,
+            message,
+            '\nCode:', code || 'N/A',
+            '\nDetails:', details || 'N/A'
+          );
+        }
+      } else if (__DEV__) {
+        // Only log success in dev mode (1 line, clean format)
+        console.log(`[RPC] ${functionName} (${duration}ms)`);
+      }
 
-    // Log the response
-    logRPCResponse(functionName, response, duration);
-
-    return response;
+      return response;
+    } catch (error) {
+      // Always log exceptions (network errors, timeouts, etc.)
+      console.error(`[RPC] ${functionName} EXCEPTION:`, error.message);
+      throw error;
+    }
   };
 }

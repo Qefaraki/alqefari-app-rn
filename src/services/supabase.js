@@ -16,9 +16,11 @@ const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Wrap RPC with comprehensive logging
+// Wrap RPC with comprehensive logging (only in development)
 const originalRpc = supabaseClient.rpc.bind(supabaseClient);
-supabaseClient.rpc = wrapRPCWithLogging(originalRpc);
+if (__DEV__) {
+  supabaseClient.rpc = wrapRPCWithLogging(originalRpc);
+}
 
 export const supabase = supabaseClient;
 

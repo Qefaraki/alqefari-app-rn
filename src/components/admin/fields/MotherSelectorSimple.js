@@ -82,13 +82,16 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
       const formattedWives = (data || []).map((marriage) => {
         const wife = marriage.wife;
 
-        // Use same logic as view mode - getShortNameChain handles all edge cases
-        const displayName = wife ? (getShortNameChain(wife) || wife.name || "غير محدد") : "غير محدد";
+        // For Munasib (no HID), name is already complete with family origin - don't call getShortNameChain
+        // For Al Qefari women (with HID), use getShortNameChain to get lineage preview
+        const displayName = wife
+          ? (wife.hid ? (getShortNameChain(wife) || wife.name || "غير محدد") : wife.name || "غير محدد")
+          : "غير محدد";
 
         return {
           wife_id: marriage.wife_id,
           wife_name: wife?.name || "غير محدد", // Keep original for backwards compatibility
-          display_name: displayName, // Shows up to 5 names from chain (same as view mode)
+          display_name: displayName, // Munasib: direct name, Al Qefari: lineage chain
           wife_hid: wife?.hid,
           status: marriage.status,
           is_current: marriage.status === "current" || marriage.status === "married",

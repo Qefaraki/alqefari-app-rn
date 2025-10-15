@@ -16,10 +16,44 @@ class SkiaImageCache {
   private cache = new Map<string, CacheEntry>();
   private inflight = new Map<string, Promise<SkImage>>();
   private totalBytes = 0;
-  private budget = Platform.OS === "ios" ? 64 * 1024 * 1024 : 48 * 1024 * 1024;
+  // Phase 4: Increased budget by 2x to reduce cache thrashing
+  // Even without transformation API, fits 12-16 full-res images instead of 6-8
+  private budget = Platform.OS === "ios" ? 128 * 1024 * 1024 : 96 * 1024 * 1024;
+  private transformationAvailable: boolean | null = null;
+
+  /**
+   * Check if Supabase transformation API is available (Pro plan required)
+   * Returns cached result after first check
+   */
+  private async checkTransformationAPI(): Promise<boolean> {
+    if (this.transformationAvailable !== null) {
+      return this.transformationAvailable;
+    }
+
+    try {
+      // Test transformation endpoint (requires Supabase Pro plan)
+      const testUrl = "https://ezkioroyhzpavmbfavyn.supabase.co/storage/v1/render/image/public/profile-photos/test.jpg?width=1&height=1";
+      const response = await fetch(testUrl, { method: "HEAD" });
+      this.transformationAvailable = response.ok;
+
+      if (!this.transformationAvailable) {
+        console.warn(
+          "[Image Cache] ⚠️ Supabase transformation API unavailable (requires Pro plan).\n" +
+          "Images will load at full resolution. Consider upgrading plan for 60x performance improvement."
+        );
+      }
+
+      return this.transformationAvailable;
+    } catch (error) {
+      console.warn("[Image Cache] Failed to check transformation API:", error);
+      this.transformationAvailable = false;
+      return false;
+    }
+  }
 
   /**
    * Transform URL to request specific size variant
+   * Note: Transformation API requires Supabase Pro plan (currently unavailable)
    */
   urlForBucket(url: string, bucket: number): string {
     // Guard against undefined/null URLs
@@ -27,16 +61,12 @@ class SkiaImageCache {
       return "";
     }
 
-    // Skip transformation for large buckets to avoid 400 errors
-    if (bucket > 256) {
+    // Transformation API not available - return original URL
+    // Images will load at full resolution, but cache budget increase (2x) helps reduce thrashing
+    if (url.includes("supabase.co/storage/")) {
       return url;
     }
 
-    if (url.includes("supabase.co/storage/")) {
-      // Don't transform here, just return original URL
-      // The load() method will handle transformation with proper fallback
-      return url;
-    }
     return url;
   }
 
@@ -73,10 +103,13 @@ class SkiaImageCache {
     bucket = 256,
     options?: LoadOptions,
   ): Promise<SkImage> {
+    // Check transformation API availability on first use
+    if (this.transformationAvailable === null) {
+      await this.checkTransformationAPI();
+    }
+
     const finalUrl = this.urlForBucket(url, bucket);
     const key = finalUrl;
-
-    // Check cache first
 
     // Check cache first
     const cached = this.get(key);
@@ -245,15 +278,24 @@ class SkiaImageCache {
   }
 
   /**
-   * Get cache statistics
+   * Get cache statistics (Phase 4: Enhanced monitoring)
    */
   getStats() {
+    const utilizationPercent = (this.totalBytes / this.budget) * 100;
+
     return {
       entries: this.cache.size,
       totalBytes: this.totalBytes,
       totalMB: (this.totalBytes / 1024 / 1024).toFixed(1),
       budgetMB: (this.budget / 1024 / 1024).toFixed(1),
-      utilization: ((this.totalBytes / this.budget) * 100).toFixed(0) + "%",
+      utilization: utilizationPercent.toFixed(0) + "%",
+      transformationAPI: this.transformationAvailable === true ? "enabled" :
+                        this.transformationAvailable === false ? "disabled (Pro plan required)" :
+                        "not checked",
+      // Warning if cache is getting full
+      status: utilizationPercent > 90 ? "⚠️ High utilization - cache thrashing likely" :
+              utilizationPercent > 75 ? "Moderate utilization" :
+              "Healthy",
     };
   }
 }

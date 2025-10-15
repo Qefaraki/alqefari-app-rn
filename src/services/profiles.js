@@ -287,16 +287,10 @@ export const profilesService = {
    * @param {Object} profileData - Profile data
    */
   async createProfile(profileData) {
-    console.log('\n╔════════════════════════════════════════════════════════════╗');
-    console.log('║  🆕 CREATE PROFILE - DETAILED DEBUG LOG                   ║');
-    console.log('╚════════════════════════════════════════════════════════════╝');
-
     try {
-      // Log incoming profile data
-      console.log('\n📥 INCOMING PROFILE DATA:');
-      console.log('────────────────────────────────────────────────────────────');
-      console.log(JSON.stringify(profileData, null, 2));
-      console.log('────────────────────────────────────────────────────────────\n');
+      if (__DEV__) {
+        console.log(`[createProfile] Creating: ${profileData.name} (${profileData.gender}, gen ${profileData.generation})`);
+      }
 
       // Map to RPC parameters
       const params = {
@@ -325,46 +319,13 @@ export const profilesService = {
         p_profile_visibility: profileData.profile_visibility || "public",
       };
 
-      console.log('📤 MAPPED RPC PARAMETERS:');
-      console.log('────────────────────────────────────────────────────────────');
-      console.log(JSON.stringify(params, null, 2));
-      console.log('────────────────────────────────────────────────────────────\n');
-
-      // Validate critical fields
-      const validationWarnings = [];
-      if (!params.p_name) validationWarnings.push('⚠️  Missing p_name');
-      if (!params.p_gender) validationWarnings.push('⚠️  Missing p_gender');
-      if (params.p_generation === null || params.p_generation === undefined) {
-        validationWarnings.push('⚠️  Missing p_generation (CRITICAL!)');
-      }
-
-      if (validationWarnings.length > 0) {
-        console.log('⚠️  VALIDATION WARNINGS:');
-        validationWarnings.forEach(w => console.log('   ' + w));
-        console.log('\n');
-      } else {
-        console.log('✅ All critical fields present\n');
-      }
-
-      console.log('🚀 Calling admin_create_profile RPC...\n');
-
       const { data, error } = await supabase.rpc(
         "admin_create_profile",
         params,
       );
 
       if (error) {
-        console.log('╔════════════════════════════════════════════════════════════╗');
-        console.log('║  ❌ RPC ERROR OCCURRED                                     ║');
-        console.log('╚════════════════════════════════════════════════════════════╝\n');
-        console.log('📍 Error Code:', error.code || 'N/A');
-        console.log('📍 Error Message:', error.message || 'N/A');
-        console.log('📍 Error Details:', error.details || 'N/A');
-        console.log('📍 Error Hint:', error.hint || 'N/A');
-        console.log('\n📍 Full Error Object:');
-        console.log(JSON.stringify(error, null, 2));
-        console.log('\n────────────────────────────────────────────────────────────\n');
-
+        console.error('[createProfile] Error:', error.code, error.message);
         // Handle specific validation errors
         if (error.message.includes("Circular parent")) {
           throw new Error("Cannot create circular relationship");
@@ -375,23 +336,13 @@ export const profilesService = {
         throw error;
       }
 
-      console.log('╔════════════════════════════════════════════════════════════╗');
-      console.log('║  ✅ PROFILE CREATED SUCCESSFULLY                          ║');
-      console.log('╚════════════════════════════════════════════════════════════╝\n');
-      console.log('📍 Created Profile Data:');
-      console.log(JSON.stringify(data, null, 2));
-      console.log('\n────────────────────────────────────────────────────────────\n');
+      if (__DEV__) {
+        console.log(`[createProfile] Success: Created profile ID ${data.id}`);
+      }
 
       return { data, error: null };
     } catch (error) {
-      console.log('╔════════════════════════════════════════════════════════════╗');
-      console.log('║  💥 EXCEPTION CAUGHT IN createProfile                     ║');
-      console.log('╚════════════════════════════════════════════════════════════╝\n');
-      console.log('📍 Exception Type:', error.constructor.name);
-      console.log('📍 Exception Message:', error.message);
-      console.log('📍 Exception Stack:', error.stack);
-      console.log('\n────────────────────────────────────────────────────────────\n');
-
+      console.error('[createProfile] Exception:', error.message);
       return { data: null, error: error.message || handleSupabaseError(error) };
     }
   },
@@ -482,6 +433,97 @@ export const profilesService = {
       return { data, error: null };
     } catch (error) {
       return { data: null, error: error.message || handleSupabaseError(error) };
+    }
+  },
+
+  /**
+   * Admin: Batch save children (create, update, delete) in single atomic transaction
+   * Replaces 23 sequential RPC calls with 1 atomic operation (95% reduction)
+   * @param {string} parentId - Parent profile ID
+   * @param {string} parentGender - Parent gender ('male' or 'female')
+   * @param {string|null} selectedMotherId - Optional mother ID (if parent is father)
+   * @param {string|null} selectedFatherId - Required father ID (if parent is mother)
+   * @param {Array} childrenToCreate - Array of child objects to create
+   * @param {Array} childrenToUpdate - Array of child objects to update (with id, version)
+   * @param {Array} childrenToDelete - Array of child IDs to delete (with id, version)
+   * @param {string|null} operationDescription - Optional description for audit trail
+   * @returns {Promise<{data, error}>}
+   *
+   * @example Create 3 children for father
+   * await quickAddBatchSave(
+   *   parentId,
+   *   'male',
+   *   motherProfileId,
+   *   null,
+   *   [{name: 'محمد', gender: 'male', sibling_order: 0}],
+   *   [],
+   *   []
+   * )
+   *
+   * @example Delete 1 child with reordering
+   * await quickAddBatchSave(
+   *   parentId,
+   *   'male',
+   *   null,
+   *   null,
+   *   [],
+   *   [{id: 'sibling1-uuid', version: 1, sibling_order: 0}],
+   *   [{id: 'child-uuid', version: 1}]
+   * )
+   */
+  async quickAddBatchSave(
+    parentId,
+    parentGender,
+    selectedMotherId = null,
+    selectedFatherId = null,
+    childrenToCreate = [],
+    childrenToUpdate = [],
+    childrenToDelete = [],
+    operationDescription = null
+  ) {
+    try {
+      if (__DEV__) {
+        const total = childrenToCreate.length + childrenToUpdate.length + childrenToDelete.length;
+        console.log(`[quickAddBatchSave] ${total} operations (create: ${childrenToCreate.length}, update: ${childrenToUpdate.length}, delete: ${childrenToDelete.length})`);
+      }
+
+      const { data, error } = await supabase.rpc("admin_quick_add_batch_save", {
+        p_parent_id: parentId,
+        p_parent_gender: parentGender,
+        p_selected_mother_id: selectedMotherId,
+        p_selected_father_id: selectedFatherId,
+        p_children_to_create: childrenToCreate,
+        p_children_to_update: childrenToUpdate,
+        p_children_to_delete: childrenToDelete,
+        p_operation_description: operationDescription,
+      });
+
+      if (error) {
+        console.error('[quickAddBatchSave] Error:', error.code, error.message);
+        // Handle specific errors with friendly messages
+        if (error.message.includes('صلاحية')) {
+          throw new Error('ليس لديك صلاحية لتنفيذ هذه العملية');
+        }
+        if (error.message.includes('version')) {
+          throw new Error('تم تحديث البيانات من قبل مستخدم آخر');
+        }
+        if (error.message.includes('lock') || error.message.includes('قيد التنفيذ')) {
+          throw new Error('عملية أخرى قيد التنفيذ. يرجى المحاولة بعد قليل');
+        }
+        throw error;
+      }
+
+      if (__DEV__) {
+        console.log(`[quickAddBatchSave] Success: ${data.created_count || 0} created, ${data.updated_count || 0} updated, ${data.deleted_count || 0} deleted`);
+      }
+
+      return { data, error: null };
+    } catch (error) {
+      console.error('[quickAddBatchSave] Exception:', error.message);
+      return {
+        data: null,
+        error: error.message || handleSupabaseError(error)
+      };
     }
   },
 
