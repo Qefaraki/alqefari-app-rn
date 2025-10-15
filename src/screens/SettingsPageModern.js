@@ -486,16 +486,25 @@ export default function SettingsPageModern({ user }) {
             try {
               await forceCompleteSignOut();
             } catch (e) {
-              console.log('Error clearing local state:', e);
+              console.error('Error clearing local state:', e);
               // Continue anyway
             }
 
             // Use AuthContext's signOut (handles everything)
+            console.log('[SignOut] About to call signOut, type:', typeof signOut);
+            if (typeof signOut !== 'function') {
+              throw new Error(`signOut is not a function, it's a ${typeof signOut}`);
+            }
             await signOut();
+            console.log('[SignOut] signOut completed successfully');
 
             // No manual navigation - _layout.tsx handles it
           } catch (error) {
             console.error('Sign-out error:', error);
+            console.error('Error name:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('signOut type at error:', typeof signOut);
 
             // Try to at least clear local state
             setCurrentUser(null);
@@ -503,7 +512,7 @@ export default function SettingsPageModern({ user }) {
 
             Alert.alert(
               "خطأ في تسجيل الخروج",
-              "حدث خطأ أثناء تسجيل الخروج. قد تحتاج إلى إعادة تشغيل التطبيق.",
+              `حدث خطأ أثناء تسجيل الخروج: ${error.message || 'Unknown error'}\n\nقد تحتاج إلى إعادة تشغيل التطبيق.`,
               [
                 {
                   text: "حسناً",
@@ -624,7 +633,7 @@ export default function SettingsPageModern({ user }) {
     // Clear tree store
     try {
       const { useTreeStore } = require('../stores/useTreeStore');
-      useTreeStore.getState().setNodes([]);
+      useTreeStore.getState().setTreeData([]);  // Fixed: was setNodes, should be setTreeData
       useTreeStore.getState().setSelectedPersonId(null);
     } catch (e) {
       console.log('Could not clear tree store:', e);
