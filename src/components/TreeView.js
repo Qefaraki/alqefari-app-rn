@@ -802,10 +802,10 @@ const TreeView = ({
 
       // Then load the tree starting from the root HID
       const rootHid = rootData[0].hid;
-      const { data, error } = await profilesService.getBranchData(
+      const { data, error} = await profilesService.getBranchData(
         rootHid,
         8,
-        2000, // Increased from 500 to accommodate full tree (currently 779 profiles, 7 generations)
+        5000, // Supports 3K incoming profiles + 67% buffer. Viewport culling handles rendering.
       );
       if (error) {
         console.error("Error loading tree data:", error);
@@ -827,12 +827,12 @@ const TreeView = ({
         const profileCount = data?.length || 0;
         console.log(`✅ Tree loaded: ${profileCount} profiles`);
 
-        if (profileCount > 1500) {
-          console.warn(`⚠️ Approaching limit: ${profileCount}/2000 profiles. Consider progressive loading.`);
+        if (profileCount > 3750) { // 75% of 5000
+          console.warn(`⚠️ Approaching limit: ${profileCount}/5000 profiles. Consider increasing limit or progressive loading.`);
         }
 
-        if (profileCount >= 1900) {
-          console.error(`🚨 CRITICAL: ${profileCount}/2000 profiles. Progressive loading required.`);
+        if (profileCount >= 4750) { // 95% of 5000
+          console.error(`🚨 CRITICAL: ${profileCount}/5000 profiles. Immediate action required.`);
         }
 
         setTreeData(data || []);

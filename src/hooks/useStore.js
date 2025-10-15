@@ -24,7 +24,7 @@ const useStore = () => {
 
         // Load full tree - use higher depth to see more generations
         const { data: fullTreeData, error } =
-          await profilesService.getBranchData(rootNode.hid, 10, 2000); // Increased from 500 to 2000
+          await profilesService.getBranchData(rootNode.hid, 10, 5000); // Supports 3K profiles + 67% buffer
         if (error) {
           console.error("Error loading tree data:", error);
           return;
@@ -34,12 +34,12 @@ const useStore = () => {
         const profileCount = fullTreeData?.length || 0;
         console.log(`✅ Store refresh: ${profileCount} profiles`);
 
-        if (profileCount > 1500) {
-          console.warn(`⚠️ Tree size: ${profileCount}/2000 profiles. Consider progressive loading.`);
+        if (profileCount > 3750) { // 75% of 5000
+          console.warn(`⚠️ Tree size: ${profileCount}/5000 profiles. Consider increasing limit or progressive loading.`);
         }
 
-        if (profileCount >= 1900) {
-          console.error(`🚨 CRITICAL: ${profileCount}/2000 profiles. Progressive loading required.`);
+        if (profileCount >= 4750) { // 95% of 5000
+          console.error(`🚨 CRITICAL: ${profileCount}/5000 profiles. Immediate action required.`);
         }
 
         // Process and update tree data

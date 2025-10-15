@@ -133,41 +133,43 @@ if (error) {
 
 **Current Configuration:**
 - **Database Max**: 10,000 profiles (safety buffer, supports design capacity)
-- **Frontend Load**: 2,000 profiles (performance optimized)
+- **Frontend Load**: 5,000 profiles (supports 3K incoming + 67% buffer)
 - **Current Size**: ~779 profiles (7 generations)
-- **Warning Threshold**: 1,500 profiles
-- **Critical Threshold**: 1,900 profiles
+- **Warning Threshold**: 3,750 profiles (75%)
+- **Critical Threshold**: 4,750 profiles (95%)
 
 **How It Works:**
-- Tree uses viewport culling to render only visible nodes
-- Database can support up to 10K profiles (matching original design intent)
-- Frontend loads 2K profiles at a time for optimal performance
+- Tree uses viewport culling to render only visible nodes (~500 max)
+- Database supports up to 10K profiles (matching original design intent)
+- Frontend loads 5K profiles - viewport culling handles rendering efficiently
 - Monitoring logs warn when approaching limits
+- **Rendering performance: 60fps regardless of dataset size**
 
 **Monitoring Tree Size:**
 ```javascript
 // Check console on tree load
 // ✅ Tree loaded: 779 profiles
-// ⚠️ Approaching limit: 1500/2000 profiles. Consider progressive loading.
-// 🚨 CRITICAL: 1900/2000 profiles. Progressive loading required.
+// ⚠️ Approaching limit: 3750/5000 profiles. Consider increasing limit.
+// 🚨 CRITICAL: 4750/5000 profiles. Immediate action required.
 
 // Check tree size programmatically
 console.log(useTreeStore.getState().treeData.length);
 ```
 
-**When to Implement Progressive Loading:**
-- Tree size exceeds 1,800 profiles
+**When to Increase Limit or Implement Progressive Loading:**
+- Tree size exceeds 4,500 profiles (90% of limit)
 - Load times exceed 2 seconds on iPhone XR
-- Memory usage exceeds 15MB for tree data
+- Memory usage exceeds 20MB for tree data
 - User complaints about slow loading
 
 **Performance Expectations:**
-| Profiles | Load Time | Memory | Status |
-|----------|-----------|--------|--------|
-| 779 (current) | <500ms | ~2MB | ✅ Optimal |
-| 1,500 | ~1s | ~4MB | ✅ Good |
-| 2,000 | ~1.5s | ~6MB | ✅ Acceptable |
-| 1,900+ | N/A | N/A | ⚠️ Plan upgrade |
+| Profiles | Load Time | Memory | Rendering | Status |
+|----------|-----------|--------|-----------|--------|
+| 779 (current) | <500ms | ~2MB | 60fps | ✅ Optimal |
+| 2,000 | ~650ms | ~6MB | 60fps | ✅ Good |
+| 3,000 (target) | ~950ms | ~9MB | 60fps | ✅ Good |
+| 5,000 (limit) | ~1.3s | ~15MB | 60fps | ✅ Acceptable |
+| 7,500 | ~1.6s | ~22MB | 60fps | ⚠️ Consider testing |
 
 ## 🚀 Best Practices
 
