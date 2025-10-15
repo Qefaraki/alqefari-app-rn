@@ -672,20 +672,6 @@ export const profilesService = {
   },
 
   /**
-   * Admin: List deleted profiles for restoration
-   */
-  async listDeletedProfiles() {
-    try {
-      const { data, error } = await supabase.rpc("admin_list_deleted_profiles");
-
-      if (error) throw error;
-      return { data: data || [], error: null };
-    } catch (error) {
-      return { data: [], error: handleSupabaseError(error) };
-    }
-  },
-
-  /**
    * Admin: Create marriage relationship
    */
   async createMarriage(marriageData) {
@@ -775,7 +761,7 @@ export const profilesService = {
   async getAdminStatistics() {
     try {
       // Try the RPC first
-      const { data, error } = await supabase.rpc("admin_get_statistics");
+      const { data, error } = await supabase.rpc("admin_get_enhanced_statistics");
 
       if (error) {
         console.log("RPC failed, using fallback:", error.message);
@@ -852,23 +838,6 @@ export const profilesService = {
   async runAutoFix() {
     try {
       const { data, error } = await supabase.rpc("admin_auto_fix_issues");
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error: handleSupabaseError(error) };
-    }
-  },
-
-  /**
-   * Admin: Bulk update layout positions
-   * @param {Array} updates - Array of {id, position} objects
-   */
-  async bulkUpdateLayouts(updates) {
-    try {
-      const { data, error } = await supabase.rpc("admin_bulk_update_layouts", {
-        p_updates: updates,
-      });
 
       if (error) throw error;
       return { data, error: null };

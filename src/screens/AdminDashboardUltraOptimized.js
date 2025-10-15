@@ -182,7 +182,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
       setStatsLoading(false);
 
       // Then get real stats in background
-      const { data: realStats } = await supabase.rpc("admin_get_statistics");
+      const { data: realStats } = await supabase.rpc("admin_get_enhanced_statistics");
       if (realStats) {
         setStats((prev) => ({ ...prev, ...realStats }));
       }

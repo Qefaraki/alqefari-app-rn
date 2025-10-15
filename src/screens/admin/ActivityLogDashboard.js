@@ -54,6 +54,7 @@ import undoService from "../../services/undoService";
 import { useUndoStore } from "../../stores/undoStore";
 import { useTreeStore } from "../../stores/useTreeStore";
 import Toast from "../../components/ui/Toast";
+import BatchOperationCard from "../../components/admin/BatchOperationCard";
 
 const colors = {
   ...tokens.colors.najdi,
@@ -1144,6 +1145,26 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
               return prev;
             }
 
+            // Optimize batch operation handling
+            if (newActivity.operation_group_id !== null) {
+              // Check if this operation belongs to an existing visible group
+              const existingGroup = prev.find(a =>
+                a.operation_group_id === newActivity.operation_group_id
+              );
+
+              if (existingGroup) {
+                // Group already visible - must refresh to update group
+                console.log('[ActivityLogDashboard] Batch operation for existing group - triggering refresh');
+                fetchActivities(false);
+                return prev; // Keep current state, fetchActivities will update
+              } else {
+                // New group - append individual for now (will group on next manual refresh)
+                console.log('[ActivityLogDashboard] New batch operation group detected');
+                return [newActivity, ...prev];
+              }
+            }
+
+            // Individual activity - safe to append
             return [newActivity, ...prev];
           });
         }
@@ -1189,37 +1210,111 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   }, [activities, categoryFilter, severityFilter, debouncedSearch]);
 
   const groupedSections = useMemo(() => {
-    const groups = {};
+    try {
+      // Phase 1: Group by operation_group_id in single O(n) pass
+      const groupMap = new Map();
+      const individual = [];
 
-    filteredActivities.forEach((activity) => {
-      const date = parseISO(activity.created_at);
-      let dateLabel;
+      filteredActivities.forEach(activity => {
+        if (activity.operation_group_id !== null) {
+          const groupId = activity.operation_group_id;
+          if (!groupMap.has(groupId)) {
+            groupMap.set(groupId, {
+              id: `group-${groupId}`,
+              type: 'batch_group',
+              operation_group_id: groupId,
+              group_type: activity.group_type || 'unknown',
+              group_description: activity.group_description || 'عملية جماعية',
+              operation_count: activity.group_operation_count,
+              group_undo_state: activity.group_undo_state,
+              created_at: activity.created_at,
+              operations: [],
 
-      if (isToday(date)) {
-        dateLabel = "اليوم";
-      } else if (isYesterday(date)) {
-        dateLabel = "أمس";
-      } else {
-        dateLabel = format(date, "d MMMM", { locale: ar });
-      }
+              // Inherit filter fields from first operation for filter compatibility
+              actor_profile_id: activity.actor_profile_id,
+              actor_name_chain: activity.actor_name_chain,
+              primary_action_type: activity.action_type,
+              searchableText: ''
+            });
+          }
 
-      if (!groups[dateLabel]) {
-        groups[dateLabel] = [];
-      }
+          groupMap.get(groupId).operations.push(activity);
 
-      groups[dateLabel].push(activity);
-    });
-
-    return Object.entries(groups)
-      .map(([title, data]) => ({
-        title,
-        data: data.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-      }))
-      .sort((a, b) => {
-        const first = a.data[0];
-        const second = b.data[0];
-        return new Date(second.created_at).getTime() - new Date(first.created_at).getTime();
+          // Aggregate searchable text for search compatibility
+          groupMap.get(groupId).searchableText +=
+            `${activity.actor_name_current || activity.actor_name_historical || ''} ${activity.target_name_current || activity.target_name_historical || ''} ${activity.description || ''} `;
+        } else {
+          individual.push({
+            ...activity,
+            type: 'individual'
+          });
+        }
       });
+
+      // Phase 2: Convert map to array and filter empty groups
+      const batchGroups = Array.from(groupMap.values())
+        .filter(group => group.operations.length > 0);
+
+      // Log critical count mismatches
+      batchGroups.forEach(group => {
+        const mismatch = Math.abs(group.operations.length - group.operation_count);
+        if (mismatch > 10) {
+          console.error('[ActivityLogDashboard] Critical count mismatch:', {
+            group_id: group.operation_group_id,
+            expected: group.operation_count,
+            actual: group.operations.length
+          });
+        }
+      });
+
+      // Phase 3: Merge and sort by timestamp (with secondary sort by ID for stability)
+      const allActivities = [...batchGroups, ...individual];
+      allActivities.sort((a, b) => {
+        const timeDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        if (timeDiff !== 0) return timeDiff;
+
+        // Secondary sort by ID to ensure stable sort order
+        const aId = a.type === 'batch_group' ? a.operation_group_id : a.id;
+        const bId = b.type === 'batch_group' ? b.operation_group_id : b.id;
+        return String(bId).localeCompare(String(aId));
+      });
+
+      // Phase 4: Group by date sections
+      const dateGroups = new Map();
+      allActivities.forEach(item => {
+        const date = parseISO(item.created_at);
+        let dateLabel;
+
+        if (isToday(date)) {
+          dateLabel = "اليوم";
+        } else if (isYesterday(date)) {
+          dateLabel = "أمس";
+        } else {
+          dateLabel = format(date, "d MMMM", { locale: ar });
+        }
+
+        if (!dateGroups.has(dateLabel)) {
+          dateGroups.set(dateLabel, []);
+        }
+        dateGroups.get(dateLabel).push(item);
+      });
+
+      // Phase 5: Convert to sections array and filter empty sections
+      return Array.from(dateGroups.entries())
+        .filter(([_, data]) => data.length > 0)
+        .map(([title, data]) => ({
+          title,
+          data
+        }));
+
+    } catch (error) {
+      console.error('[ActivityLogDashboard] Grouping error:', error);
+      // Fallback: return ungrouped activities
+      return [{
+        title: 'خطأ في التجميع',
+        data: filteredActivities.map(a => ({ ...a, type: 'individual' }))
+      }];
+    }
   }, [filteredActivities]);
 
   const latestActivityTimestamp = activities.length > 0 ? activities[0].created_at : null;
@@ -1304,19 +1399,23 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     [profile, showToast, fetchActivities]
   );
 
-  const handleOpenDetails = (activity) => {
+  const handleOpenDetails = useCallback((activity) => {
     setSelectedActivity(activity);
     setAdvancedActivity(null);
     setAdvancedModalVisible(false);
     setDetailsVisible(true);
-  };
+  }, []);
 
-  const handleCloseDetails = () => {
+  const handleCloseDetails = useCallback(() => {
     setDetailsVisible(false);
     setSelectedActivity(null);
     setAdvancedModalVisible(false);
     setAdvancedActivity(null);
-  };
+  }, []);
+
+  const handleRefreshActivities = useCallback(() => {
+    fetchActivities(false);
+  }, [fetchActivities]);
 
   const handleOpenAdvanced = (activity) => {
     if (!activity) return;
@@ -1358,10 +1457,36 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
       <SectionList
         sections={groupedSections}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ActivityListCard activity={item} onPress={() => handleOpenDetails(item)} onUndo={handleUndo} />
-        )}
+        keyExtractor={(item) =>
+          item.type === 'batch_group'
+            ? `group-${item.operation_group_id}`
+            : `activity-${item.id}`
+        }
+        renderItem={({ item }) => {
+          if (item.type === 'batch_group') {
+            return (
+              <BatchOperationCard
+                groupId={item.operation_group_id}
+                groupType={item.group_type}
+                description={item.group_description}
+                operationCount={item.operation_count}
+                operations={item.operations}
+                createdAt={item.created_at}
+                undoState={item.group_undo_state}
+                onRefresh={handleRefreshActivities}
+                onPressOperation={handleOpenDetails}
+              />
+            );
+          }
+
+          return (
+            <ActivityListCard
+              activity={item}
+              onPress={() => handleOpenDetails(item)}
+              onUndo={handleUndo}
+            />
+          );
+        }}
         renderSectionHeader={({ section: { title } }) => (
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionHeaderText}>{title}</Text>

@@ -122,7 +122,7 @@ const FatherSelector = ({
   const checkIfDescendant = async (profileId, ancestorId) => {
     try {
       // Use recursive CTE to check ancestry
-      const { data, error } = await supabase.rpc("check_is_descendant", {
+      const { data, error } = await supabase.rpc("is_descendant_of", {
         p_profile_id: profileId,
         p_ancestor_id: ancestorId,
       });

@@ -17,43 +17,19 @@ class SkiaImageCache {
   private inflight = new Map<string, Promise<SkImage>>();
   private totalBytes = 0;
   // Phase 4: Increased budget by 2x to reduce cache thrashing
-  // Even without transformation API, fits 12-16 full-res images instead of 6-8
+  // With transformation: fits 500+ LOD images; Without: fits 12-16 full-res images
   private budget = Platform.OS === "ios" ? 128 * 1024 * 1024 : 96 * 1024 * 1024;
-  private transformationAvailable: boolean | null = null;
-
-  /**
-   * Check if Supabase transformation API is available (Pro plan required)
-   * Returns cached result after first check
-   */
-  private async checkTransformationAPI(): Promise<boolean> {
-    if (this.transformationAvailable !== null) {
-      return this.transformationAvailable;
-    }
-
-    try {
-      // Test transformation endpoint (requires Supabase Pro plan)
-      const testUrl = "https://ezkioroyhzpavmbfavyn.supabase.co/storage/v1/render/image/public/profile-photos/test.jpg?width=1&height=1";
-      const response = await fetch(testUrl, { method: "HEAD" });
-      this.transformationAvailable = response.ok;
-
-      if (!this.transformationAvailable) {
-        console.warn(
-          "[Image Cache] ⚠️ Supabase transformation API unavailable (requires Pro plan).\n" +
-          "Images will load at full resolution. Consider upgrading plan for 60x performance improvement."
-        );
-      }
-
-      return this.transformationAvailable;
-    } catch (error) {
-      console.warn("[Image Cache] Failed to check transformation API:", error);
-      this.transformationAvailable = false;
-      return false;
-    }
-  }
+  private transformationAvailable: boolean | null = null; // null=unknown, true=works, false=disabled
+  private transformStats = {
+    attempts: 0,
+    successes: 0,
+    failures: 0,
+  };
 
   /**
    * Transform URL to request specific size variant
-   * Note: Transformation API requires Supabase Pro plan (currently unavailable)
+   * Uses optimistic approach: try transformation, fall back if it fails
+   * No upfront detection - validates itself on first image load
    */
   urlForBucket(url: string, bucket: number): string {
     // Guard against undefined/null URLs
@@ -61,10 +37,25 @@ class SkiaImageCache {
       return "";
     }
 
-    // Transformation API not available - return original URL
-    // Images will load at full resolution, but cache budget increase (2x) helps reduce thrashing
-    if (url.includes("supabase.co/storage/")) {
+    // Skip if already transformed (prevent double-transformation)
+    if (url.includes("/render/image/")) {
       return url;
+    }
+
+    // Skip large buckets (not worth transforming)
+    if (bucket > 256) {
+      return url;
+    }
+
+    // Apply Supabase transformation (Pro plan feature)
+    // Robust 3-layer fallback in load() handles failures gracefully
+    if (url.includes("supabase.co/storage/v1/object/public/")) {
+      const transformedPath = url.replace(
+        "/storage/v1/object/public/",
+        "/storage/v1/render/image/public/"
+      );
+      // Omit format param - let Supabase auto-optimize to WebP/AVIF
+      return `${transformedPath}?width=${bucket}&height=${bucket}&quality=80`;
     }
 
     return url;
@@ -97,17 +88,13 @@ class SkiaImageCache {
 
   /**
    * Get from cache or load from network
+   * Phase 4: Self-validating - transformation API validates itself on first image load
    */
   async getOrLoad(
     url: string,
     bucket = 256,
     options?: LoadOptions,
   ): Promise<SkImage> {
-    // Check transformation API availability on first use
-    if (this.transformationAvailable === null) {
-      await this.checkTransformationAPI();
-    }
-
     const finalUrl = this.urlForBucket(url, bucket);
     const key = finalUrl;
 
@@ -172,6 +159,37 @@ class SkiaImageCache {
 
     try {
       response = await fetch(url, options?.fetchOptions);
+
+      // Track transformation results (Phase 4: Self-validating monitoring)
+      if (url.includes("/render/image/")) {
+        this.transformStats.attempts++;
+
+        if (response.ok) {
+          // Transformation succeeded
+          this.transformStats.successes++;
+
+          // Confirm API availability on first success
+          if (this.transformationAvailable === null) {
+            this.transformationAvailable = true;
+            console.log("[Image Cache] ✅ Transformation API confirmed working on first image load");
+          }
+        } else {
+          // Transformation failed
+          this.transformStats.failures++;
+
+          // Auto-disable if failure rate > 80% after 20 attempts
+          if (this.transformStats.attempts >= 20) {
+            const failureRate = this.transformStats.failures / this.transformStats.attempts;
+            if (failureRate > 0.8 && this.transformationAvailable !== false) {
+              this.transformationAvailable = false;
+              console.error(
+                `[Image Cache] ❌ High transformation failure rate (${(failureRate * 100).toFixed(0)}%) - ` +
+                `auto-disabling. Check if Pro plan is active.`
+              );
+            }
+          }
+        }
+      }
 
       // If transformation endpoint fails with 400/422, try original URL
       if (!response.ok && url.includes("/render/image/")) {
@@ -278,10 +296,13 @@ class SkiaImageCache {
   }
 
   /**
-   * Get cache statistics (Phase 4: Enhanced monitoring)
+   * Get cache statistics (Phase 4: Enhanced monitoring with self-validation)
    */
   getStats() {
     const utilizationPercent = (this.totalBytes / this.budget) * 100;
+    const successRate = this.transformStats.attempts > 0
+      ? (this.transformStats.successes / this.transformStats.attempts * 100).toFixed(0) + "%"
+      : "N/A";
 
     return {
       entries: this.cache.size,
@@ -289,10 +310,19 @@ class SkiaImageCache {
       totalMB: (this.totalBytes / 1024 / 1024).toFixed(1),
       budgetMB: (this.budget / 1024 / 1024).toFixed(1),
       utilization: utilizationPercent.toFixed(0) + "%",
-      transformationAPI: this.transformationAvailable === true ? "enabled" :
-                        this.transformationAvailable === false ? "disabled (Pro plan required)" :
-                        "not checked",
-      // Warning if cache is getting full
+
+      // Transformation API self-validation stats
+      transformation: {
+        status: this.transformationAvailable === true ? "✅ working" :
+                this.transformationAvailable === false ? "❌ disabled" :
+                "⏳ validating",
+        attempts: this.transformStats.attempts,
+        successes: this.transformStats.successes,
+        failures: this.transformStats.failures,
+        successRate: successRate,
+      },
+
+      // Overall cache health
       status: utilizationPercent > 90 ? "⚠️ High utilization - cache thrashing likely" :
               utilizationPercent > 75 ? "Moderate utilization" :
               "Healthy",

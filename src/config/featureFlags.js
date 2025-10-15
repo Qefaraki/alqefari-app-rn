@@ -1,4 +1,4 @@
 export const featureFlags = {
-  profileLinkRequests: false,
+  profileLinkRequests: true,
   profileViewer: true,
 };

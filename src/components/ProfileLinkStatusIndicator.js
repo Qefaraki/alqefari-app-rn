@@ -200,41 +200,33 @@ export default function ProfileLinkStatusIndicator() {
         setProfile(linkedProfile);
         setHasLinkedProfile(true);
 
-        // Use pre-computed chain or build from available data
-        // First, check if we have a full_chain already
+        // Use pre-computed chain or build from RPC
         if (linkedProfile.full_chain) {
+          // Use cached full_chain if available
           const chain = linkedProfile.full_chain;
           const finalChain = chain.includes("القفاري") ? chain : `${chain} القفاري`;
           setProfileChain(finalChain);
+        } else if (linkedProfile.father_id) {
+          // Build chain using RPC function (returns TEXT directly)
+          const { data: chain, error: chainError } = await supabase
+            .rpc('build_name_chain', { p_profile_id: linkedProfile.id });
+
+          if (!chainError && chain) {
+            // RPC already includes "القفاري" suffix
+            setProfileChain(chain);
+          } else {
+            // Fallback to just name + القفاري
+            const fallbackChain = linkedProfile.name.includes("القفاري")
+              ? linkedProfile.name
+              : `${linkedProfile.name} القفاري`;
+            setProfileChain(fallbackChain);
+          }
         } else {
-          // Build basic chain from available fields without loading all profiles
-          let basicChain = linkedProfile.name;
-
-          if (linkedProfile.father_name) {
-            basicChain = `${linkedProfile.name} بن ${linkedProfile.father_name}`;
-            if (linkedProfile.grandfather_name) {
-              basicChain += ` ${linkedProfile.grandfather_name}`;
-            }
-          }
-
-          const finalChain = basicChain.includes("القفاري") ? basicChain : `${basicChain} القفاري`;
-          setProfileChain(finalChain);
-
-          // Optionally: Load only necessary profiles for chain building (not ALL profiles)
-          // This should be done server-side via RPC function for efficiency
-          if (linkedProfile.father_id) {
-            // Load only direct ancestors for chain building (much more efficient)
-            const { data: ancestors } = await supabase
-              .rpc('get_ancestors_chain', { profile_id: linkedProfile.id })
-              .single();
-
-            if (ancestors?.chain) {
-              const finalChain = ancestors.chain.includes("القفاري")
-                ? ancestors.chain
-                : `${ancestors.chain} القفاري`;
-              setProfileChain(finalChain);
-            }
-          }
+          // No father_id: just use name + القفاري
+          const fallbackChain = linkedProfile.name.includes("القفاري")
+            ? linkedProfile.name
+            : `${linkedProfile.name} القفاري`;
+          setProfileChain(fallbackChain);
         }
 
         // Check if we've already shown the congratulations for this specific profile
