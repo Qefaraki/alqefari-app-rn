@@ -19,9 +19,13 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  I18nManager,
+  Animated,
+  Easing,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { SymbolView } from "expo-symbols";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import {
@@ -35,14 +39,13 @@ import {
   endOfWeek,
   startOfMonth,
   endOfMonth,
-  formatDistanceToNow,
 } from "date-fns";
 import { ar } from "date-fns/locale";
 import tokens from "../../components/ui/tokens";
 import SkeletonLoader from "../../components/ui/SkeletonLoader";
 import InlineDiff from "../../components/ui/InlineDiff";
 import { getFieldLabel } from "../../services/activityLogTranslations";
-import { formatRelativeTime } from "../../utils/formatTimestamp";
+import { formatRelativeTime, formatAbsoluteTime } from "../../utils/formatTimestamp";
 import UserFilterModal from "../../components/admin/UserFilterModal";
 import DateRangePickerModal from "../../components/admin/DateRangePickerModal";
 import { useAuth } from "../../contexts/AuthContext";
@@ -73,17 +76,17 @@ const ACTION_CONFIGS = {
 };
 
 const CATEGORY_OPTIONS = [
-  { key: "all", label: "الجميع" },
-  { key: "tree", label: "الشجرة" },
-  { key: "marriages", label: "الأزواج" },
-  { key: "photos", label: "الصور" },
-  { key: "admin", label: "الإدارة" },
+  { key: "all", label: "الجميع", icon: "square.grid.2x2", fallback: "grid-outline" },
+  { key: "tree", label: "الشجرة", icon: "person.3.sequence", fallback: "git-branch" },
+  { key: "marriages", label: "الأزواج", icon: "heart.circle", fallback: "heart" },
+  { key: "photos", label: "الصور", icon: "photo.on.rectangle", fallback: "image" },
+  { key: "admin", label: "الإدارة", icon: "shield.lefthalf.fill", fallback: "shield" },
 ];
 
 const SEVERITY_OPTIONS = [
-  { key: "all", label: "كل المستويات" },
-  { key: "high", label: "عالي" },
-  { key: "critical", label: "حرج" },
+  { key: "all", label: "كل المستويات", icon: "line.3.horizontal", fallback: "options" },
+  { key: "high", label: "عالي", icon: "exclamationmark.triangle", fallback: "warning" },
+  { key: "critical", label: "حرج", icon: "exclamationmark.octagon", fallback: "alert" },
 ];
 
 const SEVERITY_BADGES = {
@@ -105,7 +108,17 @@ const METADATA_FIELDS = new Set([
 const formatSimpleValue = (value) => {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "نعم" : "لا";
-  if (typeof value === "object") return "بيانات";
+  if (Array.isArray(value)) {
+    if (!value.length) return "—";
+    const preview = value.slice(0, 3).map((item) => String(item)).join("، " );
+    return value.length > 3 ? `${preview}…` : preview;
+  }
+  if (typeof value === "object") {
+    const keys = Object.keys(value || {});
+    if (!keys.length) return "—";
+    const preview = keys.slice(0, 3).map((key) => getFieldLabel(key) || key).join("، " );
+    return keys.length > 3 ? `${preview}…` : preview;
+  }
   if (typeof value === "string" && value.length > 80) return `${value.substring(0, 80)}…`;
   return String(value);
 };
@@ -123,27 +136,6 @@ const formatDetailedValue = (value) => {
   return String(value);
 };
 
-const formatAbsoluteTimestamp = (timestamp) => {
-  if (!timestamp) return "";
-  try {
-    const date = parseISO(timestamp);
-    if (isToday(date)) return `اليوم ${format(date, "h:mm a", { locale: ar })}`;
-    if (isYesterday(date)) return `أمس ${format(date, "h:mm a", { locale: ar })}`;
-    return format(date, "d MMMM yyyy h:mm a", { locale: ar });
-  } catch (error) {
-    return timestamp;
-  }
-};
-
-const formatRelativeSince = (timestamp) => {
-  if (!timestamp) return "";
-  try {
-    return formatDistanceToNow(parseISO(timestamp), { addSuffix: true, locale: ar });
-  } catch (error) {
-    return timestamp;
-  }
-};
-
 const getSeverityBadge = (severity) => {
   const key = severity?.toLowerCase?.();
   return key && SEVERITY_BADGES[key] ? SEVERITY_BADGES[key] : null;
@@ -153,6 +145,38 @@ const getShortName = (name) => {
   if (!name) return null;
   const parts = name.trim().split(/\s+/);
   return parts[0];
+};
+
+const SFIcon = ({ name, fallback, rtlFallback, size = 20, color, weight = "regular", style }) => {
+  if (Platform.OS === "ios") {
+    return (
+      <SymbolView
+        name={name}
+        weight={weight}
+        scale="medium"
+        tintColor={color}
+        style={[{ width: size, height: size }, style]}
+      />
+    );
+  }
+
+  const iconName = I18nManager.isRTL && rtlFallback ? rtlFallback : fallback;
+  return <Ionicons name={iconName} size={size} color={color} style={style} />;
+};
+
+const useModalOverlay = (visible) => {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: visible ? 1 : 0,
+      duration: visible ? 160 : 120,
+      easing: visible ? Easing.out(Easing.quad) : Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [visible, opacity]);
+
+  return opacity;
 };
 
 const getMeaningfulFields = (fields = []) => fields.filter((field) => !METADATA_FIELDS.has(field));
@@ -176,7 +200,10 @@ const buildActivitySummary = (activity) => {
   }
 
   if (meaningfulFields.length > 1) {
-    return `${actorShort} حدّث ${meaningfulFields.length} حقول لـ ${targetShort}`;
+    const labels = meaningfulFields.slice(0, 2).map((field) => getFieldLabel(field));
+    const labelText = labels.join('، ');
+    const suffix = meaningfulFields.length > 2 ? ' وغيرها' : '';
+    return `${actorShort} حدّث ${labelText}${suffix} لـ ${targetShort}`;
   }
 
   return `${actorShort} ${actionConfig.label} ${targetShort}`;
@@ -256,10 +283,10 @@ const SmartNameDisplay = React.memo(
           activeOpacity={0.7}
           style={styles.nameRow}
         >
-          <Ionicons name="person-circle-outline" size={14} color="#736372" />
+          <SFIcon name="person.circle" fallback="person-circle-outline" size={14} color="#736372" />
           <Text style={[style, historicalStyle]}>{displayName}</Text>
           {onNavigate && profileId && (
-            <Ionicons name="chevron-back" size={12} color="#736372" />
+            <SFIcon name="chevron.forward" fallback="chevron-forward" rtlFallback="chevron-back" size={12} color="#736372" />
           )}
         </TouchableOpacity>
       );
@@ -273,7 +300,7 @@ const SmartNameDisplay = React.memo(
       >
         <View style={{ gap: 4 }}>
           <View style={styles.nameRow}>
-            <Ionicons name="person-circle-outline" size={14} color="#73637280" />
+            <SFIcon name="person.circle" fallback="person-circle-outline" size={14} color="#73637280" />
             <Text style={[style, historicalStyle]}>{normalizedHistorical}</Text>
           </View>
           <View style={[styles.nameRow, { marginRight: 18 }]}>
@@ -282,7 +309,7 @@ const SmartNameDisplay = React.memo(
             </View>
             <Text style={[style, currentStyle, { color: "#242121" }]}>{normalizedCurrent}</Text>
             {onNavigate && profileId && (
-              <Ionicons name="chevron-back" size={12} color="#736372" />
+              <SFIcon name="chevron.forward" fallback="chevron-forward" rtlFallback="chevron-back" size={12} color="#736372" />
             )}
           </View>
         </View>
@@ -316,11 +343,16 @@ const StatusHeader = ({ latestTimestamp, onClose }) => (
       />
       <View style={{ flex: 1 }}>
         <Text style={styles.screenTitle}>سجل النشاط</Text>
-        <Text style={styles.screenSubtitle}>آخر تحديث {latestTimestamp ? formatRelativeTime(latestTimestamp) : "لا توجد أنشطة"}</Text>
       </View>
       {onClose && (
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="chevron-forward" size={24} color={tokens.colors.najdi.text} />
+          <SFIcon
+            name="chevron.forward"
+            fallback="chevron-forward"
+            rtlFallback="chevron-back"
+            size={22}
+            color={tokens.colors.najdi.text}
+          />
         </TouchableOpacity>
       )}
     </View>
@@ -338,15 +370,16 @@ const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchCh
         onPress={onOpenFilters}
         activeOpacity={0.75}
       >
-        <Ionicons
-          name="options-outline"
-          size={16}
+        <SFIcon
+          name="line.3.horizontal.decrease.circle"
+          fallback="options-outline"
+          size={18}
           color={hasFilters ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
         />
         <Text style={[styles.filterChipText, hasFilters && styles.filterChipTextActive]}>{label}</Text>
       </TouchableOpacity>
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color={tokens.colors.najdi.textMuted} />
+        <SFIcon name="magnifyingglass" fallback="search" size={18} color={tokens.colors.najdi.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="بحث سريع"
@@ -357,7 +390,7 @@ const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchCh
         />
         {searchText.length > 0 && (
           <TouchableOpacity onPress={() => onSearchChange("")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Ionicons name="close-circle" size={18} color={tokens.colors.najdi.textMuted} />
+            <SFIcon name="xmark.circle.fill" fallback="close-circle" size={18} color={tokens.colors.najdi.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -377,9 +410,12 @@ const FiltersSheet = ({
   onOpenUser,
   selectedUser,
   onClear,
-}) => (
-  <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-    <View style={styles.filtersSheetOverlay}>
+}) => {
+  const overlayOpacity = useModalOverlay(visible);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Animated.View style={[styles.filtersSheetOverlay, { opacity: overlayOpacity }]}>
       <TouchableOpacity style={styles.filtersSheetBackdrop} activeOpacity={1} onPress={onClose} />
       <View style={styles.filtersSheetContainer}>
         <View style={styles.filtersSheetHeader}>
@@ -401,6 +437,13 @@ const FiltersSheet = ({
                   onPress={() => onSelectCategory(option.key)}
                   activeOpacity={0.75}
                 >
+                  <SFIcon
+                    name={option.icon}
+                    fallback={option.fallback}
+                    size={16}
+                    color={isActive ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
+                    style={styles.filtersSheetChipIcon}
+                  />
                   <Text
                     style={[styles.filtersSheetChipText, isActive && styles.filtersSheetChipTextActive]}
                   >
@@ -424,6 +467,13 @@ const FiltersSheet = ({
                   onPress={() => onSelectSeverity(option.key)}
                   activeOpacity={0.75}
                 >
+                  <SFIcon
+                    name={option.icon}
+                    fallback={option.fallback}
+                    size={15}
+                    color={isActive ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
+                    style={styles.filtersSheetChipIcon}
+                  />
                   <Text
                     style={[styles.filtersSheetChipTextSmall, isActive && styles.filtersSheetChipTextSmallActive]}
                   >
@@ -436,12 +486,12 @@ const FiltersSheet = ({
         </View>
 
         <TouchableOpacity style={styles.filtersSheetRowButton} onPress={onOpenDate} activeOpacity={0.75}>
-          <Ionicons name="calendar-outline" size={18} color={tokens.colors.najdi.text} />
+          <SFIcon name="calendar" fallback="calendar-outline" size={18} color={tokens.colors.najdi.text} />
           <Text style={styles.filtersSheetRowButtonText}>التاريخ: {getDatePresetLabel(datePreset)}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.filtersSheetRowButton} onPress={onOpenUser} activeOpacity={0.75}>
-          <Ionicons name="person-outline" size={18} color={tokens.colors.najdi.text} />
+          <SFIcon name="person.crop.circle" fallback="person-outline" size={18} color={tokens.colors.najdi.text} />
           <Text style={styles.filtersSheetRowButtonText}>
             {selectedUser ? selectedUser.actor_name : "اختر المستخدم"}
           </Text>
@@ -451,27 +501,31 @@ const FiltersSheet = ({
           <Text style={styles.filtersSheetDoneText}>تم</Text>
         </TouchableOpacity>
       </View>
-    </View>
-  </Modal>
-);
+      </Animated.View>
+    </Modal>
+  );
+};
 
 const ActivityListCard = ({ activity, onPress, onUndo }) => {
   const summary = buildActivitySummary(activity);
-  const relativeTime = formatRelativeSince(activity.created_at);
+  const relativeTime = formatRelativeTime(activity.created_at);
   const changedFields = getMeaningfulFields(activity.changed_fields || []);
   const primaryField = getPrimaryField(activity);
   const severityBadge = getSeverityBadge(activity.severity);
   const showUndo = activity.is_undoable === true && !activity.undone_at;
 
   return (
-    <TouchableOpacity style={styles.activityCard} onPress={onPress} activeOpacity={0.8}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.activitySummary} numberOfLines={2}>{summary}</Text>
+    <TouchableOpacity style={styles.activityCard} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.activityCardContent}>
+        <View style={styles.activityHeaderRow}>
+          {severityBadge && <View style={[styles.severityDot, { backgroundColor: severityBadge.color }]} />}
+          <Text style={styles.activitySummary} numberOfLines={2}>{summary}</Text>
+        </View>
         <View style={styles.activityMetaRow}>
           <Text style={styles.activityTime}>{relativeTime}</Text>
           {severityBadge && (
-            <View style={[styles.severityPill, { backgroundColor: severityBadge.color }]}>
-              <Text style={[styles.severityPillText, { color: severityBadge.text }]}>{severityBadge.label}</Text>
+            <View style={[styles.severityTag, { backgroundColor: severityBadge.color }]}>
+              <Text style={[styles.severityTagText, { color: severityBadge.text }]}>{severityBadge.label}</Text>
             </View>
           )}
         </View>
@@ -489,20 +543,28 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
           <Text style={styles.fieldsCountText}>{`${changedFields.length} تغييرات`}</Text>
         )}
       </View>
-      <View style={styles.cardActions}>
+      <View style={styles.cardTrailing}>
         {showUndo && (
           <TouchableOpacity
-            style={styles.undoIconButton}
+            style={styles.undoPill}
             onPress={(e) => {
               e.stopPropagation();
               onUndo(activity);
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-undo-outline" size={20} color={tokens.colors.najdi.crimson} />
+            <SFIcon name="arrow.uturn.backward" fallback="arrow-undo-outline" size={16} color={tokens.colors.najdi.crimson} />
+            <Text style={styles.undoPillText}>تراجع</Text>
           </TouchableOpacity>
         )}
-        <Ionicons name="chevron-back" size={18} color="#24212140" />
+        <SFIcon
+          name="chevron.forward"
+          fallback="chevron-forward"
+          rtlFallback="chevron-back"
+          size={16}
+          color="#6F6254"
+          style={styles.cardChevron}
+        />
       </View>
     </TouchableOpacity>
   );
@@ -511,6 +573,7 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
 const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateToProfile, onOpenAdvanced }) => {
   if (!activity) return null;
 
+  const overlayOpacity = useModalOverlay(visible);
   const meaningfulFields = getMeaningfulFields(activity.changed_fields || []);
   const severityBadge = getSeverityBadge(activity.severity);
   const summary = buildActivitySummary(activity);
@@ -520,7 +583,7 @@ const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateTo
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.sheetOverlay}>
+      <Animated.View style={[styles.sheetOverlay, { opacity: overlayOpacity }]}>
         <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheetContainer}>
           <View style={styles.sheetHandleRow}>
@@ -528,7 +591,7 @@ const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateTo
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetContent}>
             <Text style={styles.sheetTitle}>{summary}</Text>
-            <Text style={styles.sheetTimestamp}>{formatAbsoluteTimestamp(activity.created_at)}</Text>
+            <Text style={styles.sheetTimestamp}>{formatAbsoluteTime(activity.created_at)}</Text>
 
             {severityBadge && (
               <View style={[styles.sheetSeverity, { backgroundColor: severityBadge.color }]}>
@@ -549,7 +612,12 @@ const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateTo
                     <Text style={styles.changeBullet}>•</Text>
                     <View style={styles.changeContent}>
                       <Text style={styles.changeFieldLabel}>{getFieldLabel(field)}</Text>
-                      <Text style={styles.changeFieldValue}>{`${oldValue} → ${newValue}`}</Text>
+                      <Text style={styles.changeFieldValue}>
+                        <Text style={styles.changeValueLabel}>من </Text>
+                        <Text style={styles.changeValueOld}>{oldValue}</Text>
+                        <Text style={styles.changeValueLabel}> إلى </Text>
+                        <Text style={styles.changeValueNew}>{newValue}</Text>
+                      </Text>
                     </View>
                   </View>
                 );
@@ -558,7 +626,17 @@ const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateTo
 
             <View style={styles.sheetSection}>
               <Text style={styles.sheetSectionTitle}>من قام بذلك؟</Text>
-              <Text style={styles.sheetValue}>{actorName || "—"}</Text>
+              {activity.actor_profile_id ? (
+                <SmartNameDisplay
+                  historicalName={activity.actor_name_historical}
+                  currentName={activity.actor_name_current}
+                  profileId={activity.actor_profile_id}
+                  onNavigate={onNavigateToProfile}
+                  style={styles.sheetValue}
+                />
+              ) : (
+                <Text style={styles.sheetValue}>{actorName || "—"}</Text>
+              )}
               {activity.actor_phone && <Text style={styles.sheetValueMuted}>{activity.actor_phone}</Text>}
             </View>
 
@@ -579,11 +657,11 @@ const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateTo
             <View style={styles.sheetSection}>
               <Text style={styles.sheetSectionTitle}>السياق</Text>
               {activity.description && <Text style={styles.sheetValue}>{activity.description}</Text>}
-              <Text style={styles.sheetValueMuted}>{`تم منذ ${formatRelativeSince(activity.created_at)}`}</Text>
+              <Text style={styles.sheetValueMuted}>{formatRelativeTime(activity.created_at)}</Text>
             </View>
 
             <TouchableOpacity style={styles.advancedLink} onPress={() => onOpenAdvanced(activity)} activeOpacity={0.75}>
-              <Ionicons name="information-circle-outline" size={18} color={tokens.colors.najdi.text} />
+              <SFIcon name="info.circle" fallback="information-circle-outline" size={18} color={tokens.colors.najdi.text} />
               <Text style={styles.advancedLinkText}>معلومات متقدمة</Text>
             </TouchableOpacity>
           </ScrollView>
@@ -594,13 +672,13 @@ const ActivityDetailsSheet = ({ activity, visible, onClose, onUndo, onNavigateTo
             </TouchableOpacity>
             {showUndo && (
               <TouchableOpacity style={styles.sheetUndoButton} onPress={() => onUndo(activity)} activeOpacity={0.8}>
-                <Ionicons name="arrow-undo" size={18} color="#F9F7F3" style={{ marginLeft: 4 }} />
+                <SFIcon name="arrow.uturn.backward" fallback="arrow-undo" size={18} color="#F9F7F3" style={styles.sheetUndoIcon} />
                 <Text style={styles.sheetUndoText}>تراجع</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -647,13 +725,15 @@ const AdvancedDetails = ({ activity }) => {
 const AdvancedDetailsModal = ({ activity, visible, onClose }) => {
   if (!activity) return null;
 
+  const overlayOpacity = useModalOverlay(visible);
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={styles.advancedOverlay}>
+      <Animated.View style={[styles.advancedOverlay, { opacity: overlayOpacity }]}>
         <View style={styles.advancedModalContainer}>
           <View style={styles.advancedModalHeader}>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={24} color={tokens.colors.najdi.text} />
+              <SFIcon name="xmark" fallback="close" size={24} color={tokens.colors.najdi.text} />
             </TouchableOpacity>
             <Text style={styles.advancedModalTitle}>معلومات متقدمة</Text>
             <View style={{ width: 24 }} />
@@ -662,7 +742,7 @@ const AdvancedDetailsModal = ({ activity, visible, onClose }) => {
             <AdvancedDetails activity={activity} />
           </ScrollView>
         </View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -1070,7 +1150,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         }
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={48} color={tokens.colors.najdi.textMuted} />
+            <SFIcon name="doc.text" fallback="document-text-outline" size={48} color={tokens.colors.najdi.textMuted} />
             <Text style={styles.emptyTitle}>لا توجد نشاطات في هذا النطاق</Text>
             <Text style={styles.emptySubtitle}>جرّب تغيير الفلاتر أو عرض كل الوقت</Text>
             <TouchableOpacity style={styles.emptyReset} onPress={handleResetFilters}>
@@ -1114,12 +1194,12 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         onSelectCategory={setCategoryFilter}
         onSelectSeverity={setSeverityFilter}
         onOpenDate={() => {
-          setFiltersSheetVisible(false);
           setShowDateFilter(true);
+          setTimeout(() => setFiltersSheetVisible(false), 0);
         }}
         onOpenUser={() => {
-          setFiltersSheetVisible(false);
           setShowUserFilter(true);
+          setTimeout(() => setFiltersSheetVisible(false), 0);
         }}
         selectedUser={selectedUser}
         onClear={handleResetFilters}
@@ -1188,12 +1268,6 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  screenSubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 4,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1209,11 +1283,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
+    backgroundColor: tokens.colors.najdi.container + '26',
   },
   filterChipActive: {
-    backgroundColor: tokens.colors.najdi.text,
+    backgroundColor: tokens.colors.najdi.crimson,
   },
   filterChipText: {
     fontSize: 13,
@@ -1230,9 +1303,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
-    backgroundColor: tokens.colors.najdi.container + "26",
+    backgroundColor: tokens.colors.najdi.container + '18',
     paddingHorizontal: 12,
     height: 44,
   },
@@ -1241,6 +1312,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  nowBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: "#D58C4A15",
+  },
+  nowBadgeText: {
+    fontSize: 10,
+    color: "#73637280",
+    fontWeight: "600",
   },
   listContainer: {
     paddingHorizontal: 16,
@@ -1258,14 +1345,65 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: tokens.colors.najdi.container + '26',
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     flexDirection: "row",
     gap: 12,
-    alignItems: "flex-start",
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + "26",
+    alignItems: "center",
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  activityCardContent: {
+    flex: 1,
+    gap: 10,
+  },
+  activityHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  severityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  severityTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  severityTagText: {
+    fontSize: 11,
+    fontWeight: "700",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  cardTrailing: {
+    alignItems: "flex-end",
+    gap: 12,
+  },
+  undoPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: tokens.colors.najdi.crimson + '12',
+  },
+  undoPillText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.crimson,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  cardChevron: {
+    marginTop: 4,
   },
   activitySummary: {
     fontSize: 17,
@@ -1276,41 +1414,24 @@ const styles = StyleSheet.create({
   activityMetaRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
-    marginTop: 6,
+    marginTop: 4,
   },
   activityTime: {
     fontSize: 13,
     color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  severityPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  severityPillText: {
-    fontSize: 11,
-    fontWeight: "700",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
   diffPreview: {
     marginTop: 10,
   },
   fieldsCountText: {
-    marginTop: 10,
+    marginTop: 8,
     fontSize: 13,
-    color: colors.textMuted,
+    color: tokens.colors.najdi.text,
+    fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  cardActions: {
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  undoIconButton: {
-    padding: 6,
-    borderRadius: 12,
-    backgroundColor: tokens.colors.najdi.crimson + "15",
   },
   emptyState: {
     alignItems: "center",
@@ -1351,7 +1472,7 @@ const styles = StyleSheet.create({
   sheetOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   sheetBackdrop: {
     flex: 1,
@@ -1420,7 +1541,7 @@ const styles = StyleSheet.create({
   },
   changeRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "baseline",
     gap: 8,
   },
   changeBullet: {
@@ -1441,6 +1562,23 @@ const styles = StyleSheet.create({
   changeFieldValue: {
     fontSize: 13,
     color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  changeValueLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  changeValueOld: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  changeValueNew: {
+    fontSize: 13,
+    color: tokens.colors.najdi.text,
+    fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   advancedLink: {
@@ -1474,7 +1612,7 @@ const styles = StyleSheet.create({
   sheetCloseText: {
     fontSize: 15,
     fontWeight: "600",
-    color: tokens.colors.najدي.text,
+    color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetUndoButton: {
@@ -1486,6 +1624,9 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.crimson,
     borderRadius: 12,
     paddingVertical: 12,
+  },
+  sheetUndoIcon: {
+    marginStart: 4,
   },
   sheetUndoText: {
     fontSize: 15,
@@ -1529,7 +1670,7 @@ const styles = StyleSheet.create({
   filtersSheetOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   filtersSheetBackdrop: {
     flex: 1,
@@ -1538,6 +1679,8 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '40',
     padding: 20,
     gap: 16,
   },
@@ -1545,6 +1688,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  filtersSheetIntro: {
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  filtersSheetIntroText: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetTitle: {
     fontSize: 17,
@@ -1573,14 +1725,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filtersSheetChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
+    backgroundColor: tokens.colors.najdi.container + '20',
   },
   filtersSheetChipActive: {
-    backgroundColor: tokens.colors.najdi.text,
+    backgroundColor: tokens.colors.najdi.crimson,
+  },
+  filtersSheetChipIcon: {
+    marginStart: -2,
   },
   filtersSheetChipText: {
     fontSize: 13,
@@ -1592,15 +1749,16 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.alJass,
   },
   filtersSheetChipSmall: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container,
+    backgroundColor: tokens.colors.najdi.container + '20',
   },
   filtersSheetChipSmallActive: {
     backgroundColor: tokens.colors.najdi.crimson,
-    borderColor: tokens.colors.najdi.crimson,
   },
   filtersSheetChipTextSmall: {
     fontSize: 13,
@@ -1616,8 +1774,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.colors.najdi.container,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: tokens.colors.najdi.container + '20',
   },
   filtersSheetRowButtonText: {
     fontSize: 15,
@@ -1627,7 +1786,7 @@ const styles = StyleSheet.create({
   filtersSheetDone: {
     marginTop: 4,
     borderRadius: 12,
-    backgroundColor: tokens.colors.najdi.text,
+    backgroundColor: tokens.colors.najdi.crimson,
     paddingVertical: 12,
     alignItems: "center",
   },
@@ -1640,12 +1799,14 @@ const styles = StyleSheet.create({
   advancedOverlay: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: 'rgba(0,0,0,0.18)',
   },
   advancedModalContainer: {
     backgroundColor: tokens.colors.najdi.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '40',
     maxHeight: "90%",
   },
   advancedModalHeader: {

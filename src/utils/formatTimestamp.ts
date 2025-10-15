@@ -6,6 +6,28 @@
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 
+const parseFlexibleTimestamp = (timestamp: string | Date): Date => {
+  if (timestamp instanceof Date) return timestamp;
+  if (!timestamp) return new Date(NaN);
+
+  let normalized = timestamp.trim();
+
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/.test(normalized)) {
+    normalized = normalized.replace(' ', 'T');
+  }
+
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(normalized)) {
+    normalized = `${normalized}Z`;
+  }
+
+  const date = parseISO(normalized);
+  if (isNaN(date.getTime())) {
+    return new Date(normalized);
+  }
+
+  return date;
+};
+
 /**
  * Format timestamp with hybrid approach:
  * - Recent (< 1 hour): "منذ 30 دقيقة"
@@ -15,7 +37,7 @@ import { ar } from 'date-fns/locale';
  */
 export const formatRelativeTime = (timestamp: string | Date): string => {
   try {
-    const date = typeof timestamp === 'string' ? parseISO(timestamp) : timestamp;
+    const date = parseFlexibleTimestamp(timestamp);
 
     // Validate date
     if (isNaN(date.getTime())) {
@@ -64,7 +86,7 @@ export const formatRelativeTime = (timestamp: string | Date): string => {
  */
 export const formatAbsoluteTime = (timestamp: string | Date): string => {
   try {
-    const date = typeof timestamp === 'string' ? parseISO(timestamp) : timestamp;
+    const date = parseFlexibleTimestamp(timestamp);
 
     if (isNaN(date.getTime())) {
       return 'تاريخ غير صالح';

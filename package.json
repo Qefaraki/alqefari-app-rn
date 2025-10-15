@@ -23,6 +23,11 @@
     "submit:ios": "eas submit --platform ios --latest",
     "deploy": "eas build --platform ios --profile production --auto-submit",
     "deploy:preview": "eas build --platform ios --profile preview",
+    "update:preview": "eas update --channel preview",
+    "update:production": "eas update --channel production",
+    "update:list": "eas update:list",
+    "update:rollback": "eas update:rollback",
+    "update:view": "eas channel:view production",
     "postinstall": "npx patch-package || true",
     "dev:reset": "node scripts/fix-metro.js && npm run start:clean",
     "dev:rebuild": "node scripts/fix-metro.js && npx expo run:ios --clear"

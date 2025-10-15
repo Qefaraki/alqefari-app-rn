@@ -17,13 +17,14 @@
       "backgroundColor": "#F9F7F3"
     },
     "updates": {
-      "fallbackToCacheTimeout": 0
+      "url": "https://u.expo.dev/7503aa5d-8e0a-48ce-9621-3a11303cad17",
+      "fallbackToCacheTimeout": 5000
     },
     "runtimeVersion": "1.0.0",
     "ios": {
       "bundleIdentifier": "com.Alqefari.alqefari",
       "supportsTablet": true,
-      "buildNumber": "46",
+      "buildNumber": "47",
       "infoPlist": {
         "NSCameraUsageDescription": "تحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الملف الشخصي",
         "NSPhotoLibraryUsageDescription": "تحتاج التطبيق إلى الوصول إلى مكتبة الصور لاختيار صور الملف الشخصي",

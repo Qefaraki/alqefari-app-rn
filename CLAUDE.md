@@ -9,6 +9,7 @@
 - **[Soft Delete Pattern](docs/SOFT_DELETE_PATTERN.md)** - Soft delete & optimistic locking
 - **[Undo System](docs/UNDO_SYSTEM_TEST_CHECKLIST.md)** - Activity log undo functionality
 - **[Message Templates](docs/MESSAGE_TEMPLATE_SYSTEM.md)** - WhatsApp template system
+- **[OTA Updates](docs/OTA_UPDATES.md)** - Over-the-air update deployment & rollback
 
 ## ⚠️ IMPORTANT: Native RTL Mode is ENABLED
 
@@ -127,6 +128,46 @@ if (error) {
 - Branch-based loading (max depth 3-5)
 - Viewport culling for visible nodes
 - Debounce real-time subscriptions
+
+### Tree Loading Limits
+
+**Current Configuration:**
+- **Database Max**: 10,000 profiles (safety buffer, supports design capacity)
+- **Frontend Load**: 2,000 profiles (performance optimized)
+- **Current Size**: ~779 profiles (7 generations)
+- **Warning Threshold**: 1,500 profiles
+- **Critical Threshold**: 1,900 profiles
+
+**How It Works:**
+- Tree uses viewport culling to render only visible nodes
+- Database can support up to 10K profiles (matching original design intent)
+- Frontend loads 2K profiles at a time for optimal performance
+- Monitoring logs warn when approaching limits
+
+**Monitoring Tree Size:**
+```javascript
+// Check console on tree load
+// ✅ Tree loaded: 779 profiles
+// ⚠️ Approaching limit: 1500/2000 profiles. Consider progressive loading.
+// 🚨 CRITICAL: 1900/2000 profiles. Progressive loading required.
+
+// Check tree size programmatically
+console.log(useTreeStore.getState().treeData.length);
+```
+
+**When to Implement Progressive Loading:**
+- Tree size exceeds 1,800 profiles
+- Load times exceed 2 seconds on iPhone XR
+- Memory usage exceeds 15MB for tree data
+- User complaints about slow loading
+
+**Performance Expectations:**
+| Profiles | Load Time | Memory | Status |
+|----------|-----------|--------|--------|
+| 779 (current) | <500ms | ~2MB | ✅ Optimal |
+| 1,500 | ~1s | ~4MB | ✅ Good |
+| 2,000 | ~1.5s | ~6MB | ✅ Acceptable |
+| 1,900+ | N/A | N/A | ⚠️ Plan upgrade |
 
 ## 🚀 Best Practices
 
@@ -482,6 +523,104 @@ See comprehensive test checklist: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/U
 - Cached WordPress news service (`src/services/news.ts`) with 24h TTL
 - Reusable news UI primitives (FeaturedNewsCarousel, NewsCard, RecentArticleItem)
 - NewsScreen with Gregorian/Hijri headers, infinite scroll, shimmer loading
+
+## 🚀 Over-The-Air (OTA) Updates (January 2025)
+
+**📖 Full Documentation**: [`/docs/OTA_UPDATES.md`](docs/OTA_UPDATES.md)
+
+**Status**: ✅ Configured and ready to use
+
+### Quick Summary
+
+Deploy JavaScript, styling, and asset changes to users in **minutes** without App Store review. Critical for rapid bug fixes, UI tweaks, and feature iterations.
+
+### What Can Be Updated OTA
+
+**✅ Update instantly (no rebuild):**
+- JavaScript logic (permission calculations, undo system)
+- Styling & colors (Najdi Sadu palette)
+- Arabic text & translations
+- UI layouts & RTL fixes
+- Supabase RPC calls
+- Admin dashboard features
+- Assets (images, fonts)
+
+**❌ Requires App Store rebuild:**
+- Native modules (`expo-camera`, `expo-notifications`)
+- App permissions & configuration
+- Expo SDK upgrades
+- App icon, splash screen
+
+### Daily Workflow
+
+```bash
+# 1. Fix bug or make change (JS/styling only)
+code src/components/ProfileEdit.js
+
+# 2. Test locally
+npm start
+
+# 3. Publish to preview (admin team tests)
+npm run update:preview -- --message "Fix profile edit bug"
+
+# 4. Publish to production (all users)
+npm run update:production -- --message "Fix profile edit bug"
+
+# 5. Users get update on next app open (minutes!)
+```
+
+### Available Commands
+
+```bash
+npm run update:preview -- --message "Your change"   # Preview channel
+npm run update:production -- --message "Your change" # Production channel
+npm run update:list                                  # List recent updates
+npm run update:rollback                              # Emergency rollback
+npm run update:view                                  # View channel status
+```
+
+### Emergency Rollback
+
+```bash
+# Published bad update? Rollback in 30 seconds
+npm run update:rollback
+# Select previous good update
+# All users get old version on next app open
+```
+
+### Decision Tree
+
+```
+Changed native code? ──┬─ YES → Rebuild + App Store (days)
+                       │
+                       └─ NO → OTA Update (minutes)
+```
+
+### Monitoring
+
+**Dashboard:** https://expo.dev/accounts/alqefari/projects/alqefari-family-tree
+
+**Expected adoption:**
+- 1 hour: 20-30%
+- 6 hours: 50-60%
+- 24 hours: 70-80%
+- 48 hours: 85-95%
+
+### Configuration
+
+**Runtime version:** Manual string (bare workflow)
+- Current: `"1.0.0"`
+- Increment when adding native code or upgrading SDK
+- Keep same for JS-only changes
+
+**Update timeout:** 5 seconds
+- App waits 5s for update download
+- If slow network, starts with cached version
+- Update downloads in background and applies on next restart
+
+_See full documentation: [`/docs/OTA_UPDATES.md`](docs/OTA_UPDATES.md)_
+
+---
 
 ## 📱 WhatsApp Message Template System (January 2025)
 
