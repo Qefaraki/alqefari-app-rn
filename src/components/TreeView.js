@@ -74,7 +74,7 @@ import SystemStatusIndicator from "./admin/SystemStatusIndicator";
 import MultiAddChildrenModal from "./admin/MultiAddChildrenModal";
 import MarriageEditor from "./admin/MarriageEditor";
 import skiaImageCache from "../services/skiaImageCache";
-import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
+import { useBatchedSkiaImage } from "../hooks/useBatchedSkiaImage";
 import NodeContextMenu from "./admin/NodeContextMenu";
 import EditProfileScreen from "../screens/EditProfileScreen";
 import QuickAddOverlay from "./admin/QuickAddOverlay";
@@ -84,8 +84,9 @@ import * as Haptics from "expo-haptics";
 import NetworkErrorView from "./NetworkErrorView";
 
 // Asymmetric margins to match tree layout: horizontal spacing is 2-3x wider than vertical
-const VIEWPORT_MARGIN_X = 2000; // Covers ~20 siblings + collision expansion (max in DB: 10)
-const VIEWPORT_MARGIN_Y = 800;  // Covers ~7 generations (sufficient for viewing)
+// Phase 3B: Increased margins by 50% to buffer gesture lag at high zoom levels
+const VIEWPORT_MARGIN_X = 3000; // Covers ~30 siblings + collision expansion + gesture buffer
+const VIEWPORT_MARGIN_Y = 1200;  // Covers ~10 generations + gesture buffer
 const NODE_WIDTH_WITH_PHOTO = 85;
 const NODE_WIDTH_TEXT_ONLY = 60;
 const NODE_HEIGHT_WITH_PHOTO = 90;
@@ -139,6 +140,19 @@ let arabicTypeface = null;
 let arabicFont = null;
 let arabicFontBold = null;
 let sfArabicRegistered = false;
+
+// Simple debounce helper for batching rapid updates (Phase 1 Performance Optimization)
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const SF_ARABIC_ALIAS = "SF Arabic";
 const SF_ARABIC_ASSET = require("../../assets/fonts/SF Arabic Regular.ttf");
@@ -257,78 +271,133 @@ const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
   }
 };
 
+// Paragraph cache with LRU eviction (Phase 1 Performance Optimization)
+const paragraphCache = new Map();
+const PARAGRAPH_CACHE_SIZE = 500;
+let paragraphCacheHits = 0;
+let paragraphCacheMisses = 0;
+
+// Memoized paragraph creation - checks cache first
+const getCachedParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
+  if (!text) return null;
+
+  // Create cache key from parameters
+  const key = `${text}-${fontWeight}-${fontSize}-${color}-${maxWidth}`;
+
+  // Check cache first
+  if (paragraphCache.has(key)) {
+    paragraphCacheHits++;
+    // Move to end (most recently used)
+    const paragraph = paragraphCache.get(key);
+    paragraphCache.delete(key);
+    paragraphCache.set(key, paragraph);
+    return paragraph;
+  }
+
+  // Cache miss - create new paragraph
+  paragraphCacheMisses++;
+  const paragraph = createArabicParagraph(text, fontWeight, fontSize, color, maxWidth);
+
+  if (paragraph) {
+    paragraphCache.set(key, paragraph);
+
+    // LRU eviction if cache exceeds size limit
+    if (paragraphCache.size > PARAGRAPH_CACHE_SIZE) {
+      const firstKey = paragraphCache.keys().next().value;
+      paragraphCache.delete(firstKey);
+    }
+  }
+
+  return paragraph;
+};
+
 // Image buckets for LOD
 const IMAGE_BUCKETS = [64, 128, 256, 512];
 const selectBucket = (pixelSize) => {
   return IMAGE_BUCKETS.find((b) => b >= pixelSize) || 512;
 };
 
-// Image component for photos with skeleton loader
-const ImageNode = ({
-  url,
-  x,
-  y,
-  width,
-  height,
-  radius,
-  tier,
-  scale,
-  nodeId,
-  selectBucket,
-}) => {
-  // Only load images in Tier 1
-  const shouldLoad = tier === 1 && url;
-  const pixelSize = width * PixelRatio.get() * scale;
+// Image component for photos with skeleton loader (Memoized for performance)
+const ImageNode = React.memo(
+  ({
+    url,
+    x,
+    y,
+    width,
+    height,
+    radius,
+    tier,
+    scale,
+    nodeId,
+    selectBucket,
+  }) => {
+    // Only load images in Tier 1
+    const shouldLoad = tier === 1 && url;
+    const pixelSize = width * PixelRatio.get() * scale;
 
-  // Use hysteresis bucket selection if provided, otherwise use simple selection
-  const bucket = shouldLoad
-    ? selectBucket && nodeId
-      ? selectBucket(nodeId, pixelSize * 2)
-      : IMAGE_BUCKETS.find((b) => b >= pixelSize * 2) || 512
-    : null;
+    // Use hysteresis bucket selection if provided, otherwise use simple selection
+    const bucket = shouldLoad
+      ? selectBucket && nodeId
+        ? selectBucket(nodeId, pixelSize * 2)
+        : IMAGE_BUCKETS.find((b) => b >= pixelSize * 2) || 512
+      : null;
 
-  const image = shouldLoad ? useCachedSkiaImage(url, bucket) : null;
+    // Use batched loading with progressive rendering (Phase 2 optimization)
+    const image = shouldLoad ? useBatchedSkiaImage(url, bucket, "visible") : null;
 
-  // If no image yet, show simple skeleton placeholder
-  if (!image) {
+    // If no image yet, show simple skeleton placeholder
+    if (!image) {
+      return (
+        <Group>
+          {/* Base circle background */}
+          <Circle cx={x + radius} cy={y + radius} r={radius} color="#D1BBA320" />
+          {/* Lighter inner circle for depth */}
+          <Circle
+            cx={x + radius}
+            cy={y + radius}
+            r={radius - 1}
+            color="#D1BBA310"
+            style="stroke"
+            strokeWidth={0.5}
+          />
+        </Group>
+      );
+    }
+
+    // Image loaded - show it with the mask
     return (
       <Group>
-        {/* Base circle background */}
-        <Circle cx={x + radius} cy={y + radius} r={radius} color="#D1BBA320" />
-        {/* Lighter inner circle for depth */}
-        <Circle
-          cx={x + radius}
-          cy={y + radius}
-          r={radius - 1}
-          color="#D1BBA310"
-          style="stroke"
-          strokeWidth={0.5}
-        />
+        <Mask
+          mode="alpha"
+          mask={
+            <Circle cx={x + radius} cy={y + radius} r={radius} color="white" />
+          }
+        >
+          <SkiaImage
+            image={image}
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fit="cover"
+          />
+        </Mask>
       </Group>
     );
+  },
+  // Custom comparison function - only re-render if these props change
+  (prevProps, nextProps) => {
+    return (
+      prevProps.url === nextProps.url &&
+      prevProps.tier === nextProps.tier &&
+      prevProps.x === nextProps.x &&
+      prevProps.y === nextProps.y &&
+      prevProps.width === nextProps.width &&
+      prevProps.height === nextProps.height &&
+      prevProps.nodeId === nextProps.nodeId
+    );
   }
-
-  // Image loaded - show it with the mask
-  return (
-    <Group>
-      <Mask
-        mode="alpha"
-        mask={
-          <Circle cx={x + radius} cy={y + radius} r={radius} color="white" />
-        }
-      >
-        <SkiaImage
-          image={image}
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fit="cover"
-        />
-      </Mask>
-    </Group>
-  );
-};
+);
 
 // Sadu Icon component for root node decoration
 const SaduIcon = ({ x, y, size }) => {
@@ -656,6 +725,42 @@ const TreeView = ({
     return;
   }, []);
 
+  // Performance metrics tracking (Phase 1 Optimization)
+  const performanceMetrics = useRef({
+    paragraphCacheHits: 0,
+    paragraphCacheMisses: 0,
+    imageCacheHits: 0,
+    imageCacheMisses: 0,
+    avgNodesRendered: 0,
+    lastLogTime: Date.now(),
+  });
+
+  // Log performance metrics every 5 seconds in dev mode
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    const interval = setInterval(() => {
+      const hits = paragraphCacheHits;
+      const misses = paragraphCacheMisses;
+      const total = hits + misses;
+      const hitRate = total > 0 ? ((hits / total) * 100).toFixed(1) : '0.0';
+
+      const imageStats = skiaImageCache.getStats();
+
+      console.log('📊 [TreeView Performance]', {
+        paragraphCache: {
+          hits,
+          misses,
+          hitRate: `${hitRate}%`,
+          size: paragraphCache.size,
+        },
+        imageCache: imageStats,
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Force RTL for Arabic text
   useEffect(() => {
     I18nManager.forceRTL(true);
@@ -712,14 +817,6 @@ const TreeView = ({
   // Initial focal point tracking for proper zoom+pan on physical devices
   const initialFocalX = useSharedValue(0);
   const initialFocalY = useSharedValue(0);
-
-  // Sync scale value to React state for use in render
-  useAnimatedReaction(
-    () => scale.value,
-    (current) => {
-      runOnJS(setCurrentScale)(current);
-    },
-  );
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
@@ -935,8 +1032,61 @@ const TreeView = ({
     loadTreeData();
   }, []); // Run only once on mount
 
-  // Real-time subscription for profile updates
+  // Real-time subscription for profile updates (Debounced for performance)
   useEffect(() => {
+    // Debounced handler to batch rapid updates
+    const handleProfileChange = debounce((payload) => {
+      // Handle different event types
+      if (payload.eventType === "UPDATE" && payload.new) {
+        // Update just the affected node
+        // Get current settings from context
+        const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
+        const updatedNode = {
+          ...payload.new,
+          name: payload.new.name || "بدون اسم",
+          marriages:
+            payload.new.marriages?.map((marriage) => ({
+              ...marriage,
+              start_date: marriage.start_date
+                ? formatDateByPreference(
+                    marriage.start_date,
+                    currentSettings?.defaultCalendar || 'gregorian',
+                  )
+                : null,
+            })) || [],
+        };
+
+        // Update in Zustand store
+        useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
+      } else if (payload.eventType === "INSERT" && payload.new) {
+        // Add new node
+        const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
+        const newNode = {
+          ...payload.new,
+          name: payload.new.name || "بدون اسم",
+          marriages:
+            payload.new.marriages?.map((marriage) => ({
+              ...marriage,
+              start_date: marriage.start_date
+                ? formatDateByPreference(
+                    marriage.start_date,
+                    currentSettings?.defaultCalendar || 'gregorian',
+                  )
+                : null,
+            })) || [],
+        };
+
+        // Add to Zustand store
+        useTreeStore.getState().addNode(newNode);
+      } else if (payload.eventType === "DELETE" && payload.old) {
+        // Remove node
+        const nodeId = payload.old.id;
+
+        // Remove from Zustand store
+        useTreeStore.getState().removeNode(nodeId);
+      }
+    }, 150); // 150ms debounce - batches rapid updates together
+
     const channel = supabase
       .channel("profiles_changes")
       .on(
@@ -946,59 +1096,7 @@ const TreeView = ({
           schema: "public",
           table: "profiles",
         },
-        async (payload) => {
-          // console.log('Profile change:', payload);
-
-          // Handle different event types
-          if (payload.eventType === "UPDATE" && payload.new) {
-            // Update just the affected node
-            // Get current settings from context
-            const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
-            const updatedNode = {
-              ...payload.new,
-              name: payload.new.name || "بدون اسم",
-              marriages:
-                payload.new.marriages?.map((marriage) => ({
-                  ...marriage,
-                  start_date: marriage.start_date
-                    ? formatDateByPreference(
-                        marriage.start_date,
-                        currentSettings?.defaultCalendar || 'gregorian',
-                      )
-                    : null,
-                })) || [],
-            };
-
-            // Update in Zustand store
-            useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
-          } else if (payload.eventType === "INSERT" && payload.new) {
-            // Add new node
-            const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
-            const newNode = {
-              ...payload.new,
-              name: payload.new.name || "بدون اسم",
-              marriages:
-                payload.new.marriages?.map((marriage) => ({
-                  ...marriage,
-                  start_date: marriage.start_date
-                    ? formatDateByPreference(
-                        marriage.start_date,
-                        currentSettings?.defaultCalendar || 'gregorian',
-                      )
-                    : null,
-                })) || [],
-            };
-
-            // Add to Zustand store
-            useTreeStore.getState().addNode(newNode);
-          } else if (payload.eventType === "DELETE" && payload.old) {
-            // Remove node
-            const nodeId = payload.old.id;
-
-            // Remove from Zustand store
-            useTreeStore.getState().removeNode(nodeId);
-          }
-        },
+        handleProfileChange
       )
       .subscribe();
 
@@ -1080,6 +1178,11 @@ const TreeView = ({
         }
         parentToChildren.get(node.father_id).push(node);
       }
+    });
+
+    // BUG #14 FIX: Populate node.children property from parentToChildren map
+    nodes.forEach((node) => {
+      node.children = parentToChildren.get(node.id) || [];
     });
 
     // BFS for depths
@@ -1206,28 +1309,31 @@ const TreeView = ({
   // Track last stable scale to detect significant changes
   const lastStableScale = useRef(1);
 
-  // Update visible bounds when transform changes
-  useAnimatedReaction(
-    () => ({
+  // Helper: Sync transform and bounds from animated values (on-demand, not continuous)
+  // Called on gesture end and before user actions (tap, overlay, search)
+  const syncTransformAndBounds = useCallback(() => {
+    const current = {
       x: translateX.value,
       y: translateY.value,
       scale: scale.value,
-    }),
-    (current) => {
-      // Scale-dependent margins: larger when zoomed out, asymmetric to match tree layout
-      const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
-      const dynamicMarginY = VIEWPORT_MARGIN_Y / current.scale;
+    };
 
-      const newBounds = {
-        minX: (-current.x - dynamicMarginX) / current.scale,
-        maxX: (-current.x + dimensions.width + dynamicMarginX) / current.scale,
-        minY: (-current.y - dynamicMarginY) / current.scale,
-        maxY: (-current.y + dimensions.height + dynamicMarginY) / current.scale,
-      };
+    setCurrentTransform(current);
+    setCurrentScale(current.scale);
 
-      runOnJS(setVisibleBounds)(newBounds);
-    },
-  );
+    // Calculate visible bounds
+    const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
+    const dynamicMarginY = VIEWPORT_MARGIN_Y / current.scale;
+
+    const newBounds = {
+      minX: (-current.x - dynamicMarginX) / current.scale,
+      maxX: (-current.x + dimensions.width + dynamicMarginX) / current.scale,
+      minY: (-current.y - dynamicMarginY) / current.scale,
+      maxY: (-current.y + dimensions.height + dynamicMarginY) / current.scale,
+    };
+
+    setVisibleBounds(newBounds);
+  }, [dimensions.width, dimensions.height]);
 
   // Load more nodes when viewport changes (for future viewport-based loading)
   useEffect(() => {
@@ -1493,6 +1599,9 @@ const TreeView = ({
     (nodeId) => {
       console.log("Attempting to navigate to node:", nodeId);
 
+      // Sync transform before reading animated values (Phase 3B: On-demand sync)
+      syncTransformAndBounds();
+
       // Find the node in the current nodes array (not indices)
       // This ensures we always use fresh coordinates
       const targetNode = nodes.find((n) => n.id === nodeId);
@@ -1571,7 +1680,7 @@ const TreeView = ({
       // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
-    [nodes, dimensions, highlightNode],
+    [nodes, dimensions, highlightNode, syncTransformAndBounds],
   );
 
   useEffect(() => {
@@ -1752,6 +1861,9 @@ const TreeView = ({
       translateX.value = withDecay({
         velocity: e.velocityX,
         deceleration: 0.995,
+      }, () => {
+        // Sync React state when decay animation completes (Phase 3B: On-demand sync)
+        runOnJS(syncTransformAndBounds)();
       });
       translateY.value = withDecay({
         velocity: e.velocityY,
@@ -1818,6 +1930,9 @@ const TreeView = ({
       savedTranslateX.value = translateX.value;
       savedTranslateY.value = translateY.value;
       isPinching.value = false;
+
+      // Sync React state after pinch completes (Phase 3B: On-demand sync)
+      runOnJS(syncTransformAndBounds)();
     });
 
   // Handle node tap - show profile sheet (edit mode if admin)
@@ -1841,6 +1956,19 @@ const TreeView = ({
     .maxDuration(250)
     .runOnJS(true)
     .onEnd((e) => {
+      // Sync transform before hit detection for accurate coordinates (Phase 3B: On-demand sync)
+      syncTransformAndBounds();
+
+      // Update gestureStateRef synchronously with fresh transform values
+      gestureStateRef.current = {
+        ...gestureStateRef.current,
+        transform: {
+          x: translateX.value,
+          y: translateY.value,
+          scale: scale.value,
+        },
+      };
+
       const state = gestureStateRef.current;
 
       // Check if we're in T3 mode first
@@ -1922,6 +2050,19 @@ const TreeView = ({
       if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
         return;
       }
+
+      // Sync transform before admin action for accurate coordinates (Phase 3B: On-demand sync)
+      syncTransformAndBounds();
+
+      // Update gestureStateRef synchronously with fresh transform values
+      gestureStateRef.current = {
+        ...gestureStateRef.current,
+        transform: {
+          x: translateX.value,
+          y: translateY.value,
+          scale: scale.value,
+        },
+      };
 
       const state = gestureStateRef.current;
 
@@ -2050,19 +2191,20 @@ const TreeView = ({
       const targetX = dimensions.width / 2 - centerX * targetScale;
       const targetY = dimensions.height / 2 - centerY * targetScale;
 
-      // Animate to target
-      scale.value = withTiming(targetScale, { duration: 500 });
+      // Animate to target with callback when animation completes (Phase 3B: On-demand sync)
+      scale.value = withTiming(targetScale, { duration: 500 }, (finished) => {
+        if (finished) {
+          "worklet";
+          savedScale.value = targetScale;
+          savedTranslateX.value = targetX;
+          savedTranslateY.value = targetY;
+          runOnJS(syncTransformAndBounds)();
+        }
+      });
       translateX.value = withTiming(targetX, { duration: 500 });
       translateY.value = withTiming(targetY, { duration: 500 });
-
-      // Update saved values after animation
-      setTimeout(() => {
-        savedScale.value = targetScale;
-        savedTranslateX.value = targetX;
-        savedTranslateY.value = targetY;
-      }, 500);
     },
-    [indices, dimensions, minZoom, maxZoom],
+    [indices, dimensions, minZoom, maxZoom, syncTransformAndBounds],
   );
 
   // Handle context menu actions
@@ -2548,7 +2690,7 @@ const TreeView = ({
           {/* First name only */}
           {(() => {
             const firstName = node.name.split(" ")[0];
-            const nameParagraph = createArabicParagraph(
+            const nameParagraph = getCachedParagraph(
               firstName,
               "regular",
               10,
@@ -2671,7 +2813,7 @@ const TreeView = ({
 
               {/* Generation badge - positioned in top-right corner for photo nodes */}
               {(() => {
-                const genParagraph = createArabicParagraph(
+                const genParagraph = getCachedParagraph(
                   String(node.generation),
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
@@ -2693,7 +2835,7 @@ const TreeView = ({
 
               {/* Name text - centered across full width (on top) */}
               {(() => {
-                const nameParagraph = createArabicParagraph(
+                const nameParagraph = getCachedParagraph(
                   node.name,
                   "bold",
                   isRoot ? 22 : 11,  // Double size for root
@@ -2720,7 +2862,7 @@ const TreeView = ({
             <>
               {/* Generation badge - centered horizontally at top */}
               {(() => {
-                const genParagraph = createArabicParagraph(
+                const genParagraph = getCachedParagraph(
                   String(node.generation),
                   "regular",
                   7, // Reduced from 9 to 7 (about 25% smaller)
@@ -2742,7 +2884,7 @@ const TreeView = ({
 
               {/* Text-only name - centered across full width (on top) */}
               {(() => {
-                const nameParagraph = createArabicParagraph(
+                const nameParagraph = getCachedParagraph(
                   node.name,
                   "bold",
                   isRoot ? 22 : 11,  // Double size for root
@@ -2827,18 +2969,6 @@ const TreeView = ({
     y: 0,
     scale: 1,
   });
-
-  // Update transform values when they change
-  useAnimatedReaction(
-    () => ({
-      x: translateX.value,
-      y: translateY.value,
-      scale: scale.value,
-    }),
-    (current) => {
-      runOnJS(setCurrentTransform)(current);
-    },
-  );
 
   // Calculate current LOD tier using the state instead of accessing .value directly
   const tier = calculateLODTier(currentTransform.scale);
