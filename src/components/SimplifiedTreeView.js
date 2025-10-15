@@ -692,8 +692,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       const rootHid = rootData[0].hid;
       const { data, error } = await profilesService.getBranchData(
         rootHid,
-        8,
-        500,
+        10, // Standardized depth (matches TreeView.js and useStore.js)
+        5000, // Supports 3K incoming profiles + 67% buffer
       );
       if (error) {
         console.error("Error loading tree data:", error);

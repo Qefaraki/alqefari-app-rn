@@ -804,7 +804,7 @@ const TreeView = ({
       const rootHid = rootData[0].hid;
       const { data, error} = await profilesService.getBranchData(
         rootHid,
-        8,
+        10, // Standardized depth (matches useStore.js for consistency)
         5000, // Supports 3K incoming profiles + 67% buffer. Viewport culling handles rendering.
       );
       if (error) {
@@ -833,6 +833,15 @@ const TreeView = ({
 
         if (profileCount >= 4750) { // 95% of 5000
           console.error(`🚨 CRITICAL: ${profileCount}/5000 profiles. Immediate action required.`);
+        }
+
+        // User-facing warning at 90% capacity
+        if (profileCount >= 4500) {
+          Alert.alert(
+            "⚠️ اقتراب الشجرة من الحد الأقصى",
+            `الشجرة تحتوي على ${profileCount} ملف شخصي من أصل 5000 حد أقصى.\n\nيُنصح بالتواصل مع المطور قريباً لزيادة السعة.`,
+            [{ text: "حسناً", style: "default" }]
+          );
         }
 
         setTreeData(data || []);
