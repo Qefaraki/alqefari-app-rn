@@ -567,7 +567,14 @@ const TreeView = ({
   // in callbacks would require recreating subscriptions on every settings change.
   const settingsRef = useRef(settings);
 
-  // Update ref whenever settings change
+  // Extract layout-affecting settings to prevent unnecessary viewport recalculations
+  // Only showPhotos affects node layout (changes node heights: 105px with photo, 35px without)
+  // Other settings like highlightMyLine only affect visual rendering, not layout
+  const layoutAffectingSettings = useMemo(() => ({
+    showPhotos: settings.showPhotos,
+  }), [settings.showPhotos]);
+
+  // Update ref whenever ANY settings change (needed for event handlers)
   useEffect(() => {
     settingsRef.current = settings;
     console.log('[TreeView] Settings ref updated:', settings);
@@ -1369,6 +1376,30 @@ const TreeView = ({
     // TODO: Implement viewport-based loading when backend supports it
     // This would call profilesService.getVisibleNodes(visibleBounds, scale.value)
   }, [visibleBounds]);
+
+  // Recalculate viewport bounds when LAYOUT-AFFECTING settings change
+  // This ensures visibleNodes filters correctly after layout recalculation
+  useEffect(() => {
+    console.log('[TreeView] Layout-affecting settings changed, syncing viewport');
+
+    // Safety check: Skip if nodes not loaded yet
+    if (nodes.length === 0) {
+      console.log('[TreeView] Skipping sync - nodes not loaded');
+      return;
+    }
+
+    // Safety check: Skip if dimensions not initialized (screen size not ready)
+    if (dimensions.width === 0 || dimensions.height === 0) {
+      console.log('[TreeView] Skipping sync - dimensions not initialized');
+      return;
+    }
+
+    // Performance monitoring
+    const startTime = performance.now();
+    syncTransformAndBounds();
+    const duration = performance.now() - startTime;
+    console.log(`[TreeView] Viewport sync completed in ${duration.toFixed(2)}ms`);
+  }, [layoutAffectingSettings, syncTransformAndBounds, nodes.length, dimensions.width, dimensions.height]);
 
   // Track previous visible nodes for debugging
   const prevVisibleNodesRef = useRef(new Set());
