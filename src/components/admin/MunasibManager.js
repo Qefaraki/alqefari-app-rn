@@ -8,7 +8,6 @@ import {
   FlatList,
   Platform,
   Image,
-  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,12 +25,10 @@ const typography = tokens.typography;
 
 const FamilyCard = ({ item, onPress }) => {
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.familyCard,
-        pressed && styles.familyCardPressed,
-      ]}
+      style={styles.familyCard}
+      activeOpacity={0.92}
     >
       <View style={styles.familyCardContent}>
         <View style={styles.familyCardLeading}>
@@ -50,7 +47,7 @@ const FamilyCard = ({ item, onPress }) => {
           />
         </View>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 };
 
@@ -208,29 +205,26 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
           </View>
         </View>
 
-        <View style={styles.searchSurface}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color={palette.text + "66"} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="ابحث عن عائلة..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor={palette.text + "66"}
-            />
-            {searchQuery !== "" && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery("");
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-              >
-                <Ionicons name="close-circle" size={18} color={palette.text + "66"} />
-              </TouchableOpacity>
-            )}
-          </View>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={palette.text + "66"} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="ابحث عن عائلة..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={palette.text + "66"}
+          />
+          {searchQuery !== "" && (
+            <TouchableOpacity
+              onPress={() => {
+                setSearchQuery("");
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            >
+              <Ionicons name="close-circle" size={18} color={palette.text + "66"} />
+            </TouchableOpacity>
+          )}
         </View>
-        <View style={styles.sectionDivider} />
 
         {/* Family List */}
         {initialLoading ? (
@@ -338,37 +332,18 @@ const styles = StyleSheet.create({
     color: palette.text + "99",
     lineHeight: typography.subheadline.lineHeight,
   },
-  searchSurface: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-    borderRadius: tokens.radii.lg,
-    backgroundColor: palette.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}66`,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}33`,
+    borderWidth: 1,
+    borderColor: `${palette.text}10`,
     paddingHorizontal: spacing.md,
     height: 48,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   searchInput: {
     flex: 1,
@@ -383,7 +358,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
-    paddingTop: spacing.sm,
   },
   listContentEmpty: {
     flexGrow: 1,
@@ -396,18 +370,22 @@ const styles = StyleSheet.create({
   familyCard: {
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}40`,
+    borderWidth: 1,
+    borderColor: `${palette.text}10`,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
     ...Platform.select({
-      ios: tokens.shadow.ios,
-      android: tokens.shadow.android,
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 2,
+      },
     }),
-  },
-  familyCardPressed: {
-    opacity: 0.92,
   },
   familyCardContent: {
     flexDirection: "row",
@@ -532,11 +510,5 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: palette.primary,
     fontWeight: "600",
-  },
-  sectionDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: `${palette.container}33`,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
   },
 });
