@@ -99,6 +99,42 @@ npm run android    # Android emulator
 - **Migrations**: Use `mcp__supabase__apply_migration`
 - **Schema**: Use `mcp__supabase__list_tables`
 
+## 📱 iOS URL Schemes Configuration
+
+**⚠️ IMPORTANT**: iOS 9+ requires URL schemes to be declared before using `Linking.canOpenURL()`.
+
+**Declared URL Schemes** (via `app.json → expo.ios.infoPlist.LSApplicationQueriesSchemes`):
+- **`whatsapp`** - WhatsApp deep linking (`whatsapp://send?phone=...`)
+- **`tel`** - Phone call links (`tel:` URLs)
+- **`https`** - Web fallbacks for WhatsApp (`https://wa.me/...`)
+
+**Critical Notes:**
+- URL schemes MUST be declared in `app.json`, NOT in `ios/Alqefari/Info.plist` directly
+- Direct Info.plist edits get overwritten on `expo prebuild`
+- Changes require **native rebuild** (not OTA-updatable)
+- Required by iOS for `Linking.canOpenURL()` queries
+
+**Adding New URL Schemes:**
+1. Add to `expo.ios.infoPlist.LSApplicationQueriesSchemes` array in `app.json`
+2. Run `eas build --platform ios` or `npx expo prebuild --clean`
+3. Test with both `Linking.canOpenURL()` and `Linking.openURL()`
+4. Verify in `ios/Alqefari/Info.plist` after prebuild
+
+**Example:**
+```json
+"ios": {
+  "infoPlist": {
+    "LSApplicationQueriesSchemes": ["whatsapp", "tel", "https", "instagram"]
+  }
+}
+```
+
+**Common Error:**
+```
+Error: Unable to open URL: whatsapp://... Add whatsapp to LSApplicationQueriesSchemes
+```
+**Solution:** Add missing scheme to `app.json` and rebuild.
+
 ## 👥 Munasib Management System
 
 Full management dashboard for Munasib (spouse) profiles:
