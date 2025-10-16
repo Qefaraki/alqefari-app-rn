@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
-import { familyNameService } from "../../services/familyNameService";
+import familyNameService from "../../services/familyNameService";
 import tokens from "../ui/tokens";
 
 /**
