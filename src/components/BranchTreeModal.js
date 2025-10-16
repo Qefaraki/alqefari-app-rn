@@ -17,7 +17,14 @@ import { getArabicOrdinal } from "../utils/generationUtils";
 /**
  * Modal that shows a branch tree view for verifying profile identity
  */
-const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
+const BranchTreeModal = ({
+  visible,
+  profile,
+  onConfirm,
+  onClose,
+  confirmText = "هذا أنا",
+  cancelText = "ليس أنا"
+}) => {
   if (!profile) return null;
 
   return (
@@ -95,7 +102,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
             onPress={() => onConfirm(profile)}
             activeOpacity={0.8}
           >
-            <Text style={styles.confirmButtonText}>هذا أنا</Text>
+            <Text style={styles.confirmButtonText}>{confirmText}</Text>
             <Ionicons name="checkmark-circle" size={20} color="#F9F7F3" />
           </TouchableOpacity>
 
@@ -104,7 +111,7 @@ const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
             onPress={onClose}
             activeOpacity={0.8}
           >
-            <Text style={styles.secondaryButtonText}>ليس أنا</Text>
+            <Text style={styles.secondaryButtonText}>{cancelText}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

@@ -420,6 +420,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
             setSelectedSpouse(null);
           }}
           onConfirm={handleConfirmFromModal}
+          confirmText={selectedSpouse.gender === "female" ? "هذه هي" : "هذا هو"}
+          cancelText={selectedSpouse.gender === "female" ? "ليست هي" : "ليس هو"}
         />
       )}
     </Modal>
