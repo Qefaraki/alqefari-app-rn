@@ -489,7 +489,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
                     color={tokens.colors.najdi.secondary}
                   />
                 }
-                title="المناسبين"
+                title="الأنساب"
                 subtitle={`${munasibCounts.families} عائلة • ${munasibCounts.members} أفراد`}
                 trailing={
                   <Ionicons

@@ -172,7 +172,7 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
         <LargeTitleHeader
-          title="المناسبين"
+          title="الأنساب"
           emblemSource={require('../../../assets/logo/AlqefariEmblem.png')}
           rightSlot={
             onClose ? (

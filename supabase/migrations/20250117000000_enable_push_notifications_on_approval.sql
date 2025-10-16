@@ -13,25 +13,14 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_supabase_url TEXT;
-  v_supabase_anon_key TEXT;
+  v_supabase_url TEXT := 'https://ezkioroyhzpavmbfavyn.supabase.co';
+  v_supabase_anon_key TEXT := 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6a2lvcm95aHpwYXZtYmZhdnluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0OTI2MjAsImV4cCI6MjA3MjA2ODYyMH0.-9bUFjeXEwAcdl1d8fj7dX1ZmHMCpuX5TdzmFTOwO-Q';
   v_edge_function_url TEXT;
   v_payload JSONB;
   v_request_id BIGINT;
 BEGIN
   -- Only send push for profile link notifications
   IF NEW.type NOT IN ('profile_link_approved', 'profile_link_rejected') THEN
-    RETURN NEW;
-  END IF;
-
-  -- Get Supabase URL and anon key from app settings
-  -- Note: These should be set via ALTER DATABASE statement or will use defaults
-  v_supabase_url := current_setting('app.supabase_url', TRUE);
-  v_supabase_anon_key := current_setting('app.supabase_anon_key', TRUE);
-
-  -- If settings not configured, skip push notification (fail gracefully)
-  IF v_supabase_url IS NULL OR v_supabase_anon_key IS NULL THEN
-    RAISE WARNING 'Supabase URL or anon key not configured. Skipping push notification.';
     RETURN NEW;
   END IF;
 
@@ -59,14 +48,15 @@ BEGIN
     body := v_payload
   );
 
-  -- Log the request (optional)
-  RAISE NOTICE 'Push notification request queued: request_id=%, notification_id=%', v_request_id, NEW.id;
+  -- Log the request
+  RAISE NOTICE 'Push notification request queued: request_id=%, notification_id=%, user_id=%',
+    v_request_id, NEW.id, NEW.user_id;
 
   RETURN NEW;
 EXCEPTION
   WHEN OTHERS THEN
     -- Don't fail the transaction if push notification fails
-    RAISE WARNING 'Failed to queue push notification: %', SQLERRM;
+    RAISE WARNING 'Failed to queue push notification for notification_id=%: %', NEW.id, SQLERRM;
     RETURN NEW;
 END;
 $$;
@@ -81,11 +71,7 @@ CREATE TRIGGER trigger_send_push_on_notification_insert
 
 -- Add comment
 COMMENT ON FUNCTION trigger_send_push_notification IS
-  'Triggers push notification via Edge Function when profile link notifications are created';
+  'Triggers push notification via Edge Function when profile link notifications are created. Uses embedded Supabase configuration.';
 
 COMMENT ON TRIGGER trigger_send_push_on_notification_insert ON notifications IS
   'Automatically sends push notifications for profile link approvals/rejections';
-
--- Note: To configure Supabase URL and anon key, run these commands in SQL editor:
--- ALTER DATABASE postgres SET app.supabase_url = 'https://your-project.supabase.co';
--- ALTER DATABASE postgres SET app.supabase_anon_key = 'your-anon-key';

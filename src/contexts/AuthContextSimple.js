@@ -9,6 +9,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { supabase } from '../services/supabase';
 import AuthStateMachine, { AuthStates } from '../services/AuthStateMachineSimple';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { registerPushToken, unregisterPushToken } from '../services/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -137,6 +138,35 @@ export function AuthProvider({ children }) {
     initializeAuth();
   }, []);
 
+  // Register push notification token when user is authenticated
+  useEffect(() => {
+    let isActive = true;
+
+    const handlePushTokenRegistration = async () => {
+      // Only register push token when user is authenticated
+      if (user?.id && authState === AuthStates.AUTHENTICATED) {
+        console.log('[AuthContext] Registering push notification token for user:', user.id);
+
+        const result = await registerPushToken(user.id);
+
+        if (isActive) {
+          if (result.success) {
+            console.log('[AuthContext] Push token registered successfully');
+          } else {
+            console.warn('[AuthContext] Failed to register push token:', result.error);
+            // Don't block user experience if push notification registration fails
+          }
+        }
+      }
+    };
+
+    handlePushTokenRegistration();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.id, authState]);
+
   // Context value
   const value = {
     // State
@@ -156,6 +186,17 @@ export function AuthProvider({ children }) {
 
     // Actions
     signOut: async () => {
+      // STEP 0: Unregister push token before signing out
+      if (user?.id) {
+        try {
+          await unregisterPushToken(user.id);
+          console.log('[AuthContext] Push token unregistered');
+        } catch (error) {
+          console.error('[AuthContext] Error unregistering push token:', error);
+          // Continue with sign out even if unregister fails
+        }
+      }
+
       // STEP 1: Sign out from Supabase FIRST (while tokens still exist)
       // This will trigger SIGNED_OUT event which we'll handle
       const { error } = await supabase.auth.signOut();

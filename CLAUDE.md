@@ -56,7 +56,7 @@
 | ربط الملفات | Link Requests | ✅ | ✅ | ❌ |
 | سجل النشاط | Activity Log | ✅ | ✅ | ❌ |
 | التواصل | Message Templates | ✅ | ✅ | ❌ |
-| المناسبين | Munasib Manager | ✅ | ✅ | ✅ |
+| الأنساب | Munasib Manager | ✅ | ✅ | ✅ |
 | مراجعة الاقتراحات | Suggestion Review | ✅ | ✅ | ✅ |
 
 **To add new features:**

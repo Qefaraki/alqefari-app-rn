@@ -31,7 +31,12 @@
         "UISupportsDocumentBrowser": true,
         "CFBundleAllowMixedLocalizations": true,
         "CFBundleDevelopmentRegion": "ar",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "whatsapp",
+          "tel",
+          "https"
+        ]
       }
     },
     "android": {

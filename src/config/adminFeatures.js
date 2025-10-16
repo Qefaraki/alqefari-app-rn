@@ -60,7 +60,7 @@ export const ADMIN_FEATURES = {
     requiredRoles: ['super_admin', 'admin', 'moderator'],
     section: 'core',
     icon: 'people-outline',
-    title: 'المناسبين',
+    title: 'الأنساب',
     color: 'secondary',
   },
   SUGGESTION_REVIEW: {
