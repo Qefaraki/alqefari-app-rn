@@ -26,7 +26,7 @@ import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
 
-const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
+const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildAdded }) => {
   const [currentName, setCurrentName] = useState("");
   const [currentGender, setCurrentGender] = useState("male");
   const [allChildren, setAllChildren] = useState([]);
@@ -400,7 +400,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
         console.log(`✅ Batch save successful: ${created} created, ${updated} updated, ${deleted} deleted (${data.results?.duration_ms?.toFixed(0)}ms)`);
 
         // Close modal silently (haptic feedback is enough confirmation)
-        onClose();
+        onChildAdded?.();
       } else {
         // =========================================================================
         // 📦 FALLBACK: SEQUENTIAL SAVE PATH (legacy)
@@ -476,12 +476,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
         if (failed.length === 0) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          onClose?.();
+          onChildAdded?.();
         } else if (successful > 0) {
           Alert.alert(
             "تحديث جزئي",
             `تم حفظ ${successful} من ${results.length} بنجاح.\n\nفشل ${failed.length} عملية.`,
-            [{ text: "حسناً", onPress: onClose }]
+            [{ text: "حسناً", onPress: onChildAdded }]
           );
         } else {
           const firstError = failed[0]?.reason?.message || failed[0]?.reason || "خطأ غير معروف";

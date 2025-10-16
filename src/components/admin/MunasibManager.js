@@ -190,17 +190,22 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
         />
 
         <View style={styles.introSurface}>
-          <View style={styles.introHeader}>
-            <Image
-              source={require("../../../assets/sadu_patterns/png/32.png")}
-              style={styles.introPattern}
-              resizeMode="cover"
-            />
-            <Text style={styles.introTitle}>دفتر العائلات المناسبة</Text>
+          <View style={styles.patternRow}>
+            {[...Array(7)].map((_, i) => (
+              <Image
+                key={i}
+                source={require("../../../assets/sadu_patterns/png/7.png")}
+                style={styles.introPattern}
+                resizeMode="contain"
+              />
+            ))}
           </View>
-          <Text style={styles.introSubtitle}>
-            استعرض العائلات المنتسبة وتصفح أفرادها وروابطهم مع القفاري بكل سلاسة.
-          </Text>
+          <View style={styles.introContent}>
+            <Text style={styles.introTitle}>سجل الأنساب</Text>
+            <Text style={styles.introSubtitle}>
+              تصفح العائلات المرتبطة بالقفاري عبر الزواج وتعرّف على أفرادها
+            </Text>
+          </View>
         </View>
 
         <View style={styles.searchSurface}>
@@ -287,26 +292,39 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
-    padding: spacing.md,
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: `${palette.container}40`,
-    gap: spacing.sm,
+    overflow: 'hidden',
+    position: 'relative',
     ...Platform.select({
       ios: tokens.shadow.ios,
       android: tokens.shadow.android,
     }),
   },
-  introHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
+  patternRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    height: 32,
+    overflow: 'hidden',
+    borderTopLeftRadius: tokens.radii.lg,
+    borderTopRightRadius: tokens.radii.lg,
   },
   introPattern: {
-    width: 56,
+    width: 64,
     height: 32,
-    borderRadius: tokens.radii.sm,
+    tintColor: palette.primary,
+    opacity: 0.4,
+  },
+  introContent: {
+    paddingTop: spacing.md + 24,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   introTitle: {
     ...typography.title3,
@@ -380,8 +398,9 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: `${palette.container}40`,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
     ...Platform.select({
       ios: tokens.shadow.ios,
       android: tokens.shadow.android,

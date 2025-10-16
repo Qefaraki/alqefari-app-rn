@@ -111,10 +111,10 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   };
 
   const roleOptions = [
-    { value: 'super_admin', label: 'مشرف رئيسي' },
-    { value: 'admin', label: 'مسؤول' },
-    { value: 'moderator', label: 'مشرف فرع' },
-    { value: 'user', label: 'مستخدم' },
+    { value: 'super_admin', label: 'المدير العام' },
+    { value: 'admin', label: 'مشرف' },
+    { value: 'moderator', label: 'منسق' },
+    { value: 'user', label: 'عضو' },
   ];
 
   const genderOptions = [
@@ -186,6 +186,36 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
       })}
     </View>
   );
+
+  // ========== UTILITY FUNCTIONS ==========
+  const formatRelativeTime = (timestamp: string) => {
+    const now = new Date();
+    const sent = new Date(timestamp);
+    const diffMs = now.getTime() - sent.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'الآن';
+    if (diffMins < 60) return `منذ ${diffMins} ${diffMins === 1 ? 'دقيقة' : 'دقائق'}`;
+    if (diffHours < 24) return `منذ ${diffHours} ${diffHours === 1 ? 'ساعة' : 'ساعات'}`;
+    if (diffDays < 7) return `منذ ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'}`;
+    return sent.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
+  };
+
+  const getReadColor = (percentage: number) => {
+    if (percentage >= 75) return '#34C759';
+    if (percentage >= 50) return '#FF9500';
+    return '#FF3B30';
+  };
+
+  const getImportanceLabel = (level: Importance) => {
+    switch (level) {
+      case 'urgent': return 'عاجلة';
+      case 'high': return 'مهمة';
+      default: return 'عادية';
+    }
+  };
 
   const historyListData = history;
   const listExtraData = useMemo(
@@ -375,7 +405,8 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
     );
   };
 
-  const renderComposeSections = () => {
+  // Memoize composer sections to prevent re-renders that cause input unfocus
+  const renderComposeSections = useMemo(() => {
     const roleSummary = selectedRoles.length
       ? selectedRoles
           .map((role) => roleOptions.find((option) => option.value === role)?.label || role)
@@ -631,7 +662,22 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
         </View>
       </View>
     );
-  };
+  }, [
+    title,
+    body,
+    titleValid,
+    bodyValid,
+    roleFilterEnabled,
+    genderFilterEnabled,
+    selectedRoles,
+    selectedGenders,
+    importance,
+    previewState,
+    recipientCount,
+    previewMessage,
+    historyListData,
+    loadingHistory,
+  ]);
 
   // ========== PREVIEW RECIPIENTS (DEBOUNCED) ==========
   useEffect(() => {
@@ -970,35 +1016,6 @@ export default function AdminBroadcastManager({ onClose }: AdminBroadcastManager
   const toggleCardExpanded = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setExpandedCardId(expandedCardId === id ? null : id);
-  };
-
-  const formatRelativeTime = (timestamp: string) => {
-    const now = new Date();
-    const sent = new Date(timestamp);
-    const diffMs = now.getTime() - sent.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'الآن';
-    if (diffMins < 60) return `منذ ${diffMins} ${diffMins === 1 ? 'دقيقة' : 'دقائق'}`;
-    if (diffHours < 24) return `منذ ${diffHours} ${diffHours === 1 ? 'ساعة' : 'ساعات'}`;
-    if (diffDays < 7) return `منذ ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'}`;
-    return sent.toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' });
-  };
-
-  const getReadColor = (percentage: number) => {
-    if (percentage >= 75) return '#34C759';
-    if (percentage >= 50) return '#FF9500';
-    return '#FF3B30';
-  };
-
-  const getImportanceLabel = (level: Importance) => {
-    switch (level) {
-      case 'urgent': return 'عاجلة';
-      case 'high': return 'مهمة';
-      default: return 'عادية';
-    }
   };
 
   // ========== RENDER ==========

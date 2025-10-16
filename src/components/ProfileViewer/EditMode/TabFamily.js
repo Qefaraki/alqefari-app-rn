@@ -528,6 +528,11 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     dispatch({ type: 'CLOSE_SPOUSE_MODAL' });
   }, [loadFamilyData, refreshProfile, person.id, onDataChanged]);
 
+  const handleSpouseModalClose = useCallback(() => {
+    // Simple close without success haptics or data reload (user cancelled)
+    dispatch({ type: 'CLOSE_SPOUSE_MODAL' });
+  }, []);
+
   const handleChildAdded = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await loadFamilyData();
@@ -539,6 +544,11 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     }
     dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: false });
   }, [loadFamilyData, refreshProfile, person.id, onDataChanged]);
+
+  const handleChildModalClose = useCallback(() => {
+    // Simple close without success haptics or data reload (user cancelled)
+    dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: false });
+  }, []);
 
   const handleDeleteSpouse = useCallback(async (marriage) => {
     const childrenCount = marriage.children_count || 0;
@@ -1298,7 +1308,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
       <SpouseManager
         visible={state.spouseModalVisible}
         person={person}
-        onClose={() => dispatch({ type: 'CLOSE_SPOUSE_MODAL' })}
+        onClose={handleSpouseModalClose}
         onSpouseAdded={handleSpouseAdded}
         prefilledName={state.prefilledSpouseName}
       />
@@ -1307,7 +1317,8 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         visible={state.childModalVisible}
         parentNode={person}
         siblings={children}
-        onClose={handleChildAdded}
+        onClose={handleChildModalClose}
+        onChildAdded={handleChildAdded}
       />
 
 
