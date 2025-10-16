@@ -20,6 +20,7 @@ import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
 import familyNameService from "../../services/familyNameService";
 import tokens from "../ui/tokens";
+import SearchResultCard from "../search/SearchResultCard";
 
 /**
  * SpouseManager - Redesigned with single-input simplicity
@@ -33,8 +34,8 @@ import tokens from "../ui/tokens";
  */
 
 export default function SpouseManager({ visible, person, onClose, onSpouseAdded, prefilledName }) {
-  // Simplified 4-state machine (not 7)
-  const [stage, setStage] = useState("INPUT"); // INPUT, SEARCH, CREATE, SUCCESS
+  // Simplified 3-state machine
+  const [stage, setStage] = useState("SEARCH"); // SEARCH, CREATE, SUCCESS
   const [fullName, setFullName] = useState("");
   const [parsedData, setParsedData] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
@@ -47,25 +48,16 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   const spouseTitle = spouseGender === "female" ? "الزوجة" : "الزوج";
   const genderMarker = spouseGender === "female" ? "بنت" : "بن";
 
-  // Reset state when modal opens, or auto-submit if pre-filled
+  // Auto-trigger search when modal opens with prefilledName
   useEffect(() => {
-    if (visible) {
-      if (prefilledName) {
-        // Pre-filled from inline adder: auto-submit to search
-        setFullName(prefilledName);
+    if (visible && prefilledName) {
+      // Pre-filled from inline adder: auto-submit to search
+      setFullName(prefilledName);
 
-        // Parse and search immediately (Al-Qefari family members only)
-        const parsed = familyNameService.parseFullName(prefilledName.trim(), spouseGender);
-        setParsedData(parsed);
-        performSearch(parsed);
-      } else {
-        // Normal flow: start at INPUT
-        setStage("INPUT");
-        setFullName("");
-        setParsedData(null);
-        setSearchResults([]);
-        setSelectedSpouse(null);
-      }
+      // Parse and search immediately (Al-Qefari family members only)
+      const parsed = familyNameService.parseFullName(prefilledName.trim(), spouseGender);
+      setParsedData(parsed);
+      performSearch(parsed);
     }
   }, [visible, prefilledName]);
 
@@ -125,7 +117,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     } catch (error) {
       console.error("Search error:", error);
       Alert.alert("خطأ", "فشل البحث في الشجرة");
-      setStage("INPUT");
+      onClose(); // Close modal on search error
     } finally {
       setLoading(false);
     }
@@ -140,7 +132,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         {
           text: "إلغاء",
           style: "cancel",
-          onPress: () => setStage("INPUT"),
+          onPress: () => onClose(), // Close modal on cancel
         },
         {
           text: "نعم",
@@ -247,7 +239,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       if (existingMarriage) {
         Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
         setSubmitting(false);
-        setStage("INPUT");
         return;
       }
 
@@ -268,8 +259,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       }, 1500);
     } catch (error) {
       Alert.alert("خطأ", error.message || "حدث خطأ أثناء الإضافة");
-      setStage("INPUT");
       setSubmitting(false);
+      onClose(); // Close modal on error
     }
   };
 
@@ -293,116 +284,9 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     );
   };
 
-  // Render search result card (ParentProfileCard pattern)
-  const renderSearchResult = ({ item }) => {
-    const isSelected = selectedSpouse?.id === item.id;
-    const initials = item.name ? item.name.split(" ")[0].charAt(0) : "؟";
-
-    return (
-      <TouchableOpacity
-        style={[styles.resultCard, isSelected && styles.resultCardSelected]}
-        onPress={() => handleSelectSpouse(item)}
-        activeOpacity={0.85}
-      >
-        <View style={styles.resultAvatar}>
-          {item.photo_url ? (
-            <Image
-              source={{ uri: item.photo_url }}
-              style={styles.resultAvatarImage}
-            />
-          ) : (
-            <View style={styles.resultAvatarFallback}>
-              <Text style={styles.resultAvatarInitial}>{initials}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.resultInfo}>
-          <Text style={styles.resultName} numberOfLines={1}>
-            {item.name}
-          </Text>
-          {/* Display father name with gender marker ONCE */}
-          {item.father_name && (
-            <Text style={styles.resultChain} numberOfLines={1}>
-              {genderMarker} {item.father_name}
-            </Text>
-          )}
-          {/* Display generation */}
-          <Text style={styles.resultGeneration}>
-            الجيل {item.generation || "؟"}
-          </Text>
-        </View>
-
-        {isSelected && (
-          <Ionicons
-            name="checkmark-circle"
-            size={24}
-            color={tokens.colors.najdi.primary}
-          />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  // Render INPUT stage
-  const renderInputStage = () => (
-    <View style={styles.stageContainer}>
-      <View style={styles.iconContainer}>
-        <Ionicons
-          name="moon"
-          size={32}
-          color={tokens.colors.najdi.secondary}
-        />
-      </View>
-
-      <Text style={styles.questionText}>ما اسم {spouseTitle} الكاملة؟</Text>
-
-      <TextInput
-        style={styles.nameInput}
-        placeholder="مثال: مريم محمد علي السعوي"
-        value={fullName}
-        onChangeText={setFullName}
-        placeholderTextColor={tokens.colors.najdi.text + "40"}
-        autoFocus
-        returnKeyType="done"
-        onSubmitEditing={handleSubmit}
-        clearButtonMode="never"
-      />
-
-      <Text style={styles.hintText}>
-        يجب أن يتضمن الاسم اسم العائلة
-      </Text>
-
-      <View style={{ flex: 1 }} />
-
-      <TouchableOpacity
-        style={[
-          styles.primaryButton,
-          fullName.trim().length < 3 && styles.buttonDisabled,
-        ]}
-        onPress={handleSubmit}
-        disabled={fullName.trim().length < 3}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.primaryButtonText}>التالي</Text>
-        <Ionicons name="arrow-back" size={20} color={tokens.colors.surface} />
-      </TouchableOpacity>
-    </View>
-  );
-
   // Render SEARCH stage
   const renderSearchStage = () => (
     <View style={styles.stageContainer}>
-      <View style={styles.searchHeader}>
-        <TouchableOpacity
-          onPress={() => setStage("INPUT")}
-          style={styles.backButton}
-        >
-          <Ionicons name="arrow-forward" size={24} color={tokens.colors.najdi.text} />
-          <Text style={styles.backButtonText}>رجوع</Text>
-        </TouchableOpacity>
-      </View>
-
       <Text style={styles.searchTitle}>
         نتائج البحث عن: {parsedData?.firstName}
       </Text>
@@ -415,7 +299,14 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       ) : (
         <FlatList
           data={searchResults}
-          renderItem={renderSearchResult}
+          renderItem={({ item, index }) => (
+            <SearchResultCard
+              item={item}
+              index={index}
+              onPress={handleSelectSpouse}
+              isLast={index === searchResults.length - 1}
+            />
+          )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.resultsList}
           showsVerticalScrollIndicator={false}
@@ -513,7 +404,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         </View>
 
         {/* Stage Content */}
-        {stage === "INPUT" && renderInputStage()}
         {stage === "SEARCH" && renderSearchStage()}
         {stage === "CREATE" && renderCreateStage()}
         {stage === "SUCCESS" && renderSuccessStage()}
@@ -592,62 +482,7 @@ const styles = StyleSheet.create({
     paddingTop: tokens.spacing.xl,
   },
 
-  // INPUT Stage
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: tokens.colors.najdi.secondary + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: tokens.spacing.lg,
-  },
-  questionText: {
-    fontSize: 20,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
-    textAlign: "center",
-    marginBottom: tokens.spacing.xl,
-  },
-  nameInput: {
-    backgroundColor: tokens.colors.najdi.container + "20",
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + "40",
-    borderRadius: tokens.radii.md,
-    paddingVertical: tokens.spacing.md,
-    paddingHorizontal: tokens.spacing.md,
-    fontSize: 17,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
-    minHeight: 52,
-    textAlign: "right",
-  },
-  hintText: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.textMuted,
-    textAlign: "center",
-    marginTop: tokens.spacing.xs,
-  },
-
   // SEARCH Stage
-  searchHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: tokens.spacing.lg,
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: tokens.spacing.xs,
-  },
-  backButtonText: {
-    fontSize: 15,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
-  },
   searchTitle: {
     fontSize: 15,
     fontFamily: "SF Arabic",
@@ -656,72 +491,6 @@ const styles = StyleSheet.create({
   },
   resultsList: {
     paddingBottom: 100,
-  },
-  resultCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + "33",
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    gap: tokens.spacing.md,
-  },
-  resultCardSelected: {
-    borderColor: tokens.colors.najdi.primary,
-    borderWidth: 2,
-    backgroundColor: tokens.colors.najdi.primary + "08",
-  },
-  resultAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: tokens.colors.najdi.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + "40",
-    overflow: "hidden",
-  },
-  resultAvatarImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 28,
-  },
-  resultAvatarFallback: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: tokens.colors.najdi.container + "40",
-  },
-  resultAvatarInitial: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: tokens.colors.najdi.text,
-  },
-  resultInfo: {
-    flex: 1,
-    gap: tokens.spacing.xxs,
-  },
-  resultName: {
-    fontSize: 17,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
-  },
-  resultChain: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.textMuted,
-    lineHeight: 18,
-  },
-  resultGeneration: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.textMuted,
   },
 
   // Empty State
