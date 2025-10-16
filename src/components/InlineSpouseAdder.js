@@ -122,6 +122,10 @@ export default function InlineSpouseAdder({
     const trimmedName = spouseName.trim();
     if (!trimmedName) return;
 
+    if (__DEV__) {
+      console.log('[InlineSpouseAdder] handleSave called with name:', trimmedName);
+    }
+
     // Safety: Validate person prop exists
     if (!person || !person.gender || !person.id) {
       Alert.alert("خطأ", "معلومات الملف الشخصي غير متوفرة. يرجى إعادة المحاولة.");
@@ -139,7 +143,24 @@ export default function InlineSpouseAdder({
     const spouseGender = person.gender === "male" ? "female" : "male";
 
     // SMART DETECTION: Check if Al-Qefari family member
+    if (__DEV__) {
+      console.log('[InlineSpouseAdder] Parsing name with familyNameService...');
+      console.log('[InlineSpouseAdder] familyNameService exists:', !!familyNameService);
+      console.log('[InlineSpouseAdder] familyNameService.parseFullName type:', typeof familyNameService?.parseFullName);
+    }
+
+    // Defensive: Check if familyNameService and parseFullName exist
+    if (!familyNameService || typeof familyNameService.parseFullName !== 'function') {
+      console.error('[InlineSpouseAdder] familyNameService.parseFullName is not available!');
+      Alert.alert("خطأ", "حدث خطأ في النظام. يرجى إعادة تحميل التطبيق.");
+      return;
+    }
+
     const parsed = familyNameService.parseFullName(trimmedName, spouseGender);
+
+    if (__DEV__) {
+      console.log('[InlineSpouseAdder] Parsed result:', parsed);
+    }
 
     // Safety: Validate parsing succeeded
     if (!parsed || !parsed.familyName) {
@@ -147,13 +168,41 @@ export default function InlineSpouseAdder({
       return;
     }
 
-    if (familyNameService.isAlQefariFamily(parsed.familyName)) {
+    // Defensive: Check if isAlQefariFamily exists
+    if (typeof familyNameService.isAlQefariFamily !== 'function') {
+      console.error('[InlineSpouseAdder] familyNameService.isAlQefariFamily is not available!');
+      Alert.alert("خطأ", "حدث خطأ في النظام. يرجى إعادة تحميل التطبيق.");
+      return;
+    }
+
+    const isAlQefari = familyNameService.isAlQefariFamily(parsed.familyName);
+
+    if (__DEV__) {
+      console.log('[InlineSpouseAdder] Is Al-Qefari family?', isAlQefari);
+      console.log('[InlineSpouseAdder] onNeedsSearch exists:', !!onNeedsSearch);
+      console.log('[InlineSpouseAdder] onNeedsSearch type:', typeof onNeedsSearch);
+    }
+
+    if (isAlQefari) {
       // Al-Qefari detected → Need to search tree first
       collapse();
-      if (onNeedsSearch) {
-        onNeedsSearch(trimmedName); // Pass to parent to open SpouseManager
+
+      // Defensive: Check if onNeedsSearch is a function
+      if (onNeedsSearch && typeof onNeedsSearch === 'function') {
+        if (__DEV__) {
+          console.log('[InlineSpouseAdder] Calling onNeedsSearch with:', trimmedName);
+        }
+        try {
+          onNeedsSearch(trimmedName); // Pass to parent to open SpouseManager
+        } catch (error) {
+          console.error('[InlineSpouseAdder] Error calling onNeedsSearch:', error);
+          Alert.alert("خطأ", "حدث خطأ عند فتح البحث. يرجى المحاولة مرة أخرى.");
+        }
       } else {
         // Fallback: Inform user to use full modal
+        if (__DEV__) {
+          console.warn('[InlineSpouseAdder] onNeedsSearch not available, showing fallback alert');
+        }
         Alert.alert(
           "معلومة",
           "يبدو أن الزوج/الزوجة من عائلة القفاري. يرجى استخدام نموذج الزواج الكامل للبحث في شجرة العائلة.",
@@ -219,6 +268,18 @@ export default function InlineSpouseAdder({
         Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
         setLoading(false);
         return;
+      }
+
+      if (__DEV__) {
+        console.log('[InlineSpouseAdder] Creating marriage...');
+        console.log('[InlineSpouseAdder] profilesService exists:', !!profilesService);
+        console.log('[InlineSpouseAdder] profilesService.createMarriage type:', typeof profilesService?.createMarriage);
+      }
+
+      // Defensive: Check if profilesService.createMarriage exists
+      if (!profilesService || typeof profilesService.createMarriage !== 'function') {
+        console.error('[InlineSpouseAdder] profilesService.createMarriage is not available!');
+        throw new Error('خدمة الزواج غير متوفرة. يرجى إعادة تحميل التطبيق.');
       }
 
       const { error: marriageError } = await profilesService.createMarriage({
