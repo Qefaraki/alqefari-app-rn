@@ -20,14 +20,6 @@ export const USER_IDENTITY_VARIABLES: TemplateVariable[] = [
     required: false,
   },
   {
-    key: '{first_name}',
-    label: 'الاسم الأول فقط',
-    description: 'الاسم الأول بدون الأجداد (مثال: محمد)',
-    source: 'profile.name',
-    example: 'محمد',
-    required: false,
-  },
-  {
     key: '{phone}',
     label: 'رقم الجوال',
     description: 'رقم الجوال بالصيغة الدولية (مثال: +966501234567)',

@@ -8,6 +8,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import BrandedErrorScreen from "../src/components/ui/BrandedErrorScreen";
+import Toast from 'react-native-toast-message';
 
 // Keep the splash screen visible while we determine auth state
 SplashScreen.preventAutoHideAsync();
@@ -153,6 +154,7 @@ export default function RootLayout() {
           </SettingsProvider>
         </AuthProvider>
       </ErrorBoundary>
+      <Toast />
     </GestureHandlerRootView>
   );
 }

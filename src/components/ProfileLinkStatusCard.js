@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -42,35 +42,76 @@ export default function ProfileLinkStatusCard() {
   const [linkRequest, setLinkRequest] = useState(null);
   const [hasLinkedProfile, setHasLinkedProfile] = useState(false);
   const [allProfiles, setAllProfiles] = useState([]);
+  const subscriptionsRef = useRef([]);
 
   useEffect(() => {
     loadProfileStatus();
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
-    // Subscribe to real-time updates for THIS USER's requests only
-    const channelName = `profile-card-${user.id}`;
-    const subscription = supabase
-      .channel(channelName)
+    // Cleanup old subscriptions
+    subscriptionsRef.current.forEach(sub => {
+      try {
+        sub.unsubscribe();
+      } catch (e) {
+        console.error('Error unsubscribing:', e);
+      }
+    });
+    subscriptionsRef.current = [];
+
+    // Subscribe to profile_link_requests table for status changes
+    const requestsSubscription = supabase
+      .channel(`profile-card-requests-${user.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'profile_link_requests',
-        filter: `user_id=eq.${user.id}` // Only this user's requests
+        filter: `user_id=eq.${user.id}`
       }, (payload) => {
-        // Only reload if this is actually our request
+        console.log('📨 ProfileLinkStatusCard: Link request change received:', payload.new?.status);
+        // Reload status when request changes
         if (payload.new?.user_id === user.id) {
           loadProfileStatus();
         }
       })
       .subscribe();
 
+    // Subscribe to notifications table for real-time approval/rejection
+    const notificationsSubscription = supabase
+      .channel(`profile-card-notifications-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`
+      }, (payload) => {
+        console.log('🔔 ProfileLinkStatusCard: Notification received:', payload.new.type);
+        const notification = payload.new;
+
+        // Reload profile status immediately when link request status changes
+        if (notification.type === "profile_link_approved" ||
+            notification.type === "profile_link_rejected") {
+          loadProfileStatus();
+        }
+      })
+      .subscribe();
+
+    // Store both subscriptions for cleanup
+    subscriptionsRef.current = [requestsSubscription, notificationsSubscription];
+
     return () => {
-      subscription.unsubscribe();
+      subscriptionsRef.current.forEach(sub => {
+        try {
+          sub.unsubscribe();
+        } catch (e) {
+          console.error('Error unsubscribing:', e);
+        }
+      });
+      subscriptionsRef.current = [];
     };
-  }, [user]);
+  }, [user?.id]);
 
   // Removed effect for allProfiles as we're not using it anymore
 

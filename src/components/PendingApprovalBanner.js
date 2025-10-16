@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -37,9 +37,11 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState(null);
   const [shouldDismiss, setShouldDismiss] = useState(false);
-  const fadeAnim = new Animated.Value(0);
-  const pulseAnim = new Animated.Value(1);
-  const slideAnim = new Animated.Value(0);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnimationRef = useRef(null);
+  const subscriptionsRef = useRef([]);
 
   useEffect(() => {
     checkLinkStatus();
@@ -53,7 +55,7 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
     }).start();
 
     // Pulse animation for pending icon
-    Animated.loop(
+    pulseAnimationRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1.2,
@@ -66,12 +68,24 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
           useNativeDriver: true,
         }),
       ]),
-    ).start();
+    );
+    pulseAnimationRef.current.start();
 
     return () => {
-      // Cleanup subscription
+      // Cleanup animations
+      pulseAnimationRef.current?.stop();
+
+      // Cleanup subscriptions
+      subscriptionsRef.current.forEach(sub => {
+        try {
+          sub.unsubscribe();
+        } catch (e) {
+          console.error('Error unsubscribing:', e);
+        }
+      });
+      subscriptionsRef.current = [];
     };
-  }, []);
+  }, [user?.id]);
 
   const checkLinkStatus = async () => {
     setLoading(true);
@@ -139,8 +153,9 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
   const subscribeToUpdates = () => {
     if (!user?.id) return;
 
-    const subscription = supabase
-      .channel("link-requests")
+    // Subscribe to profile_link_requests table for status changes
+    const requestsSubscription = supabase
+      .channel(`link-requests-${user.id}`)
       .on(
         "postgres_changes",
         {
@@ -150,6 +165,7 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
+          console.log('📨 Link request UPDATE received:', payload.new.status);
           const newStatus = payload.new.status;
 
           if (newStatus === "approved") {
@@ -185,9 +201,59 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
       )
       .subscribe();
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Subscribe to notifications table for approval notifications (real-time push)
+    const notificationsSubscription = supabase
+      .channel(`notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('🔔 Notification INSERT received:', payload.new.type);
+          const notification = payload.new;
+
+          // Handle profile link approval notification
+          if (notification.type === "profile_link_approved") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert(
+              "🎉 تمت الموافقة!",
+              "تم ربط ملفك الشخصي بنجاح. يمكنك الآن تعديل معلوماتك.",
+              [
+                {
+                  text: "ممتاز",
+                  onPress: () => {
+                    // Refresh link request status
+                    checkLinkStatus();
+                    onStatusChange?.("approved", notification);
+                  },
+                },
+              ],
+            );
+          } else if (notification.type === "profile_link_rejected") {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            Alert.alert(
+              "طلب مرفوض",
+              notification.message ||
+                "تم رفض طلب ربط الملف. يرجى التواصل مع المشرف.",
+              [
+                { text: "إلغاء", style: "cancel" },
+                {
+                  text: "محاولة أخرى",
+                  onPress: () => onStatusChange?.("retry"),
+                },
+              ],
+            );
+          }
+        },
+      )
+      .subscribe();
+
+    // Store both subscriptions for cleanup
+    subscriptionsRef.current = [requestsSubscription, notificationsSubscription];
   };
 
   const handleRefresh = async () => {

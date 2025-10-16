@@ -17,6 +17,7 @@ import { supabase } from "../../services/supabase";
 import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
+import adminContactService from "../../services/adminContact";
 
 // Najdi Sadu Color Palette
 const colors = {
@@ -128,16 +129,16 @@ export default function ContactAdminScreen() {
     }
   };
 
-  const handleWhatsApp = () => {
-    const adminPhone = "+966501234567"; // Replace with actual admin number
-    const text = encodeURIComponent(
-      `مرحباً، لم أجد ملفي في الشجرة\nالاسم: ${nameChain}\nرقم الجوال: ${user?.phone || ""}`
-    );
-    const url = `whatsapp://send?phone=${adminPhone}&text=${text}`;
+  const handleWhatsApp = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    Linking.openURL(url).catch(() => {
-      Alert.alert("خطأ", "لا يمكن فتح WhatsApp");
-    });
+    const message = `مرحباً، لم أجد ملفي في الشجرة\nالاسم: ${nameChain}\nرقم الجوال: ${user?.phone || ""}`;
+
+    const result = await adminContactService.openAdminWhatsApp(message);
+
+    if (!result.success) {
+      Alert.alert("خطأ", "لا يمكن فتح WhatsApp. تأكد من تثبيت التطبيق.");
+    }
   };
 
   if (existingMessage) {

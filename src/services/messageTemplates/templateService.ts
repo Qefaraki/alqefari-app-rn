@@ -17,6 +17,10 @@ import {
 } from './types';
 
 class MessageTemplateService {
+  // Cache for name chains (5-minute TTL)
+  private nameChainCache: Map<string, { value: string; timestamp: number }> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
   /**
    * Get template message (custom or default)
    */
@@ -40,7 +44,50 @@ class MessageTemplateService {
   }
 
   /**
-   * Set custom template message
+   * Validate template message before saving
+   * Checks for unknown variables and message length
+   */
+  validateTemplateMessage(message: string): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+
+    // Check for empty message
+    if (!message || message.trim() === '') {
+      errors.push('الرسالة لا يمكن أن تكون فارغة');
+      return { valid: false, errors };
+    }
+
+    // Extract all variables from message
+    const variablePattern = /\{([^}]+)\}/g;
+    const foundVariables = message.match(variablePattern) || [];
+
+    // Known variables (updated list after removing first_name)
+    const knownVars = [
+      '{name_chain}', '{phone}', '{hid}', '{title}',
+      '{gender}', '{father_name}', '{mother_name}',
+      '{birth_year}', '{death_year}',
+      '{date}', '{hijri_date}', '{time}'
+    ];
+
+    // Check for unknown variables
+    for (const variable of foundVariables) {
+      if (!knownVars.includes(variable)) {
+        errors.push(`متغير غير معروف: ${variable}`);
+      }
+    }
+
+    // Check message length (WhatsApp URL limit is ~4096 characters)
+    if (message.length > 4096) {
+      errors.push('الرسالة طويلة جداً (أكثر من 4096 حرف)');
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Set custom template message (with validation)
    */
   async setTemplateMessage(
     templateId: string,
@@ -54,10 +101,12 @@ class MessageTemplateService {
       };
     }
 
-    if (!message || message.trim() === '') {
+    // Validate message
+    const validation = this.validateTemplateMessage(message);
+    if (!validation.valid) {
       return {
         success: false,
-        error: 'Message cannot be empty',
+        error: validation.errors.join('\n'),
       };
     }
 
@@ -148,33 +197,48 @@ class MessageTemplateService {
 
     let processedMessage = message;
 
-    // Name Chain - fetch all profiles to build proper ancestry (same pattern as SettingsPageModern)
+    // Name Chain - with caching to avoid repeated database queries
     if (processedMessage.includes('{name_chain}')) {
       try {
-        // Fetch all profiles from database to traverse ancestry
-        const { data: allProfiles } = await supabase
-          .from('profiles')
-          .select('id, name, father_id, gender');
+        const profileId = userData?.id;
+        let nameChain: string;
 
-        // Build full name chain using buildNameChain utility
-        const nameChain = buildNameChain(userData, allProfiles || []) ||
-                          userData?.name ||
-                          'الاسم غير متوفر';
+        // Check cache first
+        if (profileId) {
+          const cached = this.nameChainCache.get(profileId);
+          const now = Date.now();
+
+          if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
+            nameChain = cached.value;
+            console.log('[TemplateService] Using cached name_chain for:', profileId);
+          } else {
+            // Cache miss or expired - fetch from database
+            const { data: allProfiles } = await supabase
+              .from('profiles')
+              .select('id, name, father_id, gender');
+
+            // Build full name chain using buildNameChain utility
+            nameChain = buildNameChain(userData, allProfiles || []) ||
+                        userData?.name ||
+                        'الاسم غير متوفر';
+
+            // Cache the result
+            this.nameChainCache.set(profileId, { value: nameChain, timestamp: now });
+            console.log('[TemplateService] Cached name_chain for:', profileId);
+          }
+        } else {
+          // No profile ID - use name directly
+          nameChain = userData?.name || 'الاسم غير متوفر';
+        }
 
         processedMessage = processedMessage.replace(/{name_chain}/g, nameChain);
         console.log('[TemplateService] Replaced {name_chain} with:', nameChain);
       } catch (error) {
-        console.error('[TemplateService] Error fetching profiles for name chain:', error);
+        console.error('[TemplateService] Error building name chain:', error);
         // Fallback to just the name if database fetch fails
         const fallbackName = userData?.name || 'الاسم غير متوفر';
         processedMessage = processedMessage.replace(/{name_chain}/g, fallbackName);
       }
-    }
-
-    // First name only
-    if (processedMessage.includes('{first_name}')) {
-      const firstName = userData?.name || 'غير محدد';
-      processedMessage = processedMessage.replace(/{first_name}/g, firstName);
     }
 
     // Phone
@@ -344,6 +408,14 @@ class MessageTemplateService {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  /**
+   * Clear name chain cache (useful for testing or when profiles are updated)
+   */
+  clearNameChainCache(): void {
+    this.nameChainCache.clear();
+    console.log('[TemplateService] Cleared name chain cache');
   }
 }
 

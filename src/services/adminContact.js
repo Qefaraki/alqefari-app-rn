@@ -7,6 +7,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Linking, Platform } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const ADMIN_WHATSAPP_KEY = 'admin_whatsapp_number';
 const DEFAULT_ADMIN_NUMBER = '+966539266345'; // Default fallback number
@@ -150,14 +151,41 @@ class AdminContactService {
     } catch (error) {
       console.error('Error opening WhatsApp:', error);
 
+      // Show user feedback about the error
+      Toast.show({
+        type: 'error',
+        text1: 'تعذر فتح واتساب',
+        text2: 'جارٍ المحاولة عبر المتصفح...',
+        position: 'bottom',
+        visibilityTime: 2000,
+      });
+
       // Try web version as last resort
       try {
         const number = await this.getAdminWhatsAppNumber();
         const cleanNumber = number.replace(/[^\d]/g, '');
         const webUrl = `https://wa.me/${cleanNumber}`;
         await Linking.openURL(webUrl);
+
+        // Show success message for web fallback
+        Toast.show({
+          type: 'info',
+          text1: 'تم فتح واتساب عبر المتصفح',
+          position: 'bottom',
+          visibilityTime: 2000,
+        });
+
         return { success: true, fallback: true };
       } catch (fallbackError) {
+        // Show final error message
+        Toast.show({
+          type: 'error',
+          text1: 'فشل فتح واتساب',
+          text2: 'تأكد من تثبيت التطبيق',
+          position: 'bottom',
+          visibilityTime: 3000,
+        });
+
         return { success: false, error: fallbackError.message };
       }
     }
