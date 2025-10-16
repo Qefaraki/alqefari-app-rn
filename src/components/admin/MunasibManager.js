@@ -33,12 +33,21 @@ const FamilyCard = ({ item, onPress }) => {
         pressed && styles.familyCardPressed,
       ]}
     >
-      <View style={styles.familyContent}>
-        <Text style={styles.familyName} numberOfLines={1}>
-          عائلة {item.family_name}
-        </Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{item.count}</Text>
+      <View style={styles.familyCardContent}>
+        <View style={styles.familyCardLeading}>
+          <Text style={styles.familyName} numberOfLines={1}>
+            عائلة {item.family_name}
+          </Text>
+        </View>
+        <View style={styles.familyMeta}>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{item.count}</Text>
+          </View>
+          <Ionicons
+            name="chevron-back"
+            size={18}
+            color={palette.text + "55"}
+          />
         </View>
       </View>
     </Pressable>
@@ -174,11 +183,25 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
                 }}
                 style={styles.backButton}
               >
-                <Ionicons name="chevron-back" size={28} color={palette.primary} />
+                <Ionicons name="chevron-back" size={28} color={palette.text} />
               </TouchableOpacity>
             ) : null
           }
         />
+
+        <View style={styles.introSurface}>
+          <View style={styles.introHeader}>
+            <Image
+              source={require("../../../assets/sadu_patterns/png/32.png")}
+              style={styles.introPattern}
+              resizeMode="cover"
+            />
+            <Text style={styles.introTitle}>دفتر العائلات المناسبة</Text>
+          </View>
+          <Text style={styles.introSubtitle}>
+            استعرض العائلات المنتسبة وتصفح أفرادها وروابطهم مع القفاري بكل سلاسة.
+          </Text>
+        </View>
 
         <View style={styles.searchSurface}>
           <View style={styles.searchBar}>
@@ -202,38 +225,7 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
             )}
           </View>
         </View>
-
-        <View style={styles.statsRow}>
-          {initialLoading || isFetching ? (
-            <View style={styles.statSkeletons}>
-              {[0, 1, 2].map((i) => (
-                <View key={`stat-skeleton-${i}`} style={styles.statChipSkeleton}>
-                  <SkeletonLoader height={12} width="70%" style={{ marginBottom: spacing.xs / 2 }} />
-                  <SkeletonLoader height={20} width="40%" />
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.statChipRow}>
-              <View style={styles.statChipCompact}>
-                <Text style={styles.statChipLabel}>عائلات مسجلة</Text>
-                <Text style={styles.statChipValue}>{familyStats.length}</Text>
-              </View>
-              <View style={styles.statChipCompact}>
-                <Text style={styles.statChipLabel}>أفراد مناسبين</Text>
-                <Text style={styles.statChipValue}>
-                  {familyStats.reduce((sum, f) => sum + f.count, 0)}
-                </Text>
-              </View>
-              <View style={styles.statChipCompact}>
-                <Text style={styles.statChipLabel}>قيد المراجعة</Text>
-                <Text style={styles.statChipValue}>
-                  {familyStats.filter((f) => f.members.some((m) => !m.hid)).length}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
+        <View style={styles.sectionDivider} />
 
         {/* Family List */}
         {initialLoading ? (
@@ -259,19 +251,10 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
                     style={styles.emptyEmblem}
                     resizeMode="contain"
                   />
-                  <Text style={styles.emptyTitle}>ما فيه عائلات حالياً</Text>
+                  <Text style={styles.emptyTitle}>ما لقينا عائلات مطابقة</Text>
                   <Text style={styles.emptySubtitle}>
-                    لم يتم تسجيل أي عائلات خارجية. ارجع لاحقاً أو جرّب تحديث القائمة.
+                    غيّر كلمات البحث أو جرّب كتابة اسم العائلة بدون إضافات.
                   </Text>
-                  <Pressable
-                    onPress={() => loadFamilyStats({ useOverlay: true })}
-                    style={({ pressed }) => [
-                      styles.emptyAction,
-                      pressed && styles.emptyActionPressed,
-                    ]}
-                  >
-                    <Text style={styles.emptyActionText}>تحديث القائمة</Text>
-                  </Pressable>
                 </View>
               </View>
             }
@@ -300,9 +283,46 @@ const styles = StyleSheet.create({
   backButton: {
     padding: spacing.xs,
   },
-  searchSurface: {
+  introSurface: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    gap: spacing.sm,
+    ...Platform.select({
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
+    }),
+  },
+  introHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  introPattern: {
+    width: 56,
+    height: 32,
+    borderRadius: tokens.radii.sm,
+  },
+  introTitle: {
+    ...typography.title3,
+    fontFamily: "SF Arabic",
+    color: palette.text,
+    fontWeight: "700",
+  },
+  introSubtitle: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: palette.text + "99",
+    lineHeight: typography.subheadline.lineHeight,
+  },
+  searchSurface: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
     marginBottom: spacing.sm,
     borderRadius: tokens.radii.lg,
     backgroundColor: palette.background,
@@ -326,11 +346,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.md,
+    borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}40`,
+    borderColor: `${palette.container}33`,
     paddingHorizontal: spacing.md,
-    height: 44,
+    height: 48,
   },
   searchInput: {
     flex: 1,
@@ -339,54 +359,13 @@ const styles = StyleSheet.create({
     color: palette.text,
     marginHorizontal: spacing.xs,
   },
-  statsRow: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  statSkeletons: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  statChipSkeleton: {
-    flex: 1,
-    backgroundColor: palette.background,
-    borderRadius: tokens.radii.md,
-    padding: spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}40`,
-  },
-  statChipRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  statChipCompact: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: `${palette.container}20`,
-    borderRadius: tokens.radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${palette.container}40`,
-  },
-  statChipLabel: {
-    ...typography.footnote,
-    fontFamily: "SF Arabic",
-    color: palette.text + "99",
-    marginBottom: spacing.xs / 2,
-  },
-  statChipValue: {
-    ...typography.title3,
-    fontFamily: "SF Arabic",
-    color: palette.text,
-    fontWeight: "600",
-  },
   listWrapper: {
     flex: 1,
   },
   listContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
+    paddingTop: spacing.sm,
   },
   listContentEmpty: {
     flexGrow: 1,
@@ -398,7 +377,7 @@ const styles = StyleSheet.create({
   },
   familyCard: {
     backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.radii.md,
+    borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: `${palette.container}40`,
     padding: spacing.md,
@@ -411,11 +390,16 @@ const styles = StyleSheet.create({
   familyCardPressed: {
     opacity: 0.92,
   },
-  familyContent: {
+  familyCardContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  familyCardLeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   familyName: {
     flex: 1,
@@ -423,6 +407,11 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: palette.text,
     fontWeight: "600",
+  },
+  familyMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   countBadge: {
     minWidth: 48,
@@ -524,5 +513,11 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: palette.primary,
     fontWeight: "600",
+  },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: `${palette.container}33`,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
 });

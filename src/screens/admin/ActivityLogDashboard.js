@@ -62,6 +62,36 @@ const colors = {
   white: "#FFFFFF",
 };
 
+const isRTL = I18nManager.isRTL;
+
+const TREE_ACTION_TYPES = [
+  "profile_create",
+  "profile_update",
+  "profile_soft_delete",
+  "create_node",
+  "update_node",
+  "delete_node",
+  "merge_nodes",
+];
+
+const MARRIAGE_ACTION_TYPES = [
+  "add_marriage",
+  "update_marriage",
+  "delete_marriage",
+];
+
+const PHOTO_ACTION_TYPES = [
+  "upload_photo",
+  "update_photo",
+  "delete_photo",
+];
+
+const ADMIN_ACTION_TYPES = [
+  "grant_admin",
+  "revoke_admin",
+  "update_settings",
+];
+
 const ACTION_CONFIGS = {
   create_node: { label: "إضافة" },
   update_node: { label: "تحديث" },
@@ -78,6 +108,25 @@ const ACTION_CONFIGS = {
   update_settings: { label: "تحديث إعدادات" },
   default: { label: "إجراء" },
 };
+
+const ACTION_VISUALS = {
+  create_node: { icon: "leaf", fallback: "leaf-outline", color: tokens.colors.najdi.primary + "14", accent: tokens.colors.najdi.primary },
+  update_node: { icon: "square.and.pencil", fallback: "create-outline", color: tokens.colors.najdi.focus + "18", accent: tokens.colors.najdi.focus },
+  delete_node: { icon: "trash", fallback: "trash-outline", color: tokens.colors.najdi.primary + "18", accent: tokens.colors.najdi.primary },
+  merge_nodes: { icon: "point.topleft.down.curvedto.point.bottomright.up", fallback: "git-merge-outline", color: tokens.colors.najdi.secondary + "18", accent: tokens.colors.najdi.secondary },
+  add_marriage: { icon: "heart.circle", fallback: "heart", color: tokens.colors.najdi.secondary + "18", accent: tokens.colors.najdi.secondary },
+  update_marriage: { icon: "heart.text.square", fallback: "heart-circle-outline", color: tokens.colors.najdi.secondary + "16", accent: tokens.colors.najdi.secondary },
+  delete_marriage: { icon: "heart.slash", fallback: "heart-dislike-outline", color: tokens.colors.najdi.primary + "18", accent: tokens.colors.najdi.primary },
+  upload_photo: { icon: "photo.on.rectangle.angled", fallback: "image-outline", color: tokens.colors.najdi.focus + "18", accent: tokens.colors.najdi.focus },
+  update_photo: { icon: "photo.fill.on.rectangle.fill", fallback: "images-outline", color: tokens.colors.najdi.focus + "16", accent: tokens.colors.najdi.focus },
+  delete_photo: { icon: "trash.slash", fallback: "trash-bin-outline", color: tokens.colors.najdi.primary + "16", accent: tokens.colors.najdi.primary },
+  grant_admin: { icon: "shield.checkerboard", fallback: "shield-checkmark-outline", color: tokens.colors.najdi.primary + "16", accent: tokens.colors.najdi.primary },
+  revoke_admin: { icon: "shield.slash", fallback: "shield-outline", color: tokens.colors.najdi.primary + "18", accent: tokens.colors.najdi.primary },
+  update_settings: { icon: "gearshape", fallback: "settings-outline", color: tokens.colors.najdi.container + "26", accent: tokens.colors.najdi.text },
+  default: { icon: "doc.text", fallback: "document-text-outline", color: tokens.colors.najdi.container + "24", accent: tokens.colors.najdi.text },
+};
+
+const getActionVisuals = (actionType) => ACTION_VISUALS[actionType] || ACTION_VISUALS.default;
 
 const CATEGORY_OPTIONS = [
   { key: "all", label: "الجميع", icon: "square.grid.2x2", fallback: "grid-outline" },
@@ -334,7 +383,7 @@ const StatusHeader = ({ latestTimestamp, onClose }) => (
         <Text style={styles.screenTitle}>سجل النشاط</Text>
         {latestTimestamp && (
           <Text style={styles.screenSubtitle}>
-            آخر تحديث {formatRelativeTime(latestTimestamp)}
+            {`آخر تحديث ${formatRelativeTime(latestTimestamp)}`}
           </Text>
         )}
       </View>
@@ -620,13 +669,18 @@ const FiltersSheet = React.forwardRef((
   );
 });
 
-const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos }) => {
+const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActivityId }) => {
   const summary = buildActivitySummary(activity);
   const relativeTime = formatRelativeTime(activity.created_at);
   const changedFields = getMeaningfulFields(activity.changed_fields || []);
   const primaryField = getPrimaryField(activity);
   const severityBadge = getSeverityBadge(activity.severity);
-  const showUndo = activity.is_undoable === true && !activity.undone_at;
+  const isUndone = Boolean(activity.undone_at);
+  const showUndo = activity.is_undoable === true && !isUndone;
+  const actionVisuals = getActionVisuals(activity.action_type);
+  const isUndoing = undoingActivityId === activity.id;
+  const isDangerous = undoService.isDangerousAction(activity.action_type);
+
   const actorPhotoUrl = (() => {
     if (activity.actor_profile_id && actorPhotos) {
       const mapped = actorPhotos[activity.actor_profile_id];
@@ -637,54 +691,173 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos }) => {
     return activity.actor_photo_url || null;
   })();
 
+  const actorName = activity.actor_name_current || activity.actor_name_historical || "";
+  const metaParts = [];
+  if (actorName) {
+    metaParts.push(actorName);
+  }
+  metaParts.push(relativeTime);
+  const metaDetails = metaParts.join(" • ");
+
+  const hasStatusBadges = (!isUndone && isDangerous) || Boolean(severityBadge) || isUndone;
+
+  const multiFieldSummary = (() => {
+    if (changedFields.length <= 1) return null;
+    const labels = changedFields.slice(0, 2).map((field) => getFieldLabel(field) || field).filter(Boolean);
+    if (!labels.length) return null;
+    const remaining = changedFields.length - labels.length;
+    const base = labels.join("، ");
+    return remaining > 0 ? `تغييرات في: ${base}، +${remaining}` : `تغييرات في: ${base}`;
+  })();
+
   return (
-    <TouchableOpacity style={styles.activityCard} onPress={onPress} activeOpacity={0.85}>
-      {actorPhotoUrl && (
-        <View style={styles.activityAvatar}>
-          <Image source={{ uri: actorPhotoUrl }} style={styles.avatarImage} resizeMode="cover" />
+    <TouchableOpacity
+      style={[
+        styles.activityCard,
+        isRTL && styles.activityCardRTL,
+        isUndone && styles.activityCardUndone,
+      ]}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
+      <View
+        style={[
+          styles.activityLeading,
+          isRTL ? styles.activityLeadingRTL : styles.activityLeadingLTR,
+        ]}
+      >
+        <View
+          style={[
+            styles.activityAvatarFrame,
+            actorPhotoUrl ? styles.activityAvatarFrameImage : styles.activityAvatarFrameFallback,
+            {
+              borderColor: actionVisuals.accent + (actorPhotoUrl ? "3d" : "55"),
+              backgroundColor: actorPhotoUrl ? colors.white : actionVisuals.color,
+            },
+          ]}
+        >
+          {actorPhotoUrl ? (
+            <Image source={{ uri: actorPhotoUrl }} style={styles.activityAvatarImage} resizeMode="cover" />
+          ) : (
+            <SFIcon
+              name={actionVisuals.icon}
+              fallback={actionVisuals.fallback}
+              size={20}
+              color={actionVisuals.accent}
+            />
+          )}
         </View>
-      )}
-      <View style={styles.activityCardContent}>
-        <View style={styles.activityHeaderRow}>
-          {severityBadge && <View style={[styles.severityDot, { backgroundColor: severityBadge.color }]} />}
-          <Text style={styles.activitySummary} numberOfLines={2}>{summary}</Text>
+        {actorPhotoUrl && (
+          <View style={[styles.activityActionBadge, isRTL && styles.activityActionBadgeRTL]}>
+            <SFIcon
+              name={actionVisuals.icon}
+              fallback={actionVisuals.fallback}
+              size={12}
+              color={actionVisuals.accent}
+            />
+          </View>
+        )}
+      </View>
+
+      <View
+        style={[
+          styles.activityCardContent,
+          isRTL && styles.activityCardContentRTL,
+        ]}
+      >
+        <View style={[styles.activityHeaderRow, isRTL && styles.activityHeaderRowRTL]}>
+          <Text
+            style={[
+              styles.activitySummary,
+              isRTL && styles.activitySummaryRTL,
+              isUndone && styles.activitySummaryUndone,
+            ]}
+            numberOfLines={2}
+          >
+            {summary}
+          </Text>
         </View>
-        <View style={styles.activityMetaRow}>
-          <Text style={styles.activityTime}>{relativeTime}</Text>
-          <View style={styles.activityMetaRight}>
-            {severityBadge && (
-              <View
-                style={[
-                  styles.severityTag,
-                  {
-                    backgroundColor: `${severityBadge.color}20`,
-                    borderColor: `${severityBadge.color}33`,
-                  },
-                ]}
-              >
-                <Text style={[styles.severityTagText, { color: severityBadge.color }]}>{severityBadge.label}</Text>
-              </View>
-            )}
+
+        {metaDetails && (
+          <Text
+            style={[styles.metaDetailsText, isRTL && styles.metaDetailsTextRTL]}
+            numberOfLines={1}
+          >
+            {metaDetails}
+          </Text>
+        )}
+
+        {(hasStatusBadges || showUndo) && (
+          <View style={[styles.activityStatusRow, isRTL && styles.activityStatusRowRTL]}>
+            <View style={[styles.statusBadges, isRTL && styles.statusBadgesRTL]}>
+              {isDangerous && !isUndone && (
+                <View style={styles.dangerBadge}>
+                  <SFIcon
+                    name="exclamationmark.octagon.fill"
+                    fallback="warning"
+                    size={12}
+                    color={tokens.colors.najdi.primary}
+                  />
+                  <Text style={styles.dangerBadgeText}>حساس</Text>
+                </View>
+              )}
+              {severityBadge && (
+                <View
+                  style={[
+                    styles.severityTag,
+                    {
+                      backgroundColor: `${severityBadge.color}20`,
+                      borderColor: `${severityBadge.color}33`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.severityTagText, { color: severityBadge.color }]}>{severityBadge.label}</Text>
+                </View>
+              )}
+              {isUndone && (
+                <View style={styles.undoneBadge}>
+                  <SFIcon
+                    name="checkmark.circle"
+                    fallback="checkmark-circle"
+                    size={12}
+                    color={tokens.colors.najdi.secondary}
+                  />
+                  <Text style={styles.undoneBadgeText}>تم التراجع</Text>
+                </View>
+              )}
+            </View>
+
             {showUndo && (
               <TouchableOpacity
-                style={styles.undoButton}
+                style={[
+                  styles.undoButton,
+                  isRTL ? styles.undoButtonRTL : styles.undoButtonLTR,
+                  isUndoing && styles.undoButtonDisabled,
+                ]}
                 onPress={(e) => {
                   e.stopPropagation();
                   onUndo(activity);
                 }}
                 activeOpacity={0.75}
+                disabled={isUndoing}
               >
-                <SFIcon
-                  name="arrow.uturn.backward"
-                  fallback="arrow-undo-outline"
-                  size={14}
-                  color={tokens.colors.najdi.primary}
-                />
-                <Text style={styles.undoButtonText}>تراجع</Text>
+                {isUndoing ? (
+                  <ActivityIndicator size="small" color={tokens.colors.najdi.primary} style={styles.undoSpinner} />
+                ) : (
+                  <SFIcon
+                    name="arrow.uturn.backward"
+                    fallback="arrow-undo-outline"
+                    size={14}
+                    color={tokens.colors.najdi.primary}
+                    style={styles.undoIcon}
+                  />
+                )}
+                <Text style={styles.undoButtonText}>{isUndoing ? "جارٍ التراجع" : "تراجع"}</Text>
               </TouchableOpacity>
             )}
           </View>
-        </View>
+        )}
+
         {changedFields.length === 1 && primaryField && (
           <View style={styles.diffPreview}>
             <InlineDiff
@@ -695,8 +868,14 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos }) => {
             />
           </View>
         )}
-        {changedFields.length > 1 && (
-          <Text style={styles.fieldsCountText}>{`${changedFields.length} تغييرات`}</Text>
+
+        {multiFieldSummary && (
+          <Text
+            style={[styles.fieldsSummaryText, isRTL && styles.fieldsSummaryTextRTL]}
+            numberOfLines={1}
+          >
+            {multiFieldSummary}
+          </Text>
         )}
       </View>
     </TouchableOpacity>
@@ -984,17 +1163,32 @@ const getDateRangeForPreset = (preset) => {
 
 const matchesCategoryFilter = (activity, category) => {
   if (category === "all") return true;
+  const actionCategory = activity.action_category;
+  const actionType = activity.action_type;
+
   switch (category) {
     case "tree":
-      return ["create_node", "update_node", "delete_node", "merge_nodes"].includes(activity.action_type);
+      return (
+        actionCategory === "tree" ||
+        TREE_ACTION_TYPES.includes(actionType)
+      );
     case "marriages":
-      return ["add_marriage", "update_marriage", "delete_marriage"].includes(activity.action_type);
+      return (
+        actionCategory === "marriages" ||
+        MARRIAGE_ACTION_TYPES.includes(actionType)
+      );
     case "photos":
-      return ["upload_photo", "update_photo", "delete_photo"].includes(activity.action_type);
+      return (
+        actionCategory === "photos" ||
+        PHOTO_ACTION_TYPES.includes(actionType)
+      );
     case "admin":
-      return ["grant_admin", "revoke_admin", "update_settings"].includes(activity.action_type) ||
+      return (
+        actionCategory === "admin" ||
+        ADMIN_ACTION_TYPES.includes(actionType) ||
         activity.actor_role === "super_admin" ||
-        activity.actor_role === "admin";
+        activity.actor_role === "admin"
+      );
     default:
       return true;
   }
@@ -1107,6 +1301,9 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   const [detailsVisible, setDetailsVisible] = useState(false);
   const [advancedActivity, setAdvancedActivity] = useState(null);
   const [advancedModalVisible, setAdvancedModalVisible] = useState(false);
+
+  const [inlineFiltersVisible, setInlineFiltersVisible] = useState(false);
+  const [undoingActivityId, setUndoingActivityId] = useState(null);
 
   const [actorPhotoMap, setActorPhotoMap] = useState({});
   const requestedPhotoIdsRef = useRef(new Set());
@@ -1520,12 +1717,14 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     return count;
   }, [categoryFilter, severityFilter, datePreset, customDateFrom, customDateTo, selectedUser]);
 
-  const handleUndo = useCallback(
+  const executeUndo = useCallback(
     async (activity) => {
       if (!profile?.id) {
         showToast("يجب تسجيل الدخول للتراجع", "error");
         return;
       }
+
+      setUndoingActivityId(activity.id);
 
       try {
         const permissionCheck = await undoService.checkUndoPermission(activity.id, profile.id);
@@ -1545,7 +1744,15 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         if (result.success) {
           showToast("✓ تم التراجع بنجاح", "success");
 
-          // Refetch the affected profile to update tree store with new version
+          if (detailsVisible) {
+            setTimeout(() => {
+              setDetailsVisible(false);
+              setSelectedActivity(null);
+              setAdvancedActivity(null);
+              setAdvancedModalVisible(false);
+            }, 650);
+          }
+
           const profileId = activity.record_id;
           if (profileId) {
             const { data: freshProfile, error: fetchError } = await supabase
@@ -1556,7 +1763,6 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
               .single();
 
             if (freshProfile && !fetchError) {
-              // Update tree store with fresh data (including incremented version)
               useTreeStore.getState().updateNode(profileId, freshProfile);
               console.log('[ActivityLogDashboard] Profile refreshed after undo:', {
                 profileId,
@@ -1579,16 +1785,60 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
         showToast(parsedError.message, "error");
 
-        // Auto-refresh for errors indicating stale data
         if (parsedError.shouldRefresh) {
           setTimeout(() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             fetchActivities(false);
           }, 2000);
         }
+      } finally {
+        setUndoingActivityId((current) => (current === activity.id ? null : current));
       }
     },
-    [profile, showToast, fetchActivities]
+    [
+      profile,
+      showToast,
+      fetchActivities,
+      detailsVisible,
+      setDetailsVisible,
+      setSelectedActivity,
+      setAdvancedActivity,
+      setAdvancedModalVisible,
+    ]
+  );
+
+  const handleUndo = useCallback(
+    (activity) => {
+      if (!profile?.id) {
+        showToast("يجب تسجيل الدخول للتراجع", "error");
+        return;
+      }
+
+      if (undoService.isDangerousAction(activity.action_type)) {
+        const actionLabel = undoService.getActionDescription(activity.action_type);
+        Alert.alert(
+          "تأكيد التراجع",
+          `هذا إجراء حساس: ${actionLabel}.\nسيتم استرجاع جميع البيانات المرتبطة، هل أنت متأكد؟`,
+          [
+            {
+              text: "إلغاء",
+              style: "cancel",
+              onPress: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+            },
+            {
+              text: "تأكيد التراجع",
+              style: "destructive",
+              onPress: () => executeUndo(activity),
+            },
+          ],
+          { cancelable: false }
+        );
+        return;
+      }
+
+      executeUndo(activity);
+    },
+    [profile, executeUndo, showToast]
   );
 
   const handleOpenDetails = useCallback((activity) => {
@@ -1658,6 +1908,21 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     scrollListToTop();
   };
 
+  const openFilters = useCallback(() => {
+    setInlineFiltersVisible((visible) => {
+      const next = !visible;
+      if (!next) {
+        // Hide inline filters and close sheet if open
+        setFiltersSheetVisible(false);
+      } else {
+        setFiltersSheetVisible(true);
+      }
+      return next;
+    });
+  }, []);
+
+  const shouldShowInlineFilters = inlineFiltersVisible;
+
   if (loading && activities.length === 0) {
     return <ActivityLogSkeleton />;
   }
@@ -1667,19 +1932,21 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
       <StatusHeader latestTimestamp={latestActivityTimestamp} onClose={onClose} />
 
       <ControlsRow
-        onOpenFilters={() => setFiltersSheetVisible(true)}
+        onOpenFilters={openFilters}
         activeFiltersCount={activeFiltersCount}
         searchText={searchText}
         onSearchChange={setSearchText}
         searchInputRef={searchInputRef}
       />
 
-      <InlineFilters
-        category={categoryFilter}
-        severity={severityFilter}
-        onCategoryChange={handleCategoryChange}
-        onSeverityChange={handleSeverityChange}
-      />
+      {shouldShowInlineFilters && (
+        <InlineFilters
+          category={categoryFilter}
+          severity={severityFilter}
+          onCategoryChange={handleCategoryChange}
+          onSeverityChange={handleSeverityChange}
+        />
+      )}
 
       <SectionList
         ref={sectionListRef}
@@ -1720,6 +1987,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
                 onPress={() => handleOpenDetails(item)}
                 onUndo={handleUndo}
                 actorPhotos={actorPhotoMap}
+                undoingActivityId={undoingActivityId}
               />
             </View>
           );
@@ -1869,10 +2137,10 @@ const styles = StyleSheet.create({
     lineHeight: 41,
   },
   screenSubtitle: {
-    marginTop: 2,
-    fontSize: 13,
+    fontSize: 15,
     color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    marginTop: 4,
   },
   controlsRow: {
     flexDirection: "row",
@@ -2080,10 +2348,9 @@ const styles = StyleSheet.create({
   activityCard: {
     backgroundColor: colors.white,
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     flexDirection: "row",
-    gap: 12,
     alignItems: "flex-start",
     borderWidth: 1,
     borderColor: tokens.colors.najdi.container + '30',
@@ -2099,63 +2366,179 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  activityCardContent: {
-    flex: 1,
-    gap: 12,
+  activityCardRTL: {
+    flexDirection: "row-reverse",
+  },
+  activityCardUndone: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderColor: tokens.colors.najdi.container + '50',
+  },
+  activityLeading: {
+    width: 48,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    position: "relative",
+  },
+  activityLeadingLTR: {
+    marginRight: 16,
+  },
+  activityLeadingRTL: {
+    marginLeft: 16,
+  },
+  activityAvatarFrame: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  activityAvatarFrameImage: {},
+  activityAvatarFrameFallback: {},
+  activityAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  activityActionBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '60',
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 1 },
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  activityActionBadgeRTL: {
+    right: undefined,
+    left: -4,
   },
   activityHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    marginBottom: 8,
   },
-  activityAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '50',
-    backgroundColor: colors.white,
-    overflow: "hidden",
-    marginEnd: 12,
-    alignSelf: "flex-start",
+  activityHeaderRowRTL: {
+    flexDirection: "row-reverse",
   },
-  avatarImage: {
-    width: "100%",
-    height: "100%",
+  activityCardContent: {
+    flex: 1,
   },
-  severityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  activityCardContentRTL: {
+    alignItems: "flex-end",
   },
   severityTag: {
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
+    marginStart: 8,
   },
   severityTagText: {
     fontSize: 11,
     fontWeight: "700",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  activityMetaRight: {
+  metaDetailsText: {
+    marginTop: 6,
+    fontSize: 13,
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  metaDetailsTextRTL: {
+    textAlign: "right",
+  },
+  activityStatusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    marginTop: 6,
+    gap: 12,
+  },
+  activityStatusRowRTL: {
+    flexDirection: "row-reverse",
+  },
+  statusBadges: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 1,
+  },
+  statusBadgesRTL: {
+    flexDirection: "row-reverse",
+  },
+  dangerBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.primary + '33',
+    backgroundColor: tokens.colors.najdi.primary + '12',
+    marginStart: 6,
+  },
+  dangerBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: tokens.colors.najdi.primary,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  undoneBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '40',
+    backgroundColor: tokens.colors.najdi.container + '18',
+    marginStart: 6,
+  },
+  undoneBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   undoButton: {
-    flexDirection: "row",
-    alignItems: "center",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: tokens.colors.najdi.primary + '66',
     backgroundColor: tokens.colors.najdi.primary + '12',
-    gap: 6,
+    alignItems: "center",
+    flexDirection: "row",
+    marginStart: 8,
+  },
+  undoButtonLTR: {
+    marginRight: 0,
+  },
+  undoButtonRTL: {
+    marginStart: 0,
+    marginRight: 8,
+  },
+  undoButtonDisabled: {
+    borderColor: tokens.colors.najdi.primary + '33',
+    backgroundColor: tokens.colors.najdi.primary + '08',
   },
   undoButtonText: {
     fontSize: 13,
@@ -2163,33 +2546,39 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
+  undoSpinner: {
+    marginEnd: 6,
+  },
+  undoIcon: {
+    marginEnd: 6,
+  },
   activitySummary: {
+    flex: 1,
     fontSize: 17,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    textAlign: "left",
+    lineHeight: 24,
   },
-  activityMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginTop: 4,
+  activitySummaryRTL: {
+    textAlign: "right",
   },
-  activityTime: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  activitySummaryUndone: {
+    color: tokens.colors.najdi.textMuted,
   },
   diffPreview: {
-    marginTop: 8,
+    marginTop: 10,
   },
-  fieldsCountText: {
-    marginTop: 8,
+  fieldsSummaryText: {
+    marginTop: 10,
     fontSize: 13,
-    color: tokens.colors.najdi.text,
+    color: colors.textMuted,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  fieldsSummaryTextRTL: {
+    textAlign: "right",
   },
   emptyState: {
     alignItems: "center",

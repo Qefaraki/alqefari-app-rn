@@ -1,8 +1,8 @@
 import { hierarchy, tree } from "d3-hierarchy";
 
 // Helper function to get node dimensions - uses dynamic widths from data
-function getNodeDimensions(node, showPhotos = true) {
-  const hasPhoto = showPhotos && !!node.data.photo_url;
+function getNodeDimensions(node) {
+  const hasPhoto = !!node.data.photo_url;
   return {
     width: node.data.nodeWidth || (hasPhoto ? 85 : 60),
     height: hasPhoto ? 105 : 35,
@@ -10,12 +10,12 @@ function getNodeDimensions(node, showPhotos = true) {
 }
 
 // Post-layout collision resolution function
-function resolveCollisions(hierarchyData, showPhotos = true) {
+function resolveCollisions(hierarchyData) {
   const minPadding = 10; // Minimal padding for dynamic widths
 
   // Helper function to calculate subtree bounding box
   function getSubtreeBounds(node) {
-    const dims = getNodeDimensions(node, showPhotos);
+    const dims = getNodeDimensions(node);
     let minX = node.x - dims.width / 2;
     let maxX = node.x + dims.width / 2;
 
@@ -80,7 +80,7 @@ function resolveCollisions(hierarchyData, showPhotos = true) {
   return hierarchyData;
 }
 
-export function calculateTreeLayout(familyData, showPhotos = true) {
+export function calculateTreeLayout(familyData) {
   // Safety check for undefined or null input
   if (!familyData || !Array.isArray(familyData)) {
     console.warn("calculateTreeLayout received invalid data:", familyData);
@@ -168,7 +168,7 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
   const treeData = treeLayout(hierarchyData);
 
   // Stage 2: Resolve collisions
-  const collisionResolvedData = resolveCollisions(treeData, showPhotos);
+  const collisionResolvedData = resolveCollisions(treeData);
 
   // Convert to flat array with positions
   const nodes = [];

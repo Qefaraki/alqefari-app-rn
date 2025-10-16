@@ -19,16 +19,23 @@ import { supabase } from "../../services/supabase";
 import { buildNameChain } from "../../utils/nameChainBuilder";
 import { useTreeStore } from "../../stores/useTreeStore";
 import SkeletonLoader from "../ui/SkeletonLoader";
+import tokens from "../ui/tokens";
 
 // Skeleton loader for marriage cards
 const MarriageCardSkeleton = () => (
   <View style={styles.memberCard}>
-    <View style={styles.cardContent}>
-      <View style={styles.personInfoContainer}>
-        <SkeletonLoader width={140} height={20} style={{ marginBottom: 8 }} />
-        <SkeletonLoader width={180} height={16} style={{ marginBottom: 4 }} />
-        <SkeletonLoader width={100} height={14} />
+    <View style={styles.memberCardInner}>
+      <View style={styles.personHeader}>
+        <View style={styles.personLead}>
+          <View style={styles.memberAvatarSkeleton} />
+          <View style={styles.personSkeletonText}>
+            <SkeletonLoader width="70%" height={20} style={styles.skeletonLinePrimary} />
+            <SkeletonLoader width="90%" height={14} />
+          </View>
+        </View>
+        <SkeletonLoader width={20} height={20} />
       </View>
+      <SkeletonLoader width={120} height={32} />
     </View>
   </View>
 );
@@ -223,10 +230,13 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
+        <View style={styles.sheetHandleContainer}>
+          <View style={styles.sheetHandle} />
+        </View>
         {/* Header with Count Badge */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color="#242121" />
+            <Ionicons name="close" size={24} color={palette.text} />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>عائلة {family.family_name}</Text>
@@ -240,13 +250,13 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
         {/* Search Bar - Matches MunasibManager */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#24212160" />
+            <Ionicons name="search" size={18} color={palette.text + "66"} />
             <TextInput
               style={styles.searchInput}
               placeholder="ابحث عن شخص..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#24212160"
+              placeholderTextColor={palette.text + "66"}
             />
             {searchQuery !== "" && (
               <TouchableOpacity
@@ -255,7 +265,7 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Ionicons name="close-circle" size={20} color="#24212160" />
+                <Ionicons name="close-circle" size={18} color={palette.text + "66"} />
               </TouchableOpacity>
             )}
           </View>
@@ -277,7 +287,7 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Ionicons name="people-outline" size={64} color="#24212130" />
+                <Ionicons name="people-outline" size={64} color={palette.text + "26"} />
                 <Text style={styles.emptyTitle}>لا توجد نتائج</Text>
                 <Text style={styles.emptySubtitle}>
                   جرب البحث بكلمات مختلفة
@@ -291,9 +301,14 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
   );
 }
 
+const palette = tokens.colors.najdi;
+const spacing = tokens.spacing;
+const typography = tokens.typography;
+
 // Separate MarriageCard component for better organization and animations
 const MarriageCard = ({ item, munasibName, alqefariChain, onPress, onWhatsAppPress }) => {
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const munasibInitial = munasibName?.trim()?.charAt(0) ?? "";
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -326,41 +341,49 @@ const MarriageCard = ({ item, munasibName, alqefariChain, onPress, onWhatsAppPre
           { transform: [{ scale: scaleAnim }] }
         ]}
       >
-        <View style={styles.cardContent}>
-          {/* Munasib Name (Full Name) */}
-          <View style={styles.personInfoContainer}>
-            <View style={styles.nameRow}>
-              <Text style={styles.munasibName} numberOfLines={1}>
-                {munasibName}
-              </Text>
-              {/* WhatsApp Button */}
-              {item.munasib?.phone && (
-                <TouchableOpacity
-                  style={styles.whatsappButton}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    onWhatsAppPress(item.munasib.phone);
-                  }}
-                >
-                  <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Al-Qefari Name Chain with Inline Generation Badge */}
-            <View style={styles.chainRow}>
-              <Text style={styles.chainText} numberOfLines={2}>
-                {alqefariChain || "غير معروف"}
-              </Text>
-              {item.alqefari?.generation && (
-                <View style={styles.generationBadge}>
-                  <Text style={styles.generationText}>
-                    الجيل {item.alqefari.generation}
+        <View style={styles.memberCardInner}>
+          <View style={styles.personHeader}>
+            <View style={styles.personLead}>
+              <View style={styles.memberAvatar}>
+                <Text style={styles.memberAvatarText}>{munasibInitial}</Text>
+              </View>
+              <View style={styles.personTextBlock}>
+                <Text style={styles.munasibName} numberOfLines={1}>
+                  {munasibName}
+                </Text>
+                <View style={styles.chainRow}>
+                  <Text style={styles.chainText} numberOfLines={2}>
+                    {alqefariChain || "غير معروف"}
                   </Text>
+                  {item.alqefari?.generation && (
+                    <View style={styles.generationBadge}>
+                      <Text style={styles.generationText}>
+                        الجيل {item.alqefari.generation}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
             </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={palette.text + "55"}
+              style={styles.memberChevron}
+            />
           </View>
+          {item.munasib?.phone ? (
+            <TouchableOpacity
+              style={styles.whatsappButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onWhatsAppPress(item.munasib.phone);
+              }}
+            >
+              <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+              <Text style={styles.whatsappLabel}>واتساب</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </Animated.View>
     </TouchableOpacity>
@@ -370,205 +393,240 @@ const MarriageCard = ({ item, munasibName, alqefariChain, onPress, onWhatsAppPre
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F7F3", // Al-Jass White
+    backgroundColor: palette.background,
   },
-
-  // Header with Count Badge
+  sheetHandleContainer: {
+    alignItems: "center",
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  sheetHandle: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: palette.text + "1A",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   closeButton: {
-    width: 40,
-    height: 40,
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
     justifyContent: "center",
     alignItems: "center",
-    marginLeft: -8,
+    marginStart: -spacing.xs,
   },
   titleContainer: {
     flex: 1,
     alignItems: "center",
   },
   title: {
-    fontSize: 20,
-    fontWeight: "600",
+    ...typography.title3,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
-    color: "#242121",
+    color: palette.text,
+    fontWeight: "700",
   },
   countBadge: {
-    backgroundColor: "#A13333",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    minWidth: 32,
-    height: 32,
+    minWidth: 36,
+    height: 36,
+    borderRadius: tokens.radii.md,
+    backgroundColor: palette.primary,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: spacing.sm,
   },
   countText: {
-    fontSize: 15,
+    ...typography.subheadline,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
+    color: palette.background,
     fontWeight: "700",
-    color: "#F9F7F3",
   },
-
-  // Search Bar - Matches MunasibManager
   searchContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}33`,
+    paddingHorizontal: spacing.md,
     height: 48,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    ...typography.subheadline,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
-    marginHorizontal: 8,
-    color: "#242121",
+    color: palette.text,
+    marginHorizontal: spacing.xs,
   },
-
-  // List
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xxl,
   },
-
-  // Marriage Card - Clean iOS Design
   memberCard: {
-    backgroundColor: "#FFFFFF",
-    marginVertical: 6,
-    borderRadius: 16,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    marginBottom: spacing.sm,
+    ...Platform.select({
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
+    }),
   },
-  cardContent: {
-    padding: 20,
+  memberCardInner: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.md,
   },
-
-  // Person Info Container
-  personInfoContainer: {
-    gap: 8,
-  },
-  nameRow: {
+  personHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: spacing.md,
   },
-  munasibName: {
+  personLead: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
-    fontSize: 20,
+    gap: spacing.md,
+  },
+  memberAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${palette.primary}14`,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  memberAvatarText: {
+    ...typography.headline,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
+    color: palette.primary,
+    fontWeight: "700",
+  },
+  personTextBlock: {
+    flex: 1,
+    gap: spacing.xs / 2,
+  },
+  munasibName: {
+    ...typography.title3,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+    color: palette.text,
     fontWeight: "600",
-    color: "#242121",
   },
-
-  // WhatsApp Button
-  whatsappButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#25D36615",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  // Chain Row (text + generation inline)
   chainRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 8,
+    gap: spacing.xs,
   },
-
-  // Chain Text
   chainText: {
     flex: 1,
-    fontSize: 16,
+    ...typography.subheadline,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
-    color: "#242121B3",
-    lineHeight: 24,
+    color: palette.text + "99",
+    lineHeight: typography.subheadline.lineHeight,
   },
-
-  // Generation Badge - iOS Style (Inline, Subtle)
   generationBadge: {
-    backgroundColor: "#D1BBA330",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    backgroundColor: `${palette.container}30`,
+    borderRadius: tokens.radii.sm,
+    paddingVertical: spacing.xs / 2,
+    paddingHorizontal: spacing.sm,
   },
   generationText: {
-    fontSize: 11,
+    ...typography.caption1,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
-    fontWeight: "500",
-    color: "#24212199",
+    color: palette.text + "99",
+    fontWeight: "600",
   },
-
-  // Empty State
+  memberChevron: {
+    transform: [{ scaleX: -1 }],
+  },
+  whatsappButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: tokens.radii.md,
+    backgroundColor: "#25D36615",
+  },
+  whatsappLabel: {
+    ...typography.subheadline,
+    fontFamily: Platform.select({
+      ios: "SF Arabic",
+      default: "System",
+    }),
+    color: "#128C7E",
+    fontWeight: "600",
+  },
+  memberAvatarSkeleton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${palette.container}30`,
+  },
+  personSkeletonText: {
+    flex: 1,
+    gap: spacing.xs / 2,
+  },
+  skeletonLinePrimary: {
+    marginBottom: spacing.xs / 2,
+  },
   emptyContainer: {
     flex: 1,
-    paddingTop: 120,
+    paddingTop: spacing.xxl,
     alignItems: "center",
-    paddingHorizontal: 40,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
   },
   emptyTitle: {
-    fontSize: 20,
+    ...typography.title3,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
+    color: palette.text,
     fontWeight: "600",
-    color: "#242121",
-    marginTop: 24,
-    marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 15,
+    ...typography.subheadline,
     fontFamily: Platform.select({
       ios: "SF Arabic",
       default: "System",
     }),
-    color: "#24212160",
+    color: palette.text + "66",
     textAlign: "center",
-    lineHeight: 22,
+    lineHeight: typography.subheadline.lineHeight,
   },
 });

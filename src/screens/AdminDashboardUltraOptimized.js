@@ -71,6 +71,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
+  const [munasibCounts, setMunasibCounts] = useState({ families: 0, members: 0 });
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
   // Get safe area insets for dynamic bottom padding
@@ -116,6 +117,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
     loadBasicStats();
     loadPendingRequestsCount();
     loadPendingSuggestionsCount();
+    loadMunasibStats();
 
     // Cleanup timers on unmount
     return () => {
@@ -128,6 +130,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
     loadBasicStats();
     loadPendingRequestsCount();
     loadPendingSuggestionsCount();
+    loadMunasibStats();
 
     // Load other sections with delays (NO CLEANUP - only used in refresh)
     setTimeout(() => loadEnhancedStats(), 300);
@@ -156,6 +159,33 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
       setPendingSuggestionsCount(count || 0);
     } catch (error) {
       console.log("Error loading pending suggestions:", error);
+    }
+  };
+
+  const loadMunasibStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, family_origin")
+        .is("hid", null)
+        .not("family_origin", "is", null);
+
+      if (error) throw error;
+
+      const families = new Set();
+      (data || []).forEach((profile) => {
+        if (profile.family_origin) {
+          families.add(profile.family_origin);
+        }
+      });
+
+      setMunasibCounts({
+        families: families.size,
+        members: data?.length || 0,
+      });
+    } catch (error) {
+      console.error("Error loading munasib stats:", error);
+      setMunasibCounts({ families: 0, members: 0 });
     }
   };
 
@@ -460,6 +490,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
                   />
                 }
                 title="المناسبين"
+                subtitle={`${munasibCounts.families} عائلة • ${munasibCounts.members} أفراد`}
                 trailing={
                   <Ionicons
                     name="chevron-back"

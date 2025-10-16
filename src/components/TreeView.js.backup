@@ -561,18 +561,6 @@ const TreeView = ({
   console.log('[TreeView] Full settings object:', settings);
   console.log('[TreeView] authProfile:', authProfile);
 
-  // Store settings in ref for access in callbacks (prevents stale closures)
-  // NOTE: We use ref pattern because settings are accessed in debounced
-  // callbacks that would otherwise capture stale closures. Direct useState
-  // in callbacks would require recreating subscriptions on every settings change.
-  const settingsRef = useRef(settings);
-
-  // Update ref whenever settings change
-  useEffect(() => {
-    settingsRef.current = settings;
-    console.log('[TreeView] Settings ref updated:', settings);
-  }, [settings]);
-
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
 
@@ -1067,8 +1055,8 @@ const TreeView = ({
       // Handle different event types
       if (payload.eventType === "UPDATE" && payload.new) {
         // Update just the affected node
-        // Get current settings from ref (prevents stale closures)
-        const currentSettings = settingsRef.current || { showPhotos: true, highlightMyLine: false };
+        // Get current settings from context
+        const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
         const updatedNode = {
           ...payload.new,
           name: payload.new.name || "بدون اسم",
@@ -1088,8 +1076,7 @@ const TreeView = ({
         useTreeStore.getState().updateNode(updatedNode.id, updatedNode);
       } else if (payload.eventType === "INSERT" && payload.new) {
         // Add new node
-        // Get current settings from ref (prevents stale closures)
-        const currentSettings = settingsRef.current || { showPhotos: true, highlightMyLine: false };
+        const { settings: currentSettings } = useSettings.getState ? useSettings.getState() : { settings };
         const newNode = {
           ...payload.new,
           name: payload.new.name || "بدون اسم",

@@ -322,10 +322,6 @@ export default function SettingsPageModern({ user }) {
     adminMessages: true,
   });
   const [notificationPermissionGranted, setNotificationPermissionGranted] = useState(false);
-  const [treeView, setTreeView] = useState({
-    showPhotos: true,
-    highlightMyLine: true,
-  });
   const [showUpcomingFeatures, setShowUpcomingFeatures] = useState(false);
 
   // Sample date for preview
@@ -1036,41 +1032,50 @@ export default function SettingsPageModern({ user }) {
           />
         </SettingsSection>
 
-        {/* Tree View Settings - Admin Only (Not Implemented) */}
-        {isAdmin && (
-          <SettingsSection title="عرض الشجرة (قيد التطوير)">
-            <SettingsCell
-              label="إظهار الصور"
-              description="عرض صور الأعضاء في الشجرة"
-              rightAccessory={
-                <Switch
-                  value={treeView.showPhotos}
-                  onValueChange={(value) => {
-                    handleFeedback();
-                    setTreeView({ ...treeView, showPhotos: value });
-                  }}
-                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                  thumbColor={colors.white}
-                />
-              }
-            />
-            <SettingsCell
-              label="تمييز خطي المباشر"
-              description="إبراز سلسلة النسب الخاصة بي"
-              rightAccessory={
-                <Switch
-                  value={treeView.highlightMyLine}
-                  onValueChange={(value) => {
-                    handleFeedback();
-                    setTreeView({ ...treeView, highlightMyLine: value });
-                  }}
-                  trackColor={{ false: "#E5E5EA", true: colors.primary }}
-                  thumbColor={colors.white}
-                />
-              }
-            />
-          </SettingsSection>
-        )}
+        {/* Tree View Settings */}
+        <SettingsSection title="عرض الشجرة">
+          <SettingsCell
+            label="إظهار الصور"
+            description="عرض صور الأعضاء في الشجرة"
+            rightAccessory={
+              <Switch
+                value={settings.showPhotos}
+                onValueChange={(value) => {
+                  console.log('[Settings] Show Photos toggle changed to:', value);
+                  console.log('[Settings] Current settings.showPhotos:', settings.showPhotos);
+                  handleFeedback();
+                  updateSetting('showPhotos', value);
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            }
+          />
+          <SettingsCell
+            label="تمييز خطي المباشر"
+            description={
+              userProfile
+                ? "إبراز سلسلة النسب الخاصة بي"
+                : "يتطلب ربط ملفك الشخصي أولاً"
+            }
+            rightAccessory={
+              <Switch
+                value={settings.highlightMyLine}
+                disabled={!userProfile}
+                onValueChange={(value) => {
+                  console.log('[Settings] Highlight My Line toggle changed to:', value);
+                  console.log('[Settings] Current settings.highlightMyLine:', settings.highlightMyLine);
+                  console.log('[Settings] userProfile exists:', !!userProfile);
+                  handleFeedback();
+                  updateSetting('highlightMyLine', value);
+                }}
+                trackColor={{ false: "#E5E5EA", true: colors.primary }}
+                thumbColor={colors.white}
+                style={!userProfile ? styles.switchDisabled : null}
+              />
+            }
+          />
+        </SettingsSection>
 
         {/* Notifications Settings - Only for authenticated users */}
         {!isGuestMode && (
