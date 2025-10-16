@@ -399,15 +399,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose }) => {
 
         console.log(`✅ Batch save successful: ${created} created, ${updated} updated, ${deleted} deleted (${data.results?.duration_ms?.toFixed(0)}ms)`);
 
-        // Show success message
-        let successMessage = 'تم الحفظ';
-        if (created > 0) {
-          successMessage = `تمت إضافة ${created} ${created === 1 ? 'طفل' : 'أطفال'}`;
-        } else if (updated > 0 || deleted > 0) {
-          successMessage = 'تم حفظ التغييرات';
-        }
-
-        Alert.alert('تم', successMessage, [{ text: 'حسناً', onPress: onClose }]);
+        // Close modal silently (haptic feedback is enough confirmation)
+        onClose();
       } else {
         // =========================================================================
         // 📦 FALLBACK: SEQUENTIAL SAVE PATH (legacy)

@@ -1,5 +1,13 @@
 # Profile Field Mapping - Maintenance Checklist
 
+## ⚠️ CRITICAL WARNING: Schema Mismatch Can Break Search!
+
+**On January 16, 2025, search broke completely because `search_name_chain()` was missing `professional_title` and `title_abbreviation` fields.**
+
+Frontend code (`SearchBar.js` line 530) calls `formatNameWithTitle(item)` which expects these fields. Without them, the function couldn't format names and search appeared broken.
+
+**Lesson:** When modifying RPC functions, ALWAYS verify the RETURNS TABLE schema matches what the frontend expects!
+
 ## Problem This Solves
 
 **Every time you add a field to the `profiles` table, you MUST update multiple RPC functions or the field will save but disappear on reload.**
@@ -7,6 +15,7 @@
 This happened with:
 - ✅ `professional_title` & `title_abbreviation` (Migrations 012 & 013)
 - ✅ `achievements` & `timeline` (Migration 015)
+- ❌ **Search broke** when these fields were removed from `search_name_chain()` (January 2025)
 
 ## The Rule: "Add Once, Update Everywhere"
 
@@ -124,43 +133,48 @@ $function$;
 ```
 
 #### Step 3: Update search_name_chain()
+**⚠️ CRITICAL: This function has 4 SELECT statements - must update ALL 4!**
 ```sql
 DROP FUNCTION IF EXISTS search_name_chain(TEXT[], INT, INT);
 
 CREATE OR REPLACE FUNCTION search_name_chain(...)
 RETURNS TABLE (
     -- ... existing fields ...
-    favorite_color TEXT  -- ✅ ADD HERE
+    favorite_color TEXT  -- ✅ ADD HERE (1/4)
 ) AS $$
 BEGIN
   RETURN QUERY
   WITH RECURSIVE ancestry AS (
+    -- Base case
     SELECT
         -- ... existing fields ...
-        p.favorite_color  -- ✅ ADD HERE
+        p.favorite_color  -- ✅ ADD HERE (2/4)
     FROM profiles p
 
     UNION ALL
 
+    -- Recursive case
     SELECT
         -- ... existing fields ...
-        a.favorite_color  -- ✅ ADD HERE
+        a.favorite_color  -- ✅ ADD HERE (3/4) - Use 'a.' not 'parent.'!
     FROM ancestry a
     JOIN profiles parent ON (...)
   ),
   matches AS (
     SELECT DISTINCT ON (m.id)
         -- ... existing fields ...
-        m.favorite_color  -- ✅ ADD HERE
+        m.favorite_color  -- ✅ ADD HERE (Could be 'a.favorite_color' depending on migration)
     FROM ancestry m
   )
   SELECT
       -- ... existing fields ...
-      m.favorite_color  -- ✅ ADD HERE
+      m.favorite_color  -- ✅ ADD HERE (4/4)
   FROM matches m;
 END;
 $$;
 ```
+
+**Common Bug:** Forgetting to add field in the recursive SELECT (step 3/4). This causes the field to be NULL for all profiles except generation 1!
 
 #### Step 4: Update admin_update_profile()
 ```sql
@@ -232,6 +246,40 @@ const { data } = await supabase.rpc('get_full_profile_by_id', { p_id: profileId 
 ```
 
 Returns **every** field in the profiles table automatically.
+
+### Admin: admin_list_permission_users()
+
+**Added:** Migration `20251016120000_admin_list_permission_users_v2.sql`
+
+Optimized RPC for Permission Manager with pagination, role filtering, and search. Consolidates 4 separate queries into 1 efficient function.
+
+**Returns:**
+- `id`, `hid`, `full_name_chain` (built via `build_name_chain()`)
+- `phone`, `user_role` (aliased from `role`)
+- `photo_url`, `generation`
+- `professional_title`, `title_abbreviation`
+- `total_count` (for pagination)
+
+**Parameters:**
+- `p_search_query TEXT` - Search by name chain (optional)
+- `p_role_filter TEXT` - Filter by role: `super_admin`, `admin`, `moderator`, or `NULL` for all (optional)
+- `p_limit INT` - Page size (default: 50)
+- `p_offset INT` - Pagination offset (default: 0)
+
+**Usage:**
+```javascript
+const { data, error } = await supabase.rpc('admin_list_permission_users', {
+  p_search_query: 'محمد',
+  p_role_filter: 'admin',
+  p_limit: 50,
+  p_offset: 0
+});
+
+// Extract total count from first row
+const totalCount = data[0]?.total_count || 0;
+```
+
+**Permission:** Admin/super_admin only (checked in function)
 
 ## Why This Matters
 

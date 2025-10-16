@@ -1,35 +1,36 @@
-# Permission System v4.2 - Complete Documentation
+# Permission System v4.3 (Simplified) - Complete Documentation
 
 **Status**: ✅ DEPLOYED (Production-Ready)
-**Version**: 4.2 (Security Hardened)
+**Version**: 4.3 (Simplified)
 **Last Updated**: January 2025
 **Database**: All tables and functions verified and operational
+**Major Change**: Removed 48-hour auto-approve - all suggestions now require manual admin approval
 
 ---
 
 ## 📋 Executive Summary
 
-The v4.2 permission system provides granular, family-relationship-based access control for the Alqefari Family Tree app. It replaces simple admin/user permissions with an intelligent three-circle model that automatically determines edit rights based on actual family connections.
+The v4.3 permission system provides granular, family-relationship-based access control for the Alqefari Family Tree app. This simplified version removes time-based auto-approval complexity, making all suggestions require manual admin review for better quality control and transparency.
 
 ### Current Deployment Status
 
 ✅ **Database**: All 4 tables deployed
-✅ **Functions**: All 18 functions operational
-✅ **Frontend**: ProfileSheet, suggestionService, UI components integrated
+✅ **Functions**: check_family_permission_v4() updated to v4.3
+✅ **Frontend**: ProfileSheet, suggestionService, UI components updated
 ✅ **Security**: SQL injection prevention, rate limiting, RLS policies active
 ✅ **Testing**: Verified on production database
+✅ **Simplification**: 48-hour auto-approve removed, `family` and `extended` merged into `suggest`
 
 ### Quick Permission Reference
 
-| Permission Level | Can Do | Auto-Approve | Example Relationships |
-|-----------------|---------|--------------|----------------------|
-| `admin` | Direct edit anyone | N/A | Super admin, admin role |
-| `moderator` | Direct edit subtree | N/A | Branch moderator |
-| `inner` | Direct edit | N/A | Self, spouse, parents, children, siblings, descendants |
-| `family` | Suggest edit | 48 hours | Cousins, aunts/uncles, nephews/nieces |
-| `extended` | Suggest edit | Manual only | Distant relatives, Al Qefari members |
-| `blocked` | Cannot suggest | Never | Explicitly blocked users |
-| `none` | No access | Never | No family relationship |
+| Permission Level | Can Do | Approval Required | Example Relationships |
+|-----------------|---------|-------------------|----------------------|
+| `admin` | Direct edit anyone | N/A (direct) | Super admin (المدير العام), admin (مشرف) role |
+| `moderator` | Direct edit subtree | N/A (direct) | Branch coordinator (منسق) |
+| `inner` | Direct edit | N/A (direct) | Self, spouse, parents, children, siblings, descendants |
+| `suggest` | Suggest edit | Manual admin approval | Grandparents, cousins, aunts/uncles, all extended family |
+| `blocked` | Cannot suggest | N/A (blocked) | Explicitly blocked users |
+| `none` | No access | N/A (no access) | No family relationship |
 
 ---
 
@@ -142,12 +143,11 @@ created_at      TIMESTAMPTZ DEFAULT NOW()
 - `p_user_id`: Profile ID (NOT auth.users.id!) of the user
 - `p_target_id`: Profile ID of the profile being accessed
 
-**Return Values**:
-- `'admin'` - User has admin or super_admin role
-- `'moderator'` - User is branch moderator for this profile's branch
+**Return Values** (v4.3 - Simplified):
+- `'admin'` - User has admin or super_admin role (direct edit)
+- `'moderator'` - User is branch moderator for this profile's branch (direct edit)
 - `'inner'` - Inner circle (direct edit rights)
-- `'family'` - Family circle (suggest with 48hr auto-approve)
-- `'extended'` - Extended family (suggest, manual approve only)
+- `'suggest'` - Can suggest edits (manual admin approval required)
 - `'blocked'` - User is explicitly blocked
 - `'none'` - No relationship or permission
 
@@ -179,15 +179,11 @@ is_descendant_of(target.id, user.id)  -- Target is descendant of user
 is_descendant_of(user.id, target.id)  -- User is descendant of target
 ```
 
-**Family Circle Logic** (48hr Auto-Approve):
-- Shared grandparent (cousins, aunts/uncles, nephews/nieces)
-- Aunt/uncle relationships
-- Nephew/niece relationships
-- First cousin relationships
-
-**Extended Circle Logic**:
-- Any Al Qefari member (has HID)
-- No shared grandparent
+**Suggest Circle Logic** (v4.3 - Manual Approval):
+- Any Al Qefari family member (has HID)
+- Not in inner circle (above)
+- Includes: grandparents, cousins, aunts/uncles, nephews/nieces, distant relatives
+- All suggestions require manual admin/moderator approval
 
 **Example Usage**:
 ```javascript
@@ -204,7 +200,7 @@ const { data: permission } = await supabase.rpc('check_family_permission_v4', {
   p_target_id: targetProfile.id
 });
 
-console.log(permission); // 'inner', 'family', 'extended', etc.
+console.log(permission); // 'inner', 'suggest', 'admin', 'moderator', 'blocked', 'none'
 ```
 
 ---
@@ -222,7 +218,7 @@ console.log(permission); // 'inner', 'family', 'extended', etc.
 **Returns**: UUID of created suggestion
 
 **Checks**:
-- User has `family` or `extended` permission (not `none` or `blocked`)
+- User has `suggest` permission (not `inner`, `admin`, `moderator`, `blocked`, or `none`)
 - User hasn't exceeded rate limit (10/day)
 - Field is allowed to be edited
 
@@ -289,30 +285,7 @@ await supabase.rpc('reject_suggestion', {
 
 ---
 
-### 5. `auto_approve_suggestions_v4() → VOID`
-
-**Automatically approve family circle suggestions** after 48 hours.
-
-**Logic**:
-- Finds suggestions with status='pending'
-- Created more than 48 hours ago
-- Submitter has 'family' permission (not 'extended')
-- Applies changes and marks as approved
-
-**Execution**: Run via cron job every hour
-
-**SQL Cron Setup**:
-```sql
-SELECT cron.schedule(
-  'auto-approve-family-suggestions',
-  '0 * * * *',  -- Every hour
-  'SELECT auto_approve_suggestions_v4()'
-);
-```
-
----
-
-### 6. `get_pending_suggestions_count(p_profile_id UUID) → INTEGER`
+### 5. `get_pending_suggestions_count(p_profile_id UUID) → INTEGER`
 
 **Get count of pending suggestions** for a specific profile.
 
@@ -330,7 +303,7 @@ const { data: count } = await supabase.rpc('get_pending_suggestions_count', {
 
 ---
 
-### 7. Additional Functions
+### 6. Additional Functions
 
 **Permission Management**:
 - `can_manage_permissions(p_user_id UUID) → BOOLEAN` - Check if user is super_admin
@@ -347,17 +320,19 @@ const { data: count } = await supabase.rpc('get_pending_suggestions_count', {
 
 ---
 
-## 🎨 Permission Model - Three Circles
+## 🎨 Permission Model - Two Tiers (v4.3 Simplified)
 
-### Inner Circle: Direct Edit Rights
+### Tier 1: Direct Edit Rights
 
-**Who**: Self, spouse, parents, children, siblings, ALL descendants
+**Who**: Self, spouse, parents, children, siblings, ALL descendants, admins, moderators
 
 **User Experience**: Click "تعديل" → Edit directly → See "تم الحفظ" ✓
 
+**Permission Levels**: `admin`, `moderator`, `inner`
+
 **Logic**:
 1. User clicks edit on a profile
-2. `check_family_permission_v4()` returns `'inner'`
+2. `check_family_permission_v4()` returns `'admin'`, `'moderator'`, or `'inner'`
 3. ProfileSheet shows "تعديل" button (not "اقتراح تعديل")
 4. User makes changes
 5. Changes saved directly to database
@@ -367,50 +342,32 @@ const { data: count } = await supabase.rpc('get_pending_suggestions_count', {
 - Immediate family (high trust)
 - All your descendants (you manage your lineage)
 - Your ancestors (contribute to family history)
+- Admin/moderator roles (authorized managers)
 
 ---
 
-### Family Circle: 48-Hour Auto-Approve
+### Tier 2: Suggest Edits (Manual Approval Required)
 
-**Who**: Shared grandparent relatives (cousins, aunts/uncles, nephews/nieces)
-
-**User Experience**: Click "اقتراح تعديل" → Submit suggestion → "سيتم الموافقة خلال 48 ساعة"
-
-**Workflow**:
-1. `check_family_permission_v4()` returns `'family'`
-2. Button shows "اقتراح تعديل"
-3. User submits suggestion via `submit_edit_suggestion_v4()`
-4. Suggestion status = 'pending'
-5. **After 48 hours**: `auto_approve_suggestions_v4()` runs
-6. Changes automatically applied
-7. Suggestion status = 'approved'
-
-**Why Auto-Approve**:
-- Close family relationship (shared grandparent)
-- Medium trust level
-- Reduces admin workload
-- 48-hour window allows owner to reject if needed
-
----
-
-### Extended Circle: Manual Approval Only
-
-**Who**: Distant relatives, Al Qefari members with no shared grandparent
+**Who**: All other Al Qefari family members - grandparents, cousins, aunts/uncles, nephews/nieces, distant relatives
 
 **User Experience**: Click "اقتراح تعديل" → Submit suggestion → "يحتاج موافقة المشرف"
 
-**Workflow**:
-1. `check_family_permission_v4()` returns `'extended'`
-2. User submits suggestion
-3. **No auto-approve** - stays pending indefinitely
-4. Admin/moderator/owner must manually approve
-5. Notification sent to approvers
+**Permission Level**: `suggest`
 
-**Why Manual Only**:
-- Distant relationship
-- Lower trust level
-- Higher potential for errors
-- Requires human verification
+**Workflow**:
+1. `check_family_permission_v4()` returns `'suggest'`
+2. Button shows "اقتراح تعديل"
+3. User submits suggestion via `submit_edit_suggestion_v4()`
+4. Suggestion status = 'pending'
+5. Admin/moderator/owner must manually review and approve
+6. Changes applied only after approval
+7. Suggestion status = 'approved' or 'rejected'
+
+**Why Manual Approval Only** (v4.3 Simplification):
+- Quality control - all edits reviewed by authorized users
+- Transparency - clear approval workflow
+- Prevents errors - human verification required
+- Simpler system - no time-based auto-approve complexity
 
 ---
 
@@ -442,7 +399,7 @@ useEffect(() => {
       return;
     }
 
-    // Call v4.2 permission function
+    // Call v4.3 permission function
     const { data, error } = await supabase.rpc('check_family_permission_v4', {
       p_user_id: userProfile.id,  // PROFILE ID
       p_target_id: person.id       // PROFILE ID
@@ -459,15 +416,15 @@ useEffect(() => {
 }, [person.id]);
 ```
 
-**Button Text Logic**:
+**Button Text Logic** (v4.3):
 ```javascript
 const getEditButtonText = () => {
   if (['admin', 'moderator', 'inner'].includes(permissionLevel)) {
     return 'تعديل'; // Direct edit
-  } else if (['family', 'extended'].includes(permissionLevel)) {
+  } else if (permissionLevel === 'suggest') {
     return 'اقتراح تعديل'; // Suggest edit
   } else {
-    return null; // No button
+    return null; // No button (blocked or none)
   }
 };
 ```
@@ -599,13 +556,14 @@ WHERE s.status = 'pending'
 GROUP BY p.id, p.name, p.hid
 ORDER BY pending_count DESC;
 
--- Auto-approve candidates (>48 hours old)
+-- Oldest pending suggestions (need review)
 SELECT s.id, s.field_name, p.name,
        AGE(NOW(), s.created_at) as age
 FROM profile_edit_suggestions s
 JOIN profiles p ON p.id = s.profile_id
 WHERE s.status = 'pending'
-AND s.created_at < NOW() - INTERVAL '48 hours';
+ORDER BY s.created_at ASC
+LIMIT 20;
 
 -- Rate limit usage
 SELECT p.name, r.daily_suggestions, r.daily_approvals
@@ -643,31 +601,6 @@ const permission = await supabase.rpc('check_family_permission_v4', {
   p_user_id: userProfile.id,  // This is profiles.id!
   p_target_id: target.id
 });
-```
-
----
-
-### Issue: Suggestions not auto-approving
-
-**Check**:
-1. Is cron job running?
-```sql
-SELECT * FROM cron.job WHERE jobname = 'auto-approve-family-suggestions';
-```
-
-2. Are there eligible suggestions?
-```sql
-SELECT * FROM profile_edit_suggestions
-WHERE status = 'pending'
-AND created_at < NOW() - INTERVAL '48 hours';
-```
-
-3. Do they have 'family' permission?
-```sql
-SELECT s.id, check_family_permission_v4(s.submitter_id, s.profile_id) as permission
-FROM profile_edit_suggestions s
-WHERE s.status = 'pending';
--- Should return 'family' for auto-approve candidates
 ```
 
 ---
@@ -717,12 +650,12 @@ AND p.id = 'target-profile-uuid';
 
 ### Permission Checks
 ```javascript
-// Get permission level
+// Get permission level (v4.3)
 const { data: level } = await supabase.rpc('check_family_permission_v4', {
   p_user_id: userProfile.id,
   p_target_id: targetProfile.id
 });
-// Returns: 'admin', 'moderator', 'inner', 'family', 'extended', 'blocked', 'none'
+// Returns: 'admin', 'moderator', 'inner', 'suggest', 'blocked', 'none'
 ```
 
 ### Suggestions
@@ -781,8 +714,32 @@ await supabase.rpc('unblock_user_suggestions', {
 
 ## 📖 Deployment History
 
-### v4.2 (January 2025) - CURRENT
+### v4.3 (January 2025) - CURRENT
 **Status**: ✅ Deployed and operational
+
+**Major Change**: Simplified permission system - removed 48-hour auto-approve complexity
+
+**Changes**:
+- Merged `'family'` and `'extended'` permission levels into single `'suggest'` level
+- Removed `auto_approve_suggestions_v4()` function
+- All suggestions now require manual admin/moderator approval
+- Updated `check_family_permission_v4()` to return 6 permission levels instead of 7
+- Removed auto-approve cron job
+- Simplified frontend permission checks
+- Updated Arabic role labels for consistency
+
+**Return Values**: Now returns `'admin'`, `'moderator'`, `'inner'`, `'suggest'`, `'blocked'`, `'none'`
+
+**Migration Notes**:
+- Frontend components updated to check for `'suggest'` instead of `'family'` or `'extended'`
+- All auto-approval UI elements removed
+- No database schema changes - function logic updated only
+- Backward compatible - existing suggestions continue to work
+
+---
+
+### v4.2 (January 2025) - SUPERSEDED
+**Status**: ⚠️ Superseded by v4.3
 
 **Changes**:
 - Renamed `suggested_by` → `submitter_id` in profile_edit_suggestions
@@ -790,7 +747,7 @@ await supabase.rpc('unblock_user_suggestions', {
 - Added RLS policies for all tables
 - Added rate limiting system
 - Added branch moderator support
-- Added auto-approve for family circle (48 hours)
+- Added auto-approve for family circle (48 hours) - **REMOVED in v4.3**
 - Added comprehensive error handling
 - Fixed type coercion issues
 
@@ -801,15 +758,6 @@ await supabase.rpc('unblock_user_suggestions', {
 - suggestion_blocks (6 columns)
 
 **Functions Created**: 18 total (see API Reference)
-
-### Migration Notes
-
-**Breaking Changes**:
-- Column rename: `suggested_by` → `submitter_id`
-- Permission return values changed from boolean to text
-- Frontend must use profiles.id, not auth.users.id
-
-**Backward Compatibility**: None - complete rewrite from v3
 
 ---
 
@@ -850,13 +798,6 @@ None required - all configuration in database
 
 ### Cron Jobs
 ```sql
--- Auto-approve family suggestions (every hour)
-SELECT cron.schedule(
-  'auto-approve-family-suggestions',
-  '0 * * * *',
-  'SELECT auto_approve_suggestions_v4()'
-);
-
 -- Reset daily rate limits (every day at midnight)
 SELECT cron.schedule(
   'reset-rate-limits',
@@ -864,6 +805,8 @@ SELECT cron.schedule(
   'UPDATE user_rate_limits SET daily_suggestions = 0, daily_approvals = 0, last_reset_at = NOW()'
 );
 ```
+
+**Note**: v4.3 removed auto-approve functionality, so no cron job needed for suggestion approval.
 
 ### Feature Flags
 None - all features enabled by default
@@ -923,11 +866,12 @@ ORDER BY permission, p.name;
 
 1. **Always use profiles.id, never auth.users.id** for permission checks
 2. **Check permission before every edit** - don't cache permission levels
-3. **Provide clear feedback** - Tell users why they can/can't edit
+3. **Provide clear feedback** - Tell users why they can/can't edit (direct edit vs suggest)
 4. **Use suggestionService** - Don't call RPC functions directly from UI
 5. **Monitor rate limits** - Alert admins when users hit limits
-6. **Review auto-approvals** - Periodically audit what got auto-approved
+6. **Review pending suggestions regularly** - All suggestions require manual approval in v4.3
 7. **Test with real family data** - Permission logic complex, needs real scenarios
+8. **Communicate approval workflow** - Set expectations that suggestions need admin review
 
 ---
 

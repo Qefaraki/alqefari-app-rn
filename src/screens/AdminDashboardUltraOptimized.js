@@ -25,7 +25,6 @@ import AdminBroadcastManager from "../components/admin/AdminBroadcastManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
-import pdfExportService from "../services/pdfExport";
 import { supabase } from "../services/supabase";
 import suggestionService from "../services/suggestionService";
 import SkeletonLoader from "../components/ui/SkeletonLoader";
@@ -37,6 +36,8 @@ import tokens from "../components/ui/tokens";
 import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 import WidgetCard from "../components/ios/WidgetCard";
 import { ListSection, ListItem } from "../components/ios/GroupedList";
+import { useFeatureAccess } from '../hooks/useFeatureAccess';
+import { ADMIN_FEATURES } from '../config/adminFeatures';
 
 const formatCount = (value) => {
   const numeric = Number.isFinite(value) ? value : 0;
@@ -47,7 +48,10 @@ const formatCount = (value) => {
   }
 };
 
-const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, openLinkRequests = false }) => {
+const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false }) => {
+  // Single source of truth for feature access
+  const { canAccess } = useFeatureAccess(profile.role);
+
   // Loading states for each section
   const [statsLoading, setStatsLoading] = useState(true);
   const [enhancedLoading, setEnhancedLoading] = useState(true);
@@ -65,7 +69,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [showBroadcastManager, setShowBroadcastManager] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -218,60 +221,6 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
     await loadDataProgressively();
     setRefreshing(false);
   };
-
-  // Handle other actions
-
-  const handleExportDatabase = async () => {
-    try {
-      setExporting(true);
-
-      // Show export options
-      Alert.alert(
-        "تصدير شجرة العائلة",
-        "اختر نوع التصدير",
-        [
-          {
-            text: "إلغاء",
-            style: "cancel",
-            onPress: () => setExporting(false),
-          },
-          {
-            text: "تقرير المنتسبين",
-            onPress: async () => {
-              try {
-                await pdfExportService.exportMunasibReport();
-              } catch (error) {
-                console.error("Munasib export error:", error);
-              } finally {
-                setExporting(false);
-              }
-            },
-          },
-          {
-            text: "الشجرة الكاملة",
-            onPress: async () => {
-              try {
-                await pdfExportService.exportFamilyTreePDF({
-                  includePhotos: true,
-                  includeMarriages: true,
-                  includeMunasib: true,
-                });
-              } catch (error) {
-                console.error("PDF export error:", error);
-              } finally {
-                setExporting(false);
-              }
-            },
-          },
-        ],
-        { cancelable: true, onDismiss: () => setExporting(false) },
-      );
-    } catch (error) {
-      Alert.alert("خطأ", "فشل تصدير شجرة العائلة");
-      setExporting(false);
-    }
-  };
-
 
   // Create refs at component level for modals
   const modalTranslateX = useRef(new Animated.Value(0)).current;
@@ -468,89 +417,98 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
           ]}
         >
           <ListSection title="الإدارة الأساسية">
-            <ListItem
-              leading={
-                <Ionicons
-                  name="link-outline"
-                  size={22}
-                  color={tokens.colors.najdi.primary}
-                />
-              }
-              title="ربط الملفات"
-              trailing={
-                <View style={styles.trailingCluster}>
-                  {pendingRequestsCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {formatCount(pendingRequestsCount)}
-                      </Text>
-                    </View>
-                  )}
+            {canAccess(ADMIN_FEATURES.LINK_REQUESTS.id) && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="link-outline"
+                    size={22}
+                    color={tokens.colors.najdi.primary}
+                  />
+                }
+                title="ربط الملفات"
+                trailing={
+                  <View style={styles.trailingCluster}>
+                    {pendingRequestsCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {formatCount(pendingRequestsCount)}
+                        </Text>
+                      </View>
+                    )}
+                    <Ionicons
+                      name="chevron-back"
+                      size={18}
+                      color={tokens.colors.najdi.textMuted}
+                    />
+                  </View>
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowLinkRequests(true);
+                }}
+              />
+            )}
+
+            {canAccess(ADMIN_FEATURES.MUNASIB_MANAGER.id) && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="people-outline"
+                    size={22}
+                    color={tokens.colors.najdi.secondary}
+                  />
+                }
+                title="المناسبين"
+                trailing={
                   <Ionicons
                     name="chevron-back"
                     size={18}
                     color={tokens.colors.najdi.textMuted}
                   />
-                </View>
-              }
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowLinkRequests(true);
-              }}
-            />
-            <ListItem
-              leading={
-                <Ionicons
-                  name="people-outline"
-                  size={22}
-                  color={tokens.colors.najdi.secondary}
-                />
-              }
-              title="المناسبين"
-              trailing={
-                <Ionicons
-                  name="chevron-back"
-                  size={18}
-                  color={tokens.colors.najdi.textMuted}
-                />
-              }
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowMunasibManager(true);
-              }}
-            />
-            <ListItem
-              leading={
-                <Ionicons
-                  name="document-text-outline"
-                  size={22}
-                  color={tokens.colors.najdi.text}
-                />
-              }
-              title="مراجعة الاقتراحات"
-              trailing={
-                <View style={styles.trailingCluster}>
-                  {pendingSuggestionsCount > 0 && (
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>
-                        {formatCount(pendingSuggestionsCount)}
-                      </Text>
-                    </View>
-                  )}
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowMunasibManager(true);
+                }}
+              />
+            )}
+
+            {canAccess(ADMIN_FEATURES.SUGGESTION_REVIEW.id) && (
+              <ListItem
+                leading={
                   <Ionicons
-                    name="chevron-back"
-                    size={18}
-                    color={tokens.colors.najdi.textMuted}
+                    name="document-text-outline"
+                    size={22}
+                    color={tokens.colors.najdi.text}
                   />
-                </View>
-              }
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowSuggestionReview(true);
-              }}
-              showDivider={isSuperAdmin}
-            />
-            {isSuperAdmin && (
+                }
+                title="مراجعة الاقتراحات"
+                trailing={
+                  <View style={styles.trailingCluster}>
+                    {pendingSuggestionsCount > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>
+                          {formatCount(pendingSuggestionsCount)}
+                        </Text>
+                      </View>
+                    )}
+                    <Ionicons
+                      name="chevron-back"
+                      size={18}
+                      color={tokens.colors.najdi.textMuted}
+                    />
+                  </View>
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowSuggestionReview(true);
+                }}
+                showDivider={canAccess(ADMIN_FEATURES.PERMISSION_MANAGER.id)}
+              />
+            )}
+
+            {canAccess(ADMIN_FEATURES.PERMISSION_MANAGER.id) && (
               <ListItem
                 leading={
                   <Ionicons
@@ -577,101 +535,78 @@ const AdminDashboardUltraOptimized = ({ user, profile, isSuperAdmin = false, ope
           </ListSection>
 
           <ListSection title="أدوات النظام">
-            <ListItem
-              leading={
-                <Ionicons
-                  name="time-outline"
-                  size={21}
-                  color={tokens.colors.najdi.text}
-                />
-              }
-              title="سجل النشاط"
-              trailing={
-                <Ionicons
-                  name="chevron-back"
-                  size={18}
-                  color={tokens.colors.najdi.textMuted}
-                />
-              }
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowActivityLog(true);
-              }}
-            />
-            <ListItem
-              leading={
-                <Ionicons
-                  name="logo-whatsapp"
-                  size={21}
-                  color="#25D366"
-                />
-              }
-              title="التواصل"
-              trailing={
-                <Ionicons
-                  name="chevron-back"
-                  size={18}
-                  color={tokens.colors.najdi.textMuted}
-                />
-              }
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowTemplateManager(true);
-              }}
-            />
-            {isSuperAdmin && (
-              <>
-                <ListItem
-                  leading={
-                    <Ionicons
-                      name="cloud-download-outline"
-                      size={21}
-                      color={tokens.colors.najdi.primary}
-                    />
-                  }
-                  title="تصدير الشجرة"
-                  trailing={
-                    exporting ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={tokens.colors.najdi.primary}
-                      />
-                    ) : (
-                      <Ionicons
-                        name="chevron-back"
-                        size={18}
-                        color={tokens.colors.najdi.textMuted}
-                      />
-                    )
-                  }
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    handleExportDatabase();
-                  }}
-                />
-                <ListItem
-                  leading={
-                    <Ionicons
-                      name="mail-outline"
-                      size={21}
-                      color={tokens.colors.najdi.primary}
-                    />
-                  }
-                  title="إشعارات جماعية"
-                  trailing={
-                    <Ionicons
-                      name="chevron-back"
-                      size={18}
-                      color={tokens.colors.najdi.textMuted}
-                    />
-                  }
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setShowBroadcastManager(true);
-                  }}
-                  showDivider={false}
-                />
-              </>
+            {canAccess(ADMIN_FEATURES.ACTIVITY_LOG.id) && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="time-outline"
+                    size={21}
+                    color={tokens.colors.najdi.text}
+                  />
+                }
+                title="سجل النشاط"
+                trailing={
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowActivityLog(true);
+                }}
+              />
+            )}
+
+            {canAccess(ADMIN_FEATURES.MESSAGE_TEMPLATES.id) && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="logo-whatsapp"
+                    size={21}
+                    color="#25D366"
+                  />
+                }
+                title="التواصل"
+                trailing={
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowTemplateManager(true);
+                }}
+                showDivider={canAccess(ADMIN_FEATURES.BROADCAST_MANAGER.id)}
+              />
+            )}
+
+            {canAccess(ADMIN_FEATURES.BROADCAST_MANAGER.id) && (
+              <ListItem
+                leading={
+                  <Ionicons
+                    name="mail-outline"
+                    size={21}
+                    color={tokens.colors.najdi.primary}
+                  />
+                }
+                title="إشعارات جماعية"
+                trailing={
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                }
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setShowBroadcastManager(true);
+                }}
+                showDivider={false}
+              />
             )}
           </ListSection>
         </Animated.View>

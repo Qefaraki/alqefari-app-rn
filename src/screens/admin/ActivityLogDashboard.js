@@ -1244,7 +1244,9 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         const start = currentPage * PAGE_SIZE;
         const end = start + PAGE_SIZE - 1;
 
-        let query = supabase.from("activity_log_detailed").select("*", { count: "exact" });
+        let query = supabase
+          .from("activity_log_detailed")
+          .select("*", { count: "exact" });
 
         if (selectedUserRef.current) {
           query = query.eq("actor_id", selectedUserRef.current.actor_id);
@@ -1449,7 +1451,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
       batchGroups.forEach(group => {
         const mismatch = Math.abs(group.operations.length - group.operation_count);
         if (mismatch > 10) {
-          console.error('[ActivityLogDashboard] Critical count mismatch:', {
+          console.warn('[ActivityLogDashboard] Significant batch count mismatch detected', {
             group_id: group.operation_group_id,
             expected: group.operation_count,
             actual: group.operations.length
@@ -1607,15 +1609,30 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     fetchActivities(false);
   }, [fetchActivities]);
 
+  const scrollListToTop = useCallback(() => {
+    requestAnimationFrame(() => {
+      const list = sectionListRef.current;
+      if (list && typeof list.scrollToLocation === 'function') {
+        try {
+          list.scrollToLocation({ sectionIndex: 0, itemIndex: 0, animated: true });
+        } catch (err) {
+          // Fallback: silently ignore if list is empty or location invalid
+        }
+      } else if (list && typeof list.scrollToOffset === 'function') {
+        list.scrollToOffset({ offset: 0, animated: true });
+      }
+    });
+  }, []);
+
   const handleCategoryChange = useCallback((value) => {
     setCategoryFilter(value);
-    sectionListRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, []);
+    scrollListToTop();
+  }, [scrollListToTop]);
 
   const handleSeverityChange = useCallback((value) => {
     setSeverityFilter(value);
-    sectionListRef.current?.scrollToOffset({ offset: 0, animated: true });
-  }, []);
+    scrollListToTop();
+  }, [scrollListToTop]);
 
   const handleOpenAdvanced = (activity) => {
     if (!activity) return;
@@ -1638,7 +1655,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     setCustomDateTo(null);
     setSearchText("");
     setDebouncedSearch("");
-    sectionListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    scrollListToTop();
   };
 
   if (loading && activities.length === 0) {
@@ -1667,10 +1684,10 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
       <SectionList
         ref={sectionListRef}
         sections={groupedSections}
-        keyExtractor={(item) =>
+        keyExtractor={(item, index) =>
           item.type === 'batch_group'
-            ? `group-${item.operation_group_id}`
-            : `activity-${item.id}`
+            ? `group-${item.operation_group_id}-${index}`
+            : `activity-${item.id}-${index}`
         }
         renderItem={({ item }) => {
           const wrapperStyle = item.type === 'batch_group'

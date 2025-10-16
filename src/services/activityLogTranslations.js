@@ -202,10 +202,10 @@ export const VALUE_FORMATTERS = {
   // Role
   role: (value) => {
     const roles = {
-      super_admin: 'مشرف عام',
+      super_admin: 'المدير العام',
       admin: 'مشرف',
-      moderator: 'مشرف فرع',
-      user: 'مستخدم',
+      moderator: 'منسق',
+      user: 'عضو',
     };
     return roles[value] || value || '—';
   },

@@ -27,6 +27,7 @@ import SkeletonLoader from "../ui/SkeletonLoader";
 import Toast from "../ui/Toast";
 import tokens from "../ui/tokens";
 import { featureFlags } from "../../config/featureFlags";
+import { formatRelativeTime } from "../../utils/formatTimestamp";
 
 // Exact colors from app research
 const palette = tokens.colors.najdi;
@@ -880,7 +881,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   };
 
   // Render individual request card for FlatList
-  const renderRequestCard = useCallback(({ item: request, index }) => {
+  const renderRequestCard = useCallback(({ item: request }) => {
     const profile = request.profiles;
     const displayName = profile ? getFullNameChain(profile, allProfiles, nameChainCache.current) : request.name_chain || "غير معروف";
     const statusColor = getStatusColor(tabKeys[selectedTab]);
@@ -996,6 +997,14 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                   />
                   <Text style={styles.statusText}>تمت الموافقة</Text>
                 </View>
+                {request.reviewed_at && (
+                  <View style={styles.timelineChip}>
+                    <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                    <Text style={styles.timelineChipText}>
+                      {formatRelativeTime(request.reviewed_at)}
+                    </Text>
+                  </View>
+                )}
                 {request.phone && (
                   <Pressable
                     accessibilityRole="button"
@@ -1026,6 +1035,14 @@ export default function ProfileConnectionManagerV2({ onBack }) {
                     </Text>
                   )}
                 </View>
+                {request.reviewed_at && (
+                  <View style={styles.timelineChip}>
+                    <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+                    <Text style={styles.timelineChipText}>
+                      {formatRelativeTime(request.reviewed_at)}
+                    </Text>
+                  </View>
+                )}
                 {request.phone && (
                   <Pressable
                     accessibilityRole="button"
@@ -1069,18 +1086,15 @@ export default function ProfileConnectionManagerV2({ onBack }) {
     const copyByTab = {
       pending: {
         title: "ما فيه طلبات جديدة",
-        description: "أول ما يستقبل النظام طلب ربط بنخبرك مباشرة. تابع هنا أو حدث القائمة.",
-        icon: "sparkles",
+        description: "بنرسل لك تنبيه أول ما يجي طلب ربط جديد. تقدر تحدث القائمة في أي وقت.",
       },
       approved: {
         title: "كل الروابط معتمدة",
-        description: "ما فيه طلبات مقبولة حالياً. إذا تم اعتماد طلب جديد بيظهر هنا.",
-        icon: "checkmark-done-outline",
+        description: "ما وصلنا طلبات جديدة للقبول. لما نعتمد طلب بيظهر هنا مباشرة.",
       },
       rejected: {
         title: "ما فيه طلبات مرفوضة",
-        description: "ما رفضنا أي طلبات إلى الآن. بتشوف هنا أي طلب تم رفضه مع سببه.",
-        icon: "layers-outline",
+        description: "إلى الآن ما رفضنا أي طلب. لو رفضنا، بيظهر هنا مع سبب الرفض.",
       },
     };
 
@@ -1095,7 +1109,11 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         />
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconBadge}>
-            <Ionicons name={content.icon} size={26} color={colors.primary} />
+            <Image
+              source={require("../../../assets/logo/AlqefariEmblem.png")}
+              style={styles.emptyEmblem}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.emptyTitle}>{content.title}</Text>
           <Text style={styles.emptyDescription}>{content.description}</Text>
@@ -1106,7 +1124,6 @@ export default function ProfileConnectionManagerV2({ onBack }) {
               pressed && styles.emptyActionPressed,
             ]}
           >
-            <Ionicons name="refresh" size={18} color={colors.background} />
             <Text style={styles.emptyActionText}>تحديث الطلبات</Text>
           </Pressable>
         </View>
@@ -1181,27 +1198,29 @@ export default function ProfileConnectionManagerV2({ onBack }) {
         </View>
 
         {/* Segmented Control */}
-        <View style={styles.segmentedControlContainer}>
-          <Host style={{ width: "100%", height: 36 }}>
-            <Picker
-              label=""
-              options={tabOptions}
-              variant="segmented"
-              selectedIndex={selectedTab}
-              onOptionSelected={({ nativeEvent: { index } }) => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelectedTab(index);
-              }}
-            />
-          </Host>
+        <View style={styles.selectorSurface}>
+          <View style={styles.segmentedControlContainer}>
+            <Host style={{ width: "100%", height: 36 }}>
+              <Picker
+                label=""
+                options={tabOptions}
+                variant="segmented"
+                selectedIndex={selectedTab}
+                onOptionSelected={({ nativeEvent: { index } }) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedTab(index);
+                }}
+              />
+            </Host>
+          </View>
         </View>
 
         {/* List */}
         <FlatList
-          data={currentRequests}
-          renderItem={renderRequestCard}
-          keyExtractor={item => String(item.id)}
-          style={[styles.scrollView, { backgroundColor: colors.background }]}
+        data={currentRequests}
+        renderItem={renderRequestCard}
+        keyExtractor={item => String(item.id)}
+        style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
             currentRequests.length === 0 && { flex: 1 }
@@ -1221,6 +1240,11 @@ export default function ProfileConnectionManagerV2({ onBack }) {
             />
           }
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            currentRequests.length > 0 ? (
+              <View style={styles.listHeaderSpacer} />
+            ) : null
+          }
           ListEmptyComponent={renderEmptyState}
           windowSize={10}
           maxToRenderPerBatch={20}
@@ -1302,12 +1326,32 @@ const styles = StyleSheet.create({
   },
 
   // Segmented Control
+  selectorSurface: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: colors.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${colors.container}66`,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    zIndex: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
   segmentedControlContainer: {
-    backgroundColor: colors.white,
+    backgroundColor: "transparent",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.separator,
   },
 
   // Stats
@@ -1315,6 +1359,7 @@ const styles = StyleSheet.create({
   // Scroll
   scrollView: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     paddingBottom: spacing.xxl + spacing.md,
@@ -1323,6 +1368,9 @@ const styles = StyleSheet.create({
   // List
   listContainer: {
     paddingTop: spacing.md,
+  },
+  listHeaderSpacer: {
+    height: spacing.lg + spacing.sm,
   },
 
   // Card - Modern floating style
@@ -1421,6 +1469,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
@@ -1487,12 +1536,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     gap: spacing.xs,
+    backgroundColor: `${colors.container}20`,
+    flexShrink: 1,
   },
   statusText: {
     ...typography.subheadline,
     fontFamily: "SF Arabic",
     color: colors.text,
     fontWeight: "600",
+  },
+  timelineChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: `${colors.container}20`,
+    gap: spacing.xs / 2,
+    flexShrink: 1,
+  },
+  timelineChipText: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: colors.textMuted,
   },
   rejectionNote: {
     ...typography.footnote,
@@ -1516,7 +1582,7 @@ const styles = StyleSheet.create({
   emptyCard: {
     width: "80%",
     maxWidth: 360,
-    backgroundColor: colors.white,
+    backgroundColor: colors.background,
     borderRadius: tokens.radii.lg,
     paddingVertical: spacing.xl,
     paddingHorizontal: spacing.xl,
@@ -1529,13 +1595,20 @@ const styles = StyleSheet.create({
     }),
   },
   emptyIconBadge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: `${colors.primary}12`,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: `${colors.container}26`,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${colors.container}80`,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: spacing.md,
+  },
+  emptyEmblem: {
+    width: 32,
+    height: 32,
+    tintColor: colors.primary,
   },
   emptyTitle: {
     ...typography.title3,
@@ -1556,18 +1629,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.white,
     borderRadius: tokens.radii.md,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${colors.primary}66`,
   },
   emptyActionPressed: {
-    opacity: 0.9,
+    backgroundColor: `${colors.primary}10`,
   },
   emptyActionText: {
     ...typography.subheadline,
     fontFamily: "SF Arabic",
-    color: colors.background,
+    color: colors.primary,
     fontWeight: "600",
   },
 });

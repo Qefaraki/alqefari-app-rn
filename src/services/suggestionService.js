@@ -1,10 +1,10 @@
 /**
- * Suggestion Service for Permission System v4.2
+ * Suggestion Service for Permission System v4.3 (Simplified)
  *
- * Handles all suggestion-related API calls for the three-circle permission model:
- * - Inner Circle: Direct edits (family members)
- * - Family Circle: 48-hour auto-approval (cousins, aunts, uncles)
- * - Extended Family: Manual approval required
+ * Handles all suggestion-related API calls for the simplified permission model:
+ * - Inner Circle: Direct edits (self, spouse, parents, children, siblings, descendants)
+ * - Suggest: Manual admin approval required (all other family members)
+ * - Blocked: User is blocked from making suggestions
  */
 
 import { supabase } from './supabase';
@@ -43,7 +43,7 @@ const ERROR_MESSAGES = {
 class SuggestionService {
   /**
    * Check user's permission level for a profile
-   * Returns: 'inner', 'family', 'extended', 'blocked', or 'none'
+   * Returns: 'admin', 'moderator', 'inner', 'suggest', 'blocked', or 'none'
    */
   async checkPermission(userId, targetId) {
     try {
@@ -391,22 +391,18 @@ class SuggestionService {
    */
   getPermissionMessage(permission) {
     switch (permission) {
+      case 'admin':
+      case 'moderator':
       case 'inner':
         return {
           title: 'تم الحفظ',
           message: 'تم تحديث البيانات بنجاح',
           type: 'success'
         };
-      case 'family':
+      case 'suggest':
         return {
           title: 'تم إرسال الاقتراح',
-          message: 'سيتم مراجعة التغييرات والموافقة عليها خلال 48 ساعة',
-          type: 'info'
-        };
-      case 'extended':
-        return {
-          title: 'يحتاج موافقة',
-          message: 'تم إرسال اقتراحك إلى صاحب الملف للموافقة',
+          message: 'تم إرسال اقتراحك للمشرفين للمراجعة والموافقة',
           type: 'info'
         };
       case 'blocked':
@@ -459,29 +455,15 @@ class SuggestionService {
   }
 
   /**
+   * @deprecated Since v4.3 - Auto-approval removed, all suggestions require manual admin approval
    * Calculate time remaining for auto-approval (48 hours)
+   *
+   * This function is kept for backward compatibility but is no longer used.
+   * All suggestions now require manual admin approval regardless of relationship.
    */
   getAutoApprovalTimeRemaining(createdAt) {
-    const created = new Date(createdAt);
-    const autoApproveTime = new Date(created.getTime() + (48 * 60 * 60 * 1000));
-    const now = new Date();
-    const remaining = autoApproveTime - now;
-
-    if (remaining <= 0) {
-      return 'جاهز للموافقة التلقائية';
-    }
-
-    const hours = Math.floor(remaining / (60 * 60 * 1000));
-    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      return `${days} يوم و ${hours % 24} ساعة`;
-    } else if (hours > 0) {
-      return `${hours} ساعة و ${minutes} دقيقة`;
-    } else {
-      return `${minutes} دقيقة`;
-    }
+    // Return message indicating manual approval required
+    return 'يتطلب موافقة يدوية من المشرفين';
   }
 }
 

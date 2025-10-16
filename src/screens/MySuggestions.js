@@ -2,17 +2,18 @@
  * My Suggestions Screen
  *
  * Allows users to view all their submitted edit suggestions and track their status.
- * Part of the Permission System v4.2 - provides full transparency into suggestion workflow.
+ * Part of the Permission System v4.3 (Simplified) - provides full transparency into suggestion workflow.
  *
  * Features:
  * - Three tabs: Pending / Approved / Rejected
  * - Shows profile name, field changes, status badges, timestamps
- * - Auto-approval timer for family circle suggestions
  * - Rejection reasons for rejected suggestions
  * - Pull-to-refresh support
  * - Empty states for each tab
  * - Native RTL support
  * - Najdi Sadu design system
+ *
+ * Note: All suggestions now require manual admin approval (48hr auto-approval removed in v4.3)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -311,7 +312,8 @@ function SuggestionCard({ suggestion }) {
   };
 
   const statusColor = getStatusColor(suggestion.status);
-  const showTimer = suggestion.status === 'pending' && suggestion.permission_level === 'family';
+  // v4.3: Auto-approval removed - timer no longer needed
+  const showTimer = false;
 
   return (
     <Pressable style={styles.card}>

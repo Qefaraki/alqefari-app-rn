@@ -19,13 +19,6 @@ const BatchOperationsView = () => {
       color: '#007AFF',
     },
     {
-      id: 'export',
-      title: 'تصدير البيانات',
-      description: 'تصدير الشجرة إلى ملف Excel أو JSON',
-      icon: 'cloud-download-outline',
-      color: '#34C759',
-    },
-    {
       id: 'merge',
       title: 'دمج الملفات المكررة',
       description: 'البحث عن ودمج الملفات الشخصية المكررة',

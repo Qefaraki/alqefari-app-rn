@@ -3,17 +3,7 @@ import { useTreeStore } from '../../../stores/useTreeStore';
 import { familyData, getChildren } from '../../../data/family-data';
 import { supabase } from '../../../services/supabase';
 import { fetchWithTimeout } from '../../../utils/fetchWithTimeout';
-
-const generationNames = [
-  'الأول',
-  'الثاني',
-  'الثالث',
-  'الرابع',
-  'الخامس',
-  'السادس',
-  'السابع',
-  'الثامن',
-];
+import { getArabicOrdinal } from '../../../utils/generationUtils';
 
 export const useProfileMetrics = (person) => {
   const treeData = useTreeStore((s) => s.treeData);
@@ -141,7 +131,7 @@ export const useProfileMetrics = (person) => {
 
   const generationLabel = useMemo(() => {
     if (!person?.generation) return null;
-    return generationNames[person.generation - 1] || person.generation;
+    return getArabicOrdinal(person.generation);
   }, [person?.generation]);
 
   return {

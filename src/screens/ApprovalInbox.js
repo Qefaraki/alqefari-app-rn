@@ -314,16 +314,6 @@ const ApprovalInbox = ({ visible, onClose }) => {
           </View>
         )}
 
-        {/* Auto-approval timer for family circle */}
-        {isPending && suggestion.auto_approve_at && (
-          <View style={styles.timerSection}>
-            <Ionicons name="time-outline" size={16} color={COLORS.warning} />
-            <Text style={styles.timerText}>
-              موافقة تلقائية: {suggestionService.getAutoApprovalTimeRemaining(suggestion.created_at)}
-            </Text>
-          </View>
-        )}
-
         {/* Actions for pending received suggestions */}
         {isReceived && isPending && (
           <View style={styles.actions}>

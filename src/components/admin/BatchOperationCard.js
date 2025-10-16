@@ -7,6 +7,7 @@ import {
   FlatList,
   Platform,
   I18nManager,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -53,10 +54,13 @@ const BatchOperationCard = ({
   undoState,
   onRefresh,
   onPressOperation,
+  actorPhotos = {},
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const rotation = useSharedValue(0);
+  const actorProfileId = operations[0]?.actor_profile_id;
+  const actorPhotoUrl = actorProfileId ? actorPhotos[actorProfileId] || null : null;
 
   const animatedChevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
@@ -150,7 +154,6 @@ const BatchOperationCard = ({
         activeOpacity={0.7}
       >
         <View style={styles.headerLeft}>
-          {/* Chevron */}
           <Animated.View style={animatedChevronStyle}>
             <Ionicons
               name="chevron-down"
@@ -159,7 +162,12 @@ const BatchOperationCard = ({
             />
           </Animated.View>
 
-          {/* Description */}
+          {actorPhotoUrl && (
+            <View style={styles.headerAvatar}>
+              <Image source={{ uri: actorPhotoUrl }} style={styles.headerAvatarImage} resizeMode="cover" />
+            </View>
+          )}
+
           <View style={styles.headerTextContainer}>
             <Text style={styles.descriptionText} numberOfLines={1}>
               {description || 'عملية جماعية'}
@@ -239,11 +247,12 @@ const BatchOperationCard = ({
             // Virtualized list for large batches
             <FlatList
               data={operations}
-              keyExtractor={(item) => `operation-${item.id}`}
-              renderItem={({ item }) => (
+              keyExtractor={(item, index) => `operation-${item.id}-${index}`}
+              renderItem={({ item, index }) => (
                 <OperationListItem
                   operation={item}
                   onPress={() => onPressOperation?.(item)}
+                  index={index}
                 />
               )}
               initialNumToRender={10}
@@ -256,9 +265,9 @@ const BatchOperationCard = ({
           ) : (
             // Simple map for small batches
             <View style={styles.operationsList}>
-              {operations.map(operation => (
+              {operations.map((operation, index) => (
                 <OperationListItem
-                  key={`operation-${operation.id}`}
+                  key={`operation-${operation.id}-${index}`}
                   operation={operation}
                   onPress={() => onPressOperation?.(operation)}
                 />
@@ -299,7 +308,10 @@ const OperationListItem = ({ operation, onPress }) => {
   return (
     <TouchableOpacity
       style={[styles.operationItem, isUndone && styles.operationItemUndone]}
-      onPress={onPress}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress?.();
+      }}
       activeOpacity={0.7}
     >
       <View style={styles.operationContent}>
@@ -332,11 +344,6 @@ const OperationListItem = ({ operation, onPress }) => {
             <Text style={styles.undoneIndicatorText}>تم التراجع</Text>
           </View>
         )}
-        <Ionicons
-          name="chevron-forward"
-          size={14}
-          color={COLORS.textMuted + '80'}
-        />
       </View>
     </TouchableOpacity>
   );
@@ -344,14 +351,16 @@ const OperationListItem = ({ operation, onPress }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.background,
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.container + '30',
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
     overflow: 'hidden',
   },
   header: {
@@ -375,6 +384,19 @@ const styles = StyleSheet.create({
   headerTextContainer: {
     flex: 1,
     gap: 4,
+  },
+  headerAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.container + '50',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  headerAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   descriptionText: {
     fontSize: 17,
@@ -408,7 +430,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   countBadge: {
-    backgroundColor: COLORS.crimson + '12',
+    backgroundColor: COLORS.primary + '12',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -422,7 +444,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.crimson,
+    color: COLORS.primary,
     fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   countTextWarning: {
@@ -521,7 +543,7 @@ const styles = StyleSheet.create({
   actionBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: COLORS.crimson + '12',
+    backgroundColor: COLORS.primary + '12',
     borderRadius: 8,
   },
   actionBadgeUndone: {
@@ -530,7 +552,7 @@ const styles = StyleSheet.create({
   actionBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: COLORS.crimson,
+    color: COLORS.primary,
     fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   actionBadgeTextUndone: {
@@ -550,6 +572,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    justifyContent: 'flex-end',
   },
   undoneIndicator: {
     paddingHorizontal: 8,
@@ -579,6 +602,7 @@ export default React.memo(BatchOperationCard, (prevProps, nextProps) => {
   // Metadata checks
   if (prevProps.operationCount !== nextProps.operationCount) return false;
   if (prevProps.undoState !== nextProps.undoState) return false;
+  if (prevProps.actorPhotos !== nextProps.actorPhotos) return false;
 
   // Operations array validation (critical for undo state updates)
   if (prevProps.operations.length !== nextProps.operations.length) return false;

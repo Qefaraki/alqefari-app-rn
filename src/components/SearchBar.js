@@ -246,30 +246,30 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
           .split(/\s+/)
           .filter((name) => name.length > 0);
 
-        console.log("Searching for:", names);
+        console.log("🔍 Searching for:", names, "| Min length:", names.length > 0 ? Math.min(...names.map(n => n.length)) : 0);
 
-        // Use enhanced search with fuzzy matching
+        // Use search service (uses search_name_chain RPC with partial matching)
         const { data, error } =
           await enhancedSearchService.searchWithFuzzyMatching(names, {
             limit: 20,
-            fuzzyThreshold: 0.7,
-            includePartialMatches: true,
           });
 
         if (error) {
-          console.error("Search error:", error);
+          console.error("❌ Search error:", error);
+          console.error("Error details:", JSON.stringify(error, null, 2));
           setResults([]);
           setShowResults(false);
         } else {
-          console.log("Search results:", data?.length || 0, "items");
-          // Add match type indicator to results
-          const enhancedResults = (data || []).map((result) => ({
-            ...result,
-            isFuzzyMatch: result.matchType === "fuzzy",
-          }));
-
-          setResults(enhancedResults);
-          if (enhancedResults.length > 0) {
+          console.log("✅ Search results:", data?.length || 0, "items");
+          if (data && data.length > 0) {
+            console.log("First result:", {
+              name: data[0].name,
+              name_chain: data[0].name_chain,
+              hasTitle: !!data[0].professional_title
+            });
+          }
+          setResults(data || []);
+          if ((data || []).length > 0) {
             setShowResults(true);
             // Apple-style smooth entrance
             Animated.parallel([

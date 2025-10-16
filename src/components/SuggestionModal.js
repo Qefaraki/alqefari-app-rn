@@ -150,10 +150,8 @@ const SuggestionModal = ({
         let message = "";
         let title = "تم الإرسال";
 
-        if (permissionLevel === 'family') {
-          message = "تم إرسال اقتراحك للمراجعة.\n\nسيتم الموافقة عليه تلقائياً خلال 48 ساعة إذا لم يتم رفضه.";
-        } else if (permissionLevel === 'extended') {
-          message = "تم إرسال اقتراحك للمراجعة.\n\nيحتاج موافقة المشرف قبل التطبيق.";
+        if (permissionLevel === 'suggest') {
+          message = "تم إرسال اقتراحك للمراجعة.\n\nيحتاج موافقة من المشرفين قبل التطبيق.";
         } else {
           message = "تم إرسال اقتراح التعديل للمراجعة.";
         }
@@ -365,8 +363,8 @@ const SuggestionModal = ({
                   />
                 </View>
 
-                {/* Reason (for suggestions only - family or extended) */}
-                {['family', 'extended'].includes(permissionLevel) && (
+                {/* Reason (for suggestions only) */}
+                {permissionLevel === 'suggest' && (
                   <View style={styles.valueSection}>
                     <Text style={styles.valueSectionTitle}>
                       سبب التعديل (اختياري):
@@ -387,7 +385,7 @@ const SuggestionModal = ({
             )}
 
             {/* Info Message */}
-            {['family', 'extended'].includes(permissionLevel) && !selectedField && (
+            {permissionLevel === 'suggest' && !selectedField && (
               <View style={styles.infoBox}>
                 <Ionicons
                   name="information-circle"
@@ -395,9 +393,7 @@ const SuggestionModal = ({
                   color={COLORS.secondary}
                 />
                 <Text style={styles.infoText}>
-                  {permissionLevel === 'family'
-                    ? "ستتم مراجعة اقتراحك وسيتم الموافقة عليه تلقائياً خلال 48 ساعة"
-                    : "ستتم مراجعة اقتراحك من قبل المشرفين قبل اعتماده"}
+                  ستتم مراجعة اقتراحك من قبل المشرفين قبل اعتماده
                 </Text>
               </View>
             )}

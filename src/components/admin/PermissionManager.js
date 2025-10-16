@@ -15,6 +15,7 @@ import {
   Image,
   Animated,
   Modal,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +26,8 @@ import BranchList from "./BranchList";
 import PermissionSummary from "./PermissionSummary";
 import { SkeletonUserCard } from "../ui/Skeleton";
 import enhancedSearchService from "../../services/enhancedSearchService";
+import { formatNameWithTitle } from "../../services/professionalTitleService";
+import { getGenerationLabel } from "../../utils/generationUtils";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -45,6 +48,34 @@ const colors = {
   white: "#FFFFFF",
   separator: "#C6C6C8",
   whatsapp: "#A13333",  // Changed to Najdi Crimson as requested
+};
+
+/**
+ * Helper: Get desert color from palette (cycling)
+ */
+const getDesertColor = (index) => {
+  const desertPalette = [
+    "rgba(161, 51, 51, 1)",
+    "rgba(213, 140, 74, 1)",
+    "rgba(209, 187, 163, 1)",
+    "rgba(161, 51, 51, 0.8)",
+    "rgba(213, 140, 74, 0.8)",
+    "rgba(209, 187, 163, 0.8)",
+    "rgba(161, 51, 51, 0.6)",
+    "rgba(213, 140, 74, 0.6)",
+    "rgba(209, 187, 163, 0.6)",
+    "rgba(161, 51, 51, 1)"
+  ];
+  return desertPalette[index % desertPalette.length];
+};
+
+/**
+ * Helper: Extract initials from full name chain
+ */
+const getInitials = (fullNameChain) => {
+  if (!fullNameChain) return "؟";
+  const firstName = fullNameChain.split(" بن ")[0];
+  return firstName.charAt(0);
 };
 
 /**
@@ -108,10 +139,31 @@ const AnimatedUserCard = ({
         activeOpacity={0.95}
       >
         <View style={styles.userInfo}>
-          {/* Full name chain (removed redundant standalone name) */}
-          <Text style={styles.userNameChain} numberOfLines={2}>
-            {item.full_name_chain}
-          </Text>
+          {/* Avatar + Name Row (unified with SearchBar) */}
+          <View style={styles.avatarNameRow}>
+            {/* Avatar (photo or colored circle with initials) */}
+            {item.photo_url ? (
+              <Image
+                source={{ uri: item.photo_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: getDesertColor(index) }]}>
+                <Text style={styles.avatarInitial}>
+                  {getInitials(item.full_name_chain)}
+                </Text>
+              </View>
+            )}
+
+            {/* Name with professional title */}
+            <Text style={styles.userNameChain} numberOfLines={2}>
+              {formatNameWithTitle({
+                name_chain: item.full_name_chain,
+                professional_title: item.professional_title,
+                title_abbreviation: item.title_abbreviation
+              }, { maxLength: 60 })}
+            </Text>
+          </View>
 
           {/* Role and status badges */}
           <View style={styles.badgeRow}>
@@ -143,7 +195,7 @@ const AnimatedUserCard = ({
             {item.generation && (
               <View style={styles.generationBadge}>
                 <Text style={styles.generationText}>
-                  الجيل {item.generation}
+                  {getGenerationLabel(item.generation)}
                 </Text>
               </View>
             )}
@@ -227,18 +279,36 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const [searchText, setSearchText] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false); // Pull-to-refresh state
+  const flatListRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showBranchSelector, setShowBranchSelector] = useState(false);
   const [showPermissionSummary, setShowPermissionSummary] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [roleLoading, setRoleLoading] = useState(true); // Track initial role check
   const [searchTimer, setSearchTimer] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [actionLoading, setActionLoading] = useState(null); // Track loading state for actions
+
+  // Pagination & filtering state
+  const [selectedRole, setSelectedRole] = useState("all"); // "all", "super_admin", "admin", "moderator"
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 50;
 
   // Load current user's role
   useEffect(() => {
     loadCurrentUserRole();
   }, []);
+
+  // Load all users by default after role check
+  useEffect(() => {
+    if (!roleLoading && ['admin', 'super_admin'].includes(currentUserRole)) {
+      // Load first page of all users on mount
+      searchUsers('', 1, 'all');
+    }
+  }, [roleLoading, currentUserRole]);
 
   // Cleanup search timer on unmount
   useEffect(() => {
@@ -263,48 +333,52 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
       }
     } catch (error) {
       console.error("Error loading user role:", error);
+    } finally {
+      // Always stop role loading, even on error
+      setRoleLoading(false);
     }
   };
 
-  // Search users by name chain with fuzzy matching
-  const searchUsers = async (query) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      setHasSearched(false);
-      return;
-    }
-
+  // Search users using optimized RPC with pagination and role filtering
+  const searchUsers = async (query, page = 1, roleFilter = selectedRole) => {
     setLoading(true);
-    setHasSearched(true);
+    const trimmedQuery = query?.trim() || "";
+    setHasSearched(trimmedQuery.length > 0);
+
     try {
-      // Split query into names for fuzzy search (like tree search)
-      const names = query.trim().split(/\s+/);
+      // Calculate offset for pagination
+      const offset = (page - 1) * pageSize;
 
-      // Use enhanced search service with fuzzy matching, Arabic normalization, etc.
-      const { data: profiles, error: searchError } = await enhancedSearchService.searchWithFuzzyMatching(
-        names,
-        { limit: 50 }
-      );
+      // Prepare role filter (null = all roles)
+      const roleParam = roleFilter === "all" ? null : roleFilter;
 
-      if (searchError) throw new Error(searchError);
+      // Call optimized RPC - returns all data in single query
+      const { data, error } = await supabase.rpc('admin_list_permission_users', {
+        p_search_query: query || null,
+        p_role_filter: roleParam,
+        p_limit: pageSize,
+        p_offset: offset
+      });
 
-      if (!profiles || profiles.length === 0) {
+      if (error) {
+        console.error("RPC error:", error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
         setSearchResults([]);
+        setTotalCount(0);
+        setCurrentPage(1);
         return;
       }
 
-      // Get admin-specific data for matched profiles
-      const profileIds = profiles.map(p => p.id);
+      // Extract total count from first row (all rows have same total_count)
+      const totalCount = data[0]?.total_count || 0;
+      setTotalCount(totalCount);
+      setCurrentPage(page);
 
-      // Fetch admin data: role, branch moderator status, block status
-      const { data: adminDataArray, error: adminError } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .in('id', profileIds);
-
-      if (adminError) throw adminError;
-
-      // Get branch moderator counts
+      // Get branch moderator counts (still need separate query for this)
+      const profileIds = data.map(p => p.id);
       const { data: branchMods, error: branchError } = await supabase
         .from('branch_moderators')
         .select('user_id')
@@ -313,7 +387,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
 
       if (branchError) throw branchError;
 
-      // Get blocked users
+      // Get blocked users (still need separate query for this)
       const { data: blocked, error: blockError } = await supabase
         .from('suggestion_blocks')
         .select('blocked_user_id')
@@ -331,40 +405,30 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
       // Create blocked users set for fast lookup
       const blockedSet = new Set((blocked || []).map(b => b.blocked_user_id));
 
-      // Merge results with admin data
-      const enrichedResults = profiles.map(profile => {
-        const adminData = adminDataArray?.find(ad => ad.id === profile.id);
-        const branchCount = branchCounts[profile.id] || 0;
-        const isBlocked = blockedSet.has(profile.id);
+      // Transform RPC results to match expected format and filter out super_admins
+      const enrichedResults = data
+        .map(row => ({
+          id: row.id,
+          name: row.full_name_chain?.split(' بن ')[0] || row.full_name_chain?.split(' ')[0] || 'غير معروف',
+          full_name_chain: row.full_name_chain || 'غير معروف',
+          phone: row.phone,
+          role: row.user_role,
+          is_branch_moderator: branchCounts[row.id] > 0,
+          branch_count: branchCounts[row.id] || 0,
+          is_blocked: blockedSet.has(row.id),
+          photo_url: row.photo_url,
+          generation: row.generation,
+          professional_title: row.professional_title,
+          title_abbreviation: row.title_abbreviation,
+        }))
+        .filter(user => user.role !== 'super_admin'); // Exclude super admins from list
 
-        // Debug logging to see what we're getting
-        if (!profile.name_chain) {
-          console.log('Missing name_chain for profile:', profile.id, profile.name);
-          console.log('Profile keys:', Object.keys(profile));
-        }
-
-        return {
-          id: profile.id,
-          name: profile.name,
-          full_name_chain: profile.name_chain || profile.name, // Use name_chain from search
-          role: adminData?.role || null,
-          is_branch_moderator: branchCount > 0,
-          branch_count: branchCount,
-          is_blocked: isBlocked,
-          photo_url: profile.photo_url, // Bonus: now we have photos!
-          generation: profile.generation, // Bonus: generation info
-        };
-      });
-
-      // Deduplicate results by profile ID (safety measure)
-      const uniqueResults = Array.from(
-        new Map(enrichedResults.map(item => [item.id, item])).values()
-      );
-
-      setSearchResults(uniqueResults);
+      setSearchResults(enrichedResults);
     } catch (error) {
       console.error("Error searching users:", error);
-      Alert.alert("خطأ", "فشل البحث عن المستخدمين");
+      Alert.alert("خطأ", error.message || "فشل البحث عن المستخدمين");
+      setSearchResults([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -379,16 +443,53 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
 
     // If text is cleared, clear results immediately
     if (!text) {
-      setSearchResults([]);
       setHasSearched(false);
+      setCurrentPage(1);
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      searchUsers("", 1, selectedRole);
       return;
     }
 
+    // Reset to page 1 for new search
+    setCurrentPage(1);
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+
     // Debounce search for 150ms (optimal for modern UX)
     const timer = setTimeout(() => {
-      searchUsers(text);
+      searchUsers(text, 1, selectedRole);
     }, 150);
     setSearchTimer(timer);
+  };
+
+  // Handle role filter change
+  const handleRoleFilterChange = (role) => {
+    setSelectedRole(role);
+    setCurrentPage(1); // Reset to page 1 when filter changes
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    searchUsers(searchText, 1, role);
+  };
+
+  // Handle pull-to-refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await searchUsers(searchText, currentPage, selectedRole);
+    setRefreshing(false);
+  };
+
+  // Pagination handlers
+  const handleNextPage = () => {
+    const totalPages = Math.ceil(totalCount / pageSize);
+    if (currentPage < totalPages) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      searchUsers(searchText, currentPage + 1, selectedRole);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      searchUsers(searchText, currentPage - 1, selectedRole);
+    }
   };
 
   // Change user role
@@ -530,13 +631,13 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   // Get role label in Arabic
   const getRoleLabel = (role) => {
     const labels = {
-      super_admin: "مشرف عام",
+      super_admin: "المدير العام",
       admin: "مشرف",
-      moderator: "مراقب",
-      user: "مستخدم",
-      null: "مستخدم"
+      moderator: "منسق",
+      user: "عضو",
+      null: "عضو"
     };
-    return labels[role] || "مستخدم";
+    return labels[role] || "عضو";
   };
 
   // Get role color
@@ -716,8 +817,36 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
           </View>
         </View>
 
-          {/* Only show for admins and super admins */}
-          {!["admin", "super_admin"].includes(currentUserRole) ? (
+          {/* Optimistic rendering: Show skeleton during role check */}
+          {roleLoading ? (
+            <>
+              {/* Search bar skeleton */}
+              <View style={styles.searchContainer}>
+                <View style={styles.searchBar}>
+                  <Ionicons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
+                  <TextInput
+                    ref={searchInputRef}
+                    style={styles.searchInput}
+                    placeholder="ابحث بالاسم الكامل..."
+                    placeholderTextColor={colors.textMuted + "99"}
+                    editable={false}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
+
+              {/* Full page skeleton (6 cards) */}
+              <View style={styles.listContent}>
+                <SkeletonUserCard />
+                <SkeletonUserCard />
+                <SkeletonUserCard />
+                <SkeletonUserCard />
+                <SkeletonUserCard />
+                <SkeletonUserCard />
+              </View>
+            </>
+          ) : !["admin", "super_admin"].includes(currentUserRole) ? (
+            /* Lock screen only after role check completes */
             <View style={styles.noAccessContainer}>
               <Ionicons name="lock-closed" size={64} color={colors.textMuted} />
               <Text style={styles.noAccessText}>
@@ -744,10 +873,9 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                   {searchText.length > 0 && (
                     <TouchableOpacity
                       onPress={() => {
-                        setSearchText("");
-                        setSearchResults([]);
-                        setHasSearched(false);
+                        searchInputRef.current?.blur();
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        handleSearchTextChange("");
                       }}
                       style={styles.clearButton}
                     >
@@ -757,46 +885,177 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                 </View>
               </View>
 
-              {/* Results */}
-              {loading ? (
-                <View style={styles.listContent}>
-                  {/* Skeleton loading cards */}
-                  <SkeletonUserCard />
-                  <SkeletonUserCard />
-                  <SkeletonUserCard />
-                  <SkeletonUserCard />
-                  <SkeletonUserCard />
+              {/* iOS Segmented Control for Role Filter */}
+              <View style={styles.segmentedControlContainer}>
+                <View style={styles.segmentedControl}>
+                  <TouchableOpacity
+                    style={[
+                      styles.segment,
+                      selectedRole === "all" && styles.segmentActive
+                    ]}
+                    onPress={() => handleRoleFilterChange("all")}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.segmentText,
+                      selectedRole === "all" && styles.segmentTextActive
+                    ]}>
+                      الكل
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.segment,
+                      selectedRole === "admin" && styles.segmentActive
+                    ]}
+                    onPress={() => handleRoleFilterChange("admin")}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.segmentText,
+                      selectedRole === "admin" && styles.segmentTextActive
+                    ]}>
+                      مشرف
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.segment,
+                      selectedRole === "moderator" && styles.segmentActive
+                    ]}
+                    onPress={() => handleRoleFilterChange("moderator")}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[
+                      styles.segmentText,
+                      selectedRole === "moderator" && styles.segmentTextActive
+                    ]}>
+                      منسق
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              ) : (
-                <FlatList
-                  data={searchResults}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderUserCard}
-                  contentContainerStyle={styles.listContent}
-                  keyboardDismissMode="on-drag"
-                  keyboardShouldPersistTaps="handled"
-                  ListEmptyComponent={
-                    hasSearched && !loading ? (
-                      <View style={styles.emptyContainer}>
-                        <Ionicons name="search-outline" size={48} color={colors.textMuted + "60"} />
-                        <Text style={styles.emptyText}>
-                          لا توجد نتائج للبحث
-                        </Text>
-                        <Text style={styles.emptySubtext}>
-                          جرب البحث باسم آخر
-                        </Text>
-                      </View>
-                    ) : !hasSearched ? (
-                      <View style={styles.emptyContainer}>
-                        <Ionicons name="people-outline" size={48} color={colors.textMuted + "60"} />
-                        <Text style={styles.emptyText}>
-                          ابحث عن المستخدمين لإدارة صلاحياتهم
-                        </Text>
-                      </View>
-                    ) : null
-                  }
-                />
-              )}
+              </View>
+
+              {/* Results */}
+              <View style={{ flex: 1, position: 'relative' }}>
+                {loading && searchResults.length === 0 ? (
+                  /* Initial search loading - show 6 skeleton cards */
+                  <View style={styles.listContent}>
+                    <SkeletonUserCard />
+                    <SkeletonUserCard />
+                    <SkeletonUserCard />
+                    <SkeletonUserCard />
+                    <SkeletonUserCard />
+                    <SkeletonUserCard />
+                  </View>
+                ) : (
+                  <FlatList
+                    ref={flatListRef}
+                    data={searchResults}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderUserCard}
+                    contentContainerStyle={styles.listContent}
+                    keyboardDismissMode="on-drag"
+                    keyboardShouldPersistTaps="handled"
+                    refreshControl={
+                      <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor={colors.primary} // Najdi Crimson spinner
+                        colors={[colors.primary]} // Android
+                      />
+                    }
+                    ListEmptyComponent={
+                      !loading && searchResults.length === 0 ? (
+                        /* Empty because search/filter returned no results */
+                        selectedRole !== "all" && !searchText ? (
+                          /* Empty filter - no users with this role */
+                          <View style={styles.emptyContainer}>
+                            <Ionicons name="funnel-outline" size={48} color={colors.textMuted + "60"} />
+                            <Text style={styles.emptyText}>
+                              لا يوجد مستخدمون بهذه الصلاحية
+                            </Text>
+                            <Text style={styles.emptySubtext}>
+                              جرب فلتر آخر أو امسح الفلتر
+                            </Text>
+                          </View>
+                        ) : (
+                          /* Empty search - no results for search query */
+                          <View style={styles.emptyContainer}>
+                            <Ionicons name="search-outline" size={48} color={colors.textMuted + "60"} />
+                            <Text style={styles.emptyText}>
+                              لا توجد نتائج للبحث
+                            </Text>
+                            <Text style={styles.emptySubtext}>
+                              جرب البحث باسم آخر أو امسح الفلتر
+                            </Text>
+                          </View>
+                        )
+                      ) : null
+                    }
+                    ListFooterComponent={
+                      totalCount > pageSize && searchResults.length > 0 ? (
+                        <View style={styles.paginationContainer}>
+                          <TouchableOpacity
+                            style={[
+                              styles.paginationButton,
+                              currentPage === 1 && styles.paginationButtonDisabled
+                            ]}
+                            onPress={handlePrevPage}
+                            disabled={currentPage === 1}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons
+                              name="chevron-forward"
+                              size={20}
+                              color={currentPage === 1 ? colors.textMuted : colors.primary}
+                            />
+                            <Text style={[
+                              styles.paginationButtonText,
+                              currentPage === 1 && styles.paginationButtonTextDisabled
+                            ]}>
+                              السابق
+                            </Text>
+                          </TouchableOpacity>
+
+                          <View style={styles.pageInfo}>
+                            <Text style={styles.pageInfoText}>
+                              صفحة {currentPage} من {Math.ceil(totalCount / pageSize)}
+                            </Text>
+                            <Text style={styles.pageInfoSubtext}>
+                              {totalCount} مستخدم
+                            </Text>
+                          </View>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.paginationButton,
+                              currentPage >= Math.ceil(totalCount / pageSize) && styles.paginationButtonDisabled
+                            ]}
+                            onPress={handleNextPage}
+                            disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={[
+                              styles.paginationButtonText,
+                              currentPage >= Math.ceil(totalCount / pageSize) && styles.paginationButtonTextDisabled
+                            ]}>
+                              التالي
+                            </Text>
+                            <Ionicons
+                              name="chevron-back"
+                              size={20}
+                              color={currentPage >= Math.ceil(totalCount / pageSize) ? colors.textMuted : colors.primary}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      ) : null
+                    }
+                  />
+                )}
+              </View>
             </>
           )}
 
@@ -976,11 +1235,30 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 1,
   },
+  avatarNameRow: {
+    flexDirection: "row-reverse",  // RTL: avatar on right, name on left
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginLeft: 12,  // Space between avatar and name (RTL)
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarInitial: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.white,
+    fontFamily: "SF Arabic",
+  },
   userNameChain: {
+    flex: 1,
     fontSize: 17,  // Larger, more prominent
     fontWeight: "600",
     color: colors.text,
-    marginBottom: 8,
     fontFamily: "SF Arabic",
     lineHeight: 24,  // Better readability for multi-line chains
   },
@@ -1052,6 +1330,96 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     marginTop: 8,
     textAlign: "center",
+  },
+
+  // Segmented Control (iOS-style)
+  segmentedControlContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: colors.container + "40", // Camel Hair Beige 40%
+    borderRadius: 10,
+    padding: 2,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentActive: {
+    backgroundColor: colors.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textMuted,
+    fontFamily: "SF Arabic",
+  },
+  segmentTextActive: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+  },
+
+  // Pagination
+  paginationContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  paginationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.primary + "30",
+    gap: 4,
+  },
+  paginationButtonDisabled: {
+    borderColor: colors.container,
+    backgroundColor: colors.background,
+  },
+  paginationButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.primary,
+    fontFamily: "SF Arabic",
+  },
+  paginationButtonTextDisabled: {
+    color: colors.textMuted,
+  },
+  pageInfo: {
+    alignItems: "center",
+  },
+  pageInfoText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    fontFamily: "SF Arabic",
+  },
+  pageInfoSubtext: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontFamily: "SF Arabic",
+    marginTop: 2,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   FlatList,
   Platform,
   Image,
-  Animated,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,93 +17,46 @@ import { supabase } from "../../services/supabase";
 import { buildNameChain } from "../../utils/nameChainBuilder";
 import FamilyDetailModal from "./FamilyDetailModal";
 import SkeletonLoader from "../ui/SkeletonLoader";
+import LargeTitleHeader from "../ios/LargeTitleHeader";
+import tokens from "../ui/tokens";
 
-// Separate FamilyCard component to properly use hooks
+const palette = tokens.colors.najdi;
+const spacing = tokens.spacing;
+const typography = tokens.typography;
+
 const FamilyCard = ({ item, onPress }) => {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.98,
-      useNativeDriver: true,
-      tension: 200,
-      friction: 10,
-    }).start();
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 200,
-      friction: 10,
-    }).start();
-  };
-
   return (
-    <TouchableOpacity
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+    <Pressable
       onPress={onPress}
-      activeOpacity={1}
+      style={({ pressed }) => [
+        styles.familyCard,
+        pressed && styles.familyCardPressed,
+      ]}
     >
-      <Animated.View
-        style={[
-          styles.familyCard,
-          { transform: [{ scale: scaleAnim }] }
-        ]}
-      >
-        <View style={styles.familyContent}>
-          <Text style={styles.familyName} numberOfLines={1}>
-            عائلة {item.family_name}
-          </Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{item.count}</Text>
-          </View>
+      <View style={styles.familyContent}>
+        <Text style={styles.familyName} numberOfLines={1}>
+          عائلة {item.family_name}
+        </Text>
+        <View style={styles.countBadge}>
+          <Text style={styles.countText}>{item.count}</Text>
         </View>
-      </Animated.View>
-    </TouchableOpacity>
+      </View>
+    </Pressable>
   );
 };
-
-// Skeleton loader for stats card
-const StatsCardSkeleton = () => (
-  <View style={styles.statsContainer}>
-    <View style={styles.statsCard}>
-      <View style={styles.statItem}>
-        <SkeletonLoader width={48} height={48} borderRadius={24} />
-        <View style={styles.statTextContainer}>
-          <SkeletonLoader width={40} height={22} style={{ marginBottom: 4 }} />
-          <SkeletonLoader width={100} height={13} />
-        </View>
-      </View>
-
-      <View style={styles.statDivider} />
-
-      <View style={styles.statItem}>
-        <SkeletonLoader width={48} height={48} borderRadius={24} />
-        <View style={styles.statTextContainer}>
-          <SkeletonLoader width={40} height={22} style={{ marginBottom: 4 }} />
-          <SkeletonLoader width={100} height={13} />
-        </View>
-      </View>
-    </View>
-  </View>
-);
 
 // Skeleton loader for family cards
 const FamilyCardSkeleton = () => (
   <View style={styles.familyCard}>
-    <View style={styles.familyContent}>
-      <SkeletonLoader width="60%" height={20} />
-      <SkeletonLoader width={44} height={36} borderRadius={14} />
-    </View>
+    <SkeletonLoader width="60%" height={18} style={styles.familySkeletonTitle} />
+    <SkeletonLoader width="30%" height={12} />
   </View>
 );
 
 export default function MunasibManager({ onClose, onNavigateToProfile }) {
   const [familyStats, setFamilyStats] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredStats, setFilteredStats] = useState([]);
   const [selectedFamily, setSelectedFamily] = useState(null);
@@ -117,9 +70,11 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
     filterFamilies();
   }, [searchQuery, familyStats]);
 
-  const loadFamilyStats = async () => {
+  const loadFamilyStats = async ({ useOverlay = false } = {}) => {
+    if (!initialLoading && useOverlay) {
+      setIsFetching(true);
+    }
     try {
-      setLoading(true);
 
       // Step 1: Get all Munasib profiles with family_origin
       const { data: profiles, error } = await supabase
@@ -173,11 +128,11 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
       );
 
       setFamilyStats(statsArray);
-      setFilteredStats(statsArray);
     } catch (error) {
       console.error("Error loading family stats:", error);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      setIsFetching(false);
     }
   };
 
@@ -207,18 +162,11 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom", "left", "right"]}>
-        {/* Header - Standard Pattern with Emblem */}
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <Image
-              source={require('../../../assets/logo/AlqefariEmblem.png')}
-              style={styles.emblem}
-              resizeMode="contain"
-            />
-            <View style={styles.titleContent}>
-              <Text style={styles.title}>المناسبين</Text>
-            </View>
-            {onClose && (
+        <LargeTitleHeader
+          title="المناسبين"
+          emblemSource={require('../../../assets/logo/AlqefariEmblem.png')}
+          rightSlot={
+            onClose ? (
               <TouchableOpacity
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -226,22 +174,21 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
                 }}
                 style={styles.backButton}
               >
-                <Ionicons name="chevron-back" size={28} color="#242121" />
+                <Ionicons name="chevron-back" size={28} color={palette.primary} />
               </TouchableOpacity>
-            )}
-          </View>
-        </View>
+            ) : null
+          }
+        />
 
-        {/* Search Bar - Enhanced */}
-        <View style={styles.searchContainer}>
+        <View style={styles.searchSurface}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#24212160" />
+            <Ionicons name="search" size={18} color={palette.text + "66"} />
             <TextInput
               style={styles.searchInput}
               placeholder="ابحث عن عائلة..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#24212160"
+              placeholderTextColor={palette.text + "66"}
             />
             {searchQuery !== "" && (
               <TouchableOpacity
@@ -250,47 +197,46 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Ionicons name="close-circle" size={20} color="#24212160" />
+                <Ionicons name="close-circle" size={18} color={palette.text + "66"} />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
-        {/* Stats Summary - Prominent Cards or Skeleton */}
-        {loading ? (
-          <StatsCardSkeleton />
-        ) : (
-          <View style={styles.statsContainer}>
-            <View style={styles.statsCard}>
-              <View style={styles.statItem}>
-                <View style={styles.statIconContainer}>
-                  <Ionicons name="albums-outline" size={24} color="#D58C4A" />
+        <View style={styles.statsRow}>
+          {initialLoading || isFetching ? (
+            <View style={styles.statSkeletons}>
+              {[0, 1, 2].map((i) => (
+                <View key={`stat-skeleton-${i}`} style={styles.statChipSkeleton}>
+                  <SkeletonLoader height={12} width="70%" style={{ marginBottom: spacing.xs / 2 }} />
+                  <SkeletonLoader height={20} width="40%" />
                 </View>
-                <View style={styles.statTextContainer}>
-                  <Text style={styles.statValue}>{familyStats.length}</Text>
-                  <Text style={styles.statLabel}>إجمالي العائلات</Text>
-                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.statChipRow}>
+              <View style={styles.statChipCompact}>
+                <Text style={styles.statChipLabel}>عائلات مسجلة</Text>
+                <Text style={styles.statChipValue}>{familyStats.length}</Text>
               </View>
-
-              <View style={styles.statDivider} />
-
-              <View style={styles.statItem}>
-                <View style={styles.statIconContainer}>
-                  <Ionicons name="people-outline" size={24} color="#A13333" />
-                </View>
-                <View style={styles.statTextContainer}>
-                  <Text style={styles.statValue}>
-                    {familyStats.reduce((sum, f) => sum + f.count, 0)}
-                  </Text>
-                  <Text style={styles.statLabel}>إجمالي الأفراد</Text>
-                </View>
+              <View style={styles.statChipCompact}>
+                <Text style={styles.statChipLabel}>أفراد مناسبين</Text>
+                <Text style={styles.statChipValue}>
+                  {familyStats.reduce((sum, f) => sum + f.count, 0)}
+                </Text>
+              </View>
+              <View style={styles.statChipCompact}>
+                <Text style={styles.statChipLabel}>قيد المراجعة</Text>
+                <Text style={styles.statChipValue}>
+                  {familyStats.filter((f) => f.members.some((m) => !m.hid)).length}
+                </Text>
               </View>
             </View>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* Family List */}
-        {loading ? (
+        {initialLoading ? (
           <View style={styles.listContent}>
             {[...Array(5)].map((_, i) => (
               <FamilyCardSkeleton key={i} />
@@ -303,10 +249,30 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
             keyExtractor={(item) => item.family_name}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            onRefresh={() => loadFamilyStats({ useOverlay: true })}
+            refreshing={isFetching}
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons name="people-outline" size={48} color="#24212140" />
-                <Text style={styles.emptyText}>لا توجد عائلات</Text>
+              <View style={styles.emptyState}>
+                <View style={styles.emptyCard}>
+                  <Image
+                    source={require("../../../assets/logo/AlqefariEmblem.png")}
+                    style={styles.emptyEmblem}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.emptyTitle}>ما فيه عائلات حالياً</Text>
+                  <Text style={styles.emptySubtitle}>
+                    لم يتم تسجيل أي عائلات خارجية. ارجع لاحقاً أو جرّب تحديث القائمة.
+                  </Text>
+                  <Pressable
+                    onPress={() => loadFamilyStats({ useOverlay: true })}
+                    style={({ pressed }) => [
+                      styles.emptyAction,
+                      pressed && styles.emptyActionPressed,
+                    ]}
+                  >
+                    <Text style={styles.emptyActionText}>تحديث القائمة</Text>
+                  </Pressable>
+                </View>
               </View>
             }
           />
@@ -329,190 +295,234 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9F7F3", // Al-Jass White
-  },
-
-  // Header - Standard Pattern
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 10 : 20, // Extra padding for iOS Dynamic Island
-    paddingBottom: 8,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "flex-start",
-  },
-  emblem: {
-    width: 52,
-    height: 52,
-    tintColor: "#242121",
-    marginRight: 3,
-    marginTop: -5,
-    marginLeft: -5,
-  },
-  titleContent: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 34,
-    fontWeight: "700",
-    color: "#242121",
-    fontFamily: Platform.select({
-      ios: "SF Arabic",
-      default: "System",
-    }),
+    backgroundColor: palette.background,
   },
   backButton: {
-    padding: 8,
-    marginLeft: 8,
-    marginRight: -8,
+    padding: spacing.xs,
   },
-
-  // Search Bar - Enhanced
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
+  searchSurface: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: palette.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}66`,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    paddingHorizontal: spacing.md,
+    height: 44,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    ...typography.subheadline,
     fontFamily: "SF Arabic",
-    marginHorizontal: 8,
-    color: "#242121",
+    color: palette.text,
+    marginHorizontal: spacing.xs,
   },
-
-  // Stats Container - Prominent Cards
-  statsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+  statsRow: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
-  statsCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 20,
+  statSkeletons: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 3,
+    gap: spacing.sm,
   },
-  statItem: {
+  statChipSkeleton: {
+    flex: 1,
+    backgroundColor: palette.background,
+    borderRadius: tokens.radii.md,
+    padding: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+  },
+  statChipRow: {
     flexDirection: "row",
-    alignItems: "center",
+    gap: spacing.sm,
+  },
+  statChipCompact: {
     flex: 1,
-    gap: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: `${palette.container}20`,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
   },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#D1BBA320",
-    justifyContent: "center",
-    alignItems: "center",
+  statChipLabel: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: palette.text + "99",
+    marginBottom: spacing.xs / 2,
   },
-  statTextContainer: {
+  statChipValue: {
+    ...typography.title3,
+    fontFamily: "SF Arabic",
+    color: palette.text,
+    fontWeight: "600",
+  },
+  listWrapper: {
     flex: 1,
   },
-  statValue: {
-    fontSize: 22,
-    fontFamily: "SF Arabic",
-    fontWeight: "700",
-    color: "#242121",
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: "#24212199", // Sadu Night 60%
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: "#D1BBA340",
-    marginHorizontal: 16,
-  },
-
-  // Family List
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 32,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xxl,
   },
-
-  // Family Cards - Enhanced
+  listContentEmpty: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    paddingTop: spacing.md,
+  },
+  listHeaderSpacer: {
+    height: spacing.md,
+  },
   familyCard: {
-    backgroundColor: "#FFFFFF",
-    marginVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#D1BBA340",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    ...Platform.select({
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
+    }),
+  },
+  familyCardPressed: {
+    opacity: 0.92,
   },
   familyContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    minHeight: 88,
+    gap: spacing.sm,
   },
   familyName: {
     flex: 1,
-    fontSize: 20,
+    ...typography.title3,
     fontFamily: "SF Arabic",
+    color: palette.text,
     fontWeight: "600",
-    color: "#242121",
   },
   countBadge: {
-    backgroundColor: "#A13333", // Najdi Crimson
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-    minWidth: 44,
+    minWidth: 48,
     minHeight: 36,
+    borderRadius: tokens.radii.md,
+    backgroundColor: palette.primary,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   countText: {
-    fontSize: 17,
+    ...typography.headline,
     fontFamily: "SF Arabic",
+    color: palette.background,
     fontWeight: "700",
-    color: "#F9F7F3", // Al-Jass White
   },
-
-  // Loading & Empty States
-  emptyContainer: {
+  familySkeletonTitle: {
+    marginBottom: spacing.xs,
+  },
+  loadingContainer: {
     flex: 1,
-    paddingTop: 100,
+    justifyContent: "center",
     alignItems: "center",
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
   },
-  emptyText: {
-    marginTop: 16,
-    fontSize: 16,
+  skeletonCard: {
+    width: "90%",
+    maxWidth: 360,
+    backgroundColor: palette.background,
+    borderRadius: tokens.radii.md,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    marginBottom: spacing.md,
+  },
+  inlineSkeletonContainer: {
+    height: spacing.lg,
+    justifyContent: "center",
+  },
+  inlineSkeleton: {
+    paddingHorizontal: spacing.md,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  emptyCard: {
+    width: "80%",
+    maxWidth: 360,
+    backgroundColor: palette.background,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.container}40`,
+    alignItems: "center",
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+    ...Platform.select({
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
+    }),
+  },
+  emptyEmblem: {
+    width: 48,
+    height: 48,
+    tintColor: palette.primary,
+  },
+  emptyTitle: {
+    ...typography.title3,
     fontFamily: "SF Arabic",
-    color: "#24212160",
+    color: palette.text,
+    fontWeight: "600",
+  },
+  emptySubtitle: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: palette.text + "99",
+    textAlign: "center",
+    lineHeight: typography.subheadline.lineHeight,
+  },
+  emptyAction: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${palette.primary}66`,
+    backgroundColor: palette.background,
+  },
+  emptyActionPressed: {
+    backgroundColor: `${palette.primary}10`,
+  },
+  emptyActionText: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: palette.primary,
+    fontWeight: "600",
   },
 });

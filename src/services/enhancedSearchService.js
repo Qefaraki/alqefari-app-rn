@@ -117,65 +117,44 @@ class EnhancedSearchService {
   }
 
   /**
-   * Search with fuzzy matching for Arabic names
+   * Search with the search_name_chain RPC function
+   * The RPC already handles partial matching and Arabic normalization
    * @param {Array} names - Array of names to search
    * @param {Object} options - Search options
    * @returns {Promise<{data: Array, error: string|null}>}
    */
   async searchWithFuzzyMatching(names, options = {}) {
     try {
-      const {
-        limit = 20,
-        offset = 0,
-        fuzzyThreshold = 0.8, // How fuzzy the match should be (0-1)
-        includePartialMatches = true,
-      } = options;
+      const { limit = 20, offset = 0 } = options;
 
-      // Normalize Arabic names for fuzzy matching
-      const normalizedNames = names.map((name) =>
-        this.normalizeArabicName(name),
-      );
+      console.log("🔍 RPC call params:", { p_names: names, p_limit: limit, p_offset: offset });
 
-      // First try exact match with the existing RPC
-      const { data: exactResults, error: exactError } = await supabase.rpc(
-        "search_name_chain",
-        {
-          p_names: names,
-          p_limit: limit,
-          p_offset: offset,
-        },
-      );
+      // Single RPC call - it already handles partial matching and normalization
+      const { data, error } = await supabase.rpc("search_name_chain", {
+        p_names: names,
+        p_limit: limit,
+        p_offset: offset,
+      });
 
-      if (exactError) throw exactError;
+      console.log("🔍 RPC response:", {
+        success: !error,
+        resultCount: data?.length || 0,
+        hasError: !!error,
+        errorMessage: error?.message
+      });
 
-      // If we have enough exact matches, return them
-      if (exactResults && exactResults.length >= limit) {
-        return { data: exactResults, error: null };
-      }
-
-      // Otherwise, try fuzzy matching
-      const fuzzyResults = await this.performFuzzySearch(
-        normalizedNames,
-        limit - (exactResults?.length || 0),
-        includePartialMatches,
-      );
-
-      // Combine and deduplicate results
-      const allResults = this.combineAndDeduplicateResults(
-        exactResults || [],
-        fuzzyResults,
-      );
+      if (error) throw error;
 
       // Save to recent searches
       await this.saveToRecentSearches({
         query: names.join(" بن "),
         names,
-        resultCount: allResults.length,
+        resultCount: data?.length || 0,
       });
 
-      return { data: allResults, error: null };
+      return { data: data || [], error: null };
     } catch (error) {
-      console.error("Search with fuzzy matching error:", error);
+      console.error("Search error:", error);
       return { data: [], error: error.message };
     }
   }

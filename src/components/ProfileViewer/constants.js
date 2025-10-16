@@ -50,5 +50,5 @@ export const VIEW_TABS = [
 
 export const PERMISSION_LEVELS = {
   DIRECT: ['admin', 'moderator', 'inner'],
-  REVIEW: ['family', 'extended'],
+  REVIEW: ['suggest'], // v4.3: Simplified - all suggestions require manual approval
 };

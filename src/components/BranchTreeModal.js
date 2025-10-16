@@ -12,22 +12,13 @@ import { Ionicons } from "@expo/vector-icons";
 import SimplifiedTreeView from "./SimplifiedTreeView";
 import TreeErrorBoundary from "./TreeErrorBoundary";
 import { buildNameChain } from "../utils/nameChainBuilder";
+import { getArabicOrdinal } from "../utils/generationUtils";
 
 /**
  * Modal that shows a branch tree view for verifying profile identity
  */
 const BranchTreeModal = ({ visible, profile, onConfirm, onClose }) => {
   if (!profile) return null;
-
-  // Convert generation number to Arabic ordinal
-  const getArabicOrdinal = (num) => {
-    const ordinals = [
-      "الأول", "الثاني", "الثالث", "الرابع", "الخامس",
-      "السادس", "السابع", "الثامن", "التاسع", "العاشر",
-      "الحادي عشر", "الثاني عشر", "الثالث عشر", "الرابع عشر", "الخامس عشر"
-    ];
-    return ordinals[num - 1] || `${num}`;
-  };
 
   return (
     <Modal

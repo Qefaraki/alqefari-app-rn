@@ -77,6 +77,7 @@ import SiblingOrderStepper from "./admin/fields/SiblingOrderStepper";
 import PhotoEditor from "./admin/fields/PhotoEditor";
 import DateEditor from "./admin/fields/DateEditor";
 import { validateDates } from "../utils/dateUtils";
+import { getArabicOrdinal } from "../utils/generationUtils";
 import ProgressiveImage, {
   ProgressiveHeroImage,
   ProgressiveThumbnail,
@@ -123,17 +124,6 @@ const constructCommonName = (person, nodesMap) => {
 
   return person.name;
 };
-
-const generationNames = [
-  "الأول",
-  "الثاني",
-  "الثالث",
-  "الرابع",
-  "الخامس",
-  "السادس",
-  "السابع",
-  "الثامن",
-];
 
 const ProfileSheet = ({ editMode = false }) => {
   // console.log('ProfileSheet: Received editMode prop:', editMode);
@@ -704,7 +694,7 @@ const ProfileSheet = ({ editMode = false }) => {
       }
 
       if (data) {
-        // v4.2 returns: 'inner', 'family', 'extended', 'admin', 'moderator', 'blocked', 'none'
+        // v4.3 returns: 'admin', 'moderator', 'inner', 'suggest', 'blocked', 'none'
         console.log('✅ Permission level for', person.name, ':', data);
         setPermissionLevel(data);
       } else {
@@ -808,8 +798,8 @@ const ProfileSheet = ({ editMode = false }) => {
         actions.push(() => setShowMarriageModal(true));
       }
     }
-    // Suggest-only for: family circle, extended family
-    else if (permissionLevel === 'family' || permissionLevel === 'extended') {
+    // Suggest-only for: all other family members
+    else if (permissionLevel === 'suggest') {
       console.log('💡 Suggest-only permission:', permissionLevel);
       options.push('اقتراح تعديل');
       actions.push(() => setShowSuggestionModal(true));
@@ -1137,7 +1127,7 @@ const ProfileSheet = ({ editMode = false }) => {
                           </Text>
                         </View>
                       )}
-                      {(permissionLevel === 'family' || permissionLevel === 'extended') && !isAdminMode && (
+                      {permissionLevel === 'suggest' && !isAdminMode && (
                         <View style={{
                           paddingHorizontal: 8,
                           paddingVertical: 4,
@@ -1218,9 +1208,7 @@ const ProfileSheet = ({ editMode = false }) => {
               {/* Metrics row inside hero */}
               <View style={styles.metricsGrid}>
                 <GlassMetricPill
-                  value={
-                    generationNames[person.generation - 1] || person.generation
-                  }
+                  value={getArabicOrdinal(person.generation)}
                   label="الجيل"
                   onPress={scrollToFamily}
                   style={[styles.pill, styles.metricItem]}

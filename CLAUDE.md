@@ -28,22 +28,41 @@
 
 ### Who Can Edit What?
 
-| User Type | Can Edit Directly | Can Suggest Edits | Special Powers |
-|-----------|------------------|-------------------|----------------|
-| **Super Admin** | Everyone | N/A (direct edit) | Manage roles, assign moderators |
-| **Admin** | Everyone | N/A (direct edit) | Approve suggestions, block users |
-| **Branch Moderator** | Their branch + descendants | Other profiles | Manage assigned subtree |
-| **Regular User** | Self, spouse, parents, siblings, all descendants | Everyone else | Create suggestions |
+| User Type (Arabic Label) | Can Edit Directly | Can Suggest Edits | Special Powers |
+|--------------------------|------------------|-------------------|----------------|
+| **Super Admin** (المدير العام) | Everyone | N/A (direct edit) | Manage roles, assign moderators |
+| **Admin** (مشرف) | Everyone | N/A (direct edit) | Approve suggestions, block users |
+| **Branch Moderator** (منسق) | Their branch + descendants | Other profiles | Manage assigned subtree |
+| **Regular User** (عضو) | Self, spouse, parents, siblings, all descendants | Everyone else | Create suggestions |
 
 ### Family Edit Rules for Regular Users
-- ✅ **Direct Edit**: You, spouse, parents, siblings, children, grandchildren
-- 💡 **Suggest Only**: Aunts, uncles, cousins, extended family
+- ✅ **Direct Edit**: You, spouse, parents, siblings, children, grandchildren, all descendants
+- 💡 **Suggest Only** (Manual Admin Approval): Grandparents, aunts, uncles, cousins, extended family
 - 🚫 **Blocked**: No suggestions allowed if admin blocked you
 
 ### Finding the Features
 - **Review Suggestions**: Admin Dashboard → Quick Actions → "مراجعة الاقتراحات"
 - **Manage Permissions**: Admin Dashboard → Administrators → "إدارة الصلاحيات" (super admin only)
 - **Suggest Edit**: Profile Sheet → Three dots menu (when not in admin mode)
+
+### Admin Dashboard Access by Role
+
+**Registry-Based System**: All feature permissions controlled via `src/config/adminFeatures.js`
+
+| Feature | Arabic | Super Admin | Admin | Moderator |
+|---------|--------|-------------|-------|-----------|
+| إدارة الصلاحيات | Permission Manager | ✅ | ❌ | ❌ |
+| إشعارات جماعية | Broadcast Manager | ✅ | ❌ | ❌ |
+| ربط الملفات | Link Requests | ✅ | ✅ | ❌ |
+| سجل النشاط | Activity Log | ✅ | ✅ | ❌ |
+| التواصل | Message Templates | ✅ | ✅ | ❌ |
+| المناسبين | Munasib Manager | ✅ | ✅ | ✅ |
+| مراجعة الاقتراحات | Suggestion Review | ✅ | ✅ | ✅ |
+
+**To add new features:**
+1. Add feature config to `ADMIN_FEATURES` registry
+2. Feature automatically respects role-based access control
+3. No manual conditional logic needed in components
 
 _See full documentation: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTEM_V4.md)_
 
@@ -86,7 +105,6 @@ Full management dashboard for Munasib (spouse) profiles:
 - Search & filter by name, phone, location
 - Family statistics (most common origins)
 - Marriage connections
-- Export to PDF
 
 **Location**: `src/components/admin/MunasibManager.js` (Admin Dashboard)
 **Identifying**: `profile.hid === null` (Munasib have NULL HID)
@@ -134,7 +152,6 @@ if (error) {
 **Current Configuration:**
 - **Database Max**: 10,000 profiles (safety buffer, supports design capacity)
 - **Frontend Load**: 5,000 profiles (supports 3K incoming + 67% buffer)
-- **Current Size**: ~779 profiles (7 generations)
 - **Warning Threshold**: 3,750 profiles (75%)
 - **Critical Threshold**: 4,750 profiles (95%)
 
@@ -148,7 +165,7 @@ if (error) {
 **Monitoring Tree Size:**
 ```javascript
 // Check console on tree load
-// ✅ Tree loaded: 779 profiles
+// ✅ Tree loaded: X profiles
 // ⚠️ Approaching limit: 3750/5000 profiles. Consider increasing limit.
 // 🚨 CRITICAL: 4750/5000 profiles. Immediate action required.
 
@@ -165,7 +182,7 @@ console.log(useTreeStore.getState().treeData.length);
 **Performance Expectations:**
 | Profiles | Load Time | Memory | Rendering | Status |
 |----------|-----------|--------|-----------|--------|
-| 779 (current) | <500ms | ~2MB | 60fps | ✅ Optimal |
+| 56 (current) | <200ms | ~0.5MB | 60fps | ✅ Optimal |
 | 2,000 | ~650ms | ~6MB | 60fps | ✅ Good |
 | 3,000 (target) | ~950ms | ~9MB | 60fps | ✅ Good |
 | 5,000 (limit) | ~1.3s | ~15MB | 60fps | ✅ Acceptable |
@@ -219,6 +236,31 @@ When you change code, update:
 
 Migration naming: `snake_case_descriptive_name`
 
+### 🚨 CRITICAL: ALWAYS WRITE THE FILE FIRST! 🚨
+
+**NEVER apply a migration without saving the .sql file to the repo!**
+
+The MCP tool `mcp__supabase__apply_migration` executes SQL directly on the database but **DOES NOT save the file to the filesystem**. This creates a critical problem:
+
+❌ **WRONG WORKFLOW** (Database has it, repo doesn't):
+```bash
+1. mcp__supabase__apply_migration  # ❌ Applied to DB only
+2. Code uses the new RPC           # ✅ Works locally
+3. Git commit                      # ❌ Migration file not tracked!
+# RESULT: Works for you, breaks for everyone else + not in version control
+```
+
+✅ **CORRECT WORKFLOW** (Both database and repo have it):
+```bash
+1. Write tool → supabase/migrations/YYYYMMDDHHMMSS_name.sql  # ✅ Save file first!
+2. mcp__supabase__apply_migration with same SQL              # ✅ Apply to DB
+3. Test the feature                                          # ✅ Verify it works
+4. Git commit                                                # ✅ File is tracked
+# RESULT: Works for everyone, tracked in git, deployable
+```
+
+**Rule**: Before every `git commit`, verify migration files exist in `supabase/migrations/` directory!
+
 ## 🛠️ Tool Usage Constraints
 
 ### CRITICAL: Backend Operations = MCP Only
@@ -241,21 +283,24 @@ If MCP fails: Tell user what needs to be done, then wait.
 - Implement row-level security (RLS)
 - Validate all inputs
 
-## 👥 Permission System v4.2
+## 👥 Permission System v4.3 (Simplified)
 
 **📖 Full Documentation**: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTEM_V4.md)
 
-**Status**: ✅ Deployed and operational
+**Status**: ✅ Deployed and operational (January 2025)
+
+**Major Update**: Removed 48-hour auto-approve complexity. All suggestions now require manual admin approval for simpler, more transparent workflow.
 
 ### Quick Reference
 
 | Permission Level | Edit Rights | Example Relationships |
 |-----------------|-------------|---------------------|
+| `admin` | Direct edit | Super admin or admin role |
+| `moderator` | Direct edit | Branch moderator for assigned subtree |
 | `inner` | Direct edit | Self, spouse, parents, children, siblings, descendants |
-| `family` | Suggest only (48h auto-approve) | Cousins, aunts/uncles |
-| `extended` | Suggest only (manual) | Distant Al Qefari relatives |
-| `admin`/`moderator` | Direct edit | Admin role or branch moderator |
+| `suggest` | Suggest only (manual approval) | Grandparents, aunts, uncles, cousins, extended family |
 | `blocked` | None | Explicitly blocked users |
+| `none` | None | Not related to target profile |
 
 ### Key Function
 ```javascript
@@ -263,14 +308,52 @@ const { data: permission } = await supabase.rpc('check_family_permission_v4', {
   p_user_id: userProfile.id,   // IMPORTANT: Use profiles.id, NOT auth.users.id
   p_target_id: targetProfile.id
 });
-// Returns: 'inner', 'family', 'extended', 'admin', 'moderator', 'blocked', or 'none'
+// Returns: 'admin', 'moderator', 'inner', 'suggest', 'blocked', or 'none'
 ```
 
-### User Roles
-- **super_admin** - Manages roles, assigns moderators
-- **admin** - Reviews suggestions, blocks users
-- **moderator** - Manages assigned family branch
-- **user** - Standard family member (permission based on relationship)
+### User Roles (Updated Arabic Labels)
+- **super_admin** (المدير العام) - Manages roles, assigns moderators
+- **admin** (مشرف) - Reviews suggestions, blocks users
+- **moderator** (منسق) - Manages assigned family branch
+- **user** (عضو) - Standard family member (permission based on relationship)
+
+### Permission Manager (January 2025)
+
+**Status**: ✅ Deployed and operational
+
+**Location**: Admin Dashboard → Administrators → "إدارة الصلاحيات"
+
+Complete refactoring for improved UX and performance:
+
+**Features:**
+- ✅ **Skeleton Loading** - No loading flash, optimistic rendering with 6 skeleton cards
+- ✅ **Search Overlay** - Keeps data visible during search with subtle overlay indicator
+- ✅ **iOS Segmented Control** - Filter by role: الكل, مدير رئيسي, مدير, مشرف
+- ✅ **Pagination** - Simple prev/next buttons with page counter (50 users per page)
+- ✅ **Pull-to-Refresh** - Najdi Crimson spinner
+- ✅ **3 Empty States** - Initial state, empty search, empty filter
+- ✅ **Optimized RPC** - Single `admin_list_permission_users()` query replaces 4 separate queries
+
+**Performance:**
+- **Before**: 4 separate Supabase queries per search (~600-800ms)
+- **After**: 1 optimized RPC query (~150-250ms)
+- **Improvement**: 70% faster search, reduced database load
+
+**Backend:**
+- Migration: `20251016120000_admin_list_permission_users_v2.sql`
+- RPC: `admin_list_permission_users(p_search_query, p_role_filter, p_limit, p_offset)`
+- Returns: photo_url, generation, professional_title, title_abbreviation, total_count
+- Indexes: `idx_profiles_role`, `idx_profiles_user_id`
+
+**UX Improvements:**
+- Role check shows full page skeleton instead of lock screen flash
+- Search loading keeps existing data visible with overlay
+- Filter-specific empty states guide user actions
+- Professional titles displayed throughout
+- Avatar with colored circles for users without photos
+- Generation badges (الجيل الأول, الثاني, etc.)
+
+_See full documentation: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md) (Helper Functions section)_
 
 ## 🗄️ Database Migrations
 
@@ -290,6 +373,8 @@ const { data: permission } = await supabase.rpc('check_family_permission_v4', {
 | **20251014120000** | Undo System (initial) | ✅ Deployed |
 | **20251015010000-050000** | Undo Safety Mechanisms (5 migrations) | ✅ Deployed |
 | **20251015040000** | Operation Groups Integration | ✅ Deployed |
+| **20251016120000** | Permission Manager Optimized RPC | ✅ Deployed |
+| **20250116000000** | Simplified Permission System (v4.3) | ✅ Deployed |
 
 ### Field Mapping Checklist
 

@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   Pressable,
   Alert,
-  ActivityIndicator,
   RefreshControl,
+  Image,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
@@ -16,6 +17,8 @@ import suggestionService from "../../services/suggestionService";
 import * as Haptics from "expo-haptics";
 import LargeTitleHeader from "../ios/LargeTitleHeader";
 import tokens from "../../components/ui/tokens";
+import { Host, Picker } from "@expo/ui/swift-ui";
+import SkeletonLoader from "../ui/SkeletonLoader";
 
 // Najdi Sadu Design System Colors
 const COLORS = {
@@ -30,10 +33,33 @@ const COLORS = {
   error: tokens.colors.danger,
   warning: "#F59E0B",
 };
+const spacing = tokens.spacing;
+const typography = tokens.typography;
+const STATUS_STYLES = {
+  approved: {
+    background: `${tokens.colors.success}20`,
+    color: tokens.colors.success,
+    icon: "checkmark-circle",
+    label: "مقبولة",
+  },
+  rejected: {
+    background: `${tokens.colors.danger}20`,
+    color: tokens.colors.danger,
+    icon: "close-circle",
+    label: "مرفوض",
+  },
+  pending: {
+    background: `${tokens.colors.najdi.secondary}20`,
+    color: tokens.colors.najdi.secondary,
+    icon: "time-outline",
+    label: "قيد المراجعة",
+  },
+};
 
 const SuggestionReviewManager = ({ onClose, onBack }) => {
   const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("pending");
   const [stats, setStats] = useState({
@@ -41,9 +67,15 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
     approved: 0,
     rejected: 0,
   });
+  const tabOptions = [
+    { value: "pending", label: "قيد المراجعة" },
+    { value: "approved", label: "مقبولة" },
+    { value: "rejected", label: "مرفوضة" },
+  ];
+  const activeTabIndex = tabOptions.findIndex((tab) => tab.value === activeTab);
 
   useEffect(() => {
-    loadSuggestions();
+    loadSuggestions({ useOverlay: !initialLoading });
     loadStats();
   }, [activeTab]);
 
@@ -73,8 +105,10 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
     }
   };
 
-  const loadSuggestions = async () => {
-    setLoading(true);
+  const loadSuggestions = async ({ useOverlay = false } = {}) => {
+    if (!initialLoading && useOverlay) {
+      setIsFetching(true);
+    }
     try {
       const query = supabase
         .from("profile_edit_suggestions")
@@ -100,7 +134,8 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
       console.error("Error loading suggestions:", error);
       Alert.alert("خطأ", "فشل في تحميل الاقتراحات");
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
+      setIsFetching(false);
       setRefreshing(false);
     }
   };
@@ -183,176 +218,137 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
     return labels[field] || field;
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "approved":
-        return COLORS.success;
-      case "rejected":
-        return COLORS.error;
-      case "pending":
-        return COLORS.warning;
-      default:
-        return COLORS.textMedium;
-    }
+  const getStatusMeta = (status) => {
+    return (
+      STATUS_STYLES[status] || {
+        background: `${COLORS.container}20`,
+        color: COLORS.textMedium,
+        icon: "information-circle",
+        label: status,
+      }
+    );
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case "approved":
-        return "مقبول";
-      case "rejected":
-        return "مرفوض";
-      case "pending":
-        return "قيد المراجعة";
-      default:
-        return status;
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "approved":
-        return "checkmark-circle";
-      case "rejected":
-        return "close-circle";
-      case "pending":
-        return "time-outline";
-      default:
-        return "help-circle-outline";
-    }
-  };
-
-  const getStatusBadgeStyle = (status) => {
-    switch (status) {
-      case "approved":
-        return styles.statusBadgeApproved;
-      case "rejected":
-        return styles.statusBadgeRejected;
-      case "pending":
-        return styles.statusBadgePending;
-      default:
-        return {};
-    }
-  };
-
-  const getStatusTextStyle = (status) => {
-    switch (status) {
-      case "approved":
-        return styles.statusTextApproved;
-      case "rejected":
-        return styles.statusTextRejected;
-      case "pending":
-        return styles.statusTextPending;
-      default:
-        return {};
-    }
-  };
-
-  const renderSuggestion = ({ item: suggestion }) => (
-    <Pressable style={styles.card}>
-      {/* Inline header */}
-      <View style={styles.headerRow}>
-        <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>
-            {suggestion.profile?.name || "غير معروف"}{" "}
-            {suggestion.profile?.hid && (
-              <Text style={styles.profileHID}>#{suggestion.profile.hid}</Text>
-            )}
-          </Text>
-        </View>
-        <View style={[styles.statusBadge, getStatusBadgeStyle(suggestion.status)]}>
-          <Ionicons
-            name={getStatusIcon(suggestion.status)}
-            size={14}
-            color={getStatusColor(suggestion.status)}
-          />
-          <Text style={[styles.statusText, getStatusTextStyle(suggestion.status)]}>
-            {getStatusLabel(suggestion.status)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Inline diff */}
-      <View style={styles.diffRow}>
-        <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}:</Text>
-        <Text style={styles.valueOld} numberOfLines={1}>
-          {suggestion.old_value ?? "فارغ"}
-        </Text>
-        <Ionicons
-          name="arrow-forward"
-          size={16}
-          color={COLORS.textMedium}
-          style={styles.arrowIcon}
-        />
-        <Text style={styles.valueNew} numberOfLines={1}>
-          {suggestion.new_value}
-        </Text>
-      </View>
-
-      {/* Collapsible reason */}
-      {suggestion.reason && (
-        <Text style={styles.reasonText} numberOfLines={2}>
-          السبب: {suggestion.reason}
-        </Text>
-      )}
-
-      {/* Auto-approval timer */}
-      {suggestion.status === "pending" && suggestion.permission_level === "family" && (
-        <View style={styles.timerRow}>
-          <Ionicons name="timer-outline" size={14} color={COLORS.secondary} />
-          <Text style={styles.timerText}>
-            موافقة تلقائية خلال: {suggestionService.getAutoApprovalTimeRemaining(suggestion.created_at)}
-          </Text>
-        </View>
-      )}
-
-      {/* Footer */}
-      <View style={styles.footerRow}>
-        <Text style={styles.timestampText}>
-          اقترح بواسطة: {suggestion.suggester?.name || "غير معروف"}
-        </Text>
-        <Text style={styles.dateText}>
-          {new Date(suggestion.created_at).toLocaleDateString("ar-SA")}
-        </Text>
-      </View>
-
-      {/* Action buttons (only for pending) */}
-      {suggestion.status === "pending" && (
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.rejectButton]}
-            onPress={() => confirmReject(suggestion)}
+  const renderSuggestion = ({ item: suggestion }) => {
+    const statusMeta = getStatusMeta(suggestion.status);
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>
+              {suggestion.profile?.name || "غير معروف"}
+            </Text>
+            <Text style={styles.profileMeta}>
+              اقترح بواسطة: {suggestion.suggester?.name || "غير معروف"}
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.statusPill,
+              { backgroundColor: statusMeta.background },
+            ]}
           >
-            <Ionicons name="close-circle" size={18} color={COLORS.error} />
-            <Text style={[styles.actionText, { color: COLORS.error }]}>رفض</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.approveButton]}
-            onPress={() => confirmApprove(suggestion)}
-          >
-            <Ionicons name="checkmark-circle" size={18} color={COLORS.success} />
-            <Text style={[styles.actionText, { color: COLORS.success }]}>قبول</Text>
-          </TouchableOpacity>
+            <Ionicons name={statusMeta.icon} size={16} color={statusMeta.color} />
+            <Text style={[styles.statusPillText, { color: statusMeta.color }]}>
+              {statusMeta.label}
+            </Text>
+          </View>
         </View>
-      )}
 
-      {/* Rejection reason for rejected suggestions */}
-      {suggestion.status === "rejected" && suggestion.rejection_reason && (
-        <View style={styles.rejectionSection}>
-          <Ionicons name="information-circle-outline" size={14} color={COLORS.error} />
-          <Text style={styles.rejectionReason}>
-            سبب الرفض: {suggestion.rejection_reason}
+        <View style={styles.diffContainer}>
+          <View style={styles.diffHeader}>
+            <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}</Text>
+            <Text style={styles.dateText}>
+              {new Date(suggestion.created_at).toLocaleDateString("ar-SA")}
+            </Text>
+          </View>
+          <View style={styles.diffValues}>
+            <View style={styles.valuePillOld}>
+              <Text style={styles.valueOldText} numberOfLines={1}>
+                {suggestion.old_value ?? "فارغ"}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-back"
+              size={16}
+              color={COLORS.textMedium}
+              style={styles.diffArrow}
+            />
+            <View style={styles.valuePillNew}>
+              <Text style={styles.valueNewText} numberOfLines={1}>
+                {suggestion.new_value ?? "—"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {suggestion.reason && (
+          <View style={styles.noteRow}>
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={14}
+              color={COLORS.textLight}
+            />
+            <Text style={styles.noteText} numberOfLines={2}>
+              {suggestion.reason}
+            </Text>
+          </View>
+        )}
+
+        {suggestion.status === "rejected" && suggestion.rejection_reason && (
+          <View style={styles.noteRowError}>
+            <Ionicons
+              name="information-circle-outline"
+              size={14}
+              color={COLORS.error}
+            />
+            <Text style={styles.rejectionReason}>
+              سبب الرفض: {suggestion.rejection_reason}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.cardFooter}>
+          <Text style={styles.footerMeta}>
+            ملف: {suggestion.profile?.hid ? `#${suggestion.profile.hid}` : "غير معروف"}
+          </Text>
+          <Text style={styles.footerMeta}>
+            {new Date(suggestion.created_at).toLocaleTimeString("ar-SA", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </Text>
         </View>
-      )}
-    </Pressable>
-  );
+
+        {suggestion.status === "pending" && (
+          <View style={styles.actions}>
+            <Pressable
+              style={[styles.secondaryButton]}
+              onPress={() => confirmReject(suggestion)}
+            >
+              <Ionicons name="close" size={18} color={COLORS.error} />
+              <Text style={[styles.secondaryButtonText, { color: COLORS.error }]}>
+                رفض
+              </Text>
+            </Pressable>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => confirmApprove(suggestion)}
+            >
+              <Ionicons name="checkmark" size={18} color={COLORS.background} />
+              <Text style={styles.primaryButtonText}>قبول</Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <LargeTitleHeader
-        title="مراجعة الاقتراحات"
+        title="الاقتراحات"
         emblemSource={require('../../../assets/logo/AlqefariEmblem.png')}
         rightSlot={
           <TouchableOpacity
@@ -365,79 +361,125 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
         }
       />
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "pending" && styles.activeTab]}
-          onPress={() => setActiveTab("pending")}
-        >
-          <Text
-            style={[styles.tabText, activeTab === "pending" && styles.activeTabText]}
-          >
-            قيد المراجعة ({stats.pending})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "approved" && styles.activeTab]}
-          onPress={() => setActiveTab("approved")}
-        >
-          <Text
-            style={[styles.tabText, activeTab === "approved" && styles.activeTabText]}
-          >
-            مقبول ({stats.approved})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "rejected" && styles.activeTab]}
-          onPress={() => setActiveTab("rejected")}
-        >
-          <Text
-            style={[styles.tabText, activeTab === "rejected" && styles.activeTabText]}
-          >
-            مرفوض ({stats.rejected})
-          </Text>
-        </TouchableOpacity>
+      {/* Segmented Control */}
+      <View style={styles.selectorSurface}>
+        <View style={styles.segmentedControlContainer}>
+          <Host style={{ width: "100%", height: 36 }}>
+            <Picker
+              label=""
+              options={tabOptions.map((tab) => tab.label)}
+              variant="segmented"
+              selectedIndex={activeTabIndex >= 0 ? activeTabIndex : 0}
+              onOptionSelected={({ nativeEvent: { index } }) => {
+                const tab = tabOptions[index] || tabOptions[0];
+                setActiveTab(tab.value);
+              }}
+            />
+          </Host>
+        </View>
+      </View>
+
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={styles.statChip}>
+          <Text style={styles.statLabel}>قيد المراجعة</Text>
+          <Text style={styles.statValue}>{stats.pending}</Text>
+        </View>
+        <View style={styles.statChip}>
+          <Text style={styles.statLabel}>مقبولة</Text>
+          <Text style={styles.statValue}>{stats.approved}</Text>
+        </View>
+        <View style={styles.statChip}>
+          <Text style={styles.statLabel}>مرفوضة</Text>
+          <Text style={styles.statValue}>{stats.rejected}</Text>
+        </View>
       </View>
 
       {/* Content */}
-      {loading ? (
+      {initialLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>جاري التحميل...</Text>
+          {[...Array(3)].map((_, index) => (
+            <View key={`skeleton-${index}`} style={styles.skeletonCard}>
+              <SkeletonLoader height={20} style={{ marginBottom: spacing.xs }} />
+              <SkeletonLoader height={12} width="70%" style={{ marginBottom: spacing.sm }} />
+              <SkeletonLoader height={42} borderRadius={tokens.radii.md} />
+            </View>
+          ))}
         </View>
       ) : (
-        <FlatList
-          data={suggestions}
-          keyExtractor={(item) => item.id}
-          renderItem={renderSuggestion}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                loadSuggestions();
-              }}
-              tintColor={COLORS.primary}
-            />
-          }
-          getItemLayout={(data, index) => ({
-            length: 140,
-            offset: 140 * index + 12 * index,
-            index,
-          })}
-          windowSize={5}
-          initialNumToRender={10}
-          maxToRenderPerBatch={5}
-          removeClippedSubviews={true}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={64} color={COLORS.textLight} />
-              <Text style={styles.emptyText}>لا توجد اقتراحات</Text>
-            </View>
-          }
-        />
+        <View style={styles.listWrapper}>
+          <FlatList
+            data={suggestions}
+            keyExtractor={(item) => item.id}
+            renderItem={renderSuggestion}
+            contentContainerStyle={[
+              styles.listContent,
+              suggestions.length === 0 && styles.listContentEmpty,
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  loadSuggestions({ useOverlay: true });
+                  loadStats();
+                }}
+                tintColor={COLORS.primary}
+              />
+            }
+            getItemLayout={(data, index) => ({
+              length: 140,
+              offset: 140 * index + 12 * index,
+              index,
+            })}
+            windowSize={5}
+            initialNumToRender={10}
+            maxToRenderPerBatch={5}
+            removeClippedSubviews={true}
+            ListHeaderComponent={
+              <View>
+                <View style={styles.inlineSkeletonContainer}>
+                  {isFetching && (
+                    <View style={styles.inlineSkeleton}>
+                      <SkeletonLoader height={16} width="60%" style={{ marginBottom: spacing.xs }} />
+                      <SkeletonLoader height={12} width="80%" />
+                    </View>
+                  )}
+                </View>
+                <View style={styles.listHeaderSpacer} />
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <View style={styles.emptyCard}>
+                  <Image
+                    source={require("../../../assets/logo/AlqefariEmblem.png")}
+                    style={styles.emptyEmblem}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.emptyTitle}>ما فيه اقتراحات حالياً</Text>
+                  <Text style={styles.emptySubtitle}>
+                    كل التعديلات تمت مراجعتها. ارجع لاحقاً أو حدث القائمة.
+                  </Text>
+                  <Pressable
+                    onPress={() => {
+                      setRefreshing(true);
+                      loadSuggestions({ useOverlay: true });
+                      loadStats();
+                    }}
+                    style={({ pressed }) => [
+                      styles.emptyAction,
+                      pressed && styles.emptyActionPressed,
+                    ]}
+                  >
+                    <Text style={styles.emptyActionText}>تحديث القائمة</Text>
+                  </Pressable>
+                </View>
+              </View>
+            }
+          />
+        </View>
       )}
     </View>
   );
@@ -448,241 +490,368 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  tabs: {
+  selectorSurface: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: COLORS.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}66`,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    zIndex: 2,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  segmentedControlContainer: {
+    backgroundColor: "transparent",
+    borderRadius: tokens.radii.md,
+  },
+  statsRow: {
     flexDirection: "row",
-    backgroundColor: "white",
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
-  tab: {
+  statChip: {
     flex: 1,
-    paddingVertical: 16,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    backgroundColor: `${COLORS.container}20`,
+    borderRadius: tokens.radii.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}40`,
   },
-  activeTab: {
-    borderBottomColor: COLORS.primary,
+  statLabel: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "99",
+    marginBottom: spacing.xs / 2,
   },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.textMedium,
-  },
-  activeTabText: {
-    color: COLORS.primary,
+  statValue: {
+    ...typography.title3,
+    fontFamily: "SF Arabic",
+    color: COLORS.text,
     fontWeight: "600",
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+    justifyContent: "flex-start",
+    paddingTop: spacing.lg,
+  },
+  listHeaderSpacer: {
+    height: spacing.lg,
+  },
+  listWrapper: {
+    flex: 1,
+    position: "relative",
   },
   card: {
     backgroundColor: "white",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderRadius: tokens.radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}40`,
+    ...Platform.select({
+      ios: tokens.shadow.ios,
+      android: tokens.shadow.android,
+    }),
   },
 
-  // Header
-  headerRow: {
+  // Card header
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   profileInfo: {
     flex: 1,
-    marginRight: 8,
+    marginEnd: spacing.sm,
   },
   profileName: {
-    fontSize: 16,
-    fontWeight: "600",
+    ...typography.title3,
+    fontFamily: "SF Arabic",
     color: COLORS.text,
-  },
-  profileHID: {
-    fontSize: 13,
-    color: COLORS.textMedium,
-    fontWeight: "400",
-  },
-
-  // Status Badge
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 4,
-  },
-  statusBadgeApproved: {
-    backgroundColor: COLORS.success + "15",
-  },
-  statusBadgeRejected: {
-    backgroundColor: COLORS.error + "15",
-  },
-  statusBadgePending: {
-    backgroundColor: COLORS.warning + "15",
-  },
-  statusText: {
-    fontSize: 12,
     fontWeight: "600",
   },
-  statusTextApproved: {
-    color: COLORS.success,
+  profileMeta: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "99",
+    marginTop: spacing.xs / 2,
   },
-  statusTextRejected: {
-    color: COLORS.error,
-  },
-  statusTextPending: {
-    color: COLORS.warning,
-  },
-
-  // Diff Row
-  diffRow: {
+  statusPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: tokens.radii.md,
+    gap: spacing.xs / 2,
+  },
+  statusPillText: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
+  },
+
+  // Diff section
+  diffContainer: {
+    backgroundColor: `${COLORS.container}20`,
+    borderRadius: tokens.radii.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}40`,
+    marginBottom: spacing.sm,
+  },
+  diffHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
   },
   fieldLabel: {
-    fontSize: 13,
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: COLORS.text,
     fontWeight: "600",
-    color: COLORS.textMedium,
-    minWidth: 80,
-    flexShrink: 0,
   },
   diffValues: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
-  valueOld: {
+  valuePillOld: {
     flex: 1,
-    fontSize: 13,
-    color: COLORS.text + '99',
+    borderRadius: tokens.radii.md,
+    backgroundColor: COLORS.background,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
-  arrowIcon: {
-    marginHorizontal: 4,
-  },
-  valueNew: {
+  valuePillNew: {
     flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
+    borderRadius: tokens.radii.md,
+    backgroundColor: COLORS.primary + "15",
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  valueOldText: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "AA",
+  },
+  valueNewText: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
     color: COLORS.primary,
+    fontWeight: "600",
+  },
+  diffArrow: {
+    transform: [{ scaleX: -1 }],
   },
 
-  // Reason
-  reasonText: {
-    fontSize: 12,
-    color: COLORS.textMedium,
-    marginBottom: 8,
-    lineHeight: 18,
+  // Notes
+  noteRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  noteRowError: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.xs,
+    backgroundColor: `${COLORS.error}20`,
+    borderRadius: tokens.radii.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  noteText: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "99",
+    flex: 1,
+  },
+  rejectionReason: {
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
+    color: COLORS.error,
+    flex: 1,
   },
 
   // Timer Row
   timerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: COLORS.secondary + "15",
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 8,
+    gap: spacing.xs,
+    backgroundColor: `${COLORS.secondary}20`,
+    padding: spacing.xs,
+    borderRadius: tokens.radii.md,
+    marginTop: spacing.xs,
   },
   timerText: {
-    fontSize: 12,
+    ...typography.footnote,
+    fontFamily: "SF Arabic",
     color: COLORS.secondary,
-    fontWeight: "500",
     flex: 1,
   },
 
   // Footer
-  footerRow: {
+  cardFooter: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
-    marginBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: `${COLORS.container}40`,
+    paddingTop: spacing.xs,
+    marginTop: spacing.sm,
   },
-  timestampText: {
-    fontSize: 11,
-    color: COLORS.textMedium,
+  footerMeta: {
+    ...typography.caption1,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "80",
   },
   dateText: {
-    fontSize: 11,
-    color: COLORS.textLight,
+    ...typography.caption1,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "66",
   },
 
   // Actions
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 8,
-    paddingTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
-  actionButton: {
+  primaryButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    borderRadius: 8,
-    minHeight: 44,
+    gap: spacing.xs,
+    backgroundColor: COLORS.primary,
+    borderRadius: tokens.radii.md,
+    paddingVertical: spacing.sm,
   },
-  rejectButton: {
-    backgroundColor: COLORS.error + "10",
-  },
-  approveButton: {
-    backgroundColor: COLORS.success + "10",
-  },
-  actionText: {
-    fontSize: 14,
+  primaryButtonText: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: COLORS.background,
     fontWeight: "600",
-    marginLeft: 6,
   },
-
-  // Rejection Section
-  rejectionSection: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: COLORS.error + "10",
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 8,
-  },
-  rejectionReason: {
-    fontSize: 12,
-    color: COLORS.error,
+  secondaryButton: {
     flex: 1,
-    lineHeight: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.error}66`,
+    paddingVertical: spacing.sm,
+    backgroundColor: `${COLORS.error}12`,
+  },
+  secondaryButtonText: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    fontWeight: "600",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 48,
+    paddingVertical: spacing.xxl,
+    gap: spacing.sm,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: COLORS.textMedium,
+  skeletonCard: {
+    width: "90%",
+    maxWidth: 360,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.md,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}40`,
+    marginBottom: spacing.md,
   },
-  emptyContainer: {
-    flex: 1,
+  inlineSkeletonContainer: {
+    height: spacing.lg,
     justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 48,
   },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: COLORS.textMedium,
+  inlineSkeleton: {
+    paddingHorizontal: spacing.md,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+  },
+  emptyCard: {
+    width: "80%",
+    maxWidth: 360,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.container}40`,
+    alignItems: "center",
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyEmblem: {
+    width: 48,
+    height: 48,
+    tintColor: COLORS.primary,
+  },
+  emptyTitle: {
+    ...typography.title3,
+    fontFamily: "SF Arabic",
+    color: COLORS.text,
+    fontWeight: "600",
+  },
+  emptySubtitle: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: COLORS.text + "99",
+    textAlign: "center",
+    lineHeight: typography.subheadline.lineHeight,
+  },
+  emptyAction: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${COLORS.primary}66`,
+    backgroundColor: COLORS.background,
+  },
+  emptyActionPressed: {
+    backgroundColor: `${COLORS.primary}10`,
+  },
+  emptyActionText: {
+    ...typography.subheadline,
+    fontFamily: "SF Arabic",
+    color: COLORS.primary,
+    fontWeight: "600",
   },
   backButton: {
     padding: 8,
