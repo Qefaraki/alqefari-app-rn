@@ -59,6 +59,7 @@ import BatchOperationCard from "../../components/admin/BatchOperationCard";
 const colors = {
   ...tokens.colors.najdi,
   textMuted: tokens.colors.najdi.textMuted,
+  white: "#FFFFFF",
 };
 
 const ACTION_CONFIGS = {
@@ -331,6 +332,11 @@ const StatusHeader = ({ latestTimestamp, onClose }) => (
       />
       <View style={{ flex: 1 }}>
         <Text style={styles.screenTitle}>سجل النشاط</Text>
+        {latestTimestamp && (
+          <Text style={styles.screenSubtitle}>
+            آخر تحديث {formatRelativeTime(latestTimestamp)}
+          </Text>
+        )}
       </View>
       {onClose && (
         <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -347,26 +353,36 @@ const StatusHeader = ({ latestTimestamp, onClose }) => (
   </View>
 );
 
-const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchChange }) => {
+const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchChange, searchInputRef }) => {
   const hasFilters = activeFiltersCount > 0;
+  const handleClear = () => {
+    if (searchInputRef?.current) {
+      searchInputRef.current.blur();
+    }
+    onSearchChange("");
+  };
 
   return (
     <View style={styles.controlsRow}>
-      <View style={styles.searchContainer}>
-        <SFIcon name="magnifyingglass" fallback="search" size={18} color={tokens.colors.najdi.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="بحث سريع"
-          placeholderTextColor={tokens.colors.najdi.textMuted}
-          value={searchText}
-          onChangeText={onSearchChange}
-          returnKeyType="search"
-        />
-        {searchText.length > 0 && (
-          <TouchableOpacity onPress={() => onSearchChange("")} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-            <SFIcon name="xmark.circle.fill" fallback="close-circle" size={18} color={tokens.colors.najdi.textMuted} />
-          </TouchableOpacity>
-        )}
+      <View style={styles.searchWrapper}>
+        <View style={styles.searchContainer}>
+          <SFIcon name="magnifyingglass" fallback="search" size={18} color={colors.textMuted} />
+          <TextInput
+            ref={searchInputRef}
+            style={styles.searchInput}
+            placeholder="بحث سريع"
+            placeholderTextColor={colors.textMuted + "99"}
+            value={searchText}
+            onChangeText={onSearchChange}
+            returnKeyType="search"
+            textAlign="right"
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={handleClear} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <SFIcon name="xmark.circle.fill" fallback="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       <TouchableOpacity
         style={[styles.filterFab, hasFilters && styles.filterFabActive]}
@@ -378,10 +394,97 @@ const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchCh
           name="line.3.horizontal.decrease.circle"
           fallback="options-outline"
           size={18}
-          color={hasFilters ? tokens.colors.najdi.alJass : tokens.colors.najdi.text}
+          color={hasFilters ? colors.white : colors.text}
         />
         {hasFilters && <View style={styles.filterFabBadge} />}
       </TouchableOpacity>
+    </View>
+  );
+};
+
+const CATEGORY_SEGMENTS = [
+  { key: "all", label: "كل الأنشطة" },
+  { key: "tree", label: "الشجرة" },
+  { key: "marriages", label: "الزواج" },
+  { key: "photos", label: "الصور" },
+  { key: "admin", label: "الإدارة" },
+];
+
+const SEVERITY_SEGMENTS = [
+  { key: "all", label: "كل المستويات" },
+  { key: "high", label: "عالي" },
+  { key: "critical", label: "حرج" },
+];
+
+const InlineFilters = ({
+  category,
+  severity,
+  onCategoryChange,
+  onSeverityChange,
+}) => {
+  const handleSelectCategory = (value) => {
+    if (value === category) return;
+    Haptics.selectionAsync();
+    onCategoryChange(value);
+  };
+
+  const handleSelectSeverity = (value) => {
+    if (value === severity) return;
+    Haptics.selectionAsync();
+    onSeverityChange(value);
+  };
+
+  return (
+    <View style={styles.inlineFiltersContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.segmentedScrollContent}
+      >
+        {CATEGORY_SEGMENTS.map((option) => (
+          <TouchableOpacity
+            key={option.key}
+            style={[
+              styles.filterChip,
+              category === option.key && styles.filterChipActive,
+            ]}
+            onPress={() => handleSelectCategory(option.key)}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                category === option.key && styles.filterChipTextActive,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      <View style={styles.segmentedControl}>
+        {SEVERITY_SEGMENTS.map((option) => (
+          <TouchableOpacity
+            key={option.key}
+            style={[
+              styles.segmentButton,
+              severity === option.key && styles.segmentButtonActive,
+            ]}
+            onPress={() => handleSelectSeverity(option.key)}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={[
+                styles.segmentText,
+                severity === option.key && styles.segmentTextActive,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 };
@@ -517,16 +620,30 @@ const FiltersSheet = React.forwardRef((
   );
 });
 
-const ActivityListCard = ({ activity, onPress, onUndo }) => {
+const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos }) => {
   const summary = buildActivitySummary(activity);
   const relativeTime = formatRelativeTime(activity.created_at);
   const changedFields = getMeaningfulFields(activity.changed_fields || []);
   const primaryField = getPrimaryField(activity);
   const severityBadge = getSeverityBadge(activity.severity);
   const showUndo = activity.is_undoable === true && !activity.undone_at;
+  const actorPhotoUrl = (() => {
+    if (activity.actor_profile_id && actorPhotos) {
+      const mapped = actorPhotos[activity.actor_profile_id];
+      if (mapped !== undefined) {
+        return mapped;
+      }
+    }
+    return activity.actor_photo_url || null;
+  })();
 
   return (
     <TouchableOpacity style={styles.activityCard} onPress={onPress} activeOpacity={0.85}>
+      {actorPhotoUrl && (
+        <View style={styles.activityAvatar}>
+          <Image source={{ uri: actorPhotoUrl }} style={styles.avatarImage} resizeMode="cover" />
+        </View>
+      )}
       <View style={styles.activityCardContent}>
         <View style={styles.activityHeaderRow}>
           {severityBadge && <View style={[styles.severityDot, { backgroundColor: severityBadge.color }]} />}
@@ -534,19 +651,39 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
         </View>
         <View style={styles.activityMetaRow}>
           <Text style={styles.activityTime}>{relativeTime}</Text>
-          {severityBadge && (
-            <View
-              style={[
-                styles.severityTag,
-                {
-                  backgroundColor: `${severityBadge.color}26`,
-                  borderColor: `${severityBadge.color}40`,
-                },
-              ]}
-            >
-              <Text style={[styles.severityTagText, { color: severityBadge.color }]}>{severityBadge.label}</Text>
-            </View>
-          )}
+          <View style={styles.activityMetaRight}>
+            {severityBadge && (
+              <View
+                style={[
+                  styles.severityTag,
+                  {
+                    backgroundColor: `${severityBadge.color}20`,
+                    borderColor: `${severityBadge.color}33`,
+                  },
+                ]}
+              >
+                <Text style={[styles.severityTagText, { color: severityBadge.color }]}>{severityBadge.label}</Text>
+              </View>
+            )}
+            {showUndo && (
+              <TouchableOpacity
+                style={styles.undoButton}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onUndo(activity);
+                }}
+                activeOpacity={0.75}
+              >
+                <SFIcon
+                  name="arrow.uturn.backward"
+                  fallback="arrow-undo-outline"
+                  size={14}
+                  color={tokens.colors.najdi.primary}
+                />
+                <Text style={styles.undoButtonText}>تراجع</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         {changedFields.length === 1 && primaryField && (
           <View style={styles.diffPreview}>
@@ -561,29 +698,6 @@ const ActivityListCard = ({ activity, onPress, onUndo }) => {
         {changedFields.length > 1 && (
           <Text style={styles.fieldsCountText}>{`${changedFields.length} تغييرات`}</Text>
         )}
-      </View>
-      <View style={styles.cardTrailing}>
-        {showUndo && (
-          <TouchableOpacity
-            style={styles.undoPill}
-            onPress={(e) => {
-              e.stopPropagation();
-              onUndo(activity);
-            }}
-            activeOpacity={0.7}
-          >
-            <SFIcon name="arrow.uturn.backward" fallback="arrow-undo-outline" size={16} color={tokens.colors.najdi.crimson} />
-            <Text style={styles.undoPillText}>تراجع</Text>
-          </TouchableOpacity>
-        )}
-        <SFIcon
-          name="chevron.forward"
-          fallback="chevron-forward"
-          rtlFallback="chevron-back"
-          size={16}
-          color="#6F6254"
-          style={styles.cardChevron}
-        />
       </View>
     </TouchableOpacity>
   );
@@ -834,17 +948,22 @@ const AdvancedDetailsModal = ({ activity, visible, onClose }) => {
 const ActivityLogSkeleton = () => (
   <SafeAreaView style={styles.container} edges={['top']}>
     <View style={styles.statusHeader}>
-      <SkeletonLoader width="100%" height={40} borderRadius={12} />
+      <SkeletonLoader width={160} height={34} borderRadius={16} />
+      <SkeletonLoader width={120} height={14} borderRadius={7} style={{ marginTop: 8 }} />
     </View>
-    <View style={[styles.controlsRow, { paddingBottom: 0 }]}>
-      <View style={{ flex: 1 }}>
-        <SkeletonLoader width="100%" height={36} borderRadius={12} />
+    <View style={styles.controlsRow}>
+      <View style={styles.searchWrapper}>
+        <SkeletonLoader width="100%" height={44} borderRadius={22} />
       </View>
       <SkeletonLoader width={44} height={44} borderRadius={22} />
     </View>
-    <View style={{ paddingHorizontal: 16, gap: 12, paddingTop: 12 }}>
-      <SkeletonLoader width="100%" height={90} borderRadius={16} />
-      <SkeletonLoader width="100%" height={90} borderRadius={16} />
+    <View style={styles.inlineFiltersSkeleton}>
+      <SkeletonLoader width="100%" height={32} borderRadius={16} />
+      <SkeletonLoader width="100%" height={32} borderRadius={16} />
+    </View>
+    <View style={styles.skeletonCards}>
+      <SkeletonLoader width="100%" height={104} borderRadius={16} />
+      <SkeletonLoader width="100%" height={104} borderRadius={16} />
     </View>
   </SafeAreaView>
 );
@@ -989,9 +1108,15 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   const [advancedActivity, setAdvancedActivity] = useState(null);
   const [advancedModalVisible, setAdvancedModalVisible] = useState(false);
 
+  const [actorPhotoMap, setActorPhotoMap] = useState({});
+  const requestedPhotoIdsRef = useRef(new Set());
+
   const { showToast, hideToast, toastVisible, toastMessage, toastType } = useUndoStore();
+  const searchInputRef = useRef(null);
+  const sectionListRef = useRef(null);
   const detailSheetRef = useRef(null);
   const filterSheetRef = useRef(null);
+  const refreshTimeoutRef = useRef(null);
   const detailSnapPoints = useMemo(() => ['60%', '90%'], []);
   const filterSnapPoints = useMemo(() => ['45%', '75%'], []);
 
@@ -1045,6 +1170,56 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     categoryFilterRef.current = categoryFilter;
     severityFilterRef.current = severityFilter;
   }, [selectedUser, datePreset, customDateFrom, customDateTo, categoryFilter, severityFilter]);
+
+  useEffect(() => {
+    const profileIds = new Set();
+    activities.forEach((activity) => {
+      if (activity.actor_profile_id) {
+        profileIds.add(activity.actor_profile_id);
+      }
+    });
+
+    if (profileIds.size === 0) return;
+
+    const missingIds = Array.from(profileIds).filter(
+      (id) => actorPhotoMap[id] === undefined && !requestedPhotoIdsRef.current.has(id)
+    );
+
+    if (missingIds.length === 0) return;
+
+    missingIds.forEach((id) => requestedPhotoIdsRef.current.add(id));
+
+    const fetchPhotos = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, photo_url')
+        .in('id', missingIds);
+
+      if (error) {
+        console.error('Error loading actor photos:', error);
+        missingIds.forEach((id) => requestedPhotoIdsRef.current.delete(id));
+        return;
+      }
+
+      const returnedIds = new Set(data?.map((row) => row.id) ?? []);
+
+      setActorPhotoMap((prev) => {
+        const next = { ...prev };
+        data?.forEach((row) => {
+          next[row.id] = row.photo_url || null;
+        });
+        missingIds.forEach((id) => {
+          if (!returnedIds.has(id)) {
+            next[id] = null;
+          }
+          requestedPhotoIdsRef.current.delete(id);
+        });
+        return next;
+      });
+    };
+
+    fetchPhotos();
+  }, [activities, actorPhotoMap]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchText), 300);
@@ -1158,9 +1333,21 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
                 fetchActivities(false);
                 return prev; // Keep current state, fetchActivities will update
               } else {
-                // New group - append individual for now (will group on next manual refresh)
-                console.log('[ActivityLogDashboard] New batch operation group detected');
-                return [newActivity, ...prev];
+                // New batch group - debounce refresh to wait for all operations
+                console.log('[ActivityLogDashboard] New batch operation group detected - will refresh after debounce');
+
+                // Clear previous timeout
+                if (refreshTimeoutRef.current) {
+                  clearTimeout(refreshTimeoutRef.current);
+                }
+
+                // Debounce refresh by 300ms to group all batch operations
+                refreshTimeoutRef.current = setTimeout(() => {
+                  fetchActivities(false);
+                  refreshTimeoutRef.current = null;
+                }, 300);
+
+                return prev; // Don't append, wait for debounced refresh to group all operations
               }
             }
 
@@ -1173,6 +1360,9 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
     return () => {
       supabase.removeChannel(channel);
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
     };
   }, [fetchActivities, showToast]);
 
@@ -1417,6 +1607,16 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     fetchActivities(false);
   }, [fetchActivities]);
 
+  const handleCategoryChange = useCallback((value) => {
+    setCategoryFilter(value);
+    sectionListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
+  const handleSeverityChange = useCallback((value) => {
+    setSeverityFilter(value);
+    sectionListRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
+
   const handleOpenAdvanced = (activity) => {
     if (!activity) return;
     setAdvancedActivity(activity);
@@ -1438,6 +1638,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     setCustomDateTo(null);
     setSearchText("");
     setDebouncedSearch("");
+    sectionListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   if (loading && activities.length === 0) {
@@ -1453,9 +1654,18 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         activeFiltersCount={activeFiltersCount}
         searchText={searchText}
         onSearchChange={setSearchText}
+        searchInputRef={searchInputRef}
+      />
+
+      <InlineFilters
+        category={categoryFilter}
+        severity={severityFilter}
+        onCategoryChange={handleCategoryChange}
+        onSeverityChange={handleSeverityChange}
       />
 
       <SectionList
+        ref={sectionListRef}
         sections={groupedSections}
         keyExtractor={(item) =>
           item.type === 'batch_group'
@@ -1463,28 +1673,38 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
             : `activity-${item.id}`
         }
         renderItem={({ item }) => {
+          const wrapperStyle = item.type === 'batch_group'
+            ? styles.cardWrapperBatch
+            : styles.cardWrapper;
+
           if (item.type === 'batch_group') {
             return (
-              <BatchOperationCard
-                groupId={item.operation_group_id}
-                groupType={item.group_type}
-                description={item.group_description}
-                operationCount={item.operation_count}
-                operations={item.operations}
-                createdAt={item.created_at}
-                undoState={item.group_undo_state}
-                onRefresh={handleRefreshActivities}
-                onPressOperation={handleOpenDetails}
-              />
+              <View style={wrapperStyle}>
+                <BatchOperationCard
+                  groupId={item.operation_group_id}
+                  groupType={item.group_type}
+                  description={item.group_description}
+                  operationCount={item.operation_count}
+                  operations={item.operations}
+                  createdAt={item.created_at}
+                  undoState={item.group_undo_state}
+                  onRefresh={handleRefreshActivities}
+                  onPressOperation={handleOpenDetails}
+                  actorPhotos={actorPhotoMap}
+                />
+              </View>
             );
           }
 
           return (
-            <ActivityListCard
-              activity={item}
-              onPress={() => handleOpenDetails(item)}
-              onUndo={handleUndo}
-            />
+            <View style={wrapperStyle}>
+              <ActivityListCard
+                activity={item}
+                onPress={() => handleOpenDetails(item)}
+                onUndo={handleUndo}
+                actorPhotos={actorPhotoMap}
+              />
+            </View>
           );
         }}
         renderSectionHeader={({ section: { title } }) => (
@@ -1611,23 +1831,30 @@ const styles = StyleSheet.create({
   },
   statusHeader: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingTop: Platform.OS === "ios" ? 12 : 16,
+    paddingBottom: 8,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
   },
   emblem: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     tintColor: tokens.colors.najdi.text,
+    marginEnd: 12,
   },
   screenTitle: {
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: "700",
     color: tokens.colors.najdi.text,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+    lineHeight: 41,
+  },
+  screenSubtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    color: colors.textMuted,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   controlsRow: {
@@ -1635,46 +1862,171 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    gap: 12,
+    paddingBottom: 8,
   },
-  filterFab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: tokens.colors.najdi.container + '24',
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterFabActive: {
-    backgroundColor: tokens.colors.najdi.crimson,
-  },
-  filterFabBadge: {
-    position: 'absolute',
-    top: 8,
-    start: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: tokens.colors.najdi.alJass,
+  searchWrapper: {
+    flex: 1,
+    borderRadius: 24,
+    backgroundColor: colors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+    marginEnd: 12,
   },
   searchContainer: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '30',
-    backgroundColor: tokens.colors.najdi.container + '18',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     height: 44,
+    borderRadius: 24,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: tokens.colors.najdi.text,
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filterFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '40',
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  filterFabActive: {
+    backgroundColor: tokens.colors.najdi.crimson,
+    borderColor: tokens.colors.najdi.crimson,
+  },
+  filterFabBadge: {
+    position: 'absolute',
+    top: 6,
+    start: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.white,
+  },
+  inlineFiltersContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  segmentedScrollContent: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '40',
+    marginEnd: 8,
+  },
+  filterChipActive: {
+    backgroundColor: tokens.colors.najdi.primary,
+    borderColor: tokens.colors.najdi.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  filterChipTextActive: {
+    color: colors.white,
+    fontWeight: "600",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: tokens.colors.najdi.container + '24',
+    borderRadius: 14,
+    padding: 4,
+    marginTop: 12,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  segmentButtonActive: {
+    backgroundColor: colors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: colors.textMuted,
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  segmentTextActive: {
+    color: tokens.colors.najdi.text,
+    fontWeight: "700",
+  },
+  inlineFiltersSkeleton: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  skeletonCards: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  cardWrapper: {
+    marginBottom: 12,
+  },
+  cardWrapperBatch: {
+    marginBottom: 12,
   },
   nameRow: {
     flexDirection: "row",
@@ -1694,12 +2046,13 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 32,
-    gap: 12,
   },
   sectionHeader: {
     marginTop: 16,
     marginBottom: 8,
+    paddingHorizontal: 16,
   },
   sectionHeaderText: {
     fontSize: 15,
@@ -1708,18 +2061,26 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityCard: {
-    backgroundColor: tokens.colors.najdi.background,
+    backgroundColor: colors.white,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: "row",
     gap: 12,
-    alignItems: "center",
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    alignItems: "flex-start",
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '30',
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   activityCardContent: {
     flex: 1,
@@ -1729,6 +2090,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  activityAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '50',
+    backgroundColor: colors.white,
+    overflow: "hidden",
+    marginEnd: 12,
+    alignSelf: "flex-start",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
   },
   severityDot: {
     width: 8,
@@ -1746,27 +2122,29 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
-  cardTrailing: {
-    alignItems: "flex-end",
-    gap: 12,
-  },
-  undoPill: {
+  activityMetaRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: tokens.colors.najdi.crimson + '12',
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
   },
-  undoPillText: {
+  undoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.primary + '66',
+    backgroundColor: tokens.colors.najdi.primary + '12',
+    gap: 6,
+  },
+  undoButtonText: {
     fontSize: 13,
-    color: tokens.colors.najdi.crimson,
+    color: tokens.colors.najdi.primary,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  cardChevron: {
-    marginTop: 4,
   },
   activitySummary: {
     fontSize: 17,
