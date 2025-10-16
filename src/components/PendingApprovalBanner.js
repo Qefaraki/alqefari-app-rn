@@ -42,6 +42,7 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const pulseAnimationRef = useRef(null);
   const subscriptionsRef = useRef([]);
+  const lastProcessedRequestRef = useRef(null);
 
   useEffect(() => {
     checkLinkStatus();
@@ -153,7 +154,8 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
   const subscribeToUpdates = () => {
     if (!user?.id) return;
 
-    // Subscribe to profile_link_requests table for status changes
+    // Single subscription to profile_link_requests table (optimized)
+    // This reduces database connections by 50% and eliminates race conditions
     const requestsSubscription = supabase
       .channel(`link-requests-${user.id}`)
       .on(
@@ -164,10 +166,22 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
           table: "profile_link_requests",
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
+        async (payload) => {
           console.log('📨 Link request UPDATE received:', payload.new.status);
+
+          // Idempotency: Track last processed request to prevent duplicate handling
+          const requestKey = `${payload.new.id}-${payload.new.status}`;
+          if (lastProcessedRequestRef.current === requestKey) {
+            console.log('📨 Duplicate event detected, skipping notification');
+            return;
+          }
+          lastProcessedRequestRef.current = requestKey;
+
+          // Update link request immediately for instant UI update
+          setLinkRequest(payload.new);
           const newStatus = payload.new.status;
 
+          // Handle approval
           if (newStatus === "approved") {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert(
@@ -180,7 +194,34 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
                 },
               ],
             );
-          } else if (newStatus === "rejected") {
+
+            // Optional: Verify notification was created (for debugging)
+            try {
+              const { data: notification, error } = await supabase
+                .from('notifications')
+                .select('id, type, related_request_id')
+                .eq('user_id', user.id)
+                .eq('type', 'profile_link_approved')
+                .eq('related_request_id', payload.new.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (error) {
+                console.warn('Could not verify notification creation:', error);
+              } else if (!notification) {
+                console.warn('⚠️ Status changed to approved but no notification found for request:', payload.new.id);
+                // Push notification might have failed - user still sees real-time UI update
+              } else {
+                console.log('✅ Notification verified for request:', notification.related_request_id);
+              }
+            } catch (e) {
+              console.warn('Error verifying notification:', e);
+              // Non-critical - UI already updated
+            }
+          }
+          // Handle rejection
+          else if (newStatus === "rejected") {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert(
               "طلب مرفوض",
@@ -195,65 +236,12 @@ const PendingApprovalBanner = ({ user, onStatusChange, onRefresh }) => {
               ],
             );
           }
-
-          setLinkRequest(payload.new);
         },
       )
       .subscribe();
 
-    // Subscribe to notifications table for approval notifications (real-time push)
-    const notificationsSubscription = supabase
-      .channel(`notifications-${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('🔔 Notification INSERT received:', payload.new.type);
-          const notification = payload.new;
-
-          // Handle profile link approval notification
-          if (notification.type === "profile_link_approved") {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert(
-              "🎉 تمت الموافقة!",
-              "تم ربط ملفك الشخصي بنجاح. يمكنك الآن تعديل معلوماتك.",
-              [
-                {
-                  text: "ممتاز",
-                  onPress: () => {
-                    // Refresh link request status
-                    checkLinkStatus();
-                    onStatusChange?.("approved", notification);
-                  },
-                },
-              ],
-            );
-          } else if (notification.type === "profile_link_rejected") {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert(
-              "طلب مرفوض",
-              notification.message ||
-                "تم رفض طلب ربط الملف. يرجى التواصل مع المشرف.",
-              [
-                { text: "إلغاء", style: "cancel" },
-                {
-                  text: "محاولة أخرى",
-                  onPress: () => onStatusChange?.("retry"),
-                },
-              ],
-            );
-          }
-        },
-      )
-      .subscribe();
-
-    // Store both subscriptions for cleanup
-    subscriptionsRef.current = [requestsSubscription, notificationsSubscription];
+    // Store subscription for cleanup
+    subscriptionsRef.current = [requestsSubscription];
   };
 
   const handleRefresh = async () => {

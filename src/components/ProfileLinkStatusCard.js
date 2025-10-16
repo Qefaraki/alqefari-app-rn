@@ -61,45 +61,61 @@ export default function ProfileLinkStatusCard() {
     });
     subscriptionsRef.current = [];
 
-    // Subscribe to profile_link_requests table for status changes
+    // Single subscription to profile_link_requests table (optimized)
+    // This reduces database connections by 50% compared to dual subscription
     const requestsSubscription = supabase
       .channel(`profile-card-requests-${user.id}`)
       .on('postgres_changes', {
-        event: '*',
+        event: '*', // Listen to INSERT, UPDATE, DELETE
         schema: 'public',
         table: 'profile_link_requests',
         filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        console.log('📨 ProfileLinkStatusCard: Link request change received:', payload.new?.status);
-        // Reload status when request changes
+      }, async (payload) => {
+        console.log('📨 ProfileLinkStatusCard: Link request change received:', payload.eventType, payload.new?.status);
+
+        // Only process if this is actually our user's request
         if (payload.new?.user_id === user.id) {
+          // Reload status immediately for instant UI update
           loadProfileStatus();
+
+          // Optional: Verify notification was created for approval/rejection
+          if (payload.eventType === 'UPDATE' &&
+              (payload.new.status === 'approved' || payload.new.status === 'rejected') &&
+              payload.old?.status !== payload.new.status) {
+
+            try {
+              const notificationType = payload.new.status === 'approved'
+                ? 'profile_link_approved'
+                : 'profile_link_rejected';
+
+              const { data: notification, error } = await supabase
+                .from('notifications')
+                .select('id, type, created_at')
+                .eq('user_id', user.id)
+                .eq('type', notificationType)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (error) {
+                console.warn('Could not verify notification creation:', error);
+              } else if (!notification) {
+                console.warn(`⚠️ Status changed to ${payload.new.status} but no notification found`);
+                // Push notification might have failed - user still sees real-time UI update
+              } else {
+                console.log('✅ Notification verified:', notification.id, notification.type);
+              }
+            } catch (e) {
+              console.warn('Error verifying notification:', e);
+              // Non-critical - UI already updated
+            }
+          }
         }
       })
       .subscribe();
 
-    // Subscribe to notifications table for real-time approval/rejection
-    const notificationsSubscription = supabase
-      .channel(`profile-card-notifications-${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'notifications',
-        filter: `user_id=eq.${user.id}`
-      }, (payload) => {
-        console.log('🔔 ProfileLinkStatusCard: Notification received:', payload.new.type);
-        const notification = payload.new;
-
-        // Reload profile status immediately when link request status changes
-        if (notification.type === "profile_link_approved" ||
-            notification.type === "profile_link_rejected") {
-          loadProfileStatus();
-        }
-      })
-      .subscribe();
-
-    // Store both subscriptions for cleanup
-    subscriptionsRef.current = [requestsSubscription, notificationsSubscription];
+    // Store subscription for cleanup
+    subscriptionsRef.current = [requestsSubscription];
 
     return () => {
       subscriptionsRef.current.forEach(sub => {

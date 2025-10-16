@@ -10,6 +10,7 @@ const corsHeaders = {
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 
 interface NotificationPayload {
+  notificationId?: string
   userId?: string
   userIds?: string[]
   title: string
@@ -48,7 +49,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     const payload: NotificationPayload = await req.json()
-    const { userId, userIds, title, body, data, priority = 'high', sound = 'default', badge, categoryId } = payload
+    const { notificationId, userId, userIds, title, body, data, priority = 'high', sound = 'default', badge, categoryId } = payload
 
     // Get target user IDs
     const targetUserIds = userIds || (userId ? [userId] : [])
@@ -73,6 +74,20 @@ serve(async (req) => {
 
     if (!pushTokens || pushTokens.length === 0) {
       console.log('No active push tokens found for users')
+
+      // Update delivery log to reflect no token available
+      if (notificationId) {
+        await supabase
+          .from('notification_delivery_log')
+          .update({
+            delivery_status: 'no_token',
+            http_status_code: 200,
+            response_body: 'No active push tokens found'
+          })
+          .eq('notification_id', notificationId)
+          .eq('delivery_status', 'queued')
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
@@ -181,7 +196,21 @@ serve(async (req) => {
             if (ticket.status === 'ok') {
               totalSent++
 
-              // Update notification record to mark push as sent
+              // Update delivery log to mark as sent
+              if (notificationId) {
+                await supabase
+                  .from('notification_delivery_log')
+                  .update({
+                    delivery_status: 'sent',
+                    push_token: message.to as string,
+                    http_status_code: 200,
+                    response_body: JSON.stringify({ ticket_id: ticket.id })
+                  })
+                  .eq('notification_id', notificationId)
+                  .eq('delivery_status', 'queued')
+              }
+
+              // Also update notification record for backwards compatibility
               await supabase
                 .from('notifications')
                 .update({
@@ -190,10 +219,30 @@ serve(async (req) => {
                 })
                 .eq('user_id', userId)
                 .is('push_sent', false)
-                .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Last minute
+                .gte('created_at', new Date(Date.now() - 60000).toISOString())
             } else if (ticket.status === 'error') {
               totalErrors++
               console.error(`Push notification error for user ${userId}:`, ticket.message)
+
+              // Determine specific error status
+              const deliveryStatus = ticket.details?.error === 'DeviceNotRegistered'
+                ? 'invalid_token'
+                : 'failed'
+
+              // Update delivery log with error
+              if (notificationId) {
+                await supabase
+                  .from('notification_delivery_log')
+                  .update({
+                    delivery_status: deliveryStatus,
+                    push_token: message.to as string,
+                    http_status_code: 400,
+                    error_message: ticket.message || 'Failed to send push notification',
+                    response_body: JSON.stringify(ticket)
+                  })
+                  .eq('notification_id', notificationId)
+                  .eq('delivery_status', 'queued')
+              }
 
               // Mark token as inactive if it's invalid
               if (ticket.details?.error === 'DeviceNotRegistered') {
@@ -203,7 +252,7 @@ serve(async (req) => {
                   .eq('token', message.to)
               }
 
-              // Log error in notifications table
+              // Log error in notifications table for backwards compatibility
               await supabase
                 .from('notifications')
                 .update({
