@@ -20,7 +20,8 @@ import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
 import familyNameService from "../../services/familyNameService";
 import tokens from "../ui/tokens";
-import SearchResultCard from "../search/SearchResultCard";
+import ProfileMatchCard from "../ProfileMatchCard";
+import BranchTreeModal from "../BranchTreeModal";
 
 /**
  * SpouseManager - Redesigned with single-input simplicity
@@ -40,6 +41,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   const [parsedData, setParsedData] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [selectedSpouse, setSelectedSpouse] = useState(null);
+  const [showTreeModal, setShowTreeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -145,10 +147,22 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     );
   };
 
-  // Handle selecting a search result
+  // Handle selecting a search result - opens tree modal for confirmation
   const handleSelectSpouse = (spouse) => {
-    setSelectedSpouse(spouse);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedSpouse(spouse);
+    setTimeout(() => {
+      setShowTreeModal(true);
+    }, 100);
+  };
+
+  // Handle confirmation from tree modal - "هذا أنا" button clicked
+  const handleConfirmFromModal = async (profile) => {
+    setShowTreeModal(false);
+    // Wait for modal to close
+    await new Promise(resolve => setTimeout(resolve, 300));
+    // Proceed with marriage creation
+    await handleLinkSpouse();
   };
 
   // Link existing Al-Qefari profile
@@ -300,16 +314,20 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         <FlatList
           data={searchResults}
           renderItem={({ item, index }) => (
-            <SearchResultCard
-              item={item}
+            <ProfileMatchCard
+              profile={{
+                ...item,
+                match_score: 100, // Default to 100% for exact name matches
+              }}
               index={index}
-              onPress={handleSelectSpouse}
-              isLast={index === searchResults.length - 1}
+              onPress={() => handleSelectSpouse(item)}
+              isSelected={false}
             />
           )}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.resultsList}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons
@@ -337,23 +355,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
             </View>
           }
         />
-      )}
-
-      {selectedSpouse && !loading && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.primaryButton, submitting && styles.buttonDisabled]}
-            onPress={handleLinkSpouse}
-            disabled={submitting}
-            activeOpacity={0.8}
-          >
-            {submitting ? (
-              <ActivityIndicator size="small" color={tokens.colors.surface} />
-            ) : (
-              <Text style={styles.primaryButtonText}>ربط الزواج</Text>
-            )}
-          </TouchableOpacity>
-        </View>
       )}
     </View>
   );
@@ -408,6 +409,19 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         {stage === "CREATE" && renderCreateStage()}
         {stage === "SUCCESS" && renderSuccessStage()}
       </SafeAreaView>
+
+      {/* Tree Modal for spouse confirmation */}
+      {selectedSpouse && showTreeModal && (
+        <BranchTreeModal
+          visible={true}
+          profile={selectedSpouse}
+          onClose={() => {
+            setShowTreeModal(false);
+            setSelectedSpouse(null);
+          }}
+          onConfirm={handleConfirmFromModal}
+        />
+      )}
     </Modal>
   );
 }
