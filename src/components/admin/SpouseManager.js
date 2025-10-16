@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
+import { phoneAuthService } from "../../services/phoneAuth";
 import familyNameService from "../../services/familyNameService";
 import tokens from "../ui/tokens";
 import ProfileMatchCard from "../ProfileMatchCard";
@@ -88,28 +89,27 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     }
   };
 
-  // Search for Al-Qefari family members
+  // Search for Al-Qefari family members using name chain search
   const performSearch = async (parsed) => {
     setStage("SEARCH");
     setLoading(true);
 
     try {
-      // Build search query from first name only (not full chain)
+      // Build search query from first name
       const searchQuery = parsed.firstName;
 
-      const { data, error } = await profilesService.searchProfiles(
-        searchQuery,
-        20,
-        0
-      );
+      // Use phoneAuthService which returns profiles WITH name chain data
+      const result = await phoneAuthService.searchProfilesByNameChain(searchQuery);
 
-      if (error) throw error;
+      if (!result.success) {
+        throw new Error(result.error || "فشل البحث");
+      }
 
       // Filter to:
       // 1. Correct gender
       // 2. Has HID (Al-Qefari only, not munasib)
       // 3. Not current person
-      const filtered = (data || [])
+      const filtered = (result.profiles || [])
         .filter(p => p.gender === spouseGender)
         .filter(p => p.hid !== null) // Only Al-Qefari members
         .filter(p => p.id !== person?.id)
