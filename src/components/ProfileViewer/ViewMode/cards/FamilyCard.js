@@ -9,6 +9,7 @@ import {
 import InfoCard from '../components/InfoCard';
 import { ProgressiveThumbnail } from '../../../ProgressiveImage';
 import { formatNameWithTitle, getTitleAbbreviation } from '../../../../services/professionalTitleService';
+import { getShortNameChain } from '../../../../utils/nameChainUtils';
 
 // Particles and titles to skip when finding the "real" first name
 const SKIP_PARTICLES = new Set(['بنت', 'بن', 'بني', 'آل', 'د.', 'م.', 'أ.د.', 'الشيخ', 'اللواء', 'عميد']);
@@ -42,6 +43,16 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
     // NOW add title to the shortened name (correct order)
     const abbrev = getTitleAbbreviation(node || {});
     name = abbrev ? `${abbrev} ${finalShortened}`.trim() : finalShortened;
+  } else if (label === 'الزوجة' || label === 'الزوج') {
+    // Spouse handling: Show name chain for cousin marriages
+    if (node?.hid !== null && node?.hid !== undefined) {
+      // Cousin marriage: Try to get name chain, fallback to formatted name
+      const nameChain = getShortNameChain(node);
+      name = nameChain || formatNameWithTitle(node) || node?.name || fallbackName || '';
+    } else {
+      // Munasib: Use simple formatted name
+      name = formatNameWithTitle(node) || node?.name || fallbackName || '';
+    }
   } else {
     // For others: Use standard formatting
     name = formatNameWithTitle(node) || node?.name || fallbackName || '';

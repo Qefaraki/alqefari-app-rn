@@ -12,7 +12,7 @@
  * @module SpouseRow
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PropTypes from 'prop-types';
 import {
   View,
@@ -31,6 +31,7 @@ import { supabase } from '../../../services/supabase';
 import familyNameService from '../../../services/familyNameService';
 import { getInitials, AvatarThumbnail } from './FamilyHelpers';
 import { PERMISSION_MESSAGES, ERROR_MESSAGES } from './permissionMessages';
+import { getShortNameChain } from '../../../utils/nameChainUtils';
 
 /**
  * TabFamilyContext
@@ -83,9 +84,28 @@ const SpouseRow = React.memo(
       }
     }, [isEditing, spouse?.name, spouseData.status]);
 
+    // Detect cousin marriage: Both spouses are Al-Qefari family members (have HID)
+    const isCousinMarriage = useMemo(() => {
+      return spouse?.hid !== null && spouse?.hid !== undefined;
+    }, [spouse?.hid]);
+
     if (!spouse) return null;
 
-    const displayName = isEditing ? editingName || '—' : spouse.name;
+    // Display name logic:
+    // - For cousin marriages: Try to show name chain (falls back to simple name if unavailable)
+    // - For Munasib: Show simple name only
+    const displayName = useMemo(() => {
+      if (isEditing) return editingName || '—';
+
+      if (isCousinMarriage) {
+        // Cousin marriage: Try to get name chain, fallback to simple name
+        const nameChain = getShortNameChain(spouse);
+        return nameChain || spouse.name || '—';
+      }
+
+      // Munasib: Simple name
+      return spouse.name || '—';
+    }, [isEditing, editingName, isCousinMarriage, spouse]);
 
     const subtitleParts = [];
     if (spouseData.children_count > 0) {
@@ -99,6 +119,21 @@ const SpouseRow = React.memo(
     const subtitle = subtitleParts.join(' • ');
 
     const handleToggle = () => {
+      // Cousin marriages: Navigate to profile instead of inline edit
+      if (isCousinMarriage) {
+        if (!onVisit) {
+          if (__DEV__) {
+            console.warn('[SpouseRow] onVisit not provided for cousin marriage');
+          }
+          Alert.alert('تنبيه', 'هذا ملف من عائلة القفاري. اضغط "زيارة الملف" لعرض البيانات.');
+          return;
+        }
+        Haptics.selectionAsync();
+        onVisit();
+        return;
+      }
+
+      // Munasib marriages: Normal inline edit flow
       if (isEditing) {
         Keyboard.dismiss();
         Haptics.selectionAsync();
@@ -255,20 +290,37 @@ const SpouseRow = React.memo(
               <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
                 {displayName}
               </Text>
-              <TouchableOpacity
-                style={[styles.memberChevron, !canEditFamily && { opacity: 0.4 }]}
-                onPress={handleToggle}
-                disabled={!canEditFamily}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل الزواج'}
-              >
-                <Ionicons
-                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
-                  size={20}
-                  color={tokens.colors.najdi.textMuted}
-                />
-              </TouchableOpacity>
+              {isCousinMarriage ? (
+                // Cousin marriage: Show visit profile button
+                onVisit && (
+                  <TouchableOpacity
+                    style={styles.visitProfileButtonCompact}
+                    onPress={handleVisit}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`زيارة ملف ${spouse.name}`}
+                  >
+                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.visitProfileButtonText}>زيارة</Text>
+                  </TouchableOpacity>
+                )
+              ) : (
+                // Munasib marriage: Show chevron toggle for inline editing
+                <TouchableOpacity
+                  style={[styles.memberChevron, !canEditFamily && { opacity: 0.4 }]}
+                  onPress={handleToggle}
+                  disabled={!canEditFamily}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل الزواج'}
+                >
+                  <Ionicons
+                    name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
+                    size={20}
+                    color={tokens.colors.najdi.textMuted}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
             {!isEditing && subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
@@ -476,6 +528,22 @@ const styles = StyleSheet.create({
     height: tokens.touchTarget.minimum,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  visitProfileButtonCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.xxs,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xxs,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.primary + '55',
+    backgroundColor: tokens.colors.surface,
+  },
+  visitProfileButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
   },
   inlineEditor: {
     marginTop: tokens.spacing.sm,
