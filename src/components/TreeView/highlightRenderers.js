@@ -36,10 +36,11 @@ function hexToRgba(hex, alpha = 1) {
  * Base Renderer Class
  */
 class HighlightRenderer {
-  constructor(highlightConfig, pathData, context) {
+  constructor(typeId, highlightConfig, pathData, context) {
+    this.typeId = typeId; // Unique identifier: 'search', 'userLineage', 'cousinMarriage'
     this.config = highlightConfig;
     this.pathData = pathData;
-    this.context = context; // { nodes, connections, showPhotos, pathOpacity, Skia }
+    this.context = context; // { nodes, connections, showPhotos, pathOpacity, Skia, activeHighlights }
   }
 
   render() {
@@ -111,8 +112,11 @@ class HighlightRenderer {
 
   /**
    * Render 4-layer glow system for a path
+   * @param {string} keySuffix - Additional suffix for dual paths (e.g., 'path1', 'path2')
    */
-  _renderPathWithGlow(pathObj, baseColor, depthDiff, opacity, keyPrefix = 'path') {
+  _renderPathWithGlow(pathObj, baseColor, depthDiff, opacity, keySuffix = '') {
+    const keyPrefix = keySuffix ? `${this.typeId}-${keySuffix}` : this.typeId;
+
     return [
       // Layer 4: Outer glow - soft halo (largest blur)
       <Group key={`${keyPrefix}-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
@@ -173,9 +177,25 @@ class HighlightRenderer {
  * Used for: Search results, User lineage
  */
 export class SinglePathRenderer extends HighlightRenderer {
+  /**
+   * Compute effective opacity based on priority hierarchy
+   * If search is active and this is user lineage, dim to 10%
+   */
+  _computeEffectiveOpacity() {
+    const { pathOpacity, activeHighlights } = this.context;
+
+    // If this is user lineage and search is active, dim to 10%
+    if (this.typeId === 'userLineage' && activeHighlights.search) {
+      console.log('[SinglePathRenderer] Dimming user lineage to 10% (search active)');
+      return pathOpacity.value * 0.1;
+    }
+
+    // Otherwise use full pathOpacity
+    return pathOpacity;
+  }
+
   render() {
     const { pathNodeIds } = this.pathData;
-    const { pathOpacity } = this.context;
 
     if (!pathNodeIds || pathNodeIds.length < 2) {
       console.log('[SinglePathRenderer] No path to render (null or < 2 nodes)');
@@ -195,9 +215,12 @@ export class SinglePathRenderer extends HighlightRenderer {
       return null;
     }
 
+    // Compute effective opacity based on priority
+    const effectiveOpacity = this._computeEffectiveOpacity();
+
     // Render each depth level with 4-layer glow system
     return Array.from(segmentsByDepth.entries()).flatMap(([depthDiff, { pathObj, color }]) => {
-      return this._renderPathWithGlow(pathObj, color, depthDiff, pathOpacity, 'single-path');
+      return this._renderPathWithGlow(pathObj, color, depthDiff, effectiveOpacity);
     });
   }
 }
@@ -248,7 +271,7 @@ export class DualPathRenderer extends HighlightRenderer {
     if (path1Segments.totalSegments > 0) {
       const path1Elements = Array.from(path1Segments.segmentsByDepth.entries()).flatMap(
         ([depthDiff, { pathObj, color }]) => {
-          return this._renderPathWithGlow(pathObj, color, depthDiff, pathOpacity, 'dual-path1');
+          return this._renderPathWithGlow(pathObj, color, depthDiff, pathOpacity, 'path1');
         }
       );
       elements.push(...path1Elements);
@@ -258,7 +281,7 @@ export class DualPathRenderer extends HighlightRenderer {
     if (path2Segments.totalSegments > 0) {
       const path2Elements = Array.from(path2Segments.segmentsByDepth.entries()).flatMap(
         ([depthDiff, { pathObj, color }]) => {
-          return this._renderPathWithGlow(pathObj, color, depthDiff, pathOpacity, 'dual-path2');
+          return this._renderPathWithGlow(pathObj, color, depthDiff, pathOpacity, 'path2');
         }
       );
       elements.push(...path2Elements);
@@ -291,7 +314,7 @@ export class DualPathRenderer extends HighlightRenderer {
 
     return [
       // Pulsing outer glow
-      <Group key="intersection-outer" layer={<Paint><Blur blur={12} /></Paint>}>
+      <Group key={`${this.typeId}-intersection-outer`} layer={<Paint><Blur blur={12} /></Paint>}>
         <Path
           path={circlePath}
           color={hexToRgba(color, 0.2)}
@@ -302,7 +325,7 @@ export class DualPathRenderer extends HighlightRenderer {
       </Group>,
 
       // Inner ring
-      <Group key="intersection-inner" layer={<Paint><Blur blur={6} /></Paint>}>
+      <Group key={`${this.typeId}-intersection-inner`} layer={<Paint><Blur blur={6} /></Paint>}>
         <Path
           path={circlePath}
           color={hexToRgba(color, 0.35)}
@@ -314,7 +337,7 @@ export class DualPathRenderer extends HighlightRenderer {
 
       // Core ring (crisp)
       <Path
-        key="intersection-core"
+        key={`${this.typeId}-intersection-core`}
         path={circlePath}
         color={color}
         style="stroke"
@@ -340,23 +363,27 @@ export class MultiPathRenderer extends HighlightRenderer {
 /**
  * Renderer Factory
  * Creates appropriate renderer based on highlight type
+ * @param {string} typeId - Unique highlight type identifier ('search', 'userLineage', 'cousinMarriage')
+ * @param {Object} highlightConfig - Highlight configuration from HIGHLIGHT_TYPES
+ * @param {Object} pathData - Calculated path data
+ * @param {Object} context - Rendering context (nodes, connections, etc.)
  */
-export function createRenderer(highlightConfig, pathData, context) {
-  if (!highlightConfig || !pathData || !context) {
+export function createRenderer(typeId, highlightConfig, pathData, context) {
+  if (!typeId || !highlightConfig || !pathData || !context) {
     console.warn('[createRenderer] Missing required parameters');
     return null;
   }
 
   switch (highlightConfig.multiPath) {
     case false:
-      return new SinglePathRenderer(highlightConfig, pathData, context);
+      return new SinglePathRenderer(typeId, highlightConfig, pathData, context);
     case 'dual':
-      return new DualPathRenderer(highlightConfig, pathData, context);
+      return new DualPathRenderer(typeId, highlightConfig, pathData, context);
     case 'multi':
-      return new MultiPathRenderer(highlightConfig, pathData, context);
+      return new MultiPathRenderer(typeId, highlightConfig, pathData, context);
     default:
       console.warn(`[createRenderer] Unknown multiPath type: ${highlightConfig.multiPath}`);
-      return new SinglePathRenderer(highlightConfig, pathData, context);
+      return new SinglePathRenderer(typeId, highlightConfig, pathData, context);
   }
 }
 

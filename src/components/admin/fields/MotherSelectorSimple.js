@@ -12,13 +12,33 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
-import { getShortNameChain } from "../../../utils/nameChainUtils";
 import tokens from "../../ui/tokens";
 
 // Enable RTL
 I18nManager.forceRTL(true);
 
 const COLORS = tokens.colors.najdi;
+
+/**
+ * Simplifies a full name to "FirstName LastName" format.
+ * Extracts only the first and last parts of a name for compact display.
+ *
+ * @param {string} name - Full name to simplify
+ * @returns {string} Simplified name in "FirstName LastName" format
+ *
+ * @example
+ * simplifyName("نوف بنت عبدالله بن محمد القفاري") // Returns: "نوف القفاري"
+ * simplifyName("سارة")                          // Returns: "سارة"
+ * simplifyName("")                              // Returns: ""
+ * simplifyName(null)                            // Returns: ""
+ */
+const simplifyName = (name) => {
+  if (!name) return "";
+  const parts = name.split(" ").filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+};
 
 const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = true }) => {
   const [loading, setLoading] = useState(false);
@@ -49,6 +69,26 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
 
   // Removed auto-select - let user choose
 
+  /**
+   * Loads all wives (current and past) for the specified father.
+   * Queries the marriages table and formats the data for display.
+   *
+   * @returns {Promise<void>}
+   *
+   * @example
+   * // Returns formatted array of wives:
+   * [
+   *   {
+   *     wife_id: "uuid-123",
+   *     wife_name: "نوف بنت عبدالله القفاري",      // Full name (original)
+   *     display_name: "نوف القفاري",              // Simplified for UI
+   *     wife_hid: "1.2.3",                        // Al Qefari ID (null for Munasib)
+   *     status: "current",                        // "current" or "past"
+   *     is_current: true                          // Quick boolean check
+   *   },
+   *   ...
+   * ]
+   */
   const loadWives = async () => {
     if (!fatherId) return;
 
@@ -82,16 +122,17 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
       const formattedWives = (data || []).map((marriage) => {
         const wife = marriage.wife;
 
-        // For Munasib (no HID), name is already complete with family origin - don't call getShortNameChain
-        // For Al Qefari women (with HID), use getShortNameChain to get lineage preview
+        // Simplify all names to "FirstName LastName" format for clean display
+        // For Munasib (no HID), simplify the full name with family origin
+        // For Al Qefari women (with HID), simplify their name
         const displayName = wife
-          ? (wife.hid ? (getShortNameChain(wife) || wife.name || "غير محدد") : wife.name || "غير محدد")
+          ? simplifyName(wife.name) || "غير محدد"
           : "غير محدد";
 
         return {
           wife_id: marriage.wife_id,
           wife_name: wife?.name || "غير محدد", // Keep original for backwards compatibility
-          display_name: displayName, // Munasib: direct name, Al Qefari: lineage chain
+          display_name: displayName, // Simplified: "FirstName LastName" for all wives
           wife_hid: wife?.hid,
           status: marriage.status,
           is_current: marriage.status === "current" || marriage.status === "married",
@@ -332,7 +373,7 @@ const styles = StyleSheet.create({
   selectorWrapper: {
     position: "relative",
     width: "100%",
-    zIndex: 40,
+    zIndex: 100,
   },
 
   // Main selector container

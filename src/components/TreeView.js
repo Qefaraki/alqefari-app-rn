@@ -1864,7 +1864,7 @@ const TreeView = ({
         }, 300);
       }
     }
-  }, [highlightMyLine, authProfile?.id, nodes.length, calculatePathData, activeHighlights, pathOpacity]);
+  }, [highlightMyLine, authProfile?.id, nodes.length, calculatePathData, pathOpacity]);
 
   // Clear all highlights (glow + path) - called when X button clicked
   const clearAllHighlights = useCallback(() => {
@@ -2726,12 +2726,13 @@ const TreeView = ({
     const allElements = activeTypes.flatMap(({ typeId, config, data }) => {
       console.log(`[TreeView] Rendering highlight type: ${typeId}`, { config, data });
 
-      const renderer = createRenderer(config, data, {
+      const renderer = createRenderer(typeId, config, data, {
         nodes,
         connections,
         showPhotos,
         pathOpacity,
-        Skia
+        Skia,
+        activeHighlights
       });
 
       if (!renderer) {

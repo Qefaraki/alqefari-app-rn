@@ -162,7 +162,7 @@ const FamilyCard = React.memo(
       }
     };
 
-    const initials = item.name ? item.name.slice(0, 2) : '';
+    const initials = item.name ? item.name.slice(0, 1) : '';
 
     return (
       <TouchableOpacity

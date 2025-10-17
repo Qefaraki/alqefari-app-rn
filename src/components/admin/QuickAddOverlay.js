@@ -660,9 +660,6 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
                 <View style={styles.navTitleBlock}>
                   <Text style={styles.navTitle}>أبناء {parentDisplayName}</Text>
-                  <Text style={styles.navSubtitle} numberOfLines={1}>
-                    تنظيم سريع ومباشر لكل الأبناء
-                  </Text>
                 </View>
 
                 <TouchableOpacity
@@ -936,11 +933,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     textAlign: "center",
   },
-  navSubtitle: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: COLORS.textMuted,
-    fontWeight: "400",
-  },
+  navSubtitle: {},
   navActionSave: {
     flexDirection: "row",
     alignItems: "center",
@@ -986,6 +979,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
+    zIndex: 100,
   },
   quickAddSection: {
     paddingVertical: tokens.spacing.sm,
@@ -994,7 +988,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background + "F0",
     borderRadius: tokens.radii.lg,
     position: "relative",
-    zIndex: 1,
+    zIndex: 50,
   },
   fieldGroup: {
     gap: tokens.spacing.xxs,
@@ -1139,6 +1133,7 @@ const styles = StyleSheet.create({
   childrenListSection: {
     flex: 1,
     marginTop: tokens.spacing.sm,
+    zIndex: 1,
   },
   emptyState: {
     flex: 1,

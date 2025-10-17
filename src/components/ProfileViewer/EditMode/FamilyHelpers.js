@@ -86,19 +86,15 @@ SectionCard.propTypes = {
  * Get Initials Utility Function
  *
  * Extracts initials from a person's name for avatar fallbacks.
- * - Single word: Returns first 2 characters (e.g., "Ali" → "AL")
- * - Multiple words: Returns first character of first 2 words (e.g., "Ali Ahmed" → "AA")
+ * Returns the first character of the first word only.
  *
  * @param {string} name - Person's full name
- * @returns {string} Initials in uppercase, or '؟' if no name provided
+ * @returns {string} First initial in uppercase, or '؟' if no name provided
  */
 export const getInitials = (name) => {
   if (!name) return '؟';
   const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return parts[0].slice(0, 1).toUpperCase();
 };
 
 /**

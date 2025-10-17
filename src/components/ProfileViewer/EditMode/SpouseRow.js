@@ -32,6 +32,7 @@ import familyNameService from '../../../services/familyNameService';
 import { getInitials, AvatarThumbnail } from './FamilyHelpers';
 import { PERMISSION_MESSAGES, ERROR_MESSAGES } from './permissionMessages';
 import { getShortNameChain } from '../../../utils/nameChainUtils';
+import { formatNameWithTitle } from '../../../services/professionalTitleService';
 
 /**
  * TabFamilyContext
@@ -92,15 +93,15 @@ const SpouseRow = React.memo(
     if (!spouse) return null;
 
     // Display name logic:
-    // - For cousin marriages: Try to show name chain (falls back to simple name if unavailable)
+    // - For cousin marriages: Try name chain → formatted name with title → simple name
     // - For Munasib: Show simple name only
     const displayName = useMemo(() => {
       if (isEditing) return editingName || '—';
 
       if (isCousinMarriage) {
-        // Cousin marriage: Try to get name chain, fallback to simple name
+        // Cousin marriage: Try to get name chain, fallback to formatted name with title
         const nameChain = getShortNameChain(spouse);
-        return nameChain || spouse.name || '—';
+        return nameChain || formatNameWithTitle(spouse) || spouse.name || '—';
       }
 
       // Munasib: Simple name
@@ -325,15 +326,6 @@ const SpouseRow = React.memo(
                   <Text style={styles.visitProfileButtonFullText}>زيارة الملف الشخصي</Text>
                 </TouchableOpacity>
               )}
-
-              <TouchableOpacity
-                style={styles.cousinCloseButton}
-                onPress={handleToggle}
-                accessibilityRole="button"
-                accessibilityLabel="إغلاق"
-              >
-                <Text style={styles.cousinCloseButtonText}>إغلاق</Text>
-              </TouchableOpacity>
             </View>
           ) : (
             // MUNASIB MARRIAGE: Full inline editor
@@ -572,18 +564,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: tokens.colors.najdi.primary,
-  },
-  cousinCloseButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radii.lg,
-    backgroundColor: tokens.colors.najdi.background,
-  },
-  cousinCloseButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
   },
   inlineEditor: {
     marginTop: tokens.spacing.sm,

@@ -11,6 +11,7 @@ import {
   ScrollView,
   Pressable,
   Image,
+  I18nManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -31,6 +32,16 @@ const DESERT_PALETTE = [
   "#D1BBA399",
   "#A13333",
 ];
+
+const getPaletteIndex = (key) => {
+  if (!key) return 0;
+  const str = String(key);
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = (hash * 31 + str.charCodeAt(i)) % 2147483647;
+  }
+  return Math.abs(hash);
+};
 const ChildListCard = ({
   child,
   index,
@@ -85,10 +96,11 @@ const ChildListCard = ({
     }
     return child.mother_name ? simplifyName(child.mother_name) : null;
   }, [localMotherId, mothers, child.mother_name, simplifyName]);
-  const avatarColor = useMemo(
-    () => DESERT_PALETTE[index % DESERT_PALETTE.length],
-    [index],
-  );
+  const colorKey = child.id || child.temp_id || child.uuid || child.name || index;
+  const avatarColor = useMemo(() => {
+    const paletteIndex = getPaletteIndex(colorKey) % DESERT_PALETTE.length;
+    return DESERT_PALETTE[paletteIndex];
+  }, [colorKey]);
   const photoUrl =
     child.photo_url ||
     child.avatar_url ||
@@ -237,19 +249,15 @@ const ChildListCard = ({
               onMoveUp(child.id);
               Haptics.selectionAsync();
             }}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             accessibilityLabel={`رفع ${child.name}`}
             accessibilityHint="تحريك الطفل لأعلى"
           >
             <Ionicons
               name="chevron-up"
-              size={16}
+              size={20}
               color={index === 0 ? COLORS.textMuted : COLORS.primary}
             />
           </TouchableOpacity>
-          <View style={styles.positionPill}>
-            <Text style={styles.positionText}>{index + 1}</Text>
-          </View>
           <TouchableOpacity
             style={[styles.reorderButton, index === totalChildren - 1 && styles.reorderButtonDisabled]}
             disabled={index === totalChildren - 1}
@@ -257,13 +265,12 @@ const ChildListCard = ({
               onMoveDown(child.id);
               Haptics.selectionAsync();
             }}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             accessibilityLabel={`إنزال ${child.name}`}
             accessibilityHint="تحريك الطفل لأسفل"
           >
             <Ionicons
               name="chevron-down"
-              size={16}
+              size={20}
               color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.primary}
             />
           </TouchableOpacity>
@@ -279,6 +286,14 @@ const ChildListCard = ({
         ]}
         accessibilityLabel={`تعديل ${child.name}`}
       >
+        <Text
+          style={[
+            styles.positionBadgeText,
+            I18nManager.isRTL ? styles.positionNumberRTL : styles.positionNumberLTR,
+          ]}
+        >
+          {index + 1}
+        </Text>
         <View style={styles.viewBlock}>
           <View style={styles.detailRow}>
             <View style={styles.detailsColumn}>
@@ -362,19 +377,18 @@ const ChildListCard = ({
                 )}
               </View>
             </View>
-
-            <View style={styles.avatarColumn}>
-              {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={styles.avatarPhoto} />
-              ) : (
-                <View style={[styles.avatarCircle, { backgroundColor: avatarColor }]}>
-                  <Text style={styles.avatarInitials}>{initials}</Text>
-                </View>
-              )}
-            </View>
           </View>
         </View>
-        <View style={styles.actionColumn}>
+        <View style={styles.trailingColumn}>
+          <View style={styles.avatarWrapper}>
+            {photoUrl ? (
+              <Image source={{ uri: photoUrl }} style={styles.avatarPhoto} />
+            ) : (
+              <View style={[styles.avatarCircle, { backgroundColor: avatarColor }]}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              </View>
+            )}
+          </View>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={handleDeletePress}
@@ -475,31 +489,32 @@ const styles = StyleSheet.create({
   reorderColumn: {
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.xs,
   },
   reorderButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: COLORS.container + "12",
+    width: 36,
+    height: 36,
+    borderRadius: tokens.radii.md,
+    backgroundColor: COLORS.container + "16",
     justifyContent: "center",
     alignItems: "center",
   },
   reorderButtonDisabled: {
     opacity: 0.35,
   },
-  positionPill: {
-    minWidth: 24,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 10,
-    backgroundColor: COLORS.container + "1F",
-    alignItems: "center",
+  positionBadgeText: {
+    position: "absolute",
+    top: tokens.spacing.xs,
+    fontSize: tokens.typography.caption1.fontSize,
+    fontWeight: "700",
+    color: COLORS.textMuted,
   },
-  positionText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.text,
+  positionNumberRTL: {
+    left: tokens.spacing.xs,
+  },
+  positionNumberLTR: {
+    right: tokens.spacing.xs,
   },
   card: {
     flex: 1,
@@ -513,6 +528,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.container + "33",
     ...tokens.shadow.ios,
+    position: "relative",
   },
   cardElevated: {
     borderColor: COLORS.container + "26",
@@ -531,7 +547,7 @@ const styles = StyleSheet.create({
   },
   viewBlock: {
     flex: 1,
-    paddingVertical: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xxs,
   },
   detailRow: {
     flexDirection: "row-reverse",
@@ -547,21 +563,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: tokens.spacing.sm,
   },
-  avatarColumn: {
-    width: 44,
+  avatarWrapper: {
     alignItems: "center",
     justifyContent: "center",
   },
   avatarPhoto: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     resizeMode: "cover",
   },
   avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.container + "33",
@@ -613,7 +628,7 @@ const styles = StyleSheet.create({
   metadataRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: tokens.spacing.sm,
   },
   metadataText: {
     fontSize: tokens.typography.caption1.fontSize,
@@ -624,15 +639,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  actionColumn: {
-    justifyContent: "center",
-    alignItems: "flex-end",
-    gap: 6,
+  trailingColumn: {
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: tokens.spacing.sm,
     marginLeft: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.xxs,
   },
   iconButton: {
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: tokens.radii.md,
     justifyContent: "center",
     alignItems: "center",
