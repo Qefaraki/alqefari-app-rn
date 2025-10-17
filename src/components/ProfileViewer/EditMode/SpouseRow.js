@@ -33,6 +33,7 @@ import { getInitials, AvatarThumbnail } from './FamilyHelpers';
 import { PERMISSION_MESSAGES, ERROR_MESSAGES } from './permissionMessages';
 import { getShortNameChain } from '../../../utils/nameChainUtils';
 import { formatNameWithTitle } from '../../../services/professionalTitleService';
+import { useTreeStore } from '../../../stores/useTreeStore';
 
 /**
  * TabFamilyContext
@@ -68,6 +69,7 @@ const SpouseRow = React.memo(
   }) => {
     const { canEditFamily } = React.useContext(TabFamilyContext);
     const spouse = spouseData.spouse_profile;
+    const nodesMap = useTreeStore((state) => state.nodesMap);
     const [editingName, setEditingName] = useState('');
     const [editingStatus, setEditingStatus] = useState('current');
     const [saving, setSaving] = useState(false);
@@ -93,20 +95,21 @@ const SpouseRow = React.memo(
     if (!spouse) return null;
 
     // Display name logic:
-    // - For cousin marriages: Try name chain → formatted name with title → simple name
+    // - For cousin marriages: Lookup from nodesMap to get full profile with name_chain data
     // - For Munasib: Show simple name only
     const displayName = useMemo(() => {
       if (isEditing) return editingName || '—';
 
       if (isCousinMarriage) {
-        // Cousin marriage: Try to get name chain, fallback to formatted name with title
-        const nameChain = getShortNameChain(spouse);
-        return nameChain || formatNameWithTitle(spouse) || spouse.name || '—';
+        // Cousin marriage: Lookup full profile from tree (has name_chain/full_name_chain)
+        const fullProfile = nodesMap.get(spouse.id) || spouse;
+        const nameChain = getShortNameChain(fullProfile);
+        return nameChain || formatNameWithTitle(fullProfile) || fullProfile.name || '—';
       }
 
       // Munasib: Simple name
       return spouse.name || '—';
-    }, [isEditing, editingName, isCousinMarriage, spouse]);
+    }, [isEditing, editingName, isCousinMarriage, spouse, nodesMap]);
 
     const subtitleParts = [];
     if (spouseData.children_count > 0) {

@@ -504,21 +504,6 @@ const styles = StyleSheet.create({
   reorderButtonDisabled: {
     opacity: 0.35,
   },
-  reorderIndexBadge: {
-    minWidth: 26,
-    minHeight: 26,
-    borderRadius: 13,
-    backgroundColor: COLORS.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  reorderIndexText: {
-    fontSize: tokens.typography.caption1.fontSize,
-    fontWeight: "700",
-    color: COLORS.text,
-  },
   card: {
     flex: 1,
     flexDirection: "row",
@@ -560,6 +545,7 @@ const styles = StyleSheet.create({
   detailsColumn: {
     flex: 1,
     gap: tokens.spacing.xs,
+    paddingRight: tokens.spacing.lg,
   },
   titleRow: {
     flexDirection: "row-reverse",
@@ -632,6 +618,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: tokens.spacing.sm,
+    marginTop: tokens.spacing.xxs,
   },
   metadataText: {
     fontSize: tokens.typography.caption1.fontSize,
@@ -646,7 +633,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     gap: tokens.spacing.sm,
-    marginLeft: tokens.spacing.xs,
+    marginLeft: tokens.spacing.sm,
     paddingVertical: tokens.spacing.xxs,
   },
   iconButton: {
@@ -738,6 +725,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     borderRadius: tokens.radii.md,
     minHeight: 44,
+  },
+  cardIndex: {
+    position: "absolute",
+    bottom: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.xs,
+    paddingVertical: 2,
+    borderRadius: tokens.radii.sm,
+    backgroundColor: COLORS.background + "E6",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "33",
+  },
+  cardIndexRTL: {
+    left: tokens.spacing.xs,
+  },
+  cardIndexLTR: {
+    right: tokens.spacing.xs,
+  },
+  cardIndexText: {
+    fontSize: tokens.typography.caption1.fontSize,
+    fontWeight: "700",
+    color: COLORS.text,
   },
   modalOverlay: {
     flex: 1,

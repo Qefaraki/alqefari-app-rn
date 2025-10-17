@@ -2776,7 +2776,7 @@ const TreeView = ({
 
     console.log(`[TreeView] Rendered ${allElements.length} highlight elements`);
     return allElements;
-  }, [activeHighlights, nodes, connections, showPhotos, pathOpacity]);
+  }, [activeHighlights, nodes, connections, showPhotos]); // pathOpacity is stable shared value, no need in deps
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
   const renderTier3 = useCallback(

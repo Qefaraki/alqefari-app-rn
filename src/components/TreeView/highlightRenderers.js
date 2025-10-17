@@ -178,20 +178,13 @@ class HighlightRenderer {
  */
 export class SinglePathRenderer extends HighlightRenderer {
   /**
-   * Compute effective opacity based on priority hierarchy
-   * If search is active and this is user lineage, dim to 10%
+   * Get effective opacity for rendering
+   * Always returns the shared value for smooth animations
+   * Search highlights render later (higher z-index), providing natural visual priority
    */
   _computeEffectiveOpacity() {
-    const { pathOpacity, activeHighlights } = this.context;
-
-    // If this is user lineage and search is active, dim to 10%
-    if (this.typeId === 'userLineage' && activeHighlights.search) {
-      console.log('[SinglePathRenderer] Dimming user lineage to 10% (search active)');
-      return pathOpacity.value * 0.1;
-    }
-
-    // Otherwise use full pathOpacity
-    return pathOpacity;
+    const { pathOpacity } = this.context;
+    return pathOpacity; // Always return shared value for animated opacity
   }
 
   render() {
