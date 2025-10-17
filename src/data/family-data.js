@@ -389,7 +389,20 @@ export function getFather(personId, familyDataArray) {
   return familyDataArray.find(p => p.id === person.father_id);
 }
 
-// Utility to get a person's children
+// Utility to get a person's children (deduplicated for cousin marriages)
+/**
+ * @deprecated Prefer gender-based filtering for better performance
+ * @param {string} personId - The person's ID
+ * @param {Array} familyDataArray - Array of family profiles
+ * @returns {Array} Deduplicated array of children
+ */
 export function getChildren(personId, familyDataArray) {
-  return familyDataArray.filter(p => p.father_id === personId || p.mother_id === personId);
+  const seen = new Set();
+  return familyDataArray.filter(p => {
+    if ((p.father_id === personId || p.mother_id === personId) && !seen.has(p.id)) {
+      seen.add(p.id);
+      return true;
+    }
+    return false;
+  });
 }

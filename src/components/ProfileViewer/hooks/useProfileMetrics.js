@@ -97,7 +97,10 @@ export const useProfileMetrics = (person) => {
       }
     }
 
-    return getChildren(person.id, dataSource) || [];
+    // Fallback for mock data - use gender-based pattern (avoids duplication)
+    return person.gender === 'male'
+      ? dataSource.filter(p => p.father_id === person.id)
+      : dataSource.filter(p => p.mother_id === person.id);
   }, [dataSource, person, treeData.length]);
 
   const sortedChildren = useMemo(() => {

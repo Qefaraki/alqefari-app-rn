@@ -272,8 +272,10 @@ const ProfileSheet = ({ editMode = false }) => {
       return dataSource.filter((p) => p.father_id === person.id);
     }
 
-    // Fall back to old method
-    return getChildren(person.id, dataSource);
+    // Fallback - use gender-based pattern (avoids duplication in cousin marriages)
+    return person.gender === 'male'
+      ? dataSource.filter(p => p.father_id === person.id)
+      : dataSource.filter(p => p.mother_id === person.id);
   }, [person, treeData]);
 
   // Sort by sibling_order (0 = oldest)

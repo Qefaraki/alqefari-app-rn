@@ -125,7 +125,19 @@ const FamilyCard = React.memo(
         list.push({ ...buildRelative(child, {}), type: 'child' });
       });
 
-      return list;
+      // Defensive: Remove any duplicate profiles by ID (prevents React key errors in cousin marriages)
+      const seen = new Set();
+      const deduplicated = list.filter(item => {
+        if (!item.id) return true; // Keep dividers/non-profile items
+        if (seen.has(item.id)) {
+          console.warn('[FamilyCard] Duplicate child detected - deduplicating:', item.id);
+          return false;
+        }
+        seen.add(item.id);
+        return true;
+      });
+
+      return deduplicated;
     }, [children, father, mother, marriages, person]);
 
   if (allMembers.length === 0) {
