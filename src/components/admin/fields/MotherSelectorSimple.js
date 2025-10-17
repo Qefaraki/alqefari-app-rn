@@ -8,6 +8,8 @@ import {
   Animated,
   ScrollView,
   I18nManager,
+  Modal,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -151,37 +153,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
   };
 
   const toggleDropdown = () => {
-    if (showDropdown) {
-      // Closing
-      Animated.parallel([
-        Animated.timing(dropdownHeight, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-        Animated.timing(dropdownOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: false,
-        }),
-      ]).start(() => setShowDropdown(false));
-    } else {
-      // Opening
-      setShowDropdown(true);
-      const height = Math.min(wives.length * 48, 200);
-      Animated.parallel([
-        Animated.timing(dropdownHeight, {
-          toValue: height,
-          duration: 250,
-          useNativeDriver: false,
-        }),
-        Animated.timing(dropdownOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    }
+    setShowDropdown(!showDropdown);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -245,62 +217,61 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
       )}
 
       {/* Main Selector with PROPER RTL */}
-      <View style={styles.selectorWrapper}>
-        <TouchableOpacity
-          style={[styles.selector, showDropdown && styles.selectorActive]}
-          onPress={toggleDropdown}
-          activeOpacity={0.7}
-        >
-          {/* RTL Container to force right-to-left */}
-          <View style={styles.selectorContent}>
-            {/* Text FIRST (will appear on right in RTL) */}
-            <Text
-              style={
-                selectedMother ? styles.selectedText : styles.placeholderText
-              }
-              numberOfLines={1}
+      <TouchableOpacity
+        style={[styles.selector, showDropdown && styles.selectorActive]}
+        onPress={toggleDropdown}
+        activeOpacity={0.7}
+      >
+        {/* RTL Container to force right-to-left */}
+        <View style={styles.selectorContent}>
+          {/* Text FIRST (will appear on right in RTL) */}
+          <Text
+            style={
+              selectedMother ? styles.selectedText : styles.placeholderText
+            }
+            numberOfLines={1}
+          >
+            {selectedMother ? selectedMother.display_name : "اختر الأم"}
+          </Text>
+
+          {/* Clear button SECOND (will appear in middle/left) */}
+          {selectedMother && (
+            <TouchableOpacity
+              onPress={handleClear}
+              style={styles.clearButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              {selectedMother ? selectedMother.display_name : "اختر الأم"}
-            </Text>
+            <Ionicons
+              name="close-circle"
+              size={18}
+              color={COLORS.textMuted + "55"}
+            />
+          </TouchableOpacity>
+        )}
 
-            {/* Clear button SECOND (will appear in middle/left) */}
-            {selectedMother && (
-              <TouchableOpacity
-                onPress={handleClear}
-                style={styles.clearButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-              <Ionicons
-                name="close-circle"
-                size={18}
-                color={COLORS.textMuted + "55"}
-              />
-            </TouchableOpacity>
-          )}
-
-          {/* Chevron LAST (will appear on far left in RTL) */}
-          <Ionicons
-            name={showDropdown ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={COLORS.textMuted + "55"}
-          />
-        </View>
+        {/* Chevron LAST (will appear on far left in RTL) */}
+        <Ionicons
+          name={showDropdown ? "chevron-up" : "chevron-down"}
+          size={16}
+          color={COLORS.textMuted + "55"}
+        />
+      </View>
       </TouchableOpacity>
 
-        {/* Beautiful Dropdown */}
-        {showDropdown && (
-          <Animated.View
-            style={[
-              styles.dropdown,
-              {
-                height: dropdownHeight,
-                opacity: dropdownOpacity,
-              },
-            ]}
-          >
+      {/* Modal Dropdown - renders outside clipping bounds */}
+      <Modal
+        visible={showDropdown}
+        transparent
+        animationType="fade"
+        onRequestClose={toggleDropdown}
+      >
+        <Pressable style={styles.modalOverlay} onPress={toggleDropdown}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>اختيار الأم</Text>
             <ScrollView
+              style={styles.modalScrollView}
               showsVerticalScrollIndicator={false}
-              nestedScrollEnabled={true}
               bounces={false}
             >
               {/* Wife Options */}
@@ -342,9 +313,9 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </Animated.View>
-        )}
-      </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };

@@ -517,6 +517,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.container + "33",
     ...tokens.shadow.ios,
     position: "relative",
+    overflow: "hidden",
   },
   cardElevated: {
     borderColor: COLORS.container + "26",
@@ -582,7 +583,7 @@ const styles = StyleSheet.create({
   },
   editInputInline: {
     flex: 1,
-    borderRadius: tokens.radii.sm,
+    borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.container + "33",
     backgroundColor: COLORS.background,
@@ -619,6 +620,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: tokens.spacing.sm,
     marginTop: tokens.spacing.xxs,
+    paddingLeft: 20,
   },
   metadataText: {
     fontSize: tokens.typography.caption1.fontSize,

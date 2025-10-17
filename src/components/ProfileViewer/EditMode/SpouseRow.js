@@ -95,21 +95,22 @@ const SpouseRow = React.memo(
     if (!spouse) return null;
 
     // Display name logic:
-    // - For cousin marriages: Lookup from nodesMap to get full profile with name_chain data
-    // - For Munasib: Show simple name only
+    // - For cousin marriages: ALWAYS show full chain (even when expanded)
+    // - For Munasib: Show editingName when editing (inline editor)
     const displayName = useMemo(() => {
-      if (isEditing) return editingName || '—';
-
+      // For cousin marriages: ALWAYS show full chain (even when expanded)
       if (isCousinMarriage) {
-        // Cousin marriage: Lookup full profile from tree (has name_chain/full_name_chain)
         const fullProfile = nodesMap.get(spouse.id) || spouse;
         const nameChain = getShortNameChain(fullProfile);
         return nameChain || formatNameWithTitle(fullProfile) || fullProfile.name || '—';
       }
 
-      // Munasib: Simple name
+      // For Munasib: Show editingName when editing (inline editor)
+      if (isEditing) return editingName || '—';
+
+      // Default: Simple name
       return spouse.name || '—';
-    }, [isEditing, editingName, isCousinMarriage, spouse, nodesMap]);
+    }, [isCousinMarriage, nodesMap, spouse, isEditing, editingName]);
 
     const subtitleParts = [];
     if (spouseData.children_count > 0) {

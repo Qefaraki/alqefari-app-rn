@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
     marginHorizontal: tokens.spacing.lg,
     marginTop: tokens.spacing.md,
     borderRadius: tokens.radii.lg,
-    overflow: "visible",
+    overflow: "hidden",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.container + "25",
     backgroundColor: COLORS.background + "66",
