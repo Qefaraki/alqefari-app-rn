@@ -2018,8 +2018,25 @@ const TreeView = ({
         const selectedProfile = nodesMap.get(result.id);
 
         if (selectedProfile) {
+          console.log('[TreeView] Selected profile:', {
+            id: selectedProfile.id,
+            name: selectedProfile.name,
+            hid: selectedProfile.hid,
+            hasMarriages: !!selectedProfile.marriages,
+            marriageCount: selectedProfile.marriages?.length || 0
+          });
+
           // Check if this profile has any cousin marriages
           const cousinMarriages = detectCousinMarriage(selectedProfile, nodesMap);
+
+          console.log('[TreeView] Cousin marriage detection result:', {
+            found: cousinMarriages.length,
+            cousinMarriages: cousinMarriages.map(cm => ({
+              spouseId: cm.spouse.id,
+              spouseName: cm.spouse.name,
+              spouseHid: cm.spouse.hid
+            }))
+          });
 
           if (cousinMarriages.length > 0) {
             // Cousin marriage detected - use dual-path highlighting

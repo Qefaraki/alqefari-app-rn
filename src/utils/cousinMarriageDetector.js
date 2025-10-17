@@ -48,6 +48,8 @@ export function detectCousinMarriage(profile, nodesMap) {
 
   // Get all marriages (both active and inactive)
   const marriages = profile.marriages || [];
+  console.log(`[CousinDetector] Profile ${profile.id} (${profile.name}) has ${marriages.length} marriages`);
+
   if (marriages.length === 0) {
     return [];
   }
@@ -57,20 +59,42 @@ export function detectCousinMarriage(profile, nodesMap) {
   for (const marriage of marriages) {
     // Get spouse profile
     const spouseId = marriage.spouse_id || marriage.wife_id || marriage.husband_id;
-    if (!spouseId) continue;
+    console.log(`[CousinDetector] Checking marriage:`, {
+      spouseId,
+      marriageKeys: Object.keys(marriage),
+      marriageData: marriage
+    });
+
+    if (!spouseId) {
+      console.log('[CousinDetector] No spouse ID found, skipping');
+      continue;
+    }
 
     const spouse = nodesMap.get(spouseId);
-    if (!spouse) continue;
+    if (!spouse) {
+      console.log(`[CousinDetector] Spouse ${spouseId} not in nodesMap`);
+      continue;
+    }
+
+    console.log(`[CousinDetector] Spouse ${spouseId} (${spouse.name}):`, {
+      hid: spouse.hid,
+      isAlQefari: isAlQefariMember(spouse),
+      deletedAt: spouse.deleted_at
+    });
 
     // Check if spouse is also Al-Qefari (has HID) and not soft-deleted
     if (isAlQefariMember(spouse) && !spouse.deleted_at) {
+      console.log(`[CousinDetector] ✅ Cousin marriage found with ${spouse.id} (${spouse.name})`);
       cousinMarriages.push({
         spouse: spouse,
         marriage: marriage
       });
+    } else {
+      console.log(`[CousinDetector] ❌ Not a cousin marriage (isAlQefari: ${isAlQefariMember(spouse)}, deleted: ${spouse.deleted_at})`);
     }
   }
 
+  console.log(`[CousinDetector] Total cousin marriages found: ${cousinMarriages.length}`);
   return cousinMarriages;
 }
 

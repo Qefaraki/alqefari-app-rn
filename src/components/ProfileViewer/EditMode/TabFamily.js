@@ -1206,14 +1206,16 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                           const existsInTree = nodesMap.has(spouse.id);
 
                           if (isCousinWife && existsInTree) {
-                            // Cousin wife on tree: Navigate to tree location + open profile
+                            // Cousin wife on tree: Navigate to tree location + dual-path highlighting
                             Haptics.selectionAsync();
                             router.push({
                               pathname: "/",
                               params: {
                                 highlightProfileId: spouse.id,  // Center tree on cousin wife
                                 openProfileId: spouse.id,       // Open cousin wife's profile
-                                focusOnProfile: 'true'          // Trigger tree centering animation
+                                focusOnProfile: 'true',         // Trigger tree centering animation
+                                spouse1Id: person.id,           // Current profile (Al-Qefari)
+                                spouse2Id: spouse.id            // Cousin wife (Al-Qefari) - dual-path highlighting
                               }
                             });
                           } else {
@@ -1286,14 +1288,16 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                           const existsInTree = nodesMap.has(spouse.id);
 
                           if (isCousinWife && existsInTree) {
-                            // Cousin wife on tree: Navigate to tree location + open profile
+                            // Cousin wife on tree: Navigate to tree location + dual-path highlighting
                             Haptics.selectionAsync();
                             router.push({
                               pathname: "/",
                               params: {
                                 highlightProfileId: spouse.id,  // Center tree on cousin wife
                                 openProfileId: spouse.id,       // Open cousin wife's profile
-                                focusOnProfile: 'true'          // Trigger tree centering animation
+                                focusOnProfile: 'true',         // Trigger tree centering animation
+                                spouse1Id: person.id,           // Current profile (Al-Qefari)
+                                spouse2Id: spouse.id            // Cousin wife (Al-Qefari) - dual-path highlighting
                               }
                             });
                           } else {

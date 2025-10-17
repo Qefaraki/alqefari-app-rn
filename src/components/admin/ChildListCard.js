@@ -254,11 +254,10 @@ const ChildListCard = ({
           >
             <Ionicons
               name="chevron-up"
-              size={18}
+              size={20}
               color={index === 0 ? COLORS.textMuted : COLORS.primary}
             />
           </TouchableOpacity>
-          <Text style={styles.reorderIndex}>{index + 1}</Text>
           <TouchableOpacity
             style={[styles.reorderButton, index === totalChildren - 1 && styles.reorderButtonDisabled]}
             disabled={index === totalChildren - 1}
@@ -271,7 +270,7 @@ const ChildListCard = ({
           >
             <Ionicons
               name="chevron-down"
-              size={18}
+              size={20}
               color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.primary}
             />
           </TouchableOpacity>
@@ -392,6 +391,14 @@ const ChildListCard = ({
             <Ionicons name="trash-outline" size={18} color={COLORS.primary} />
           </TouchableOpacity>
         </View>
+        <View
+          style={[
+            styles.cardIndex,
+            I18nManager.isRTL ? styles.cardIndexRTL : styles.cardIndexLTR,
+          ]}
+        >
+          <Text style={styles.cardIndexText}>{index + 1}</Text>
+        </View>
       </View>
 
       <Modal
@@ -487,8 +494,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.xs,
   },
   reorderButton: {
-    width: 36,
-    height: 36,
+    width: 44,
+    height: 44,
     borderRadius: tokens.radii.md,
     backgroundColor: COLORS.container + "16",
     justifyContent: "center",
@@ -497,19 +504,20 @@ const styles = StyleSheet.create({
   reorderButtonDisabled: {
     opacity: 0.35,
   },
-  positionBadgeText: {
-    position: "absolute",
-    bottom: tokens.spacing.xs,
+  reorderIndexBadge: {
+    minWidth: 26,
+    minHeight: 26,
+    borderRadius: 13,
+    backgroundColor: COLORS.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "33",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderIndexText: {
     fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "700",
-    color: COLORS.textMuted,
-    opacity: 0.75,
-  },
-  positionNumberRTL: {
-    left: tokens.spacing.xs,
-  },
-  positionNumberLTR: {
-    right: tokens.spacing.xs,
+    color: COLORS.text,
   },
   card: {
     flex: 1,
