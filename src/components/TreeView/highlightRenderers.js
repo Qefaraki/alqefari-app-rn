@@ -280,17 +280,7 @@ export class DualPathRenderer extends HighlightRenderer {
       elements.push(...path2Elements);
     }
 
-    // Render intersection node (common ancestor) with special styling
-    if (intersection) {
-      const intersectionNode = nodes.find(n => n.id === intersection);
-      if (intersectionNode) {
-        const intersectionElement = this._renderIntersectionNode(
-          intersectionNode,
-          this.config.colorPalette.intersection
-        );
-        elements.push(...intersectionElement);
-      }
-    }
+    // NO intersection circle - just render the full dual paths
 
     return elements;
   }

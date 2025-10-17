@@ -31,7 +31,7 @@ import { supabase } from '../../../services/supabase';
 import familyNameService from '../../../services/familyNameService';
 import { getInitials, AvatarThumbnail } from './FamilyHelpers';
 import { PERMISSION_MESSAGES, ERROR_MESSAGES } from './permissionMessages';
-import { getShortNameChain } from '../../../utils/nameChainUtils';
+import { getCompleteNameChain } from '../../../utils/nameChainUtils';
 import { formatNameWithTitle } from '../../../services/professionalTitleService';
 import { useTreeStore } from '../../../stores/useTreeStore';
 
@@ -95,13 +95,13 @@ const SpouseRow = React.memo(
     if (!spouse) return null;
 
     // Display name logic:
-    // - For cousin marriages: ALWAYS show full chain (even when expanded)
+    // - For cousin marriages: ALWAYS show complete chain with surname (even when expanded)
     // - For Munasib: Show editingName when editing (inline editor)
     const displayName = useMemo(() => {
-      // For cousin marriages: ALWAYS show full chain (even when expanded)
+      // For cousin marriages: ALWAYS show complete chain with surname (no truncation)
       if (isCousinMarriage) {
         const fullProfile = nodesMap.get(spouse.id) || spouse;
-        const nameChain = getShortNameChain(fullProfile);
+        const nameChain = getCompleteNameChain(fullProfile);
         return nameChain || formatNameWithTitle(fullProfile) || fullProfile.name || '—';
       }
 

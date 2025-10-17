@@ -29,6 +29,10 @@ export const useTreeStore = create((set, get) => ({
   // Selection state
   selectedPersonId: null,
 
+  // Cousin marriage highlighting trigger (set from nested components like TabFamily)
+  // When set, TreeView will activate dual-path highlighting for these spouse IDs
+  pendingCousinHighlight: null, // { spouse1Id, spouse2Id, highlightProfileId }
+
   // Profile sheet state for coordinating animations
   profileSheetIndex: -1,
   profileSheetProgress: null, // This will hold a Reanimated shared value

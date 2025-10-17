@@ -1995,6 +1995,64 @@ const TreeView = ({
     }
   }, [spouse1Id, spouse2Id, focusOnProfile, nodes.length, calculatePathData, pathOpacity]);
 
+  // Handle cousin marriage highlighting from Zustand store (set by nested components like TabFamily)
+  const pendingCousinHighlight = useTreeStore(state => state.pendingCousinHighlight);
+
+  // DEBUG: Track all changes to pendingCousinHighlight
+  useEffect(() => {
+    console.log('[TreeView] pendingCousinHighlight changed:', pendingCousinHighlight, 'nodes.length:', nodes.length);
+  }, [pendingCousinHighlight, nodes.length]);
+
+  useEffect(() => {
+    if (pendingCousinHighlight && nodes.length > 0) {
+      const { spouse1Id, spouse2Id, highlightProfileId } = pendingCousinHighlight;
+
+      console.log(`[TreeView] Pending cousin highlight detected: ${spouse1Id} & ${spouse2Id}`);
+
+      // Small delay to ensure tree is fully rendered
+      const timer = setTimeout(() => {
+        // Validate both spouses are in loaded tree
+        const nodesMap = useTreeStore.getState().nodesMap;
+        if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
+          console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
+          return;
+        }
+
+        // Navigate to highlighted profile (cousin wife)
+        if (highlightProfileId) {
+          navigateToNode(highlightProfileId);
+        }
+
+        // Calculate dual paths
+        const dualPathData = calculatePathData('COUSIN_MARRIAGE', [spouse1Id, spouse2Id]);
+
+        if (dualPathData) {
+          setActiveHighlights(prev => ({
+            ...prev,
+            cousinMarriage: dualPathData,
+            search: null
+          }));
+
+          // Animate paths in
+          pathOpacity.value = withDelay(
+            600,
+            withTiming(0.6, {
+              duration: 600,
+              easing: Easing.out(Easing.ease)
+            })
+          );
+
+          console.log(`[TreeView] Cousin marriage dual paths activated from Zustand`);
+        }
+
+        // Clear the pending highlight (consumed)
+        useTreeStore.setState({ pendingCousinHighlight: null });
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [pendingCousinHighlight, nodes.length, calculatePathData, pathOpacity, navigateToNode]);
+
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
     (result) => {

@@ -971,7 +971,7 @@ const styles = StyleSheet.create({
     marginHorizontal: tokens.spacing.lg,
     marginTop: tokens.spacing.md,
     borderRadius: tokens.radii.lg,
-    overflow: "hidden",
+    overflow: "visible",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.container + "25",
     backgroundColor: COLORS.background + "66",
@@ -1110,9 +1110,9 @@ const styles = StyleSheet.create({
   },
   inlineControlsRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: tokens.spacing.sm,
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
   },
   genderGroup: {
     flexBasis: 0,
@@ -1129,6 +1129,7 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.xxs,
     alignSelf: "stretch",
     justifyContent: "center",
+    zIndex: 200,
   },
   childrenListSection: {
     flex: 1,

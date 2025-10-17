@@ -203,16 +203,12 @@ export class PathCalculationService {
       };
     }
 
-    // Get full paths
+    // Get full paths to root (NO TRIMMING - show complete ancestry)
     const fullPath1 = this.calculatePath(spouse1Id);
     const fullPath2 = this.calculatePath(spouse2Id);
 
-    // Trim paths at LCA (include LCA in both paths)
-    const path1 = this._trimPathAtNode(fullPath1, lca);
-    const path2 = this._trimPathAtNode(fullPath2, lca);
-
     return {
-      paths: [path1, path2],
+      paths: [fullPath1, fullPath2], // Return full paths, not trimmed
       intersection: lca
     };
   }

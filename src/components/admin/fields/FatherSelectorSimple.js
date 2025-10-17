@@ -206,12 +206,12 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
         )}
         <View style={[styles.selector, styles.errorSelector]}>
           <View style={styles.errorContent}>
-            <Ionicons name="alert-circle" size={18} color={COLORS.primary} />
-            <Text style={styles.errorText}>يجب إضافة زوج أولاً</Text>
+            <Ionicons name="alert-circle" size={16} color={COLORS.primary} />
+            <Text style={styles.errorText}>أضف زوج أولاً</Text>
           </View>
         </View>
         <Text style={styles.hintText}>
-          لإضافة طفل للمرأة، يجب أولاً إضافة زوج في قسم "الأزواج"
+          يجب أولاً إضافة زوج في قسم "الأزواج"
         </Text>
       </View>
     );
@@ -412,14 +412,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderWidth: 1,
     borderColor: COLORS.primary,
+    height: tokens.touchTarget.minimum,
+    justifyContent: "center",
+    paddingHorizontal: tokens.spacing.sm,
   },
   errorContent: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
   },
   errorText: {
-    fontSize: tokens.typography.footnote.fontSize,
+    fontSize: tokens.typography.caption1.fontSize,
     color: COLORS.primary,
     fontWeight: "500",
   },

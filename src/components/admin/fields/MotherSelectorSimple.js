@@ -8,8 +8,6 @@ import {
   Animated,
   ScrollView,
   I18nManager,
-  Modal,
-  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -153,7 +151,37 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
   };
 
   const toggleDropdown = () => {
-    setShowDropdown(!showDropdown);
+    if (showDropdown) {
+      // Closing
+      Animated.parallel([
+        Animated.timing(dropdownHeight, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+        Animated.timing(dropdownOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: false,
+        }),
+      ]).start(() => setShowDropdown(false));
+    } else {
+      // Opening
+      setShowDropdown(true);
+      const height = Math.min(wives.length * 48, 200);
+      Animated.parallel([
+        Animated.timing(dropdownHeight, {
+          toValue: height,
+          duration: 250,
+          useNativeDriver: false,
+        }),
+        Animated.timing(dropdownOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -202,7 +230,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
           </View>
         )}
         <View style={[styles.selector, styles.disabledSelector]}>
-          <Text style={styles.disabledText}>غير متاح</Text>
+          <Text style={styles.disabledText}>أضف زوجة أولاً</Text>
         </View>
       </View>
     );
@@ -217,61 +245,62 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
       )}
 
       {/* Main Selector with PROPER RTL */}
-      <TouchableOpacity
-        style={[styles.selector, showDropdown && styles.selectorActive]}
-        onPress={toggleDropdown}
-        activeOpacity={0.7}
-      >
-        {/* RTL Container to force right-to-left */}
-        <View style={styles.selectorContent}>
-          {/* Text FIRST (will appear on right in RTL) */}
-          <Text
-            style={
-              selectedMother ? styles.selectedText : styles.placeholderText
-            }
-            numberOfLines={1}
-          >
-            {selectedMother ? selectedMother.display_name : "اختر الأم"}
-          </Text>
-
-          {/* Clear button SECOND (will appear in middle/left) */}
-          {selectedMother && (
-            <TouchableOpacity
-              onPress={handleClear}
-              style={styles.clearButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      <View style={styles.selectorWrapper}>
+        <TouchableOpacity
+          style={[styles.selector, showDropdown && styles.selectorActive]}
+          onPress={toggleDropdown}
+          activeOpacity={0.7}
+        >
+          {/* RTL Container to force right-to-left */}
+          <View style={styles.selectorContent}>
+            {/* Text FIRST (will appear on right in RTL) */}
+            <Text
+              style={
+                selectedMother ? styles.selectedText : styles.placeholderText
+              }
+              numberOfLines={1}
             >
-            <Ionicons
-              name="close-circle"
-              size={18}
-              color={COLORS.textMuted + "55"}
-            />
-          </TouchableOpacity>
-        )}
+              {selectedMother ? selectedMother.display_name : "اختر الأم"}
+            </Text>
 
-        {/* Chevron LAST (will appear on far left in RTL) */}
-        <Ionicons
-          name={showDropdown ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={COLORS.textMuted + "55"}
-        />
-      </View>
-      </TouchableOpacity>
+            {/* Clear button SECOND (will appear in middle/left) */}
+            {selectedMother && (
+              <TouchableOpacity
+                onPress={handleClear}
+                style={styles.clearButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+              <Ionicons
+                name="close-circle"
+                size={18}
+                color={COLORS.textMuted + "55"}
+              />
+            </TouchableOpacity>
+          )}
 
-      {/* Modal Dropdown - renders outside clipping bounds */}
-      <Modal
-        visible={showDropdown}
-        transparent
-        animationType="fade"
-        onRequestClose={toggleDropdown}
-      >
-        <Pressable style={styles.modalOverlay} onPress={toggleDropdown}>
-          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>اختيار الأم</Text>
+          {/* Chevron LAST (will appear on far left in RTL) */}
+          <Ionicons
+            name={showDropdown ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={COLORS.textMuted + "55"}
+          />
+        </View>
+        </TouchableOpacity>
+
+        {/* Elevated Dropdown - renders above clipped content */}
+        {showDropdown && (
+          <Animated.View
+            style={[
+              styles.dropdown,
+              {
+                height: dropdownHeight,
+                opacity: dropdownOpacity,
+              },
+            ]}
+          >
             <ScrollView
-              style={styles.modalScrollView}
               showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
               bounces={false}
             >
               {/* Wife Options */}
@@ -313,9 +342,9 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </Animated.View>
+        )}
+      </View>
     </View>
   );
 };
@@ -344,7 +373,7 @@ const styles = StyleSheet.create({
   selectorWrapper: {
     position: "relative",
     width: "100%",
-    zIndex: 100,
+    zIndex: 9999,
   },
 
   // Main selector container
@@ -372,8 +401,8 @@ const styles = StyleSheet.create({
   },
   selectorActive: {
     backgroundColor: COLORS.background,
-    borderBottomLeftRadius: tokens.radii.lg,
-    borderBottomRightRadius: tokens.radii.lg,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   disabledSelector: {
     opacity: 0.5,
@@ -405,7 +434,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
 
-  // Dropdown styles
+  // Dropdown styles with extreme elevation
   dropdown: {
     position: "absolute",
     top: "100%",
@@ -420,11 +449,11 @@ const styles = StyleSheet.create({
       width: 0,
       height: 3,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 999,
     overflow: "hidden",
-    zIndex: 200,
+    zIndex: 10000,
   },
   option: {
     flexDirection: I18nManager.isRTL ? "row" : "row",

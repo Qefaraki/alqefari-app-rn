@@ -1206,18 +1206,33 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                           const existsInTree = nodesMap.has(spouse.id);
 
                           if (isCousinWife && existsInTree) {
-                            // Cousin wife on tree: Navigate to tree location + dual-path highlighting
+                            // Cousin wife on tree: Set highlighting + open profile in sheet
                             Haptics.selectionAsync();
-                            router.push({
-                              pathname: "/",
-                              params: {
-                                highlightProfileId: spouse.id,  // Center tree on cousin wife
-                                openProfileId: spouse.id,       // Open cousin wife's profile
-                                focusOnProfile: 'true',         // Trigger tree centering animation
-                                spouse1Id: person.id,           // Current profile (Al-Qefari)
-                                spouse2Id: spouse.id            // Cousin wife (Al-Qefari) - dual-path highlighting
+
+                            // Trigger dual-path highlighting via Zustand store
+                            // TreeView watches this state and activates highlighting
+                            console.log('[TabFamily] Setting pendingCousinHighlight:', {
+                              spouse1Id: person.id,
+                              spouse2Id: spouse.id,
+                              highlightProfileId: spouse.id,
+                              nodesMapSize: nodesMap.size,
+                              treeDataLength
+                            });
+
+                            useTreeStore.setState({
+                              pendingCousinHighlight: {
+                                spouse1Id: person.id,          // Current profile (Al-Qefari)
+                                spouse2Id: spouse.id,          // Cousin wife (Al-Qefari)
+                                highlightProfileId: spouse.id  // Center tree on cousin wife
                               }
                             });
+
+                            // Verify state was set
+                            const stateAfterSet = useTreeStore.getState().pendingCousinHighlight;
+                            console.log('[TabFamily] State after setState:', stateAfterSet);
+
+                            // Open cousin wife's profile in the sheet (sheet stays open)
+                            onNavigateToProfile(spouse.id);
                           } else {
                             // Munasib (non-cousin) or not loaded: Just open profile sheet
                             onNavigateToProfile(spouse.id);
@@ -1288,18 +1303,33 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                           const existsInTree = nodesMap.has(spouse.id);
 
                           if (isCousinWife && existsInTree) {
-                            // Cousin wife on tree: Navigate to tree location + dual-path highlighting
+                            // Cousin wife on tree: Set highlighting + open profile in sheet
                             Haptics.selectionAsync();
-                            router.push({
-                              pathname: "/",
-                              params: {
-                                highlightProfileId: spouse.id,  // Center tree on cousin wife
-                                openProfileId: spouse.id,       // Open cousin wife's profile
-                                focusOnProfile: 'true',         // Trigger tree centering animation
-                                spouse1Id: person.id,           // Current profile (Al-Qefari)
-                                spouse2Id: spouse.id            // Cousin wife (Al-Qefari) - dual-path highlighting
+
+                            // Trigger dual-path highlighting via Zustand store
+                            // TreeView watches this state and activates highlighting
+                            console.log('[TabFamily] Setting pendingCousinHighlight:', {
+                              spouse1Id: person.id,
+                              spouse2Id: spouse.id,
+                              highlightProfileId: spouse.id,
+                              nodesMapSize: nodesMap.size,
+                              treeDataLength
+                            });
+
+                            useTreeStore.setState({
+                              pendingCousinHighlight: {
+                                spouse1Id: person.id,          // Current profile (Al-Qefari)
+                                spouse2Id: spouse.id,          // Cousin wife (Al-Qefari)
+                                highlightProfileId: spouse.id  // Center tree on cousin wife
                               }
                             });
+
+                            // Verify state was set
+                            const stateAfterSet = useTreeStore.getState().pendingCousinHighlight;
+                            console.log('[TabFamily] State after setState:', stateAfterSet);
+
+                            // Open cousin wife's profile in the sheet (sheet stays open)
+                            onNavigateToProfile(spouse.id);
                           } else {
                             // Munasib (non-cousin) or not loaded: Just open profile sheet
                             onNavigateToProfile(spouse.id);

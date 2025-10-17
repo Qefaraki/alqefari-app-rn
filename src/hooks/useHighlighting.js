@@ -105,7 +105,7 @@ export function useHighlighting() {
         console.warn(`[useHighlighting] Unsupported highlight type: ${typeKey}`);
         return null;
     }
-  }, []);
+  }, [nodesMap]);
 
   /**
    * Clear path calculation cache

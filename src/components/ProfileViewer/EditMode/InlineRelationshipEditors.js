@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import { supabase } from '../../../services/supabase';
+import { getCompleteNameChain } from '../../../utils/nameChainUtils';
 
 const InlineCard = ({ children }) => (
   <View style={styles.cardContainer}>
@@ -153,7 +154,18 @@ export const InlineMarriageEditor = ({
 
   if (!marriage) return null;
 
-  const displayTitle = trimmedName || marriage.spouse_profile?.name || '—';
+  // Detect cousin marriage: Both spouses are Al-Qefari family members (have HID)
+  const isCousinMarriage = marriage.spouse_profile?.hid !== null &&
+                           marriage.spouse_profile?.hid !== undefined;
+
+  // For cousin marriages: Show complete chain with surname in header
+  const displayTitle = useMemo(() => {
+    if (isCousinMarriage) {
+      const nameChain = getCompleteNameChain(marriage.spouse_profile);
+      return nameChain || trimmedName || marriage.spouse_profile?.name || '—';
+    }
+    return trimmedName || marriage.spouse_profile?.name || '—';
+  }, [isCousinMarriage, marriage.spouse_profile, trimmedName]);
 
   return (
     <InlineCard>

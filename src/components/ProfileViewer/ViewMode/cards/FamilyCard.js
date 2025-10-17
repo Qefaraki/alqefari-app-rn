@@ -9,7 +9,7 @@ import {
 import InfoCard from '../components/InfoCard';
 import { ProgressiveThumbnail } from '../../../ProgressiveImage';
 import { formatNameWithTitle, getTitleAbbreviation } from '../../../../services/professionalTitleService';
-import { getShortNameChain } from '../../../../utils/nameChainUtils';
+import { getShortNameChain, getCompleteNameChain } from '../../../../utils/nameChainUtils';
 
 // Particles and titles to skip when finding the "real" first name
 const SKIP_PARTICLES = new Set(['بنت', 'بن', 'بني', 'آل', 'د.', 'م.', 'أ.د.', 'الشيخ', 'اللواء', 'عميد']);
@@ -44,10 +44,10 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
     const abbrev = getTitleAbbreviation(node || {});
     name = abbrev ? `${abbrev} ${finalShortened}`.trim() : finalShortened;
   } else if (label === 'الزوجة' || label === 'الزوج') {
-    // Spouse handling: Show name chain for cousin marriages
+    // Spouse handling: Show complete chain with surname for cousin marriages
     if (node?.hid !== null && node?.hid !== undefined) {
-      // Cousin marriage: Try to get name chain, fallback to formatted name
-      const nameChain = getShortNameChain(node);
+      // Cousin marriage: Get complete chain with surname (no truncation)
+      const nameChain = getCompleteNameChain(node);
       name = nameChain || formatNameWithTitle(node) || node?.name || fallbackName || '';
     } else {
       // Munasib: Use simple formatted name
