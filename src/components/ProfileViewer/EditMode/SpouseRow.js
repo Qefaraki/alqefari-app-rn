@@ -119,27 +119,15 @@ const SpouseRow = React.memo(
     const subtitle = subtitleParts.join(' • ');
 
     const handleToggle = () => {
-      // Cousin marriages: Navigate to profile instead of inline edit
-      if (isCousinMarriage) {
-        if (!onVisit) {
-          if (__DEV__) {
-            console.warn('[SpouseRow] onVisit not provided for cousin marriage');
-          }
-          Alert.alert('تنبيه', 'هذا ملف من عائلة القفاري. اضغط "زيارة الملف" لعرض البيانات.');
-          return;
-        }
-        Haptics.selectionAsync();
-        onVisit();
-        return;
-      }
-
-      // Munasib marriages: Normal inline edit flow
       if (isEditing) {
+        // Close expanded view for both cousin and Munasib
         Keyboard.dismiss();
         Haptics.selectionAsync();
         onCancelEdit?.();
       } else {
-        if (!canEditFamily) {
+        // Expand view
+        // Permission check only for Munasib (cousins can expand to see info)
+        if (!isCousinMarriage && !canEditFamily) {
           Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_EDIT.title, PERMISSION_MESSAGES.UNAUTHORIZED_EDIT.message);
           return;
         }
@@ -290,37 +278,20 @@ const SpouseRow = React.memo(
               <Text style={styles.memberName} numberOfLines={2} ellipsizeMode="tail">
                 {displayName}
               </Text>
-              {isCousinMarriage ? (
-                // Cousin marriage: Show visit profile button
-                onVisit && (
-                  <TouchableOpacity
-                    style={styles.visitProfileButtonCompact}
-                    onPress={handleVisit}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`زيارة ملف ${spouse.name}`}
-                  >
-                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
-                    <Text style={styles.visitProfileButtonText}>زيارة</Text>
-                  </TouchableOpacity>
-                )
-              ) : (
-                // Munasib marriage: Show chevron toggle for inline editing
-                <TouchableOpacity
-                  style={[styles.memberChevron, !canEditFamily && { opacity: 0.4 }]}
-                  onPress={handleToggle}
-                  disabled={!canEditFamily}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={isEditing ? 'إغلاق المحرر' : 'تعديل الزواج'}
-                >
-                  <Ionicons
-                    name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
-                    size={20}
-                    color={tokens.colors.najdi.textMuted}
-                  />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={[styles.memberChevron, (!canEditFamily && !isCousinMarriage) && { opacity: 0.4 }]}
+                onPress={handleToggle}
+                disabled={!canEditFamily && !isCousinMarriage}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={isEditing ? 'إغلاق' : 'عرض التفاصيل'}
+              >
+                <Ionicons
+                  name={isEditing ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={20}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              </TouchableOpacity>
             </View>
             {!isEditing && subtitle ? (
               <Text style={styles.memberSubtitle} numberOfLines={1} ellipsizeMode="tail">
@@ -331,98 +302,134 @@ const SpouseRow = React.memo(
         </View>
 
         {isEditing ? (
-          <View style={styles.inlineEditor}>
-            <View style={styles.inlineField}>
-              <Text style={styles.inlineFieldLabel}>اسم الزوجة</Text>
-              <TextInput
-                style={styles.inlineTextInput}
-                value={editingName}
-                onChangeText={setEditingName}
-                placeholder="اكتب الاسم الكامل"
-                placeholderTextColor={tokens.colors.najdi.textMuted}
-                autoCapitalize="words"
-                autoCorrect={false}
-                editable={!saving}
-              />
-            </View>
+          isCousinMarriage ? (
+            // COUSIN MARRIAGE: Info message + Visit button
+            <View style={styles.cousinInfoView}>
+              <View style={styles.infoMessageBox}>
+                <Ionicons name="information-circle-outline" size={20} color={tokens.colors.najdi.textMuted} />
+                <Text style={styles.infoMessageText}>
+                  {spouse.gender === 'male'
+                    ? 'هذا من أبناء الأسرة. قم بزيارة ملفه للتعديل.'
+                    : 'هذه من بنات الأسرة. قم بزيارة ملفها للتعديل.'}
+                </Text>
+              </View>
 
-            <View style={styles.inlineField}>
-              <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
-              <View style={styles.inlineSegments}>
-                {[
-                  { label: 'حالي', value: 'current' },
-                  { label: 'سابق', value: 'past' },
-                ].map((option) => {
-                  const active = editingStatus === option.value;
-                  return (
+              {onVisit && (
+                <TouchableOpacity
+                  style={styles.visitProfileButtonFull}
+                  onPress={handleVisit}
+                  accessibilityRole="button"
+                  accessibilityLabel={`زيارة ملف ${spouse.name}`}
+                >
+                  <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                  <Text style={styles.visitProfileButtonFullText}>زيارة الملف الشخصي</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.cousinCloseButton}
+                onPress={handleToggle}
+                accessibilityRole="button"
+                accessibilityLabel="إغلاق"
+              >
+                <Text style={styles.cousinCloseButtonText}>إغلاق</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            // MUNASIB MARRIAGE: Full inline editor
+            <View style={styles.inlineEditor}>
+              <View style={styles.inlineField}>
+                <Text style={styles.inlineFieldLabel}>اسم الزوجة</Text>
+                <TextInput
+                  style={styles.inlineTextInput}
+                  value={editingName}
+                  onChangeText={setEditingName}
+                  placeholder="اكتب الاسم الكامل"
+                  placeholderTextColor={tokens.colors.najdi.textMuted}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  editable={!saving}
+                />
+              </View>
+
+              <View style={styles.inlineField}>
+                <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
+                <View style={styles.inlineSegments}>
+                  {[
+                    { label: 'حالي', value: 'current' },
+                    { label: 'سابق', value: 'past' },
+                  ].map((option) => {
+                    const active = editingStatus === option.value;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setEditingStatus(option.value);
+                        }}
+                        activeOpacity={0.85}
+                        disabled={saving}
+                      >
+                        <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.inlineFooter}>
+                <View style={styles.inlineFooterLinks}>
+                  {onVisit ? (
                     <TouchableOpacity
-                      key={option.value}
-                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setEditingStatus(option.value);
-                      }}
-                      activeOpacity={0.85}
+                      style={styles.inlineUtilityButton}
+                      onPress={handleVisit}
                       disabled={saving}
                     >
-                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
-                        {option.label}
-                      </Text>
+                      <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                      <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.inlineFooter}>
-              <View style={styles.inlineFooterLinks}>
-                {onVisit ? (
+                  ) : null}
                   <TouchableOpacity
                     style={styles.inlineUtilityButton}
-                    onPress={handleVisit}
+                    onPress={handleDelete}
                     disabled={saving}
                   >
-                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
-                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                    <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
                   </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.inlineUtilityButton}
-                  onPress={handleDelete}
-                  disabled={saving}
-                >
-                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
-                  <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
-                </TouchableOpacity>
-              </View>
+                </View>
 
-              <View style={styles.inlineActionButtons}>
-                <TouchableOpacity
-                  style={styles.inlineCancelButton}
-                  onPress={handleToggle}
-                  activeOpacity={0.7}
-                  disabled={saving}
-                >
-                  <Text style={styles.inlineCancelText}>إلغاء</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
-                  onPress={handleSave}
-                  activeOpacity={0.85}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator size="small" color={tokens.colors.surface} />
-                  ) : (
-                    <>
-                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
-                      <Text style={styles.inlineSaveText}>حفظ</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                <View style={styles.inlineActionButtons}>
+                  <TouchableOpacity
+                    style={styles.inlineCancelButton}
+                    onPress={handleToggle}
+                    activeOpacity={0.7}
+                    disabled={saving}
+                  >
+                    <Text style={styles.inlineCancelText}>إلغاء</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
+                    onPress={handleSave}
+                    activeOpacity={0.85}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color={tokens.colors.surface} />
+                    ) : (
+                      <>
+                        <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
+                        <Text style={styles.inlineSaveText}>حفظ</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          )
         ) : null}
       </View>
     );
@@ -529,21 +536,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  visitProfileButtonCompact: {
+  cousinInfoView: {
+    marginTop: tokens.spacing.sm,
+    paddingTop: tokens.spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.colors.divider,
+    gap: tokens.spacing.md,
+  },
+  infoMessageBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.sm,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.lg,
+    padding: tokens.spacing.md,
+  },
+  infoMessageText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    color: tokens.colors.najdi.text,
+  },
+  visitProfileButtonFull: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: tokens.spacing.xxs,
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.xxs,
-    borderRadius: tokens.radii.md,
+    justifyContent: 'center',
+    gap: tokens.spacing.xs,
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary + '55',
+    borderColor: tokens.colors.najdi.primary,
     backgroundColor: tokens.colors.surface,
   },
-  visitProfileButtonText: {
-    fontSize: 13,
+  visitProfileButtonFullText: {
+    fontSize: 15,
     fontWeight: '600',
     color: tokens.colors.najdi.primary,
+  },
+  cousinCloseButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: tokens.spacing.sm,
+    borderRadius: tokens.radii.lg,
+    backgroundColor: tokens.colors.najdi.background,
+  },
+  cousinCloseButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
   },
   inlineEditor: {
     marginTop: tokens.spacing.sm,
