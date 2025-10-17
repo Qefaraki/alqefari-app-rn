@@ -7,10 +7,11 @@ import Animated, {
   withTiming,
   withSequence,
   Easing,
+  runOnJS,
 } from "react-native-reanimated";
 import Svg, { Path, G } from "react-native-svg";
 
-const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) => {
+const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId, onAnimationComplete }) => {
   const [targetNode, setTargetNode] = useState(null);
 
   // Find and cache the target node when nodes change
@@ -97,6 +98,11 @@ const NavigateToRootButton = ({ nodes, viewport, sharedValues, focusPersonId }) 
     sharedValues.scale.value = withTiming(targetScale, {
       duration: 600,
       easing: Easing.inOut(Easing.ease),
+    }, (finished) => {
+      // Sync viewport after animation completes to render nodes immediately
+      if (finished && onAnimationComplete) {
+        runOnJS(onAnimationComplete)();
+      }
     });
   };
 

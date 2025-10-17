@@ -633,6 +633,7 @@ const TreeView = ({
   const [glowTrigger, setGlowTrigger] = useState(0); // Force re-trigger on same node
   const nodeFramesRef = useRef(new Map());
   const highlightTimerRef = useRef(null);
+  const lastNavigationRef = useRef(null); // Track navigation ID to prevent stale callbacks
 
   // UNIFIED HIGHLIGHTING SYSTEM
   // Centralized state for all highlight types (search, user lineage, cousin marriage)
@@ -1704,12 +1705,22 @@ const TreeView = ({
       cancelAnimation(translateY);
       cancelAnimation(scale);
 
+      // Track navigation ID to prevent stale callbacks from rapid navigation
+      const navigationId = Date.now();
+      lastNavigationRef.current = navigationId;
+
       // Use spring animation for more natural movement
       // Spring provides smoother deceleration than timing
+      // Sync viewport AFTER spring completes (~840ms) not scale (600ms)
       translateX.value = withSpring(targetX, {
         damping: 20,
         stiffness: 90,
         mass: 1,
+      }, (finished) => {
+        // Only sync if this navigation wasn't cancelled by a newer one
+        if (finished && lastNavigationRef.current === navigationId) {
+          runOnJS(syncTransformAndBounds)();
+        }
       });
       translateY.value = withSpring(targetY, {
         damping: 20,
@@ -1752,6 +1763,8 @@ const TreeView = ({
         clearTimeout(highlightTimerRef.current);
         highlightTimerRef.current = null;
       }
+      // Cancel pending navigation syncs on unmount
+      lastNavigationRef.current = null;
     };
   }, []);
 
@@ -3608,6 +3621,7 @@ const TreeView = ({
           scale: scale,
         }}
         focusPersonId={linkedProfileId || profile?.id}
+        onAnimationComplete={syncTransformAndBounds}
       />
 
 

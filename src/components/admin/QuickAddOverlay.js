@@ -985,7 +985,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
     gap: tokens.spacing.sm,
-    backgroundColor: COLORS.background + "F0",
+    backgroundColor: COLORS.background + "F6",
     borderRadius: tokens.radii.lg,
     position: "relative",
     zIndex: 50,

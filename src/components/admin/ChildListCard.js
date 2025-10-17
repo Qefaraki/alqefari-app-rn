@@ -254,10 +254,11 @@ const ChildListCard = ({
           >
             <Ionicons
               name="chevron-up"
-              size={20}
+              size={18}
               color={index === 0 ? COLORS.textMuted : COLORS.primary}
             />
           </TouchableOpacity>
+          <Text style={styles.reorderIndex}>{index + 1}</Text>
           <TouchableOpacity
             style={[styles.reorderButton, index === totalChildren - 1 && styles.reorderButtonDisabled]}
             disabled={index === totalChildren - 1}
@@ -270,7 +271,7 @@ const ChildListCard = ({
           >
             <Ionicons
               name="chevron-down"
-              size={20}
+              size={18}
               color={index === totalChildren - 1 ? COLORS.textMuted : COLORS.primary}
             />
           </TouchableOpacity>
@@ -286,14 +287,7 @@ const ChildListCard = ({
         ]}
         accessibilityLabel={`تعديل ${child.name}`}
       >
-        <Text
-          style={[
-            styles.positionBadgeText,
-            I18nManager.isRTL ? styles.positionNumberRTL : styles.positionNumberLTR,
-          ]}
-        >
-          {index + 1}
-        </Text>
+        {/* index now handled inside reorder column */}
         <View style={styles.viewBlock}>
           <View style={styles.detailRow}>
             <View style={styles.detailsColumn}>
@@ -505,10 +499,11 @@ const styles = StyleSheet.create({
   },
   positionBadgeText: {
     position: "absolute",
-    top: tokens.spacing.xs,
+    bottom: tokens.spacing.xs,
     fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "700",
     color: COLORS.textMuted,
+    opacity: 0.75,
   },
   positionNumberRTL: {
     left: tokens.spacing.xs,

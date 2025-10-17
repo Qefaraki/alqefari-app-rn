@@ -132,6 +132,8 @@ export const profilesService = {
           gender: m.spouse_gender,
           hid: m.spouse_hid,
           full_name_chain: m.spouse_full_name_chain || m.spouse_name || UNKNOWN_NAME,
+          name_chain: m.spouse_full_name_chain || m.spouse_name || UNKNOWN_NAME,  // Alias for formatNameWithTitle
+          fullNameChain: m.spouse_full_name_chain || m.spouse_name || UNKNOWN_NAME,  // CamelCase alias
           deleted_at: m.spouse_deleted_at || null,  // Use actual value from database
           version: m.spouse_version || 1,  // Required for optimistic locking
         },
