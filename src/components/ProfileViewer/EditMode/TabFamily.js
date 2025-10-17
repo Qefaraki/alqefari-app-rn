@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import tokens from '../../ui/tokens';
 import { supabase } from '../../../services/supabase';
 import familyNameService from '../../../services/familyNameService';
@@ -32,6 +33,7 @@ import { SectionCard, ParentProfileCard, getInitials, AvatarThumbnail } from './
 import SpouseRow, { TabFamilyContext } from './SpouseRow';
 import ChildRow from './ChildRow';
 import FamilySkeleton from './FamilySkeleton';
+import { useTreeStore } from '../../../stores/useTreeStore';
 
 // Re-export context for child components (SpouseRow, ChildRow)
 export { TabFamilyContext };
@@ -139,6 +141,10 @@ const familyReducer = (state, action) => {
       if (!state.familyData) return state;
       // Defensive: Ensure spouses is an array before mapping
       const spouses = Array.isArray(state.familyData.spouses) ? state.familyData.spouses : [];
+      // Optimization: Early return if marriage not found (prevents unnecessary re-render)
+      const found = spouses.some(s => s.marriage_id === action.payload.marriage_id);
+      if (!found) return state;
+
       const updatedSpouses = spouses.map((spouse) =>
         spouse.marriage_id === action.payload.marriage_id ? { ...spouse, ...action.payload } : spouse
       );
@@ -152,6 +158,10 @@ const familyReducer = (state, action) => {
       if (!state.familyData) return state;
       // Defensive: Ensure children is an array before mapping
       const children = Array.isArray(state.familyData.children) ? state.familyData.children : [];
+      // Optimization: Early return if child not found (prevents unnecessary re-render)
+      const found = children.some(c => c.id === action.payload.id);
+      if (!found) return state;
+
       const updatedChildren = children.map((child) =>
         child.id === action.payload.id ? { ...child, ...action.payload } : child
       );
@@ -1028,6 +1038,11 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   // Hook 6: Context value memoization
   const contextValue = useMemo(() => ({ canEditFamily }), [canEditFamily]);
 
+  // Hook 7-9: Tree navigation for cousin wives
+  const router = useRouter();
+  const nodesMap = useTreeStore(state => state.nodesMap);
+  const treeDataLength = useTreeStore(state => state.treeData.length);
+
   if (state.loading) {
     return (
       <ScrollView
@@ -1176,7 +1191,36 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                   const isEditing = editingMarriageId === spouseData.marriage_id;
                   const visitSpouse =
                     spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
-                      ? () => onNavigateToProfile(spouseData.spouse_profile.id)
+                      ? () => {
+                          const spouse = spouseData.spouse_profile;
+
+                          // Guard: Ensure tree is loaded before checking existence
+                          if (nodesMap.size === 0 || treeDataLength === 0) {
+                            onNavigateToProfile(spouse.id);
+                            return;
+                          }
+
+                          // Cousin wives (hid !== null) are Al-Qefari family members on the tree
+                          // Munasib (hid === null) are spouses from outside families (not on tree)
+                          const isCousinWife = spouse.hid !== null;
+                          const existsInTree = nodesMap.has(spouse.id);
+
+                          if (isCousinWife && existsInTree) {
+                            // Cousin wife on tree: Navigate to tree location + open profile
+                            Haptics.selectionAsync();
+                            router.push({
+                              pathname: "/",
+                              params: {
+                                highlightProfileId: spouse.id,  // Center tree on cousin wife
+                                openProfileId: spouse.id,       // Open cousin wife's profile
+                                focusOnProfile: 'true'          // Trigger tree centering animation
+                              }
+                            });
+                          } else {
+                            // Munasib (non-cousin) or not loaded: Just open profile sheet
+                            onNavigateToProfile(spouse.id);
+                          }
+                        }
                       : undefined;
 
                   return (
@@ -1227,7 +1271,36 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                   const isEditing = editingMarriageId === spouseData.marriage_id;
                   const visitSpouse =
                     spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
-                      ? () => onNavigateToProfile(spouseData.spouse_profile.id)
+                      ? () => {
+                          const spouse = spouseData.spouse_profile;
+
+                          // Guard: Ensure tree is loaded before checking existence
+                          if (nodesMap.size === 0 || treeDataLength === 0) {
+                            onNavigateToProfile(spouse.id);
+                            return;
+                          }
+
+                          // Cousin wives (hid !== null) are Al-Qefari family members on the tree
+                          // Munasib (hid === null) are spouses from outside families (not on tree)
+                          const isCousinWife = spouse.hid !== null;
+                          const existsInTree = nodesMap.has(spouse.id);
+
+                          if (isCousinWife && existsInTree) {
+                            // Cousin wife on tree: Navigate to tree location + open profile
+                            Haptics.selectionAsync();
+                            router.push({
+                              pathname: "/",
+                              params: {
+                                highlightProfileId: spouse.id,  // Center tree on cousin wife
+                                openProfileId: spouse.id,       // Open cousin wife's profile
+                                focusOnProfile: 'true'          // Trigger tree centering animation
+                              }
+                            });
+                          } else {
+                            // Munasib (non-cousin) or not loaded: Just open profile sheet
+                            onNavigateToProfile(spouse.id);
+                          }
+                        }
                       : undefined;
 
                   return (

@@ -102,6 +102,8 @@ export default function TreeScreen() {
             isAdmin={isAdmin}
             highlightProfileId={params.highlightProfileId as string}
             focusOnProfile={params.focusOnProfile === 'true'}
+            spouse1Id={params.spouse1Id as string}
+            spouse2Id={params.spouse2Id as string}
             onAdminDashboard={() => {}}
             onSettingsOpen={() => {}}
             setProfileEditMode={() => {}}

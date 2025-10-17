@@ -37,7 +37,7 @@ const ANIMATION = {
   COLLAPSE_OPACITY_DURATION: 140,
 
   // State reset delay (must match or exceed collapse animation)
-  STATE_RESET_DELAY: 180,
+  STATE_RESET_DELAY: 140,
 };
 
 export default function InlineSpouseAdder({

@@ -14,11 +14,14 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../../services/supabase";
 import { getShortNameChain } from "../../../utils/nameChainUtils";
+import tokens from "../../ui/tokens";
 
 // Enable RTL
 I18nManager.forceRTL(true);
 
-const FatherSelectorSimple = ({ motherId, value, onChange, label, required = false }) => {
+const COLORS = tokens.colors.najdi;
+
+const FatherSelectorSimple = ({ motherId, value, onChange, label, required = false, showLabel = true }) => {
   const [loading, setLoading] = useState(false);
   const [husbands, setHusbands] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -173,13 +176,15 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
   // If loading
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>
-            {label || "الأب"}
-            {required && <Text style={styles.required}> *</Text>}
-          </Text>
-        </View>
+      <View style={[styles.container, !showLabel && styles.containerCompact]}>
+        {showLabel && (
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>
+              {label || "الأب"}
+              {required && <Text style={styles.required}> *</Text>}
+            </Text>
+          </View>
+        )}
         <View style={[styles.selector, styles.disabledSelector]}>
           <Text style={styles.disabledText}>جاري التحميل...</Text>
         </View>
@@ -190,16 +195,18 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
   // If no husbands available - show error state
   if (husbands.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>
-            {label || "الأب"}
-            {required && <Text style={styles.required}> *</Text>}
-          </Text>
-        </View>
+      <View style={[styles.container, !showLabel && styles.containerCompact]}>
+        {showLabel && (
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>
+              {label || "الأب"}
+              {required && <Text style={styles.required}> *</Text>}
+            </Text>
+          </View>
+        )}
         <View style={[styles.selector, styles.errorSelector]}>
           <View style={styles.errorContent}>
-            <Ionicons name="alert-circle" size={18} color="#A13333" />
+            <Ionicons name="alert-circle" size={18} color={COLORS.primary} />
             <Text style={styles.errorText}>يجب إضافة زوج أولاً</Text>
           </View>
         </View>
@@ -211,13 +218,15 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.labelRow}>
-        <Text style={styles.label}>
-          {label || "الأب"}
-          {required && <Text style={styles.required}> *</Text>}
-        </Text>
-      </View>
+    <View style={[styles.container, !showLabel && styles.containerCompact]}>
+      {showLabel && (
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>
+            {label || "الأب"}
+            {required && <Text style={styles.required}> *</Text>}
+          </Text>
+        </View>
+      )}
 
       {/* Main Selector with PROPER RTL */}
       <View style={styles.selectorWrapper}>
@@ -252,7 +261,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
                 <Ionicons
                   name="close-circle"
                   size={18}
-                  color="rgba(0,0,0,0.25)"
+                  color={COLORS.textMuted + "55"}
                 />
               </TouchableOpacity>
             )}
@@ -261,7 +270,7 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
             <Ionicons
               name={showDropdown ? "chevron-up" : "chevron-down"}
               size={16}
-              color="rgba(0,0,0,0.3)"
+              color={COLORS.textMuted}
             />
           </View>
         </TouchableOpacity>
@@ -334,38 +343,50 @@ const FatherSelectorSimple = ({ motherId, value, onChange, label, required = fal
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 16,
+    marginTop: tokens.spacing.xs,
     width: "100%",
+  },
+  containerCompact: {
+    marginTop: 0,
   },
   labelRow: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     justifyContent: "flex-start",
-    marginBottom: 8,
+    marginBottom: tokens.spacing.xxs,
   },
   label: {
-    fontSize: 13,
-    color: "rgba(0,0,0,0.5)",
+    fontSize: tokens.typography.footnote.fontSize,
+    color: COLORS.textMuted,
     fontWeight: "500",
     textAlign: I18nManager.isRTL ? "right" : "left",
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   required: {
-    color: "#A13333",
-    fontSize: 15,
+    color: COLORS.primary,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "700",
   },
 
   selectorWrapper: {
     position: "relative",
     width: "100%",
+    zIndex: 40,
   },
 
   // Main selector container
   selector: {
-    backgroundColor: "#F8F8F8",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "33",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+    minHeight: tokens.touchTarget.minimum,
   },
 
   // Inner content with RTL-aware flex
@@ -376,23 +397,21 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   selectorActive: {
-    backgroundColor: "#F2F2F2",
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    backgroundColor: COLORS.background,
   },
   requiredSelector: {
     borderWidth: 1,
-    borderColor: "#A13333",
+    borderColor: COLORS.primary,
     borderStyle: "dashed",
   },
   disabledSelector: {
     opacity: 0.5,
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
   errorSelector: {
-    backgroundColor: "#FFF5F5",
+    backgroundColor: COLORS.background,
     borderWidth: 1,
-    borderColor: "#A13333",
+    borderColor: COLORS.primary,
   },
   errorContent: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
@@ -400,13 +419,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   errorText: {
-    fontSize: 14,
-    color: "#A13333",
+    fontSize: tokens.typography.footnote.fontSize,
+    color: COLORS.primary,
     fontWeight: "500",
   },
   selectedText: {
-    fontSize: 16,
-    color: "#000",
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.text,
     flex: 1,
     textAlign: I18nManager.isRTL ? "right" : "left",
     fontWeight: "500",
@@ -414,27 +433,27 @@ const styles = StyleSheet.create({
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   placeholderText: {
-    fontSize: 16,
-    color: "rgba(0,0,0,0.3)",
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.textMuted,
     flex: 1,
     textAlign: I18nManager.isRTL ? "right" : "left",
     marginHorizontal: 8,
     writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
   },
   disabledText: {
-    fontSize: 16,
-    color: "rgba(0,0,0,0.3)",
+    fontSize: tokens.typography.body.fontSize,
+    color: COLORS.textMuted,
     textAlign: "right",
   },
   clearButton: {
     padding: 2,
   },
   hintText: {
-    fontSize: 12,
-    color: "rgba(0,0,0,0.4)",
-    marginTop: 6,
+    fontSize: tokens.typography.caption2.fontSize,
+    color: COLORS.textMuted,
+    marginTop: tokens.spacing.xxs,
     textAlign: I18nManager.isRTL ? "right" : "left",
-    paddingHorizontal: 4,
+    paddingHorizontal: tokens.spacing.xs,
   },
 
   // Dropdown styles
@@ -443,8 +462,8 @@ const styles = StyleSheet.create({
     top: "100%",
     left: 0,
     right: 0,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    backgroundColor: COLORS.background,
+    borderRadius: tokens.radii.md,
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
     shadowColor: "#000",
@@ -454,20 +473,21 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    elevation: 3,
+    elevation: 6,
     overflow: "hidden",
+    zIndex: 200,
   },
   option: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.05)",
+    borderBottomColor: COLORS.container + "22",
   },
   optionSelected: {
-    backgroundColor: "#F8F8F8",
+    backgroundColor: COLORS.container + "12",
   },
   optionContent: {
     flex: 1,

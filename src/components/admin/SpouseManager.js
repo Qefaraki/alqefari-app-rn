@@ -301,60 +301,63 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   // Render SEARCH stage
   const renderSearchStage = () => (
     <View style={styles.stageContainer}>
-      <Text style={styles.searchTitle}>
-        نتائج البحث عن: {parsedData?.firstName}
-      </Text>
-
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-          <Text style={styles.loadingText}>جاري البحث...</Text>
+          <Text style={styles.loadingText}>
+            جاري البحث عن {parsedData?.firstName || ''}...
+          </Text>
         </View>
       ) : (
-        <FlatList
-          data={searchResults}
-          renderItem={({ item, index }) => (
-            <ProfileMatchCard
-              profile={{
-                ...item,
-                match_score: 100, // Default to 100% for exact name matches
-              }}
-              index={index}
-              onPress={() => handleSelectSpouse(item)}
-              isSelected={false}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.resultsList}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons
-                name="search-outline"
-                size={48}
-                color={tokens.colors.najdi.textMuted}
+        <>
+          <Text style={styles.searchTitle}>
+            نتائج البحث عن: {parsedData?.firstName}
+          </Text>
+          <FlatList
+            data={searchResults}
+            renderItem={({ item, index }) => (
+              <ProfileMatchCard
+                profile={{
+                  ...item,
+                  match_score: 100, // Default to 100% for exact name matches
+                }}
+                index={index}
+                onPress={() => handleSelectSpouse(item)}
+                isSelected={false}
               />
-              <Text style={styles.emptyText}>لا توجد نتائج</Text>
-              <Text style={styles.emptyHint}>
-                لم نجد {spouseTitle} بهذا الاسم في الشجرة
-              </Text>
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={handleAddAsNew}
-              >
-                <Text style={styles.addNewButtonText}>
-                  إضافة كشخص جديد
-                </Text>
+            )}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.resultsList}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
                 <Ionicons
-                  name="add-circle-outline"
-                  size={20}
-                  color={tokens.colors.najdi.primary}
+                  name="search-outline"
+                  size={48}
+                  color={tokens.colors.najdi.textMuted}
                 />
-              </TouchableOpacity>
-            </View>
-          }
-        />
+                <Text style={styles.emptyText}>لا توجد نتائج</Text>
+                <Text style={styles.emptyHint}>
+                  لم نجد {spouseTitle} بهذا الاسم في الشجرة
+                </Text>
+                <TouchableOpacity
+                  style={styles.addNewButton}
+                  onPress={handleAddAsNew}
+                >
+                  <Text style={styles.addNewButtonText}>
+                    إضافة كشخص جديد
+                  </Text>
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={20}
+                    color={tokens.colors.najdi.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            }
+          />
+        </>
       )}
     </View>
   );

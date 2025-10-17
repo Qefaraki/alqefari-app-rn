@@ -20,7 +20,7 @@ I18nManager.forceRTL(true);
 
 const COLORS = tokens.colors.najdi;
 
-const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
+const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = true }) => {
   const [loading, setLoading] = useState(false);
   const [wives, setWives] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -166,10 +166,12 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   // If loading - show disabled state with text (no spinner)
   if (loading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>{label || "الأم"}</Text>
-        </View>
+      <View style={[styles.container, !showLabel && styles.containerCompact]}>
+        {showLabel && (
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>{label || "الأم"}</Text>
+          </View>
+        )}
         <View style={[styles.selector, styles.disabledSelector]}>
           <Text style={styles.disabledText}>جاري التحميل...</Text>
         </View>
@@ -180,10 +182,12 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   // If no wives available, show minimal state
   if (wives.length === 0) {
     return (
-      <View style={styles.container}>
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>{label || "الأم"}</Text>
-        </View>
+      <View style={[styles.container, !showLabel && styles.containerCompact]}>
+        {showLabel && (
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>{label || "الأم"}</Text>
+          </View>
+        )}
         <View style={[styles.selector, styles.disabledSelector]}>
           <Text style={styles.disabledText}>غير متاح</Text>
         </View>
@@ -192,10 +196,12 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.labelRow}>
-        <Text style={styles.label}>{label || "الأم"}</Text>
-      </View>
+    <View style={[styles.container, !showLabel && styles.containerCompact]}>
+      {showLabel && (
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>{label || "الأم"}</Text>
+        </View>
+      )}
 
       {/* Main Selector with PROPER RTL */}
       <View style={styles.selectorWrapper}>
@@ -304,13 +310,16 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: tokens.spacing.sm,
+    marginTop: tokens.spacing.xs,
     width: "100%",
+  },
+  containerCompact: {
+    marginTop: 0,
   },
   labelRow: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     justifyContent: "flex-start",
-    marginBottom: 8,
+    marginBottom: tokens.spacing.xxs,
   },
   label: {
     fontSize: tokens.typography.caption1.fontSize,
@@ -323,17 +332,23 @@ const styles = StyleSheet.create({
   selectorWrapper: {
     position: "relative",
     width: "100%",
-    zIndex: 20,
+    zIndex: 40,
   },
 
   // Main selector container
   selector: {
-    backgroundColor: COLORS.container + "10",
+    backgroundColor: COLORS.background,
     borderRadius: tokens.radii.md,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.container + "33",
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+    minHeight: tokens.touchTarget.minimum,
   },
 
   // Inner content with RTL-aware flex
@@ -344,13 +359,13 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   selectorActive: {
-    backgroundColor: COLORS.container + "18",
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    backgroundColor: COLORS.background,
+    borderBottomLeftRadius: tokens.radii.lg,
+    borderBottomRightRadius: tokens.radii.lg,
   },
   disabledSelector: {
     opacity: 0.5,
-    justifyContent: "flex-end",
+    justifyContent: "center",
   },
   selectedText: {
     fontSize: tokens.typography.body.fontSize,
@@ -395,9 +410,9 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    elevation: 3,
+    elevation: 6,
     overflow: "hidden",
-    zIndex: 30,
+    zIndex: 200,
   },
   option: {
     flexDirection: I18nManager.isRTL ? "row" : "row",

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, I18nManager, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable, StyleSheet, I18nManager, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ProgressiveHeroImage } from '../../ProgressiveImage';
+import { Galeria } from '@nandorojo/galeria';
 import HeroActions from './HeroActions';
 import MetricsRow from './MetricsRow';
 import { useTreeStore } from '../../../stores/useTreeStore';
@@ -44,7 +44,6 @@ const Hero = React.memo(({
   onToggleBio,
   metrics,
   onClose,
-  onPhotoPress,
   topInset = 0,
 }) => {
   const bioText = person.bio || person.biography || '';
@@ -63,17 +62,16 @@ const Hero = React.memo(({
   return (
     <View style={styles.container}>
       {person?.photo_url ? (
-        <TouchableOpacity
-          style={styles.photoWrapper}
-          onPress={onPhotoPress}
-          disabled={!onPhotoPress}
-          activeOpacity={onPhotoPress ? 0.95 : 1}
-        >
-          <ProgressiveHeroImage
-            source={{ uri: person.photo_url }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
+        <View style={styles.photoWrapper}>
+          <Galeria urls={[person.photo_url]}>
+            <Galeria.Image index={0}>
+              <Image
+                source={{ uri: person.photo_url }}
+                style={styles.heroImage}
+                resizeMode="cover"
+              />
+            </Galeria.Image>
+          </Galeria>
           <LinearGradient
             colors={[
               'rgba(0,0,0,0.45)',
@@ -81,8 +79,9 @@ const Hero = React.memo(({
               'rgba(0,0,0,0)',
             ]}
             style={styles.gradient}
+            pointerEvents="none"
           />
-        </TouchableOpacity>
+        </View>
       ) : null}
 
       <View style={styles.body}>

@@ -12,11 +12,16 @@ import {
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  UIManager,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
 import MotherSelectorSimple from "./fields/MotherSelectorSimple";
@@ -25,6 +30,10 @@ import ChildListCard from "./ChildListCard";
 import tokens from "../ui/tokens";
 
 const COLORS = tokens.colors.najdi;
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildAdded }) => {
   const [currentName, setCurrentName] = useState("");
@@ -36,6 +45,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   const [hasReordered, setHasReordered] = useState(false);
   const [mothers, setMothers] = useState([]);
   const [deletedExistingChildren, setDeletedExistingChildren] = useState([]);
+  const [inputError, setInputError] = useState(null);
+  const [statusBanner, setStatusBanner] = useState(null);
+  const statusAnim = useRef(new Animated.Value(0)).current;
+  const addButtonScale = useRef(new Animated.Value(1)).current;
+  const parentDisplayName = parentNode?.name?.trim?.() || "العائلة";
 
   const applyOrdering = useCallback((children) => {
     let orderChanged = false;
@@ -70,6 +84,39 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   const inputRef = useRef(null);
   const { refreshProfile } = useStore();
   const insets = useSafeAreaInsets();
+  const clearStatusBanner = useCallback(() => setStatusBanner(null), []);
+  const handleAddPressIn = useCallback(() => {
+    Animated.spring(addButtonScale, {
+      toValue: 0.92,
+      useNativeDriver: true,
+      damping: 16,
+      stiffness: 220,
+    }).start();
+  }, [addButtonScale]);
+
+  const handleAddPressOut = useCallback(() => {
+    Animated.spring(addButtonScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 18,
+      stiffness: 220,
+    }).start();
+  }, [addButtonScale]);
+
+  useEffect(() => {
+    if (!statusBanner) return;
+    const timer = setTimeout(() => setStatusBanner(null), 4000);
+    return () => clearTimeout(timer);
+  }, [statusBanner]);
+
+  useEffect(() => {
+    Animated.timing(statusAnim, {
+      toValue: statusBanner ? 1 : 0,
+      duration: statusBanner ? 220 : 180,
+      easing: statusBanner ? Easing.out(Easing.ease) : Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [statusBanner, statusAnim]);
 
   // Initialize with existing siblings
   useEffect(() => {
@@ -107,6 +154,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
       setCurrentGender("male");
       setSelectedMotherId(null);
       setDeletedExistingChildren([]);
+      setInputError(null);
+      setStatusBanner(null);
 
       // Auto-focus after modal animation
       setTimeout(() => {
@@ -117,20 +166,25 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
   // Auto-add child on Return key
   const handleAutoAdd = () => {
+    clearStatusBanner();
+    if (loading) return;
     const trimmedName = currentName.trim();
 
     if (trimmedName.length === 0) {
-      Keyboard.dismiss();
+      setInputError("أدخل الاسم لإضافة الطفل");
+      inputRef.current?.focus();
       return;
     }
 
     // Validate name length
     if (trimmedName.length < 2) {
-      Alert.alert("خطأ", "الاسم قصير جداً");
+      setInputError("الاسم يجب أن يكون حرفين على الأقل");
+      inputRef.current?.focus();
       return;
     }
     if (trimmedName.length > 100) {
-      Alert.alert("خطأ", "الاسم طويل جداً (حد أقصى 100 حرف)");
+      setInputError("الاسم يجب ألا يتجاوز 100 حرف");
+      inputRef.current?.focus();
       return;
     }
 
@@ -154,16 +208,18 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
       },
     };
 
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setAllChildren((prev) => applyOrdering([...prev, newChild]));
+    setInputError(null);
     setCurrentName("");
     // Keep gender and mother selection for next child
     inputRef.current?.focus();
-
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   // Handle updating a child
   const handleUpdateChild = (childId, updates) => {
+    clearStatusBanner();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setAllChildren((prev) =>
       prev.map((child) => {
         if (child.id !== childId) {
@@ -204,8 +260,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
   // Handle deleting a child
   const handleDeleteChild = async (child) => {
+    clearStatusBanner();
     // New children (not yet in database) - just remove from state
     if (child.isNew) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setAllChildren((prev) => applyOrdering(prev.filter((c) => c.id !== child.id)));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       return;
@@ -236,6 +294,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
       // Safe to delete - track for database deletion on save (no confirmation needed)
       setDeletedExistingChildren((prev) => [...prev, child]);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setAllChildren((prev) => applyOrdering(prev.filter((c) => c.id !== child.id)));
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (err) {
@@ -246,8 +305,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
   // Handle moving child (unified function with functional setState for performance)
   const handleMove = useCallback((childId, direction) => {
+    clearStatusBanner();
     let moved = false;
 
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setAllChildren((prev) => {
       const currentIndex = prev.findIndex((c) => c.id === childId);
 
@@ -271,7 +332,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
     if (moved) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  }, [applyOrdering]);
+  }, [applyOrdering, clearStatusBanner]);
 
   // Convenience wrappers for backward compatibility
   const handleMoveUp = useCallback((childId) => handleMove(childId, 'up'), [handleMove]);
@@ -283,6 +344,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   // Save all changes
   const handleSave = async () => {
     if (!parentNode) return;
+    clearStatusBanner();
 
     const newChildren = allChildren.filter((c) => c.isNew);
     const editedChildren = allChildren.filter((c) => c.isEdited);
@@ -291,8 +353,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
       : [];
 
     if (newChildren.length === 0 && editedChildren.length === 0 && reorderedChildren.length === 0 && deletedExistingChildren.length === 0) {
-      // Silent - user can already see save button is disabled
-      console.log('[QuickAdd] No changes to save');
+      setStatusBanner({
+        type: 'info',
+        message: 'لا توجد تغييرات جديدة للحفظ',
+      });
       return;
     }
 
@@ -397,7 +461,15 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
         const updated = data.results?.updated || 0;
         const deleted = data.results?.deleted || 0;
 
-        console.log(`✅ Batch save successful: ${created} created, ${updated} updated, ${deleted} deleted (${data.results?.duration_ms?.toFixed(0)}ms)`);
+        const messageParts = [];
+        if (created > 0) messageParts.push(`${created} جديد`);
+        if (updated > 0) messageParts.push(`${updated} تعديل`);
+        if (deleted > 0) messageParts.push(`${deleted} حذف`);
+
+        setStatusBanner({
+          type: 'success',
+          message: messageParts.length > 0 ? `تم حفظ ${messageParts.join("، ")}` : "تم حفظ التغييرات",
+        });
 
         // Close modal silently (haptic feedback is enough confirmation)
         onChildAdded?.();
@@ -476,6 +548,16 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
         if (failed.length === 0) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          const messageParts = [];
+          if (newChildren.length > 0) messageParts.push(`${newChildren.length} جديد`);
+          if (editedChildren.length > 0) messageParts.push(`${editedChildren.length} تعديل`);
+          if (deletedExistingChildren.length > 0) messageParts.push(`${deletedExistingChildren.length} حذف`);
+          if (reorderedChildren.length > 0) messageParts.push('ترتيب محدث');
+
+          setStatusBanner({
+            type: 'success',
+            message: messageParts.length > 0 ? `تم حفظ ${messageParts.join("، ")}` : "تم حفظ التغييرات",
+          });
           onChildAdded?.();
         } else if (successful > 0) {
           Alert.alert(
@@ -529,6 +611,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
     return "حفظ";
   };
 
+  const trimmedCurrentName = currentName.trim();
+  const canQuickAdd = trimmedCurrentName.length >= 2 && trimmedCurrentName.length <= 100 && !inputError && !loading;
+
   // Memoized render function for FlatList
   const renderChild = useCallback(
     ({ item, index }) => (
@@ -560,6 +645,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <KeyboardAvoidingView
               behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
               style={styles.flex}
             >
               <View style={styles.navBar}>
@@ -569,13 +655,13 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
                   accessibilityRole="button"
                   accessibilityLabel="إغلاق النافذة"
                 >
-                  <Text style={styles.navActionText}>إلغاء</Text>
+                  <Text style={styles.navActionText}>إغلاق</Text>
                 </TouchableOpacity>
 
                 <View style={styles.navTitleBlock}>
-                  <Text style={styles.navTitle}>إضافة أطفال</Text>
+                  <Text style={styles.navTitle}>أبناء {parentDisplayName}</Text>
                   <Text style={styles.navSubtitle} numberOfLines={1}>
-                    {parentNode?.name}
+                    تنظيم سريع ومباشر لكل الأبناء
                   </Text>
                 </View>
 
@@ -590,7 +676,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
                   <Text
                     style={[styles.navSaveText, (!hasChanges || loading) && styles.navSaveTextDisabled]}
                   >
-                    {loading ? "جاري..." : "تم"}
+                    {loading ? "جاري..." : "حفظ"}
                   </Text>
                   {hasChanges && totalChanges > 0 && !loading && (
                     <View style={styles.navBadge}>
@@ -600,99 +686,184 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
                 </TouchableOpacity>
               </View>
 
-              {hasChanges && (
-                <View style={styles.changesSummary}>
-                  <Ionicons name="information-circle-outline" size={18} color={COLORS.primary} />
-                  <Text style={styles.changesSummaryText}>{getSaveButtonText()}</Text>
-                </View>
+              {(statusBanner || hasChanges) && (
+                <Animated.View
+                  style={[
+                    styles.statusBanner,
+                    {
+                      opacity: statusBanner ? statusAnim : 1,
+                      transform: [
+                        {
+                          translateY: statusBanner
+                            ? statusAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [-8, 0],
+                              })
+                            : 0,
+                        },
+                      ],
+                    },
+                    statusBanner?.type === 'success'
+                      ? styles.statusBannerSuccess
+                      : statusBanner?.type === 'error'
+                      ? styles.statusBannerError
+                      : styles.statusBannerInfo,
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      statusBanner?.type === 'success'
+                        ? "checkmark-circle"
+                        : statusBanner?.type === 'error'
+                        ? "alert-circle"
+                        : "information-circle"
+                    }
+                    size={18}
+                    color={
+                      statusBanner?.type === 'success'
+                        ? tokens.colors.success
+                        : statusBanner?.type === 'error'
+                        ? tokens.colors.danger
+                        : COLORS.primary
+                    }
+                  />
+                  <Text style={styles.statusBannerText}>
+                    {statusBanner?.message || getSaveButtonText()}
+                  </Text>
+                  {statusBanner && (
+                    <TouchableOpacity
+                      onPress={clearStatusBanner}
+                      style={styles.statusDismiss}
+                      accessibilityLabel="إخفاء الرسالة"
+                    >
+                      <Ionicons name="close" size={16} color={COLORS.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </Animated.View>
               )}
 
-              <View style={styles.quickAddSection}>
+              <BlurView intensity={24} tint="light" style={styles.quickAddBlur}>
+                <View style={styles.quickAddSection}>
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>اسم الطفل</Text>
-                  <TextInput
-                    ref={inputRef}
-                    style={styles.inputField}
-                    placeholder="اكتب الاسم الكامل"
-                    placeholderTextColor={COLORS.textMuted + "AA"}
-                    value={currentName}
-                    onChangeText={setCurrentName}
-                    onSubmitEditing={handleAutoAdd}
-                    returnKeyType="done"
-                    blurOnSubmit={false}
-                    allowFontScaling
-                  />
-                </View>
-
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>الجنس</Text>
-                  <View style={styles.segmentedRow}>
-                    {[
-                      { value: "male", label: "ذكر" },
-                      { value: "female", label: "أنثى" },
-                    ].map((option) => {
-                      const active = currentGender === option.value;
-                      return (
-                        <TouchableOpacity
-                          key={option.value}
-                          style={[styles.segmentButton, active && styles.segmentButtonActive]}
-                          onPress={() => {
-                            setCurrentGender(option.value);
-                            Haptics.selectionAsync();
-                          }}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                        >
-                          <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                {parentNode?.gender === "male" && (
-                  <View style={styles.selectorWrapper}>
-                    <MotherSelectorSimple
-                      fatherId={parentNode.id}
-                      value={selectedMotherId}
-                      onChange={(id, mothersData) => {
-                        setSelectedMotherId(id);
-                        if (mothersData) {
-                          const formattedMothers = mothersData.map((w) => ({
-                            id: w.wife_id,
-                            name: w.wife_name,
-                            display_name: w.display_name,
-                          }));
-                          setMothers(formattedMothers);
-                        } else if (id) {
-                          Alert.alert("تنبيه", "لم نستطع تحميل بيانات الأمهات");
+                  <View style={styles.nameRow}>
+                    <TextInput
+                      ref={inputRef}
+                      style={[styles.inputField, inputError && styles.inputFieldError]}
+                      placeholder="اكتب الاسم الكامل"
+                      placeholderTextColor={COLORS.textMuted + "AA"}
+                      value={currentName}
+                      onChangeText={(text) => {
+                        setCurrentName(text);
+                        if (inputError) {
+                          const trimmed = text.trim();
+                          if (trimmed.length >= 2 && trimmed.length <= 100) {
+                            setInputError(null);
+                          }
                         }
                       }}
-                      label="الأم (اختياري)"
+                      onSubmitEditing={handleAutoAdd}
+                      returnKeyType="done"
+                      blurOnSubmit={false}
+                      allowFontScaling
+                      maxLength={100}
                     />
+                    <Animated.View
+                      style={[
+                        styles.inlineAddButtonWrapper,
+                        { transform: [{ scale: addButtonScale }] },
+                        !canQuickAdd && styles.inlineAddButtonDisabled,
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={styles.inlineAddButton}
+                        onPress={handleAutoAdd}
+                        onPressIn={handleAddPressIn}
+                        onPressOut={handleAddPressOut}
+                        disabled={!canQuickAdd}
+                        accessibilityRole="button"
+                        accessibilityLabel="إضافة الطفل"
+                      >
+                        <Ionicons
+                          name="add"
+                          size={22}
+                          color={canQuickAdd ? COLORS.primary : COLORS.textMuted}
+                        />
+                      </TouchableOpacity>
+                    </Animated.View>
                   </View>
-                )}
+                  {inputError ? <Text style={styles.fieldError}>{inputError}</Text> : null}
+                </View>
 
-                {parentNode?.gender === "female" && (
-                  <View style={styles.selectorWrapper}>
-                    <FatherSelectorSimple
-                      motherId={parentNode.id}
-                      value={selectedFatherId}
-                      onChange={(id, husbandsData) => {
-                        setSelectedFatherId(id);
-                        if (!husbandsData && id) {
-                          Alert.alert("تنبيه", "لم نستطع تحميل بيانات الأزواج");
-                        }
-                      }}
-                      label="الأب (مطلوب)"
-                      required
-                    />
+                <View style={styles.inlineControlsRow}>
+                  <View style={styles.genderGroup}>
+                    <View style={styles.segmentedRow}>
+                      {[
+                        { value: "male", label: "ذكر" },
+                        { value: "female", label: "أنثى" },
+                      ].map((option) => {
+                        const active = currentGender === option.value;
+                        return (
+                          <TouchableOpacity
+                            key={option.value}
+                            style={[styles.segmentButton, active && styles.segmentButtonActive]}
+                            onPress={() => {
+                              setCurrentGender(option.value);
+                              Haptics.selectionAsync();
+                            }}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: active }}
+                          >
+                            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                              {option.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
                   </View>
-                )}
 
-              </View>
+                  <View style={styles.selectorGroup}>
+                    {parentNode?.gender === "male" ? (
+                      <MotherSelectorSimple
+                        fatherId={parentNode.id}
+                        value={selectedMotherId}
+                        onChange={(id, mothersData) => {
+                          setSelectedMotherId(id);
+                          if (mothersData) {
+                            const formattedMothers = mothersData.map((w) => ({
+                              id: w.wife_id,
+                              name: w.wife_name,
+                              display_name: w.display_name,
+                            }));
+                            setMothers(formattedMothers);
+                          } else if (id) {
+                            Alert.alert("تنبيه", "لم نستطع تحميل بيانات الأمهات");
+                          }
+                        }}
+                        label="الأم (اختياري)"
+                        showLabel={false}
+                      />
+                    ) : (
+                      <FatherSelectorSimple
+                        motherId={parentNode.id}
+                        value={selectedFatherId}
+                        onChange={(id, husbandsData) => {
+                          setSelectedFatherId(id);
+                          if (!husbandsData && id) {
+                            Alert.alert("تنبيه", "لم نستطع تحميل بيانات الأزواج");
+                          }
+                        }}
+                        label="الأب (مطلوب)"
+                        required
+                        showLabel={false}
+                      />
+                    )}
+                  </View>
+                </View>
+
+                </View>
+              </BlurView>
 
               <View style={styles.childrenListSection}>
                 {allChildren.length === 0 ? (
@@ -700,7 +871,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
                     <Text style={styles.emptyStateIcon}>👶</Text>
                     <Text style={styles.emptyStateTitle}>ابدأ بإضافة الأطفال</Text>
                     <Text style={styles.emptyStateSubtitle}>
-                      اكتب الاسم في الحقل أعلاه واضغط إدخال للإضافة
+                      اكتب الاسم ثم اضغط إدخال أو زر + للإضافة
                     </Text>
                   </View>
                 ) : (
@@ -748,8 +919,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.sm,
   },
   navActionText: {
-    fontSize: tokens.typography.body.fontSize,
-    fontWeight: "500",
+    fontSize: tokens.typography.subheadline.fontSize,
+    fontWeight: "600",
     color: COLORS.text,
   },
   navTitleBlock: {
@@ -759,13 +930,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.sm,
   },
   navTitle: {
-    fontSize: tokens.typography.headline.fontSize,
+    fontSize: tokens.typography.title2.fontSize,
     fontWeight: "700",
     color: COLORS.text,
+    letterSpacing: -0.2,
+    textAlign: "center",
   },
   navSubtitle: {
-    fontSize: tokens.typography.footnote.fontSize,
+    fontSize: tokens.typography.subheadline.fontSize,
     color: COLORS.textMuted,
+    fontWeight: "400",
   },
   navActionSave: {
     flexDirection: "row",
@@ -800,32 +974,27 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: COLORS.background,
   },
-  changesSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: tokens.spacing.xs,
+  quickAddBlur: {
     marginHorizontal: tokens.spacing.lg,
-    marginTop: tokens.spacing.sm,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.xs,
-    borderRadius: tokens.radii.md,
-    backgroundColor: COLORS.container + "18",
-  },
-  changesSummaryText: {
-    fontSize: tokens.typography.subheadline.fontSize,
-    color: COLORS.text,
-    fontWeight: "500",
+    marginTop: tokens.spacing.md,
+    borderRadius: tokens.radii.lg,
+    overflow: "visible",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "25",
+    backgroundColor: COLORS.background + "66",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
   },
   quickAddSection: {
-    marginTop: tokens.spacing.sm,
-    marginHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
-    borderRadius: tokens.radii.md,
-    backgroundColor: COLORS.container + "10",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "2A",
     gap: tokens.spacing.sm,
+    backgroundColor: COLORS.background + "F0",
+    borderRadius: tokens.radii.lg,
+    position: "relative",
+    zIndex: 1,
   },
   fieldGroup: {
     gap: tokens.spacing.xxs,
@@ -836,6 +1005,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   inputField: {
+    flex: 1,
     borderRadius: tokens.radii.lg,
     borderWidth: 1,
     borderColor: COLORS.container + "40",
@@ -846,19 +1016,88 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     textAlign: "auto",
   },
+  inputFieldError: {
+    borderColor: tokens.colors.danger + "66",
+    backgroundColor: tokens.colors.danger + "12",
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.xs,
+  },
+  fieldError: {
+    fontSize: tokens.typography.footnote.fontSize,
+    color: tokens.colors.danger,
+    textAlign: "right",
+  },
+  inlineAddButtonWrapper: {
+    width: tokens.touchTarget.minimum,
+    height: tokens.touchTarget.minimum,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.container + "33",
+    backgroundColor: COLORS.background + "F2",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+    flexShrink: 0,
+  },
+  inlineAddButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: tokens.radii.md,
+  },
+  inlineAddButtonDisabled: {
+    opacity: 0.4,
+  },
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.sm,
+    marginHorizontal: tokens.spacing.lg,
+    marginTop: tokens.spacing.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.lg,
+  },
+  statusBannerSuccess: {
+    backgroundColor: tokens.colors.success + "15",
+  },
+  statusBannerError: {
+    backgroundColor: tokens.colors.danger + "15",
+  },
+  statusBannerInfo: {
+    backgroundColor: COLORS.container + "20",
+  },
+  statusBannerText: {
+    flex: 1,
+    fontSize: tokens.typography.subheadline.fontSize,
+    color: COLORS.text,
+    fontWeight: "500",
+  },
+  statusDismiss: {
+    padding: tokens.spacing.xxs,
+  },
   segmentedRow: {
     flexDirection: "row",
     gap: tokens.spacing.xs,
+    alignItems: "center",
   },
   segmentButton: {
     flex: 1,
     height: tokens.touchTarget.minimum,
-    borderRadius: tokens.radii.lg,
+    borderRadius: tokens.radii.md,
     borderWidth: 1,
     borderColor: COLORS.container + "40",
     backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: tokens.spacing.sm,
   },
   segmentButtonActive: {
     backgroundColor: COLORS.primary,
@@ -875,9 +1114,31 @@ const styles = StyleSheet.create({
   selectorWrapper: {
     gap: tokens.spacing.xs,
   },
+  inlineControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.spacing.sm,
+    flexWrap: "wrap",
+  },
+  genderGroup: {
+    flexBasis: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    gap: tokens.spacing.xxs,
+    alignSelf: "stretch",
+    justifyContent: "center",
+  },
+  selectorGroup: {
+    flexBasis: 0,
+    flexGrow: 1.2,
+    flexShrink: 1,
+    gap: tokens.spacing.xxs,
+    alignSelf: "stretch",
+    justifyContent: "center",
+  },
   childrenListSection: {
     flex: 1,
-    marginTop: tokens.spacing.md,
+    marginTop: tokens.spacing.sm,
   },
   emptyState: {
     flex: 1,

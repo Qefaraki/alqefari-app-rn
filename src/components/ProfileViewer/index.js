@@ -16,8 +16,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
   BottomSheetScrollView,
@@ -55,7 +53,6 @@ import { profilesService } from '../../services/profiles';
 import suggestionService, {
   ALLOWED_SUGGESTION_FIELDS,
 } from '../../services/suggestionService';
-import storageService from '../../services/storage';
 import { supabase } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { useAdminMode } from '../../contexts/AdminModeContext';
@@ -72,8 +69,6 @@ const ViewModeContent = React.memo(({
   setBioExpanded,
   metricsPayload,
   closeSheet,
-  canEdit,
-  handleChangeProfilePhoto,
   pending,
   pendingSummary,
   loadingStates,
@@ -110,7 +105,6 @@ const ViewModeContent = React.memo(({
       onToggleBio={() => setBioExpanded((prev) => !prev)}
       metrics={metricsPayload}
       onClose={closeSheet}
-      onPhotoPress={canEdit ? handleChangeProfilePhoto : undefined}
       topInset={insets.top}
     />
 
@@ -400,17 +394,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Reset scroll position and loading states when person changes
   useEffect(() => {
     if (person?.id) {
-      // Only reset scroll and mode when switching between profiles (not on first open)
-      // This prevents interference with the bottom sheet opening animation
-      if (prevPersonIdRef.current && prevPersonIdRef.current !== person.id) {
-        // Reset scroll to top for both view and edit modes
-        viewScrollRef.current?.scrollTo?.({ y: 0, animated: false });
-        editScrollRef.current?.scrollTo?.({ y: 0, animated: false });
-
-        // Reset mode to view when navigating to a different profile
-        // This ensures spouse/child navigation always opens in view mode
-        setMode('view');
-      }
+      // Always reset scroll and mode when person changes (regardless of first open)
+      // This ensures consistent behavior: every navigation opens in view mode at top
+      viewScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+      editScrollRef.current?.scrollTo?.({ y: 0, animated: false });
+      setMode('view');
 
       // Reset loading states immediately when person changes
       // The skeleton will hide quickly via existing effects when data arrives
@@ -591,77 +579,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         }
       });
   }, [mode, form.isDirty, screenWidth, closeSheetFromGesture]);
-
-  // Image compression helper
-  const compressImage = useCallback(async (uri) => {
-    try {
-      const result = await ImageManipulator.manipulateAsync(
-        uri,
-        [{ resize: { width: 1920 } }],
-        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-      );
-      return result.uri;
-    } catch (error) {
-      console.error('Error compressing image:', error);
-      return uri;
-    }
-  }, []);
-
-  // Change profile photo
-  const handleChangeProfilePhoto = useCallback(async () => {
-    if (!canEdit) {
-      Alert.alert('غير متاح', 'ليس لديك صلاحية التعديل.');
-      return;
-    }
-
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.status !== 'granted') {
-      Alert.alert('الإذن مطلوب', 'نحتاج إذن الوصول للصور');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      try {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-        // Compress and upload
-        const compressedUri = await compressImage(result.assets[0].uri);
-        const storagePath = `profiles/${person.id}/profile_${Date.now()}.jpg`;
-        const { url, error } = await storageService.uploadProfilePhoto(
-          compressedUri,
-          person.id,
-          storagePath
-        );
-
-        if (error) throw error;
-
-        // Update profiles.photo_url only (no gallery)
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ photo_url: url })
-          .eq('id', person.id);
-
-        if (updateError) throw updateError;
-
-        // Update local state
-        useTreeStore.getState().updateNode(person.id, { ...person, photo_url: url });
-        onUpdate?.({ ...person, photo_url: url });
-
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (error) {
-        console.error('Error uploading profile photo:', error);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('خطأ', 'فشل رفع الصورة');
-      }
-    }
-  }, [canEdit, person, onUpdate, compressImage]);
 
   // Define edit mode handlers before menuOptions to prevent stale closure
   const enterEditMode = useCallback(() => {
@@ -1031,8 +948,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             setBioExpanded={setBioExpanded}
             metricsPayload={metricsPayload}
             closeSheet={closeSheet}
-            canEdit={canEdit}
-            handleChangeProfilePhoto={handleChangeProfilePhoto}
             pending={pending}
             pendingSummary={pendingSummary}
             loadingStates={loadingStates}

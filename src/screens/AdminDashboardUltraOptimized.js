@@ -765,7 +765,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
         () => setShowMunasibManager(false),
         MunasibManager,
         {
-          onNavigateToProfile: async (profileId) => {
+          onNavigateToProfile: async (munasibId, alqefariId) => {
             // Close MunasibManager first
             setShowMunasibManager(false);
 
@@ -773,7 +773,11 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
             setTimeout(() => {
               router.push({
                 pathname: "/",
-                params: { openProfileId: profileId }
+                params: {
+                  highlightProfileId: alqefariId,  // Center tree on Al-Qefari spouse
+                  openProfileId: munasibId,        // Open Munasib's profile sheet
+                  focusOnProfile: 'true'           // Trigger tree centering
+                }
               });
             }, 300);
           }

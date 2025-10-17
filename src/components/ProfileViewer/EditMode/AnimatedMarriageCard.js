@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { Animated, Easing } from 'react-native';
 
 /**
@@ -20,20 +20,17 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
   const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const height = useRef(new Animated.Value(1)).current;
-  const [measuredHeight, setMeasuredHeight] = useState(400); // Default fallback
+  const measuredHeightRef = useRef(400); // Cached height measurement (no re-renders)
 
   // Measure actual content height for accurate animations
   const onLayout = useCallback((event) => {
     const { height: layoutHeight } = event.nativeEvent.layout;
     // Only update if not currently animating and height is valid
     if (layoutHeight > 0 && !deletingState) {
-      setMeasuredHeight((prevHeight) => {
-        // Only update if significantly different (avoid floating point issues and unnecessary re-renders)
-        if (Math.abs(prevHeight - layoutHeight) > 1) {
-          return layoutHeight;
-        }
-        return prevHeight;
-      });
+      // Only update if significantly different (avoid floating point issues)
+      if (Math.abs(measuredHeightRef.current - layoutHeight) > 1) {
+        measuredHeightRef.current = layoutHeight;
+      }
     }
   }, [deletingState]);
 
@@ -143,7 +140,7 @@ const AnimatedMarriageCard = ({ children, deletingState, onAnimationComplete }) 
   if (deletingState === 'removing' || deletingState === 'restoring') {
     animatedStyle.height = height.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, measuredHeight], // Use actual measured height for smooth animations
+      outputRange: [0, measuredHeightRef.current], // Use cached height (no re-renders)
     });
     animatedStyle.overflow = 'hidden';
   }

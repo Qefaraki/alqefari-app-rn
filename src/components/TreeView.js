@@ -82,6 +82,10 @@ import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
 import NetworkErrorView from "./NetworkErrorView";
+import { useHighlighting } from "../hooks/useHighlighting";
+import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../services/highlightingService";
+import { createRenderer } from "./TreeView/highlightRenderers";
+import { detectCousinMarriage } from "../utils/cousinMarriageDetector";
 
 // Asymmetric margins to match tree layout: horizontal spacing is 2-3x wider than vertical
 // Phase 3B: Increased margins by 50% to buffer gesture lag at high zoom levels
@@ -104,20 +108,7 @@ const hexToRgba = (hex, alpha) => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Ancestry path color palette - high-contrast 10-color cycle
-// Spans warm to cool spectrum for clear generational distinction
-const ANCESTRY_COLORS = [
-  '#C73E3E', // Bright crimson
-  '#E38740', // Vivid orange
-  '#F5C555', // Warm gold
-  '#9FB885', // Sage green (cool contrast)
-  '#6A9AA6', // Teal (cool)
-  '#8E7AB8', // Purple (brand focus family)
-  '#D58C4A', // Desert ochre
-  '#C3B872', // Olive
-  '#AA7970', // Dusty rose
-  '#B78F81', // Taupe
-];
+// ANCESTRY_COLORS now imported from highlightingService.js
 
 // LOD Constants
 const SCALE_QUANTUM = 0.05; // 5% quantization steps
@@ -541,6 +532,8 @@ const TreeView = ({
   onSettingsOpen,
   highlightProfileId,
   focusOnProfile,
+  spouse1Id, // For cousin marriage dual-path highlighting
+  spouse2Id, // For cousin marriage dual-path highlighting
 }) => {
   const stage = useTreeStore((s) => s.stage);
   const setStage = useTreeStore((s) => s.setStage);
@@ -641,11 +634,21 @@ const TreeView = ({
   const nodeFramesRef = useRef(new Map());
   const highlightTimerRef = useRef(null);
 
-  // Ancestry path highlighting state
-  const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
+  // UNIFIED HIGHLIGHTING SYSTEM
+  // Centralized state for all highlight types (search, user lineage, cousin marriage)
+  const [activeHighlights, setActiveHighlights] = useState({
+    search: null,          // Search result highlight
+    userLineage: null,     // "Highlight My Line" toggle
+    cousinMarriage: null,  // Cousin marriage dual path
+  });
   const pathOpacity = useSharedValue(0);
 
-  // User lineage path highlighting state (persistent when toggle ON)
+  // Highlighting API hook
+  const { calculatePathData, clearCache } = useHighlighting();
+
+  // LEGACY STATE (kept for backwards compatibility during migration)
+  // These will be removed after full migration is complete
+  const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
   const [userLineagePathNodeIds, setUserLineagePathNodeIds] = useState(null);
 
   // Sync shared values to state for Skia re-renders
@@ -1793,7 +1796,7 @@ const TreeView = ({
     return path;
   }, []);
 
-  // Calculate and display user lineage when toggle is ON
+  // Calculate and display user lineage when toggle is ON (UNIFIED SYSTEM)
   useEffect(() => {
     console.log('[TreeView] Lineage useEffect triggered');
     console.log('[TreeView] highlightMyLine:', highlightMyLine);
@@ -1803,44 +1806,65 @@ const TreeView = ({
     // Only calculate if toggle is ON and user has profile
     if (highlightMyLine && authProfile?.id && nodes.length > 0) {
       console.log('[TreeView] Calculating user lineage path...');
-      const path = calculateAncestryPath(authProfile.id);
-      console.log('[TreeView] Calculated lineage path:', path);
 
-      if (path.length === 0) {
+      // Use NEW unified system
+      const pathData = calculatePathData('USER_LINEAGE', authProfile.id);
+      console.log('[TreeView] Calculated lineage pathData:', pathData);
+
+      if (!pathData || pathData.pathNodeIds.length === 0) {
         // User not in loaded tree
         Alert.alert(
           "غير موجود في العرض الحالي",
           "ملفك الشخصي غير محمل في الشجرة الحالية. استخدم البحث للانتقال إليه.",
           [{ text: "حسناً", style: "default" }]
         );
-      }
 
-      setUserLineagePathNodeIds(path);
-
-      // Fade in if no search highlight active
-      if (!highlightedPathNodeIds) {
-        console.log('[TreeView] Fading in user lineage (no search active)');
-        cancelAnimation(pathOpacity);
-        pathOpacity.value = withTiming(0.52, {
-          duration: 400,
-          easing: Easing.out(Easing.ease)
-        });
+        // Clear user lineage
+        setActiveHighlights(prev => ({
+          ...prev,
+          userLineage: null
+        }));
       } else {
-        console.log('[TreeView] Search highlight active, user lineage will show after search cleared');
+        console.log('[TreeView] Setting user lineage in unified state');
+
+        // Set in unified state
+        setActiveHighlights(prev => ({
+          ...prev,
+          userLineage: pathData
+        }));
+
+        // Fade in if no search/cousin marriage highlight active
+        if (!activeHighlights.search && !activeHighlights.cousinMarriage) {
+          console.log('[TreeView] Fading in user lineage (no search active)');
+          cancelAnimation(pathOpacity);
+          pathOpacity.value = withTiming(0.52, {
+            duration: 400,
+            easing: Easing.out(Easing.ease)
+          });
+        } else {
+          console.log('[TreeView] Search/cousin highlight active, user lineage will show after cleared');
+        }
+
+        console.log(`User lineage path set: ${pathData.pathNodeIds.length} nodes`);
       }
     } else {
       console.log('[TreeView] Clearing user lineage (toggle OFF or no profile)');
       // Toggle OFF or no profile - clear user lineage
-      if (userLineagePathNodeIds) {
+      if (activeHighlights.userLineage) {
         cancelAnimation(pathOpacity);
         pathOpacity.value = withTiming(0, {
           duration: 300,
           easing: Easing.in(Easing.ease)
         });
-        setTimeout(() => setUserLineagePathNodeIds(null), 300);
+        setTimeout(() => {
+          setActiveHighlights(prev => ({
+            ...prev,
+            userLineage: null
+          }));
+        }, 300);
       }
     }
-  }, [highlightMyLine, authProfile?.id, nodes.length, calculateAncestryPath, highlightedPathNodeIds, pathOpacity]);
+  }, [highlightMyLine, authProfile?.id, nodes.length, calculatePathData, activeHighlights, pathOpacity]);
 
   // Clear all highlights (glow + path) - called when X button clicked
   const clearAllHighlights = useCallback(() => {
@@ -1859,20 +1883,32 @@ const TreeView = ({
     // Clear state after animation completes
     setTimeout(() => {
       highlightedNodeId.value = null;
-      setHighlightedPathNodeIds(null);
 
-      // Restore user lineage if toggle is ON
-      if (highlightMyLine && userLineagePathNodeIds) {
-        pathOpacity.value = withDelay(
-          100,
-          withTiming(0.52, {
-            duration: 400,
-            easing: Easing.out(Easing.ease)
-          })
-        );
-      }
+      // Use setState callback to avoid stale closure
+      setActiveHighlights(prev => {
+        const shouldRestoreLineage = highlightMyLine && prev.userLineage;
+
+        const next = {
+          ...prev,
+          search: null,
+          cousinMarriage: null
+        };
+
+        // Restore user lineage if toggle is ON (using fresh state from prev)
+        if (shouldRestoreLineage) {
+          pathOpacity.value = withDelay(
+            100,
+            withTiming(0.52, {
+              duration: 400,
+              easing: Easing.out(Easing.ease)
+            })
+          );
+        }
+
+        return next;
+      });
     }, 300);
-  }, [glowOpacity, pathOpacity, highlightedNodeId, highlightMyLine, userLineagePathNodeIds]);
+  }, [glowOpacity, pathOpacity, highlightedNodeId, highlightMyLine]);
 
   // Clear ancestry path highlight (legacy - use clearAllHighlights instead)
   const clearPathHighlight = useCallback(() => {
@@ -1888,7 +1924,7 @@ const TreeView = ({
     }, 300);
   }, [pathOpacity]);
 
-  // Handle highlight from navigation params
+  // Handle highlight from navigation params (single profile)
   useEffect(() => {
     if (highlightProfileId && focusOnProfile && nodes.length > 0) {
       // Small delay to ensure tree is fully rendered
@@ -1899,6 +1935,52 @@ const TreeView = ({
       return () => clearTimeout(timer);
     }
   }, [highlightProfileId, focusOnProfile, nodes.length]); // Don't include navigateToNode to avoid infinite loops
+
+  // Handle cousin marriage dual-path highlighting from navigation params (Munasib Manager)
+  useEffect(() => {
+    if (spouse1Id && spouse2Id && focusOnProfile && nodes.length > 0) {
+      console.log(`[TreeView] Cousin marriage params detected: ${spouse1Id} & ${spouse2Id}`);
+
+      // Small delay to ensure tree is fully rendered
+      const timer = setTimeout(() => {
+        // Validate both spouses are in loaded tree
+        const nodesMap = useTreeStore.getState().nodesMap;
+        if (!nodesMap.has(spouse1Id) || !nodesMap.has(spouse2Id)) {
+          console.warn(`[TreeView] Spouse IDs not in loaded tree: ${spouse1Id}, ${spouse2Id}`);
+          Alert.alert(
+            "العقدة غير محملة",
+            "أحد الزوجين أو كلاهما غير موجود في العرض الحالي.",
+            [{ text: "حسناً", style: "default" }]
+          );
+          return;
+        }
+
+        // Calculate dual paths
+        const dualPathData = calculatePathData('COUSIN_MARRIAGE', [spouse1Id, spouse2Id]);
+
+        if (dualPathData) {
+          setActiveHighlights(prev => ({
+            ...prev,
+            cousinMarriage: dualPathData,
+            search: null
+          }));
+
+          // Animate paths in
+          pathOpacity.value = withDelay(
+            600,
+            withTiming(0.6, {
+              duration: 600,
+              easing: Easing.out(Easing.ease)
+            })
+          );
+
+          console.log(`[TreeView] Cousin marriage dual paths set from router params`);
+        }
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [spouse1Id, spouse2Id, focusOnProfile, nodes.length, calculatePathData, pathOpacity]);
 
   // Handle search result selection
   const handleSearchResultSelect = useCallback(
@@ -1918,24 +2000,62 @@ const TreeView = ({
         // Navigate to node (includes camera flight + glow)
         navigateToNode(result.id);
 
-        // Calculate and highlight ancestry path
-        const path = calculateAncestryPath(result.id);
+        // Get profile data from nodesMap
+        const nodesMap = useTreeStore.getState().nodesMap;
+        const selectedProfile = nodesMap.get(result.id);
 
-        if (path.length > 1) {
-          setHighlightedPathNodeIds(path);
+        if (selectedProfile) {
+          // Check if this profile has any cousin marriages
+          const cousinMarriages = detectCousinMarriage(selectedProfile, nodesMap);
 
-          // Animate path in (after camera settles + glow appears)
-          pathOpacity.value = withDelay(
-            600, // After camera flight completes
-            withTiming(0.52, { // 20% reduction for even softer appearance
-              duration: 400,
-              easing: Easing.out(Easing.ease)
-            })
-          );
+          if (cousinMarriages.length > 0) {
+            // Cousin marriage detected - use dual-path highlighting
+            const spouse = cousinMarriages[0].spouse; // Use first cousin marriage
+            console.log(`[TreeView] Cousin marriage detected between ${result.id} and ${spouse.id}`);
 
-          console.log(`Highlighted ${path.length}-node ancestry path`);
-        } else {
-          console.log('Node has no ancestry path (root node or single node)');
+            const dualPathData = calculatePathData('COUSIN_MARRIAGE', [result.id, spouse.id]);
+
+            if (dualPathData) {
+              setActiveHighlights(prev => ({
+                ...prev,
+                search: null, // Clear single path
+                cousinMarriage: dualPathData
+              }));
+
+              // Animate path in (after camera settles)
+              pathOpacity.value = withDelay(
+                600,
+                withTiming(0.6, {
+                  duration: 600,
+                  easing: Easing.out(Easing.ease)
+                })
+              );
+
+              console.log(`Highlighted cousin marriage dual paths`);
+            }
+          } else {
+            // No cousin marriage - use standard single-path highlighting
+            const singlePathData = calculatePathData('SEARCH', result.id);
+
+            if (singlePathData) {
+              setActiveHighlights(prev => ({
+                ...prev,
+                search: singlePathData,
+                cousinMarriage: null // Clear dual path
+              }));
+
+              // Animate path in (after camera settles)
+              pathOpacity.value = withDelay(
+                600,
+                withTiming(0.65, {
+                  duration: 400,
+                  easing: Easing.out(Easing.ease)
+                })
+              );
+
+              console.log(`Highlighted ${singlePathData.pathNodeIds.length}-node ancestry path`);
+            }
+          }
         }
       } else {
         console.log("Node not in current tree view");
@@ -1946,7 +2066,7 @@ const TreeView = ({
         );
       }
     },
-    [navigateToNode, nodes, calculateAncestryPath, glowOpacity, pathOpacity],
+    [navigateToNode, nodes, calculatePathData, glowOpacity, pathOpacity],
   );
 
   // Pan gesture with momentum
@@ -2571,138 +2691,61 @@ const TreeView = ({
   );
 
   // Render highlighted ancestry path
-  const renderHighlightedPath = useCallback(() => {
-    // Priority: search highlight overrides user lineage
-    const pathToRender = highlightedPathNodeIds || userLineagePathNodeIds;
+  // UNIFIED RENDERING: Render all active highlights using renderer factory
+  const renderAllHighlights = useCallback(() => {
+    console.log('[TreeView] renderAllHighlights called, activeHighlights:', activeHighlights);
 
-    console.log('[TreeView] renderHighlightedPath called');
-    console.log('[TreeView] highlightedPathNodeIds:', highlightedPathNodeIds);
-    console.log('[TreeView] userLineagePathNodeIds:', userLineagePathNodeIds);
-    console.log('[TreeView] pathToRender:', pathToRender);
+    // Explicit mapping from state keys to registry keys (safer than string replacement)
+    const TYPE_KEY_MAP = {
+      'search': 'SEARCH',
+      'userLineage': 'USER_LINEAGE',
+      'cousinMarriage': 'COUSIN_MARRIAGE',
+    };
 
-    if (!pathToRender || pathToRender.length < 2) {
-      console.log('[TreeView] No path to render (null or < 2 nodes)');
+    // Collect all active highlight types sorted by priority
+    const activeTypes = Object.entries(activeHighlights)
+      .filter(([_, data]) => data !== null)
+      .map(([typeId, data]) => {
+        const typeKey = TYPE_KEY_MAP[typeId];
+        if (!typeKey) {
+          console.warn(`[TreeView] Unknown highlight type ID: ${typeId}`);
+          return { typeId, config: null, data };
+        }
+        const config = HIGHLIGHT_TYPES[typeKey];
+        return { typeId, config, data };
+      })
+      .filter(({ config }) => config !== null)
+      .sort((a, b) => a.config.priority - b.config.priority);
+
+    if (activeTypes.length === 0) {
+      console.log('[TreeView] No active highlights to render');
       return null;
     }
 
-    console.log('[TreeView] Rendering path with', pathToRender.length, 'nodes');
+    // Render each highlight type using appropriate renderer
+    const allElements = activeTypes.flatMap(({ typeId, config, data }) => {
+      console.log(`[TreeView] Rendering highlight type: ${typeId}`, { config, data });
 
-    // Create Set for O(1) membership lookups
-    const pathSet = new Set(pathToRender);
+      const renderer = createRenderer(config, data, {
+        nodes,
+        connections,
+        showPhotos,
+        pathOpacity,
+        Skia
+      });
 
-    // Group segments by depth difference (generation gap) for color gradation
-    const segmentsByDepth = new Map(); // depth -> Path object
-    let totalSegments = 0;
-
-    // Loop through existing connections and draw routing for path segments
-    for (const conn of connections) {
-      // Skip if parent not in path
-      if (!pathSet.has(conn.parent.id)) continue;
-
-      // Find which child in this connection is part of the path
-      const pathChild = conn.children.find(c => pathSet.has(c.id));
-      if (!pathChild) continue;
-
-      const parent = nodes.find(n => n.id === conn.parent.id);
-      const child = nodes.find(n => n.id === pathChild.id);
-      if (!parent || !child) continue;
-
-      // Calculate depth difference for color selection
-      const depthDiff = Math.abs(child.depth - parent.depth);
-
-      // Get or create path for this depth level
-      if (!segmentsByDepth.has(depthDiff)) {
-        segmentsByDepth.set(depthDiff, Skia.Path.Make());
-      }
-      const pathObj = segmentsByDepth.get(depthDiff);
-
-      // Reuse EXACT same busY calculation as regular edges
-      const childYs = conn.children.map(c => c.y);
-      const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
-
-      const parentHeight = (showPhotos && parent.photo_url) ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-      const childHeight = (showPhotos && child.photo_url) ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-
-      // Draw 3-segment routing matching regular edges exactly:
-      // 1. Parent down to bus
-      pathObj.moveTo(parent.x, parent.y + parentHeight / 2);
-      pathObj.lineTo(parent.x, busY);
-
-      // 2. Horizontal along bus (if parent and child x differ)
-      if (Math.abs(parent.x - child.x) > 1) {
-        pathObj.lineTo(child.x, busY);
+      if (!renderer) {
+        console.warn(`[TreeView] Failed to create renderer for ${typeId}`);
+        return [];
       }
 
-      // 3. Bus up to child
-      pathObj.lineTo(child.x, child.y - childHeight / 2);
-
-      totalSegments++;
-    }
-
-    if (totalSegments === 0) {
-      console.warn('No valid path segments to render');
-      return null;
-    }
-
-    // Render each depth level with 4-layer glow system (matches search highlight)
-    return Array.from(segmentsByDepth.entries()).flatMap(([depthDiff, pathObj]) => {
-      const colorIndex = depthDiff % ANCESTRY_COLORS.length;
-      const baseColor = ANCESTRY_COLORS[colorIndex];
-
-      return [
-        // Layer 4: Outer glow - soft halo (largest blur)
-        <Group key={`path-${depthDiff}-outer`} layer={<Paint><Blur blur={16} /></Paint>}>
-          <Path
-            path={pathObj}
-            color={hexToRgba(baseColor, 0.18)}
-            style="stroke"
-            strokeWidth={8}
-            opacity={pathOpacity}
-          >
-            <CornerPathEffect r={4} />
-          </Path>
-        </Group>,
-
-        // Layer 3: Middle glow - medium blur
-        <Group key={`path-${depthDiff}-middle`} layer={<Paint><Blur blur={10} /></Paint>}>
-          <Path
-            path={pathObj}
-            color={hexToRgba(baseColor, 0.24)}
-            style="stroke"
-            strokeWidth={5.5}
-            opacity={pathOpacity}
-          >
-            <CornerPathEffect r={4} />
-          </Path>
-        </Group>,
-
-        // Layer 2: Inner accent - subtle blur
-        <Group key={`path-${depthDiff}-inner`} layer={<Paint><Blur blur={5} /></Paint>}>
-          <Path
-            path={pathObj}
-            color={hexToRgba(baseColor, 0.32)}
-            style="stroke"
-            strokeWidth={4}
-            opacity={pathOpacity}
-          >
-            <CornerPathEffect r={4} />
-          </Path>
-        </Group>,
-
-        // Layer 1: Core line - crisp and vibrant (no blur)
-        <Path
-          key={`path-${depthDiff}-core`}
-          path={pathObj}
-          color={baseColor}
-          style="stroke"
-          strokeWidth={3}
-          opacity={pathOpacity}
-        >
-          <CornerPathEffect r={4} />
-        </Path>
-      ];
+      const elements = renderer.render();
+      return elements || [];
     });
-  }, [highlightedPathNodeIds, userLineagePathNodeIds, pathOpacity, nodes, connections, showPhotos]);
+
+    console.log(`[TreeView] Rendered ${allElements.length} highlight elements`);
+    return allElements;
+  }, [activeHighlights, nodes, connections, showPhotos, pathOpacity]);
 
   // Render T3 aggregation chips (only 3 chips for hero branches)
   const renderTier3 = useCallback(
@@ -3481,8 +3524,8 @@ const TreeView = ({
             {/* Render batched edges first */}
             {edgeElements}
 
-            {/* Highlighted ancestry path (above edges, below nodes) */}
-            {renderHighlightedPath()}
+            {/* Highlighted ancestry paths (above edges, below nodes) - UNIFIED SYSTEM */}
+            {renderAllHighlights()}
 
             {/* Render visible nodes */}
             {culledNodes.map(renderNodeWithTier)}
@@ -3642,11 +3685,6 @@ const TreeView = ({
 
           // Filter out any undefined/null entries
           const validChildren = children.filter(child => child && child.id);
-
-          console.log("Passing siblings to QuickAddOverlay:", validChildren.length);
-          if (validChildren.length > 0) {
-            console.log("Siblings:", validChildren);
-          }
 
           return validChildren.sort(
             (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),

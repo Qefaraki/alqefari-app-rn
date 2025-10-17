@@ -20,6 +20,7 @@ import { buildNameChain } from "../../utils/nameChainBuilder";
 import { useTreeStore } from "../../stores/useTreeStore";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import tokens from "../ui/tokens";
+import { isCousinMarriage } from "../../utils/cousinMarriageDetector";
 
 // Skeleton loader for marriage cards
 const MarriageCardSkeleton = () => (
@@ -141,23 +142,38 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
   };
 
   const handleMemberPress = (member) => {
-    // Open the Munasib member's profile
-    if (member.munasib?.id) {
+    // Navigate to Al-Qefari spouse's location, but open Munasib's profile
+    if (member.alqefari?.id && member.munasib?.id) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // Close this modal first
       onClose();
 
+      // Check if this is a cousin marriage (both spouses are Al-Qefari with HID)
+      const isCousinMatch = isCousinMarriage(member.alqefari, member.munasib);
+
       // Use callback if provided (closes parent modals + navigates)
       if (onNavigateToProfile) {
-        onNavigateToProfile(member.munasib.id);
+        // Navigate to tree, centering on Al-Qefari, but open Munasib's sheet
+        onNavigateToProfile(member.munasib.id, member.alqefari.id);
       } else {
         // Fallback for standalone usage
+        const params = {
+          highlightProfileId: member.alqefari.id, // Center tree on Al-Qefari
+          openProfileId: member.munasib.id,        // Open Munasib's sheet
+          focusOnProfile: 'true',                  // Trigger tree centering
+        };
+
+        // If cousin marriage, add spouse IDs for dual-path highlighting
+        if (isCousinMatch) {
+          params.spouse1Id = member.munasib.id;
+          params.spouse2Id = member.alqefari.id;
+          console.log('[FamilyDetailModal] Cousin marriage detected, adding spouse IDs:', params);
+        }
+
         router.push({
           pathname: "/",
-          params: {
-            openProfileId: member.munasib.id,
-          },
+          params,
         });
       }
     }
