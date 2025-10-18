@@ -28,7 +28,7 @@ const ANIMATION = {
   INPUT_FOCUS_DELAY: 60,
 
   // Expansion animation
-  EXPAND_HEIGHT: 60,
+  EXPAND_HEIGHT: 108, // 60px input + 48px hint box (with margins, padding, text)
   EXPAND_SPRING: { damping: 18, stiffness: 220 },
   EXPAND_OPACITY_DURATION: 180,
 
