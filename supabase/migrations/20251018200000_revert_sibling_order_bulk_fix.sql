@@ -12,10 +12,10 @@ SET
   version = version + 1,
   updated_at = NOW()
 FROM (
-  SELECT DISTINCT ON (profile_id)
-    profile_id,
+  SELECT DISTINCT ON (record_id)
+    record_id as profile_id,
     old_data
-  FROM audit_log
+  FROM audit_log_enhanced
   WHERE
     action_type IN ('admin_update', 'profile_update')
     AND created_at >= '2025-10-18 00:00:00'
@@ -23,7 +23,7 @@ FROM (
     AND old_data->>'sibling_order' IS NOT NULL
     AND new_data->>'sibling_order' IS NOT NULL
     AND old_data->>'sibling_order' != new_data->>'sibling_order'
-  ORDER BY profile_id, created_at DESC  -- Latest change per profile
+  ORDER BY record_id, created_at DESC  -- Latest change per profile
 ) al
 WHERE p.id = al.profile_id
   AND p.deleted_at IS NULL;
