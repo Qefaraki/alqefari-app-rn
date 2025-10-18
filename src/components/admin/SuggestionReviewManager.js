@@ -259,7 +259,7 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
           <View style={styles.diffHeader}>
             <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}</Text>
             <Text style={styles.dateText}>
-              {new Date(suggestion.created_at).toLocaleDateString("ar-SA")}
+              {new Date(suggestion.created_at + 'Z').toLocaleDateString("ar-SA")}
             </Text>
           </View>
           <View style={styles.diffValues}>
@@ -313,7 +313,7 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
             ملف: {suggestion.profile?.hid ? `#${suggestion.profile.hid}` : "غير معروف"}
           </Text>
           <Text style={styles.footerMeta}>
-            {new Date(suggestion.created_at).toLocaleTimeString("ar-SA", {
+            {new Date(suggestion.created_at + 'Z').toLocaleTimeString("ar-SA", {
               hour: "2-digit",
               minute: "2-digit",
             })}

@@ -255,7 +255,7 @@ const ApprovalInbox = ({ visible, onClose }) => {
               {suggestionService.formatFieldName(suggestion.field_name)}
             </Text>
             <Text style={styles.dateText}>
-              {new Date(suggestion.created_at).toLocaleDateString("ar-SA")}
+              {new Date(suggestion.created_at.endsWith('Z') ? suggestion.created_at : suggestion.created_at + 'Z').toLocaleDateString("ar-SA")}
             </Text>
           </View>
           <View
@@ -340,7 +340,7 @@ const ApprovalInbox = ({ visible, onClose }) => {
             {suggestion.status === "approved" && (
               <Text style={styles.resultText}>
                 تم القبول {suggestion.reviewed_at ?
-                  `في ${new Date(suggestion.reviewed_at).toLocaleDateString("ar-SA")}` : ""}
+                  `في ${new Date(suggestion.reviewed_at.endsWith('Z') ? suggestion.reviewed_at : suggestion.reviewed_at + 'Z').toLocaleDateString("ar-SA")}` : ""}
               </Text>
             )}
             {suggestion.status === "rejected" && suggestion.rejection_reason && (

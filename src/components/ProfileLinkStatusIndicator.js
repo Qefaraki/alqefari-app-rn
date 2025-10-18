@@ -15,8 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
 import phoneAuthService from "../services/phoneAuth";
 import { useRouter } from "expo-router";
-import { formatDistanceToNow } from "date-fns";
-import { ar } from "date-fns/locale";
+import { formatRelativeTime } from "../utils/formatTimestamp";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { buildNameChain } from "../utils/nameChainBuilder";
@@ -438,10 +437,7 @@ export default function ProfileLinkStatusIndicator() {
 
   // Pending Request State - Progress strip
   if (linkRequest?.status === "pending") {
-    const timeAgo = formatDistanceToNow(new Date(linkRequest.created_at), {
-      addSuffix: true,
-      locale: ar,
-    });
+    const timeAgo = formatRelativeTime(linkRequest.created_at);
 
     const displayName = linkRequest.profile ?
       getFullNameWithSurname(linkRequest.profile) :

@@ -34,7 +34,11 @@ export function useFormattedDate(
     if (date instanceof Date) {
       dateObj = date;
     } else if (typeof date === 'string' || typeof date === 'number') {
-      dateObj = new Date(date);
+      // Force UTC interpretation for Supabase timestamps
+      const timestamp = typeof date === 'string' && !date.endsWith('Z') && !date.includes('+')
+        ? date + 'Z'
+        : date;
+      dateObj = new Date(timestamp);
       if (isNaN(dateObj.getTime())) return '';
     } else if (typeof date === 'object' && 'gregorian' in date) {
       // Already formatted date object - use current settings
