@@ -714,22 +714,15 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
     <TouchableOpacity
       style={[
         styles.activityCard,
-        isRTL && styles.activityCardRTL,
         isUndone && styles.activityCardUndone,
       ]}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View
-        style={[
-          styles.activityLeading,
-          isRTL ? styles.activityLeadingRTL : styles.activityLeadingLTR,
-        ]}
-      >
+      <View style={styles.activityLeading}>
         <View
           style={[
             styles.activityAvatarFrame,
-            actorPhotoUrl ? styles.activityAvatarFrameImage : styles.activityAvatarFrameFallback,
             {
               borderColor: actionVisuals.accent + (actorPhotoUrl ? "3d" : "55"),
               backgroundColor: actorPhotoUrl ? colors.white : actionVisuals.color,
@@ -748,7 +741,7 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
           )}
         </View>
         {actorPhotoUrl && (
-          <View style={[styles.activityActionBadge, isRTL && styles.activityActionBadgeRTL]}>
+          <View style={styles.activityActionBadge}>
             <SFIcon
               name={actionVisuals.icon}
               fallback={actionVisuals.fallback}
@@ -759,17 +752,11 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
         )}
       </View>
 
-      <View
-        style={[
-          styles.activityCardContent,
-          isRTL && styles.activityCardContentRTL,
-        ]}
-      >
-        <View style={[styles.activityHeaderRow, isRTL && styles.activityHeaderRowRTL]}>
+      <View style={styles.activityCardContent}>
+        <View style={styles.activityHeaderRow}>
           <Text
             style={[
               styles.activitySummary,
-              isRTL && styles.activitySummaryRTL,
               isUndone && styles.activitySummaryUndone,
             ]}
             numberOfLines={2}
@@ -780,7 +767,7 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
 
         {metaDetails && (
           <Text
-            style={[styles.metaDetailsText, isRTL && styles.metaDetailsTextRTL]}
+            style={styles.metaDetailsText}
             numberOfLines={1}
           >
             {metaDetails}
@@ -788,8 +775,8 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
         )}
 
         {(hasStatusBadges || showUndo) && (
-          <View style={[styles.activityStatusRow, isRTL && styles.activityStatusRowRTL]}>
-            <View style={[styles.statusBadges, isRTL && styles.statusBadgesRTL]}>
+          <View style={styles.activityStatusRow}>
+            <View style={styles.statusBadges}>
               {isDangerous && !isUndone && (
                 <View style={styles.dangerBadge}>
                   <SFIcon
@@ -831,7 +818,6 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
               <TouchableOpacity
                 style={[
                   styles.undoButton,
-                  isRTL ? styles.undoButtonRTL : styles.undoButtonLTR,
                   isUndoing && styles.undoButtonDisabled,
                 ]}
                 onPress={(e) => {
@@ -871,7 +857,7 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
 
         {multiFieldSummary && (
           <Text
-            style={[styles.fieldsSummaryText, isRTL && styles.fieldsSummaryTextRTL]}
+            style={styles.fieldsSummaryText}
             numberOfLines={1}
           >
             {multiFieldSummary}
@@ -2133,13 +2119,11 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: "700",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     lineHeight: 41,
   },
   screenSubtitle: {
     fontSize: 15,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     marginTop: 4,
   },
   controlsRow: {
@@ -2178,7 +2162,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterFab: {
     width: 44,
@@ -2250,7 +2233,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filterChipTextActive: {
     color: colors.white,
@@ -2288,7 +2270,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   segmentTextActive: {
     color: tokens.colors.najdi.text,
@@ -2343,59 +2324,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   activityCard: {
     backgroundColor: colors.white,
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
+    borderRadius: tokens.radii.lg,
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.md,
     flexDirection: "row",
     alignItems: "flex-start",
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container + '30',
     ...Platform.select({
       ios: {
         shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
       },
       android: {
         elevation: 2,
       },
     }),
   },
-  activityCardRTL: {
-    flexDirection: "row-reverse",
-  },
   activityCardUndone: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '50',
+    borderColor: tokens.colors.najdi.container + '40',
   },
   activityLeading: {
     width: 48,
     alignItems: "center",
     justifyContent: "flex-start",
     position: "relative",
-  },
-  activityLeadingLTR: {
-    marginRight: 16,
-  },
-  activityLeadingRTL: {
-    marginLeft: 16,
+    marginEnd: tokens.spacing.md,
   },
   activityAvatarFrame: {
     width: 44,
     height: 44,
     borderRadius: 14,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
-  activityAvatarFrameImage: {},
-  activityAvatarFrameFallback: {},
   activityAvatarImage: {
     width: "100%",
     height: "100%",
@@ -2403,14 +2373,14 @@ const styles = StyleSheet.create({
   activityActionBadge: {
     position: "absolute",
     bottom: -4,
-    right: -4,
+    end: -4,
     width: 20,
     height: 20,
     borderRadius: 10,
     backgroundColor: colors.white,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container + '60',
     ...Platform.select({
       ios: {
@@ -2424,145 +2394,108 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  activityActionBadgeRTL: {
-    right: undefined,
-    left: -4,
-  },
   activityHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
-  },
-  activityHeaderRowRTL: {
-    flexDirection: "row-reverse",
+    marginBottom: tokens.spacing.xs,
   },
   activityCardContent: {
     flex: 1,
   },
-  activityCardContentRTL: {
-    alignItems: "flex-end",
-  },
   severityTag: {
-    paddingHorizontal: 12,
+    paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginStart: 8,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   severityTagText: {
-    fontSize: 11,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "700",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   metaDetailsText: {
-    marginTop: 6,
-    fontSize: 13,
+    marginTop: tokens.spacing.xs,
+    fontSize: tokens.typography.footnote.fontSize,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  metaDetailsTextRTL: {
-    textAlign: "right",
+    lineHeight: 18,
   },
   activityStatusRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 6,
-    gap: 12,
-  },
-  activityStatusRowRTL: {
-    flexDirection: "row-reverse",
+    marginTop: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
   },
   statusBadges: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: tokens.spacing.xs,
     flexShrink: 1,
-  },
-  statusBadgesRTL: {
-    flexDirection: "row-reverse",
+    flexWrap: "wrap",
   },
   dangerBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.primary + '33',
     backgroundColor: tokens.colors.najdi.primary + '12',
-    marginStart: 6,
   },
   dangerBadgeText: {
-    fontSize: 11,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
     color: tokens.colors.najdi.primary,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   undoneBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.container + '40',
     backgroundColor: tokens.colors.najdi.container + '18',
-    marginStart: 6,
   },
   undoneBadgeText: {
-    fontSize: 11,
+    fontSize: tokens.typography.caption1.fontSize,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   undoButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.xs,
+    borderRadius: tokens.radii.full,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.primary + '66',
     backgroundColor: tokens.colors.najdi.primary + '12',
     alignItems: "center",
     flexDirection: "row",
-    marginStart: 8,
-  },
-  undoButtonLTR: {
-    marginRight: 0,
-  },
-  undoButtonRTL: {
-    marginStart: 0,
-    marginRight: 8,
+    gap: tokens.spacing.xs,
   },
   undoButtonDisabled: {
     borderColor: tokens.colors.najdi.primary + '33',
     backgroundColor: tokens.colors.najdi.primary + '08',
   },
   undoButtonText: {
-    fontSize: 13,
+    fontSize: tokens.typography.footnote.fontSize,
     color: tokens.colors.najdi.primary,
     fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   undoSpinner: {
-    marginEnd: 6,
+    marginEnd: tokens.spacing.xs,
   },
   undoIcon: {
-    marginEnd: 6,
+    marginEnd: tokens.spacing.xs,
   },
   activitySummary: {
     flex: 1,
-    fontSize: 17,
+    fontSize: tokens.typography.body.fontSize,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-    textAlign: "left",
     lineHeight: 24,
-  },
-  activitySummaryRTL: {
-    textAlign: "right",
   },
   activitySummaryUndone: {
     color: tokens.colors.najdi.textMuted,
@@ -2571,14 +2504,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   fieldsSummaryText: {
-    marginTop: 10,
-    fontSize: 13,
+    marginTop: tokens.spacing.sm,
+    fontSize: tokens.typography.footnote.fontSize,
     color: colors.textMuted,
     fontWeight: "600",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
-  },
-  fieldsSummaryTextRTL: {
-    textAlign: "right",
+    lineHeight: 18,
   },
   emptyState: {
     alignItems: "center",
@@ -2590,12 +2520,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   emptySubtitle: {
     fontSize: 15,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
     textAlign: "center",
   },
   emptyReset: {
@@ -2609,7 +2537,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.alJass,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   footerLoader: {
     paddingVertical: 24,
@@ -2649,12 +2576,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetTimestamp: {
     fontSize: 13,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetSeverity: {
     alignSelf: "flex-start",
@@ -2666,7 +2591,6 @@ const styles = StyleSheet.create({
   sheetSeverityText: {
     fontSize: 12,
     fontWeight: "700",
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetSection: {
     gap: 12,
@@ -2675,34 +2599,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetValue: {
     fontSize: 17,
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetValueMuted: {
     fontSize: 13,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   changeFieldLabel: {
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   changeCard: {
-    gap: 12,
-    padding: 12,
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.sm,
     backgroundColor: tokens.colors.najdi.container + '18',
-    borderRadius: 16,
+    borderRadius: tokens.radii.lg,
   },
   changeCardValues: {
-    flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: tokens.spacing.sm,
     justifyContent: 'space-between',
   },
   changeValueBox: {
@@ -2724,12 +2644,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textMuted,
     marginBottom: 4,
-    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   changeValueBoxText: {
     fontSize: 13,
     color: colors.textMuted,
-    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   changeValueBoxTextNew: {
     color: tokens.colors.najdi.text,
@@ -2748,7 +2666,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetActions: {
     flexDirection: "row",
@@ -2770,7 +2687,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   sheetUndoButton: {
     flex: 1,
@@ -2789,7 +2705,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.alJass,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   advancedContainer: {
     gap: 16,
@@ -2810,13 +2725,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   advancedMetaValue: {
     fontSize: 13,
     color: tokens.colors.najdi.text,
     fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
   },
   advancedJsonBlock: {
     gap: 8,
@@ -2863,19 +2776,16 @@ const styles = StyleSheet.create({
   filtersSheetIntroText: {
     fontSize: 13,
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetTitle: {
     fontSize: 17,
     fontWeight: "700",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetReset: {
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.crimson,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetSection: {
     gap: 12,
@@ -2885,7 +2795,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: colors.textMuted,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetRow: {
     flexDirection: "row",
@@ -2911,7 +2820,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetChipTextActive: {
     color: tokens.colors.najdi.alJass,
@@ -2932,7 +2840,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetChipTextSmallActive: {
     color: tokens.colors.najdi.alJass,
@@ -2951,7 +2858,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   filtersSheetDone: {
     marginTop: 4,
@@ -2964,7 +2870,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: tokens.colors.najdi.alJass,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   advancedOverlay: {
     flex: 1,
@@ -2991,7 +2896,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     color: tokens.colors.najdi.text,
-    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
   advancedModalContent: {
     paddingHorizontal: 20,
