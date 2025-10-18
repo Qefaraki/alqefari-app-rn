@@ -533,6 +533,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                 returnKeyType="search"
                 textAlign="right"
                 multiline={false}
+                numberOfLines={1}
                 allowFontScaling
               />
 

@@ -98,6 +98,63 @@ const activeSpouses = spouses.filter(s => s.status === 'current' || s.status ===
 const activeSpouses = spouses.filter(s => s.status === 'married');
 ```
 
+### Migration 20251018150000: Fix Arabic Name Chain Search Scoring
+**File**: `migrations/20251018150000_fix_search_scoring_inline.sql`
+
+**Status**: ✅ Deployed (October 2025)
+
+Fixes broken multi-term search ranking with position-aware contiguous sequence matching.
+
+**Problem Fixed**:
+- Searching "إبراهيم سليمان علي" returned children before Ibrahim himself
+- Multi-term scoring didn't distinguish position 1 from position 4
+- Generation sorting was reversed (DESC instead of ASC)
+
+**Solution**:
+- 6-tier position-aware scoring system:
+  - **10.0**: Exact contiguous match at position 1 (person themselves)
+  - **7.0**: Contiguous at position 2 (children)
+  - **5.0**: Contiguous at position 3 (grandchildren)
+  - **3.0**: Contiguous at position 4+ (great-grandchildren+)
+  - **1.0**: Non-contiguous/scattered match
+  - **0.0**: No match (filtered out)
+- Fixed generation sort order (ASC - older generations first)
+- Inline algorithm (no helper functions) for performance
+
+**Performance**:
+- Current: 84ms for 1,088 profiles
+- Target: <600ms for 5,000 profiles
+- No degradation from previous version
+
+**Changes**:
+1. Replaced broken multi-term scoring logic (lines 137-166 of old function)
+2. Added input validation (prevents NULL/empty arrays, max 500 results)
+3. Changed return type from `FLOAT` to `DOUBLE PRECISION` for type consistency
+4. Fixed sort order: `generation ASC` (was DESC)
+
+**Backward Compatibility**:
+- ✅ Same function signature: `search_name_chain(TEXT[], INT, INT)`
+- ✅ Same return fields (14 fields including match_score)
+- ✅ No frontend changes required
+- ✅ Zero breaking changes
+
+**Rollback**: Execute `migrations/20251018150001_rollback_search_fix.sql` if issues arise
+
+**Test Suite**: `supabase/tests/search_name_chain_tests.sql` (20+ test cases)
+
+**Verification Queries**:
+```sql
+-- Should return إبراهيم first with score 10.0
+SELECT name, hid, match_score, generation
+FROM search_name_chain(ARRAY['إبراهيم', 'سليمان', 'علي'], 10, 0);
+
+-- Should return all Muhammads with score 10.0, sorted by generation
+SELECT name, hid, match_score, generation
+FROM search_name_chain(ARRAY['محمد'], 20, 0);
+```
+
+**Frontend Impact**: None - all existing search functionality continues to work without modification.
+
 ### Migration 083: Optimized Mother Picker Query
 **File**: `supabase/migrations/083_get_father_wives_minimal.sql`
 

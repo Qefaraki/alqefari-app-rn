@@ -6,6 +6,8 @@
 
 Frontend code (`SearchBar.js` line 530) calls `formatNameWithTitle(item)` which expects these fields. Without them, the function couldn't format names and search appeared broken.
 
+**On October 18, 2025, search ranking was fixed** (Migration 20251018150000) - the multi-term scoring algorithm was completely rewritten with position-aware contiguous sequence matching. Now "إبراهيم سليمان علي" correctly returns Ibrahim first, then his children, then grandchildren.
+
 **Lesson:** When modifying RPC functions, ALWAYS verify the RETURNS TABLE schema matches what the frontend expects!
 
 ## Problem This Solves
