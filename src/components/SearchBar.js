@@ -534,6 +534,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
                 textAlign="right"
                 multiline={false}
                 numberOfLines={1}
+                ellipsizeMode="tail"
                 allowFontScaling
               />
 

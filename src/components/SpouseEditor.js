@@ -204,6 +204,14 @@ export default function SpouseEditor({
               textAlign="right"
               clearButtonMode="never"
             />
+            {!marriage && (
+              <View style={styles.hintBox}>
+                <Ionicons name="information-circle-outline" size={16} color="#8E8E93" />
+                <Text style={styles.hintText}>
+                  لا تنسَ إضافة اسم العائلة • مثال: السعوي، القفاري
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Marriage Date */}
@@ -464,5 +472,20 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: "#FF3B30",
     marginLeft: 8,
+  },
+  hintBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#F2F2F7",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  hintText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#8E8E93",
+    lineHeight: 18,
   },
 });

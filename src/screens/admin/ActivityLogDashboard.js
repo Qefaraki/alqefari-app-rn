@@ -1402,7 +1402,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   const PAGE_SIZE = 50;
 
   const fetchActivities = useCallback(
-    async (isLoadMore = false) => {
+    async (targetPage = 0, isLoadMore = false) => {
       requestIdRef.current += 1;
       const currentRequestId = requestIdRef.current;
 
@@ -1413,8 +1413,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           setLoading(true);
         }
 
-        const currentPage = isLoadMore ? page : 0;
-        const start = currentPage * PAGE_SIZE;
+        const start = targetPage * PAGE_SIZE;
         const end = start + PAGE_SIZE - 1;
 
         let query = supabase
@@ -1448,11 +1447,12 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
         if (isLoadMore) {
           setActivities((prev) => [...prev, ...(data || [])]);
+          setPage((prev) => prev + 1);
         } else {
           setActivities(data || []);
+          setPage(1); // We loaded page 0, next page is 1
         }
 
-        setPage(currentPage + 1);
         setHasMore((data?.length || 0) === PAGE_SIZE);
       } catch (error) {
         if (currentRequestId === requestIdRef.current) {
@@ -1467,11 +1467,11 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         }
       }
     },
-    [page]
+    [] // No dependencies - filters use refs, page passed as parameter
   );
 
   useEffect(() => {
-    fetchActivities(false);
+    fetchActivities(0, false);
 
     const channel = supabase
       .channel("activity_log_changes")
@@ -1505,7 +1505,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
               if (existingGroup) {
                 // Group already visible - must refresh to update group
                 console.log('[ActivityLogDashboard] Batch operation for existing group - triggering refresh');
-                fetchActivities(false);
+                fetchActivities(0, false);
                 return prev; // Keep current state, fetchActivities will update
               } else {
                 // New batch group - debounce refresh to wait for all operations
@@ -1518,7 +1518,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
                 // Debounce refresh by 300ms to group all batch operations
                 refreshTimeoutRef.current = setTimeout(() => {
-                  fetchActivities(false);
+                  fetchActivities(0, false);
                   refreshTimeoutRef.current = null;
                 }, 300);
 
@@ -1543,8 +1543,8 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
   useEffect(() => {
     setPage(0);
-    fetchActivities(false);
-  }, [selectedUser, datePreset, customDateFrom, customDateTo]);
+    fetchActivities(0, false);
+  }, [selectedUser, datePreset, customDateFrom, customDateTo, fetchActivities]);
 
   useEffect(() => {
     let filtered = [...activities];
