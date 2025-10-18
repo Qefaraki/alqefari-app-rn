@@ -390,8 +390,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
       // =========================================================================
       // VALIDATE: No duplicate sibling_order values
       // =========================================================================
-      // Include ALL children (existing + new + edited) to catch duplicates against database
-      const allChildren = [...existingChildren, ...newChildren, ...editedChildren];
+      // Use the state variable allChildren (already contains existing + new + edited)
       const siblingOrders = allChildren.map(c => c.sibling_order);
       const uniqueOrders = new Set(siblingOrders);
 
