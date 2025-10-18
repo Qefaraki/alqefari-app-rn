@@ -1436,7 +1436,10 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           query = query.lte("created_at", dateRange.end.toISOString());
         }
 
-        query = query.order("created_at", { ascending: false }).range(start, end);
+        query = query
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true }) // Deterministic tiebreaker for same timestamps
+          .range(start, end);
 
         const { data, error } = await query;
 

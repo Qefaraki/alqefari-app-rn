@@ -18,6 +18,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import tokens from '../ui/tokens';
 import { formatRelativeTime } from '../../utils/formatTimestamp';
+import { supabase } from '../../services/supabase';
 
 const COLORS = tokens.colors.najdi;
 
@@ -58,6 +59,8 @@ const BatchOperationCard = ({
   actorPhotos = {},
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [loadingComplete, setLoadingComplete] = useState(false);
+  const [allOperations, setAllOperations] = useState(operations);
 
   const rotation = useSharedValue(0);
   const actorProfileId = operations[0]?.actor_profile_id;
@@ -76,27 +79,52 @@ const BatchOperationCard = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [isExpanded]);
 
+  // Load complete group operations
+  const loadCompleteGroup = useCallback(async () => {
+    setLoadingComplete(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      const { data, error } = await supabase
+        .from('activity_log_detailed')
+        .select('*')
+        .eq('operation_group_id', groupId)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true });
+
+      if (!error && data) {
+        setAllOperations(data);
+      } else if (error) {
+        console.error('Failed to load complete group:', error);
+      }
+    } catch (error) {
+      console.error('Error loading complete group:', error);
+    } finally {
+      setLoadingComplete(false);
+    }
+  }, [groupId]);
+
   // Calculate undo statistics
   const undoStats = useMemo(() => {
-    const undoneCount = operations.filter(op => op.undone_at !== null).length;
-    const totalCount = operations.length;
+    const undoneCount = allOperations.filter(op => op.undone_at !== null).length;
+    const totalCount = allOperations.length;
 
     let state = 'none';
     if (undoneCount === totalCount && undoneCount > 0) state = 'all';
     else if (undoneCount > 0) state = 'partial';
 
     return { undoneCount, totalCount, state };
-  }, [operations]);
+  }, [allOperations]);
 
   // Calculate operation type counts
   const operationTypeCounts = useMemo(() => {
     const counts = {};
-    operations.forEach(op => {
+    allOperations.forEach(op => {
       const type = op.action_type || 'unknown';
       counts[type] = (counts[type] || 0) + 1;
     });
     return counts;
-  }, [operations]);
+  }, [allOperations]);
 
   // Generate summary text
   const summaryText = useMemo(() => {
@@ -109,10 +137,10 @@ const BatchOperationCard = ({
     if (updateCount > 0) parts.push(`${updateCount} تحديث`);
     if (deleteCount > 0) parts.push(`${deleteCount} حذف`);
 
-    return parts.length > 0 ? parts.join(' • ') : `${operations.length} عمليات`;
-  }, [operationTypeCounts, operations.length]);
+    return parts.length > 0 ? parts.join(' • ') : `${allOperations.length} عمليات`;
+  }, [operationTypeCounts, allOperations.length]);
 
-  const actualCount = operations.length;
+  const actualCount = allOperations.length;
   const hasCountMismatch = actualCount !== operationCount;
 
   // Get actor name from first operation
@@ -123,7 +151,7 @@ const BatchOperationCard = ({
 
   // Virtualization threshold - use FlatList for large batches
   const USE_FLATLIST_THRESHOLD = 10;
-  const shouldVirtualize = operations.length > USE_FLATLIST_THRESHOLD;
+  const shouldVirtualize = allOperations.length > USE_FLATLIST_THRESHOLD;
 
   return (
     <View style={styles.container}>
@@ -226,7 +254,7 @@ const BatchOperationCard = ({
           {shouldVirtualize ? (
             // Virtualized list for large batches
             <FlatList
-              data={operations}
+              data={allOperations}
               keyExtractor={(item, index) => `operation-${item.id}-${index}`}
               renderItem={({ item, index }) => (
                 <OperationListItem
@@ -245,7 +273,7 @@ const BatchOperationCard = ({
           ) : (
             // Simple map for small batches
             <View style={styles.operationsList}>
-              {operations.map((operation, index) => (
+              {allOperations.map((operation, index) => (
                 <OperationListItem
                   key={`operation-${operation.id}-${index}`}
                   operation={operation}
@@ -253,6 +281,28 @@ const BatchOperationCard = ({
                 />
               ))}
             </View>
+          )}
+
+          {/* Load All Operations Button */}
+          {actualCount < operationCount && (
+            <TouchableOpacity
+              style={styles.loadAllButton}
+              onPress={loadCompleteGroup}
+              disabled={loadingComplete}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="download-outline"
+                size={16}
+                color={loadingComplete ? COLORS.textMuted : COLORS.crimson}
+              />
+              <Text style={[styles.loadAllText, loadingComplete && styles.loadAllTextDisabled]}>
+                {loadingComplete
+                  ? 'جاري التحميل...'
+                  : `تحميل ${operationCount - actualCount} عملية متبقية`
+                }
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -565,6 +615,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textMuted,
     fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+  },
+  loadAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: COLORS.crimson + '08',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.crimson + '22',
+    marginTop: 8,
+  },
+  loadAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.crimson,
+    fontFamily: Platform.OS === 'ios' ? 'SF Arabic' : 'System',
+  },
+  loadAllTextDisabled: {
+    color: COLORS.textMuted,
   },
   sheetHandleIndicator: {
     width: 36,
