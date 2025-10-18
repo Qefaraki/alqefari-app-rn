@@ -402,6 +402,14 @@ export default function InlineSpouseAdder({
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Surname Hint */}
+        <View style={styles.hintBox}>
+          <Ionicons name="information-circle-outline" size={16} color={tokens.colors.najdi.textMuted} />
+          <Text style={styles.hintText}>
+            لا تنسَ إضافة اسم العائلة • مثال: السعوي، القفاري
+          </Text>
+        </View>
       </Animated.View>
     </View>
   );
@@ -477,5 +485,21 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: {
     opacity: 0.5,
+  },
+  hintBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: tokens.colors.najdi.background,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 8,
+  },
+  hintText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.textMuted,
+    lineHeight: 18,
   },
 });
