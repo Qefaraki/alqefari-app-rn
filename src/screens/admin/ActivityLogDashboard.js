@@ -1314,6 +1314,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
 
 
   const requestIdRef = useRef(0);
+  const lastLoadTimeRef = useRef(0); // Throttle infinite scroll
   const selectedUserRef = useRef(selectedUser);
   const datePresetRef = useRef(datePreset);
   const customDateRangeRef = useRef({ from: customDateFrom, to: customDateTo });
@@ -1765,7 +1766,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
             }
           }
 
-          fetchActivities(false);
+          fetchActivities(0, false);
         } else {
           showToast(result.error || "فشل التراجع", "error");
         }
@@ -1778,7 +1779,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         if (parsedError.shouldRefresh) {
           setTimeout(() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            fetchActivities(false);
+            fetchActivities(0, false);
           }, 2000);
         }
       } finally {
@@ -1846,7 +1847,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   }, []);
 
   const handleRefreshActivities = useCallback(() => {
-    fetchActivities(false);
+    fetchActivities(0, false);
   }, [fetchActivities]);
 
   const scrollListToTop = useCallback(() => {
@@ -1993,7 +1994,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              fetchActivities(false);
+              fetchActivities(0, false);
             }}
             colors={["#A13333"]}
             tintColor="#A13333"
@@ -2010,11 +2011,20 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           </View>
         }
         onEndReached={() => {
+          const now = Date.now();
+          // Throttle: max 1 request per second
+          if (now - lastLoadTimeRef.current < 1000) return;
+
           if (hasMore && !loading && !loadingMore) {
-            fetchActivities(true);
+            lastLoadTimeRef.current = now;
+            fetchActivities(page, true);
           }
         }}
-        onEndReachedThreshold={0.5}
+        onEndReachedThreshold={0.3}
+        onMomentumScrollBegin={() => {
+          // Prevent initial trigger when list mounts
+          lastLoadTimeRef.current = Date.now();
+        }}
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.footerLoader}>
