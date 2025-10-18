@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import tokens from '../ui/tokens';
+import { formatRelativeTime } from '../../utils/formatTimestamp';
 
 const COLORS = tokens.colors.najdi;
 
@@ -117,28 +118,7 @@ const BatchOperationCard = ({
   // Get actor name from first operation
   const actorName = operations[0]?.actor_name_current || operations[0]?.actor_name_historical || 'مستخدم';
 
-  // Format relative time
-  const formatRelativeTime = (timestamp) => {
-    if (!timestamp) return '';
-    const now = new Date();
-    const then = new Date(timestamp);
-    const diffMs = now - then;
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return 'الآن';
-    if (diffMins < 60) return `منذ ${diffMins} دقيقة`;
-
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `منذ ${diffHours} ساعة`;
-
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return 'أمس';
-    if (diffDays < 7) return `منذ ${diffDays} أيام`;
-
-    const diffWeeks = Math.floor(diffDays / 7);
-    return `منذ ${diffWeeks} أسبوع`;
-  };
-
+  // Format relative time using UTC-aware utility
   const relativeTime = formatRelativeTime(createdAt);
 
   // Virtualization threshold - use FlatList for large batches

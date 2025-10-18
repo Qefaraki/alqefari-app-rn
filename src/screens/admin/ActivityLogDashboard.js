@@ -740,16 +740,6 @@ const ActivityListCard = ({ activity, onPress, onUndo, actorPhotos, undoingActiv
             />
           )}
         </View>
-        {actorPhotoUrl && (
-          <View style={styles.activityActionBadge}>
-            <SFIcon
-              name={actionVisuals.icon}
-              fallback={actionVisuals.fallback}
-              size={12}
-              color={actionVisuals.accent}
-            />
-          </View>
-        )}
       </View>
 
       <View style={styles.activityCardContent}>
@@ -2360,7 +2350,7 @@ const styles = StyleSheet.create({
   activityAvatarFrame: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
@@ -2370,37 +2360,13 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  activityActionBadge: {
-    position: "absolute",
-    bottom: -4,
-    end: -4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '60',
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        shadowOffset: { width: 0, height: 1 },
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
   activityHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: tokens.spacing.xs,
   },
   activityCardContent: {
     flex: 1,
+    gap: tokens.spacing.xs,
   },
   severityTag: {
     paddingHorizontal: tokens.spacing.sm,
@@ -2413,7 +2379,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   metaDetailsText: {
-    marginTop: tokens.spacing.xs,
     fontSize: tokens.typography.footnote.fontSize,
     color: colors.textMuted,
     lineHeight: 18,
@@ -2422,7 +2387,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: tokens.spacing.xs,
     gap: tokens.spacing.sm,
   },
   statusBadges: {
@@ -2465,15 +2429,16 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
   },
   undoButton: {
-    paddingHorizontal: tokens.spacing.sm,
-    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: tokens.radii.full,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: tokens.colors.najdi.primary + '66',
     backgroundColor: tokens.colors.najdi.primary + '12',
     alignItems: "center",
     flexDirection: "row",
-    gap: tokens.spacing.xs,
+    gap: 6,
+    minHeight: 32,
   },
   undoButtonDisabled: {
     borderColor: tokens.colors.najdi.primary + '33',
