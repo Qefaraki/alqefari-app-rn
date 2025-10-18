@@ -20,6 +20,7 @@ import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
 import { phoneAuthService } from "../../services/phoneAuth";
 import familyNameService from "../../services/familyNameService";
+import { getMunasibValue, validateMarriageProfiles, getMarriageType } from "../../utils/marriageValidation";
 import tokens from "../ui/tokens";
 import ProfileMatchCard from "../ProfileMatchCard";
 import BranchTreeModal from "../BranchTreeModal";
@@ -173,15 +174,52 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const husband_id = person.gender === "male" ? person.id : selectedSpouse.id;
-      const wife_id = person.gender === "female" ? person.id : selectedSpouse.id;
+      // Re-fetch both profiles to get latest data (prevent race conditions)
+      const { data: latestPerson, error: personFetchError } = await supabase
+        .from('profiles')
+        .select('id, hid, family_origin, deleted_at, name, gender')
+        .eq('id', person.id)
+        .single();
+
+      if (personFetchError || !latestPerson) {
+        Alert.alert('خطأ', 'تعذر التحقق من بياناتك. يرجى المحاولة مرة أخرى.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (latestPerson.deleted_at) {
+        Alert.alert('خطأ', 'ملفك الشخصي محذوف. لا يمكن إضافة زواج.');
+        setSubmitting(false);
+        return;
+      }
+
+      const { data: latestSpouse, error: spouseFetchError } = await supabase
+        .from('profiles')
+        .select('id, hid, family_origin, deleted_at, name, gender')
+        .eq('id', selectedSpouse.id)
+        .single();
+
+      if (spouseFetchError || !latestSpouse) {
+        Alert.alert('خطأ', 'تعذر التحقق من بيانات الزوج. يرجى المحاولة مرة أخرى.');
+        setSubmitting(false);
+        return;
+      }
+
+      if (latestSpouse.deleted_at) {
+        Alert.alert('خطأ', 'هذا الملف الشخصي محذوف. لا يمكن إضافة زواج.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Validate marriage profiles with latest data (throws on error)
+      const { husbandId, wifeId } = validateMarriageProfiles(latestPerson, latestSpouse);
 
       // Safety: Check for duplicate marriage
       const { data: existingMarriage } = await supabase
         .from('marriages')
         .select('id')
-        .eq('husband_id', husband_id)
-        .eq('wife_id', wife_id)
+        .eq('husband_id', husbandId)
+        .eq('wife_id', wifeId)
         .is('deleted_at', null)
         .maybeSingle();
 
@@ -191,50 +229,24 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         return;
       }
 
-      // CRITICAL FIX: Cousin marriage handling
-      // DEFENSIVE: Must check if BOTH spouses have HID to confirm cousin marriage
-      // - Al-Qefari member: hid !== null (e.g., "R1.2.1.1")
-      // - Munasib: hid === null AND family_origin !== null
-      // NOTE: Simple hid check fails because munasib also have hid === null!
+      // Calculate munasib value using centralized helper (with latest data for both profiles)
+      const munasibValue = getMunasibValue(latestPerson, latestSpouse);
+      const marriageType = getMarriageType(latestPerson, latestSpouse);
 
-      // Check if current person is Al-Qefari (has HID)
-      const currentPersonIsAlQefari = person.hid !== null && person.hid !== undefined && person.hid.trim() !== '';
-
-      // Check if selected spouse is Al-Qefari (has HID)
-      const selectedSpouseIsAlQefari = selectedSpouse.hid !== null && selectedSpouse.hid !== undefined && selectedSpouse.hid.trim() !== '';
-
-      // Cousin marriage: BOTH must have HID
-      // Regular marriage: At least one has no HID
-      let munasibValue;
-
-      if (currentPersonIsAlQefari && selectedSpouseIsAlQefari) {
-        // TRUE cousin marriage: Both are Al-Qefari family members
-        munasibValue = null;
-        if (__DEV__) {
-          console.log('[SpouseManager] Cousin marriage detected:', {
-            currentPerson: person.name,
-            currentHID: person.hid,
-            spouse: selectedSpouse.name,
-            spouseHID: selectedSpouse.hid,
-          });
-        }
-      } else {
-        // Regular marriage: Use family_origin from spouse (munasib)
-        munasibValue = selectedSpouse.family_origin || null;
-        if (__DEV__) {
-          console.log('[SpouseManager] Regular marriage detected:', {
-            currentPerson: person.name,
-            currentHID: person.hid || 'NULL',
-            spouse: selectedSpouse.name,
-            spouseHID: selectedSpouse.hid || 'NULL',
-            familyOrigin: munasibValue,
-          });
-        }
+      if (__DEV__) {
+        console.log('[SpouseManager] Creating marriage:', {
+          marriageType,
+          currentPerson: latestPerson.name,
+          currentHID: latestPerson.hid || 'NULL',
+          spouse: latestSpouse.name,
+          spouseHID: latestSpouse.hid || 'NULL',
+          munasib: munasibValue,
+        });
       }
 
       const { data, error } = await profilesService.createMarriage({
-        husband_id,
-        wife_id,
+        husband_id: husbandId,
+        wife_id: wifeId,
         munasib: munasibValue,
       });
 
@@ -255,6 +267,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   // Create new munasib profile
   const createMunasib = async (parsed) => {
     setSubmitting(true);
+    let newPersonId = null; // Track created profile for cleanup
 
     try {
       // Create munasib profile using secure RPC
@@ -270,12 +283,13 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         });
 
       if (createError) throw createError;
+      newPersonId = newPerson.id; // Save for cleanup if needed
 
-      // Create marriage
+      // Create marriage IDs
       const husband_id = person.gender === "male" ? person.id : newPerson.id;
       const wife_id = person.gender === "female" ? person.id : newPerson.id;
 
-      // Safety: Check for duplicate marriage
+      // Safety: Check for duplicate marriage AFTER profile creation
       const { data: existingMarriage } = await supabase
         .from('marriages')
         .select('id')
@@ -285,6 +299,18 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         .maybeSingle();
 
       if (existingMarriage) {
+        // Cleanup: Soft-delete the newly created orphaned profile
+        if (newPersonId) {
+          await supabase
+            .from('profiles')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', newPersonId);
+
+          if (__DEV__) {
+            console.log('[SpouseManager] Cleaned up orphaned profile:', newPersonId);
+          }
+        }
+
         Alert.alert("تنبيه", "يوجد زواج مسجل مسبقاً بين هذين الشخصين");
         setSubmitting(false);
         return;
@@ -297,7 +323,20 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           munasib: parsed.familyOrigin || parsed.familyName,
         });
 
-      if (marriageError) throw marriageError;
+      if (marriageError) {
+        // Cleanup: Soft-delete orphaned profile on marriage creation failure
+        if (newPersonId) {
+          await supabase
+            .from('profiles')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', newPersonId);
+
+          if (__DEV__) {
+            console.log('[SpouseManager] Cleaned up orphaned profile after marriage error:', newPersonId);
+          }
+        }
+        throw marriageError;
+      }
 
       // Success!
       setStage("SUCCESS");

@@ -9,11 +9,13 @@ export const profilesService = {
    */
   async getBranchData(hid = null, maxDepth = 3, limit = 200) {
     try {
-      const { data, error } = await supabase.rpc("get_branch_data", {
-        p_hid: hid,
-        p_max_depth: maxDepth,
-        p_limit: limit,
-      });
+      const { data, error } = await supabase
+        .rpc("get_branch_data", {
+          p_hid: hid,
+          p_max_depth: maxDepth,
+          p_limit: limit,
+        })
+        .range(0, 4999); // Override PostgREST default 1000-row limit (supports up to 5000)
 
       if (error) throw error;
       return { data, error: null };

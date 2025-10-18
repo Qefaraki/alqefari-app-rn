@@ -861,20 +861,20 @@ const TreeView = ({
   const loadTreeData = async () => {
     const startTime = Date.now();
 
-    // Check if we already have adequate data (at least 400 nodes means we have the full tree)
+    // Check if we already have adequate data (at least 5000 nodes means we have the full tree)
     const storeState = useTreeStore.getState();
     const existingData = storeState.treeData;
     const cachedVersion = storeState.cachedSchemaVersion;
 
     // Use cache only if version matches current schema
-    if (existingData && existingData.length >= 400 && cachedVersion === TREE_DATA_SCHEMA_VERSION) {
+    if (existingData && existingData.length >= 5000 && cachedVersion === TREE_DATA_SCHEMA_VERSION) {
       const loadTime = Date.now() - startTime;
       console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (schema v' + TREE_DATA_SCHEMA_VERSION + '), instant load in', loadTime, 'ms');
       // Don't reload - we have enough data with correct schema
       setShowSkeleton(false);
       setIsLoading(false);
       return;
-    } else if (existingData && existingData.length >= 400 && cachedVersion !== TREE_DATA_SCHEMA_VERSION) {
+    } else if (existingData && existingData.length >= 5000 && cachedVersion !== TREE_DATA_SCHEMA_VERSION) {
       console.log('⚠️ Schema version mismatch (cached: v' + cachedVersion + ', current: v' + TREE_DATA_SCHEMA_VERSION + '), reloading tree...');
     } else if (existingData && existingData.length > 0) {
       console.log('⚠️ Partial tree data exists:', existingData.length, 'nodes, loading full tree...');
@@ -940,7 +940,7 @@ const TreeView = ({
       const rootHid = rootData[0].hid;
       const { data, error} = await profilesService.getBranchData(
         rootHid,
-        10, // Standardized depth (matches useStore.js for consistency)
+        15, // Increased depth for future-proofing (supports deeper tree structures)
         5000, // Supports 3K incoming profiles + 67% buffer. Viewport culling handles rendering.
       );
       if (error) {

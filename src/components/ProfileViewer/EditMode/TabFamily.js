@@ -34,6 +34,7 @@ import SpouseRow, { TabFamilyContext } from './SpouseRow';
 import ChildRow from './ChildRow';
 import FamilySkeleton from './FamilySkeleton';
 import { useTreeStore } from '../../../stores/useTreeStore';
+import MarriageDeletionSheet from './MarriageDeletionSheet';
 
 // Re-export context for child components (SpouseRow, ChildRow)
 export { TabFamilyContext };
@@ -92,6 +93,8 @@ const initialState = {
   spouseFeedback: null,
   prefilledSpouseName: null,
   activeEditor: null, // { type: 'marriage' | 'child', entity: {} }
+  deletionSheetVisible: false,
+  marriageToDelete: null,
 };
 
 const familyReducer = (state, action) => {
@@ -226,6 +229,12 @@ const familyReducer = (state, action) => {
     }
     case 'RESET_ACTIVE_EDITOR':
       return { ...state, activeEditor: null };
+    case 'SET_DELETION_SHEET':
+      return {
+        ...state,
+        deletionSheetVisible: action.payload.visible,
+        marriageToDelete: action.payload.marriage || null,
+      };
     case 'RESET_STATE':
       return initialState;
     default:
@@ -560,87 +569,93 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     dispatch({ type: 'SET_CHILD_MODAL_VISIBLE', payload: false });
   }, []);
 
-  const handleDeleteSpouse = useCallback(async (marriage) => {
-    const childrenCount = marriage.children_count || 0;
+  const handleDeleteSpouse = useCallback((marriage) => {
+    // Show confirmation sheet
+    dispatch({
+      type: 'SET_DELETION_SHEET',
+      payload: { visible: true, marriage },
+    });
+  }, [dispatch]);
 
-    let confirmMessage = `هل أنت متأكد من حذف الزواج؟`;
-    if (childrenCount > 0) {
-      confirmMessage = `هذا الزواج لديه ${childrenCount} ${
-        childrenCount === 1 ? 'طفل' : 'أطفال'
-      }. هل أنت متأكد من الحذف؟\n\nملاحظة: الأطفال لن يتم حذفهم.`;
-    }
+  const confirmDeleteMarriage = useCallback(async () => {
+    const marriage = state.marriageToDelete;
+    if (!marriage) return;
 
-    Alert.alert('تأكيد الحذف', confirmMessage, [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'حذف',
-        style: 'destructive',
-        onPress: async () => {
-          // STEP 1: Optimistic UI update (immediate visual feedback)
-          dispatch({
-            type: 'OPTIMISTIC_DELETE_MARRIAGE',
-            payload: { marriage_id: marriage.marriage_id },
-          });
+    // Close sheet
+    dispatch({
+      type: 'SET_DELETION_SHEET',
+      payload: { visible: false, marriage: null },
+    });
 
-          // STEP 2: Success haptic (confidence-building feedback)
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // STEP 1: Optimistic UI update (immediate visual feedback)
+    dispatch({
+      type: 'OPTIMISTIC_DELETE_MARRIAGE',
+      payload: { marriage_id: marriage.marriage_id },
+    });
 
-          // STEP 3: Background API call (animation already started via optimistic update)
-          try {
-            const { data, error } = await supabase.rpc('admin_soft_delete_marriage', {
-              p_marriage_id: marriage.marriage_id,
-            });
+    // STEP 2: Success haptic (confidence-building feedback)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-            if (error) throw error;
+    // STEP 3: Background API call (animation already started via optimistic update)
+    try {
+      const { data, error } = await supabase.rpc('admin_soft_delete_marriage', {
+        p_marriage_id: marriage.marriage_id,
+      });
 
-            if (!data?.success) {
-              throw new Error(data?.message || 'فشل حذف الزواج');
-            }
+      if (error) throw error;
 
-            // STEP 5: Success - remove from state after animation completes
-            setTimeout(() => {
-              dispatch({
-                type: 'REMOVE_DELETED_MARRIAGE',
-                payload: { marriage_id: marriage.marriage_id },
-              });
+      if (!data?.success) {
+        throw new Error(data?.message || 'فشل حذف الزواج');
+      }
 
-              // Trigger parent refresh (silent, in background)
-              if (refreshProfile) refreshProfile(person.id);
-              if (onDataChanged) onDataChanged();
-            }, 500); // Match animation duration
-          } catch (error) {
-            // STEP 6: Error recovery - restore with feedback
-            if (__DEV__) {
-              console.error('Error deleting marriage:', error);
-            }
+      // STEP 5: Success - remove from state after animation completes
+      setTimeout(() => {
+        dispatch({
+          type: 'REMOVE_DELETED_MARRIAGE',
+          payload: { marriage_id: marriage.marriage_id },
+        });
 
-            // Error haptic
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        // Trigger parent refresh (silent, in background)
+        if (refreshProfile) refreshProfile(person.id);
+        if (onDataChanged) onDataChanged();
+      }, 500); // Match animation duration
+    } catch (error) {
+      // STEP 6: Error recovery - restore with feedback
+      if (__DEV__) {
+        console.error('Error deleting marriage:', error);
+      }
 
-            // Restore the marriage with error state
-            dispatch({
-              type: 'RESTORE_DELETED_MARRIAGE',
-              payload: {
-                marriage_id: marriage.marriage_id,
-                error: error.message || 'فشل حذف الزواج',
-              },
-            });
+      // Error haptic
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
-            // Show error toast after restoration animation
-            setTimeout(() => {
-              Alert.alert('خطأ', error.message || 'فشل حذف الزواج. حاول مرة أخرى.');
-
-              // Clear error state after user acknowledges
-              dispatch({
-                type: 'CLEAR_DELETE_STATE',
-                payload: { marriage_id: marriage.marriage_id },
-              });
-            }, 500);
-          }
+      // Restore the marriage with error state
+      dispatch({
+        type: 'RESTORE_DELETED_MARRIAGE',
+        payload: {
+          marriage_id: marriage.marriage_id,
+          error: error.message || 'فشل حذف الزواج',
         },
-      },
-    ]);
-  }, [dispatch, refreshProfile, onDataChanged, person.id]);
+      });
+
+      // Show error toast after restoration animation
+      setTimeout(() => {
+        Alert.alert('خطأ', error.message || 'فشل حذف الزواج. حاول مرة أخرى.');
+
+        // Clear error state after user acknowledges
+        dispatch({
+          type: 'CLEAR_DELETE_STATE',
+          payload: { marriage_id: marriage.marriage_id },
+        });
+      }, 500);
+    }
+  }, [state.marriageToDelete, dispatch, refreshProfile, onDataChanged, person.id]);
+
+  const cancelDeleteMarriage = useCallback(() => {
+    dispatch({
+      type: 'SET_DELETION_SHEET',
+      payload: { visible: false, marriage: null },
+    });
+  }, [dispatch]);
 
   const handleSpouseAddedInline = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1428,7 +1443,12 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         onChildAdded={handleChildAdded}
       />
 
-
+      <MarriageDeletionSheet
+        visible={state.deletionSheetVisible}
+        spouseName={state.marriageToDelete?.spouse_profile?.name}
+        onConfirm={confirmDeleteMarriage}
+        onCancel={cancelDeleteMarriage}
+      />
 
       </ScrollView>
     </TabFamilyContext.Provider>

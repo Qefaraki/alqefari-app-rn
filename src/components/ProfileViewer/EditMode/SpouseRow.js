@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import { supabase } from '../../../services/supabase';
 import familyNameService from '../../../services/familyNameService';
+import { isAlQefariMember } from '../../../utils/marriageValidation';
 import { getInitials, AvatarThumbnail } from './FamilyHelpers';
 import { PERMISSION_MESSAGES, ERROR_MESSAGES } from './permissionMessages';
 import { getCompleteNameChain } from '../../../utils/nameChainUtils';
@@ -89,8 +90,8 @@ const SpouseRow = React.memo(
 
     // Detect cousin marriage: Both spouses are Al-Qefari family members (have HID)
     const isCousinMarriage = useMemo(() => {
-      return spouse?.hid !== null && spouse?.hid !== undefined;
-    }, [spouse?.hid]);
+      return isAlQefariMember(spouse);
+    }, [spouse]);
 
     if (!spouse) return null;
 
@@ -100,7 +101,8 @@ const SpouseRow = React.memo(
     const displayName = useMemo(() => {
       // For cousin marriages: ALWAYS show complete chain with surname (no truncation)
       if (isCousinMarriage) {
-        const fullProfile = nodesMap.get(spouse.id) || spouse;
+        // Improved null safety: Check spouse.id exists before nodesMap lookup
+        const fullProfile = (spouse?.id && nodesMap.get(spouse.id)) || spouse || {};
         const nameChain = getCompleteNameChain(fullProfile);
         return nameChain || formatNameWithTitle(fullProfile) || fullProfile.name || '—';
       }
@@ -161,12 +163,18 @@ const SpouseRow = React.memo(
     };
 
     const handleVisit = () => {
-      // Safety: Validate spouse profile exists before navigation
+      // Safety: Validate spouse profile exists and is not deleted before navigation
       if (!spouse?.id) {
         if (__DEV__) {
           console.error('[SpouseRow] Missing spouse.id:', spouse);
         }
         Alert.alert('خطأ', 'بيانات الملف الشخصي غير متوفرة. يرجى إعادة تحميل الصفحة.');
+        return;
+      }
+
+      // Check if spouse was soft-deleted
+      if (spouse.deleted_at) {
+        Alert.alert('خطأ', 'هذا الملف الشخصي محذوف. يرجى إعادة تحميل الصفحة.');
         return;
       }
 
@@ -472,8 +480,11 @@ SpouseRow.propTypes = {
       id: PropTypes.string,
       name: PropTypes.string,
       photo_url: PropTypes.string,
-      gender: PropTypes.string,
+      gender: PropTypes.oneOf(['male', 'female']),
       version: PropTypes.number,
+      hid: PropTypes.string, // Critical for cousin marriage detection
+      family_origin: PropTypes.string, // Critical for Munasib
+      deleted_at: PropTypes.string, // For soft-delete check
     }),
     marriage_id: PropTypes.string,
     status: PropTypes.string,

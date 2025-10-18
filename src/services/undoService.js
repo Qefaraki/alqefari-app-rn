@@ -49,6 +49,27 @@ const ACTION_TYPE_CONFIG = {
     timeLimitDays: null,
     dangerous: true,
   },
+  'marriage_soft_delete': {
+    rpcFunction: 'undo_marriage_delete',
+    description: 'حذف زواج',
+    requiresAdmin: false,
+    timeLimitDays: 30,
+    dangerous: false,
+  },
+  'marriage_update': {
+    rpcFunction: null, // Not undoable (status changes are intentional)
+    description: 'تحديث زواج',
+    requiresAdmin: false,
+    timeLimitDays: null,
+    dangerous: false,
+  },
+  'suggestion_rejected': {
+    rpcFunction: null, // Not undoable (rejection is intentional)
+    description: 'رفض اقتراح',
+    requiresAdmin: false,
+    timeLimitDays: null,
+    dangerous: false,
+  },
   'admin_update': {
     rpcFunction: 'undo_profile_update',
     description: 'تحديث من المسؤول',
