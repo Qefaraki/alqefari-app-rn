@@ -51,6 +51,32 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   const addButtonScale = useRef(new Animated.Value(1)).current;
   const parentDisplayName = parentNode?.name?.trim?.() || "العائلة";
 
+  // Warning banner state for duplicate sibling_order detection
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateInfo, setDuplicateInfo] = useState([]);
+
+  // Detect duplicate sibling_order values in children array
+  const detectDuplicates = useCallback((children) => {
+    const orderCounts = {};
+
+    children.forEach(child => {
+      const order = child.sibling_order;
+      orderCounts[order] = (orderCounts[order] || 0) + 1;
+    });
+
+    const duplicates = [];
+    Object.entries(orderCounts).forEach(([order, count]) => {
+      if (count > 1) {
+        duplicates.push({
+          order: parseInt(order),
+          count,
+        });
+      }
+    });
+
+    return duplicates;
+  }, []);
+
   const applyOrdering = useCallback((children) => {
     let orderChanged = false;
     let needsUpdate = false;
@@ -118,10 +144,10 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
     }).start();
   }, [statusBanner, statusAnim]);
 
-  // Initialize with existing siblings
+  // Initialize with existing siblings and detect/fix duplicates
   useEffect(() => {
     if (visible && parentNode) {
-      // Sort by sibling_order - filter out any undefined/null entries first
+      // Load siblings with ORIGINAL database sibling_order values (preserve user intent)
       const validSiblings = (siblings || []).filter(s => s && s.id);
 
       const sortedSiblings = [...validSiblings]
@@ -140,8 +166,8 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
           isEdited: false,
           mother_id: s?.mother_id || s?.parent2 || null,
           mother_name: s?.mother_name || null,
-          sibling_order: index,
-          original_sibling_order: index,
+          sibling_order: s.sibling_order ?? index,  // ✅ PRESERVE database value
+          original_sibling_order: s.sibling_order ?? index,
           original_snapshot: {
             name: s.name,
             gender: s.gender,
@@ -149,7 +175,26 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
           },
         }));
 
-      setAllChildren(applyOrdering(sortedSiblings));
+      // Detect duplicates in the loaded data
+      const duplicates = detectDuplicates(sortedSiblings);
+
+      if (duplicates.length > 0) {
+        // Auto-fix by renumbering sequentially
+        const fixed = applyOrdering(sortedSiblings);
+        setAllChildren(fixed);
+        setShowDuplicateWarning(true);
+        setDuplicateInfo(duplicates);
+
+        if (__DEV__) {
+          console.warn('[QuickAdd] Duplicate sibling_order detected and auto-fixed:', duplicates);
+        }
+      } else {
+        // No duplicates, use as-is
+        setAllChildren(sortedSiblings);
+        setShowDuplicateWarning(false);
+        setDuplicateInfo([]);
+      }
+
       setCurrentName("");
       setCurrentGender("male");
       setSelectedMotherId(null);
@@ -162,7 +207,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
         inputRef.current?.focus();
       }, 400);
     }
-  }, [visible, parentNode, siblings, applyOrdering]);
+  }, [visible, parentNode, siblings, applyOrdering, detectDuplicates]);
 
   // Auto-add child on Return key
   const handleAutoAdd = () => {
@@ -387,24 +432,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
         return;
       }
 
-      // =========================================================================
-      // VALIDATE: No duplicate sibling_order values
-      // =========================================================================
-      // Use the state variable allChildren (already contains existing + new + edited)
-      const siblingOrders = allChildren.map(c => c.sibling_order);
-      const uniqueOrders = new Set(siblingOrders);
-
-      if (siblingOrders.length !== uniqueOrders.size) {
-        const duplicates = siblingOrders.filter((order, index) =>
-          siblingOrders.indexOf(order) !== index
-        );
-        Alert.alert(
-          "خطأ في الترتيب",
-          `يوجد تكرار في ترتيب الأطفال: ${duplicates.join(', ')}\n\nيرجى إعادة ترتيب الأطفال بحيث يكون لكل طفل رقم فريد`
-        );
-        setLoading(false);
-        return;
-      }
+      // Note: Duplicate sibling_order validation removed - duplicates are now auto-fixed
+      // on modal open (see initialization useEffect). Warning banner shows when duplicates
+      // are detected, and applyOrdering() ensures sequential ordering before save.
 
       if (USE_BATCH_SAVE) {
         // =========================================================================
@@ -758,6 +788,19 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
                 </Animated.View>
               )}
 
+              {/* Duplicate Order Warning Banner */}
+              {showDuplicateWarning && (
+                <View style={styles.duplicateWarningBanner}>
+                  <Ionicons name="warning-outline" size={20} color="#D58C4A" style={styles.warningIcon} />
+                  <View style={styles.warningTextContainer}>
+                    <Text style={styles.warningTitle}>تم اكتشاف خطأ في الترتيب</Text>
+                    <Text style={styles.warningMessage}>
+                      تم العثور على تكرار في أرقام الترتيب ({duplicateInfo.map(d => d.order).join('، ')}) وتم إصلاحه تلقائياً. يرجى مراجعة الترتيب والتأكد من صحته.
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <BlurView intensity={24} tint="light" style={styles.quickAddBlur}>
                 <View style={styles.quickAddSection}>
                 <View style={styles.fieldGroup}>
@@ -1095,6 +1138,36 @@ const styles = StyleSheet.create({
   },
   statusDismiss: {
     padding: tokens.spacing.xxs,
+  },
+  // Duplicate sibling_order warning banner styles
+  duplicateWarningBanner: {
+    flexDirection: "row",
+    backgroundColor: "#FFF4E6",
+    borderLeftWidth: 4,
+    borderLeftColor: "#D58C4A",
+    borderRadius: tokens.radii.lg,
+    padding: tokens.spacing.md,
+    marginHorizontal: tokens.spacing.lg,
+    marginTop: tokens.spacing.sm,
+    alignItems: "flex-start",
+  },
+  warningIcon: {
+    marginTop: 2,
+  },
+  warningTextContainer: {
+    flex: 1,
+    marginLeft: tokens.spacing.sm,
+  },
+  warningTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  warningMessage: {
+    fontSize: 14,
+    color: COLORS.text,
+    lineHeight: 20,
   },
   segmentedRow: {
     flexDirection: "row",

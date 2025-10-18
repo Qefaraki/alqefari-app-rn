@@ -272,30 +272,98 @@ When you change code, update:
 
 Migration naming: `snake_case_descriptive_name`
 
-### 🚨 CRITICAL: ALWAYS WRITE THE FILE FIRST! 🚨
+### 🚨🚨🚨 CRITICAL: ALWAYS WRITE THE FILE FIRST! 🚨🚨🚨
+
+**⚠️ INCIDENT REPORT: On Oct 18, 2025, violating this workflow caused 44+ profiles to have incorrect sibling_order values, requiring full database revert and system redesign. DO NOT REPEAT THIS MISTAKE!**
 
 **NEVER apply a migration without saving the .sql file to the repo!**
 
 The MCP tool `mcp__supabase__apply_migration` executes SQL directly on the database but **DOES NOT save the file to the filesystem**. This creates a critical problem:
 
-❌ **WRONG WORKFLOW** (Database has it, repo doesn't):
+---
+
+## ❌ WRONG WORKFLOW (Database has it, repo doesn't):
+
 ```bash
 1. mcp__supabase__apply_migration  # ❌ Applied to DB only
 2. Code uses the new RPC           # ✅ Works locally
 3. Git commit                      # ❌ Migration file not tracked!
-# RESULT: Works for you, breaks for everyone else + not in version control
 ```
 
-✅ **CORRECT WORKFLOW** (Both database and repo have it):
+**RESULT**:
+- ✅ Works for you temporarily
+- ❌ Breaks for everyone else
+- ❌ Not in version control
+- ❌ Can't reproduce on other environments
+- ❌ Can't rollback easily
+- ❌ Loses audit trail
+
+---
+
+## ✅ CORRECT WORKFLOW (Both database and repo have it):
+
 ```bash
-1. Write tool → supabase/migrations/YYYYMMDDHHMMSS_name.sql  # ✅ Save file first!
+1. Write tool → supabase/migrations/YYYYMMDDHHMMSS_name.sql  # ✅ Save file FIRST!
 2. mcp__supabase__apply_migration with same SQL              # ✅ Apply to DB
 3. Test the feature                                          # ✅ Verify it works
 4. Git commit                                                # ✅ File is tracked
-# RESULT: Works for everyone, tracked in git, deployable
 ```
 
-**Rule**: Before every `git commit`, verify migration files exist in `supabase/migrations/` directory!
+**RESULT**:
+- ✅ Works for everyone
+- ✅ Tracked in git
+- ✅ Deployable to all environments
+- ✅ Can rollback if needed
+- ✅ Full audit trail
+
+---
+
+## 📋 Pre-Commit Checklist (MANDATORY)
+
+Before **EVERY** `git commit`:
+
+- [ ] If commit message mentions "migration", verify `.sql` files are staged
+- [ ] Run `git status` and check for untracked `.sql` files in `supabase/migrations/`
+- [ ] If adding RPC/schema changes, confirm migration file exists
+- [ ] If using MCP tools, confirm corresponding `.sql` file was written FIRST
+
+**Visual Check**:
+```bash
+# BEFORE committing, always run:
+git status | grep "supabase/migrations"
+
+# If you see "Untracked files" with .sql in the name → ADD THEM!
+# If commit mentions "migration" but no .sql files → STOP! Create the file first!
+```
+
+---
+
+## 🚫 Pre-Commit Hook Protection
+
+A git pre-commit hook has been added (`.git/hooks/pre-commit`) that automatically checks:
+- If commit message contains "migration"
+- If any `.sql` files are being committed
+- **Blocks the commit** if migration is mentioned but no `.sql` files found
+
+To bypass (NOT recommended): `git commit --no-verify`
+
+---
+
+## 📖 Real Incident Report
+
+**Date**: October 18, 2025
+**Affected**: 44+ children across 11 families
+**Issue**: Migration applied via MCP without creating `.sql` file
+**Impact**: Incorrect sibling_order values, user complaints, required full revert
+**Resolution**: 3 migrations + frontend redesign + this documentation update
+**Time Lost**: ~4 hours debugging and fixing
+
+**Files**:
+- `20251018184900_bulk_fix_duplicate_sibling_orders_APPLIED_NOT_COMMITTED.sql` (historical doc)
+- `20251018200000_revert_sibling_order_bulk_fix.sql` (the revert)
+- `20251018200001_remove_sibling_order_unique_constraint.sql` (constraint fix)
+
+**Never again.**
 
 ## 🛠️ Tool Usage Constraints
 
