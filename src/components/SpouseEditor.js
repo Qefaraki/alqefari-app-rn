@@ -208,7 +208,7 @@ export default function SpouseEditor({
               <View style={styles.hintBox}>
                 <Ionicons name="information-circle-outline" size={16} color="#8E8E93" />
                 <Text style={styles.hintText}>
-                  لا تنسَ إضافة اسم العائلة • مثال: السعوي، القفاري
+                  لا تنسَ كتابة اسم العائلة • مثال: السعوي، القفاري
                 </Text>
               </View>
             )}

@@ -28,7 +28,7 @@ const ANIMATION = {
   INPUT_FOCUS_DELAY: 60,
 
   // Expansion animation
-  EXPAND_HEIGHT: 108, // 60px input + 48px hint box (with margins, padding, text)
+  EXPAND_HEIGHT: 120, // 60px input + 48px hint box + 12px safety margin
   EXPAND_SPRING: { damping: 18, stiffness: 220 },
   EXPAND_OPACITY_DURATION: 180,
 
@@ -407,7 +407,7 @@ export default function InlineSpouseAdder({
         <View style={styles.hintBox}>
           <Ionicons name="information-circle-outline" size={16} color={tokens.colors.najdi.textMuted} />
           <Text style={styles.hintText}>
-            لا تنسَ إضافة اسم العائلة • مثال: السعوي، القفاري
+            لا تنسَ كتابة اسم العائلة • مثال: السعوي، القفاري
           </Text>
         </View>
       </Animated.View>
