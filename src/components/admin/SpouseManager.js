@@ -192,11 +192,45 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       }
 
       // CRITICAL FIX: Cousin marriage handling
-      // If selectedSpouse has HID (is Al-Qefari), munasib must be NULL
-      // If selectedSpouse has no HID (is munasib), use family_origin
-      const munasibValue = selectedSpouse.hid !== null
-        ? null  // Al-Qefari member (cousin marriage)
-        : (selectedSpouse.family_origin || null);  // Munasib
+      // DEFENSIVE: Must check if BOTH spouses have HID to confirm cousin marriage
+      // - Al-Qefari member: hid !== null (e.g., "R1.2.1.1")
+      // - Munasib: hid === null AND family_origin !== null
+      // NOTE: Simple hid check fails because munasib also have hid === null!
+
+      // Check if current person is Al-Qefari (has HID)
+      const currentPersonIsAlQefari = person.hid !== null && person.hid !== undefined && person.hid.trim() !== '';
+
+      // Check if selected spouse is Al-Qefari (has HID)
+      const selectedSpouseIsAlQefari = selectedSpouse.hid !== null && selectedSpouse.hid !== undefined && selectedSpouse.hid.trim() !== '';
+
+      // Cousin marriage: BOTH must have HID
+      // Regular marriage: At least one has no HID
+      let munasibValue;
+
+      if (currentPersonIsAlQefari && selectedSpouseIsAlQefari) {
+        // TRUE cousin marriage: Both are Al-Qefari family members
+        munasibValue = null;
+        if (__DEV__) {
+          console.log('[SpouseManager] Cousin marriage detected:', {
+            currentPerson: person.name,
+            currentHID: person.hid,
+            spouse: selectedSpouse.name,
+            spouseHID: selectedSpouse.hid,
+          });
+        }
+      } else {
+        // Regular marriage: Use family_origin from spouse (munasib)
+        munasibValue = selectedSpouse.family_origin || null;
+        if (__DEV__) {
+          console.log('[SpouseManager] Regular marriage detected:', {
+            currentPerson: person.name,
+            currentHID: person.hid || 'NULL',
+            spouse: selectedSpouse.name,
+            spouseHID: selectedSpouse.hid || 'NULL',
+            familyOrigin: munasibValue,
+          });
+        }
+      }
 
       const { data, error } = await profilesService.createMarriage({
         husband_id,

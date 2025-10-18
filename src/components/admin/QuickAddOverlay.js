@@ -387,6 +387,25 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
         return;
       }
 
+      // =========================================================================
+      // VALIDATE: No duplicate sibling_order values
+      // =========================================================================
+      const allChildren = [...newChildren, ...editedChildren];
+      const siblingOrders = allChildren.map(c => c.sibling_order);
+      const uniqueOrders = new Set(siblingOrders);
+
+      if (siblingOrders.length !== uniqueOrders.size) {
+        const duplicates = siblingOrders.filter((order, index) =>
+          siblingOrders.indexOf(order) !== index
+        );
+        Alert.alert(
+          "خطأ في الترتيب",
+          `يوجد تكرار في ترتيب الأطفال: ${duplicates.join(', ')}\n\nيرجى إعادة ترتيب الأطفال بحيث يكون لكل طفل رقم فريد`
+        );
+        setLoading(false);
+        return;
+      }
+
       if (USE_BATCH_SAVE) {
         // =========================================================================
         // 🚀 NEW: BATCH SAVE PATH (95% reduction in RPC calls)

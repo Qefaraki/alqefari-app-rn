@@ -146,11 +146,30 @@ const SpouseRow = React.memo(
         Alert.alert(PERMISSION_MESSAGES.UNAUTHORIZED_DELETE.title, PERMISSION_MESSAGES.UNAUTHORIZED_DELETE.message);
         return;
       }
+
+      // Safety: Validate marriage data exists before deletion
+      if (!spouseData?.marriage_id) {
+        if (__DEV__) {
+          console.error('[SpouseRow] Missing marriage_id:', spouseData);
+        }
+        Alert.alert('خطأ', 'بيانات الزواج غير متوفرة. يرجى إعادة تحميل الصفحة.');
+        return;
+      }
+
       Haptics.selectionAsync();
       onDelete?.(spouseData);
     };
 
     const handleVisit = () => {
+      // Safety: Validate spouse profile exists before navigation
+      if (!spouse?.id) {
+        if (__DEV__) {
+          console.error('[SpouseRow] Missing spouse.id:', spouse);
+        }
+        Alert.alert('خطأ', 'بيانات الملف الشخصي غير متوفرة. يرجى إعادة تحميل الصفحة.');
+        return;
+      }
+
       if (onVisit) {
         Haptics.selectionAsync();
         onVisit();
