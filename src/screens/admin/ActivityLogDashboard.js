@@ -1620,14 +1620,28 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
       const batchGroups = Array.from(groupMap.values())
         .filter(group => group.operations.length > 0);
 
-      // Log critical count mismatches
+      // Log critical count mismatches (only for small groups or completed loads)
+      // Large batch operations (100+) are expected to show partial counts during pagination
       batchGroups.forEach(group => {
         const mismatch = Math.abs(group.operations.length - group.operation_count);
-        if (mismatch > 10) {
-          console.warn('[ActivityLogDashboard] Significant batch count mismatch detected', {
+        const isLargeBatch = group.operation_count >= 100;
+        const isPaginationExpected = group.operations.length < group.operation_count;
+
+        // Only warn if:
+        // 1. Small batch with large mismatch (unexpected)
+        // 2. Loaded more operations than expected (data integrity issue)
+        if (!isLargeBatch && mismatch > 10) {
+          console.warn('[ActivityLogDashboard] Batch count mismatch in small batch', {
             group_id: group.operation_group_id,
             expected: group.operation_count,
             actual: group.operations.length
+          });
+        } else if (group.operations.length > group.operation_count) {
+          console.error('[ActivityLogDashboard] Loaded MORE operations than expected', {
+            group_id: group.operation_group_id,
+            expected: group.operation_count,
+            actual: group.operations.length,
+            overflow: group.operations.length - group.operation_count
           });
         }
       });

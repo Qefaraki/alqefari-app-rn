@@ -9,13 +9,13 @@ export const profilesService = {
    */
   async getBranchData(hid = null, maxDepth = 3, limit = 200) {
     try {
-      const { data, error } = await supabase
-        .rpc("get_branch_data", {
-          p_hid: hid,
-          p_max_depth: maxDepth,
-          p_limit: limit,
-        })
-        .range(0, 4999); // Override PostgREST default 1000-row limit (supports up to 5000)
+      const { data, error } = await supabase.rpc("get_branch_data", {
+        p_hid: hid,
+        p_max_depth: maxDepth,
+        p_limit: limit,
+      });
+      // Note: .range() not supported on RPC calls in Supabase JS v2
+      // PostgREST max-rows setting controls row limit (configured to 5000 in dashboard)
 
       if (error) throw error;
       return { data, error: null };
