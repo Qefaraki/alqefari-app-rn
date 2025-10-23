@@ -259,7 +259,7 @@ console.log(useTreeStore.getState().treeData.length);
 **Performance Expectations:**
 | Profiles | Load Time | Memory | Rendering | Status |
 |----------|-----------|--------|-----------|--------|
-| 56 (current) | <200ms | ~0.5MB | 60fps | ✅ Optimal |
+| Current Size | <200ms | ~0.5MB | 60fps | ✅ Optimal |
 | 2,000 | ~650ms | ~6MB | 60fps | ✅ Good |
 | 3,000 (target) | ~950ms | ~9MB | 60fps | ✅ Good |
 | 5,000 (limit) | ~1.3s | ~15MB | 60fps | ✅ Acceptable |
