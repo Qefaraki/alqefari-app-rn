@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import {
   View,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
+  Animated,
+  Easing,
 } from 'react-native';
 import tokens from '../../ui/tokens';
 
@@ -28,9 +30,31 @@ const CategoryChipFilter = ({
   onCategoryChange, // Callback(categoryId)
   style,          // Additional container styles
 }) => {
+  const scaleAnims = useRef({}).current;
+
   const handleCategoryPress = useCallback((categoryId) => {
+    // Trigger scale animation
+    if (!scaleAnims[categoryId]) {
+      scaleAnims[categoryId] = new Animated.Value(1);
+    }
+
+    Animated.sequence([
+      Animated.timing(scaleAnims[categoryId], {
+        toValue: 0.95,
+        duration: 100,
+        easing: Easing.bezier(0.4, 0.0, 0.2, 1),
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnims[categoryId], {
+        toValue: 1,
+        friction: 5,
+        tension: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     onCategoryChange(categoryId);
-  }, [onCategoryChange]);
+  }, [onCategoryChange, scaleAnims]);
 
   return (
     <View style={[styles.container, style]}>
@@ -44,47 +68,65 @@ const CategoryChipFilter = ({
           const isActive = activeCategory === category.id;
           const isDisabled = category.enabled === false;
 
-          return (
-            <Pressable
-              key={category.id}
-              style={({ pressed }) => [
-                styles.chip,
-                isActive ? styles.chipActive : styles.chipInactive,
-                isDisabled && styles.chipDisabled,
-                pressed && !isDisabled && styles.chipPressed,
-              ]}
-              onPress={() => handleCategoryPress(category.id)}
-              disabled={isDisabled}
-              android_ripple={
-                isDisabled ? undefined : {
-                  color: tokens.colors.najdi.primary + '20',
-                  radius: 50,
-                }
-              }
-            >
-              <Text
-                style={[
-                  styles.label,
-                  isActive ? styles.labelActive : styles.labelInactive,
-                  isDisabled && styles.labelDisabled,
-                ]}
-              >
-                {category.label}
-              </Text>
+          // Initialize animation value if not exists
+          if (!scaleAnims[category.id]) {
+            scaleAnims[category.id] = new Animated.Value(1);
+          }
 
-              {/* Count badge */}
-              {category.count !== undefined && (
+          return (
+            <Animated.View
+              key={category.id}
+              style={{
+                transform: [{ scale: scaleAnims[category.id] }],
+              }}
+            >
+              <Pressable
+                style={({ pressed }) => [
+                  styles.chip,
+                  isActive ? styles.chipActive : styles.chipInactive,
+                  isDisabled && styles.chipDisabled,
+                  pressed && !isDisabled && styles.chipPressed,
+                ]}
+                onPress={() => handleCategoryPress(category.id)}
+                disabled={isDisabled}
+                android_ripple={
+                  isDisabled ? undefined : {
+                    color: tokens.colors.najdi.primary + '20',
+                    radius: 50,
+                  }
+                }
+              >
                 <Text
                   style={[
-                    styles.count,
-                    isActive ? styles.countActive : styles.countInactive,
-                    isDisabled && styles.countDisabled,
+                    styles.label,
+                    isActive ? styles.labelActive : styles.labelInactive,
+                    isDisabled && styles.labelDisabled,
                   ]}
                 >
-                  {category.count}
+                  {category.label}
                 </Text>
-              )}
-            </Pressable>
+
+                {/* Count badge */}
+                {category.count !== undefined && (
+                  <View
+                    style={[
+                      styles.countBadge,
+                      isActive ? styles.countBadgeActive : styles.countBadgeInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.count,
+                        isActive ? styles.countActive : styles.countInactive,
+                        isDisabled && styles.countDisabled,
+                      ]}
+                    >
+                      {category.count}
+                    </Text>
+                  </View>
+                )}
+              </Pressable>
+            </Animated.View>
           );
         })}
       </ScrollView>
@@ -122,6 +164,11 @@ const styles = StyleSheet.create({
   chipActive: {
     backgroundColor: tokens.colors.najdi.primary,
     borderWidth: 0,
+    shadowColor: tokens.colors.najdi.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
 
   chipInactive: {
@@ -157,6 +204,20 @@ const styles = StyleSheet.create({
 
   labelDisabled: {
     color: tokens.colors.najdi.textMuted,
+  },
+
+  countBadge: {
+    borderRadius: tokens.radii.sm,
+    paddingHorizontal: tokens.spacing.xxs,
+    paddingVertical: 2,
+  },
+
+  countBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+
+  countBadgeInactive: {
+    backgroundColor: 'transparent',
   },
 
   count: {

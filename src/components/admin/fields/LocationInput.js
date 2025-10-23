@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Alert,
   Animated,
+  Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../services/supabase';
@@ -46,6 +47,7 @@ const LocationInput = ({
   const [loading, setLoading] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [activeCategory, setActiveCategory] = useState('saudi'); // Default to Saudi cities
+  const [isFocused, setIsFocused] = useState(false);
 
   const debounceRef = useRef(null);
   const requestSequenceRef = useRef(0);  // Track request sequence to prevent stale results
@@ -79,12 +81,14 @@ const LocationInput = ({
       Animated.sequence([
         Animated.timing(shimmerAnim, {
           toValue: 1,
-          duration: 1500,
+          duration: 1200,
+          easing: Easing.bezier(0.4, 0.0, 0.2, 1),
           useNativeDriver: false,
         }),
         Animated.timing(shimmerAnim, {
           toValue: 0,
-          duration: 1500,
+          duration: 1200,
+          easing: Easing.bezier(0.4, 0.0, 0.2, 1),
           useNativeDriver: false,
         }),
       ])
@@ -246,13 +250,15 @@ const LocationInput = ({
       {/* Search Field */}
       <View style={styles.inputContainer}>
         <TextInput
-          style={[styles.input, showWarning && styles.inputWarning]}
+          style={[styles.input, showWarning && styles.inputWarning, isFocused && styles.inputFocused]}
           value={inputText}
           onChangeText={handleTextChange}
           placeholder={placeholder}
           placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
           textAlign="start"
           editable={!loading}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
         />
       </View>
 
@@ -281,20 +287,21 @@ const LocationInput = ({
             <View style={styles.skeletonLoaderInner}>
               {[0, 1, 2].map((index) => {
                 const shimmerOpacity = shimmerAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.5, 1],
+                  inputRange: [0, 0.5, 1],
+                  outputRange: [0.3, 0.7, 0.3],
                 });
                 return (
                   <Animated.View
                     key={index}
                     style={[
                       styles.skeletonItem,
+                      index === 0 && styles.skeletonItemFirst,
                       { opacity: shimmerOpacity },
                     ]}
                   >
-                    <View style={styles.skeletonIcon} />
+                    <View style={[styles.skeletonIcon, index === 0 && styles.skeletonIconFirst]} />
                     <View style={styles.skeletonText}>
-                      <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+                      <View style={[styles.skeletonLine, styles.skeletonLineShort, index === 0 && styles.skeletonLineFirst]} />
                       <View style={styles.skeletonLine} />
                     </View>
                   </Animated.View>
@@ -322,6 +329,7 @@ const LocationInput = ({
                     style={({ pressed }) => [
                       styles.suggestionItem,
                       pressed && styles.suggestionItemPressed,
+                      { transform: [{ scale: pressed ? 0.98 : 1 }] },
                     ]}
                     onPress={() => selectSuggestion(item)}
                   >
@@ -349,8 +357,17 @@ const LocationInput = ({
             </ScrollView>
           ) : (
             <View style={styles.emptyStateContainer}>
+              <Ionicons
+                name="search-outline"
+                size={32}
+                color={tokens.colors.najdi.textMuted}
+                style={[styles.emptyStateIcon, { opacity: 0.6 }]}
+              />
               <Text style={styles.emptyStateText}>
                 لا توجد نتائج - يمكنك إدخال النص مباشرة
+              </Text>
+              <Text style={styles.emptyStateSubtext}>
+                جرب مصطلحاً آخر أو اختر فئة مختلفة
               </Text>
             </View>
           )}
@@ -391,6 +408,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.colors.najdi.container + '40',
     minHeight: tokens.touchTarget.minimum,
+  },
+
+  inputFocused: {
+    borderColor: tokens.colors.najdi.focus,
+    borderWidth: 1.5,
+    shadowColor: tokens.colors.najdi.focus,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
   },
 
   inputWarning: {
@@ -438,14 +464,13 @@ const styles = StyleSheet.create({
   // ============================================================================
 
   sectionHeader: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: tokens.colors.najdi.textMuted,
+    opacity: 0.7,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     paddingTop: tokens.spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
 
   // ============================================================================
@@ -482,13 +507,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: tokens.colors.najdi.text,
-    textAlign: 'right',
+    textAlign: 'start',
   },
 
   suggestionCountry: {
     fontSize: 12,
     color: tokens.colors.najdi.textMuted,
-    textAlign: 'right',
+    textAlign: 'start',
   },
 
   // ============================================================================
@@ -510,11 +535,20 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
 
+  skeletonItemFirst: {
+    paddingTop: tokens.spacing.md,
+  },
+
   skeletonIcon: {
     width: 24,
     height: 24,
     borderRadius: 4,
     backgroundColor: tokens.colors.najdi.container + '20',
+  },
+
+  skeletonIconFirst: {
+    width: 28,
+    height: 28,
   },
 
   skeletonText: {
@@ -532,6 +566,11 @@ const styles = StyleSheet.create({
     width: '60%',
   },
 
+  skeletonLineFirst: {
+    height: 14,
+    width: '75%',
+  },
+
   // ============================================================================
   // Empty State (when no results found)
   // ============================================================================
@@ -544,10 +583,22 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.lg,
   },
 
+  emptyStateIcon: {
+    marginBottom: tokens.spacing.sm,
+  },
+
   emptyStateText: {
     fontSize: 14,
     color: tokens.colors.najdi.textMuted,
     textAlign: 'center',
+  },
+
+  emptyStateSubtext: {
+    fontSize: 12,
+    color: tokens.colors.najdi.textMuted,
+    opacity: 0.7,
+    textAlign: 'center',
+    marginTop: tokens.spacing.xxs,
   },
 });
 
