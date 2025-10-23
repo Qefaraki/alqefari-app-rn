@@ -931,9 +931,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
           animateOnMount={true}
-          keyboardBehavior="interactive"
-          keyboardBlurBehavior="restore"
+          keyboardBehavior="fillParent"
           android_keyboardInputMode="adjustResize"
+          enableDynamicSizing={false}
           onClose={() => {
             onClose?.();
           }}
