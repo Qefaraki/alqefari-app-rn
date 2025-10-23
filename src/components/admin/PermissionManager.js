@@ -191,8 +191,8 @@ const AnimatedUserCard = ({
               </View>
             )}
 
-            {/* Generation badge */}
-            {item.generation && (
+            {/* Generation badge - only show for Al-Qefari family members (hid !== null) */}
+            {item.generation && item.hid !== null && (
               <View style={styles.generationBadge}>
                 <Text style={styles.generationText}>
                   {getGenerationLabel(item.generation)}

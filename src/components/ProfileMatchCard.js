@@ -79,11 +79,16 @@ const ProfileMatchCard = ({ profile, isSelected, onPress, index }) => {
             {getProfileDisplayName(profile)}
           </Text>
           <View style={styles.metaContainer}>
-            <Text style={[styles.generationText, { color: avatarColor }]}>
-              {getGenerationName(profile.generation || 1)}
-            </Text>
-            {/* Match percentage */}
-            <Text style={styles.metaSeparator}>•</Text>
+            {/* Generation - only show for Al-Qefari family members (hid !== null) */}
+            {profile?.hid !== null && (
+              <>
+                <Text style={[styles.generationText, { color: avatarColor }]}>
+                  {getGenerationName(profile.generation || 1)}
+                </Text>
+                {/* Match percentage */}
+                <Text style={styles.metaSeparator}>•</Text>
+              </>
+            )}
             <Text style={[styles.matchPercentage, { color: avatarColor }]}>
               {Math.round(profile.match_score)}% تطابق
             </Text>
