@@ -89,7 +89,7 @@ const SearchResultCard = ({
 
   // Render breadcrumb hierarchy
   const renderBreadcrumbs = () => {
-    if (!item?.name_chain) {
+    if (!item?.name_chain || item.name_chain.trim() === '') {
       // Fallback: show just the profile name
       return (
         <Text style={styles.breadcrumbText} numberOfLines={1}>
@@ -120,8 +120,7 @@ const SearchResultCard = ({
     ));
   };
 
-  // Determine which wrapper to use (animated or plain)
-  const CardWrapper = enableAnimation ? Animated.View : View;
+  // Always use Animated.View, conditionally apply animation
   const animationProps = enableAnimation ? {
     entering: FadeIn.delay(Math.min(index * 50, 500)).springify()
   } : {};
@@ -143,7 +142,7 @@ const SearchResultCard = ({
         { transform: [{ scale: pressed ? 0.98 : 1 }] },
       ]}
     >
-      <CardWrapper
+      <Animated.View
         {...animationProps}
         style={styles.modernCard}
       >
@@ -269,8 +268,10 @@ SearchResultCard.defaultProps = {
 
 const styles = StyleSheet.create({
   // Ultra-modern card design inspired by Google Maps, Spotify, and Airbnb
+  // NOTE: App uses forceRTL(true) - React Native auto-flips layouts
+  // Use normal "row", "left", "flex-start" - don't use row-reverse/right/flex-end
   modernCard: {
-    flexDirection: "row-reverse", // RTL: photo on left, text starts from right
+    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     marginHorizontal: 16,
@@ -288,7 +289,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(0,0,0,0.04)",
   },
   visualSection: {
-    marginLeft: 14, // Changed from marginRight for RTL
+    marginRight: 14, // React Native auto-flips marginRight ↔ marginLeft in RTL
   },
   avatarContainer: {
     position: "relative",
@@ -339,10 +340,10 @@ const styles = StyleSheet.create({
   contentSection: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "flex-end", // RTL: align text to the right
+    alignItems: "flex-start", // React Native auto-flips flex-start ↔ flex-end in RTL
   },
   primaryInfo: {
-    flexDirection: "row-reverse", // RTL: name first from right
+    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
     alignItems: "center",
     marginBottom: 4,
   },
@@ -352,10 +353,10 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
     color: "#1A1A1A",
     flex: 1,
-    textAlign: "right", // RTL: align text to right
+    textAlign: "left", // React Native auto-flips left ↔ right in RTL
   },
   liveBadge: {
-    marginRight: 8, // Changed from marginLeft for RTL
+    marginLeft: 8, // React Native auto-flips marginLeft ↔ marginRight in RTL
   },
   liveDot: {
     width: 8,
@@ -364,7 +365,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#00C851",
   },
   breadcrumbContainer: {
-    flexDirection: "row-reverse", // RTL: start from right
+    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
     alignItems: "center",
     marginBottom: 6,
     flexWrap: "nowrap",
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
     color: "#666",
     fontFamily: "SF Arabic",
     maxWidth: 80,
-    textAlign: "right", // RTL: align text right
+    textAlign: "left", // React Native auto-flips left ↔ right in RTL
   },
   breadcrumbSeparator: {
     fontSize: 12,
@@ -382,13 +383,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   metadataRow: {
-    flexDirection: "row-reverse", // RTL: tags from right to left
+    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
     alignItems: "center",
     gap: 10,
-    alignSelf: "flex-end", // RTL: align row to right
+    alignSelf: "flex-start", // React Native auto-flips flex-start ↔ flex-end in RTL
   },
   metaTag: {
-    flexDirection: "row-reverse", // RTL: icon and text reversed
+    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
     alignItems: "center",
     gap: 4,
     backgroundColor: "#F8F9FA",
@@ -418,7 +419,7 @@ const styles = StyleSheet.create({
   },
   actionSection: {
     justifyContent: "center",
-    marginRight: 12, // Changed from marginLeft for RTL
+    marginLeft: 12, // React Native auto-flips marginLeft ↔ marginRight in RTL
   },
   goButton: {
     width: 36,
