@@ -23,6 +23,7 @@ import familyNameService from "../../services/familyNameService";
 import { getMunasibValue, validateMarriageProfiles, getMarriageType } from "../../utils/marriageValidation";
 import tokens from "../ui/tokens";
 import SearchResultCard from "../search/SearchResultCard";
+import SearchBar from "../SearchBar";
 import BranchTreeModal from "../BranchTreeModal";
 
 /**
@@ -49,7 +50,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
   // Get appropriate gender for spouse
   const spouseGender = person?.gender === "male" ? "female" : "male";
-  const spouseTitle = spouseGender === "female" ? "الزوجة" : "الزوج";
+  const spouseTitle = spouseGender === "female" ? "زوجة" : "زوج";
+  const modalTitle = spouseGender === "female" ? "إضافة زوجة من القفاري" : "إضافة زوج من القفاري";
   const genderMarker = spouseGender === "female" ? "بنت" : "بن";
 
   // Auto-trigger search when modal opens with prefilledName
@@ -422,7 +424,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
               </TouchableOpacity>
-              <Text style={styles.title}>إضافة {spouseTitle}</Text>
+              <Text style={styles.title}>{modalTitle}</Text>
               <View style={{ width: 28 }} />
             </View>
 
@@ -557,7 +559,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     height: '50%', // Half-screen height
-    backgroundColor: tokens.colors.najdi.background,
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -574,12 +576,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.md,
     paddingBottom: tokens.spacing.sm,
-    backgroundColor: tokens.colors.najdi.background,
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: tokens.colors.najdi.container,
+    backgroundColor: tokens.colors.najdi.container, // Camel Hair Beige
     borderRadius: tokens.radii.sm,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
