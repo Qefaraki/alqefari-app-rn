@@ -27,7 +27,8 @@ import { Skia, listFontFamilies, Paragraph } from '@shopify/react-native-skia';
 
 // SF Arabic font alias and asset
 const SF_ARABIC_ALIAS = 'SF Arabic';
-const SF_ARABIC_ASSET = require('../../../assets/fonts/SF Arabic Regular.ttf');
+// Note: SF Arabic font asset available at ../../../assets/fonts/SF Arabic Regular.ttf
+// Font is loaded via system font manager, not from asset directly
 
 // Arabic font fallback chain (priority order)
 const ARABIC_FONT_NAMES = [
