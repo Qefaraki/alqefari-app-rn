@@ -237,7 +237,7 @@ const SearchResultCard = ({
             <Ionicons name="arrow-back" size={18} color="#007AFF" />
           </View>
         </View>
-      </CardWrapper>
+      </Animated.View>
     </Pressable>
   );
 };
