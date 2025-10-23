@@ -1,73 +1,23 @@
 /**
  * Node type definitions for TreeView
- * Phase 1 Day 3 - Type system
+ * Phase 1 Day 3 - Type system (Fixed to match Supabase schema)
  */
+
+import type { SharedValue } from 'react-native-reanimated';
+import type {
+  Profile as SupabaseProfile,
+  Marriage as SupabaseMarriage,
+  DateData,
+  SocialMediaLinks,
+  TimelineEvent,
+  TreeMeta,
+} from '../../../types/supabase';
 
 /**
  * Raw profile data from Supabase
- * Represents a single family member in the database
+ * Re-exported from canonical source for type safety
  */
-export interface Profile {
-  /** Unique profile identifier (UUID) */
-  id: string;
-
-  /** Heritage ID (HID) - unique genealogical identifier for blood relatives */
-  hid: string | null;
-
-  /** Full Arabic name */
-  name: string;
-
-  /** Arabic name without diacritics (for search) */
-  name_no_diacritics: string | null;
-
-  /** Profile photo URL (Supabase storage) */
-  photo_url: string | null;
-
-  /** Birth date (ISO 8601) */
-  birth_date: string | null;
-
-  /** Death date (ISO 8601) - null if alive */
-  death_date: string | null;
-
-  /** Biological sex (male/female) */
-  sex: 'male' | 'female';
-
-  /** Father's profile ID (UUID) */
-  father_id: string | null;
-
-  /** Mother's profile ID (UUID) */
-  mother_id: string | null;
-
-  /** Display order among siblings (1-indexed) */
-  sibling_order: number | null;
-
-  /** Generation number (1 = patriarch, 2 = children, etc.) */
-  generation: number;
-
-  /** Soft delete timestamp */
-  deleted_at: string | null;
-
-  /** Optimistic locking version */
-  version: number;
-
-  /** Record creation timestamp */
-  created_at: string;
-
-  /** Last update timestamp */
-  updated_at: string;
-
-  /** Associated auth user ID (nullable for Munasib/spouses) */
-  user_id: string | null;
-
-  /** Admin role (super_admin, admin, moderator, user) */
-  role: 'super_admin' | 'admin' | 'moderator' | 'user';
-
-  /** Professional title (e.g., دكتور, مهندس) */
-  professional_title: string | null;
-
-  /** Title abbreviation for compact display */
-  title_abbreviation: string | null;
-}
+export type Profile = SupabaseProfile;
 
 /**
  * Node with layout coordinates (output of layout algorithm)
@@ -111,16 +61,16 @@ export interface LayoutNode {
  */
 export interface RenderedNode extends LayoutNode {
   /** Animated X coordinate (Reanimated shared value) */
-  animatedX: number;
+  animatedX: SharedValue<number>;
 
   /** Animated Y coordinate (Reanimated shared value) */
-  animatedY: number;
+  animatedY: SharedValue<number>;
 
-  /** Animated opacity (0-1) */
-  opacity: number;
+  /** Animated opacity (0-1, Reanimated shared value) */
+  opacity: SharedValue<number>;
 
-  /** Animated scale (for zoom gestures) */
-  scale: number;
+  /** Animated scale (for zoom gestures, Reanimated shared value) */
+  scale: SharedValue<number>;
 
   /** Level of Detail tier (T1/T2/T3 based on zoom) */
   lodTier: 'T1' | 'T2' | 'T3';
@@ -134,30 +84,9 @@ export interface RenderedNode extends LayoutNode {
 
 /**
  * Marriage connection between two profiles
- * Used for rendering spouse relationship lines
+ * Re-exported from canonical source for type safety
  */
-export interface Marriage {
-  /** Marriage record ID (UUID) */
-  id: string;
-
-  /** Partner 1 profile ID */
-  partner1_id: string;
-
-  /** Partner 2 profile ID */
-  partner2_id: string;
-
-  /** Marriage status (current or past) */
-  status: 'current' | 'past';
-
-  /** Marriage date (ISO 8601) */
-  marriage_date: string | null;
-
-  /** Divorce date (ISO 8601) - null if still married */
-  divorce_date: string | null;
-
-  /** Soft delete timestamp */
-  deleted_at: string | null;
-}
+export type Marriage = SupabaseMarriage;
 
 /**
  * Parent-child connection line
