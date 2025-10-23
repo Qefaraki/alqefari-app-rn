@@ -93,6 +93,9 @@ jest.mock('@expo/vector-icons', () => ({
 // Mock Appearance for react-native-css-interop
 jest.mock('react-native/Libraries/Utilities/Appearance', () => ({
   getColorScheme: jest.fn(() => 'light'),
+  addChangeListener: jest.fn(() => ({
+    remove: jest.fn(),
+  })),
 }));
 
 // Mock Reanimated

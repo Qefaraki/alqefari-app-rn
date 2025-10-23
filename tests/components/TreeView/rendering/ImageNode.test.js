@@ -14,7 +14,6 @@
  */
 
 import React from 'react';
-import { PixelRatio } from 'react-native';
 import { render } from '@testing-library/react-native';
 import {
   ImageNode,
@@ -26,12 +25,8 @@ import {
   IMAGE_NODE_CONSTANTS,
 } from '../../../../src/components/TreeView/rendering/ImageNode';
 
-// Mock PixelRatio
-jest.mock('react-native', () => ({
-  PixelRatio: {
-    get: jest.fn(() => 2), // Default 2x retina
-  },
-}));
+// Import PixelRatio after the component to avoid overriding global mocks
+const { PixelRatio } = require('react-native');
 
 // Mock batched image loading hook
 const mockUseBatchedSkiaImage = jest.fn((url, bucket, priority) => {
@@ -40,9 +35,16 @@ const mockUseBatchedSkiaImage = jest.fn((url, bucket, priority) => {
 });
 
 describe('ImageNode', () => {
+  // Spy on PixelRatio.get
+  let pixelRatioSpy;
+
   beforeEach(() => {
     mockUseBatchedSkiaImage.mockClear();
-    PixelRatio.get.mockReturnValue(2);
+    pixelRatioSpy = jest.spyOn(PixelRatio, 'get').mockReturnValue(2);
+  });
+
+  afterEach(() => {
+    pixelRatioSpy.mockRestore();
   });
 
   // ============================================================================
@@ -67,7 +69,7 @@ describe('ImageNode', () => {
 
   describe('calculatePixelSize', () => {
     test('should multiply width by pixel ratio and scale', () => {
-      PixelRatio.get.mockReturnValue(2);
+      pixelRatioSpy.mockReturnValue(2);
 
       const result = calculatePixelSize(50, 1.0);
 
@@ -76,7 +78,7 @@ describe('ImageNode', () => {
     });
 
     test('should handle zoom scale', () => {
-      PixelRatio.get.mockReturnValue(2);
+      pixelRatioSpy.mockReturnValue(2);
 
       const result = calculatePixelSize(50, 1.5);
 
@@ -85,7 +87,7 @@ describe('ImageNode', () => {
     });
 
     test('should handle 3x device pixel ratio', () => {
-      PixelRatio.get.mockReturnValue(3);
+      pixelRatioSpy.mockReturnValue(3);
 
       const result = calculatePixelSize(50, 1.0);
 
@@ -94,7 +96,7 @@ describe('ImageNode', () => {
     });
 
     test('should handle zoom out (scale < 1)', () => {
-      PixelRatio.get.mockReturnValue(2);
+      pixelRatioSpy.mockReturnValue(2);
 
       const result = calculatePixelSize(50, 0.5);
 
@@ -323,7 +325,7 @@ describe('ImageNode', () => {
     });
 
     test('should use bucket selection from pixelSize', () => {
-      PixelRatio.get.mockReturnValue(2);
+      pixelRatioSpy.mockReturnValue(2);
       mockUseBatchedSkiaImage.mockReturnValue(null);
 
       render(<ImageNode {...defaultProps} width={50} scale={1.0} />);
@@ -357,7 +359,7 @@ describe('ImageNode', () => {
     });
 
     test('should handle zoom scale in bucket selection', () => {
-      PixelRatio.get.mockReturnValue(2);
+      pixelRatioSpy.mockReturnValue(2);
       mockUseBatchedSkiaImage.mockReturnValue(null);
 
       render(<ImageNode {...defaultProps} width={25} scale={2.0} />);
@@ -418,7 +420,7 @@ describe('ImageNode', () => {
       };
 
       // Phase 1: Hidden (Tier 2)
-      const { rerender, UNSAFE_root: root1 } = render(
+      const { rerender, UNSAFE_root } = render(
         <ImageNode {...props} tier={2} />
       );
       expect(UNSAFE_root).toBeDefined();
@@ -435,7 +437,7 @@ describe('ImageNode', () => {
     });
 
     test('should select correct bucket for various zoom levels', () => {
-      PixelRatio.get.mockReturnValue(2);
+      pixelRatioSpy.mockReturnValue(2);
       mockUseBatchedSkiaImage.mockReturnValue(null);
 
       const baseProps = {
