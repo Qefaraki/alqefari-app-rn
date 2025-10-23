@@ -556,13 +556,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cousinInfoView: {
-    marginTop: tokens.spacing.sm,
-    paddingTop: tokens.spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.divider,
-    gap: tokens.spacing.md,
-  },
   infoMessageBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -576,22 +569,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: tokens.colors.najdi.text,
-  },
-  visitProfileButtonFull: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary,
-    backgroundColor: tokens.colors.surface,
-  },
-  visitProfileButtonFullText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: tokens.colors.najdi.primary,
   },
   inlineEditor: {
     marginTop: tokens.spacing.sm,
