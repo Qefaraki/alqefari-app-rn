@@ -71,6 +71,9 @@ import { ParagraphCacheProvider } from './TreeView/contexts/ParagraphCacheProvid
 import { SpatialGrid, GRID_CELL_SIZE, MAX_VISIBLE_NODES } from './TreeView/spatial/SpatialGrid';
 import { ImageNode } from './TreeView/rendering/ImageNode';
 import { SaduIcon, G2SaduIcon } from './TreeView/rendering/SaduIcon';
+import { calculateLODTier, createTierState } from './TreeView/lod/LODCalculator';
+import { BadgeRenderer } from './TreeView/rendering/BadgeRenderer';
+import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './TreeView/rendering/ShadowRenderer';
 
 // Phase 1 Day 4a - Import extracted utilities
 import {
@@ -464,8 +467,8 @@ const TreeView = ({
     },
   );
 
-  // LOD tier state with hysteresis
-  const tierState = useRef({ current: 1, lastQuantizedScale: 1 });
+  // LOD tier state with hysteresis (Phase 2: Using extracted createTierState)
+  const tierState = useRef(createTierState(1.0));
 
   // Image bucket tracking for hysteresis
   const nodeBucketsRef = useRef(new Map());
@@ -511,39 +514,9 @@ const TreeView = ({
     return target;
   }, []);
 
-  const calculateLODTier = useCallback((scale) => {
-    if (!LOD_ENABLED) return 1; // Always use full detail if disabled
-
-    const quantizedScale = Math.round(scale / SCALE_QUANTUM) * SCALE_QUANTUM;
-    const state = tierState.current;
-
-    // Only recalculate if scale changed significantly
-    if (Math.abs(quantizedScale - state.lastQuantizedScale) < SCALE_QUANTUM) {
-      return state.current;
-    }
-
-    const nodePx = NODE_WIDTH_WITH_PHOTO * PixelRatio.get() * scale;
-    let newTier = state.current;
-
-    // Apply hysteresis boundaries
-    if (state.current === 1) {
-      if (nodePx < T1_BASE * (1 - HYSTERESIS)) newTier = 2;
-    } else if (state.current === 2) {
-      if (nodePx >= T1_BASE * (1 + HYSTERESIS)) newTier = 1;
-      else if (nodePx < T2_BASE * (1 - HYSTERESIS)) newTier = 3;
-    } else {
-      // tier 3
-      if (nodePx >= T2_BASE * (1 + HYSTERESIS)) newTier = 2;
-    }
-
-    if (newTier !== state.current) {
-      tierState.current = {
-        current: newTier,
-        lastQuantizedScale: quantizedScale,
-      };
-    }
-
-    return newTier;
+  // Phase 2: Use extracted calculateLODTier function (wrapping for local tierState access)
+  const calculateLODTierLocal = useCallback((scale) => {
+    return calculateLODTier(scale, tierState.current);
   }, []);
 
   // Performance telemetry
@@ -2602,14 +2575,7 @@ const TreeView = ({
       return (
         <Group key={node.id}>
           {/* Shadow (lighter for T2) */}
-          <RoundedRect
-            x={x + 0.5}
-            y={y + 0.5}
-            width={nodeWidth}
-            height={nodeHeight}
-            r={13}
-            color="#00000008"
-          />
+          {renderT2Shadow(x, y, nodeWidth, nodeHeight, 13)}
 
           {/* Main pill background */}
           <RoundedRect
@@ -2693,14 +2659,7 @@ const TreeView = ({
       return (
         <Group key={node.id}>
           {/* Soft shadow */}
-          <RoundedRect
-            x={x + 1}
-            y={y + 1}
-            width={nodeWidth}
-            height={nodeHeight}
-            r={CORNER_RADIUS}
-            color="#00000015"
-          />
+          {renderT1Shadow(x, y, nodeWidth, nodeHeight, CORNER_RADIUS)}
 
           {/* Main card background */}
           <RoundedRect
@@ -2760,26 +2719,13 @@ const TreeView = ({
               )}
 
               {/* Generation badge - positioned in top-right corner for photo nodes */}
-              {(() => {
-                const genParagraph = getCachedParagraph(
-                  String(node.generation),
-                  "regular",
-                  7, // Reduced from 9 to 7 (about 25% smaller)
-                  "#24212140", // Sadu Night with 25% opacity
-                  15,
-                );
-
-                if (!genParagraph) return null;
-
-                return (
-                  <Paragraph
-                    paragraph={genParagraph}
-                    x={x + nodeWidth - 15}
-                    y={y + 4}
-                    width={15}
-                  />
-                );
-              })()}
+              <BadgeRenderer
+                generation={node.generation}
+                x={x}
+                y={y}
+                width={nodeWidth}
+                hasPhoto={true}
+              />
 
               {/* Name text - centered across full width (on top) */}
               {(() => {
@@ -2809,26 +2755,13 @@ const TreeView = ({
           ) : (
             <>
               {/* Generation badge - centered horizontally at top */}
-              {(() => {
-                const genParagraph = getCachedParagraph(
-                  String(node.generation),
-                  "regular",
-                  7, // Reduced from 9 to 7 (about 25% smaller)
-                  "#24212140", // Sadu Night with 25% opacity
-                  nodeWidth,
-                );
-
-                if (!genParagraph) return null;
-
-                return (
-                  <Paragraph
-                    paragraph={genParagraph}
-                    x={x}
-                    y={y + 4} // Near top of node
-                    width={nodeWidth}
-                  />
-                );
-              })()}
+              <BadgeRenderer
+                generation={node.generation}
+                x={x}
+                y={y}
+                width={nodeWidth}
+                hasPhoto={false}
+              />
 
               {/* Text-only name - centered across full width (on top) */}
               {(() => {
@@ -2919,7 +2852,7 @@ const TreeView = ({
   });
 
   // Calculate current LOD tier using the state instead of accessing .value directly
-  const tier = calculateLODTier(currentTransform.scale);
+  const tier = calculateLODTierLocal(currentTransform.scale);
   frameStatsRef.current.tier = tier;
 
   // Calculate culled nodes (with loading fallback)

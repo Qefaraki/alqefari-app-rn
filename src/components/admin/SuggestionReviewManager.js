@@ -17,7 +17,7 @@ import suggestionService from "../../services/suggestionService";
 import * as Haptics from "expo-haptics";
 import LargeTitleHeader from "../ios/LargeTitleHeader";
 import tokens from "../../components/ui/tokens";
-import { Host, Picker } from "@expo/ui/swift-ui";
+import TabBar from "../ui/TabBar";
 import SkeletonLoader from "../ui/SkeletonLoader";
 
 // Najdi Sadu Design System Colors
@@ -67,12 +67,11 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
     approved: 0,
     rejected: 0,
   });
-  const tabOptions = [
-    { value: "pending", label: "قيد المراجعة" },
-    { value: "approved", label: "مقبولة" },
-    { value: "rejected", label: "مرفوضة" },
+  const tabs = [
+    { id: "pending", label: "قيد المراجعة" },
+    { id: "approved", label: "مقبولة" },
+    { id: "rejected", label: "مرفوضة" },
   ];
-  const activeTabIndex = tabOptions.findIndex((tab) => tab.value === activeTab);
 
   useEffect(() => {
     loadSuggestions({ useOverlay: !initialLoading });
@@ -361,22 +360,14 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
         }
       />
 
-      {/* Segmented Control */}
-      <View style={styles.selectorSurface}>
-        <View style={styles.segmentedControlContainer}>
-          <Host style={{ width: "100%", height: 36 }}>
-            <Picker
-              label=""
-              options={tabOptions.map((tab) => tab.label)}
-              variant="segmented"
-              selectedIndex={activeTabIndex >= 0 ? activeTabIndex : 0}
-              onOptionSelected={({ nativeEvent: { index } }) => {
-                const tab = tabOptions[index] || tabOptions[0];
-                setActiveTab(tab.value);
-              }}
-            />
-          </Host>
-        </View>
+      {/* Tab Bar */}
+      <View style={styles.tabBarContainer}>
+        <TabBar
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          showDivider={true}
+        />
       </View>
 
       {/* Stats */}
@@ -490,31 +481,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  selectorSurface: {
+  tabBarContainer: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
-    borderRadius: tokens.radii.lg,
     backgroundColor: COLORS.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${COLORS.container}66`,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    zIndex: 2,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  segmentedControlContainer: {
-    backgroundColor: "transparent",
-    borderRadius: tokens.radii.md,
   },
   statsRow: {
     flexDirection: "row",

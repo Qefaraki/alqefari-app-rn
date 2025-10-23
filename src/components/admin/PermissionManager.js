@@ -28,6 +28,7 @@ import { SkeletonUserCard } from "../ui/Skeleton";
 import enhancedSearchService from "../../services/enhancedSearchService";
 import { formatNameWithTitle } from "../../services/professionalTitleService";
 import { getGenerationLabel } from "../../utils/generationUtils";
+import TabBar from "../ui/TabBar";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -885,57 +886,18 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                 </View>
               </View>
 
-              {/* iOS Segmented Control for Role Filter */}
-              <View style={styles.segmentedControlContainer}>
-                <View style={styles.segmentedControl}>
-                  <TouchableOpacity
-                    style={[
-                      styles.segment,
-                      selectedRole === "all" && styles.segmentActive
-                    ]}
-                    onPress={() => handleRoleFilterChange("all")}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.segmentText,
-                      selectedRole === "all" && styles.segmentTextActive
-                    ]}>
-                      الكل
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.segment,
-                      selectedRole === "admin" && styles.segmentActive
-                    ]}
-                    onPress={() => handleRoleFilterChange("admin")}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.segmentText,
-                      selectedRole === "admin" && styles.segmentTextActive
-                    ]}>
-                      مشرف
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.segment,
-                      selectedRole === "moderator" && styles.segmentActive
-                    ]}
-                    onPress={() => handleRoleFilterChange("moderator")}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.segmentText,
-                      selectedRole === "moderator" && styles.segmentTextActive
-                    ]}>
-                      منسق
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+              {/* Tab Bar for Role Filter */}
+              <View style={styles.tabBarContainer}>
+                <TabBar
+                  tabs={[
+                    { id: "all", label: "الكل" },
+                    { id: "admin", label: "مشرف" },
+                    { id: "moderator", label: "منسق" },
+                  ]}
+                  activeTab={selectedRole}
+                  onTabChange={handleRoleFilterChange}
+                  showDivider={true}
+                />
               </View>
 
               {/* Results */}
@@ -1332,45 +1294,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Segmented Control (iOS-style)
-  segmentedControlContainer: {
+  // Tab Bar (Pinterest-style underline)
+  tabBarContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
-  },
-  segmentedControl: {
-    flexDirection: "row",
-    backgroundColor: colors.container + "40", // Camel Hair Beige 40%
-    borderRadius: 10,
-    padding: 2,
-  },
-  segment: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentActive: {
-    backgroundColor: colors.white,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  segmentText: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: colors.textMuted,
-    fontFamily: "SF Arabic",
-  },
-  segmentTextActive: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.text,
-    fontFamily: "SF Arabic",
+    backgroundColor: colors.background,
   },
 
   // Pagination
