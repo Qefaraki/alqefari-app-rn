@@ -1172,6 +1172,12 @@ const TreeView = ({
     setCurrentTransform(current);
     setCurrentScale(current.scale);
 
+    // Calculate and update LOD tier based on current scale
+    // This ensures tier reflects zoom level after gesture ends
+    const newTier = calculateLODTier(current.scale, tierState.current);
+    setTier(newTier);
+    frameStatsRef.current.tier = newTier;
+
     // Calculate visible bounds
     const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
     const dynamicMarginY = VIEWPORT_MARGIN_Y / current.scale;
@@ -2565,24 +2571,15 @@ const TreeView = ({
     ];
   });
 
-  // Calculate current LOD tier reactively using useDerivedValue
-  // This ensures tier updates whenever scale changes (during zoom)
-  const currentTier = useDerivedValue(() => {
-    return calculateLODTier(scale.value, tierState.current);
-  }, [scale]);
-
-  // Read tier value for JS thread usage (culling, rendering decisions)
-  // NOTE: This is safe because tier changes are infrequent (only on zoom level changes)
-  const tier = currentTier.value;
-  frameStatsRef.current.tier = tier;
-
-  // Read current transform values for viewport culling
-  // These are read directly from shared values to ensure they're always current
-  const currentTransform = {
-    x: translateX.value,
-    y: translateY.value,
-    scale: scale.value,
-  };
+  // Store current tier and transform in state
+  // Updated by syncTransformAndBounds callback after gestures end
+  // This avoids Reanimated threading violations from reading .value during render
+  const [tier, setTier] = useState(1);
+  const [currentTransform, setCurrentTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
