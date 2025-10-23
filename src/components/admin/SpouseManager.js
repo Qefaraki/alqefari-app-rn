@@ -564,7 +564,6 @@ const styles = StyleSheet.create({
 
   // Stage Container
   stageContainer: {
-    flex: 1,
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.md,
   },
