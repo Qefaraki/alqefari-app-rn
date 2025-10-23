@@ -106,6 +106,9 @@ export interface NodeRendererProps {
   SaduIcon: React.ComponentType<{ x: number; y: number; size: number }>;
   SaduIconG2: React.ComponentType<{ x: number; y: number; size: number }>;
 
+  // Image loading hook from parent
+  useBatchedSkiaImage: (url: string, bucket: number, priority: string) => any;
+
   // Frame tracking ref (mutated)
   nodeFramesRef: React.MutableRefObject<Map<string, any>>;
 }
@@ -375,6 +378,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   getCachedParagraph,
   SaduIcon,
   SaduIconG2,
+  useBatchedSkiaImage,
   nodeFramesRef,
 }) => {
   const isRoot = !node.father_id;
@@ -435,6 +439,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               nodeId={node.id}
               selectBucket={node._selectBucket}
               showPhotos={showPhotos}
+              useBatchedSkiaImage={useBatchedSkiaImage}
             />
           )}
 

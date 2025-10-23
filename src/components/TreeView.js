@@ -76,6 +76,7 @@ import { BadgeRenderer } from './TreeView/rendering/BadgeRenderer';
 import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './TreeView/rendering/ShadowRenderer';
 import { TextPillRenderer } from './TreeView/rendering/TextPillRenderer';
 import { T3ChipRenderer } from './TreeView/rendering/T3ChipRenderer';
+import { NodeRenderer } from './TreeView/rendering/NodeRenderer';
 
 // Phase 1 Day 4a - Import extracted utilities
 import {
@@ -2534,212 +2535,25 @@ const TreeView = ({
     [selectedPersonId, getCachedParagraph],
   );
 
-  // Render node component (T1 - full detail)
+  // Render node component (T1 - full detail) - Phase 2: Using extracted NodeRenderer
   const renderNode = useCallback(
     (node) => {
-      const isRoot = !node.father_id;
-      const hasPhoto = showPhotos && !!node.photo_url;
-      const isG2Parent = node.generation === 2 && node._hasChildren;
-
-      // Adjust width for root and G2 parent nodes
-      const nodeWidth = isRoot ? 120 :
-        isG2Parent ? (hasPhoto ? 95 : 75) :
-        (node.nodeWidth || (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY));
-      const nodeHeight = isRoot ? 100 :
-        (hasPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-      const isSelected = selectedPersonId === node.id;
-
-      const x = node.x - nodeWidth / 2;
-      const y = node.y - nodeHeight / 2;
-
-      const isT1 = indices?.heroNodes?.some((hero) => hero.id === node.id) || false;
-      const isT2 = indices?.searchTiers?.[node.id] === 2;
-
-      nodeFramesRef.current.set(node.id, {
-        x,
-        y,
-        width: nodeWidth,
-        height: nodeHeight,
-        borderRadius: isRoot ? 20 : isT1 ? 16 : isT2 ? 13 : CORNER_RADIUS,
-      });
-
       return (
-        <Group key={node.id}>
-          {/* Soft shadow */}
-          {renderT1Shadow(x, y, nodeWidth, nodeHeight, CORNER_RADIUS)}
-
-          {/* Main card background */}
-          <RoundedRect
-            x={x}
-            y={y}
-            width={nodeWidth}
-            height={nodeHeight}
-            r={CORNER_RADIUS}
-            color="#FFFFFF"
-          />
-
-          {/* Border */}
-          <RoundedRect
-            x={x}
-            y={y}
-            width={nodeWidth}
-            height={nodeHeight}
-            r={CORNER_RADIUS}
-            color={isSelected ? "#A13333" : "#D1BBA360"}
-            style="stroke"
-            strokeWidth={isSelected ? 2.5 : 1.2}
-          />
-
-          {hasPhoto ? (
-            <>
-              {/* Photo placeholder */}
-              <Circle
-                cx={node.x}
-                cy={node.y - 10}
-                r={PHOTO_SIZE / 2}
-                color="#D1BBA320"
-              />
-              <Circle
-                cx={node.x}
-                cy={node.y - 10}
-                r={PHOTO_SIZE / 2}
-                color="#D1BBA340"
-                style="stroke"
-                strokeWidth={1}
-              />
-              {/* Load and display image if available */}
-              {node.photo_url && (
-                <ImageNode
-                  url={node.photo_url}
-                  x={node.x - PHOTO_SIZE / 2}
-                  y={node.y - 10 - PHOTO_SIZE / 2}
-                  width={PHOTO_SIZE}
-                  height={PHOTO_SIZE}
-                  radius={PHOTO_SIZE / 2}
-                  tier={node._tier || 1}
-                  scale={node._scale || 1}
-                  nodeId={node.id}
-                  selectBucket={node._selectBucket}
-                  showPhotos={showPhotos}
-                  useBatchedSkiaImage={useBatchedSkiaImage}
-                />
-              )}
-
-              {/* Generation badge - positioned in top-right corner for photo nodes */}
-              <BadgeRenderer
-                generation={node.generation}
-                x={x}
-                y={y}
-                width={nodeWidth}
-                hasPhoto={true}
-              />
-
-              {/* Name text - centered across full width (on top) */}
-              {(() => {
-                const nameParagraph = getCachedParagraph(
-                  node.name,
-                  "bold",
-                  isRoot ? 22 : 11,  // Double size for root
-                  "#242121",
-                  nodeWidth,
-                );
-
-                if (!nameParagraph) return null;
-
-                const textX = x; // Full width centering
-                const textY = y + 68; // Positioned below photo (moved down a bit)
-
-                return (
-                  <Paragraph
-                    paragraph={nameParagraph}
-                    x={textX}
-                    y={textY}
-                    width={nodeWidth}
-                  />
-                );
-              })()}
-            </>
-          ) : (
-            <>
-              {/* Generation badge - centered horizontally at top */}
-              <BadgeRenderer
-                generation={node.generation}
-                x={x}
-                y={y}
-                width={nodeWidth}
-                hasPhoto={false}
-              />
-
-              {/* Text-only name - centered across full width (on top) */}
-              {(() => {
-                const nameParagraph = getCachedParagraph(
-                  node.name,
-                  "bold",
-                  isRoot ? 22 : 11,  // Double size for root
-                  "#242121",
-                  nodeWidth,
-                );
-
-                if (!nameParagraph) return null;
-
-                const textX = x; // Full width centering
-                const textY = y + (nodeHeight - nameParagraph.getHeight()) / 2; // Vertical center
-
-                return (
-                  <Paragraph
-                    paragraph={nameParagraph}
-                    x={textX}
-                    y={textY}
-                    width={nodeWidth}
-                  />
-                );
-              })()}
-
-              {/* Sadu icons for root node */}
-              {isRoot && !hasPhoto && (
-                <>
-                  {/* Left Sadu icon */}
-                  <SaduIcon
-                    x={x + 5}
-                    y={y + nodeHeight / 2 - 10}
-                    size={20}
-                  />
-
-                  {/* Right Sadu icon */}
-                  <SaduIcon
-                    x={x + nodeWidth - 25}
-                    y={y + nodeHeight / 2 - 10}
-                    size={20}
-                  />
-                </>
-              )}
-
-              {/* Sadu icons for Generation 2 parent nodes */}
-              {isG2Parent && (
-                <>
-                  {/* Left Sadu icon */}
-                  <G2SaduIcon
-                    x={x + 3}
-                    y={hasPhoto ? y + 5 : y + nodeHeight / 2 - 7}
-                    size={14}
-                  />
-
-                  {/* Right Sadu icon */}
-                  <G2SaduIcon
-                    x={x + nodeWidth - 17}
-                    y={hasPhoto ? y + 5 : y + nodeHeight / 2 - 7}
-                    size={14}
-                  />
-                </>
-              )}
-            </>
-          )}
-        </Group>
+        <NodeRenderer
+          node={node}
+          showPhotos={showPhotos}
+          selectedPersonId={selectedPersonId}
+          heroNodes={indices?.heroNodes}
+          searchTiers={indices?.searchTiers}
+          getCachedParagraph={getCachedParagraph}
+          SaduIcon={SaduIcon}
+          SaduIconG2={G2SaduIcon}
+          useBatchedSkiaImage={useBatchedSkiaImage}
+          nodeFramesRef={nodeFramesRef}
+        />
       );
-
-      return nodeContent;
     },
-    [selectedPersonId, highlightedNodeIdState, glowOpacityState, indices, showPhotos],
+    [selectedPersonId, indices, showPhotos, getCachedParagraph, useBatchedSkiaImage],
   );
 
   // Create a derived value for the transform to avoid Reanimated warnings
