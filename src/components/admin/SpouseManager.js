@@ -484,80 +484,76 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
         {/* Conditional Content Based on Stage */}
         {stage === "SEARCH" ? (
-          <>
-            {/* TextInput for Manual Spouse Entry - Only in SEARCH stage */}
-            {!loading && (
-              <View style={styles.inputContainer}>
-                <View style={styles.inputWrapper}>
-                  <Ionicons
-                    name="search-outline"
-                    size={20}
-                    color={tokens.colors.najdi.textMuted}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    value={fullName}
-                    onChangeText={setFullName}
-                    placeholder={`ابحث عن ${spouseTitle} أو أدخل اسم جديد`}
-                    placeholderTextColor={tokens.colors.najdi.textMuted}
-                    style={styles.textInput}
-                    onSubmitEditing={handleSubmit}
-                    returnKeyType="search"
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                    editable={!loading}
-                  />
-                  {fullName.length > 0 && (
-                    <TouchableOpacity onPress={() => setFullName("")} style={styles.clearButton}>
-                      <Ionicons name="close-circle" size={20} color={tokens.colors.najdi.textMuted} />
-                    </TouchableOpacity>
-                  )}
-                </View>
+          loading ? (
+            /* Loading State - Use ScrollView */
+            <BottomSheetScrollView contentContainerStyle={styles.stageContainer}>
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+                <Text style={styles.loadingText}>
+                  جاري البحث عن {parsedData?.firstName || ''}...
+                </Text>
               </View>
-            )}
-
-            {/* Loading State or Search Results */}
-            {loading ? (
-              <View style={styles.stageContainer}>
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-                  <Text style={styles.loadingText}>
-                    جاري البحث عن {parsedData?.firstName || ''}...
-                  </Text>
-                </View>
-              </View>
-            ) : (
-              <BottomSheetFlatList
-                data={searchResults}
-                renderItem={({ item, index }) => (
-                  <SearchResultCard
-                    item={item}
-                    index={index}
-                    onPress={() => handleSelectSpouse(item)}
-                    showRelevanceScore={false}
-                    enableAnimation={false}
-                  />
-                )}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.resultsList}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                ListEmptyComponent={
-                  fullName.length > 0 ? (
-                    <View style={styles.emptyContainer}>
-                      <Ionicons name="search-outline" size={48} color={tokens.colors.najdi.textMuted} />
-                      <Text style={styles.emptyText}>لا توجد نتائج</Text>
-                      <Text style={styles.emptyHint}>لم نجد {spouseTitle} بهذا الاسم في الشجرة</Text>
-                      <TouchableOpacity style={styles.addNewButton} onPress={handleAddAsNew}>
-                        <Text style={styles.addNewButtonText}>إضافة كشخص جديد</Text>
-                        <Ionicons name="add-circle-outline" size={20} color={tokens.colors.najdi.primary} />
+            </BottomSheetScrollView>
+          ) : (
+            /* Search Results - FlatList with TextInput as header */
+            <BottomSheetFlatList
+              data={searchResults}
+              renderItem={({ item, index }) => (
+                <SearchResultCard
+                  item={item}
+                  index={index}
+                  onPress={() => handleSelectSpouse(item)}
+                  showRelevanceScore={false}
+                  enableAnimation={false}
+                />
+              )}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.resultsList}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={
+                <View style={styles.inputContainer}>
+                  <View style={styles.inputWrapper}>
+                    <Ionicons
+                      name="search-outline"
+                      size={20}
+                      color={tokens.colors.najdi.textMuted}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      value={fullName}
+                      onChangeText={setFullName}
+                      placeholder={`ابحث عن ${spouseTitle} أو أدخل اسم جديد`}
+                      placeholderTextColor={tokens.colors.najdi.textMuted}
+                      style={styles.textInput}
+                      onSubmitEditing={handleSubmit}
+                      returnKeyType="search"
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                    />
+                    {fullName.length > 0 && (
+                      <TouchableOpacity onPress={() => setFullName("")} style={styles.clearButton}>
+                        <Ionicons name="close-circle" size={20} color={tokens.colors.najdi.textMuted} />
                       </TouchableOpacity>
-                    </View>
-                  ) : null
-                }
-              />
-            )}
-          </>
+                    )}
+                  </View>
+                </View>
+              }
+              ListEmptyComponent={
+                fullName.length > 0 ? (
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="search-outline" size={48} color={tokens.colors.najdi.textMuted} />
+                    <Text style={styles.emptyText}>لا توجد نتائج</Text>
+                    <Text style={styles.emptyHint}>لم نجد {spouseTitle} بهذا الاسم في الشجرة</Text>
+                    <TouchableOpacity style={styles.addNewButton} onPress={handleAddAsNew}>
+                      <Text style={styles.addNewButtonText}>إضافة كشخص جديد</Text>
+                      <Ionicons name="add-circle-outline" size={20} color={tokens.colors.najdi.primary} />
+                    </TouchableOpacity>
+                  </View>
+                ) : null
+              }
+            />
+          )
         ) : (
           /* CREATE/SUCCESS Stages - Use ScrollView */
           <BottomSheetScrollView
