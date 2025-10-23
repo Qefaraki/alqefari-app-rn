@@ -68,7 +68,7 @@ describe('NodeRenderer', () => {
       expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_TEXT_ONLY).toBe(65);
       expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_TEXT_ONLY).toBe(35);
       expect(NODE_RENDERER_CONSTANTS.PHOTO_SIZE).toBe(50);
-      expect(NODE_RENDERER_CONSTANTS.CORNER_RADIUS).toBe(2); // TEMP: Minimal rounding
+      expect(NODE_RENDERER_CONSTANTS.CORNER_RADIUS).toBe(4); // Smooth corners
       expect(NODE_RENDERER_CONSTANTS.ROOT_WIDTH).toBe(120);
       expect(NODE_RENDERER_CONSTANTS.ROOT_HEIGHT).toBe(100);
       expect(NODE_RENDERER_CONSTANTS.ROOT_BORDER_RADIUS).toBe(20);
@@ -143,7 +143,7 @@ describe('NodeRenderer', () => {
 
       expect(result.width).toBe(75); // TEMP: Reduced from 85
       expect(result.height).toBe(85); // TEMP: Reduced from 105
-      expect(result.borderRadius).toBe(2); // TEMP: Minimal rounding
+      expect(result.borderRadius).toBe(4); // Smooth corners
     });
 
     test('should return standard dimensions text-only', () => {
@@ -160,7 +160,7 @@ describe('NodeRenderer', () => {
 
       expect(result.width).toBe(65);
       expect(result.height).toBe(35);
-      expect(result.borderRadius).toBe(2); // TEMP: Minimal rounding
+      expect(result.borderRadius).toBe(4); // Smooth corners
     });
 
     test('should use custom nodeWidth if provided', () => {
@@ -192,7 +192,7 @@ describe('NodeRenderer', () => {
       const result = calculateNodeDimensions(node, false, false);
 
       expect(result.width).toBe(65); // Standard, not G2 parent
-      expect(result.borderRadius).toBe(2); // TEMP: Minimal rounding
+      expect(result.borderRadius).toBe(4); // Smooth corners
     });
   });
 

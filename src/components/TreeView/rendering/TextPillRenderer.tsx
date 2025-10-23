@@ -183,7 +183,7 @@ export const PILL_CONSTANTS = {
   // Dimensions
   WIDTH: 60,
   HEIGHT: 26,
-  CORNER_RADIUS: 2, // TEMP: Minimal rounding until Perfect Tree redesign
+  CORNER_RADIUS: 4, // Smooth corners
 
   // Colors (Najdi Sadu palette)
   BACKGROUND_COLOR: '#FFFFFF',

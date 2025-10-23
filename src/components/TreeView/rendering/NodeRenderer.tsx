@@ -63,7 +63,7 @@ const NODE_HEIGHT_WITH_PHOTO = 85; // Was 105 (20px reduction)
 const NODE_WIDTH_TEXT_ONLY = 65;
 const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 50;
-const CORNER_RADIUS = 2; // Was 13, temp minimal rounding
+const CORNER_RADIUS = 4; // Smooth corners
 
 export interface LayoutNode {
   id: string;
@@ -447,8 +447,29 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
           {/* Generation badge - positioned in top-right corner for photo nodes */}
           {renderGenerationBadge(node.generation, x + width - 15, y + 4, 15, getCachedParagraph)}
 
-          {/* Name text - centered across full width (below photo) */}
-          {renderNameText(node.name, isRoot, x, y + 68, width, getCachedParagraph)}
+          {/* Name text - centered in space between photo bottom edge and card bottom edge */}
+          {(() => {
+            const nameParagraph = getCachedParagraph(
+              node.name,
+              "bold",
+              isRoot ? 22 : 11,
+              "#242121",
+              width,
+            );
+
+            if (!nameParagraph) return null;
+
+            // Photo: center at y-10, radius 25, so bottom edge at y-10+25 = y+15
+            // Card: center at y, height 85, so bottom edge at y+42.5
+            // Available space for text: from y+15 to y+42.5 = 27.5px
+            // Center text in this space
+            const photoBottomEdge = y + 15;
+            const cardBottomEdge = y + (height / 2);
+            const availableSpace = cardBottomEdge - photoBottomEdge;
+            const textY = photoBottomEdge + (availableSpace - nameParagraph.getHeight()) / 2;
+
+            return <Paragraph paragraph={nameParagraph} x={x} y={textY} width={width} />;
+          })()}
         </>
       ) : (
         <>
