@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/63</span>
+                <span class='fraction'>0/67</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/42</span>
+                <span class='fraction'>0/45</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/57</span>
+                <span class='fraction'>0/62</span>
             </div>
         
             
@@ -457,7 +457,20 @@
 <a name='L392'></a><a href='#L392'>392</a>
 <a name='L393'></a><a href='#L393'>393</a>
 <a name='L394'></a><a href='#L394'>394</a>
-<a name='L395'></a><a href='#L395'>395</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -850,7 +863,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">// This is our temporary, local stand-in for the Supabase database.
 // Note: The `parent_id` here is the HIERARCHICAL ID of the parent.
 // We will process this in the app to link by the true UUID `id`.
@@ -1242,9 +1268,22 @@ export function <span class="fstat-no" title="function not covered" >getFather(<
 <span class="cstat-no" title="statement not covered" >  return familyDataArray.find(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.id === person.father_id)</span>;</span>
 }
 &nbsp;
-// Utility to get a person's children
+// Utility to get a person's children (deduplicated for cousin marriages)
+/**
+ * @deprecated Prefer gender-based filtering for better performance
+ * @param {string} personId - The person's ID
+ * @param {Array} familyDataArray - Array of family profiles
+ * @returns {Array} Deduplicated array of children
+ */
 export function <span class="fstat-no" title="function not covered" >getChildren(</span>personId, familyDataArray) {
-<span class="cstat-no" title="statement not covered" >  return familyDataArray.filter(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.father_id === personId || p.mother_id === personId)</span>;</span>
+  const seen = <span class="cstat-no" title="statement not covered" >new Set();</span>
+<span class="cstat-no" title="statement not covered" >  return familyDataArray.filter(<span class="fstat-no" title="function not covered" >p </span>=&gt; {</span>
+<span class="cstat-no" title="statement not covered" >    if ((p.father_id === personId || p.mother_id === personId) &amp;&amp; !seen.has(p.id)) {</span>
+<span class="cstat-no" title="statement not covered" >      seen.add(p.id);</span>
+<span class="cstat-no" title="statement not covered" >      return true;</span>
+    }
+<span class="cstat-no" title="statement not covered" >    return false;</span>
+  });
 }</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -1252,7 +1291,7 @@ export function <span class="fstat-no" title="function not covered" >getChildren
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../prettify.js"></script>
         <script>

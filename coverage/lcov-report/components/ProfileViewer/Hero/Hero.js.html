@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/35</span>
+                <span class='fraction'>0/36</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/42</span>
+                <span class='fraction'>0/40</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/30</span>
+                <span class='fraction'>0/31</span>
             </div>
         
             
@@ -321,7 +321,8 @@
 <a name='L256'></a><a href='#L256'>256</a>
 <a name='L257'></a><a href='#L257'>257</a>
 <a name='L258'></a><a href='#L258'>258</a>
-<a name='L259'></a><a href='#L259'>259</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -369,7 +370,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -481,6 +481,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -580,9 +582,9 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import React, { useMemo } from 'react';
-import { View, Text, Pressable, StyleSheet, I18nManager, TouchableOpacity } from 'react-native';
+import { View, Text, Pressable, StyleSheet, I18nManager, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ProgressiveHeroImage } from '../../ProgressiveImage';
+import { Galeria } from '@nandorojo/galeria';
 import HeroActions from './HeroActions';
 import MetricsRow from './MetricsRow';
 import { useTreeStore } from '../../../stores/useTreeStore';
@@ -617,7 +619,7 @@ const constructCommonName = <span class="cstat-no" title="statement not covered"
 <span class="cstat-no" title="statement not covered" >  return chain;</span>
 };
 &nbsp;
-const Hero = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span></span>
+const Hero = <span class="cstat-no" title="statement not covered" >React.memo(<span class="fstat-no" title="function not covered" >({</span></span>
   person,
   onMenu,
   onCopyChain,
@@ -625,7 +627,6 @@ const Hero = <span class="cstat-no" title="statement not covered" ><span class="
   onToggleBio,
   metrics,
   onClose,
-  onPhotoPress,
   topInset = <span class="branch-0 cbranch-no" title="branch not covered" >0,</span>
 }) =&gt; {
   const bioText = <span class="cstat-no" title="statement not covered" >person.bio || person.biography || '';</span>
@@ -644,17 +645,16 @@ const Hero = <span class="cstat-no" title="statement not covered" ><span class="
 <span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;View style={styles.container}&gt;
       {person?.photo_url ? (
-        &lt;TouchableOpacity
-          style={styles.photoWrapper}
-          onPress={onPhotoPress}
-          disabled={!onPhotoPress}
-          activeOpacity={onPhotoPress ? 0.95 : 1}
-        &gt;
-          &lt;ProgressiveHeroImage
-            source={{ uri: person.photo_url }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          /&gt;
+        &lt;View style={styles.photoWrapper}&gt;
+          &lt;Galeria urls={[person.photo_url]}&gt;
+            &lt;Galeria.Image index={0}&gt;
+              &lt;Image
+                source={{ uri: person.photo_url }}
+                style={styles.heroImage}
+                resizeMode="cover"
+              /&gt;
+            &lt;/Galeria.Image&gt;
+          &lt;/Galeria&gt;
           &lt;LinearGradient
             colors={[
               'rgba(0,0,0,0.45)',
@@ -662,8 +662,9 @@ const Hero = <span class="cstat-no" title="statement not covered" ><span class="
               'rgba(0,0,0,0)',
             ]}
             style={styles.gradient}
+            pointerEvents="none"
           /&gt;
-        &lt;/TouchableOpacity&gt;
+        &lt;/View&gt;
       ) : null}
 &nbsp;
       &lt;View style={styles.body}&gt;
@@ -738,7 +739,9 @@ const Hero = <span class="cstat-no" title="statement not covered" ><span class="
       ) : null}
     &lt;/View&gt;
   );
-};
+});
+&nbsp;
+<span class="cstat-no" title="statement not covered" >Hero.displayName = 'Hero';</span>
 &nbsp;
 const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.create({</span>
   container: {
@@ -844,7 +847,7 @@ export default Hero;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

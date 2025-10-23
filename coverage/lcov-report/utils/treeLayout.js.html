@@ -32,7 +32,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/48</span>
+                <span class='fraction'>0/53</span>
             </div>
         
             
@@ -490,8 +490,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { hierarchy, tree } from "d3-hierarchy";
 &nbsp;
 // Helper function to get node dimensions - uses dynamic widths from data
-function <span class="fstat-no" title="function not covered" >getNodeDimensions(</span>node) {
-  const hasPhoto = <span class="cstat-no" title="statement not covered" >!!node.data.photo_url;</span>
+function <span class="fstat-no" title="function not covered" >getNodeDimensions(</span>node, showPhotos = <span class="branch-0 cbranch-no" title="branch not covered" >true)</span> {
+  const hasPhoto = <span class="cstat-no" title="statement not covered" >showPhotos &amp;&amp; !!node.data.photo_url;</span>
 <span class="cstat-no" title="statement not covered" >  return {</span>
     width: node.data.nodeWidth || (hasPhoto ? 85 : 60),
     height: hasPhoto ? 105 : 35,
@@ -499,12 +499,12 @@ function <span class="fstat-no" title="function not covered" >getNodeDimensions(
 }
 &nbsp;
 // Post-layout collision resolution function
-function <span class="fstat-no" title="function not covered" >resolveCollisions(</span>hierarchyData) {
+function <span class="fstat-no" title="function not covered" >resolveCollisions(</span>hierarchyData, showPhotos = <span class="branch-0 cbranch-no" title="branch not covered" >true)</span> {
   const minPadding = <span class="cstat-no" title="statement not covered" >10;</span> // Minimal padding for dynamic widths
 &nbsp;
   // Helper function to calculate subtree bounding box
   function <span class="fstat-no" title="function not covered" >getSubtreeBounds(</span>node) {
-    const dims = <span class="cstat-no" title="statement not covered" >getNodeDimensions(node);</span>
+    const dims = <span class="cstat-no" title="statement not covered" >getNodeDimensions(node, showPhotos);</span>
     let minX = <span class="cstat-no" title="statement not covered" >node.x - dims.width / 2;</span>
     let maxX = <span class="cstat-no" title="statement not covered" >node.x + dims.width / 2;</span>
 &nbsp;
@@ -569,7 +569,7 @@ function <span class="fstat-no" title="function not covered" >resolveCollisions(
 <span class="cstat-no" title="statement not covered" >  return hierarchyData;</span>
 }
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >calculateTreeLayout(</span>familyData) {
+export function <span class="fstat-no" title="function not covered" >calculateTreeLayout(</span>familyData, showPhotos = <span class="branch-0 cbranch-no" title="branch not covered" >true)</span> {
   // Safety check for undefined or null input
 <span class="cstat-no" title="statement not covered" >  if (!familyData || !Array.isArray(familyData)) {</span>
 <span class="cstat-no" title="statement not covered" >    console.warn("calculateTreeLayout received invalid data:", familyData);</span>
@@ -610,11 +610,11 @@ export function <span class="fstat-no" title="function not covered" >calculateTr
 <span class="cstat-no" title="statement not covered" >    if (node.children &amp;&amp; node.children.length &gt; 0) {</span>
       // Sort by sibling_order: 0 = oldest (firstborn), 1 = second oldest, etc.
       // Tree display (RTL): Oldest appears rightmost, youngest leftmost
-      // List display: Oldest at top, youngest at bottom
+      // To achieve this, we reverse the order so d3 positions them right-to-left
 <span class="cstat-no" title="statement not covered" >      node.children.sort(<span class="fstat-no" title="function not covered" >(a</span>, b) =&gt; {</span>
         const orderA = <span class="cstat-no" title="statement not covered" >a.sibling_order ?? 999;</span>
         const orderB = <span class="cstat-no" title="statement not covered" >b.sibling_order ?? 999;</span>
-<span class="cstat-no" title="statement not covered" >        return orderA - orderB; </span>// Ascending order: 0, 1, 2, 3...
+<span class="cstat-no" title="statement not covered" >        return orderB - orderA; </span>// Descending: 2, 1, 0 → d3 positions LEFT to RIGHT → Visual: Oldest on RIGHT
       });
 &nbsp;
       // Recursively sort grandchildren
@@ -657,7 +657,7 @@ export function <span class="fstat-no" title="function not covered" >calculateTr
   const treeData = <span class="cstat-no" title="statement not covered" >treeLayout(hierarchyData);</span>
 &nbsp;
   // Stage 2: Resolve collisions
-  const collisionResolvedData = <span class="cstat-no" title="statement not covered" >resolveCollisions(treeData);</span>
+  const collisionResolvedData = <span class="cstat-no" title="statement not covered" >resolveCollisions(treeData, showPhotos);</span>
 &nbsp;
   // Convert to flat array with positions
   const nodes = <span class="cstat-no" title="statement not covered" >[];</span>
@@ -706,7 +706,7 @@ export function <span class="fstat-no" title="function not covered" >calculateTr
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../prettify.js"></script>
         <script>

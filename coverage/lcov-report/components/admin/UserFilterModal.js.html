@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/63</span>
+                <span class='fraction'>0/64</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/59</span>
+                <span class='fraction'>0/60</span>
             </div>
         
             
@@ -586,7 +586,18 @@
 <a name='L521'></a><a href='#L521'>521</a>
 <a name='L522'></a><a href='#L522'>522</a>
 <a name='L523'></a><a href='#L523'>523</a>
-<a name='L524'></a><a href='#L524'>524</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -602,6 +613,17 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1113,6 +1135,7 @@
  * UserFilterModal Component
  * Bottom sheet-style modal for filtering activities by actor
  * Features: Quick "my edits" toggle, searchable actor list, edit counts
+ * Design: Najdi Sadu design system with iOS-standard patterns
  */
 &nbsp;
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -1132,6 +1155,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../../services/supabase';
 import tokens from '../ui/tokens';
+&nbsp;
+// Najdi Sadu color shortcuts for consistency
+const colors = <span class="cstat-no" title="statement not covered" >{</span>
+  alJass: tokens.colors.najdi.background,
+  camelHair: tokens.colors.najdi.container,
+  saduNight: tokens.colors.najdi.text,
+  crimson: tokens.colors.najdi.primary,
+  ochre: tokens.colors.najdi.secondary,
+  textMuted: tokens.colors.najdi.textMuted,
+};
 &nbsp;
 const UserFilterModal = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >({</span> visible, onClose, onSelectUser, selectedUser, currentUserId }) =&gt; {</span>
   const [actors, setActors] = <span class="cstat-no" title="statement not covered" >useState([]);</span>
@@ -1281,7 +1314,7 @@ const UserFilterModal = <span class="cstat-no" title="statement not covered" ><s
           &lt;View style={styles.handleBar} /&gt;
           &lt;Text style={styles.modalTitle}&gt;تصفية حسب المستخدم&lt;/Text&gt;
           &lt;TouchableOpacity onPress={onClose} style={styles.closeButton}&gt;
-            &lt;Ionicons name="close" size={24} color={tokens.colors.text} /&gt;
+            &lt;Ionicons name="close" size={24} color={colors.saduNight} /&gt;
           &lt;/TouchableOpacity&gt;
         &lt;/View&gt;
 &nbsp;
@@ -1402,7 +1435,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
   },
   modalTitle: {
     ...tokens.typography.title2,
-    color: tokens.colors.text,
+    color: tokens.colors.najdi.text,
     flex: 1,
     textAlign: 'center',
   },
@@ -1447,7 +1480,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
   },
   toggleLabel: {
     ...tokens.typography.body,
-    color: tokens.colors.text,
+    color: colors.saduNight,
     fontWeight: '600',
   },
   toggleSwitch: {
@@ -1499,7 +1532,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
   searchInput: {
     flex: 1,
     ...tokens.typography.body,
-    color: tokens.colors.text,
+    color: colors.saduNight,
   },
 &nbsp;
   // Actor List
@@ -1541,7 +1574,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
   },
   actorName: {
     ...tokens.typography.title3,
-    color: tokens.colors.text,
+    color: colors.saduNight,
   },
   roleBadge: {
     alignSelf: 'flex-start',
@@ -1582,7 +1615,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
   },
   loadingText: {
     ...tokens.typography.body,
-    color: tokens.colors.textMuted,
+    color: colors.textMuted,
   },
 &nbsp;
   // Empty State
@@ -1595,7 +1628,7 @@ const styles = <span class="cstat-no" title="statement not covered" >StyleSheet.
   },
   emptyText: {
     ...tokens.typography.body,
-    color: tokens.colors.textMuted,
+    color: colors.textMuted,
   },
 &nbsp;
   // Footer
@@ -1639,7 +1672,7 @@ export default UserFilterModal;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

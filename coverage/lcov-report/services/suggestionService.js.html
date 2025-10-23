@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/146</span>
+                <span class='fraction'>0/132</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/115</span>
+                <span class='fraction'>0/110</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/146</span>
+                <span class='fraction'>0/132</span>
             </div>
         
             
@@ -536,25 +536,7 @@
 <a name='L471'></a><a href='#L471'>471</a>
 <a name='L472'></a><a href='#L472'>472</a>
 <a name='L473'></a><a href='#L473'>473</a>
-<a name='L474'></a><a href='#L474'>474</a>
-<a name='L475'></a><a href='#L475'>475</a>
-<a name='L476'></a><a href='#L476'>476</a>
-<a name='L477'></a><a href='#L477'>477</a>
-<a name='L478'></a><a href='#L478'>478</a>
-<a name='L479'></a><a href='#L479'>479</a>
-<a name='L480'></a><a href='#L480'>480</a>
-<a name='L481'></a><a href='#L481'>481</a>
-<a name='L482'></a><a href='#L482'>482</a>
-<a name='L483'></a><a href='#L483'>483</a>
-<a name='L484'></a><a href='#L484'>484</a>
-<a name='L485'></a><a href='#L485'>485</a>
-<a name='L486'></a><a href='#L486'>486</a>
-<a name='L487'></a><a href='#L487'>487</a>
-<a name='L488'></a><a href='#L488'>488</a>
-<a name='L489'></a><a href='#L489'>489</a>
-<a name='L490'></a><a href='#L490'>490</a>
-<a name='L491'></a><a href='#L491'>491</a>
-<a name='L492'></a><a href='#L492'>492</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L474'></a><a href='#L474'>474</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -948,10 +930,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1018,26 +996,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1046,12 +1010,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
- * Suggestion Service for Permission System v4.2
+ * Suggestion Service for Permission System v4.3 (Simplified)
  *
- * Handles all suggestion-related API calls for the three-circle permission model:
- * - Inner Circle: Direct edits (family members)
- * - Family Circle: 48-hour auto-approval (cousins, aunts, uncles)
- * - Extended Family: Manual approval required
+ * Handles all suggestion-related API calls for the simplified permission model:
+ * - Inner Circle: Direct edits (self, spouse, parents, children, siblings, descendants)
+ * - Suggest: Manual admin approval required (all other family members)
+ * - Blocked: User is blocked from making suggestions
  */
 &nbsp;
 import { supabase } from './supabase';
@@ -1090,7 +1054,7 @@ const ERROR_MESSAGES = <span class="cstat-no" title="statement not covered" >{</
 class SuggestionService {
   /**
    * Check user's permission level for a profile
-   * Returns: 'inner', 'family', 'extended', 'blocked', or 'none'
+   * Returns: 'admin', 'moderator', 'inner', 'suggest', 'blocked', or 'none'
    */
 <span class="fstat-no" title="function not covered" >  as</span>ync checkPermission(userId, targetId) {
 <span class="cstat-no" title="statement not covered" >    try {</span>
@@ -1438,22 +1402,18 @@ class SuggestionService {
    */
 <span class="fstat-no" title="function not covered" >  ge</span>tPermissionMessage(permission) {
 <span class="cstat-no" title="statement not covered" >    switch (permission) {</span>
+      case 'admin':
+      case 'moderator':
       case 'inner':
 <span class="cstat-no" title="statement not covered" >        return {</span>
           title: 'تم الحفظ',
           message: 'تم تحديث البيانات بنجاح',
           type: 'success'
         };
-      case 'family':
+      case 'suggest':
 <span class="cstat-no" title="statement not covered" >        return {</span>
           title: 'تم إرسال الاقتراح',
-          message: 'سيتم مراجعة التغييرات والموافقة عليها خلال 48 ساعة',
-          type: 'info'
-        };
-      case 'extended':
-<span class="cstat-no" title="statement not covered" >        return {</span>
-          title: 'يحتاج موافقة',
-          message: 'تم إرسال اقتراحك إلى صاحب الملف للموافقة',
+          message: 'تم إرسال اقتراحك للمشرفين للمراجعة والموافقة',
           type: 'info'
         };
       case 'blocked':
@@ -1506,29 +1466,15 @@ class SuggestionService {
   }
 &nbsp;
   /**
+   * @deprecated Since v4.3 - Auto-approval removed, all suggestions require manual admin approval
    * Calculate time remaining for auto-approval (48 hours)
+   *
+   * This function is kept for backward compatibility but is no longer used.
+   * All suggestions now require manual admin approval regardless of relationship.
    */
 <span class="fstat-no" title="function not covered" >  ge</span>tAutoApprovalTimeRemaining(createdAt) {
-    const created = <span class="cstat-no" title="statement not covered" >new Date(createdAt);</span>
-    const autoApproveTime = <span class="cstat-no" title="statement not covered" >new Date(created.getTime() + (48 * 60 * 60 * 1000));</span>
-    const now = <span class="cstat-no" title="statement not covered" >new Date();</span>
-    const remaining = <span class="cstat-no" title="statement not covered" >autoApproveTime - now;</span>
-&nbsp;
-<span class="cstat-no" title="statement not covered" >    if (remaining &lt;= 0) {</span>
-<span class="cstat-no" title="statement not covered" >      return 'جاهز للموافقة التلقائية';</span>
-    }
-&nbsp;
-    const hours = <span class="cstat-no" title="statement not covered" >Math.floor(remaining / (60 * 60 * 1000));</span>
-    const minutes = <span class="cstat-no" title="statement not covered" >Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));</span>
-&nbsp;
-<span class="cstat-no" title="statement not covered" >    if (hours &gt; 24) {</span>
-      const days = <span class="cstat-no" title="statement not covered" >Math.floor(hours / 24);</span>
-<span class="cstat-no" title="statement not covered" >      return `${days} يوم و ${hours % 24} ساعة`;</span>
-    } else <span class="cstat-no" title="statement not covered" >if (hours &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >      return `${hours} ساعة و ${minutes} دقيقة`;</span>
-    } else {
-<span class="cstat-no" title="statement not covered" >      return `${minutes} دقيقة`;</span>
-    }
+    // Return message indicating manual approval required
+<span class="cstat-no" title="statement not covered" >    return 'يتطلب موافقة يدوية من المشرفين';</span>
   }
 }
 &nbsp;
@@ -1543,7 +1489,7 @@ export { ALLOWED_SUGGESTION_FIELDS };
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../prettify.js"></script>
         <script>

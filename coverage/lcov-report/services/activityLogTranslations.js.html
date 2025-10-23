@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/72</span>
+                <span class='fraction'>0/76</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/74</span>
+                <span class='fraction'>0/76</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/66</span>
+                <span class='fraction'>0/71</span>
             </div>
         
             
@@ -362,7 +362,21 @@
 <a name='L297'></a><a href='#L297'>297</a>
 <a name='L298'></a><a href='#L298'>298</a>
 <a name='L299'></a><a href='#L299'>299</a>
-<a name='L300'></a><a href='#L300'>300</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -617,7 +631,21 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -833,7 +861,7 @@ export const VALUE_FORMATTERS = <span class="cstat-no" title="statement not cove
       engineer: 'مهندس (م.)',
       professor: 'أستاذ دكتور (أ.د.)',
       sheikh: 'شيخ',
-      general: 'لواء',
+      general: 'اللواء',
       colonel: 'عقيد',
       major: 'رائد',
       captain: 'نقيب',
@@ -865,10 +893,10 @@ export const VALUE_FORMATTERS = <span class="cstat-no" title="statement not cove
   // Role
   role: <span class="fstat-no" title="function not covered" >(v</span>alue) =&gt; {
     const roles = <span class="cstat-no" title="statement not covered" >{</span>
-      super_admin: 'مشرف عام',
+      super_admin: 'المدير العام',
       admin: 'مشرف',
-      moderator: 'مشرف فرع',
-      user: 'مستخدم',
+      moderator: 'منسق',
+      user: 'عضو',
     };
 <span class="cstat-no" title="statement not covered" >    return roles[value] || value || '—';</span>
   },
@@ -916,9 +944,23 @@ export function <span class="fstat-no" title="function not covered" >formatField
   // Default formatters
 <span class="cstat-no" title="statement not covered" >  if (value === null || value === undefined) <span class="cstat-no" title="statement not covered" >return '—';</span></span>
 <span class="cstat-no" title="statement not covered" >  if (typeof value === 'boolean') <span class="cstat-no" title="statement not covered" >return value ? 'نعم' : 'لا';</span></span>
-<span class="cstat-no" title="statement not covered" >  if (typeof value === 'object') <span class="cstat-no" title="statement not covered" >return JSON.stringify(value);</span></span>
-<span class="cstat-no" title="statement not covered" >  if (typeof value === 'string' &amp;&amp; value.length &gt; 100) {</span>
-<span class="cstat-no" title="statement not covered" >    return value.substring(0, 100) + '...';</span>
+&nbsp;
+  // Format complex objects nicely (don't show raw JSON)
+<span class="cstat-no" title="statement not covered" >  if (typeof value === 'object') {</span>
+    // birthdate_data: {hijri: {...}, gregorian: {...}}
+<span class="cstat-no" title="statement not covered" >    if (value.hijri &amp;&amp; value.gregorian) {</span>
+<span class="cstat-no" title="statement not covered" >      return 'تاريخ محدث'; </span>// Just say "date updated" instead of showing JSON
+    }
+    // Array
+<span class="cstat-no" title="statement not covered" >    if (Array.isArray(value)) {</span>
+<span class="cstat-no" title="statement not covered" >      return `${value.length} عنصر`;</span>
+    }
+    // Generic object - count properties
+<span class="cstat-no" title="statement not covered" >    return `كائن (${Object.keys(value).length} حقل)`;</span>
+  }
+&nbsp;
+<span class="cstat-no" title="statement not covered" >  if (typeof value === 'string' &amp;&amp; value.length &gt; 50) {</span>
+<span class="cstat-no" title="statement not covered" >    return value.substring(0, 50) + '...';</span>
   }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  return String(value);</span>
@@ -927,37 +969,37 @@ export function <span class="fstat-no" title="function not covered" >formatField
 // Generate smart action description from changed fields
 export function <span class="fstat-no" title="function not covered" >generateActionDescription(</span>actionType, changedFields, targetName) {
 <span class="cstat-no" title="statement not covered" >  if (!changedFields || changedFields.length === 0) {</span>
-<span class="cstat-no" title="statement not covered" >    return `حدّث معلومات ${targetName || 'الملف'}`;</span>
+<span class="cstat-no" title="statement not covered" >    return `تحديث بيانات`;</span>
   }
 &nbsp;
   const primaryField = <span class="cstat-no" title="statement not covered" >changedFields[0];</span>
   const fieldLabel = <span class="cstat-no" title="statement not covered" >getFieldLabel(primaryField);</span>
 &nbsp;
-  // Multiple fields changed
+  // Multiple fields changed - keep it short, name is shown below
 <span class="cstat-no" title="statement not covered" >  if (changedFields.length &gt; 1) {</span>
-<span class="cstat-no" title="statement not covered" >    return `حدّث ${changedFields.length} حقول لـ ${targetName || 'الملف'}`;</span>
+<span class="cstat-no" title="statement not covered" >    return `تحديث ${changedFields.length} حقول`;</span>
   }
 &nbsp;
-  // Single field changed - be specific
+  // Single field changed - short label (name shown separately)
 <span class="cstat-no" title="statement not covered" >  switch (primaryField) {</span>
     case 'phone':
-<span class="cstat-no" title="statement not covered" >      return `غيّر رقم الجوال لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: رقم الجوال`;</span>
     case 'name':
-<span class="cstat-no" title="statement not covered" >      return `غيّر اسم ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: الاسم`;</span>
     case 'professional_title':
-<span class="cstat-no" title="statement not covered" >      return `حدّث المسمى الوظيفي لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: المسمى الوظيفي`;</span>
     case 'kunya':
-<span class="cstat-no" title="statement not covered" >      return `أضاف كنية لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: الكنية`;</span>
     case 'achievements':
-<span class="cstat-no" title="statement not covered" >      return `حدّث الإنجازات لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: الإنجازات`;</span>
     case 'photo_url':
-<span class="cstat-no" title="statement not covered" >      return `غيّر الصورة الشخصية لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: الصورة`;</span>
     case 'date_of_birth':
-<span class="cstat-no" title="statement not covered" >      return `حدّث تاريخ الميلاد لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: تاريخ الميلاد`;</span>
     case 'email':
-<span class="cstat-no" title="statement not covered" >      return `غيّر البريد الإلكتروني لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: البريد الإلكتروني`;</span>
     default:
-<span class="cstat-no" title="statement not covered" >      return `غيّر ${fieldLabel} لـ ${targetName}`;</span>
+<span class="cstat-no" title="statement not covered" >      return `تحديث: ${fieldLabel}`;</span>
   }
 }
 &nbsp;</pre></td></tr></table></pre>
@@ -967,7 +1009,7 @@ export function <span class="fstat-no" title="function not covered" >generateAct
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../prettify.js"></script>
         <script>

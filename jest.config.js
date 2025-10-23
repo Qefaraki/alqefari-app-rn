@@ -27,6 +27,6 @@ module.exports = {
     '**/__tests__/**/*.test.jsx',
     '**/tests/**/*.test.js',  // Phase 1 tests
   ],
-  moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   verbose: true,
 };

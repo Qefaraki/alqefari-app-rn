@@ -324,7 +324,8 @@
 <a name='L259'></a><a href='#L259'>259</a>
 <a name='L260'></a><a href='#L260'>260</a>
 <a name='L261'></a><a href='#L261'>261</a>
-<a name='L262'></a><a href='#L262'>262</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -459,6 +460,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -668,18 +670,18 @@ const InlineDiff = <span class="cstat-no" title="statement not covered" ><span c
 &nbsp;
 <span class="cstat-no" title="statement not covered" >  if (showLabels) {</span>
     // Expanded view: side-by-side cards with labels
-    // Order: NEW → ARROW → OLD (appears as OLD → NEW in RTL reading)
+    // Native RTL: Code order [OLD, ARROW, NEW] displays as NEW←OLD and reads as OLD→NEW ✓
 <span class="cstat-no" title="statement not covered" >    return (</span>
       &lt;View style={styles.expandedDiff}&gt;
-        {/* NEW VALUE CARD (appears on LEFT, reads first from RIGHT in RTL) */}
-        &lt;View style={[styles.diffCard, styles.newValueCard]}&gt;
-          &lt;Text style={styles.diffLabel}&gt;القيمة الجديدة&lt;/Text&gt;
-          &lt;Text style={styles.newValueText} numberOfLines={3}&gt;
-            {newStr}
+        {/* OLD VALUE CARD (appears on RIGHT in RTL, reads first) */}
+        &lt;View style={[styles.diffCard, styles.oldValueCard]}&gt;
+          &lt;Text style={styles.diffLabel}&gt;القيمة القديمة&lt;/Text&gt;
+          &lt;Text style={styles.oldValueText} numberOfLines={3}&gt;
+            {oldStr}
           &lt;/Text&gt;
         &lt;/View&gt;
 &nbsp;
-        {/* ARROW (pointing RIGHT for RTL flow: from OLD to NEW) */}
+        {/* ARROW (pointing LEFT: from OLD to NEW) */}
         &lt;Ionicons
           name="arrow-back"
           size={20}
@@ -687,11 +689,11 @@ const InlineDiff = <span class="cstat-no" title="statement not covered" ><span c
           style={styles.arrowIcon}
         /&gt;
 &nbsp;
-        {/* OLD VALUE CARD (appears on RIGHT, reads last in RTL) */}
-        &lt;View style={[styles.diffCard, styles.oldValueCard]}&gt;
-          &lt;Text style={styles.diffLabel}&gt;القيمة القديمة&lt;/Text&gt;
-          &lt;Text style={styles.oldValueText} numberOfLines={3}&gt;
-            {oldStr}
+        {/* NEW VALUE CARD (appears on LEFT in RTL, reads last) */}
+        &lt;View style={[styles.diffCard, styles.newValueCard]}&gt;
+          &lt;Text style={styles.diffLabel}&gt;القيمة الجديدة&lt;/Text&gt;
+          &lt;Text style={styles.newValueText} numberOfLines={3}&gt;
+            {newStr}
           &lt;/Text&gt;
         &lt;/View&gt;
       &lt;/View&gt;
@@ -734,10 +736,11 @@ const InlineDiff = <span class="cstat-no" title="statement not covered" ><span c
     );
   }
 &nbsp;
-  // MODIFIED: Full comparison (NEW → ARROW → OLD reads as OLD → NEW in RTL)
+  // MODIFIED: Full comparison
+  // Native RTL: Code order [ICON, OLD, ARROW, NEW] reads as ICON→OLD→ARROW→NEW ✓
 <span class="cstat-no" title="statement not covered" >  return (</span>
     &lt;View style={styles.inlineDiff}&gt;
-      {/* Change type icon (appears on RIGHT in RTL) */}
+      {/* Change type icon (appears on RIGHTMOST in RTL) */}
       &lt;Ionicons
         name={icon}
         size={16}
@@ -745,21 +748,21 @@ const InlineDiff = <span class="cstat-no" title="statement not covered" ><span c
         style={styles.diffIcon}
       /&gt;
 &nbsp;
-      {/* NEW VALUE (bold, green - appears second from right) */}
-      &lt;Text style={styles.newValueInline} numberOfLines={1}&gt;
-        {newStr}
+      {/* OLD VALUE (strikethrough, muted - appears right-center) */}
+      &lt;Text style={styles.oldValueInline} numberOfLines={1}&gt;
+        {oldStr}
       &lt;/Text&gt;
 &nbsp;
-      {/* ARROW (pointing right: from OLD to NEW) */}
+      {/* ARROW (pointing left: from OLD to NEW) */}
       &lt;Ionicons
         name="arrow-back"
         size={14}
         color={tokens.colors.textMuted}
       /&gt;
 &nbsp;
-      {/* OLD VALUE (strikethrough, muted - appears on LEFT) */}
-      &lt;Text style={styles.oldValueInline} numberOfLines={1}&gt;
-        {oldStr}
+      {/* NEW VALUE (bold, green - appears on LEFT) */}
+      &lt;Text style={styles.newValueInline} numberOfLines={1}&gt;
+        {newStr}
       &lt;/Text&gt;
     &lt;/View&gt;
   );
@@ -853,7 +856,7 @@ export default InlineDiff;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-07T18:58:36.125Z
+                at 2025-10-23T10:13:42.307Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
