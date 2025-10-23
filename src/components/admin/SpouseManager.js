@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,13 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
+  Modal,
   Alert,
   Image,
-  Animated,
-  useWindowDimensions,
+  ScrollView,
+  Pressable,
 } from "react-native";
-import BottomSheet, {
-  BottomSheetScrollView,
-  BottomSheetFlatList,
-  BottomSheetBackdrop,
-} from "@gorhom/bottom-sheet";
+import { SafeAreaView } from "react-native-safe-area-context";
 import PropTypes from "prop-types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -49,57 +46,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   const [showTreeModal, setShowTreeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  // Get screen dimensions for dynamic height calculation
-  const { height: windowHeight } = useWindowDimensions();
-
-  // Bottom sheet ref for visibility control
-  const bottomSheetRef = useRef(null);
-
-  // Dynamic snap points based on stage and content
-  const snapPoints = useMemo(() => {
-    if (stage === "SEARCH" && !loading && searchResults.length > 0) {
-      // Content-based: min 400px, max 60% screen
-      // 92px per result + 280px (200 base + 80 for TextInput field)
-      const contentHeight = Math.min(
-        Math.max(400, searchResults.length * 92 + 280),
-        windowHeight * 0.6
-      );
-      return [contentHeight];
-    }
-
-    // Fixed heights for other stages
-    const heights = {
-      SEARCH: loading ? 300 : 400, // Input field + empty state (was 360)
-      CREATE: 300, // Loading spinner
-      SUCCESS: 360, // Success animation
-    };
-
-    return [heights[stage]];
-  }, [stage, loading, searchResults.length, windowHeight]);
-
-  // Handle bottom sheet visibility
-  useEffect(() => {
-    if (visible) {
-      bottomSheetRef.current?.snapToIndex(0);
-    } else {
-      bottomSheetRef.current?.close();
-    }
-  }, [visible]);
-
-  // Backdrop component
-  const renderBackdrop = useCallback(
-    (props) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.4}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
 
   // Get appropriate gender for spouse
   const spouseGender = person?.gender === "male" ? "female" : "male";
@@ -460,111 +406,111 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   );
 
   return (
-    <>
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={visible ? 0 : -1}
-        snapPoints={snapPoints}
-        enablePanDownToClose={true}
-        onClose={onClose}
-        backdropComponent={renderBackdrop}
-        handleIndicatorStyle={styles.handleIndicator}
-        backgroundStyle={styles.sheetBackground}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>إضافة {spouseTitle}</Text>
-          <View style={{ width: 28 }} />
-        </View>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      {/* Backdrop - 50% opacity black covering top 50%, dismissed on press */}
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        {/* Modal Container - 50% height, bottom aligned */}
+        <View style={styles.modalContainer}>
+          <SafeAreaView style={styles.safeAreaContainer}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
+              </TouchableOpacity>
+              <Text style={styles.title}>إضافة {spouseTitle}</Text>
+              <View style={{ width: 28 }} />
+            </View>
 
-        {/* Conditional Content Based on Stage */}
-        {stage === "SEARCH" ? (
-          loading ? (
-            /* Loading State - Use ScrollView */
-            <BottomSheetScrollView contentContainerStyle={styles.stageContainer}>
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-                <Text style={styles.loadingText}>
-                  جاري البحث عن {parsedData?.firstName || ''}...
-                </Text>
-              </View>
-            </BottomSheetScrollView>
-          ) : (
-            /* Search Results - FlatList with TextInput as header */
-            <BottomSheetFlatList
-              data={searchResults}
-              renderItem={({ item, index }) => (
-                <SearchResultCard
-                  item={item}
-                  index={index}
-                  onPress={() => handleSelectSpouse(item)}
-                  showRelevanceScore={false}
-                  enableAnimation={false}
+            {/* Conditional Content Based on Stage */}
+            {stage === "SEARCH" ? (
+              loading ? (
+                /* Loading State - Use ScrollView */
+                <ScrollView contentContainerStyle={styles.stageContainer}>
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+                    <Text style={styles.loadingText}>
+                      جاري البحث عن {parsedData?.firstName || ''}...
+                    </Text>
+                  </View>
+                </ScrollView>
+              ) : (
+                /* Search Results - FlatList with TextInput as header */
+                <FlatList
+                  data={searchResults}
+                  renderItem={({ item, index }) => (
+                    <SearchResultCard
+                      item={item}
+                      index={index}
+                      onPress={() => handleSelectSpouse(item)}
+                      showRelevanceScore={false}
+                      enableAnimation={false}
+                    />
+                  )}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.resultsList}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  ListHeaderComponent={
+                    <View style={styles.inputContainer}>
+                      <View style={styles.inputWrapper}>
+                        <Ionicons
+                          name="search-outline"
+                          size={20}
+                          color={tokens.colors.najdi.textMuted}
+                          style={styles.inputIcon}
+                        />
+                        <TextInput
+                          value={fullName}
+                          onChangeText={setFullName}
+                          placeholder={`ابحث عن ${spouseTitle} أو أدخل اسم جديد`}
+                          placeholderTextColor={tokens.colors.najdi.textMuted}
+                          style={styles.textInput}
+                          onSubmitEditing={handleSubmit}
+                          returnKeyType="search"
+                          autoCorrect={false}
+                          autoCapitalize="none"
+                        />
+                        {fullName.length > 0 && (
+                          <TouchableOpacity onPress={() => setFullName("")} style={styles.clearButton}>
+                            <Ionicons name="close-circle" size={20} color={tokens.colors.najdi.textMuted} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  }
+                  ListEmptyComponent={
+                    fullName.length > 0 ? (
+                      <View style={styles.emptyContainer}>
+                        <Ionicons name="search-outline" size={48} color={tokens.colors.najdi.textMuted} />
+                        <Text style={styles.emptyText}>لا توجد نتائج</Text>
+                        <Text style={styles.emptyHint}>لم نجد {spouseTitle} بهذا الاسم في الشجرة</Text>
+                        <TouchableOpacity style={styles.addNewButton} onPress={handleAddAsNew}>
+                          <Text style={styles.addNewButtonText}>إضافة كشخص جديد</Text>
+                          <Ionicons name="add-circle-outline" size={20} color={tokens.colors.najdi.primary} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : null
+                  }
                 />
-              )}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.resultsList}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              ListHeaderComponent={
-                <View style={styles.inputContainer}>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons
-                      name="search-outline"
-                      size={20}
-                      color={tokens.colors.najdi.textMuted}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      value={fullName}
-                      onChangeText={setFullName}
-                      placeholder={`ابحث عن ${spouseTitle} أو أدخل اسم جديد`}
-                      placeholderTextColor={tokens.colors.najdi.textMuted}
-                      style={styles.textInput}
-                      onSubmitEditing={handleSubmit}
-                      returnKeyType="search"
-                      autoCorrect={false}
-                      autoCapitalize="none"
-                    />
-                    {fullName.length > 0 && (
-                      <TouchableOpacity onPress={() => setFullName("")} style={styles.clearButton}>
-                        <Ionicons name="close-circle" size={20} color={tokens.colors.najdi.textMuted} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              }
-              ListEmptyComponent={
-                fullName.length > 0 ? (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons name="search-outline" size={48} color={tokens.colors.najdi.textMuted} />
-                    <Text style={styles.emptyText}>لا توجد نتائج</Text>
-                    <Text style={styles.emptyHint}>لم نجد {spouseTitle} بهذا الاسم في الشجرة</Text>
-                    <TouchableOpacity style={styles.addNewButton} onPress={handleAddAsNew}>
-                      <Text style={styles.addNewButtonText}>إضافة كشخص جديد</Text>
-                      <Ionicons name="add-circle-outline" size={20} color={tokens.colors.najdi.primary} />
-                    </TouchableOpacity>
-                  </View>
-                ) : null
-              }
-            />
-          )
-        ) : (
-          /* CREATE/SUCCESS Stages - Use ScrollView */
-          <BottomSheetScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            {stage === "CREATE" && renderCreateStage()}
-            {stage === "SUCCESS" && renderSuccessStage()}
-          </BottomSheetScrollView>
-        )}
-      </BottomSheet>
+              )
+            ) : (
+              /* CREATE/SUCCESS Stages - Use ScrollView */
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+              >
+                {stage === "CREATE" && renderCreateStage()}
+                {stage === "SUCCESS" && renderSuccessStage()}
+              </ScrollView>
+            )}
+          </SafeAreaView>
+        </View>
+      </Pressable>
 
       {/* Tree Modal for spouse confirmation */}
       {selectedSpouse && showTreeModal && (

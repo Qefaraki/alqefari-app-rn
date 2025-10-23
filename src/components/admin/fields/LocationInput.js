@@ -3,11 +3,11 @@ import PropTypes from 'prop-types';
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   Pressable,
   StyleSheet,
 } from 'react-native';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../services/supabase';
 import tokens from '../../ui/tokens';
@@ -222,16 +222,16 @@ const LocationInput = ({
     }
   }, [onChange, onNormalizedChange]);
 
-  const handleFocus = useCallback(() => {
-    console.log('[LocationInput] focus');
+  const handleFocus = useCallback((event) => {
+    console.log('[LocationInput] focus target', event?.nativeEvent?.target, inputRef.current?.isFocused?.());
     setIsFocused(true);
     if (inputText.trim().length >= MIN_QUERY_LENGTH) {
       scheduleSearch(inputText);
     }
   }, [inputText, scheduleSearch]);
 
-  const handleBlur = useCallback(() => {
-    console.log('[LocationInput] blur (isSelecting=%s)', isSelectingRef.current);
+  const handleBlur = useCallback((event) => {
+    console.log('[LocationInput] blur target', event?.nativeEvent?.target, isSelectingRef.current);
     if (isSelectingRef.current) {
       requestAnimationFrame(() => {
         setIsFocused(false);
@@ -268,7 +268,7 @@ const LocationInput = ({
           color={tokens.colors.najdi.textMuted}
           style={styles.leadingIcon}
         />
-        <TextInput
+        <BottomSheetTextInput
           ref={inputRef}
           style={styles.input}
           value={inputText}
@@ -277,14 +277,6 @@ const LocationInput = ({
           placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          onTouchStart={(event) => {
-            event.stopPropagation?.();
-            if (!isFocused) {
-              requestAnimationFrame(() => {
-                inputRef.current?.focus();
-              });
-            }
-          }}
           textAlign="right"
           autoCorrect={false}
           autoCapitalize="none"

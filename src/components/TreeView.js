@@ -2058,7 +2058,8 @@ const TreeView = ({
   );
 
   // Phase 2 Integration - Gesture callbacks for extracted gesture functions
-  const gestureCallbacks = {
+  // Memoized to prevent recreation on every render (performance optimization)
+  const gestureCallbacks = useMemo(() => ({
     // Called when pan/pinch ends (for transform sync)
     onGestureEnd: () => {
       syncTransformAndBounds();
@@ -2170,7 +2171,15 @@ const TreeView = ({
         }
       }
     },
-  };
+  }), [
+    syncTransformAndBounds,
+    handleChipTap,
+    handleNodeTap,
+    profile?.role,
+    setQuickAddParent,
+    setQuickAddPosition,
+    setShowQuickAdd,
+  ]);
 
   // Phase 2 Integration - Gesture configuration
   const gestureConfig = {
@@ -2179,9 +2188,8 @@ const TreeView = ({
     maxZoom: maxZoom,
   };
 
-  // Phase 2 Integration - Replace inline gestures with extracted functions
-  const panGesture = createPanGesture(gestureSharedValues, gestureCallbacks, gestureConfig);
-  const pinchGesture = createPinchGesture(gestureSharedValues, gestureCallbacks, gestureConfig);
+  // Phase 2 Integration - Individual gestures now created inside createComposedGesture
+  // (Removed: panGesture and pinchGesture creation - now handled by createComposedGesture)
 
   // OLD INLINE CODE - TO BE REMOVED AFTER TESTING
   /* const panGesture = Gesture.Pan()
@@ -2306,7 +2314,7 @@ const TreeView = ({
   );
 
   // Tap gesture for selection with movement/time thresholds
-  const tapGesture = createTapGesture(gestureCallbacks);
+  // (Removed: tapGesture creation - now handled by createComposedGesture)
 
   // OLD INLINE TAP GESTURE (Phase 3: Replaced with createTapGesture - Lines 2237-2324, 88 lines)
   // const tapGesture = Gesture.Tap()
@@ -2399,7 +2407,7 @@ const TreeView = ({
   //   });
 
   // Long press gesture for quick add
-  const longPressGesture = createLongPressGesture(gestureCallbacks);
+  // (Removed: longPressGesture creation - now handled by createComposedGesture)
 
   // OLD INLINE LONG PRESS GESTURE (Phase 4: Replaced with createLongPressGesture - Lines 2402-2493, 92 lines)
   // const longPressGesture = Gesture.LongPress()
@@ -2628,10 +2636,9 @@ const TreeView = ({
 
   // Compose gestures - allow simultaneous but with guards in each gesture
   const composed = createComposedGesture(
-    panGesture,
-    pinchGesture,
-    longPressGesture,
-    tapGesture
+    gestureSharedValues,
+    gestureCallbacks,
+    gestureConfig
   );
 
   // OLD INLINE COMPOSED GESTURE (Phase 5: Replaced with createComposedGesture - Lines 2630-2635, 6 lines)

@@ -65,6 +65,7 @@ Additional rules:
 - [x] New minimal component in `src/components/admin/fields/LocationInput.js`
   - Debounce + stale-request guard (sequence counter)
   - Flag emoji helper `countryCodeToEmoji`
+  - Uses Gorhom `BottomSheetTextInput` so the sheet doesn’t steal focus
   - Blur handler clears uncommitted input
 - [x] Consumer wiring (`TabDetails`) left untouched – API remained `(value, onChange, normalizedValue, onNormalizedChange)`
 - [x] Jest suite updated to the new UX contract (`LocationInput.test.js`)

@@ -380,6 +380,8 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
       snapPoints={snapPoints}
       animatedPosition={animatedPosition}
       onChange={handleSheetChange}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
       onClose={() => {
         // Call the prop onClose (which sets selectedPersonId to null)
         if (onClose) {
@@ -438,7 +440,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         keyboardDismissMode="interactive"
       >
         {/* Photo Editor - from ProfileSheet */}
