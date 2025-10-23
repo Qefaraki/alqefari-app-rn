@@ -60,6 +60,9 @@ import Animated, {
   useDerivedValue,
 } from "react-native-reanimated";
 
+// Phase 2 Day 8 - Import SimpleTreeSkeleton
+import { SimpleTreeSkeleton } from './TreeView/SimpleTreeSkeleton';
+
 // Phase 1 Day 4a - Import extracted utilities
 import {
   // Constants
@@ -3417,189 +3420,6 @@ const TreeView = ({
     );
   }
 
-  // Tree skeleton component - better resembles actual tree
-  const TreeSkeleton = () => (
-    <View style={{
-      flex: 1,
-      backgroundColor: '#F9F7F3',
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-    }}>
-      {/* Root node at center top */}
-      <View style={{ alignItems: 'center', marginTop: -100 }}>
-        <RNAnimated.View
-          style={{
-            width: 120,
-            height: 70,
-            backgroundColor: '#D1BBA340',
-            borderRadius: 10,
-            borderWidth: 2,
-            borderColor: '#D1BBA330',
-            opacity: shimmerAnim,
-          }}
-        />
-
-        {/* Main vertical line from root */}
-        <View style={{
-          width: 2,
-          height: 50,
-          backgroundColor: '#D1BBA325',
-          marginTop: -2,
-        }} />
-      </View>
-
-      {/* Second generation with horizontal connector */}
-      <View style={{ alignItems: 'center', marginTop: -2 }}>
-        {/* Horizontal connector line */}
-        <View style={{
-          width: 300,
-          height: 2,
-          backgroundColor: '#D1BBA325',
-          position: 'absolute',
-          top: 0,
-        }} />
-
-        {/* Second gen nodes */}
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'space-around',
-          width: 320,
-          marginTop: -1,
-        }}>
-          {[...Array(4)].map((_, i) => (
-            <View key={`gen2-wrapper-${i}`} style={{ alignItems: 'center' }}>
-              {/* Small vertical line to node */}
-              <View style={{
-                width: 2,
-                height: 20,
-                backgroundColor: '#D1BBA325',
-              }} />
-              <RNAnimated.View
-                style={{
-                  width: 70,
-                  height: 50,
-                  backgroundColor: '#D1BBA335',
-                  borderRadius: 8,
-                  borderWidth: 1.5,
-                  borderColor: '#D1BBA325',
-                  opacity: shimmerAnim,
-                }}
-              />
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Third generation with multiple branches */}
-      <View style={{ marginTop: 30, width: '100%' }}>
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'space-around',
-          paddingHorizontal: 10,
-        }}>
-          {/* Left branch */}
-          <View style={{ alignItems: 'center' }}>
-            <View style={{
-              width: 100,
-              height: 2,
-              backgroundColor: '#D1BBA320',
-              marginBottom: 10,
-            }} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[...Array(2)].map((_, i) => (
-                <RNAnimated.View
-                  key={`gen3-left-${i}`}
-                  style={{
-                    width: 45,
-                    height: 35,
-                    backgroundColor: '#D1BBA330',
-                    borderRadius: 6,
-                    opacity: shimmerAnim.interpolate({
-                      inputRange: [0.3, 1],
-                      outputRange: [0.3, 0.8],
-                    }),
-                  }}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Center branch */}
-          <View style={{ alignItems: 'center' }}>
-            <View style={{
-              width: 80,
-              height: 2,
-              backgroundColor: '#D1BBA320',
-              marginBottom: 10,
-            }} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[...Array(3)].map((_, i) => (
-                <RNAnimated.View
-                  key={`gen3-center-${i}`}
-                  style={{
-                    width: 45,
-                    height: 35,
-                    backgroundColor: '#D1BBA330',
-                    borderRadius: 6,
-                    opacity: shimmerAnim.interpolate({
-                      inputRange: [0.3, 1],
-                      outputRange: [0.3, 0.8],
-                    }),
-                  }}
-                />
-              ))}
-            </View>
-          </View>
-
-          {/* Right branch */}
-          <View style={{ alignItems: 'center' }}>
-            <View style={{
-              width: 100,
-              height: 2,
-              backgroundColor: '#D1BBA320',
-              marginBottom: 10,
-            }} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {[...Array(2)].map((_, i) => (
-                <RNAnimated.View
-                  key={`gen3-right-${i}`}
-                  style={{
-                    width: 45,
-                    height: 35,
-                    backgroundColor: '#D1BBA330',
-                    borderRadius: 6,
-                    opacity: shimmerAnim.interpolate({
-                      inputRange: [0.3, 1],
-                      outputRange: [0.3, 0.8],
-                    }),
-                  }}
-                />
-              ))}
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Fourth generation hint (faded) */}
-      <View style={{ marginTop: 30, alignItems: 'center', opacity: 0.3 }}>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {[...Array(8)].map((_, i) => (
-            <View
-              key={`gen4-${i}`}
-              style={{
-                width: 30,
-                height: 25,
-                backgroundColor: '#D1BBA320',
-                borderRadius: 4,
-              }}
-            />
-          ))}
-        </View>
-      </View>
-    </View>
-  );
-
   if (isLoading) {
     return (
       <View style={{ flex: 1 }}>
@@ -3617,7 +3437,7 @@ const TreeView = ({
             }}
             pointerEvents="none"
           >
-            <TreeSkeleton />
+            <SimpleTreeSkeleton shimmerAnim={shimmerAnim} />
           </RNAnimated.View>
         )}
 
@@ -3678,7 +3498,7 @@ const TreeView = ({
           }}
           pointerEvents="none"
         >
-          <TreeSkeleton />
+          <SimpleTreeSkeleton shimmerAnim={shimmerAnim} />
         </RNAnimated.View>
       )}
 
