@@ -60,27 +60,34 @@ const LocationInput = ({
       const currentSequence = ++requestSequenceRef.current;
 
       setLoading(true);
-      const { data, error } = await supabase.rpc('search_place_autocomplete', {
-        p_query: query,
-        p_limit: 8,
-      });
 
-      // Only update state if this is still the latest request
-      if (currentSequence === requestSequenceRef.current) {
-        if (!error && data) {
-          setSuggestions(data);
+      try {
+        const { data, error } = await supabase.rpc('search_place_autocomplete', {
+          p_query: query,
+          p_limit: 8,
+        });
 
-          // Semi-required: Show warning if common place has no match
-          if (data.length === 0 && query.length > 3) {
-            setShowWarning(true);
-          } else {
-            setShowWarning(false);
+        // Only update state if this is still the latest request
+        if (currentSequence === requestSequenceRef.current) {
+          if (!error && data) {
+            setSuggestions(data);
+
+            // Semi-required: Show warning if common place has no match
+            if (data.length === 0 && query.length > 3) {
+              setShowWarning(true);
+            } else {
+              setShowWarning(false);
+            }
           }
         }
-        setLoading(false);
+      } finally {
+        // Always clear loading for the latest request (including stale requests)
+        if (currentSequence === requestSequenceRef.current) {
+          setLoading(false);
+        }
       }
     },
-    []
+    [setSuggestions, setLoading, setShowWarning]
   );
 
   const handleTextChange = useCallback(
@@ -161,71 +168,75 @@ const LocationInput = ({
         )}
       </View>
 
-      {showWarning && (
-        <View style={styles.warningContainer}>
-          <Ionicons
-            name="alert-circle-outline"
-            size={16}
-            color={tokens.colors.najdi.secondary}
-          />
-          <Text style={styles.warningText}>
-            لم نجد مطابقة. يمكنك المتابعة بهذا النص أو اختر من القائمة.
-          </Text>
-        </View>
-      )}
+      <View
+        style={[
+          styles.warningContainer,
+          { opacity: showWarning ? 1 : 0 },
+        ]}
+        pointerEvents={showWarning ? 'auto' : 'none'}
+      >
+        <Ionicons
+          name="alert-circle-outline"
+          size={16}
+          color={tokens.colors.najdi.secondary}
+        />
+        <Text style={styles.warningText}>
+          لم نجد مطابقة. يمكنك المتابعة بهذا النص أو اختر من القائمة.
+        </Text>
+      </View>
 
-      {loading && inputText.length >= 2 && suggestions.length === 0 && (
-        <View style={styles.skeletonLoaderContainer}>
-          {[0, 1, 2].map((index) => (
-            <View key={index} style={styles.skeletonItem}>
-              <View style={styles.skeletonIcon} />
-              <View style={styles.skeletonText}>
-                <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
-                <View style={styles.skeletonLine} />
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {suggestions.length > 0 && (
-        <View style={styles.suggestionsContainer}>
-          <FlatList
-            data={suggestions}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.suggestionItem,
-                  pressed && styles.suggestionItemPressed,
-                ]}
-                onPress={() => selectSuggestion(item)}
-              >
-                <Ionicons
-                  name={getIcon(item.region)}
-                  size={18}
-                  color={getIconColor(item.region)}
-                  style={styles.suggestionIcon}
-                />
-                <View style={styles.suggestionText}>
-                  <Text style={styles.suggestionName}>{item.display_name}</Text>
-                  {item.country_name && (
-                    <Text style={styles.suggestionCountry}>
-                      {item.country_name}
-                    </Text>
-                  )}
-                  {item.display_name_en && (
-                    <Text style={styles.suggestionNameEn}>
-                      {item.display_name_en}
-                    </Text>
-                  )}
+      {(loading || suggestions.length > 0) && inputText.length >= 2 && (
+        <View style={styles.resultsContainer}>
+          {loading && suggestions.length === 0 ? (
+            <View style={styles.skeletonLoaderInner}>
+              {[0, 1, 2].map((index) => (
+                <View key={index} style={styles.skeletonItem}>
+                  <View style={styles.skeletonIcon} />
+                  <View style={styles.skeletonText}>
+                    <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+                    <View style={styles.skeletonLine} />
+                  </View>
                 </View>
-              </Pressable>
-            )}
-            scrollEnabled={suggestions.length > 5}
-            nestedScrollEnabled={true}
-            style={styles.suggestionsList}
-          />
+              ))}
+            </View>
+          ) : (
+            <FlatList
+              data={suggestions}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.suggestionItem,
+                    pressed && styles.suggestionItemPressed,
+                  ]}
+                  onPress={() => selectSuggestion(item)}
+                >
+                  <Ionicons
+                    name={getIcon(item.region)}
+                    size={18}
+                    color={getIconColor(item.region)}
+                    style={styles.suggestionIcon}
+                  />
+                  <View style={styles.suggestionText}>
+                    <Text style={styles.suggestionName}>{item.display_name}</Text>
+                    {item.country_name && (
+                      <Text style={styles.suggestionCountry}>
+                        {item.country_name}
+                      </Text>
+                    )}
+                    {item.display_name_en && (
+                      <Text style={styles.suggestionNameEn}>
+                        {item.display_name_en}
+                      </Text>
+                    )}
+                  </View>
+                </Pressable>
+              )}
+              scrollEnabled={suggestions.length > 5}
+              nestedScrollEnabled={true}
+              style={styles.suggestionsList}
+            />
+          )}
         </View>
       )}
     </View>
@@ -272,6 +283,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: tokens.spacing.xs,
     paddingHorizontal: tokens.spacing.sm,
+    minHeight: 28,
   },
   warningText: {
     flex: 1,
@@ -279,11 +291,12 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.secondary,
     textAlign: 'right',
   },
-  suggestionsContainer: {
+  resultsContainer: {
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.sm,
     borderWidth: 1,
     borderColor: tokens.colors.najdi.container + '40',
+    minHeight: 180,
     maxHeight: 300,
     overflow: 'hidden',
     marginTop: tokens.spacing.xs,
@@ -328,14 +341,8 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.textMuted,
     textAlign: 'right',
   },
-  skeletonLoaderContainer: {
-    backgroundColor: tokens.colors.najdi.background,
-    borderRadius: tokens.radii.sm,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
-    maxHeight: 300,
-    overflow: 'hidden',
-    marginTop: tokens.spacing.xs,
+  skeletonLoaderInner: {
+    // Inner container for skeleton items (no additional styling needed)
   },
   skeletonItem: {
     flexDirection: 'row',
