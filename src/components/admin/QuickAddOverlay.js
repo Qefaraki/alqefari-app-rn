@@ -383,6 +383,50 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   const handleMoveUp = useCallback((childId) => handleMove(childId, 'up'), [handleMove]);
   const handleMoveDown = useCallback((childId) => handleMove(childId, 'down'), [handleMove]);
 
+  // Handle jump to specific position via Alert.prompt
+  const handleJumpToPosition = useCallback((childId, currentIndex, totalChildren) => {
+    // Dismiss keyboard first to avoid dual-focus state
+    Keyboard.dismiss();
+
+    // Brief delay for smooth keyboard dismissal before Alert appears
+    setTimeout(() => {
+      Alert.prompt(
+        "الموقع",
+        `1-${totalChildren}`,
+        [
+          { text: "إلغاء", style: "cancel" },
+          {
+            text: "موافق",
+            onPress: (input) => {
+              // Sanitize input: trim spaces, convert Arabic numerals to Western
+              const sanitized = (input || "")
+                .trim()
+                .replace(/[\u0660-\u0669]/g, (d) => d.charCodeAt(0) - 0x0660) // Arabic-Indic digits (٠-٩)
+                .replace(/[\u06F0-\u06F9]/g, (d) => d.charCodeAt(0) - 0x06F0); // Extended Arabic-Indic digits (۰-۹)
+
+              const target = parseInt(sanitized, 10) - 1; // Convert to 0-based index
+              if (isNaN(target) || target < 0 || target >= totalChildren || target === currentIndex) {
+                return; // Invalid input or same position
+              }
+
+              LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+              setAllChildren((prev) => {
+                const arr = [...prev];
+                const [moved] = arr.splice(currentIndex, 1);
+                arr.splice(target, 0, moved);
+                return applyOrdering(arr);
+              });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            },
+          },
+        ],
+        "plain-text",
+        "",
+        "numeric"
+      );
+    }, 100); // 100ms delay for clean transition
+  }, [applyOrdering]);
+
   // Feature flag for batch save (set to false for emergency rollback via OTA)
   const USE_BATCH_SAVE = true;
 
@@ -506,22 +550,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
         await refreshProfile(parentNode.id);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-        const created = data.results?.created || 0;
-        const updated = data.results?.updated || 0;
-        const deleted = data.results?.deleted || 0;
-
-        const messageParts = [];
-        if (created > 0) messageParts.push(`${created} جديد`);
-        if (updated > 0) messageParts.push(`${updated} تعديل`);
-        if (deleted > 0) messageParts.push(`${deleted} حذف`);
-
-        setStatusBanner({
-          type: 'success',
-          message: messageParts.length > 0 ? `تم حفظ ${messageParts.join("، ")}` : "تم حفظ التغييرات",
-        });
-
-        // Close modal silently (haptic feedback is enough confirmation)
-        onChildAdded?.();
+        // Close modal after brief feedback (prevents duplicate saves)
+        setTimeout(() => {
+          onChildAdded?.();
+          onClose();
+        }, 300);
       } else {
         // =========================================================================
         // 📦 FALLBACK: SEQUENTIAL SAVE PATH (legacy)
@@ -597,17 +630,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
 
         if (failed.length === 0) {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          const messageParts = [];
-          if (newChildren.length > 0) messageParts.push(`${newChildren.length} جديد`);
-          if (editedChildren.length > 0) messageParts.push(`${editedChildren.length} تعديل`);
-          if (deletedExistingChildren.length > 0) messageParts.push(`${deletedExistingChildren.length} حذف`);
-          if (reorderedChildren.length > 0) messageParts.push('ترتيب محدث');
 
-          setStatusBanner({
-            type: 'success',
-            message: messageParts.length > 0 ? `تم حفظ ${messageParts.join("، ")}` : "تم حفظ التغييرات",
-          });
-          onChildAdded?.();
+          // Close modal after brief feedback (prevents duplicate saves)
+          setTimeout(() => {
+            onChildAdded?.();
+            onClose();
+          }, 300);
         } else if (successful > 0) {
           Alert.alert(
             "تحديث جزئي",
@@ -674,10 +702,11 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
         onDelete={handleDeleteChild}
         onMoveUp={handleMoveUp}
         onMoveDown={handleMoveDown}
+        onJumpToPosition={handleJumpToPosition}
         mothers={mothers}
       />
     ),
-    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown]
+    [allChildren.length, mothers, handleUpdateChild, handleDeleteChild, handleMoveUp, handleMoveDown, handleJumpToPosition]
   );
 
   if (!visible) return null;

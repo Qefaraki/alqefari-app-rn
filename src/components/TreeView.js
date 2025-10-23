@@ -1663,9 +1663,6 @@ const TreeView = ({
     (nodeId) => {
       console.log("Attempting to navigate to node:", nodeId);
 
-      // Sync transform before reading animated values (Phase 3B: On-demand sync)
-      syncTransformAndBounds();
-
       // Find the node in the current nodes array (not indices)
       // This ensures we always use fresh coordinates
       const targetNode = nodes.find((n) => n.id === nodeId);
@@ -1699,6 +1696,27 @@ const TreeView = ({
 
       console.log("Current scale:", currentScale, "Target scale:", targetScale);
       console.log("Navigating to:", { targetX, targetY, targetScale });
+
+      // Immediately update React state with target transform
+      // This makes nodes visible during animation flight
+      const dynamicMarginX = VIEWPORT_MARGIN_X / targetScale;
+      const dynamicMarginY = VIEWPORT_MARGIN_Y / targetScale;
+
+      const targetBounds = {
+        minX: (-targetX - dynamicMarginX) / targetScale,
+        maxX: (-targetX + dimensions.width + dynamicMarginX) / targetScale,
+        minY: (-targetY - dynamicMarginY) / targetScale,
+        maxY: (-targetY + dimensions.height + dynamicMarginY) / targetScale,
+      };
+
+      setVisibleBounds(targetBounds);
+      setCurrentTransform({ x: targetX, y: targetY, scale: targetScale });
+      setCurrentScale(targetScale);
+
+      console.log('[TreeView] Pre-set bounds for search navigation:', {
+        targetBounds,
+        nodeCoords: { x: targetNode.x, y: targetNode.y },
+      });
 
       // Cancel any ongoing animations
       cancelAnimation(translateX);

@@ -50,6 +50,7 @@ const ChildListCard = ({
   onDelete,
   onMoveUp,
   onMoveDown,
+  onJumpToPosition,
   mothers = [],
 }) => {
   const [localName, setLocalName] = useState(child.name);
@@ -249,8 +250,12 @@ const ChildListCard = ({
               onMoveUp(child.id);
               Haptics.selectionAsync();
             }}
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onJumpToPosition?.(child.id, index, totalChildren);
+            }}
             accessibilityLabel={`رفع ${child.name}`}
-            accessibilityHint="تحريك الطفل لأعلى"
+            accessibilityHint="تحريك الطفل لأعلى، اضغط مطولاً للقفز"
           >
             <Ionicons
               name="chevron-up"
@@ -265,8 +270,12 @@ const ChildListCard = ({
               onMoveDown(child.id);
               Haptics.selectionAsync();
             }}
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              onJumpToPosition?.(child.id, index, totalChildren);
+            }}
             accessibilityLabel={`إنزال ${child.name}`}
-            accessibilityHint="تحريك الطفل لأسفل"
+            accessibilityHint="تحريك الطفل لأسفل، اضغط مطولاً للقفز"
           >
             <Ionicons
               name="chevron-down"
