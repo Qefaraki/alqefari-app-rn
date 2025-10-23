@@ -63,6 +63,10 @@ import Animated, {
 // Phase 2 Day 8 - Import SimpleTreeSkeleton
 import { SimpleTreeSkeleton } from './TreeView/SimpleTreeSkeleton';
 
+// Phase 0 Infrastructure - Import context providers
+import { FontProvider } from './TreeView/contexts/FontProvider';
+import { ParagraphCacheProvider } from './TreeView/contexts/ParagraphCacheProvider';
+
 // Phase 2 Integration - Import extracted components
 import { SpatialGrid, GRID_CELL_SIZE, MAX_VISIBLE_NODES } from './TreeView/spatial/SpatialGrid';
 import { ImageNode } from './TreeView/rendering/ImageNode';
@@ -3487,4 +3491,15 @@ const TreeView = ({
   );
 };
 
-export default TreeView;
+// Phase 0 Integration - Wrap TreeView with context providers
+// FontProvider must be outermost (loads fonts first)
+// ParagraphCacheProvider depends on fonts being loaded
+const TreeViewWithProviders = (props) => (
+  <FontProvider>
+    <ParagraphCacheProvider>
+      <TreeView {...props} />
+    </ParagraphCacheProvider>
+  </FontProvider>
+);
+
+export default TreeViewWithProviders;
