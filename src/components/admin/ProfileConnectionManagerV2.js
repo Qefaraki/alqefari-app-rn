@@ -1323,33 +1323,11 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // Segmented Control
-  selectorSurface: {
+  // Tab Bar
+  tabBarContainer: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
-    borderRadius: tokens.radii.lg,
     backgroundColor: colors.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${colors.container}66`,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    zIndex: 2,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  segmentedControlContainer: {
-    backgroundColor: "transparent",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
   },
 
   // Stats

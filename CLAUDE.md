@@ -95,6 +95,119 @@ _See full documentation: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTE
 
 _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 
+## 📑 TabBar Component (Pinterest-Inspired Tabs)
+
+**Status**: ✅ Complete (October 2025) - New standard tab component replacing native segmented controls
+
+**Location**: `src/components/ui/TabBar.js`
+
+**Purpose**: Minimal, modern tab component with animated underline indicator. Replaces native iOS `@expo/ui` Picker for standard tab navigation across the app.
+
+### Quick Usage
+
+```javascript
+import TabBar from '../components/ui/TabBar';
+
+const MyScreen = () => {
+  const [activeTab, setActiveTab] = useState('pending');
+
+  const tabs = [
+    { id: 'pending', label: 'قيد المراجعة' },
+    { id: 'approved', label: 'مقبولة' },
+    { id: 'rejected', label: 'مرفوضة' },
+  ];
+
+  return (
+    <TabBar
+      tabs={tabs}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      showDivider={true}  // Optional, default: true
+    />
+  );
+};
+```
+
+### API
+
+```typescript
+interface TabItem {
+  id: string;          // Unique identifier
+  label: string;       // Display text (Arabic)
+}
+
+interface TabBarProps {
+  tabs: TabItem[];                              // Array of 2-4 tabs
+  activeTab: string;                            // Currently active tab ID
+  onTabChange: (tabId: string) => void;        // Callback when tab changes
+  style?: ViewStyle;                            // Optional container styling
+  indicatorColor?: string;                      // Optional indicator color (default: Najdi Crimson)
+  showDivider?: boolean;                        // Optional bottom divider (default: true)
+}
+```
+
+### Design Details
+
+**Visual Design**:
+- **Active indicator**: 2px Najdi Crimson underline
+- **Active text**: 600 weight, 100% opacity (Sadu Night)
+- **Inactive text**: 400 weight, 60% opacity
+- **Animation**: Spring physics (iOS-native feel)
+- **Divider**: Optional hairline separator below tabs
+
+**Sizing**:
+- **Touch targets**: 44px minimum (iOS standard)
+- **Text size**: 17pt (body standard)
+- **Font**: SF Arabic
+
+**Spacing**:
+- **Tab padding**: 12px vertical, 16px horizontal
+- **Indicator height**: 2px
+- **Divider opacity**: 10%
+
+### Migration Status
+
+**Replaced**:
+- ✅ SuggestionReviewManager - `@expo/ui` Picker
+- ✅ PermissionManager - Custom segmented control
+- ✅ ProfileConnectionManagerV2 - `@expo/ui` Picker
+
+**Kept**:
+- `src/components/ProfileViewer/EditMode/TabsHost.js` - Specialized native pickers with dirty state indicators
+
+### Customization
+
+**Custom color**:
+```javascript
+<TabBar
+  tabs={tabs}
+  activeTab={activeTab}
+  onTabChange={setActiveTab}
+  indicatorColor="#D58C4A"  // Desert Ochre
+/>
+```
+
+**Without divider**:
+```javascript
+<TabBar
+  tabs={tabs}
+  activeTab={activeTab}
+  onTabChange={setActiveTab}
+  showDivider={false}
+/>
+```
+
+### Performance
+
+- Single animated element (underline only)
+- Memoized callbacks (no unnecessary re-renders)
+- Efficient coordinate transformation for hit detection
+- Works smoothly with 2-4 tabs
+
+### RTL Support
+
+✅ Full native RTL support - no special handling needed
+
 ## 🎯 Gesture System Architecture
 
 **Status**: ✅ Complete (October 2025) - Fully extracted and tested

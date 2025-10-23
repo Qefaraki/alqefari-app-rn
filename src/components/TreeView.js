@@ -75,6 +75,7 @@ import { calculateLODTier, createTierState } from './TreeView/lod/LODCalculator'
 import { BadgeRenderer } from './TreeView/rendering/BadgeRenderer';
 import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './TreeView/rendering/ShadowRenderer';
 import { TextPillRenderer } from './TreeView/rendering/TextPillRenderer';
+import { T3ChipRenderer } from './TreeView/rendering/T3ChipRenderer';
 
 // Phase 1 Day 4a - Import extracted utilities
 import {
@@ -2493,66 +2494,22 @@ const TreeView = ({
     return allElements;
   }, [activeHighlights, nodes, connections, showPhotos]); // pathOpacity is stable shared value, no need in deps
 
-  // Render T3 aggregation chips (only 3 chips for hero branches)
+  // Render T3 aggregation chips (only 3 chips for hero branches) - Phase 2: Using extracted T3ChipRenderer
   const renderTier3 = useCallback(
     (heroNodes, indices, scale, translateX, translateY) => {
-      if (!AGGREGATION_ENABLED) return null;
-
-      const chips = [];
-
-      heroNodes.forEach((hero, index) => {
-        // Use precomputed centroid
-        const centroid = indices.centroids[hero.id];
-        if (!centroid) return;
-
-        // Transform world to screen
-        const screenX = centroid.x * scale + translateX;
-        const screenY = centroid.y * scale + translateY;
-
-        const isRoot = !hero.father_id;
-        const chipScale = isRoot ? 1.3 : 1.0;
-        const chipWidth = 100 * chipScale;
-        const chipHeight = 36 * chipScale;
-
-        chips.push(
-          <Group key={`chip-${hero.id}`}>
-            <RoundedRect
-              x={screenX - chipWidth / 2}
-              y={screenY - chipHeight / 2}
-              width={chipWidth}
-              height={chipHeight}
-              r={16}
-              color="#FFFFFF"
-            />
-            <RoundedRect
-              x={screenX - chipWidth / 2}
-              y={screenY - chipHeight / 2}
-              width={chipWidth}
-              height={chipHeight}
-              r={16}
-              color="#D1BBA340"
-              style="stroke"
-              strokeWidth={0.5}
-            />
-            {/* Hero name + count */}
-            {arabicFont && (
-              <SkiaText
-                x={screenX}
-                y={screenY + 4}
-                text={`${hero.name} (${indices.subtreeSizes[hero.id]})`}
-                font={arabicFont}
-                textAlign="center"
-                fontSize={12 * chipScale}
-                color="#242121"
-              />
-            )}
-          </Group>,
-        );
-      });
-
-      return chips;
+      return (
+        <T3ChipRenderer
+          heroNodes={heroNodes}
+          indices={indices}
+          scale={scale}
+          translateX={translateX}
+          translateY={translateY}
+          arabicFont={arabicFont}
+          aggregationEnabled={AGGREGATION_ENABLED}
+        />
+      );
     },
-    [],
+    [arabicFont],
   );
 
   // Render T2 text pill (simplified, no images) - Phase 2: Using extracted TextPillRenderer
