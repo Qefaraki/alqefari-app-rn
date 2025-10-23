@@ -139,6 +139,33 @@ const TabDetails = ({ form, updateField }) => {
       </Section>
 
       <Section
+        title="المواقع"
+        subtitle="أماكن الميلاد والإقامة"
+        icon="location-outline"
+      >
+        <View style={styles.locationFieldsContainer}>
+          <View>
+            <Text style={styles.locationFieldLabel}>مكان الميلاد</Text>
+            <LimitedInput
+              value={draft?.birth_place || ''}
+              onChange={(text) => updateField('birth_place', text)}
+              placeholder="مثال: الرياض، السعودية"
+              maxLength={100}
+            />
+          </View>
+          <View>
+            <Text style={styles.locationFieldLabel}>مكان الإقامة الحالي</Text>
+            <LimitedInput
+              value={draft?.current_residence || ''}
+              onChange={(text) => updateField('current_residence', text)}
+              placeholder="مثال: جدة، السعودية"
+              maxLength={100}
+            />
+          </View>
+        </View>
+      </Section>
+
+      <Section
         title="الإنجازات"
         subtitle="الإنجازات والجوائز البارزة"
         icon="trophy-outline"
@@ -251,6 +278,18 @@ const styles = StyleSheet.create({
   },
   charCountError: {
     color: tokens.colors.danger,
+  },
+
+  // Location Fields Styles
+  locationFieldsContainer: {
+    gap: tokens.spacing.md,
+  },
+  locationFieldLabel: {
+    fontSize: 13, // iOS caption1
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+    marginBottom: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.xs,
   },
 });
 
