@@ -7,10 +7,8 @@ import {
   SafeAreaView,
   Alert,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Host, Picker } from '@expo/ui/swift-ui';
 import TabBar from '../components/ui/TabBar';
 import tokens from '../components/ui/tokens';
 
@@ -22,6 +20,9 @@ const TabBarDemo = ({ onClose }) => {
   const [activeTab1, setActiveTab1] = useState('pending');
   const [activeTab2, setActiveTab2] = useState('all');
   const [activeTab3, setActiveTab3] = useState('users');
+  const [customControl1, setCustomControl1] = useState('pending');
+  const [customControl2, setCustomControl2] = useState('all');
+  const [customControl3, setCustomControl3] = useState('users');
 
   const suggestionTabs = [
     { id: 'pending', label: 'قيد المراجعة' },
@@ -136,82 +137,159 @@ const TabBarDemo = ({ onClose }) => {
           </View>
         </View>
 
-        {/* Variant 3: NATIVE iOS Segmented Control */}
+        {/* Variant 3: Custom iOS-style Segmented Control */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>iOS Native Segmented Control</Text>
+            <Text style={styles.sectionTitle}>Custom Segmented Control</Text>
           </View>
 
           <View style={styles.demoContainer}>
             <Text style={styles.demoLabel}>Suggestion Statuses</Text>
-            {Platform.OS === 'ios' && (
-              <View style={styles.selectorSurface}>
-                <Host style={{ width: '100%', height: 36 }}>
-                  <Picker
-                    label=""
-                    options={['قيد المراجعة', 'مقبولة', 'مرفوضة']}
-                    variant="segmented"
-                    selectedIndex={0}
-                    onOptionSelected={({ nativeEvent: { index } }) => {
-                      // Segmented control selection
-                    }}
-                  />
-                </Host>
+            <View style={styles.segmentedControlContainer}>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl1 === 'pending' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl1('pending')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl1 === 'pending' && styles.segmentTextActive
+                  ]}>
+                    قيد المراجعة
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl1 === 'approved' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl1('approved')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl1 === 'approved' && styles.segmentTextActive
+                  ]}>
+                    مقبولة
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl1 === 'rejected' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl1('rejected')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl1 === 'rejected' && styles.segmentTextActive
+                  ]}>
+                    مرفوضة
+                  </Text>
+                </TouchableOpacity>
               </View>
-            )}
-            {Platform.OS !== 'ios' && (
-              <Text style={styles.androidNote}>
-                iOS Native Control - Android devices show placeholder
-              </Text>
-            )}
+            </View>
           </View>
 
           <View style={styles.demoContainer}>
             <Text style={styles.demoLabel}>Role Filter</Text>
-            {Platform.OS === 'ios' && (
-              <View style={styles.selectorSurface}>
-                <Host style={{ width: '100%', height: 36 }}>
-                  <Picker
-                    label=""
-                    options={['الكل', 'مدير رئيسي', 'مشرف']}
-                    variant="segmented"
-                    selectedIndex={0}
-                    onOptionSelected={({ nativeEvent: { index } }) => {
-                      // Segmented control selection
-                    }}
-                  />
-                </Host>
+            <View style={styles.segmentedControlContainer}>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl2 === 'all' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl2('all')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl2 === 'all' && styles.segmentTextActive
+                  ]}>
+                    الكل
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl2 === 'admin' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl2('admin')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl2 === 'admin' && styles.segmentTextActive
+                  ]}>
+                    مدير رئيسي
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl2 === 'moderator' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl2('moderator')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl2 === 'moderator' && styles.segmentTextActive
+                  ]}>
+                    مشرف
+                  </Text>
+                </TouchableOpacity>
               </View>
-            )}
-            {Platform.OS !== 'ios' && (
-              <Text style={styles.androidNote}>
-                iOS Native Control - Android devices show placeholder
-              </Text>
-            )}
+            </View>
           </View>
 
           <View style={styles.demoContainer}>
             <Text style={styles.demoLabel}>Binary Toggle</Text>
-            {Platform.OS === 'ios' && (
-              <View style={styles.selectorSurface}>
-                <Host style={{ width: '100%', height: 36 }}>
-                  <Picker
-                    label=""
-                    options={['المستخدمون', 'المحظورون']}
-                    variant="segmented"
-                    selectedIndex={0}
-                    onOptionSelected={({ nativeEvent: { index } }) => {
-                      // Segmented control selection
-                    }}
-                  />
-                </Host>
+            <View style={styles.segmentedControlContainer}>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl3 === 'users' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl3('users')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl3 === 'users' && styles.segmentTextActive
+                  ]}>
+                    المستخدمون
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.segment,
+                    customControl3 === 'blocked' && styles.segmentActive
+                  ]}
+                  onPress={() => setCustomControl3('blocked')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.segmentText,
+                    customControl3 === 'blocked' && styles.segmentTextActive
+                  ]}>
+                    المحظورون
+                  </Text>
+                </TouchableOpacity>
               </View>
-            )}
-            {Platform.OS !== 'ios' && (
-              <Text style={styles.androidNote}>
-                iOS Native Control - Android devices show placeholder
-              </Text>
-            )}
+            </View>
           </View>
         </View>
 
@@ -284,31 +362,43 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.sm,
     textTransform: 'uppercase',
   },
-  selectorSurface: {
-    borderRadius: tokens.radii.lg,
-    backgroundColor: tokens.colors.najdi.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.text,
-    borderOpacity: 0.15,
-    paddingHorizontal: tokens.spacing.sm,
+  segmentedControlContainer: {
+    paddingHorizontal: 0,
     paddingVertical: tokens.spacing.sm,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
-  androidNote: {
-    fontSize: tokens.typography.callout.fontSize,
+  segmentedControl: {
+    flexDirection: 'row',
+    backgroundColor: tokens.colors.najdi.container + '40', // Camel Hair Beige 40%
+    borderRadius: 10,
+    padding: 2,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentActive: {
+    backgroundColor: tokens.colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '500',
     color: tokens.colors.najdi.textMuted,
-    fontStyle: 'italic',
-    paddingVertical: tokens.spacing.sm,
+    fontFamily: 'SF Arabic',
+  },
+  segmentTextActive: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
   },
   footer: {
     height: tokens.spacing.xl,

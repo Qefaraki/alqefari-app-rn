@@ -63,8 +63,8 @@ describe('NodeRenderer', () => {
 
   describe('NODE_RENDERER_CONSTANTS', () => {
     test('should export expected constants', () => {
-      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_WITH_PHOTO).toBe(75); // TEMP: Reduced from 85
-      expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_WITH_PHOTO).toBe(85); // TEMP: Reduced from 105
+      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_WITH_PHOTO).toBe(65); // TEMP: Minimal padding
+      expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_WITH_PHOTO).toBe(75); // TEMP: Minimal padding
       expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_TEXT_ONLY).toBe(65);
       expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_TEXT_ONLY).toBe(35);
       expect(NODE_RENDERER_CONSTANTS.PHOTO_SIZE).toBe(50);
@@ -107,7 +107,7 @@ describe('NodeRenderer', () => {
       const result = calculateNodeDimensions(node, true, true);
 
       expect(result.width).toBe(95);
-      expect(result.height).toBe(85); // TEMP: Reduced from 105
+      expect(result.height).toBe(75); // TEMP: Minimal padding
       expect(result.borderRadius).toBe(16);
     });
 
@@ -141,8 +141,8 @@ describe('NodeRenderer', () => {
 
       const result = calculateNodeDimensions(node, true, false);
 
-      expect(result.width).toBe(75); // TEMP: Reduced from 85
-      expect(result.height).toBe(85); // TEMP: Reduced from 105
+      expect(result.width).toBe(65); // TEMP: Minimal padding
+      expect(result.height).toBe(75); // TEMP: Minimal padding
       expect(result.borderRadius).toBe(4); // Smooth corners
     });
 

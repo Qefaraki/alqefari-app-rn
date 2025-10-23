@@ -71,7 +71,7 @@ describe('PathCalculator', () => {
       const path = calculateParentVerticalPath(parent, busY, true);
 
       expect(path.startX).toBe(100);
-      expect(path.startY).toBe(50 + 85 / 2); // y + NODE_HEIGHT_WITH_PHOTO/2 = 92.5 (TEMP: reduced from 105 to 85)
+      expect(path.startY).toBe(50 + 75 / 2); // y + NODE_HEIGHT_WITH_PHOTO/2 = 87.5 (TEMP: minimal padding)
       expect(path.endX).toBe(100);
       expect(path.endY).toBe(100);
     });
@@ -191,13 +191,13 @@ describe('PathCalculator', () => {
       expect(paths[0].startX).toBe(80);
       expect(paths[0].startY).toBe(100); // busY
       expect(paths[0].endX).toBe(80);
-      expect(paths[0].endY).toBe(150 - 85 / 2); // y - NODE_HEIGHT_WITH_PHOTO/2 = 107.5 (TEMP: reduced from 105 to 85)
+      expect(paths[0].endY).toBe(150 - 75 / 2); // y - NODE_HEIGHT_WITH_PHOTO/2 = 112.5 (TEMP: minimal padding)
 
       // Child 2
       expect(paths[1].startX).toBe(120);
       expect(paths[1].startY).toBe(100);
       expect(paths[1].endX).toBe(120);
-      expect(paths[1].endY).toBe(150 - 85 / 2); // y - NODE_HEIGHT_WITH_PHOTO/2 = 107.5 (TEMP: reduced from 105 to 85)
+      expect(paths[1].endY).toBe(150 - 75 / 2); // y - NODE_HEIGHT_WITH_PHOTO/2 = 112.5 (TEMP: minimal padding)
     });
 
     it('should calculate paths for children without photos', () => {
