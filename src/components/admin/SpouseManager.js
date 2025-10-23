@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: tokens.colors.najdi.text + "20",
-    backgroundColor: tokens.colors.najdi.container,
+    backgroundColor: tokens.colors.najdi.background, // Match modal background (Al-Jass White)
   },
   closeButton: {
     width: tokens.touchTarget.minimum,
