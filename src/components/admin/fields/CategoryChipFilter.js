@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import PropTypes from 'prop-types';
 import {
   View,
   Text,
@@ -175,5 +176,23 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.textMuted + '80',
   },
 });
+
+CategoryChipFilter.propTypes = {
+  categories: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string.isRequired,
+      label: PropTypes.string.isRequired,
+      count: PropTypes.number,
+      enabled: PropTypes.bool,
+    })
+  ).isRequired,
+  activeCategory: PropTypes.string.isRequired,
+  onCategoryChange: PropTypes.func.isRequired,
+  style: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
+};
+
+CategoryChipFilter.defaultProps = {
+  style: undefined,
+};
 
 export default CategoryChipFilter;

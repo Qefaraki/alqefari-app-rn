@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   View,
   Text,
@@ -6,6 +7,8 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
+  Alert,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../services/supabase';
@@ -46,6 +49,7 @@ const LocationInput = ({
 
   const debounceRef = useRef(null);
   const requestSequenceRef = useRef(0);  // Track request sequence to prevent stale results
+  const shimmerAnim = useRef(new Animated.Value(0)).current;  // Skeleton shimmer animation
 
   // Category definitions for chips
   const categories = [
@@ -69,6 +73,26 @@ const LocationInput = ({
     };
   }, []);
 
+  // Shimmer animation loop for skeleton loaders
+  useEffect(() => {
+    const shimmerAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+        Animated.timing(shimmerAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    shimmerAnimation.start();
+    return () => shimmerAnimation.stop();
+  }, [shimmerAnim]);
+
   const searchPlaces = useCallback(
     async (query, categoryId = 'all') => {
       if (query.length < 2) {
@@ -91,11 +115,20 @@ const LocationInput = ({
 
         // Only update state if this is still the latest request
         if (currentSequence === requestSequenceRef.current) {
-          if (!error && data) {
+          if (error) {
+            // Handle RPC error gracefully
+            console.error('Location search error:', error);
+            setSuggestions([]);
+            setShowWarning(false);
+            // Show alert only for critical errors, not network timeouts
+            if (error.message && !error.message.includes('timeout')) {
+              Alert.alert('خطأ البحث', 'حدث خطأ أثناء البحث عن المواقع. يرجى المحاولة لاحقاً.');
+            }
+          } else if (data && Array.isArray(data)) {
             // Filter by category if not "all"
             let filtered = data;
             if (categoryId !== 'all') {
-              filtered = data.filter(item => item.region === categoryId);
+              filtered = data.filter(item => item?.region === categoryId);
             }
 
             setSuggestions(filtered);
@@ -106,7 +139,18 @@ const LocationInput = ({
             } else {
               setShowWarning(false);
             }
+          } else {
+            // Handle unexpected response format
+            setSuggestions([]);
+            setShowWarning(false);
           }
+        }
+      } catch (err) {
+        // Handle unexpected errors (network issues, etc.)
+        if (currentSequence === requestSequenceRef.current) {
+          console.error('Unexpected error in location search:', err);
+          setSuggestions([]);
+          setShowWarning(false);
         }
       } finally {
         // Always clear loading for the latest request (including stale requests)
@@ -175,13 +219,13 @@ const LocationInput = ({
   const getIconColor = (region) => {
     switch (region) {
       case 'saudi':
-        return tokens.colors.najdi.primary;
+        return tokens.colors.najdi.primary;      // Najdi Crimson
       case 'gulf':
-        return '#007AFF';
+        return tokens.colors.najdi.secondary;    // Desert Ochre
       case 'arab':
-        return '#34C759';
+        return tokens.colors.najdi.focus;        // Focus purple
       case 'western':
-        return '#5856D6';
+        return tokens.colors.najdi.textMuted;    // Sadu muted
       default:
         return tokens.colors.najdi.textMuted;
     }
@@ -235,15 +279,27 @@ const LocationInput = ({
         <View style={styles.resultsContainer}>
           {loading && suggestions.length === 0 ? (
             <View style={styles.skeletonLoaderInner}>
-              {[0, 1, 2].map((index) => (
-                <View key={index} style={styles.skeletonItem}>
-                  <View style={styles.skeletonIcon} />
-                  <View style={styles.skeletonText}>
-                    <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
-                    <View style={styles.skeletonLine} />
-                  </View>
-                </View>
-              ))}
+              {[0, 1, 2].map((index) => {
+                const shimmerOpacity = shimmerAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.5, 1],
+                });
+                return (
+                  <Animated.View
+                    key={index}
+                    style={[
+                      styles.skeletonItem,
+                      { opacity: shimmerOpacity },
+                    ]}
+                  >
+                    <View style={styles.skeletonIcon} />
+                    <View style={styles.skeletonText}>
+                      <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+                      <View style={styles.skeletonLine} />
+                    </View>
+                  </Animated.View>
+                );
+              })}
             </View>
           ) : suggestions.length > 0 ? (
             <ScrollView
@@ -369,6 +425,12 @@ const styles = StyleSheet.create({
     height: 300,  // Fixed height (not minHeight/maxHeight)
     overflow: 'hidden',
     marginTop: tokens.spacing.xs,
+    // iOS-style shadow for depth (reduced opacity for subtle effect)
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,  // Android elevation
   },
 
   // ============================================================================
@@ -488,5 +550,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+
+LocationInput.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  placeholder: PropTypes.string,
+  normalizedValue: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
+  onNormalizedChange: PropTypes.func,
+};
+
+LocationInput.defaultProps = {
+  value: '',
+  placeholder: 'ابحث عن موقع...',
+  normalizedValue: null,
+  onNormalizedChange: undefined,
+};
 
 export default LocationInput;
