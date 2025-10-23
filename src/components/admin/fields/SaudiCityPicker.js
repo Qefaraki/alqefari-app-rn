@@ -10,31 +10,35 @@ import { Picker } from '@react-native-picker/picker';
 import tokens from '../../ui/tokens';
 
 const SAUDI_CITIES = [
-  'الرياض',
-  'جدة',
-  'مكة المكرمة',
-  'المدينة المنورة',
-  'الدمام',
-  'الطائف',
-  'تبوك',
-  'القطيف',
-  'الخبر',
-  'بريدة',
-  'الأحساء',
-  'نجران',
-  'جازان',
-  'ينبع',
-  'أبها',
-  'حائل',
-  'الجبيل',
-  'الباحة',
-  'المجمعة',
-  'حفر الباطن',
-  'الرس',
-  'عنيزة',
-  'سكاكا',
-  'أملج',
-  'رابغ',
+  // Riyadh region
+  'الرياض',                // Capital - #1
+  // Qassim region (user priority)
+  'بريدة',                 // Buraida - #2
+  'عنيزة',                 // Unaizah
+  'الرس',                  // Ar Rass
+  'المذنب',                // Al Mithnab
+  'البكيرية',              // Al Bukayriyah
+  '─────────',
+  // Major cities
+  'جدة',                   // Jeddah
+  'مكة المكرمة',           // Mecca
+  'المدينة المنورة',       // Medina
+  'الدمام',                // Dammam
+  'الخبر',                 // Khobar
+  'القطيف',                // Qatif
+  'الطائف',                // Taif
+  'تبوك',                  // Tabuk
+  'أبها',                  // Abha
+  'جازان',                 // Jazan
+  'نجران',                 // Najran
+  'حائل',                  // Hail
+  'الأحساء',               // Al-Ahsa
+  'ينبع',                  // Yanbu
+  'الجبيل',                // Jubail
+  'الباحة',                // Al-Baha
+  'عرعر',                  // Arar
+  'سكاكا',                 // Sakaka
+  'حفر الباطن',           // Hafr Al-Batin
 ];
 
 const SaudiCityPicker = ({ label, value, onChange, placeholder, enabled = true }) => {
@@ -66,11 +70,6 @@ const SaudiCityPicker = ({ label, value, onChange, placeholder, enabled = true }
           ))}
         </Picker>
       </View>
-      {value && (
-        <Text style={[styles.selectedValue, !enabled && styles.selectedValueDisabled]}>
-          {value}
-        </Text>
-      )}
       {!enabled && (
         <Text style={styles.disabledMessage}>
           متاح فقط عند اختيار السعودية
@@ -136,15 +135,6 @@ const styles = StyleSheet.create({
   pickerItem: {
     fontSize: 16,
     color: tokens.colors.najdi.text,
-  },
-  selectedValue: {
-    fontSize: 12,
-    color: tokens.colors.najdi.textMuted,
-    paddingHorizontal: tokens.spacing.xs,
-    fontStyle: 'italic',
-  },
-  selectedValueDisabled: {
-    color: tokens.colors.najdi.textMuted + '80',
   },
   disabledMessage: {
     fontSize: 11,
