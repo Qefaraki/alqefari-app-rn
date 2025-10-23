@@ -168,7 +168,7 @@ const AnimatedUserCard = ({
 
           {/* Role and status badges */}
           <View style={styles.badgeRow}>
-            <View style={[styles.roleBadge, { backgroundColor: getRoleColor(userRole) + "20" }]}>
+            <View style={[styles.roleBadge, { backgroundColor: `${getRoleColor(userRole)  }20` }]}>
               <Text style={[styles.roleText, { color: getRoleColor(userRole) }]}>
                 {getRoleLabel(userRole)}
               </Text>
@@ -829,7 +829,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                     ref={searchInputRef}
                     style={styles.searchInput}
                     placeholder="ابحث بالاسم الكامل..."
-                    placeholderTextColor={colors.textMuted + "99"}
+                    placeholderTextColor={`${colors.textMuted  }99`}
                     editable={false}
                     textAlign="right"
                   />
@@ -863,7 +863,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                   <TextInput
                     style={styles.searchInput}
                     placeholder="ابحث بالاسم الكامل..."
-                    placeholderTextColor={colors.textMuted + "99"}
+                    placeholderTextColor={`${colors.textMuted  }99`}
                     value={searchText}
                     onChangeText={handleSearchTextChange}
                     returnKeyType="search"
@@ -934,7 +934,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                         selectedRole !== "all" && !searchText ? (
                           /* Empty filter - no users with this role */
                           <View style={styles.emptyContainer}>
-                            <Ionicons name="funnel-outline" size={48} color={colors.textMuted + "60"} />
+                            <Ionicons name="funnel-outline" size={48} color={`${colors.textMuted  }60`} />
                             <Text style={styles.emptyText}>
                               لا يوجد مستخدمون بهذه الصلاحية
                             </Text>
@@ -945,7 +945,7 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                         ) : (
                           /* Empty search - no results for search query */
                           <View style={styles.emptyContainer}>
-                            <Ionicons name="search-outline" size={48} color={colors.textMuted + "60"} />
+                            <Ionicons name="search-outline" size={48} color={`${colors.textMuted  }60`} />
                             <Text style={styles.emptyText}>
                               لا توجد نتائج للبحث
                             </Text>
@@ -1244,7 +1244,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: colors.container + "20",
+    backgroundColor: `${colors.container  }20`,
     gap: 4,
   },
   badgeText: {
@@ -1253,7 +1253,7 @@ const styles = StyleSheet.create({
     fontFamily: "SF Arabic",
   },
   blockedBadge: {
-    backgroundColor: colors.error + "10",
+    backgroundColor: `${colors.error  }10`,
   },
   generationBadge: {
     flexDirection: "row",
@@ -1261,7 +1261,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: colors.container + "40", // Camel Hair Beige 40%
+    backgroundColor: `${colors.container  }40`, // Camel Hair Beige 40%
   },
   generationText: {
     fontSize: 12,
@@ -1318,7 +1318,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.primary + "30",
+    borderColor: `${colors.primary  }30`,
     gap: 4,
   },
   paginationButtonDisabled: {

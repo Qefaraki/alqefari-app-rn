@@ -9,7 +9,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
-  RefreshControl,
   Platform,
   Keyboard,
 } from 'react-native';
@@ -1080,12 +1079,9 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   if (state.loading) {
     return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-      >
+      <View style={styles.loadingContainer}>
         <FamilySkeleton />
-      </ScrollView>
+      </View>
     );
   }
 
@@ -1105,124 +1101,115 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
   return (
     <TabFamilyContext.Provider value={contextValue}>
-      <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={state.refreshing}
-          onRefresh={handleRefresh}
-          tintColor={tokens.colors.najdi.primary}
-        />
-      }
-    >
-      {/* Only show parent section for Al-Qefari family members (hid !== null) */}
-      {/* Munasib (spouses from outside family) don't have parents in our tree */}
-      {person?.hid !== null && (
-        <SectionCard
-          title="الوالدان"
-          badge={`${parentCount}/2`}
-        >
-          <View style={styles.parentGrid}>
-            {/* Diagnostic logging for Munasib hid investigation (Phase 2) */}
-            {__DEV__ && (() => {
-              console.log('[TabFamily] Munasib Debug:', {
-                personId: person?.id,
-                personName: person?.name,
-                personHid: person?.hid,
-                hidType: typeof person?.hid,
-                isMunasibStrict: person?.hid === null,
-                isMunasibLoose: person?.hid == null,
-                hasFather: !!father,
-                canEditFamily,
-                shouldShowMotherEdit: !!(father && canEditFamily && person?.hid !== null),
-              });
-              return null;
-            })()}
-            <ParentProfileCard
-            label="الأب"
-            profile={father}
-            emptyTitle="لم يتم تحديد الأب"
-            emptySubtitle={
-              person?.hid === null
-                ? "هذا ملف مناسب من خارج العائلة"
-                : "أدخل بيانات الأب لتكتمل العائلة"
-            }
-          />
-          <ParentProfileCard
-            label="الأم"
-            profile={mother}
-            emptyTitle="لم يتم ربط الأم"
-            emptySubtitle={
-              person?.hid === null
-                ? "هذا ملف مناسب من خارج العائلة"
-                : "أضف الأم ليكتمل ملفك الشخصي"
-            }
-            onAction={father && canEditFamily && person?.hid !== null ? handleChangeMother : null}
-            actionLabel={state.motherPickerVisible ? 'إخفاء الخيارات' : mother ? 'تغيير الأم' : 'إضافة الأم'}
-            actionTone={state.motherPickerVisible ? 'secondary' : 'primary'}
-            infoHint={
-              person?.hid === null
-                ? 'المناسبون من خارج العائلة لا يُسجل والداهم في الشجرة'
-                : !father
-                  ? 'أدخل بيانات الأب أولاً لتتمكن من اختيار الأم'
-                  : !canEditFamily
-                    ? 'ليس لديك صلاحية لتعديل الأم'
-                    : null
+      <View style={styles.container}>
+        <View style={styles.toolbar}>
+          <TouchableOpacity
+            style={[
+              styles.refreshButton,
+              state.refreshing && styles.refreshButtonDisabled,
+            ]}
+            onPress={handleRefresh}
+            disabled={state.refreshing}
+            activeOpacity={0.85}
+          >
+            {state.refreshing ? (
+              <ActivityIndicator size="small" color={tokens.colors.surface} />
+            ) : (
+              <Text style={styles.refreshButtonLabel}>تحديث العائلة</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.content}>
+          {person?.hid !== null && (
+            <SectionCard
+              title="الوالدان"
+              badge={`${parentCount}/2`}
+            >
+              <View style={styles.parentGrid}>
+                <ParentProfileCard
+                  label="الأب"
+                  profile={father}
+                  emptyTitle="لم يتم تحديد الأب"
+                  emptySubtitle={
+                    person?.hid === null
+                      ? "هذا ملف مناسب من خارج العائلة"
+                      : "أدخل بيانات الأب لتكتمل العائلة"
+                  }
+                />
+                <ParentProfileCard
+                  label="الأم"
+                  profile={mother}
+                  emptyTitle="لم يتم ربط الأم"
+                  emptySubtitle={
+                    person?.hid === null
+                      ? "هذا ملف مناسب من خارج العائلة"
+                      : "أضف الأم ليكتمل ملفك الشخصي"
+                  }
+                  onAction={father && canEditFamily && person?.hid !== null ? handleChangeMother : null}
+                  actionLabel={state.motherPickerVisible ? 'إخفاء الخيارات' : mother ? 'تغيير الأم' : 'إضافة الأم'}
+                  actionTone={state.motherPickerVisible ? 'secondary' : 'primary'}
+                  infoHint={
+                    person?.hid === null
+                      ? 'المناسبون من خارج العائلة لا يُسجل والداهم في الشجرة'
+                      : !father
+                        ? 'أدخل بيانات الأب أولاً لتتمكن من اختيار الأم'
+                        : !canEditFamily
+                          ? 'ليس لديك صلاحية لتعديل الأم'
+                          : null
+                  }
+                >
+                  <MotherInlinePicker
+                    visible={state.motherPickerVisible}
+                    suggestions={motherSuggestions}
+                    loading={state.loadingMotherOptions}
+                    currentMotherId={person?.mother_id}
+                    onSelect={handleQuickMotherSelect}
+                    onClose={() => dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: false })}
+                    onClear={handleClearMother}
+                    onGoToFather={handleGoToFatherProfile}
+                    hasFather={Boolean(father)}
+                  />
+                  {state.motherFeedback ? (
+                    <View style={styles.parentFeedback}>
+                      <Ionicons name="checkmark-circle" size={14} color={tokens.colors.success} />
+                      <Text style={styles.parentFeedbackText}>{state.motherFeedback}</Text>
+                    </View>
+                  ) : null}
+                </ParentProfileCard>
+              </View>
+            </SectionCard>
+          )}
+
+          <SectionCard
+            title={genderDependentText.spousesTitle}
+            badge={`${spouses.length}`}
+            footer={
+              <View>
+                {!state.spouseAdderVisible ? (
+                  <AddActionButton
+                    label={genderDependentText.addSpouseLabel}
+                    onPress={handleOpenInlineSpouseAdder}
+                  />
+                ) : null}
+                <ErrorBoundary>
+                  <InlineSpouseAdder
+                    person={person}
+                    visible={state.spouseAdderVisible}
+                    onAdded={handleSpouseAddedInline}
+                    onCancel={() => dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: false } })}
+                    onNeedsSearch={handleNeedsAlQefariSearch}
+                    feedback={state.spouseFeedback}
+                  />
+                </ErrorBoundary>
+              </View>
             }
           >
-            <MotherInlinePicker
-              visible={state.motherPickerVisible}
-              suggestions={motherSuggestions}
-              loading={state.loadingMotherOptions}
-              currentMotherId={person?.mother_id}
-              onSelect={handleQuickMotherSelect}
-              onClose={() => dispatch({ type: 'SET_MOTHER_PICKER_VISIBLE', payload: false })}
-              onClear={handleClearMother}
-              onGoToFather={handleGoToFatherProfile}
-              hasFather={Boolean(father)}
-            />
-            {state.motherFeedback ? (
-              <View style={styles.parentFeedback}>
-                <Ionicons name="checkmark-circle" size={14} color={tokens.colors.success} />
-                <Text style={styles.parentFeedbackText}>{state.motherFeedback}</Text>
-              </View>
-            ) : null}
-          </ParentProfileCard>
-        </View>
-      </SectionCard>
-      )}
-
-      <SectionCard
-        title={genderDependentText.spousesTitle}
-        badge={`${spouses.length}`}
-        footer={
-          <View>
-            {!state.spouseAdderVisible ? (
-              <AddActionButton
-                label={genderDependentText.addSpouseLabel}
-                onPress={handleOpenInlineSpouseAdder}
-              />
-            ) : null}
-            <ErrorBoundary>
-              <InlineSpouseAdder
-                person={person}
-                visible={state.spouseAdderVisible}
-                onAdded={handleSpouseAddedInline}
-                onCancel={() => dispatch({ type: 'SET_SPOUSE_ADDER', payload: { visible: false } })}
-                onNeedsSearch={handleNeedsAlQefariSearch}
-                feedback={state.spouseFeedback}
-              />
-            </ErrorBoundary>
-          </View>
-        }
-      >
-        {activeSpouses.length > 0 || inactiveSpouses.length > 0 ? (
-          <>
-            {/* Active/Current Spouses */}
-            {activeSpouses.length > 0 && (
-              <View style={styles.sectionStack}>
-                {activeSpouses.map((spouseData) => {
+            {activeSpouses.length > 0 || inactiveSpouses.length > 0 ? (
+              <>
+                {activeSpouses.length > 0 && (
+                  <View style={styles.sectionStack}>
+                    {activeSpouses.map((spouseData) => {
                   const isEditing = editingMarriageId === spouseData.marriage_id;
                   const visitSpouse =
                     spouseData.spouse_profile?.id && typeof onNavigateToProfile === 'function'
@@ -1246,14 +1233,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
                             // Trigger dual-path highlighting via Zustand store
                             // TreeView watches this state and activates highlighting
-                            console.log('[TabFamily] Setting pendingCousinHighlight:', {
-                              spouse1Id: person.id,
-                              spouse2Id: spouse.id,
-                              highlightProfileId: spouse.id,
-                              nodesMapSize: nodesMap.size,
-                              treeDataLength
-                            });
-
                             useTreeStore.setState({
                               pendingCousinHighlight: {
                                 spouse1Id: person.id,          // Current profile (Al-Qefari)
@@ -1261,11 +1240,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                                 highlightProfileId: spouse.id  // Center tree on cousin wife
                               }
                             });
-
-                            // Verify state was set
-                            const stateAfterSet = useTreeStore.getState().pendingCousinHighlight;
-                            console.log('[TabFamily] State after setState:', stateAfterSet);
-
                             // Open cousin wife's profile in the sheet (sheet stays open)
                             onNavigateToProfile(spouse.id);
                           } else {
@@ -1343,14 +1317,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
                             // Trigger dual-path highlighting via Zustand store
                             // TreeView watches this state and activates highlighting
-                            console.log('[TabFamily] Setting pendingCousinHighlight:', {
-                              spouse1Id: person.id,
-                              spouse2Id: spouse.id,
-                              highlightProfileId: spouse.id,
-                              nodesMapSize: nodesMap.size,
-                              treeDataLength
-                            });
-
                             useTreeStore.setState({
                               pendingCousinHighlight: {
                                 spouse1Id: person.id,          // Current profile (Al-Qefari)
@@ -1358,10 +1324,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
                                 highlightProfileId: spouse.id  // Center tree on cousin wife
                               }
                             });
-
-                            // Verify state was set
-                            const stateAfterSet = useTreeStore.getState().pendingCousinHighlight;
-                            console.log('[TabFamily] State after setState:', stateAfterSet);
 
                             // Open cousin wife's profile in the sheet (sheet stays open)
                             onNavigateToProfile(spouse.id);
@@ -1463,14 +1425,14 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         onChildAdded={handleChildAdded}
       />
 
-      <MarriageDeletionSheet
-        visible={state.deletionSheetVisible}
-        marriage={state.marriageToDelete}
-        onConfirm={confirmDeleteMarriage}
-        onCancel={cancelDeleteMarriage}
-      />
-
-      </ScrollView>
+          <MarriageDeletionSheet
+            visible={state.deletionSheetVisible}
+            marriage={state.marriageToDelete}
+            onConfirm={confirmDeleteMarriage}
+            onCancel={cancelDeleteMarriage}
+          />
+        </View>
+      </View>
     </TabFamilyContext.Provider>
   );
 };
@@ -1485,9 +1447,32 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.lg,
     paddingBottom: tokens.spacing.xxl,
+    gap: tokens.spacing.xl,
+  },
+  toolbar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.md,
+    paddingBottom: tokens.spacing.sm,
+  },
+  refreshButton: {
+    backgroundColor: tokens.colors.najdi.primary,
+    borderRadius: tokens.radii.md,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.sm,
+  },
+  refreshButtonDisabled: {
+    opacity: 0.5,
+  },
+  refreshButtonLabel: {
+    color: tokens.colors.surface,
+    fontSize: 14,
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
@@ -1535,7 +1520,6 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.lg,
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.lg,
-    marginBottom: tokens.spacing.xxl,
     ...tokens.shadow.ios,
     ...tokens.shadow.android,
   },
@@ -1614,7 +1598,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '33',
+    borderColor: `${tokens.colors.najdi.container  }33`,
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.md,
     paddingBottom: tokens.spacing.sm,
@@ -1623,7 +1607,7 @@ const styles = StyleSheet.create({
   },
   parentCardEmpty: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '66',
+    borderColor: `${tokens.colors.najdi.container  }66`,
   },
   parentHeader: {
     flexDirection: 'row',
@@ -1639,7 +1623,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: tokens.colors.najdi.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
   },
   parentAvatarImage: {
     borderRadius: 24,
@@ -1653,7 +1637,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
   },
   parentAvatarEmpty: {
-    backgroundColor: tokens.colors.najdi.secondary + '22',
+    backgroundColor: `${tokens.colors.najdi.secondary  }22`,
   },
   parentAvatarInitial: {
     fontSize: 20,
@@ -1746,7 +1730,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
     paddingVertical: tokens.spacing.lg,
     paddingHorizontal: tokens.spacing.lg,
     gap: tokens.spacing.sm,
@@ -1772,7 +1756,7 @@ const styles = StyleSheet.create({
   motherSkeletonRow: {
     height: 48,
     borderRadius: tokens.radii.lg,
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: `${tokens.colors.najdi.container  }20`,
     marginHorizontal: tokens.spacing.sm,
     marginVertical: 4,
     alignSelf: 'stretch',
@@ -1781,7 +1765,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.md,
     backgroundColor: tokens.colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '20',
+    borderColor: `${tokens.colors.najdi.container  }20`,
     maxHeight: 240,
   },
   motherList: {
@@ -1798,9 +1782,9 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   motherRowSelected: {
-    backgroundColor: tokens.colors.najdi.primary + '18',
+    backgroundColor: `${tokens.colors.najdi.primary  }18`,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary + '60',
+    borderColor: `${tokens.colors.najdi.primary  }60`,
   },
   motherRowAvatar: {
     width: 40,
@@ -1816,7 +1800,7 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: tokens.colors.najdi.container + '26',
+    backgroundColor: `${tokens.colors.najdi.container  }26`,
   },
   motherRowInitial: {
     fontSize: 15,
@@ -1841,7 +1825,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.textMuted + '80',
+    borderColor: `${tokens.colors.najdi.textMuted  }80`,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1879,7 +1863,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.xs,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary + '55',
+    borderColor: `${tokens.colors.najdi.primary  }55`,
     backgroundColor: tokens.colors.najdi.background,
     marginTop: tokens.spacing.sm,
   },
@@ -1941,14 +1925,14 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '33',
+    borderColor: `${tokens.colors.najdi.container  }33`,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     gap: tokens.spacing.sm,
   },
   memberCardInactive: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '55',
+    borderColor: `${tokens.colors.najdi.container  }55`,
     opacity: 0.85,
   },
   memberHeader: {
@@ -1985,7 +1969,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: tokens.colors.najdi.background,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
   },
   memberAvatarInitial: {
     fontSize: 17,

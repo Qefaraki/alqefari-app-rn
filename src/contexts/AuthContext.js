@@ -187,7 +187,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             let targetState = null;
-            let targetData = { user, profile: refreshedProfile };
+            const targetData = { user, profile: refreshedProfile };
 
             if (refreshedProfile?.linked_profile_id) {
               targetState = AuthStates.PROFILE_LINKED;

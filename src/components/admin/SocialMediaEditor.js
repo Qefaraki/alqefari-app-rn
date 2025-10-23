@@ -7,6 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons, FontAwesome6 } from "@expo/vector-icons";
+import tokens from "../ui/tokens";
 
 const ICON_SIZE = 20; // Design system standard
 
@@ -207,7 +208,11 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
         return (
           <View key={platform.key} style={styles.platformRow}>
             <View style={styles.platformHeader}>
-              <IconComponent name={platform.icon} size={ICON_SIZE} color="#666" />
+              <IconComponent
+                name={platform.icon}
+                size={ICON_SIZE}
+                color={tokens.colors.najdi.textMuted}
+              />
               <Text style={styles.platformLabel}>{platform.label}</Text>
             </View>
             <TextInput
@@ -231,29 +236,31 @@ const SocialMediaEditor = ({ links = {}, values = {}, onChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: tokens.spacing.md,
   },
   platformRow: {
-    gap: 8,
+    gap: tokens.spacing.xs,
   },
   platformHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
+    gap: tokens.spacing.xs,
+    marginBottom: tokens.spacing.xxs,
   },
   platformLabel: {
     fontSize: 14,
-    color: "#666666",
+    color: tokens.colors.najdi.textMuted,
     fontFamily: "SF Arabic",
   },
   platformInput: {
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${tokens.colors.najdi.container  }50`,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     fontSize: 14,
-    color: "#000000",
+    color: tokens.colors.najdi.text,
     fontFamily: "SF Arabic",
   },
 });

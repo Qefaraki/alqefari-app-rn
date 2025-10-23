@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.colors.najdi.text + "20",
+    borderBottomColor: `${tokens.colors.najdi.text  }20`,
     backgroundColor: tokens.colors.najdi.background, // Match modal background (Al-Jass White)
   },
   closeButton: {
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.xl,
     paddingVertical: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.lg,
-    backgroundColor: tokens.colors.najdi.primary + "10",
+    backgroundColor: `${tokens.colors.najdi.primary  }10`,
     borderRadius: tokens.radii.sm,
   },
   addNewButtonText: {

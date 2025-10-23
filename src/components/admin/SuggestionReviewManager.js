@@ -258,7 +258,7 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
           <View style={styles.diffHeader}>
             <Text style={styles.fieldLabel}>{getFieldLabel(suggestion.field_name)}</Text>
             <Text style={styles.dateText}>
-              {new Date(suggestion.created_at + 'Z').toLocaleDateString("ar-SA")}
+              {new Date(`${suggestion.created_at  }Z`).toLocaleDateString("ar-SA")}
             </Text>
           </View>
           <View style={styles.diffValues}>
@@ -312,7 +312,7 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
             ملف: {suggestion.profile?.hid ? `#${suggestion.profile.hid}` : "غير معروف"}
           </Text>
           <Text style={styles.footerMeta}>
-            {new Date(suggestion.created_at + 'Z').toLocaleTimeString("ar-SA", {
+            {new Date(`${suggestion.created_at  }Z`).toLocaleTimeString("ar-SA", {
               hour: "2-digit",
               minute: "2-digit",
             })}
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   statLabel: {
     ...typography.footnote,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "99",
+    color: `${COLORS.text  }99`,
     marginBottom: spacing.xs / 2,
   },
   statValue: {
@@ -563,7 +563,7 @@ const styles = StyleSheet.create({
   profileMeta: {
     ...typography.footnote,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "99",
+    color: `${COLORS.text  }99`,
     marginTop: spacing.xs / 2,
   },
   statusPill: {
@@ -617,14 +617,14 @@ const styles = StyleSheet.create({
   valuePillNew: {
     flex: 1,
     borderRadius: tokens.radii.md,
-    backgroundColor: COLORS.primary + "15",
+    backgroundColor: `${COLORS.primary  }15`,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
   valueOldText: {
     ...typography.footnote,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "AA",
+    color: `${COLORS.text  }AA`,
   },
   valueNewText: {
     ...typography.footnote,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   noteText: {
     ...typography.footnote,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "99",
+    color: `${COLORS.text  }99`,
     flex: 1,
   },
   rejectionReason: {
@@ -696,12 +696,12 @@ const styles = StyleSheet.create({
   footerMeta: {
     ...typography.caption1,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "80",
+    color: `${COLORS.text  }80`,
   },
   dateText: {
     ...typography.caption1,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "66",
+    color: `${COLORS.text  }66`,
   },
 
   // Actions
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...typography.subheadline,
     fontFamily: "SF Arabic",
-    color: COLORS.text + "99",
+    color: `${COLORS.text  }99`,
     textAlign: "center",
     lineHeight: typography.subheadline.lineHeight,
   },

@@ -171,7 +171,7 @@ const PermissionSummary = ({
 
           {/* Role Badge */}
           <View style={styles.badgeContainer}>
-            <View style={[styles.roleBadge, { backgroundColor: roleColor + "20" }]}>
+            <View style={[styles.roleBadge, { backgroundColor: `${roleColor  }20` }]}>
               <Ionicons name="shield-checkmark" size={14} color={roleColor} />
               <Text style={[styles.roleText, { color: roleColor }]}>
                 {roleLabel}
@@ -236,7 +236,7 @@ const PermissionSummary = ({
 
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: colors.secondary + "15" }]}>
+              <View style={[styles.statIcon, { backgroundColor: `${colors.secondary  }15` }]}>
                 <Ionicons name="people" size={20} color={colors.secondary} />
               </View>
               <Text style={styles.statValue}>
@@ -246,7 +246,7 @@ const PermissionSummary = ({
             </View>
 
             <View style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: colors.primary + "15" }]}>
+              <View style={[styles.statIcon, { backgroundColor: `${colors.primary  }15` }]}>
                 <Ionicons name="document-text" size={20} color={colors.primary} />
               </View>
               <Text style={styles.statValue}>
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.separator + "40",
+    borderBottomColor: `${colors.separator  }40`,
   },
   title: {
     fontSize: 20,
@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.error + "10",
+    backgroundColor: `${colors.error  }10`,
     gap: 6,
   },
   blockedText: {
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   hidBadge: {
-    backgroundColor: colors.secondary + "15",
+    backgroundColor: `${colors.secondary  }15`,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -684,11 +684,11 @@ const styles = StyleSheet.create({
 
   // Block Reason
   blockReasonCard: {
-    backgroundColor: colors.error + "08",
+    backgroundColor: `${colors.error  }08`,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.error + "20",
+    borderColor: `${colors.error  }20`,
   },
   blockReasonText: {
     fontSize: 14,
@@ -794,11 +794,11 @@ const styles = StyleSheet.create({
 
   // Danger Zone Card
   dangerZoneCard: {
-    backgroundColor: colors.error + "08",
+    backgroundColor: `${colors.error  }08`,
     borderRadius: 12,
     padding: 20,
     borderWidth: 1,
-    borderColor: colors.error + "20",
+    borderColor: `${colors.error  }20`,
     alignItems: "center",
   },
   dangerZoneTitle: {

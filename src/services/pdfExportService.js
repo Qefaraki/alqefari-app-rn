@@ -248,7 +248,7 @@ class PDFExportService {
                         ${profile.status === "deceased" ? "متوفى" : "على قيد الحياة"}
                       </span>
                     </td>
-                    <td>${new Date(profile.created_at + 'Z').toLocaleDateString("ar-SA")}</td>
+                    <td>${new Date(`${profile.created_at  }Z`).toLocaleDateString("ar-SA")}</td>
                   </tr>
                 `,
                   )

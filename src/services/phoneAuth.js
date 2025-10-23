@@ -43,7 +43,7 @@ export const phoneAuthService = {
     normalized = normalized.replace(/[^\d+]/g, "");
 
     // If it starts with +, preserve it and clean the rest
-    let hasPlus = normalized.startsWith("+");
+    const hasPlus = normalized.startsWith("+");
     let cleaned = normalized.replace(/\D/g, "");
 
     // Handle empty input
@@ -61,55 +61,55 @@ export const phoneAuthService = {
       // Valid lengths: 966 5XXXXXXXX (12 digits) or 966 5XXXXXXX (11 digits)
     } else if (cleaned.startsWith("05")) {
       // 05xxxxxxxx -> 966 5xxxxxxxx
-      cleaned = "966" + cleaned.substring(1);
+      cleaned = `966${  cleaned.substring(1)}`;
     } else if (cleaned.startsWith("5") && cleaned.length === 9) {
       // 5xxxxxxxx -> 966 5xxxxxxxx
-      cleaned = "966" + cleaned;
+      cleaned = `966${  cleaned}`;
     } else if (cleaned.startsWith("5") && cleaned.length === 8) {
       // 5xxxxxxx -> 966 5xxxxxxx (8 digits after 5)
-      cleaned = "966" + cleaned;
+      cleaned = `966${  cleaned}`;
     } else if (cleaned.startsWith("0") && cleaned.length === 10) {
       // 0xxxxxxxxx -> might be 05xxxxxxxx
       if (cleaned[1] === "5") {
-        cleaned = "966" + cleaned.substring(1);
+        cleaned = `966${  cleaned.substring(1)}`;
       } else {
         // Not a mobile number, but add country code anyway
-        cleaned = "966" + cleaned.substring(1);
+        cleaned = `966${  cleaned.substring(1)}`;
       }
     } else if (cleaned.length === 9 && !cleaned.startsWith("966")) {
       // 9 digits, assume it needs country code
       if (cleaned.startsWith("5")) {
         // Mobile number
-        cleaned = "966" + cleaned;
+        cleaned = `966${  cleaned}`;
       } else {
         // Might be missing the 5
-        cleaned = "9665" + cleaned;
+        cleaned = `9665${  cleaned}`;
       }
     } else if (cleaned.length === 8 && !cleaned.startsWith("966")) {
       // 8 digits, definitely needs country code and possibly the 5
       if (cleaned.startsWith("5")) {
-        cleaned = "966" + cleaned;
+        cleaned = `966${  cleaned}`;
       } else {
         // Assume mobile number missing the 5
-        cleaned = "9665" + cleaned;
+        cleaned = `9665${  cleaned}`;
       }
     } else if (cleaned.length === 7) {
       // Very short, assume it's the core number without 05 or country code
-      cleaned = "9665" + cleaned;
+      cleaned = `9665${  cleaned}`;
     } else if (!cleaned.startsWith("966") && cleaned.length < 12) {
       // Any other format, try to make it work
       if (cleaned.startsWith("5")) {
-        cleaned = "966" + cleaned;
+        cleaned = `966${  cleaned}`;
       } else if (cleaned.startsWith("0")) {
-        cleaned = "966" + cleaned.substring(1);
+        cleaned = `966${  cleaned.substring(1)}`;
       } else {
         // Assume it needs both country code and mobile prefix
-        cleaned = "9665" + cleaned;
+        cleaned = `9665${  cleaned}`;
       }
     }
 
     // Ensure we have the + prefix for international format
-    return "+" + cleaned;
+    return `+${  cleaned}`;
   },
 
   /**
@@ -346,9 +346,9 @@ export const phoneAuthService = {
             // Check if father's name matches
             const fatherNameMatches =
               fatherNameValue === fatherName ||
-              fatherNameValue?.startsWith(fatherName + " ") ||
-              fatherNameValue?.includes(" " + fatherName + " ") ||
-              fatherNameValue?.endsWith(" " + fatherName);
+              fatherNameValue?.startsWith(`${fatherName  } `) ||
+              fatherNameValue?.includes(` ${  fatherName  } `) ||
+              fatherNameValue?.endsWith(` ${  fatherName}`);
 
             return {
               ...profile,

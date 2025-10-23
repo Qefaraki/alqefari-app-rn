@@ -24,7 +24,7 @@ const handleExportDatabase = async () => {
             await pdfExportService.exportAdminStatsPDF(stats, profiles || []);
           } catch (error) {
             console.error("PDF export error:", error);
-            Alert.alert("خطأ", "فشل تصدير PDF: " + error.message);
+            Alert.alert("خطأ", `فشل تصدير PDF: ${  error.message}`);
           } finally {
             setExporting(false);
           }
@@ -76,7 +76,7 @@ const handleExportDatabase = async () => {
             }
           } catch (error) {
             console.error("Text export error:", error);
-            Alert.alert("خطأ", "فشل تصدير النص: " + error.message);
+            Alert.alert("خطأ", `فشل تصدير النص: ${  error.message}`);
           } finally {
             setExporting(false);
           }

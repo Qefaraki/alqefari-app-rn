@@ -73,14 +73,14 @@ const styles = StyleSheet.create({
 
     // Subtle Najdi border
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40', // Camel Hair 40%
+    borderColor: `${tokens.colors.najdi.container  }40`, // Camel Hair 40%
   },
   title: {
     marginBottom: tokens.spacing.sm, // 12px
   },
   divider: {
     height: 1,
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: `${tokens.colors.najdi.container  }20`,
     marginVertical: tokens.spacing.sm, // 12px
   },
   familyRow: {

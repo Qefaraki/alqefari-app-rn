@@ -87,16 +87,16 @@ class AdminContactService {
     if (!cleaned.startsWith('+')) {
       // Assume Saudi number if no country code
       if (cleaned.startsWith('966')) {
-        cleaned = '+' + cleaned;
+        cleaned = `+${  cleaned}`;
       } else if (cleaned.startsWith('05')) {
         // Convert Saudi local format to international
-        cleaned = '+966' + cleaned.substring(1);
+        cleaned = `+966${  cleaned.substring(1)}`;
       } else if (cleaned.startsWith('5')) {
         // Handle short format
-        cleaned = '+966' + cleaned;
+        cleaned = `+966${  cleaned}`;
       } else {
         // Default to adding +
-        cleaned = '+' + cleaned;
+        cleaned = `+${  cleaned}`;
       }
     }
 

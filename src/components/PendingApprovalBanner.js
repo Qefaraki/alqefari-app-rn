@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.container + "40",
+    borderColor: `${colors.container  }40`,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -426,16 +426,16 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   pendingContainer: {
-    borderColor: colors.secondary + "60",
-    backgroundColor: colors.secondary + "10",
+    borderColor: `${colors.secondary  }60`,
+    backgroundColor: `${colors.secondary  }10`,
   },
   rejectedContainer: {
-    borderColor: colors.error + "60",
-    backgroundColor: colors.error + "10",
+    borderColor: `${colors.error  }60`,
+    backgroundColor: `${colors.error  }10`,
   },
   approvedContainer: {
-    borderColor: colors.success + "60",
-    backgroundColor: colors.success + "10",
+    borderColor: `${colors.success  }60`,
+    backgroundColor: `${colors.success  }10`,
   },
   content: {
     flexDirection: "row",
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: colors.text + "CC",
+    color: `${colors.text  }CC`,
     fontFamily: "SF Arabic",
     lineHeight: 20,
   },
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 12,
-    color: colors.text + "80",
+    color: `${colors.text  }80`,
     fontFamily: "SF Arabic",
     marginTop: 4,
   },
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: colors.text + "99",
+    color: `${colors.text  }99`,
     fontFamily: "SF Arabic",
     marginLeft: 6,
     flex: 1,
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: colors.text + "AA",
+    color: `${colors.text  }AA`,
     fontFamily: "SF Arabic",
   },
 });

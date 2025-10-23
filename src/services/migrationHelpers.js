@@ -72,7 +72,7 @@ export const migrationHelpers = {
       if (dateData.hijri.day) parts.push(dateData.hijri.day);
       if (dateData.hijri.month) parts.push(dateData.hijri.month);
       parts.push(dateData.hijri.year);
-      return parts.join('/') + 'هـ';
+      return `${parts.join('/')  }هـ`;
     }
     
     // Format Gregorian date
@@ -82,7 +82,7 @@ export const migrationHelpers = {
       if (dateData.gregorian.day) parts.push(dateData.gregorian.day);
       if (dateData.gregorian.month) parts.push(dateData.gregorian.month);
       parts.push(dateData.gregorian.year);
-      return prefix + parts.join('/') + 'م';
+      return `${prefix + parts.join('/')  }م`;
     }
     
     return '';

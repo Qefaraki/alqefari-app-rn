@@ -6,7 +6,7 @@
 // Node Dimensions
 export const NODE_WIDTH_WITH_PHOTO = 85;
 export const NODE_WIDTH_TEXT_ONLY = 60;
-export const NODE_HEIGHT_WITH_PHOTO = 90;
+export const NODE_HEIGHT_WITH_PHOTO = 75;  // Reduced from 90 for tighter spacing
 export const NODE_HEIGHT_TEXT_ONLY = 35;
 export const PHOTO_SIZE = 60;
 

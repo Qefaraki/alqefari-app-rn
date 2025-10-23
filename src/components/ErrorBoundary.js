@@ -123,13 +123,13 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   debugContainer: {
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: `${tokens.colors.najdi.container  }20`,
     borderRadius: tokens.radii.md,
     padding: tokens.spacing.md,
     marginBottom: tokens.spacing.lg,
     maxWidth: '100%',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
   },
   debugTitle: {
     fontSize: 13,

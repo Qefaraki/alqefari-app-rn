@@ -340,7 +340,7 @@ const ProfileSheet = ({ editMode = false }) => {
     if (names.length > 1) {
       const connector = person.gender === "female" ? "بنت" : "بن";
       // Omit the person's own first name to avoid duplication with the title
-      return connector + " " + names.slice(1).join(" ");
+      return `${connector  } ${  names.slice(1).join(" ")}`;
     }
     return names.join(" ");
   }, [person, nodesMap]);

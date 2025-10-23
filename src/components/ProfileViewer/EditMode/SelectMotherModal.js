@@ -252,7 +252,7 @@ const SelectMotherModal = ({ visible, person, father, onClose, onSaved }) => {
                             )}
                             {spouseData.status !== 'married' && spouseData.status !== 'current' && (
                               <View style={[styles.munasibBadge, {
-                                backgroundColor: tokens.colors.najdi.textMuted + '15'
+                                backgroundColor: `${tokens.colors.najdi.textMuted  }15`
                               }]}>
                                 <Ionicons
                                   name="time-outline"

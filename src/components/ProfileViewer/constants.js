@@ -42,8 +42,8 @@ export const KNOWN_PROFILE_FIELDS = [
 ];
 
 export const VIEW_TABS = [
-  { id: 'general', label: 'عام' },
-  { id: 'details', label: 'تفاصيل' },
+  { id: 'general', label: 'الأساسيات' },
+  { id: 'details', label: 'السيرة' },
   { id: 'family', label: 'العائلة' },
   { id: 'contact', label: 'التواصل' },
 ];

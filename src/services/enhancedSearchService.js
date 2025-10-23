@@ -168,7 +168,7 @@ class EnhancedSearchService {
     if (!name) return "";
 
     // Remove common variations in Arabic text
-    let normalized = name
+    const normalized = name
       // Remove diacritics (tashkeel)
       .replace(/[\u064B-\u065F]/g, "")
       // Normalize alef variations
@@ -270,7 +270,7 @@ class EnhancedSearchService {
 
     // Add with/without 'ال' prefix
     if (!name.startsWith("ال")) {
-      variations.push("ال" + name);
+      variations.push(`ال${  name}`);
     }
 
     return [...new Set(variations)]; // Remove duplicates

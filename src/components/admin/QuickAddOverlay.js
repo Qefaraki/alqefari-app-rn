@@ -839,7 +839,7 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
                       ref={inputRef}
                       style={[styles.inputField, inputError && styles.inputFieldError]}
                       placeholder="اكتب الاسم الكامل"
-                      placeholderTextColor={COLORS.textMuted + "AA"}
+                      placeholderTextColor={`${COLORS.textMuted  }AA`}
                       value={currentName}
                       onChangeText={(text) => {
                         setCurrentName(text);
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.container + "33",
+    borderBottomColor: `${COLORS.container  }33`,
     backgroundColor: COLORS.background,
   },
   navAction: {
@@ -1035,7 +1035,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   navActionDisabled: {
-    backgroundColor: COLORS.container + "33",
+    backgroundColor: `${COLORS.container  }33`,
   },
   navSaveText: {
     fontSize: tokens.typography.body.fontSize,
@@ -1050,7 +1050,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 2,
     borderRadius: 12,
-    backgroundColor: COLORS.background + "30",
+    backgroundColor: `${COLORS.background  }30`,
     alignItems: "center",
   },
   navBadgeText: {
@@ -1064,8 +1064,8 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.lg,
     overflow: "visible",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "25",
-    backgroundColor: COLORS.background + "66",
+    borderColor: `${COLORS.container  }25`,
+    backgroundColor: `${COLORS.background  }66`,
     shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 18,
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.sm,
     paddingHorizontal: tokens.spacing.md,
     gap: tokens.spacing.sm,
-    backgroundColor: COLORS.background + "F6",
+    backgroundColor: `${COLORS.background  }F6`,
     borderRadius: tokens.radii.lg,
     position: "relative",
     zIndex: 50,
@@ -1093,7 +1093,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: tokens.radii.lg,
     borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
     backgroundColor: COLORS.background,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
@@ -1102,8 +1102,8 @@ const styles = StyleSheet.create({
     textAlign: "auto",
   },
   inputFieldError: {
-    borderColor: tokens.colors.danger + "66",
-    backgroundColor: tokens.colors.danger + "12",
+    borderColor: `${tokens.colors.danger  }66`,
+    backgroundColor: `${tokens.colors.danger  }12`,
   },
   nameRow: {
     flexDirection: "row",
@@ -1120,8 +1120,8 @@ const styles = StyleSheet.create({
     height: tokens.touchTarget.minimum,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
-    backgroundColor: COLORS.background + "F2",
+    borderColor: `${COLORS.container  }33`,
+    backgroundColor: `${COLORS.background  }F2`,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -1151,13 +1151,13 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.lg,
   },
   statusBannerSuccess: {
-    backgroundColor: tokens.colors.success + "15",
+    backgroundColor: `${tokens.colors.success  }15`,
   },
   statusBannerError: {
-    backgroundColor: tokens.colors.danger + "15",
+    backgroundColor: `${tokens.colors.danger  }15`,
   },
   statusBannerInfo: {
-    backgroundColor: COLORS.container + "20",
+    backgroundColor: `${COLORS.container  }20`,
   },
   statusBannerText: {
     flex: 1,
@@ -1208,7 +1208,7 @@ const styles = StyleSheet.create({
     height: tokens.touchTarget.minimum,
     borderRadius: tokens.radii.md,
     borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
     backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",

@@ -69,9 +69,9 @@ const Shimmer = ({
       >
         <LinearGradient
           colors={[
-            tokens.colors.najdi.container + '40', // #D1BBA340 (25% opacity)
-            tokens.colors.najdi.container + '80', // #D1BBA380 (50% opacity)
-            tokens.colors.najdi.container + '40', // #D1BBA340 (25% opacity)
+            `${tokens.colors.najdi.container  }40`, // #D1BBA340 (25% opacity)
+            `${tokens.colors.najdi.container  }80`, // #D1BBA380 (50% opacity)
+            `${tokens.colors.najdi.container  }40`, // #D1BBA340 (25% opacity)
           ]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -84,7 +84,7 @@ const Shimmer = ({
 
 const styles = StyleSheet.create({
   shimmerContainer: {
-    backgroundColor: tokens.colors.najdi.container + '20', // #D1BBA320 base
+    backgroundColor: `${tokens.colors.najdi.container  }20`, // #D1BBA320 base
     overflow: 'hidden',
   },
   shimmerGradient: {

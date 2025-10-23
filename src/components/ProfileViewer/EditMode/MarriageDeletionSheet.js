@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.lg,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.crimson + '33',
+    borderColor: `${tokens.colors.najdi.crimson  }33`,
   },
   warningText: {
     flex: 1,

@@ -246,7 +246,7 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
           <TextInput
             style={styles.searchInput}
             placeholder="ابحث بالاسم أو HID..."
-            placeholderTextColor={colors.textMuted + "99"}
+            placeholderTextColor={`${colors.textMuted  }99`}
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -289,7 +289,7 @@ const BranchSelector = ({ visible, onSelect, onClose, selectedUserId, selectedUs
         </View>
       ) : filteredBranches.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="search-outline" size={48} color={colors.textMuted + "60"} />
+          <Ionicons name="search-outline" size={48} color={`${colors.textMuted  }60`} />
           <Text style={styles.emptyText}>لا توجد نتائج</Text>
           <Text style={styles.emptySubtext}>جرب البحث باسم آخر أو HID</Text>
         </View>
@@ -396,13 +396,13 @@ const styles = StyleSheet.create({
   infoBanner: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.secondary + "10",
+    backgroundColor: `${colors.secondary  }10`,
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.secondary + "30",
+    borderColor: `${colors.secondary  }30`,
     gap: 8,
   },
   infoText: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   depthIndicator: {
     height: "100%",
     borderRightWidth: 2,
-    borderRightColor: colors.secondary + "40",
+    borderRightColor: `${colors.secondary  }40`,
     marginRight: 12,
   },
   branchInfo: {
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   hidBadge: {
-    backgroundColor: colors.primary + "10",
+    backgroundColor: `${colors.primary  }10`,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,

@@ -658,13 +658,13 @@ const TreeView = ({
     // Use cache only if version matches current schema
     if (existingData && existingData.length >= 5000 && cachedVersion === TREE_DATA_SCHEMA_VERSION) {
       const loadTime = Date.now() - startTime;
-      console.log('🚀 Using preloaded tree data:', existingData.length, 'nodes (schema v' + TREE_DATA_SCHEMA_VERSION + '), instant load in', loadTime, 'ms');
+      console.log('🚀 Using preloaded tree data:', existingData.length, `nodes (schema v${  TREE_DATA_SCHEMA_VERSION  }), instant load in`, loadTime, 'ms');
       // Don't reload - we have enough data with correct schema
       setShowSkeleton(false);
       setIsLoading(false);
       return;
     } else if (existingData && existingData.length >= 5000 && cachedVersion !== TREE_DATA_SCHEMA_VERSION) {
-      console.log('⚠️ Schema version mismatch (cached: v' + cachedVersion + ', current: v' + TREE_DATA_SCHEMA_VERSION + '), reloading tree...');
+      console.log(`⚠️ Schema version mismatch (cached: v${  cachedVersion  }, current: v${  TREE_DATA_SCHEMA_VERSION  }), reloading tree...`);
     } else if (existingData && existingData.length > 0) {
       console.log('⚠️ Partial tree data exists:', existingData.length, 'nodes, loading full tree...');
     }
@@ -2359,7 +2359,7 @@ const TreeView = ({
 
       let edgeCount = 0;
       const paths = [];
-      let pathBuilder = Skia.Path.Make();
+      const pathBuilder = Skia.Path.Make();
       let currentBatch = 0;
 
       for (const conn of connections) {

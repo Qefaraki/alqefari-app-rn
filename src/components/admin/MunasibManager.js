@@ -43,7 +43,7 @@ const FamilyCard = ({ item, onPress }) => {
           <Ionicons
             name="chevron-back"
             size={18}
-            color={palette.text + "55"}
+            color={`${palette.text  }55`}
           />
         </View>
       </View>
@@ -206,13 +206,13 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
         </View>
 
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={palette.text + "66"} />
+          <Ionicons name="search" size={18} color={`${palette.text  }66`} />
           <TextInput
             style={styles.searchInput}
             placeholder="ابحث عن عائلة..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor={palette.text + "66"}
+            placeholderTextColor={`${palette.text  }66`}
           />
           {searchQuery !== "" && (
             <TouchableOpacity
@@ -221,7 +221,7 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
             >
-              <Ionicons name="close-circle" size={18} color={palette.text + "66"} />
+              <Ionicons name="close-circle" size={18} color={`${palette.text  }66`} />
             </TouchableOpacity>
           )}
         </View>
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   introSubtitle: {
     ...typography.subheadline,
     fontFamily: "SF Arabic",
-    color: palette.text + "99",
+    color: `${palette.text  }99`,
     lineHeight: typography.subheadline.lineHeight,
   },
   searchBar: {
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     ...typography.subheadline,
     fontFamily: "SF Arabic",
-    color: palette.text + "99",
+    color: `${palette.text  }99`,
     textAlign: "center",
     lineHeight: typography.subheadline.lineHeight,
   },

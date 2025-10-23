@@ -25,7 +25,7 @@ export async function fetchTreeStructure(focusPersonId) {
 
     // Get immediate family (using Set to avoid duplicates)
     const nodeIds = new Set([focusData.id]);
-    let structureData = [focusData];
+    const structureData = [focusData];
 
     // Fetch children and siblings
     if (focusData.father_id) {

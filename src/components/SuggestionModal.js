@@ -148,7 +148,7 @@ const SuggestionModal = ({
 
         // Show appropriate message based on permission level
         let message = "";
-        let title = "تم الإرسال";
+        const title = "تم الإرسال";
 
         if (permissionLevel === 'suggest') {
           message = "تم إرسال اقتراحك للمراجعة.\n\nيحتاج موافقة من المشرفين قبل التطبيق.";
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
+    borderBottomColor: `${COLORS.container  }40`,
   },
   headerButton: {
     padding: 8,
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
+    borderBottomColor: `${COLORS.container  }40`,
   },
   profileName: {
     fontSize: 24,
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     color: COLORS.textMedium,
   },
   countBadge: {
-    backgroundColor: COLORS.textLight + "20",
+    backgroundColor: `${COLORS.textLight  }20`,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
     minHeight: 60,
   },
   fieldInfo: {
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "20",
+    borderBottomColor: `${COLORS.container  }20`,
   },
   selectedFieldLabel: {
     fontSize: 18,
@@ -560,11 +560,11 @@ const styles = StyleSheet.create({
     textAlign: "left",
   },
   currentValueBox: {
-    backgroundColor: COLORS.container + "20",
+    backgroundColor: `${COLORS.container  }20`,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
   },
   currentValueText: {
     fontSize: 16,
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "white",
     borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   infoBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.secondary + "10",
+    backgroundColor: `${COLORS.secondary  }10`,
     padding: 12,
     borderRadius: 8,
     marginTop: 16,

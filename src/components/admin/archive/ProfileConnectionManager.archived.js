@@ -133,7 +133,7 @@ const RequestCard = ({ request, status, onApprove, onReject, onWhatsApp, onExpan
         {/* Compact Avatar */}
         <View style={styles.avatarContainer}>
           <LinearGradient
-            colors={[avatarColor, avatarColor + "DD"]}
+            colors={[avatarColor, `${avatarColor  }DD`]}
             style={styles.avatarGradient}
           >
             {profile?.photo_url ? (
@@ -166,7 +166,7 @@ const RequestCard = ({ request, status, onApprove, onReject, onWhatsApp, onExpan
           {request.phone && (
             <Text style={styles.phoneText}>
               <Ionicons name="call" size={11} color={colors.textSecondary} />
-              {" " + request.phone}
+              {` ${  request.phone}`}
             </Text>
           )}
         </View>
@@ -505,21 +505,21 @@ export default function ProfileConnectionManager({ onBack }) {
         {/* Enhanced Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.warning + "15" }]}>
+            <View style={[styles.statIconContainer, { backgroundColor: `${colors.warning  }15` }]}>
               <Ionicons name="time" size={16} color={colors.warning} />
             </View>
             <Text style={styles.statNumber}>{requests.pending?.length || 0}</Text>
             <Text style={styles.statLabel}>في الانتظار</Text>
           </View>
           <View style={styles.statItem}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.success + "15" }]}>
+            <View style={[styles.statIconContainer, { backgroundColor: `${colors.success  }15` }]}>
               <Ionicons name="checkmark-circle" size={16} color={colors.success} />
             </View>
             <Text style={styles.statNumber}>{requests.approved?.length || 0}</Text>
             <Text style={styles.statLabel}>موافق عليها</Text>
           </View>
           <View style={styles.statItem}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.error + "15" }]}>
+            <View style={[styles.statIconContainer, { backgroundColor: `${colors.error  }15` }]}>
               <Ionicons name="close-circle" size={16} color={colors.error} />
             </View>
             <Text style={styles.statNumber}>{requests.rejected?.length || 0}</Text>
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
   tabBarContainer: {
     position: "relative",
     borderBottomWidth: 1,
-    borderBottomColor: colors.container + "30",
+    borderBottomColor: `${colors.container  }30`,
   },
   tabBar: {
     flexDirection: "row",
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   badge: {
-    backgroundColor: colors.container + "30",
+    backgroundColor: `${colors.container  }30`,
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -832,7 +832,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   badgeActive: {
-    backgroundColor: colors.primary + "15",
+    backgroundColor: `${colors.primary  }15`,
   },
   badgeText: {
     fontSize: 11,
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.container + "20",
+    borderTopColor: `${colors.container  }20`,
     paddingTop: 12,
   },
   approveButton: {
@@ -969,10 +969,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.success + "12",
+    backgroundColor: `${colors.success  }12`,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: colors.success + "25",
+    borderColor: `${colors.success  }25`,
     gap: 6,
   },
   approveButtonText: {
@@ -988,10 +988,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.error + "12",
+    backgroundColor: `${colors.error  }12`,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: colors.error + "25",
+    borderColor: `${colors.error  }25`,
     gap: 6,
   },
   rejectButtonText: {
@@ -1035,7 +1035,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary + "10",
+    backgroundColor: `${colors.primary  }10`,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -1117,7 +1117,7 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderWidth: 1.5,
-    borderColor: colors.container + "40",
+    borderColor: `${colors.container  }40`,
     borderRadius: 12,
     padding: 12,
     fontSize: 15,
@@ -1128,7 +1128,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   modalInputActive: {
-    borderColor: colors.primary + "60",
+    borderColor: `${colors.primary  }60`,
     backgroundColor: colors.white,
   },
   modalActions: {
@@ -1140,9 +1140,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: colors.container + "20",
+    backgroundColor: `${colors.container  }20`,
     borderWidth: 1,
-    borderColor: colors.container + "40",
+    borderColor: `${colors.container  }40`,
     alignItems: "center",
   },
   modalCancelText: {

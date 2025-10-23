@@ -225,11 +225,11 @@ const styles = StyleSheet.create({
   },
   oldValueCard: {
     backgroundColor: tokens.colors.diff.removedBg,
-    borderColor: tokens.colors.diff.removed + '30',
+    borderColor: `${tokens.colors.diff.removed  }30`,
   },
   newValueCard: {
     backgroundColor: tokens.colors.diff.addedBg,
-    borderColor: tokens.colors.diff.added + '30',
+    borderColor: `${tokens.colors.diff.added  }30`,
   },
   diffLabel: {
     fontSize: 12,

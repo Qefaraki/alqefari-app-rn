@@ -273,7 +273,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
               <Ionicons
                 name="close-circle"
                 size={18}
-                color={COLORS.textMuted + "55"}
+                color={`${COLORS.textMuted  }55`}
               />
             </TouchableOpacity>
           )}
@@ -282,7 +282,7 @@ const MotherSelectorSimple = ({ fatherId, value, onChange, label, showLabel = tr
           <Ionicons
             name={showDropdown ? "chevron-up" : "chevron-down"}
             size={16}
-            color={COLORS.textMuted + "55"}
+            color={`${COLORS.textMuted  }55`}
           />
         </View>
         </TouchableOpacity>
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
+    borderColor: `${COLORS.container  }33`,
     shadowColor: "#000",
     shadowOpacity: 0.04,
     shadowRadius: 8,
@@ -461,10 +461,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.container + "22",
+    borderBottomColor: `${COLORS.container  }22`,
   },
   optionSelected: {
-    backgroundColor: COLORS.container + "12",
+    backgroundColor: `${COLORS.container  }12`,
   },
   optionContent: {
     flex: 1,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   currentBadge: {
-    backgroundColor: COLORS.primary + "12",
+    backgroundColor: `${COLORS.primary  }12`,
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 3,
     borderRadius: tokens.radii.sm,

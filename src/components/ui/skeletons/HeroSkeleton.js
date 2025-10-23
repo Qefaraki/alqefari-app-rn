@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   },
   photoWrapper: {
     height: 220,
-    backgroundColor: tokens.colors.najdi.container + '30',
+    backgroundColor: `${tokens.colors.najdi.container  }30`,
   },
   body: {
     paddingHorizontal: 20,

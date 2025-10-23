@@ -269,7 +269,7 @@ export function formatFieldValue(fieldName, value) {
   }
 
   if (typeof value === 'string' && value.length > 50) {
-    return value.substring(0, 50) + '...';
+    return `${value.substring(0, 50)  }...`;
   }
 
   return String(value);

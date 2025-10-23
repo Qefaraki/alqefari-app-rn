@@ -256,13 +256,13 @@ const ApprovalInbox = ({ visible, onClose }) => {
               {suggestionService.formatFieldName(suggestion.field_name)}
             </Text>
             <Text style={styles.dateText}>
-              {new Date(suggestion.created_at.endsWith('Z') ? suggestion.created_at : suggestion.created_at + 'Z').toLocaleDateString("ar-SA")}
+              {new Date(suggestion.created_at.endsWith('Z') ? suggestion.created_at : `${suggestion.created_at  }Z`).toLocaleDateString("ar-SA")}
             </Text>
           </View>
           <View
             style={[
               styles.statusBadge,
-              { backgroundColor: getStatusColor(suggestion.status) + "20" },
+              { backgroundColor: `${getStatusColor(suggestion.status)  }20` },
             ]}
           >
             <Text
@@ -341,7 +341,7 @@ const ApprovalInbox = ({ visible, onClose }) => {
             {suggestion.status === "approved" && (
               <Text style={styles.resultText}>
                 تم القبول {suggestion.reviewed_at ?
-                  `في ${new Date(suggestion.reviewed_at.endsWith('Z') ? suggestion.reviewed_at : suggestion.reviewed_at + 'Z').toLocaleDateString("ar-SA")}` : ""}
+                  `في ${new Date(suggestion.reviewed_at.endsWith('Z') ? suggestion.reviewed_at : `${suggestion.reviewed_at  }Z`).toLocaleDateString("ar-SA")}` : ""}
               </Text>
             )}
             {suggestion.status === "rejected" && suggestion.rejection_reason && (
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
+    borderBottomColor: `${COLORS.container  }40`,
   },
   closeButton: {
     padding: 4,
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.container + "40",
+    borderBottomColor: `${COLORS.container  }40`,
   },
   scrollView: {
     flex: 1,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
   },
   cardHeader: {
     flexDirection: "row",
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reasonSection: {
-    backgroundColor: COLORS.container + "10",
+    backgroundColor: `${COLORS.container  }10`,
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   submitterSection: {
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
+    borderTopColor: `${COLORS.container  }40`,
   },
   submitterText: {
     fontSize: 12,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
+    borderTopColor: `${COLORS.container  }40`,
   },
   timerText: {
     fontSize: 12,
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
+    borderTopColor: `${COLORS.container  }40`,
   },
   actionButton: {
     flex: 1,
@@ -636,10 +636,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   rejectButton: {
-    backgroundColor: COLORS.error + "10",
+    backgroundColor: `${COLORS.error  }10`,
   },
   approveButton: {
-    backgroundColor: COLORS.success + "10",
+    backgroundColor: `${COLORS.success  }10`,
   },
   actionText: {
     fontSize: 14,
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.container + "40",
+    borderTopColor: `${COLORS.container  }40`,
   },
   resultText: {
     fontSize: 12,

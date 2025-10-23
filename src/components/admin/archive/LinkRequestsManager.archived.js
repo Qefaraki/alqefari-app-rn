@@ -371,7 +371,7 @@ const LinkRequestsManager = ({ onClose }) => {
         >
           <View style={styles.requestInfo}>
             <LinearGradient
-              colors={[config.color, config.color + "DD"]}
+              colors={[config.color, `${config.color  }DD`]}
               style={styles.profileBadge}
             >
               <Ionicons name="person" size={20} color={colors.white} />
@@ -504,7 +504,7 @@ const LinkRequestsManager = ({ onClose }) => {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={[styles.sectionAccent, { backgroundColor: color }]} />
-          <View style={[styles.sectionIconContainer, { backgroundColor: color + "15" }]}>
+          <View style={[styles.sectionIconContainer, { backgroundColor: `${color  }15` }]}>
             <Ionicons name={icon} size={18} color={color} />
           </View>
           <Text style={styles.sectionTitle}>
@@ -731,7 +731,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: colors.container + "30",
+    borderBottomColor: `${colors.container  }30`,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -794,7 +794,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionBadge: {
-    backgroundColor: colors.container + "30",
+    backgroundColor: `${colors.container  }30`,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.container + "20",
+    borderTopColor: `${colors.container  }20`,
   },
   detailsGrid: {
     flexDirection: "row",
@@ -923,10 +923,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     marginTop: 12,
     padding: 12,
-    backgroundColor: colors.error + "08",
+    backgroundColor: `${colors.error  }08`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.error + "20",
+    borderColor: `${colors.error  }20`,
   },
   rejectionIcon: {
     marginRight: 8,
@@ -966,7 +966,7 @@ const styles = StyleSheet.create({
   contextLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: colors.text + "CC",
+    color: `${colors.text  }CC`,
     fontFamily: "SF Arabic",
     marginBottom: 4,
   },
@@ -982,7 +982,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.container + "20",
+    borderTopColor: `${colors.container  }20`,
   },
   approveButton: {
     flex: 1,
@@ -991,10 +991,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.success + "15",
+    backgroundColor: `${colors.success  }15`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.success + "30",
+    borderColor: `${colors.success  }30`,
     gap: 6,
   },
   approveButtonText: {
@@ -1010,10 +1010,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.error + "15",
+    backgroundColor: `${colors.error  }15`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.error + "30",
+    borderColor: `${colors.error  }30`,
     gap: 6,
   },
   rejectButtonText: {
@@ -1051,7 +1051,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.primary + "10",
+    backgroundColor: `${colors.primary  }10`,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 16,
@@ -1125,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   modalInput: {
     borderWidth: 1.5,
-    borderColor: colors.container + "40",
+    borderColor: `${colors.container  }40`,
     borderRadius: 12,
     padding: 12,
     fontSize: 15,
@@ -1136,7 +1136,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   modalInputActive: {
-    borderColor: colors.primary + "60",
+    borderColor: `${colors.primary  }60`,
     backgroundColor: colors.white,
   },
   modalActions: {
@@ -1149,9 +1149,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
-    backgroundColor: colors.container + "20",
+    backgroundColor: `${colors.container  }20`,
     borderWidth: 1,
-    borderColor: colors.container + "40",
+    borderColor: `${colors.container  }40`,
   },
   confirmButton: {
     flex: 1,

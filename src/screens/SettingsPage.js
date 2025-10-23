@@ -490,7 +490,7 @@ export default function SettingsPage({ user }) {
                             const result = await accountDeletionService.deleteAccount();
 
                             if (!result.success) {
-                              Alert.alert("خطأ", "فشل حذف الحساب: " + (result.error || "Unknown error"));
+                              Alert.alert("خطأ", `فشل حذف الحساب: ${  result.error || "Unknown error"}`);
                               return;
                             }
 

@@ -47,14 +47,29 @@ const SegmentedControl = ({
               accessibilityState={{ selected: isActive }}
               accessibilityLabel={option.label}
             >
-              <Text
-                style={[
-                  styles.segmentText,
-                  isActive && styles.segmentTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
+              <View style={styles.segmentContent}>
+                <Text
+                  style={[
+                    styles.segmentText,
+                    isActive && styles.segmentTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                {option.badge ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{option.badge}</Text>
+                  </View>
+                ) : null}
+                {!option.badge && option.showDot ? (
+                  <View
+                    style={[
+                      styles.dot,
+                      { backgroundColor: isActive ? tokens.colors.najdi.primary : tokens.colors.najdi.secondary },
+                    ]}
+                  />
+                ) : null}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -69,7 +84,7 @@ const styles = StyleSheet.create({
   },
   control: {
     flexDirection: 'row',
-    backgroundColor: tokens.colors.najdi.container + '40', // Camel Hair Beige 40%
+    backgroundColor: `${tokens.colors.najdi.container  }40`, // Camel Hair Beige 40%
     borderRadius: 10,
     padding: 2,
   },
@@ -80,6 +95,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 72,
   },
   segmentActive: {
     backgroundColor: tokens.colors.surface,
@@ -101,7 +117,28 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     fontFamily: 'SF Arabic',
   },
+  segmentContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: tokens.radii.sm,
+    backgroundColor: `${tokens.colors.najdi.primary  }12`,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
+    fontFamily: 'SF Arabic',
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
 });
 
 export default SegmentedControl;
-

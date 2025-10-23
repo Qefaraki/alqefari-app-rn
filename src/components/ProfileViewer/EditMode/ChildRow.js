@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '33',
+    borderColor: `${tokens.colors.najdi.container  }33`,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     gap: tokens.spacing.sm,

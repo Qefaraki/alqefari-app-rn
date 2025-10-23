@@ -91,7 +91,7 @@ const CategoryChipFilter = ({
                 disabled={isDisabled}
                 android_ripple={
                   isDisabled ? undefined : {
-                    color: tokens.colors.najdi.primary + '20',
+                    color: `${tokens.colors.najdi.primary  }20`,
                     radius: 50,
                   }
                 }
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
   chipInactive: {
     backgroundColor: tokens.colors.najdi.background,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
   },
 
   chipDisabled: {
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   },
 
   countDisabled: {
-    color: tokens.colors.najdi.textMuted + '80',
+    color: `${tokens.colors.najdi.textMuted  }80`,
   },
 });
 

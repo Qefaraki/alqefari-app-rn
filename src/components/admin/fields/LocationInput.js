@@ -275,7 +275,7 @@ const LocationInput = ({
           value={inputText}
           onChangeText={handleTextChange}
           placeholder={placeholder}
-          placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+          placeholderTextColor={`${tokens.colors.najdi.textMuted  }80`}
           onFocus={handleFocus}
           onBlur={handleBlur}
           textAlign="right"
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
     borderWidth: 1,
     borderRadius: tokens.radii.md,
     paddingHorizontal: tokens.spacing.sm,
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     marginTop: tokens.spacing.xs,
     borderRadius: tokens.radii.md,
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOpacity: 0.08,
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.sm,
   },
   suggestionItemPressed: {
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: `${tokens.colors.najdi.container  }20`,
   },
   flag: {
     fontSize: 20,

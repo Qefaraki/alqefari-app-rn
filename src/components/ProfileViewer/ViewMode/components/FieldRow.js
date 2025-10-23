@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: tokens.colors.najdi.primary + '20', // Najdi Crimson 20%
+    backgroundColor: `${tokens.colors.najdi.primary  }20`, // Najdi Crimson 20%
     paddingHorizontal: tokens.spacing.sm, // 12px
     paddingVertical: 6,
     borderRadius: 16,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3, // Note: RTL mode auto-flips this to right
     borderLeftColor: tokens.colors.najdi.primary, // Najdi Crimson accent
     paddingLeft: tokens.spacing.sm, // 12px (auto-flips to right)
-    backgroundColor: tokens.colors.najdi.primary + '08', // Very subtle tint
+    backgroundColor: `${tokens.colors.najdi.primary  }08`, // Very subtle tint
     borderRadius: tokens.radii.sm, // 10px
     paddingHorizontal: tokens.spacing.sm,
   },

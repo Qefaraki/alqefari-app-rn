@@ -34,15 +34,15 @@ class SimpleExportService {
 
       // Create formatted text report
       let report = "";
-      report += "╔" + "═".repeat(50) + "╗\n";
-      report += "║" + this.centerText(title, 50) + "║\n";
-      report += "╠" + "═".repeat(50) + "╣\n";
+      report += `╔${  "═".repeat(50)  }╗\n`;
+      report += `║${  this.centerText(title, 50)  }║\n`;
+      report += `╠${  "═".repeat(50)  }╣\n`;
       report +=
-        "║ " +
-        `تاريخ التصدير: ${new Date().toLocaleDateString("ar-SA")}`.padEnd(49) +
-        "║\n";
-      report += "║ " + `عدد الأفراد: ${profiles.length}`.padEnd(49) + "║\n";
-      report += "╚" + "═".repeat(50) + "╝\n\n";
+        `║ ${ 
+        `تاريخ التصدير: ${new Date().toLocaleDateString("ar-SA")}`.padEnd(49) 
+        }║\n`;
+      report += `║ ${  `عدد الأفراد: ${profiles.length}`.padEnd(49)  }║\n`;
+      report += `╚${  "═".repeat(50)  }╝\n\n`;
 
       // Add each generation
       const sortedGenerations = Object.keys(generations).sort(
@@ -51,12 +51,12 @@ class SimpleExportService {
 
       for (const gen of sortedGenerations) {
         report += "\n";
-        report += "┌" + "─".repeat(40) + "┐\n";
+        report += `┌${  "─".repeat(40)  }┐\n`;
         report +=
-          "│ " +
-          this.centerText(`الجيل ${this.toArabicNumber(gen)}`, 38) +
-          " │\n";
-        report += "└" + "─".repeat(40) + "┘\n\n";
+          `│ ${ 
+          this.centerText(`الجيل ${this.toArabicNumber(gen)}`, 38) 
+          } │\n`;
+        report += `└${  "─".repeat(40)  }┘\n\n`;
 
         for (const person of generations[gen]) {
           report += this.formatPerson(person, {
@@ -64,12 +64,12 @@ class SimpleExportService {
             includeContact,
             includeMarriages,
           });
-          report += "─".repeat(30) + "\n\n";
+          report += `${"─".repeat(30)  }\n\n`;
         }
       }
 
       // Add footer
-      report += "\n" + "═".repeat(50) + "\n";
+      report += `\n${  "═".repeat(50)  }\n`;
       report += "تم إنشاء هذا التقرير من تطبيق شجرة عائلة القفاري\n";
       report += `جميع الحقوق محفوظة © ${new Date().getFullYear()}\n`;
 

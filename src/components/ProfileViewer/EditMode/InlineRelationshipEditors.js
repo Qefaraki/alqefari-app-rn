@@ -219,10 +219,10 @@ export const InlineMarriageEditor = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    backgroundColor: tokens.colors.najdi.primary + '08', // Subtle Najdi Crimson tint (8% opacity)
+    backgroundColor: `${tokens.colors.najdi.primary  }08`, // Subtle Najdi Crimson tint (8% opacity)
     borderRadius: tokens.radii.lg,
     borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.primary + '30', // Stronger border to emphasize edit mode
+    borderColor: `${tokens.colors.najdi.primary  }30`, // Stronger border to emphasize edit mode
     padding: tokens.spacing.lg,
     gap: tokens.spacing.lg,
   },

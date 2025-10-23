@@ -131,12 +131,12 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '500',
-    color: tokens.colors.najdi.text + 'C0',
+    color: `${tokens.colors.najdi.text  }C0`,
     paddingHorizontal: tokens.spacing.xs,
   },
   pickerWrapper: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '60',
+    borderColor: `${tokens.colors.najdi.container  }60`,
     borderWidth: 1,
     borderRadius: tokens.radii.md,
     overflow: 'hidden',

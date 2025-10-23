@@ -10,7 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
-const NameEditor = ({ value, onChange, placeholder, fontSize = 36 }) => {
+const NameEditor = ({ value, onChange, placeholder, fontSize = 36, variant = "card" }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isValid, setIsValid] = useState(true);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -96,19 +96,25 @@ const NameEditor = ({ value, onChange, placeholder, fontSize = 36 }) => {
     return "transparent";
   };
 
+  const isFormVariant = variant === "form";
+
+  const borderWidth = isFormVariant ? StyleSheet.hairlineWidth : 2;
+
   return (
     <View
       style={[
         styles.container,
+        isFormVariant && styles.containerForm,
         {
           borderColor: getBorderColor(),
-          borderWidth: 2,
+          borderWidth,
         },
       ]}
     >
       <Animated.View
         style={[
           styles.innerContainer,
+          isFormVariant && styles.innerContainerForm,
           {
             transform: [{ scale: scaleAnim }],
           },
@@ -116,7 +122,12 @@ const NameEditor = ({ value, onChange, placeholder, fontSize = 36 }) => {
       >
         <TextInput
           ref={inputRef}
-          style={[styles.input, !isValid && styles.invalidInput, { fontSize }]}
+          style={[
+            styles.input,
+            isFormVariant && styles.inputForm,
+            !isValid && styles.invalidInput,
+            { fontSize },
+          ]}
           value={value}
           onChangeText={handleChangeText}
           onFocus={handleFocus}
@@ -167,9 +178,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: "hidden",
   },
+  containerForm: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+  },
   innerContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  innerContainerForm: {
+    borderRadius: 12,
   },
   input: {
     flex: 1,
@@ -186,6 +204,11 @@ const styles = StyleSheet.create({
     textAlign: "right",
     writingDirection: "rtl",
   },
+  inputForm: {
+    fontSize: 18,
+    fontWeight: "600",
+    paddingVertical: 14,
+  },
   invalidInput: {
     color: "#EF4444",
   },
@@ -197,5 +220,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
+
 
 export default NameEditor;

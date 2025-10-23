@@ -110,20 +110,20 @@ const ACTION_CONFIGS = {
 };
 
 const ACTION_VISUALS = {
-  create_node: { icon: "leaf", fallback: "leaf-outline", color: tokens.colors.najdi.primary + "14", accent: tokens.colors.najdi.primary },
-  update_node: { icon: "square.and.pencil", fallback: "create-outline", color: tokens.colors.najdi.focus + "18", accent: tokens.colors.najdi.focus },
-  delete_node: { icon: "trash", fallback: "trash-outline", color: tokens.colors.najdi.primary + "18", accent: tokens.colors.najdi.primary },
-  merge_nodes: { icon: "point.topleft.down.curvedto.point.bottomright.up", fallback: "git-merge-outline", color: tokens.colors.najdi.secondary + "18", accent: tokens.colors.najdi.secondary },
-  add_marriage: { icon: "heart.circle", fallback: "heart", color: tokens.colors.najdi.secondary + "18", accent: tokens.colors.najdi.secondary },
-  update_marriage: { icon: "heart.text.square", fallback: "heart-circle-outline", color: tokens.colors.najdi.secondary + "16", accent: tokens.colors.najdi.secondary },
-  delete_marriage: { icon: "heart.slash", fallback: "heart-dislike-outline", color: tokens.colors.najdi.primary + "18", accent: tokens.colors.najdi.primary },
-  upload_photo: { icon: "photo.on.rectangle.angled", fallback: "image-outline", color: tokens.colors.najdi.focus + "18", accent: tokens.colors.najdi.focus },
-  update_photo: { icon: "photo.fill.on.rectangle.fill", fallback: "images-outline", color: tokens.colors.najdi.focus + "16", accent: tokens.colors.najdi.focus },
-  delete_photo: { icon: "trash.slash", fallback: "trash-bin-outline", color: tokens.colors.najdi.primary + "16", accent: tokens.colors.najdi.primary },
-  grant_admin: { icon: "shield.checkerboard", fallback: "shield-checkmark-outline", color: tokens.colors.najdi.primary + "16", accent: tokens.colors.najdi.primary },
-  revoke_admin: { icon: "shield.slash", fallback: "shield-outline", color: tokens.colors.najdi.primary + "18", accent: tokens.colors.najdi.primary },
-  update_settings: { icon: "gearshape", fallback: "settings-outline", color: tokens.colors.najdi.container + "26", accent: tokens.colors.najdi.text },
-  default: { icon: "doc.text", fallback: "document-text-outline", color: tokens.colors.najdi.container + "24", accent: tokens.colors.najdi.text },
+  create_node: { icon: "leaf", fallback: "leaf-outline", color: `${tokens.colors.najdi.primary  }14`, accent: tokens.colors.najdi.primary },
+  update_node: { icon: "square.and.pencil", fallback: "create-outline", color: `${tokens.colors.najdi.focus  }18`, accent: tokens.colors.najdi.focus },
+  delete_node: { icon: "trash", fallback: "trash-outline", color: `${tokens.colors.najdi.primary  }18`, accent: tokens.colors.najdi.primary },
+  merge_nodes: { icon: "point.topleft.down.curvedto.point.bottomright.up", fallback: "git-merge-outline", color: `${tokens.colors.najdi.secondary  }18`, accent: tokens.colors.najdi.secondary },
+  add_marriage: { icon: "heart.circle", fallback: "heart", color: `${tokens.colors.najdi.secondary  }18`, accent: tokens.colors.najdi.secondary },
+  update_marriage: { icon: "heart.text.square", fallback: "heart-circle-outline", color: `${tokens.colors.najdi.secondary  }16`, accent: tokens.colors.najdi.secondary },
+  delete_marriage: { icon: "heart.slash", fallback: "heart-dislike-outline", color: `${tokens.colors.najdi.primary  }18`, accent: tokens.colors.najdi.primary },
+  upload_photo: { icon: "photo.on.rectangle.angled", fallback: "image-outline", color: `${tokens.colors.najdi.focus  }18`, accent: tokens.colors.najdi.focus },
+  update_photo: { icon: "photo.fill.on.rectangle.fill", fallback: "images-outline", color: `${tokens.colors.najdi.focus  }16`, accent: tokens.colors.najdi.focus },
+  delete_photo: { icon: "trash.slash", fallback: "trash-bin-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
+  grant_admin: { icon: "shield.checkerboard", fallback: "shield-checkmark-outline", color: `${tokens.colors.najdi.primary  }16`, accent: tokens.colors.najdi.primary },
+  revoke_admin: { icon: "shield.slash", fallback: "shield-outline", color: `${tokens.colors.najdi.primary  }18`, accent: tokens.colors.najdi.primary },
+  update_settings: { icon: "gearshape", fallback: "settings-outline", color: `${tokens.colors.najdi.container  }26`, accent: tokens.colors.najdi.text },
+  default: { icon: "doc.text", fallback: "document-text-outline", color: `${tokens.colors.najdi.container  }24`, accent: tokens.colors.najdi.text },
 };
 
 const getActionVisuals = (actionType) => ACTION_VISUALS[actionType] || ACTION_VISUALS.default;
@@ -420,7 +420,7 @@ const ControlsRow = ({ onOpenFilters, activeFiltersCount, searchText, onSearchCh
             ref={searchInputRef}
             style={styles.searchInput}
             placeholder="بحث سريع"
-            placeholderTextColor={colors.textMuted + "99"}
+            placeholderTextColor={`${colors.textMuted  }99`}
             value={searchText}
             onChangeText={onSearchChange}
             returnKeyType="search"
@@ -2188,7 +2188,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -2228,7 +2228,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
     marginEnd: 8,
   },
   filterChipActive: {
@@ -2258,7 +2258,7 @@ const styles = StyleSheet.create({
   segmentedControl: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: tokens.colors.najdi.container + '24',
+    backgroundColor: `${tokens.colors.najdi.container  }24`,
     borderRadius: 14,
     padding: 4,
     marginTop: 12,
@@ -2350,7 +2350,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '30',
+    borderColor: `${tokens.colors.najdi.container  }30`,
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -2365,7 +2365,7 @@ const styles = StyleSheet.create({
   },
   activityCardUndone: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
   },
   activityLeading: {
     width: 48,
@@ -2431,8 +2431,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary + '33',
-    backgroundColor: tokens.colors.najdi.primary + '12',
+    borderColor: `${tokens.colors.najdi.primary  }33`,
+    backgroundColor: `${tokens.colors.najdi.primary  }12`,
   },
   dangerBadgeText: {
     fontSize: tokens.typography.caption1.fontSize,
@@ -2447,8 +2447,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '40',
-    backgroundColor: tokens.colors.najdi.container + '18',
+    borderColor: `${tokens.colors.najdi.container  }40`,
+    backgroundColor: `${tokens.colors.najdi.container  }18`,
   },
   undoneBadgeText: {
     fontSize: tokens.typography.caption1.fontSize,
@@ -2460,16 +2460,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: tokens.radii.full,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.primary + '66',
-    backgroundColor: tokens.colors.najdi.primary + '12',
+    borderColor: `${tokens.colors.najdi.primary  }66`,
+    backgroundColor: `${tokens.colors.najdi.primary  }12`,
     alignItems: "center",
     flexDirection: "row",
     gap: 6,
     minHeight: 32,
   },
   undoButtonDisabled: {
-    borderColor: tokens.colors.najdi.primary + '33',
-    backgroundColor: tokens.colors.najdi.primary + '08',
+    borderColor: `${tokens.colors.najdi.primary  }33`,
+    backgroundColor: `${tokens.colors.najdi.primary  }08`,
   },
   undoButtonText: {
     fontSize: tokens.typography.footnote.fontSize,
@@ -2557,7 +2557,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 4,
-    backgroundColor: colors.textMuted + "55",
+    backgroundColor: `${colors.textMuted  }55`,
   },
   sheetContent: {
     paddingHorizontal: 20,
@@ -2608,7 +2608,7 @@ const styles = StyleSheet.create({
   changeCard: {
     gap: tokens.spacing.sm,
     padding: tokens.spacing.sm,
-    backgroundColor: tokens.colors.najdi.container + '18',
+    backgroundColor: `${tokens.colors.najdi.container  }18`,
     borderRadius: tokens.radii.lg,
   },
   changeCardValues: {
@@ -2626,10 +2626,10 @@ const styles = StyleSheet.create({
   },
   changeValueBoxOld: {
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
   },
   changeValueBoxNew: {
-    backgroundColor: tokens.colors.najdi.container + '26',
+    backgroundColor: `${tokens.colors.najdi.container  }26`,
   },
   changeValueBoxLabel: {
     fontSize: 11,
@@ -2710,7 +2710,7 @@ const styles = StyleSheet.create({
     flexBasis: '48%',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: tokens.colors.najdi.container + '18',
+    backgroundColor: `${tokens.colors.najdi.container  }18`,
     gap: 4,
   },
   advancedLabel: {
@@ -2731,7 +2731,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: tokens.colors.najdi.container,
-    backgroundColor: tokens.colors.najdi.container + "26",
+    backgroundColor: `${tokens.colors.najdi.container  }26`,
     padding: 12,
   },
   jsonText: {
@@ -2752,7 +2752,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '30',
+    borderColor: `${tokens.colors.najdi.container  }30`,
     padding: 20,
     gap: 16,
   },
@@ -2800,7 +2800,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: tokens.colors.najdi.container + '18',
+    backgroundColor: `${tokens.colors.najdi.container  }18`,
   },
   filtersSheetChipActive: {
     backgroundColor: tokens.colors.najdi.crimson,
@@ -2823,7 +2823,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: tokens.colors.najdi.container + '18',
+    backgroundColor: `${tokens.colors.najdi.container  }18`,
   },
   filtersSheetChipSmallActive: {
     backgroundColor: tokens.colors.najdi.crimson,
@@ -2843,7 +2843,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 16,
-    backgroundColor: tokens.colors.najdi.container + '18',
+    backgroundColor: `${tokens.colors.najdi.container  }18`,
     marginBottom: 12,
   },
   filtersSheetRowButtonText: {
@@ -2873,7 +2873,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '30',
+    borderColor: `${tokens.colors.najdi.container  }30`,
     maxHeight: "90%",
   },
   advancedModalHeader: {

@@ -134,7 +134,7 @@ const AdminMessagesManager = ({ onClose }) => {
       <View style={styles.infoRow}>
         <Ionicons name="time" size={16} color="#736372" />
         <Text style={styles.infoText}>
-          {new Date(request.created_at + 'Z').toLocaleDateString('ar-SA')}
+          {new Date(`${request.created_at  }Z`).toLocaleDateString('ar-SA')}
         </Text>
       </View>
 
@@ -190,7 +190,7 @@ const AdminMessagesManager = ({ onClose }) => {
         <View style={styles.infoRow}>
           <Ionicons name="time" size={14} color="#736372" />
           <Text style={styles.infoText}>
-            {new Date(message.created_at + 'Z').toLocaleDateString('ar-SA')}
+            {new Date(`${message.created_at  }Z`).toLocaleDateString('ar-SA')}
           </Text>
         </View>
 

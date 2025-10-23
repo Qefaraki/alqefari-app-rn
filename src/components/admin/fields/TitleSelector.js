@@ -109,7 +109,7 @@ const TitleSelector = ({ value, customValue, onChange, personName }) => {
           value={customInput}
           onChangeText={handleCustomInput}
           placeholder="مثال: د., أ.د., م."
-          placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+          placeholderTextColor={`${tokens.colors.najdi.textMuted  }80`}
           maxLength={20}
         />
         {validationError ? <Text style={styles.errorText}>{validationError}</Text> : null}
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   optionChipActive: {
     borderColor: tokens.colors.najdi.primary,
-    backgroundColor: tokens.colors.najdi.primary + '10',
+    backgroundColor: `${tokens.colors.najdi.primary  }10`,
   },
   optionLabel: {
     fontSize: 15,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   preview: {
     padding: tokens.spacing.md,
-    backgroundColor: tokens.colors.najdi.container + '20',
+    backgroundColor: `${tokens.colors.najdi.container  }20`,
     borderRadius: tokens.radii.sm,
     gap: tokens.spacing.xxs,
   },
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: tokens.colors.najdi.text,
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: `${tokens.colors.najdi.container  }40`,
     borderRadius: tokens.radii.sm,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,

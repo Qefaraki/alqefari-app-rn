@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.container + '30',
+    borderColor: `${COLORS.container  }30`,
     shadowColor: '#000',
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
   },
   headerExpanded: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.container + '33',
+    borderBottomColor: `${COLORS.container  }33`,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLORS.container + '50',
+    borderColor: `${COLORS.container  }50`,
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
   },
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   countBadge: {
-    backgroundColor: COLORS.primary + '12',
+    backgroundColor: `${COLORS.primary  }12`,
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countBadgeWarning: {
-    backgroundColor: COLORS.ochre + '12',
+    backgroundColor: `${COLORS.ochre  }12`,
   },
   countText: {
     fontSize: 14,
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
     padding: 2,
   },
   partialBadge: {
-    backgroundColor: COLORS.ochre + '12',
+    backgroundColor: `${COLORS.ochre  }12`,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -501,9 +501,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: COLORS.ochre + '08',
+    backgroundColor: `${COLORS.ochre  }08`,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.ochre + '22',
+    borderTopColor: `${COLORS.ochre  }22`,
   },
   warningText: {
     fontSize: 12,
@@ -522,7 +522,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: COLORS.container + '12',
+    backgroundColor: `${COLORS.container  }12`,
     borderRadius: 12,
   },
   summaryText: {
@@ -536,10 +536,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
     padding: 12,
-    backgroundColor: COLORS.ochre + '08',
+    backgroundColor: `${COLORS.ochre  }08`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.ochre + '22',
+    borderColor: `${COLORS.ochre  }22`,
   },
   warningTextExpanded: {
     flex: 1,
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: COLORS.container + '12',
+    backgroundColor: `${COLORS.container  }12`,
     borderRadius: 12,
     gap: 12,
   },
@@ -573,11 +573,11 @@ const styles = StyleSheet.create({
   actionBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: COLORS.primary + '12',
+    backgroundColor: `${COLORS.primary  }12`,
     borderRadius: 8,
   },
   actionBadgeUndone: {
-    backgroundColor: COLORS.textMuted + '12',
+    backgroundColor: `${COLORS.textMuted  }12`,
   },
   actionBadgeText: {
     fontSize: 11,
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   undoneIndicator: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: COLORS.textMuted + '12',
+    backgroundColor: `${COLORS.textMuted  }12`,
     borderRadius: 8,
   },
   undoneIndicatorText: {
@@ -623,10 +623,10 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.crimson + '08',
+    backgroundColor: `${COLORS.crimson  }08`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.crimson + '22',
+    borderColor: `${COLORS.crimson  }22`,
     marginTop: 8,
   },
   loadAllText: {
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.textMuted + '55',
+    backgroundColor: `${COLORS.textMuted  }55`,
   },
 });
 

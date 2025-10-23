@@ -57,7 +57,7 @@ const LimitedInput = ({
         value={localValue}
         onChangeText={handleChange}
         placeholder={placeholder}
-        placeholderTextColor={tokens.colors.najdi.textMuted + '70'}
+        placeholderTextColor={`${tokens.colors.najdi.textMuted  }70`}
         maxLength={maxLength + 1}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
@@ -150,19 +150,11 @@ const TabDetails = ({ form, updateField }) => {
           <FormField label="الدولة الحالية">
             <CountryPicker
               label=""
-              value={draft?.current_residence_normalized?.country?.ar || ''}
+              value={draft?.current_residence_country || ''}
               onChange={(country) => {
-                updateField('current_residence', country);
-              }}
-              onNormalizedChange={(normalized) => {
-                updateField('current_residence_normalized', normalized);
-                // Clear city if country changed from Saudi Arabia
-                if (normalized?.country?.ar !== 'السعودية') {
-                  const clearedNormalized = {
-                    ...normalized,
-                    city: undefined,
-                  };
-                  updateField('current_residence_normalized', clearedNormalized);
+                updateField('current_residence_country', country);
+                if (country !== 'السعودية') {
+                  updateField('current_residence_city', '');
                 }
               }}
               placeholder="اختر دولة"
@@ -175,22 +167,10 @@ const TabDetails = ({ form, updateField }) => {
           >
             <SaudiCityPicker
               label=""
-              value={draft?.current_residence_normalized?.city?.ar || ''}
-              onChange={(city) => {
-                updateField('current_residence', city);
-              }}
-              onNormalizedChange={(normalized) => {
-                // Merge city into existing normalized data
-                const updated = {
-                  ...draft?.current_residence_normalized,
-                  original: normalized.city?.ar || normalized.original,
-                  city: normalized.city,
-                  confidence: normalized.confidence,
-                };
-                updateField('current_residence_normalized', updated);
-              }}
+              value={draft?.current_residence_city || ''}
+              onChange={(city) => updateField('current_residence_city', city)}
               placeholder="اختر مدينة"
-              enabled={draft?.current_residence_normalized?.country?.ar === 'السعودية'}
+              enabled={draft?.current_residence_country === 'السعودية'}
             />
           </FormField>
         </FormSection>
@@ -250,7 +230,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '50',
+    borderColor: `${tokens.colors.najdi.container  }50`,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     fontSize: 16,

@@ -78,7 +78,7 @@ class FamilyNameService {
 
     // Ensure it starts with "ال" if it doesn't already
     if (!normalized.startsWith("ال") && !normalized.startsWith("آل")) {
-      normalized = "ال" + normalized;
+      normalized = `ال${  normalized}`;
     }
 
     return normalized;

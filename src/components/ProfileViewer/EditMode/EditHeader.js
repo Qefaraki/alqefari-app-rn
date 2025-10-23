@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomWidth: 0.5,
-    borderBottomColor: tokens.colors.najdi.container + '40',
+    borderBottomColor: `${tokens.colors.najdi.container  }40`,
     overflow: 'hidden', // Ensure rounded corners clip properly
     paddingTop: 8,
     paddingBottom: 4,

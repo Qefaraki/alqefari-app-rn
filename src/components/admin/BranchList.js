@@ -166,7 +166,7 @@ const BranchList = ({ userId, onBranchRemoved, style }) => {
     return (
       <View style={[styles.container, style]}>
         <View style={styles.emptyContainer}>
-          <Ionicons name="git-branch-outline" size={32} color={colors.textMuted + "60"} />
+          <Ionicons name="git-branch-outline" size={32} color={`${colors.textMuted  }60`} />
           <Text style={styles.emptyText}>لا توجد فروع مُدارة</Text>
           <Text style={styles.emptySubtext}>
             لم يتم تعيين أي فروع لهذا المستخدم بعد
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   hidBadge: {
-    backgroundColor: colors.secondary + "15",
+    backgroundColor: `${colors.secondary  }15`,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     width: 44,  // iOS minimum touch target
     height: 44,  // iOS minimum touch target
     borderRadius: 22,
-    backgroundColor: colors.error + "10",
+    backgroundColor: `${colors.error  }10`,
     alignItems: "center",
     justifyContent: "center",
   },

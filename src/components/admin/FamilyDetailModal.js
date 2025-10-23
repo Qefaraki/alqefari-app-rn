@@ -219,7 +219,7 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
       // Join names with " بن " or " بنت " connector
       if (names.length > 1) {
         const connector = item.alqefari.gender === "female" ? "بنت" : "بن";
-        alqefariChain = names[0] + " " + connector + " " + names.slice(1).join(" ");
+        alqefariChain = `${names[0]  } ${  connector  } ${  names.slice(1).join(" ")}`;
       } else {
         alqefariChain = names.join(" ");
       }
@@ -266,13 +266,13 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
         {/* Search Bar - Matches MunasibManager */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
-            <Ionicons name="search" size={18} color={palette.text + "66"} />
+            <Ionicons name="search" size={18} color={`${palette.text  }66`} />
             <TextInput
               style={styles.searchInput}
               placeholder="ابحث عن شخص..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor={palette.text + "66"}
+              placeholderTextColor={`${palette.text  }66`}
             />
             {searchQuery !== "" && (
               <TouchableOpacity
@@ -281,7 +281,7 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
               >
-                <Ionicons name="close-circle" size={18} color={palette.text + "66"} />
+                <Ionicons name="close-circle" size={18} color={`${palette.text  }66`} />
               </TouchableOpacity>
             )}
           </View>
@@ -303,7 +303,7 @@ export default function FamilyDetailModal({ visible, family, onClose, onNavigate
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Ionicons name="people-outline" size={64} color={palette.text + "26"} />
+                <Ionicons name="people-outline" size={64} color={`${palette.text  }26`} />
                 <Text style={styles.emptyTitle}>لا توجد نتائج</Text>
                 <Text style={styles.emptySubtitle}>
                   جرب البحث بكلمات مختلفة
@@ -384,7 +384,7 @@ const MarriageCard = ({ item, munasibName, alqefariChain, onPress, onWhatsAppPre
             <Ionicons
               name="chevron-forward"
               size={18}
-              color={palette.text + "55"}
+              color={`${palette.text  }55`}
               style={styles.memberChevron}
             />
           </View>
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: palette.text + "1A",
+    backgroundColor: `${palette.text  }1A`,
   },
   header: {
     flexDirection: "row",
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
       ios: "SF Arabic",
       default: "System",
     }),
-    color: palette.text + "99",
+    color: `${palette.text  }99`,
     lineHeight: typography.subheadline.lineHeight,
   },
   generationBadge: {
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
       ios: "SF Arabic",
       default: "System",
     }),
-    color: palette.text + "99",
+    color: `${palette.text  }99`,
     fontWeight: "600",
   },
   memberChevron: {
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
       ios: "SF Arabic",
       default: "System",
     }),
-    color: palette.text + "66",
+    color: `${palette.text  }66`,
     textAlign: "center",
     lineHeight: typography.subheadline.lineHeight,
   },

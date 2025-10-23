@@ -395,7 +395,7 @@ export default function InlineSpouseAdder({
             onChangeText={setSpouseName}
             placeholder={person?.gender === 'male' ? "اسم الزوجة الكامل" : "اسم الزوج الكامل"}
             accessibilityLabel="الاسم الكامل"
-            placeholderTextColor={tokens.colors.najdi.textMuted + "80"}
+            placeholderTextColor={`${tokens.colors.najdi.textMuted  }80`}
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
             textAlign="right"
@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.xs,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.xs,
-    backgroundColor: tokens.colors.success + "10",
+    backgroundColor: `${tokens.colors.success  }10`,
     borderRadius: tokens.radii.sm,
     marginBottom: tokens.spacing.xs,
   },
@@ -486,10 +486,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   container: {
-    backgroundColor: tokens.colors.najdi.container + "20",
+    backgroundColor: `${tokens.colors.najdi.container  }20`,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + "40",
+    borderColor: `${tokens.colors.najdi.container  }40`,
     overflow: "hidden",
   },
   inputRow: {
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginTop: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: tokens.colors.najdi.container + "40",
+    borderTopColor: `${tokens.colors.najdi.container  }40`,
   },
   hintText: {
     flex: 1,

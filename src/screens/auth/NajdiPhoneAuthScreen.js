@@ -433,7 +433,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                       <Ionicons
                         name="chevron-back"
                         size={28}
-                        color={colors.alJassWhite + "CC"}
+                        color={`${colors.alJassWhite  }CC`}
                       />
                     </TouchableOpacity>
                   </View>
@@ -468,7 +468,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                               },
                             ]}
                             placeholder="50 123 4567"
-                            placeholderTextColor={colors.alJassWhite + "40"}
+                            placeholderTextColor={`${colors.alJassWhite  }40`}
                             value={formatPhoneDisplay(phoneNumber)}
                             onChangeText={handlePhoneChange}
                             keyboardType="number-pad"
@@ -497,7 +497,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                             <Ionicons
                               name="chevron-down"
                               size={16}
-                              color={colors.alJassWhite + "99"}
+                              color={`${colors.alJassWhite  }99`}
                             />
                           </TouchableOpacity>
                         </View>
@@ -734,12 +734,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.najdiCrimson + "20",
+    backgroundColor: `${colors.najdiCrimson  }20`,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: colors.najdiCrimson + "40",
+    borderColor: `${colors.najdiCrimson  }40`,
   },
   logoIcon: {
     width: 40,
@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "400",
     fontFamily: "SF Arabic",
-    color: colors.alJassWhite + "99",
+    color: `${colors.alJassWhite  }99`,
     textAlign: "center",
     marginBottom: 32,
     lineHeight: 22,
@@ -827,8 +827,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   otpInputFilled: {
-    borderColor: colors.najdiCrimson + "80",
-    backgroundColor: colors.najdiCrimson + "15",
+    borderColor: `${colors.najdiCrimson  }80`,
+    backgroundColor: `${colors.najdiCrimson  }15`,
   },
   otpInputFocused: {
     borderColor: colors.alJassWhite, // Al-Jass White from our design system
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "500",
     fontFamily: "SF Arabic",
-    color: colors.alJassWhite + "60",
+    color: `${colors.alJassWhite  }60`,
   },
   resendText: {
     fontSize: 15,
@@ -941,7 +941,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255, 255, 255, 0.05)",
   },
   countryItemSelected: {
-    backgroundColor: colors.najdiCrimson + "15",
+    backgroundColor: `${colors.najdiCrimson  }15`,
   },
   countryInfo: {
     flexDirection: "row",
@@ -958,6 +958,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: colors.alJassWhite + "99",
+    color: `${colors.alJassWhite  }99`,
   },
 });

@@ -9,11 +9,16 @@ const TabsHost = ({
   dirtyByTab = {},
   children,
 }) => {
+  const enhancedTabs = tabs.map((tab) => ({
+    ...tab,
+    showDot: Boolean(dirtyByTab?.[tab.id]),
+  }));
+
   return (
     <View style={{ gap: 16 }}>
       <View style={styles.segmentContainer}>
         <SegmentedControl
-          options={tabs}
+          options={enhancedTabs}
           value={activeTab}
           onChange={onTabChange}
         />

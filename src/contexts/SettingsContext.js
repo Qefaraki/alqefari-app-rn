@@ -93,7 +93,7 @@ export const SettingsProvider = ({ children }) => {
   // Update a single setting
   const updateSetting = async (key, value) => {
     try {
-      let newSettings = { ...settings };
+      const newSettings = { ...settings };
 
       // Handle dateDisplay specially - map to underlying settings
       if (key === "dateDisplay") {

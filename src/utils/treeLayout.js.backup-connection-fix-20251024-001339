@@ -209,7 +209,6 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
       }
 
       // Store offset WITHOUT mutating node.y (D3 center remains pure)
-      // Positive offset moves taller nodes DOWN to align top edges with shortest node
       const offset = (nodeHeight - minHeight) / 2;
       node.topAlignOffset = offset;
     });
@@ -223,8 +222,8 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
     nodes.push({
       ...d.data,
       x: d.x,
-      y: d.y,  // D3 center coordinate (single source of truth)
-      topAlignOffset: d.topAlignOffset || 0,  // Offset for rendering only
+      y: d.y,  // D3 center coordinate (for PathCalculator)
+      displayY: d.y + (d.topAlignOffset || 0),  // Top-aligned rendering position
       depth: d.depth,
     });
   });
@@ -239,22 +238,18 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
         parentGroups.set(parentId, {
           parent: {
             x: d.parent.x,
-            y: d.parent.y,  // D3 center (single source of truth)
-            topAlignOffset: d.parent.topAlignOffset || 0,  // Top-alignment offset for rendering
+            y: d.parent.y,  // D3 center
+            displayY: d.parent.y + (d.parent.topAlignOffset || 0),  // Rendering position
             id: parentId,
-            photo_url: d.parent.data.photo_url,  // For height calculation (75px vs 35px)
-            father_id: d.parent.data.father_id,  // For root detection (100px)
           },
           children: [],
         });
       }
       parentGroups.get(parentId).children.push({
         x: d.x,
-        y: d.y,  // D3 center (single source of truth)
-        topAlignOffset: d.topAlignOffset || 0,  // Top-alignment offset for rendering
+        y: d.y,  // D3 center
+        displayY: d.y + (d.topAlignOffset || 0),  // Rendering position
         id: d.data.id,
-        photo_url: d.data.photo_url,  // For height calculation (75px vs 35px)
-        father_id: d.data.father_id,  // For root detection (100px)
       });
     }
   });

@@ -580,12 +580,12 @@ export default function ProfileLinkStatusIndicator() {
 const styles = StyleSheet.create({
   // Linked state
   linkedIndicator: {
-    backgroundColor: colors.success + "15",
+    backgroundColor: `${colors.success  }15`,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.success + "30",
+    borderColor: `${colors.success  }30`,
   },
   linkedSuccessContent: {
     alignItems: "center",
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    backgroundColor: colors.warning + "10",
+    backgroundColor: `${colors.warning  }10`,
   },
   pendingContent: {
     flexDirection: "row",
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.container + "20",
+    borderTopColor: `${colors.container  }20`,
   },
   actionButtons: {
     flexDirection: "row",
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: colors.container + "40",
+    borderColor: `${colors.container  }40`,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -710,12 +710,12 @@ const styles = StyleSheet.create({
 
   // Rejected state
   rejectedContainer: {
-    backgroundColor: colors.error + "10",
+    backgroundColor: `${colors.error  }10`,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: colors.error + "20",
+    borderColor: `${colors.error  }20`,
   },
   rejectedContent: {
     flexDirection: "row",
@@ -751,10 +751,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 14,
-    backgroundColor: colors.primary + "08",
+    backgroundColor: `${colors.primary  }08`,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.primary + "20",
+    borderColor: `${colors.primary  }20`,
     gap: 8,
   },
   linkPromptText: {

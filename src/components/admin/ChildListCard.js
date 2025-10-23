@@ -314,7 +314,7 @@ const ChildListCard = ({
                     }}
                     style={[styles.editInputInline, nameError && styles.editInputInlineError]}
                     placeholder="اسم الطفل"
-                    placeholderTextColor={COLORS.textMuted + "99"}
+                    placeholderTextColor={`${COLORS.textMuted  }99`}
                     returnKeyType="done"
                     onSubmitEditing={() => commitUpdate()}
                     onBlur={() => commitUpdate()}
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: tokens.radii.md,
-    backgroundColor: COLORS.container + "16",
+    backgroundColor: `${COLORS.container  }16`,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -523,25 +523,25 @@ const styles = StyleSheet.create({
     paddingVertical: tokens.spacing.xxs,
     paddingHorizontal: tokens.spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
+    borderColor: `${COLORS.container  }33`,
     ...tokens.shadow.ios,
     position: "relative",
     overflow: "hidden",
   },
   cardElevated: {
-    borderColor: COLORS.container + "26",
+    borderColor: `${COLORS.container  }26`,
   },
   cardNew: {
     borderColor: COLORS.secondary,
-    backgroundColor: COLORS.secondary + "10",
+    backgroundColor: `${COLORS.secondary  }10`,
   },
   cardEdited: {
     borderColor: COLORS.primary,
-    backgroundColor: COLORS.primary + "10",
+    backgroundColor: `${COLORS.primary  }10`,
   },
   cardError: {
     borderColor: tokens.colors.danger,
-    backgroundColor: tokens.colors.danger + "10",
+    backgroundColor: `${tokens.colors.danger  }10`,
   },
   viewBlock: {
     flex: 1,
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: COLORS.container + "33",
+    backgroundColor: `${COLORS.container  }33`,
   },
   avatarInitials: {
     color: "#F9F7F3",
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
+    borderColor: `${COLORS.container  }33`,
     backgroundColor: COLORS.background,
     paddingHorizontal: tokens.spacing.sm,
     paddingVertical: tokens.spacing.xs,
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   },
   editInputInlineError: {
     borderColor: tokens.colors.danger,
-    backgroundColor: tokens.colors.danger + "12",
+    backgroundColor: `${tokens.colors.danger  }12`,
   },
   inputErrorText: {
     fontSize: tokens.typography.caption2.fontSize,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   badge: {
-    backgroundColor: COLORS.secondary + "18",
+    backgroundColor: `${COLORS.secondary  }18`,
     borderRadius: tokens.radii.sm,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -653,7 +653,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radii.md,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: COLORS.container + "18",
+    backgroundColor: `${COLORS.container  }18`,
   },
   saveButton: {
     backgroundColor: COLORS.primary,
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   editInput: {
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "40",
+    borderColor: `${COLORS.container  }40`,
     backgroundColor: COLORS.background,
     paddingHorizontal: tokens.spacing.sm,
     paddingVertical: tokens.spacing.xs,
@@ -681,7 +681,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
+    borderColor: `${COLORS.container  }33`,
     overflow: "hidden",
     backgroundColor: COLORS.background,
   },
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
     gap: 6,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
+    borderColor: `${COLORS.container  }33`,
     backgroundColor: COLORS.background,
     paddingHorizontal: tokens.spacing.sm,
     paddingVertical: 8,
@@ -743,9 +743,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.xs,
     paddingVertical: 2,
     borderRadius: tokens.radii.sm,
-    backgroundColor: COLORS.background + "E6",
+    backgroundColor: `${COLORS.background  }E6`,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.container + "33",
+    borderColor: `${COLORS.container  }33`,
   },
   cardIndexRTL: {
     left: tokens.spacing.xs,
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.container + "33",
+    backgroundColor: `${COLORS.container  }33`,
     alignSelf: "center",
     marginVertical: 12,
   },
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   sheetOptionSelected: {
-    backgroundColor: COLORS.container + "14",
+    backgroundColor: `${COLORS.container  }14`,
     borderRadius: tokens.radii.md,
     paddingHorizontal: tokens.spacing.sm,
   },
@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
   },
   sheetFooter: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.container + "2A",
+    borderTopColor: `${COLORS.container  }2A`,
     paddingHorizontal: tokens.spacing.lg,
     paddingTop: tokens.spacing.sm,
     paddingBottom: tokens.spacing.md,
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   sheetCancel: {
     borderRadius: tokens.radii.md,
     paddingVertical: tokens.spacing.xs,
-    backgroundColor: COLORS.container + "12",
+    backgroundColor: `${COLORS.container  }12`,
     alignItems: "center",
   },
   sheetCancelText: {

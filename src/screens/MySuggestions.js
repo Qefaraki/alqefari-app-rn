@@ -497,13 +497,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusBadgePending: {
-    backgroundColor: COLORS.secondary + '15',
+    backgroundColor: `${COLORS.secondary  }15`,
   },
   statusBadgeApproved: {
-    backgroundColor: COLORS.success + '15',
+    backgroundColor: `${COLORS.success  }15`,
   },
   statusBadgeRejected: {
-    backgroundColor: COLORS.danger + '15',
+    backgroundColor: `${COLORS.danger  }15`,
   },
   statusText: {
     fontSize: 13,

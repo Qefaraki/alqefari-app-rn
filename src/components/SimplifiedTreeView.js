@@ -1562,7 +1562,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
 
       let edgeCount = 0;
       const paths = [];
-      let pathBuilder = Skia.Path.Make();
+      const pathBuilder = Skia.Path.Make();
       let currentBatch = 0;
 
       for (const conn of connections) {

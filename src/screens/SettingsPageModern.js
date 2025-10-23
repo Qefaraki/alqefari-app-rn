@@ -41,7 +41,7 @@ const colors = {
   ...tokens.colors.najdi,
   white: '#FFFFFF',
   muted: tokens.colors.najdi.textMuted,
-  border: tokens.colors.najdi.container + '20',
+  border: `${tokens.colors.najdi.container  }20`,
 };
 
 // Cross-platform font fallbacks to keep typography close to iOS San Francisco
@@ -532,7 +532,7 @@ export default function SettingsPageModern({ user }) {
       const result = await accountDeletionService.deleteAccount();
 
       if (!result.success) {
-        Alert.alert("خطأ", "فشل حذف الحساب: " + (result.error || "Unknown error"));
+        Alert.alert("خطأ", `فشل حذف الحساب: ${  result.error || "Unknown error"}`);
         return;
       }
 
@@ -1335,7 +1335,7 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 5,
     borderWidth: 1.5,
-    borderColor: colors.container + "30",
+    borderColor: `${colors.container  }30`,
     alignItems: "center",
     overflow: "hidden",
   },
@@ -1343,12 +1343,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.primary + "12",
+    backgroundColor: `${colors.primary  }12`,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 24,
     borderWidth: 3,
-    borderColor: colors.primary + "20",
+    borderColor: `${colors.primary  }20`,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -1384,7 +1384,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: colors.container + "30",
+    borderColor: `${colors.container  }30`,
   },
   guestBenefit: {
     flexDirection: "row",
@@ -1396,12 +1396,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: colors.secondary + "15",
+    backgroundColor: `${colors.secondary  }15`,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
     borderWidth: 1,
-    borderColor: colors.secondary + "25",
+    borderColor: `${colors.secondary  }25`,
   },
   guestBenefitText: {
     fontSize: 15,
@@ -1559,7 +1559,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: colors.primary + "12",
+    backgroundColor: `${colors.primary  }12`,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -1620,7 +1620,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: colors.secondary + "15",
+    backgroundColor: `${colors.secondary  }15`,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -1645,7 +1645,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: colors.primary + "12",
+    backgroundColor: `${colors.primary  }12`,
   },
   comingSoonBadgeText: {
     fontSize: 12,
@@ -1717,13 +1717,13 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary + '10',
+    backgroundColor: `${colors.primary  }10`,
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: `${colors.primary  }30`,
     flexWrap: 'wrap',
   },
   errorText: {

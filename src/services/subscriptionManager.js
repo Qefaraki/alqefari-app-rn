@@ -397,7 +397,7 @@ class SubscriptionManager {
   }
 
   updateCircuitBreaker(channelName, success) {
-    let breaker = this.circuitBreaker.get(channelName) || {
+    const breaker = this.circuitBreaker.get(channelName) || {
       failures: 0,
       isOpen: false,
       openedAt: null
