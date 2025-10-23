@@ -232,11 +232,6 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     // Determine if image should load
     const shouldLoad = shouldLoadImage(tier, url, showPhotos);
 
-    // Debug logging (1% sample rate to avoid spam)
-    if (nodeId && Math.random() < 0.01) {
-      console.log('[ImageNode] nodeId:', nodeId, 'showPhotos:', showPhotos, 'shouldLoad:', shouldLoad);
-    }
-
     // Calculate physical pixel size
     const pixelSize = calculatePixelSize(width, scale);
 

@@ -27,6 +27,12 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+
+// Loading state configuration
+const FONT_LOAD_TIMEOUT_MS = 5000; // 5 seconds
+const SHIMMER_MIN_OPACITY = 0.3;
+const SHIMMER_MAX_OPACITY = 1;
+const SHIMMER_DURATION_MS = 1000;
 import { useFonts, FontMgr } from '@shopify/react-native-skia';
 import { SimpleTreeSkeleton } from '../SimpleTreeSkeleton';
 import { Animated as RNAnimated } from 'react-native';
@@ -68,14 +74,14 @@ export const FontProvider: React.FC<FontProviderProps> = ({ children }) => {
   const [fontLoadTimeout, setFontLoadTimeout] = useState(false);
   const animationRef = useRef<any>(null);
 
-  // Set timeout for font loading (5 seconds)
+  // Set timeout for font loading
   useEffect(() => {
     if (fontMgr) return; // Fonts loaded successfully
 
     const timer = setTimeout(() => {
-      console.warn('[FontProvider] Font loading timeout after 5s, proceeding without custom fonts');
+      console.warn('[FontProvider] Font loading timeout, proceeding without custom fonts');
       setFontLoadTimeout(true);
-    }, 5000);
+    }, FONT_LOAD_TIMEOUT_MS);
 
     return () => clearTimeout(timer);
   }, [fontMgr]);
@@ -85,19 +91,19 @@ export const FontProvider: React.FC<FontProviderProps> = ({ children }) => {
   if (!fontMgr && !fontLoadTimeout) {
     // Create shimmer animation for skeleton
     if (!animationRef.current) {
-      const shimmerAnim = new RNAnimated.Value(0.3);
+      const shimmerAnim = new RNAnimated.Value(SHIMMER_MIN_OPACITY);
 
       // Start shimmer animation loop
       const animation = RNAnimated.loop(
         RNAnimated.sequence([
           RNAnimated.timing(shimmerAnim, {
-            toValue: 1,
-            duration: 1000,
+            toValue: SHIMMER_MAX_OPACITY,
+            duration: SHIMMER_DURATION_MS,
             useNativeDriver: true,
           }),
           RNAnimated.timing(shimmerAnim, {
-            toValue: 0.3,
-            duration: 1000,
+            toValue: SHIMMER_MIN_OPACITY,
+            duration: SHIMMER_DURATION_MS,
             useNativeDriver: true,
           }),
         ])

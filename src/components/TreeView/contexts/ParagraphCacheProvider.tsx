@@ -30,6 +30,9 @@
 import React, { createContext, useContext, useRef, useEffect } from 'react';
 import { Paragraph } from '@shopify/react-native-skia';
 
+// Cache configuration
+const DEFAULT_MAX_CACHE_SIZE = 500; // Max visible nodes on screen
+
 export interface CacheAPI {
   get: (key: string) => Paragraph | undefined;
   set: (key: string, value: Paragraph) => void;
@@ -57,7 +60,7 @@ export interface ParagraphCacheProviderProps {
  */
 export const ParagraphCacheProvider: React.FC<ParagraphCacheProviderProps> = ({
   children,
-  maxSize = 500, // Default: max visible nodes on screen
+  maxSize = DEFAULT_MAX_CACHE_SIZE,
 }) => {
   // Validate maxSize to prevent infinite eviction loops
   const validatedMaxSize = Math.max(1, Math.floor(maxSize));
