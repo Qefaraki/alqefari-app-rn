@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,15 @@ import {
   TextInput,
   ActivityIndicator,
   FlatList,
-  Modal,
   Alert,
   Image,
   Animated,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import BottomSheet, {
+  BottomSheetScrollView,
+  BottomSheetBackdrop,
+} from "@gorhom/bottom-sheet";
 import PropTypes from "prop-types";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -49,6 +51,53 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
   // Get screen dimensions for dynamic height calculation
   const { height: windowHeight } = useWindowDimensions();
+
+  // Bottom sheet ref for visibility control
+  const bottomSheetRef = useRef(null);
+
+  // Dynamic snap points based on stage and content
+  const snapPoints = useMemo(() => {
+    if (stage === "SEARCH" && !loading && searchResults.length > 0) {
+      // Content-based: min 400px, max 60% screen
+      const contentHeight = Math.min(
+        Math.max(400, searchResults.length * 92 + 200),
+        windowHeight * 0.6
+      );
+      return [contentHeight];
+    }
+
+    // Fixed heights for other stages
+    const heights = {
+      SEARCH: loading ? 300 : 360, // Input or empty state
+      CREATE: 300, // Loading spinner
+      SUCCESS: 360, // Success animation
+    };
+
+    return [heights[stage]];
+  }, [stage, loading, searchResults.length, windowHeight]);
+
+  // Handle bottom sheet visibility
+  useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.snapToIndex(0);
+    } else {
+      bottomSheetRef.current?.close();
+    }
+  }, [visible]);
+
+  // Backdrop component
+  const renderBackdrop = useCallback(
+    (props) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.4}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
 
   // Get appropriate gender for spouse
   const spouseGender = person?.gender === "male" ? "female" : "male";
@@ -475,13 +524,17 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   );
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <>
+      <BottomSheet
+        ref={bottomSheetRef}
+        index={visible ? 0 : -1}
+        snapPoints={snapPoints}
+        enablePanDownToClose={true}
+        onClose={onClose}
+        backdropComponent={renderBackdrop}
+        handleIndicatorStyle={styles.handleIndicator}
+        backgroundStyle={styles.sheetBackground}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
@@ -491,11 +544,16 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Stage Content */}
-        {stage === "SEARCH" && renderSearchStage()}
-        {stage === "CREATE" && renderCreateStage()}
-        {stage === "SUCCESS" && renderSuccessStage()}
-      </SafeAreaView>
+        {/* Scrollable Stage Content */}
+        <BottomSheetScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {stage === "SEARCH" && renderSearchStage()}
+          {stage === "CREATE" && renderCreateStage()}
+          {stage === "SUCCESS" && renderSuccessStage()}
+        </BottomSheetScrollView>
+      </BottomSheet>
 
       {/* Tree Modal for spouse confirmation */}
       {selectedSpouse && showTreeModal && (
@@ -511,7 +569,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           cancelText={selectedSpouse.gender === "female" ? "ليست هي" : "ليس هو"}
         />
       )}
-    </Modal>
+    </>
   );
 }
 
@@ -534,11 +592,22 @@ SpouseManager.defaultProps = {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: tokens.colors.najdi.background,
-    flex: 0, // Wrap content instead of expanding to fill modal
-    alignSelf: 'stretch', // Use full width
+  // Bottom Sheet styling
+  sheetBackground: {
+    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
+  handleIndicator: {
+    backgroundColor: tokens.colors.najdi.text + "30", // Sadu Night 20%
+    width: 40,
+    height: 4,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: tokens.spacing.lg,
+  },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -546,7 +615,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.spacing.lg,
     paddingVertical: tokens.spacing.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: tokens.colors.najdi.container + "40",
+    borderBottomColor: tokens.colors.najdi.text + "20",
+    backgroundColor: tokens.colors.najdi.container,
   },
   closeButton: {
     width: tokens.touchTarget.minimum,
@@ -615,8 +685,8 @@ const styles = StyleSheet.create({
   loadingContainer: {
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 120,
-    minHeight: 300,
+    paddingVertical: 40, // Reduced from 120
+    minHeight: 150, // Reduced from 300
   },
   loadingText: {
     fontSize: 15,
@@ -629,8 +699,8 @@ const styles = StyleSheet.create({
   successContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 100,
-    minHeight: 300,
+    paddingVertical: 60, // Reduced from 100
+    minHeight: 150, // Reduced from 300
   },
   successIconContainer: {
     marginBottom: tokens.spacing.xl,
