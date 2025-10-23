@@ -181,7 +181,9 @@ export function AuthProvider({ children }) {
     isGuestMode: authState === AuthStates.GUEST_MODE,
     hasLinkedProfile: AuthStateMachine.hasLinkedProfile(),
     isPendingApproval: AuthStateMachine.isPendingApproval(),
-    isAdmin: profile?.role === 'admin' || profile?.role === 'super_admin',
+    // Check if user is any admin role (aligns with ADMIN_FEATURES feature-based system)
+    // Updated to include moderator (2025-10-24) - allows moderators to access admin dashboard
+    isAdmin: ['super_admin', 'admin', 'moderator'].includes(profile?.role),
     isPreloadingTree: false, // Not implemented yet
 
     // Actions

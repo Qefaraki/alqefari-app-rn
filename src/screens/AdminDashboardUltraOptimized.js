@@ -215,19 +215,44 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
       setStatsLoading(false);
 
       // Then get real stats in background
-      const { data: realStats } = await supabase.rpc("admin_get_enhanced_statistics");
+      const { data: realStats, error: statsError } = await supabase.rpc("admin_get_enhanced_statistics");
+      if (statsError) {
+        console.error('[AdminDashboard] Statistics RPC error:', {
+          message: statsError.message,
+          code: statsError.code,
+          details: statsError.details,
+          hint: statsError.hint,
+        });
+        // Don't throw - already showing basic stats to user
+        return;
+      }
       if (realStats) {
         setStats((prev) => ({ ...prev, ...realStats }));
       }
     } catch (error) {
-      console.error("Error loading stats:", error);
+      console.error('[AdminDashboard] Stats load exception:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
       setStatsLoading(false);
     }
   };
 
   const loadEnhancedStats = async () => {
     try {
-      const { data } = await supabase.rpc("admin_get_enhanced_statistics");
+      const { data, error } = await supabase.rpc("admin_get_enhanced_statistics");
+      if (error) {
+        console.error('[AdminDashboard] Enhanced statistics RPC error:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        // Graceful degradation - don't throw, user already sees basic stats
+        setEnhancedLoading(false);
+        return;
+      }
       if (data) {
         setStats((prev) => ({
           ...prev,
@@ -238,7 +263,11 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
         }));
       }
     } catch (error) {
-      console.error("Error loading enhanced stats:", error);
+      console.error('[AdminDashboard] Enhanced stats load exception:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+      });
     } finally {
       setEnhancedLoading(false);
     }

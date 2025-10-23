@@ -47,7 +47,10 @@
 
 ### Admin Dashboard Access by Role
 
-**Registry-Based System**: All feature permissions controlled via `src/config/adminFeatures.js`
+**Feature-Based System**: All feature permissions controlled via `src/config/adminFeatures.js`
+
+**Dashboard Access** (all admin roles): super_admin ✅ | admin ✅ | moderator ✅
+**Dashboard Statistics** (all admin roles): All admin roles can access dashboard statistics via `admin_get_enhanced_statistics()` RPC
 
 | Feature | Arabic | Super Admin | Admin | Moderator |
 |---------|--------|-------------|-------|-----------|
@@ -59,10 +62,17 @@
 | الأنساب | Munasib Manager | ✅ | ✅ | ✅ |
 | مراجعة الاقتراحات | Suggestion Review | ✅ | ✅ | ✅ |
 
+**Architecture Notes (October 24, 2025):**
+- `isAdmin` check updated to align with feature-based system (includes moderator)
+- `admin_get_enhanced_statistics()` RPC updated to allow all admin roles
+- Features still respect granular permissions from `ADMIN_FEATURES` registry
+- No manual conditional logic needed in components
+
 **To add new features:**
-1. Add feature config to `ADMIN_FEATURES` registry
-2. Feature automatically respects role-based access control
-3. No manual conditional logic needed in components
+1. Add feature config to `ADMIN_FEATURES` registry with `requiredRoles` array
+2. Feature automatically respects role-based access control via `useFeatureAccess()` hook
+3. Feature visibility handled by `canAccess(featureId)` - no manual conditionals needed
+4. Route protection and RPC checks automatically respect the system
 
 _See full documentation: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTEM_V4.md)_
 
