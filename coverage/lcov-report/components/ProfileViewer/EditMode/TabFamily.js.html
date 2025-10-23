@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/468</span>
+                <span class='fraction'>0/477</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/387</span>
+                <span class='fraction'>0/393</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/437</span>
+                <span class='fraction'>0/447</span>
             </div>
         
             
@@ -2226,7 +2226,27 @@
 <a name='L2161'></a><a href='#L2161'>2161</a>
 <a name='L2162'></a><a href='#L2162'>2162</a>
 <a name='L2163'></a><a href='#L2163'>2163</a>
-<a name='L2164'></a><a href='#L2164'>2164</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L2164'></a><a href='#L2164'>2164</a>
+<a name='L2165'></a><a href='#L2165'>2165</a>
+<a name='L2166'></a><a href='#L2166'>2166</a>
+<a name='L2167'></a><a href='#L2167'>2167</a>
+<a name='L2168'></a><a href='#L2168'>2168</a>
+<a name='L2169'></a><a href='#L2169'>2169</a>
+<a name='L2170'></a><a href='#L2170'>2170</a>
+<a name='L2171'></a><a href='#L2171'>2171</a>
+<a name='L2172'></a><a href='#L2172'>2172</a>
+<a name='L2173'></a><a href='#L2173'>2173</a>
+<a name='L2174'></a><a href='#L2174'>2174</a>
+<a name='L2175'></a><a href='#L2175'>2175</a>
+<a name='L2176'></a><a href='#L2176'>2176</a>
+<a name='L2177'></a><a href='#L2177'>2177</a>
+<a name='L2178'></a><a href='#L2178'>2178</a>
+<a name='L2179'></a><a href='#L2179'>2179</a>
+<a name='L2180'></a><a href='#L2180'>2180</a>
+<a name='L2181'></a><a href='#L2181'>2181</a>
+<a name='L2182'></a><a href='#L2182'>2182</a>
+<a name='L2183'></a><a href='#L2183'>2183</a>
+<a name='L2184'></a><a href='#L2184'>2184</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2811,6 +2831,16 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2835,8 +2865,17 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -2866,6 +2905,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -4972,6 +5012,16 @@ const TabFamily = <span class="cstat-no" title="statement not covered" ><span cl
     const marriage = <span class="cstat-no" title="statement not covered" >state.marriageToDelete;</span>
 <span class="cstat-no" title="statement not covered" >    if (!marriage) <span class="cstat-no" title="statement not covered" >return;</span></span>
 &nbsp;
+    // Security: Re-check permission before deletion (in case permissions changed)
+<span class="cstat-no" title="statement not covered" >    if (!canEditFamily) {</span>
+<span class="cstat-no" title="statement not covered" >      Alert.alert('غير مسموح', 'ليس لديك صلاحية لحذف هذا الزواج');</span>
+<span class="cstat-no" title="statement not covered" >      dispatch({</span>
+        type: 'SET_DELETION_SHEET',
+        payload: { visible: false, marriage: null },
+      });
+<span class="cstat-no" title="statement not covered" >      return;</span>
+    }
+&nbsp;
     // Close sheet
 <span class="cstat-no" title="statement not covered" >    dispatch({</span>
       type: 'SET_DELETION_SHEET',
@@ -4993,7 +5043,16 @@ const TabFamily = <span class="cstat-no" title="statement not covered" ><span cl
         p_marriage_id: marriage.marriage_id,
       });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      if (error) <span class="cstat-no" title="statement not covered" >throw error;</span></span>
+<span class="cstat-no" title="statement not covered" >      if (error) {</span>
+        // Handle specific error cases
+<span class="cstat-no" title="statement not covered" >        if (error.message?.includes('not found')) {</span>
+<span class="cstat-no" title="statement not covered" >          throw new Error('الزواج غير موجود. ربما تم حذفه مسبقاً.');</span>
+        }
+<span class="cstat-no" title="statement not covered" >        if (error.message?.includes('Unauthorized')) {</span>
+<span class="cstat-no" title="statement not covered" >          throw new Error('ليس لديك صلاحية لحذف هذا الزواج');</span>
+        }
+<span class="cstat-no" title="statement not covered" >        throw error;</span>
+      }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >      if (!data?.success) {</span>
 <span class="cstat-no" title="statement not covered" >        throw new Error(data?.message || 'فشل حذف الزواج');</span>
@@ -5013,7 +5072,7 @@ const TabFamily = <span class="cstat-no" title="statement not covered" ><span cl
     } catch (error) {
       // STEP 6: Error recovery - restore with feedback
 <span class="cstat-no" title="statement not covered" >      if (__DEV__) {</span>
-<span class="cstat-no" title="statement not covered" >        console.error('Error deleting marriage:', error);</span>
+<span class="cstat-no" title="statement not covered" >        console.error('[TabFamily] Marriage deletion error:', error);</span>
       }
 &nbsp;
       // Error haptic
@@ -5030,7 +5089,8 @@ const TabFamily = <span class="cstat-no" title="statement not covered" ><span cl
 &nbsp;
       // Show error toast after restoration animation
 <span class="cstat-no" title="statement not covered" >      setTimeout(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        Alert.alert('خطأ', error.message || 'فشل حذف الزواج. حاول مرة أخرى.');</span>
+        const errorMessage = <span class="cstat-no" title="statement not covered" >error.message || 'فشل حذف الزواج. حاول مرة أخرى.';</span>
+<span class="cstat-no" title="statement not covered" >        Alert.alert('خطأ في الحذف', errorMessage);</span>
 &nbsp;
         // Clear error state after user acknowledges
 <span class="cstat-no" title="statement not covered" >        dispatch({</span>
@@ -5039,7 +5099,7 @@ const TabFamily = <span class="cstat-no" title="statement not covered" ><span cl
         });
       }, 500);
     }
-  }, [state.marriageToDelete, dispatch, refreshProfile, onDataChanged, person.id]);
+  }, [state.marriageToDelete, dispatch, refreshProfile, onDataChanged, person.id, canEditFamily]);
 &nbsp;
   const cancelDeleteMarriage = <span class="cstat-no" title="statement not covered" >useCallback(<span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >    dispatch({</span>
@@ -5836,7 +5896,7 @@ const TabFamily = <span class="cstat-no" title="statement not covered" ><span cl
 &nbsp;
       &lt;MarriageDeletionSheet
         visible={state.deletionSheetVisible}
-        spouseName={state.marriageToDelete?.spouse_profile?.name}
+        marriage={state.marriageToDelete}
         onConfirm={confirmDeleteMarriage}
         onCancel={cancelDeleteMarriage}
       /&gt;
@@ -6559,7 +6619,7 @@ export default TabFamily;
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-10-23T10:13:42.307Z
+                at 2025-10-23T16:17:45.436Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

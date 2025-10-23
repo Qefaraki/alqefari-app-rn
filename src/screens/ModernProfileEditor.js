@@ -438,6 +438,8 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
       >
         {/* Photo Editor - from ProfileSheet */}
         <View style={styles.photoSection}>

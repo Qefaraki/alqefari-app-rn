@@ -128,6 +128,9 @@ import {
   createComposedGesture,
 } from './TreeView/interaction/GestureHandler';
 
+// Phase 3 - Import hit detection functions
+import { detectTap } from './TreeView/interaction/HitDetection';
+
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
@@ -2060,6 +2063,41 @@ const TreeView = ({
     onGestureEnd: () => {
       syncTransformAndBounds();
     },
+
+    // Phase 3 - Called when tap detected (with pre-sync and hit detection)
+    onTap: (x, y) => {
+      // 1. Sync transform FIRST (critical for accurate coordinates)
+      syncTransformAndBounds();
+
+      // 2. Update gestureStateRef with fresh transform values
+      gestureStateRef.current = {
+        ...gestureStateRef.current,
+        transform: {
+          x: translateX.value,
+          y: translateY.value,
+          scale: scale.value,
+        },
+      };
+
+      // 3. Perform hit detection using extracted detectTap function
+      const result = detectTap(
+        x,
+        y,
+        gestureStateRef.current,
+        AGGREGATION_ENABLED,
+        NODE_WIDTH_WITH_PHOTO,
+        NODE_HEIGHT_WITH_PHOTO,
+        NODE_WIDTH_TEXT_ONLY,
+        NODE_HEIGHT_TEXT_ONLY
+      );
+
+      // 4. Handle result based on type
+      if (result?.type === 'chip') {
+        handleChipTap(result.hero);
+      } else if (result?.type === 'node') {
+        handleNodeTap(result.nodeId);
+      }
+    },
   };
 
   // Phase 2 Integration - Gesture configuration
@@ -2196,94 +2234,97 @@ const TreeView = ({
   );
 
   // Tap gesture for selection with movement/time thresholds
-  const tapGesture = Gesture.Tap()
-    .maxDistance(10)
-    .maxDuration(250)
-    .runOnJS(true)
-    .onEnd((e) => {
-      // Sync transform before hit detection for accurate coordinates (Phase 3B: On-demand sync)
-      syncTransformAndBounds();
+  const tapGesture = createTapGesture(gestureCallbacks);
 
-      // Update gestureStateRef synchronously with fresh transform values
-      gestureStateRef.current = {
-        ...gestureStateRef.current,
-        transform: {
-          x: translateX.value,
-          y: translateY.value,
-          scale: scale.value,
-        },
-      };
-
-      const state = gestureStateRef.current;
-
-      // Check if we're in T3 mode first
-      if (state.tier === 3 && AGGREGATION_ENABLED && state.indices?.heroNodes) {
-        // Check for chip taps
-        for (const hero of state.indices.heroNodes) {
-          const centroid = state.indices.centroids[hero.id];
-          if (!centroid) continue;
-
-          // Transform centroid to screen space
-          const screenX =
-            centroid.x * state.transform.scale + state.transform.x;
-          const screenY =
-            centroid.y * state.transform.scale + state.transform.y;
-
-          const isRoot = !hero.father_id;
-          const chipScale = isRoot ? 1.3 : 1.0;
-          const chipWidth = 100 * chipScale;
-          const chipHeight = 36 * chipScale;
-
-          // Check if tap is within chip bounds
-          if (
-            e.x >= screenX - chipWidth / 2 &&
-            e.x <= screenX + chipWidth / 2 &&
-            e.y >= screenY - chipHeight / 2 &&
-            e.y <= screenY + chipHeight / 2
-          ) {
-            handleChipTap(hero);
-            return;
-          }
-        }
-        return; // No chip tapped and we're in T3, so ignore
-      }
-
-      // Original node tap logic for T1/T2
-      const canvasX = (e.x - state.transform.x) / state.transform.scale;
-      const canvasY = (e.y - state.transform.y) / state.transform.scale;
-
-      // DEBUG: Log tap coordinates
-      // if (__DEV__) {
-      //   console.log(`👆 TAP: Screen(${e.x.toFixed(0)},${e.y.toFixed(0)}) → Canvas(${canvasX.toFixed(0)},${canvasY.toFixed(0)}) @ Scale:${scale.value.toFixed(2)}`);
-      // }
-
-      let tappedNodeId = null;
-      for (const node of state.visibleNodes) {
-        const isRoot = !node.father_id;
-        const nodeWidth = isRoot ? 120 :
-          (node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
-        const nodeHeight = isRoot ? 100 :
-          (node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-
-        if (
-          canvasX >= node.x - nodeWidth / 2 &&
-          canvasX <= node.x + nodeWidth / 2 &&
-          canvasY >= node.y - nodeHeight / 2 &&
-          canvasY <= node.y + nodeHeight / 2
-        ) {
-          tappedNodeId = node.id;
-
-          // DEBUG: Log tapped node
-          // if (__DEV__) {
-          //   console.log(`  → Hit: ${node.name} at (${node.x.toFixed(0)},${node.y.toFixed(0)})`);
-          // }
-
-          break;
-        }
-      }
-
-      handleNodeTap(tappedNodeId);
-    });
+  // OLD INLINE TAP GESTURE (Phase 3: Replaced with createTapGesture - Lines 2237-2324, 88 lines)
+  // const tapGesture = Gesture.Tap()
+  //   .maxDistance(10)
+  //   .maxDuration(250)
+  //   .runOnJS(true)
+  //   .onEnd((e) => {
+  //     // Sync transform before hit detection for accurate coordinates (Phase 3B: On-demand sync)
+  //     syncTransformAndBounds();
+  //
+  //     // Update gestureStateRef synchronously with fresh transform values
+  //     gestureStateRef.current = {
+  //       ...gestureStateRef.current,
+  //       transform: {
+  //         x: translateX.value,
+  //         y: translateY.value,
+  //         scale: scale.value,
+  //       },
+  //     };
+  //
+  //     const state = gestureStateRef.current;
+  //
+  //     // Check if we're in T3 mode first
+  //     if (state.tier === 3 && AGGREGATION_ENABLED && state.indices?.heroNodes) {
+  //       // Check for chip taps
+  //       for (const hero of state.indices.heroNodes) {
+  //         const centroid = state.indices.centroids[hero.id];
+  //         if (!centroid) continue;
+  //
+  //         // Transform centroid to screen space
+  //         const screenX =
+  //           centroid.x * state.transform.scale + state.transform.x;
+  //         const screenY =
+  //           centroid.y * state.transform.scale + state.transform.y;
+  //
+  //         const isRoot = !hero.father_id;
+  //         const chipScale = isRoot ? 1.3 : 1.0;
+  //         const chipWidth = 100 * chipScale;
+  //         const chipHeight = 36 * chipScale;
+  //
+  //         // Check if tap is within chip bounds
+  //         if (
+  //           e.x >= screenX - chipWidth / 2 &&
+  //           e.x <= screenX + chipWidth / 2 &&
+  //           e.y >= screenY - chipHeight / 2 &&
+  //           e.y <= screenY + chipHeight / 2
+  //         ) {
+  //           handleChipTap(hero);
+  //           return;
+  //         }
+  //       }
+  //       return; // No chip tapped and we're in T3, so ignore
+  //     }
+  //
+  //     // Original node tap logic for T1/T2
+  //     const canvasX = (e.x - state.transform.x) / state.transform.scale;
+  //     const canvasY = (e.y - state.transform.y) / state.transform.scale;
+  //
+  //     // DEBUG: Log tap coordinates
+  //     // if (__DEV__) {
+  //     //   console.log(`👆 TAP: Screen(${e.x.toFixed(0)},${e.y.toFixed(0)}) → Canvas(${canvasX.toFixed(0)},${canvasY.toFixed(0)}) @ Scale:${scale.value.toFixed(2)}`);
+  //     // }
+  //
+  //     let tappedNodeId = null;
+  //     for (const node of state.visibleNodes) {
+  //       const isRoot = !node.father_id;
+  //       const nodeWidth = isRoot ? 120 :
+  //         (node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
+  //       const nodeHeight = isRoot ? 100 :
+  //         (node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+  //
+  //       if (
+  //         canvasX >= node.x - nodeWidth / 2 &&
+  //         canvasX <= node.x + nodeWidth / 2 &&
+  //         canvasY >= node.y - nodeHeight / 2 &&
+  //         canvasY <= node.y + nodeHeight / 2
+  //       ) {
+  //         tappedNodeId = node.id;
+  //
+  //         // DEBUG: Log tapped node
+  //         // if (__DEV__) {
+  //         //   console.log(`  → Hit: ${node.name} at (${node.x.toFixed(0)},${node.y.toFixed(0)})`);
+  //         // }
+  //
+  //         break;
+  //       }
+  //     }
+  //
+  //     handleNodeTap(tappedNodeId);
+  //   });
 
   // Long press gesture for quick add
   const longPressGesture = Gesture.LongPress()
