@@ -15,7 +15,7 @@ import { useEffect } from 'react';
 import { Alert, Animated as RNAnimated } from 'react-native';
 import { useTreeStore, TREE_DATA_SCHEMA_VERSION } from '../../../stores/useTreeStore';
 import profilesService from '../../../services/profiles';
-import { formatDateByPreference } from '../../../services/dateFormatting';
+import { formatDateByPreference } from '../../../utils/dateDisplay';
 import { familyData } from '../../../data/family-data';
 
 // Debounce helper for real-time updates
