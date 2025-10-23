@@ -2098,6 +2098,78 @@ const TreeView = ({
         handleNodeTap(result.nodeId);
       }
     },
+
+    // Phase 4 - Called when long press detected (QuickAdd overlay for admin users)
+    onLongPress: (x, y) => {
+      // 1. Check admin permission first (QuickAdd is admin-only feature)
+      if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
+        return;
+      }
+
+      // 2. Sync transform before admin action for accurate coordinates
+      syncTransformAndBounds();
+
+      // 3. Update gestureStateRef with fresh transform values
+      gestureStateRef.current = {
+        ...gestureStateRef.current,
+        transform: {
+          x: translateX.value,
+          y: translateY.value,
+          scale: scale.value,
+        },
+      };
+
+      const state = gestureStateRef.current;
+
+      // 4. Don't handle in T3 mode (QuickAdd only works in T1/T2)
+      if (state.tier === 3) return;
+
+      // 5. Perform node hit detection (reuse same logic as tap)
+      const result = detectTap(
+        x,
+        y,
+        state,
+        AGGREGATION_ENABLED,
+        NODE_WIDTH_WITH_PHOTO,
+        NODE_HEIGHT_WITH_PHOTO,
+        NODE_WIDTH_TEXT_ONLY,
+        NODE_HEIGHT_TEXT_ONLY
+      );
+
+      // 6. If node hit, show QuickAdd overlay
+      if (result?.type === 'node' && result.nodeId) {
+        // Find the full node object from visibleNodes
+        const pressedNode = state.visibleNodes.find(n => n.id === result.nodeId);
+        if (pressedNode) {
+          console.log('Long-press on node:', pressedNode.name, 'ID:', pressedNode.id);
+          console.log('Node already has children:', pressedNode.children);
+
+          // Haptic feedback
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+          // Get children from node.children (already attached)
+          const children = Array.isArray(pressedNode.children) ? pressedNode.children : [];
+          console.log('Found children from node.children:', children.length);
+
+          if (children.length > 0) {
+            console.log('Children details:', children.map(c => ({
+              name: c.name,
+              sibling_order: c.sibling_order,
+              father_id: c.father_id,
+              mother_id: c.mother_id,
+            })));
+          }
+
+          // Sort children by sibling_order
+          children.sort((a, b) => (a.sibling_order || 0) - (b.sibling_order || 0));
+
+          // Show quick add overlay
+          setQuickAddParent(pressedNode);
+          setQuickAddPosition({ x, y });
+          setShowQuickAdd(true);
+        }
+      }
+    },
   };
 
   // Phase 2 Integration - Gesture configuration
@@ -2327,98 +2399,101 @@ const TreeView = ({
   //   });
 
   // Long press gesture for quick add
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(500) // 0.5 seconds
-    .maxDistance(10)
-    .runOnJS(true)
-    .onStart((e) => {
-      // Check user role instead of mode - QuickAdd is now permission-based
-      if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
-        return;
-      }
+  const longPressGesture = createLongPressGesture(gestureCallbacks);
 
-      // Sync transform before admin action for accurate coordinates (Phase 3B: On-demand sync)
-      syncTransformAndBounds();
-
-      // Update gestureStateRef synchronously with fresh transform values
-      gestureStateRef.current = {
-        ...gestureStateRef.current,
-        transform: {
-          x: translateX.value,
-          y: translateY.value,
-          scale: scale.value,
-        },
-      };
-
-      const state = gestureStateRef.current;
-
-      // Don't handle in T3 mode
-      if (state.tier === 3) return;
-
-      // Find which node was long-pressed
-      const canvasX = (e.x - state.transform.x) / state.transform.scale;
-      const canvasY = (e.y - state.transform.y) / state.transform.scale;
-
-      let pressedNode = null;
-      for (const node of state.visibleNodes) {
-        const isRoot = !node.father_id;
-        const nodeWidth = isRoot ? 120 :
-          (node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
-        const nodeHeight = isRoot ? 100 :
-          (node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-
-        if (
-          canvasX >= node.x - nodeWidth / 2 &&
-          canvasX <= node.x + nodeWidth / 2 &&
-          canvasY >= node.y - nodeHeight / 2 &&
-          canvasY <= node.y + nodeHeight / 2
-        ) {
-          pressedNode = node;
-          break;
-        }
-      }
-
-      if (pressedNode) {
-        console.log(
-          "Long-press on node:",
-          pressedNode.name,
-          "ID:",
-          pressedNode.id,
-        );
-        console.log("Node already has children:", pressedNode.children);
-
-        // Haptic feedback
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        // The node already has its children attached!
-        const children = Array.isArray(pressedNode.children)
-          ? pressedNode.children
-          : [];
-
-        console.log("Found children from node.children:", children.length);
-        if (children.length > 0) {
-          console.log(
-            "Children details:",
-            children.map((c) => ({
-              name: c.name,
-              sibling_order: c.sibling_order,
-              father_id: c.father_id,
-              mother_id: c.mother_id,
-            })),
-          );
-        }
-
-        // Sort children by sibling_order (they should already be sorted)
-        children.sort(
-          (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),
-        );
-
-        // Show quick add overlay
-        setQuickAddParent(pressedNode);
-        setQuickAddPosition({ x: e.x, y: e.y });
-        setShowQuickAdd(true);
-      }
-    });
+  // OLD INLINE LONG PRESS GESTURE (Phase 4: Replaced with createLongPressGesture - Lines 2402-2493, 92 lines)
+  // const longPressGesture = Gesture.LongPress()
+  //   .minDuration(500) // 0.5 seconds
+  //   .maxDistance(10)
+  //   .runOnJS(true)
+  //   .onStart((e) => {
+  //     // Check user role instead of mode - QuickAdd is now permission-based
+  //     if (!profile?.role || !['admin', 'super_admin', 'moderator'].includes(profile.role)) {
+  //       return;
+  //     }
+  //
+  //     // Sync transform before admin action for accurate coordinates (Phase 3B: On-demand sync)
+  //     syncTransformAndBounds();
+  //
+  //     // Update gestureStateRef synchronously with fresh transform values
+  //     gestureStateRef.current = {
+  //       ...gestureStateRef.current,
+  //       transform: {
+  //         x: translateX.value,
+  //         y: translateY.value,
+  //         scale: scale.value,
+  //       },
+  //     };
+  //
+  //     const state = gestureStateRef.current;
+  //
+  //     // Don't handle in T3 mode
+  //     if (state.tier === 3) return;
+  //
+  //     // Find which node was long-pressed
+  //     const canvasX = (e.x - state.transform.x) / state.transform.scale;
+  //     const canvasY = (e.y - state.transform.y) / state.transform.scale;
+  //
+  //     let pressedNode = null;
+  //     for (const node of state.visibleNodes) {
+  //       const isRoot = !node.father_id;
+  //       const nodeWidth = isRoot ? 120 :
+  //         (node.photo_url ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
+  //       const nodeHeight = isRoot ? 100 :
+  //         (node.photo_url ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
+  //
+  //       if (
+  //         canvasX >= node.x - nodeWidth / 2 &&
+  //         canvasX <= node.x + nodeWidth / 2 &&
+  //         canvasY >= node.y - nodeHeight / 2 &&
+  //         canvasY <= node.y + nodeHeight / 2
+  //       ) {
+  //         pressedNode = node;
+  //         break;
+  //       }
+  //     }
+  //
+  //     if (pressedNode) {
+  //       console.log(
+  //         "Long-press on node:",
+  //         pressedNode.name,
+  //         "ID:",
+  //         pressedNode.id,
+  //       );
+  //       console.log("Node already has children:", pressedNode.children);
+  //
+  //       // Haptic feedback
+  //       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  //
+  //       // The node already has its children attached!
+  //       const children = Array.isArray(pressedNode.children)
+  //         ? pressedNode.children
+  //         : [];
+  //
+  //       console.log("Found children from node.children:", children.length);
+  //       if (children.length > 0) {
+  //         console.log(
+  //           "Children details:",
+  //           children.map((c) => ({
+  //             name: c.name,
+  //             sibling_order: c.sibling_order,
+  //             father_id: c.father_id,
+  //             mother_id: c.mother_id,
+  //           })),
+  //         );
+  //       }
+  //
+  //       // Sort children by sibling_order (they should already be sorted)
+  //       children.sort(
+  //         (a, b) => (a.sibling_order || 0) - (b.sibling_order || 0),
+  //       );
+  //
+  //       // Show quick add overlay
+  //       setQuickAddParent(pressedNode);
+  //       setQuickAddPosition({ x: e.x, y: e.y });
+  //       setShowQuickAdd(true);
+  //     }
+  //   });
 
   // Handle chip tap in T3 - zoom to branch
   const handleChipTap = useCallback(
