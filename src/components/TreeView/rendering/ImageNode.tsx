@@ -1,0 +1,279 @@
+/**
+ * ImageNode - Photo avatar rendering with LOD
+ *
+ * Phase 2 Day 5 - Extracted from TreeView.js (lines 350-428)
+ *
+ * Renders circular avatar photos for tree nodes with LOD-aware loading.
+ * Integrates with ImageBuckets for resolution selection and batched loading.
+ *
+ * LOD Integration:
+ * - Tier 1: Load image at appropriate bucket size
+ * - Tier 2/3: Return null (photos hidden)
+ *
+ * Loading States:
+ * 1. **Hidden**: showPhotos=false or tier > 1 → returns null
+ * 2. **Skeleton**: Image loading → Shows placeholder circles
+ * 3. **Loaded**: Image ready → Displays with circular mask
+ *
+ * Performance Optimizations:
+ * - Bucket selection: 40/60/80/120/256px based on screen pixels
+ * - Hysteresis: Prevents bucket thrashing during zoom
+ * - Batched loading: useBatchedSkiaImage with priority
+ * - Circular mask: Single Circle component (no Path complexity)
+ *
+ * Design Constraints (Najdi Sadu):
+ * - Skeleton: Camel Hair Beige with 20% opacity (#D1BBA320)
+ * - Inner stroke: 10% opacity for subtle depth (#D1BBA310)
+ * - Fit: cover (maintains aspect ratio, fills circle)
+ *
+ * KNOWN PATTERNS (AS-IS for Phase 2):
+ * - Uses useBatchedSkiaImage (custom hook from TreeView)
+ * - Needs to be imported or extracted separately
+ * - Debug logging with 1% sample rate (Math.random)
+ */
+
+import React from 'react';
+import { PixelRatio } from 'react-native';
+import { Group, Circle, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
+
+export interface ImageNodeProps {
+  // Image source
+  url: string;
+
+  // Position and size (top-left corner)
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  radius: number;
+
+  // LOD tier (1, 2, or 3)
+  tier: number;
+
+  // Current scale for bucket selection
+  scale: number;
+
+  // Node ID for hysteresis tracking
+  nodeId: string;
+
+  // Bucket selection function (optional, for hysteresis)
+  selectBucket?: (nodeId: string, pixelSize: number) => number;
+
+  // Global photo visibility toggle
+  showPhotos?: boolean;
+
+  // Batched image loading hook
+  useBatchedSkiaImage: (
+    url: string,
+    bucket: number | null,
+    priority: string
+  ) => any | null;
+}
+
+/**
+ * Calculate pixel size for bucket selection
+ *
+ * Determines physical screen pixels needed for image.
+ * Used to select appropriate image resolution bucket.
+ *
+ * Formula: width * device_pixel_ratio * zoom_scale
+ *
+ * @param width - Image width in logical pixels
+ * @param scale - Current zoom scale
+ * @returns Physical pixel size
+ */
+export function calculatePixelSize(width: number, scale: number): number {
+  return width * PixelRatio.get() * scale;
+}
+
+/**
+ * Select image bucket size
+ *
+ * Chooses closest bucket that meets or exceeds pixel size.
+ * Uses 2x multiplier for retina display quality.
+ *
+ * @param pixelSize - Required pixel size
+ * @param imageBuckets - Available bucket sizes (default: [40, 60, 80, 120, 256])
+ * @returns Selected bucket size
+ */
+export function selectImageBucket(
+  pixelSize: number,
+  imageBuckets: number[] = [40, 60, 80, 120, 256]
+): number {
+  return imageBuckets.find((b) => b >= pixelSize * 2) || 512;
+}
+
+/**
+ * Should load image
+ *
+ * Determines whether to load image based on LOD tier and visibility settings.
+ *
+ * Loading criteria:
+ * - Tier must be 1 (full detail)
+ * - URL must be provided
+ * - showPhotos must be true
+ *
+ * @param tier - LOD tier (1, 2, or 3)
+ * @param url - Image URL
+ * @param showPhotos - Global photo visibility toggle
+ * @returns True if image should be loaded
+ */
+export function shouldLoadImage(
+  tier: number,
+  url: string | undefined,
+  showPhotos: boolean
+): boolean {
+  return tier === 1 && !!url && showPhotos;
+}
+
+/**
+ * Render image skeleton placeholder
+ *
+ * Shows placeholder while image loads.
+ * Uses Najdi design colors for consistency.
+ *
+ * @param x - Top-left X position
+ * @param y - Top-left Y position
+ * @param radius - Circle radius
+ * @returns Group with skeleton circles
+ */
+export function renderImageSkeleton(
+  x: number,
+  y: number,
+  radius: number
+): JSX.Element {
+  return (
+    <Group>
+      {/* Base circle background */}
+      <Circle
+        cx={x + radius}
+        cy={y + radius}
+        r={radius}
+        color={IMAGE_NODE_CONSTANTS.SKELETON_COLOR}
+      />
+      {/* Inner stroke for depth */}
+      <Circle
+        cx={x + radius}
+        cy={y + radius}
+        r={radius - 1}
+        color={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_COLOR}
+        style="stroke"
+        strokeWidth={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_WIDTH}
+      />
+    </Group>
+  );
+}
+
+/**
+ * Render loaded image with circular mask
+ *
+ * Displays image clipped to circular shape.
+ * Uses alpha mask for clean edge rendering.
+ *
+ * @param image - Loaded Skia image
+ * @param x - Top-left X position
+ * @param y - Top-left Y position
+ * @param width - Image width
+ * @param height - Image height
+ * @param radius - Circle radius (for mask)
+ * @returns Group with masked image
+ */
+export function renderLoadedImage(
+  image: any,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+): JSX.Element {
+  return (
+    <Group>
+      <Mask
+        mode="alpha"
+        mask={<Circle cx={x + radius} cy={y + radius} r={radius} color="white" />}
+      >
+        <SkiaImage
+          image={image}
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fit="cover"
+        />
+      </Mask>
+    </Group>
+  );
+}
+
+/**
+ * ImageNode component
+ *
+ * Renders circular avatar photo with LOD-aware loading.
+ * Returns null if photos hidden or tier > 1.
+ *
+ * @param props - ImageNode props
+ * @returns Group with image/skeleton or null
+ */
+export const ImageNode: React.FC<ImageNodeProps> = React.memo(
+  ({
+    url,
+    x,
+    y,
+    width,
+    height,
+    radius,
+    tier,
+    scale,
+    nodeId,
+    selectBucket,
+    showPhotos = true,
+    useBatchedSkiaImage,
+  }) => {
+    // Determine if image should load
+    const shouldLoad = shouldLoadImage(tier, url, showPhotos);
+
+    // Debug logging (1% sample rate to avoid spam)
+    if (nodeId && Math.random() < 0.01) {
+      console.log('[ImageNode] nodeId:', nodeId, 'showPhotos:', showPhotos, 'shouldLoad:', shouldLoad);
+    }
+
+    // Calculate physical pixel size
+    const pixelSize = calculatePixelSize(width, scale);
+
+    // Select bucket (with hysteresis if function provided)
+    const bucket = shouldLoad
+      ? selectBucket && nodeId
+        ? selectBucket(nodeId, pixelSize * 2)
+        : selectImageBucket(pixelSize)
+      : null;
+
+    // Load image with batched loading
+    const image = shouldLoad ? useBatchedSkiaImage(url, bucket, 'visible') : null;
+
+    // Return null if photos hidden
+    if (!shouldLoad) {
+      return null;
+    }
+
+    // Show skeleton if image not loaded
+    if (!image) {
+      return renderImageSkeleton(x, y, radius);
+    }
+
+    // Show loaded image
+    return renderLoadedImage(image, x, y, width, height, radius);
+  }
+);
+
+ImageNode.displayName = 'ImageNode';
+
+// Export constants for testing
+export const IMAGE_NODE_CONSTANTS = {
+  DEFAULT_BUCKETS: [40, 60, 80, 120, 256],
+  FALLBACK_BUCKET: 512,
+  RETINA_MULTIPLIER: 2,
+  SKELETON_COLOR: '#D1BBA320', // Camel Hair Beige 20%
+  SKELETON_STROKE_COLOR: '#D1BBA310', // Camel Hair Beige 10%
+  SKELETON_STROKE_WIDTH: 0.5,
+  DEBUG_SAMPLE_RATE: 0.01, // Log 1% of renders
+};
