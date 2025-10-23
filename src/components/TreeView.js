@@ -63,6 +63,9 @@ import Animated, {
 // Phase 2 Day 8 - Import SimpleTreeSkeleton
 import { SimpleTreeSkeleton } from './TreeView/SimpleTreeSkeleton';
 
+// Phase 2 Integration - Import extracted components
+import { SpatialGrid, GRID_CELL_SIZE, MAX_VISIBLE_NODES } from './TreeView/spatial/SpatialGrid';
+
 // Phase 1 Day 4a - Import extracted utilities
 import {
   // Constants
@@ -157,7 +160,6 @@ const SCALE_QUANTUM = 0.05; // 5% quantization steps
 const HYSTERESIS = 0.15; // ±15% hysteresis
 const T1_BASE = 48; // Full card threshold (px)
 const T2_BASE = 24; // Text pill threshold (px)
-const MAX_VISIBLE_NODES = 500; // 10% safety buffer for asymmetric margins at extreme zoom
 const MAX_VISIBLE_EDGES = 300; // Hard cap per frame
 const LOD_ENABLED = true; // Kill switch
 const AGGREGATION_ENABLED = true; // T3 chips toggle
@@ -501,64 +503,6 @@ const SaduIconG2 = ({ x, y, size }) => {
     </Group>
   );
 };
-
-// Spatial grid for efficient culling
-// Reduced from 512px to better align with ~100px node spacing
-const GRID_CELL_SIZE = 256;
-
-class SpatialGrid {
-  constructor(nodes, cellSize = GRID_CELL_SIZE) {
-    this.cellSize = cellSize;
-    this.grid = new Map(); // "x,y" -> Set<nodeId>
-
-    // Build grid
-    nodes.forEach((node) => {
-      const cellX = Math.floor(node.x / cellSize);
-      const cellY = Math.floor(node.y / cellSize);
-      const key = `${cellX},${cellY}`;
-
-      if (!this.grid.has(key)) {
-        this.grid.set(key, new Set());
-      }
-      this.grid.get(key).add(node.id);
-    });
-  }
-
-  getVisibleNodes({ x, y, width, height }, scale, idToNode) {
-    // Transform viewport to world space
-    const worldMinX = -x / scale;
-    const worldMaxX = (-x + width) / scale;
-    const worldMinY = -y / scale;
-    const worldMaxY = (-y + height) / scale;
-
-    // Get intersecting cells
-    const minCellX = Math.floor(worldMinX / this.cellSize);
-    const maxCellX = Math.floor(worldMaxX / this.cellSize);
-    const minCellY = Math.floor(worldMinY / this.cellSize);
-    const maxCellY = Math.floor(worldMaxY / this.cellSize);
-
-    // Collect nodes from cells
-    const visibleIds = new Set();
-    for (let cx = minCellX; cx <= maxCellX; cx++) {
-      for (let cy = minCellY; cy <= maxCellY; cy++) {
-        const cellNodes = this.grid.get(`${cx},${cy}`);
-        if (cellNodes) {
-          cellNodes.forEach((id) => visibleIds.add(id));
-        }
-      }
-    }
-
-    // Convert to nodes and apply hard cap
-    const visibleNodes = [];
-    for (const id of visibleIds) {
-      if (visibleNodes.length >= MAX_VISIBLE_NODES) break;
-      const node = idToNode.get(id);
-      if (node) visibleNodes.push(node);
-    }
-
-    return visibleNodes;
-  }
-}
 
 const TreeView = ({
   setProfileEditMode,
