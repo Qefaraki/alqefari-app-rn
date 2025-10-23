@@ -558,11 +558,11 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
                       <View style={styles.emptyContainer}>
                         <Ionicons name="search-outline" size={48} color={tokens.colors.najdi.textMuted} />
                         <Text style={styles.emptyText}>لا توجد نتائج</Text>
-                        <Text style={styles.emptyHint}>لم نجد {spouseTitle} بهذا الاسم في الشجرة</Text>
-                        <TouchableOpacity style={styles.addNewButton} onPress={handleAddAsNew}>
-                          <Text style={styles.addNewButtonText}>إضافة كشخص جديد</Text>
-                          <Ionicons name="add-circle-outline" size={20} color={tokens.colors.najdi.primary} />
-                        </TouchableOpacity>
+                        <Text style={styles.emptyHint}>
+                          {spouseGender === "female"
+                            ? "قد تكون غير موجودة في الشجرة. أضفها كملف شخصي لتظهر هنا"
+                            : "قد يكون غير موجود في الشجرة. أضفه كملف شخصي ليظهر هنا"}
+                        </Text>
                       </View>
                     ) : null
                   }
