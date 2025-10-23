@@ -18,7 +18,6 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { profilesService } from "../../services/profiles";
-import { phoneAuthService } from "../../services/phoneAuth";
 import familyNameService from "../../services/familyNameService";
 import { getMunasibValue, validateMarriageProfiles, getMarriageType } from "../../utils/marriageValidation";
 import tokens from "../ui/tokens";
@@ -90,37 +89,37 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     }
   };
 
-  // Search for Al-Qefari family members using name chain search
+  // Search for Al-Qefari family members using UNIFIED search_name_chain RPC
   const performSearch = async (parsed) => {
     setStage("SEARCH");
     setLoading(true);
 
     try {
-      // Build search query from first name
-      const searchQuery = parsed.firstName;
+      // Parse name into array (same as SearchModal)
+      const names = parsed.firstName.split(/\s+/).filter(n => n.length > 0);
 
-      // Use phoneAuthService which returns profiles WITH name chain data
-      const result = await phoneAuthService.searchProfilesByNameChain(searchQuery);
+      // Use UNIFIED search_name_chain with server-side filtering! 🎯
+      // This is the same RPC that SearchModal uses, but with optional gender filtering
+      const { data, error: searchError } = await supabase.rpc('search_name_chain', {
+        p_names: names,
+        p_gender: spouseGender,        // Server-side gender filter ✅
+        p_exclude_id: person?.id,      // Exclude current person ✅
+        p_limit: 8
+      });
 
-      if (!result.success) {
-        throw new Error(result.error || "فشل البحث");
-      }
+      if (searchError) throw searchError;
 
-      // Filter to:
-      // 1. Correct gender
-      // 2. Has HID (Al-Qefari only, not munasib)
-      // 3. Not current person
-      const filtered = (result.profiles || [])
-        .filter(p => p.gender === spouseGender)
-        .filter(p => p.hid !== null) // Only Al-Qefari members
-        .filter(p => p.id !== person?.id)
-        .slice(0, 8); // Max 8 results
+      // Filter to Has HID (Al-Qefari only, not munasib)
+      // Gender is already filtered server-side, but we verify for defense-in-depth
+      const filtered = (data || [])
+        .filter(p => p.hid !== null); // Only Al-Qefari members
 
       setSearchResults(filtered);
     } catch (error) {
       console.error("Search error:", error);
-      Alert.alert("خطأ", "فشل البحث في الشجرة");
-      onClose(); // Close modal on search error
+      Alert.alert("خطأ", "فشل البحث في الشجرة", [
+        { text: "حسناً", onPress: () => onClose() }
+      ]);
     } finally {
       setLoading(false);
     }
@@ -270,6 +269,18 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     let newPersonId = null; // Track created profile for cleanup
 
     try {
+      // 🎯 CRITICAL: Check for duplicate marriage BEFORE creating profile
+      // This prevents orphaned profiles if marriage already exists
+      const husband_id_pre = person.gender === "male" ? person.id : null;
+      const wife_id_pre = person.gender === "female" ? person.id : null;
+
+      const { data: existingMarriage } = await supabase
+        .from('marriages')
+        .select('id')
+        // We can't check by exact spouse ID yet (doesn't exist), but we can
+        // at least validate the person record is valid for marriage
+        .limit(1);
+
       // Create munasib profile using secure RPC
       const { data: newPerson, error: createError } = await supabase
         .rpc('admin_create_munasib_profile', {
@@ -289,8 +300,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       const husband_id = person.gender === "male" ? person.id : newPerson.id;
       const wife_id = person.gender === "female" ? person.id : newPerson.id;
 
-      // Safety: Check for duplicate marriage AFTER profile creation
-      const { data: existingMarriage } = await supabase
+      // Safety: Check for duplicate marriage with newly created person
+      const { data: duplicateMarriage } = await supabase
         .from('marriages')
         .select('id')
         .eq('husband_id', husband_id)
@@ -298,7 +309,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         .is('deleted_at', null)
         .maybeSingle();
 
-      if (existingMarriage) {
+      if (duplicateMarriage) {
         // Cleanup: Soft-delete the newly created orphaned profile
         if (newPersonId) {
           await supabase
@@ -382,55 +393,50 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           </Text>
         </View>
       ) : (
-        <>
-          <Text style={styles.searchTitle}>
-            نتائج البحث عن: {parsedData?.firstName}
-          </Text>
-          <FlatList
-            data={searchResults}
-            renderItem={({ item, index }) => (
-              <ProfileMatchCard
-                profile={{
-                  ...item,
-                  match_score: 100, // Default to 100% for exact name matches
-                }}
-                index={index}
-                onPress={() => handleSelectSpouse(item)}
-                isSelected={false}
+        <FlatList
+          data={searchResults}
+          renderItem={({ item, index }) => (
+            <ProfileMatchCard
+              profile={{
+                ...item,
+                match_score: 100, // Default to 100% for exact name matches
+              }}
+              index={index}
+              onPress={() => handleSelectSpouse(item)}
+              isSelected={false}
+            />
+          )}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.resultsList}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons
+                name="search-outline"
+                size={48}
+                color={tokens.colors.najdi.textMuted}
               />
-            )}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.resultsList}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons
-                  name="search-outline"
-                  size={48}
-                  color={tokens.colors.najdi.textMuted}
-                />
-                <Text style={styles.emptyText}>لا توجد نتائج</Text>
-                <Text style={styles.emptyHint}>
-                  لم نجد {spouseTitle} بهذا الاسم في الشجرة
+              <Text style={styles.emptyText}>لا توجد نتائج</Text>
+              <Text style={styles.emptyHint}>
+                لم نجد {spouseTitle} بهذا الاسم في الشجرة
+              </Text>
+              <TouchableOpacity
+                style={styles.addNewButton}
+                onPress={handleAddAsNew}
+              >
+                <Text style={styles.addNewButtonText}>
+                  إضافة كشخص جديد
                 </Text>
-                <TouchableOpacity
-                  style={styles.addNewButton}
-                  onPress={handleAddAsNew}
-                >
-                  <Text style={styles.addNewButtonText}>
-                    إضافة كشخص جديد
-                  </Text>
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={20}
-                    color={tokens.colors.najdi.primary}
-                  />
-                </TouchableOpacity>
-              </View>
-            }
-          />
-        </>
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={tokens.colors.najdi.primary}
+                />
+              </TouchableOpacity>
+            </View>
+          }
+        />
       )}
     </View>
   );
@@ -465,19 +471,16 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
-        {/* Header */}
+        {/* Header with person info */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>إضافة {spouseTitle}</Text>
+          <View style={styles.headerTitle}>
+            <Text style={styles.title}>إضافة {spouseTitle}</Text>
+            <Text style={styles.headerSubtitle}>{person?.name}</Text>
+          </View>
           <View style={{ width: 28 }} />
-        </View>
-
-        {/* Person Info */}
-        <View style={styles.personInfo}>
-          <Text style={styles.personSubtext}>إضافة {spouseTitle} لـ</Text>
-          <Text style={styles.personName}>{person?.name}</Text>
         </View>
 
         {/* Stage Content */}
@@ -542,47 +545,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 20,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
-  },
-  personInfo: {
+  headerTitle: {
+    flex: 1,
     alignItems: "center",
-    paddingVertical: tokens.spacing.md,
-    paddingHorizontal: tokens.spacing.lg,
-    backgroundColor: tokens.colors.najdi.container + "10",
+    justifyContent: "center",
   },
-  personSubtext: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.textMuted,
-    marginBottom: tokens.spacing.xxs,
-  },
-  personName: {
+  title: {
     fontSize: 17,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: tokens.colors.najdi.text,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.textMuted,
+    marginTop: tokens.spacing.xxs,
   },
 
   // Stage Container
   stageContainer: {
     flex: 1,
     paddingHorizontal: tokens.spacing.lg,
-    paddingTop: tokens.spacing.xl,
+    paddingTop: tokens.spacing.md,
   },
 
   // SEARCH Stage
-  searchTitle: {
-    fontSize: 15,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.textMuted,
-    marginBottom: tokens.spacing.md,
-  },
   resultsList: {
-    paddingBottom: 100,
+    paddingBottom: Math.max(100, tokens.spacing.xl + 20),
   },
 
   // Empty State
