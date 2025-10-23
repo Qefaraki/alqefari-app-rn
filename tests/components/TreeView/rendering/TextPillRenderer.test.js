@@ -37,7 +37,7 @@ describe('TextPillRenderer', () => {
     test('should export expected dimensions', () => {
       expect(PILL_CONSTANTS.WIDTH).toBe(60);
       expect(PILL_CONSTANTS.HEIGHT).toBe(26);
-      expect(PILL_CONSTANTS.CORNER_RADIUS).toBe(13);
+      expect(PILL_CONSTANTS.CORNER_RADIUS).toBe(4); // CHANGED: 13 → 4
     });
 
     test('should export Najdi Sadu colors', () => {
@@ -54,7 +54,7 @@ describe('TextPillRenderer', () => {
 
     test('should export typography constants', () => {
       expect(PILL_CONSTANTS.FONT_SIZE).toBe(10);
-      expect(PILL_CONSTANTS.TEXT_OFFSET_Y).toBe(7);
+      expect(PILL_CONSTANTS.TEXT_OFFSET_Y).toBe(4); // CHANGED: 7 → 4
     });
   });
 
@@ -164,7 +164,7 @@ describe('TextPillRenderer', () => {
         y: 200 - 13, // centerY - height/2
         width: 60,
         height: 26,
-        borderRadius: 13,
+        borderRadius: 4, // CHANGED: 13 → 4
       });
     });
 
@@ -188,7 +188,7 @@ describe('TextPillRenderer', () => {
         y: -213, // -200 - 13
         width: 60,
         height: 26,
-        borderRadius: 13,
+        borderRadius: 4, // CHANGED: 13 → 4
       });
     });
 
@@ -212,7 +212,7 @@ describe('TextPillRenderer', () => {
         y: -13, // 0 - 13
         width: 60,
         height: 26,
-        borderRadius: 13,
+        borderRadius: 4, // CHANGED: 13 → 4
       });
     });
 

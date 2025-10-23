@@ -183,7 +183,7 @@ export const PILL_CONSTANTS = {
   // Dimensions
   WIDTH: 60,
   HEIGHT: 26,
-  CORNER_RADIUS: 13,
+  CORNER_RADIUS: 4, // CHANGED: 13 → 4 (15% of height instead of 50%)
 
   // Colors (Najdi Sadu palette)
   BACKGROUND_COLOR: '#FFFFFF',
@@ -197,5 +197,5 @@ export const PILL_CONSTANTS = {
 
   // Typography
   FONT_SIZE: 10,
-  TEXT_OFFSET_Y: 7, // Vertical centering adjustment
+  TEXT_OFFSET_Y: 4, // CHANGED: 7 → 4 (15% of height instead of 27%)
 };

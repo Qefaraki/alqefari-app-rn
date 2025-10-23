@@ -2375,9 +2375,25 @@ const TreeView = ({
         const parent = nodes.find((n) => n.id === conn.parent.id);
         if (!parent) continue;
 
+        // T2 height override: Text pills are 26px tall (not 35px like T1 text-only nodes)
+        const T2_TEXT_PILL_HEIGHT = 26;
+
         // Use PathCalculator for all geometry calculations
         const busY = calculateBusY(parent, conn.children);
-        const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
+
+        let parentVertical;
+        if (tier === 2) {
+          // T2 override: Calculate parent vertical manually using pill height
+          parentVertical = {
+            startX: parent.x,
+            startY: parent.y + T2_TEXT_PILL_HEIGHT / 2,
+            endX: parent.x,
+            endY: busY,
+          };
+        } else {
+          // T1: Use PathCalculator
+          parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
+        }
 
         // Add parent vertical line
         pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
@@ -2391,7 +2407,20 @@ const TreeView = ({
         }
 
         // Add child vertical lines
-        const childVerticals = calculateChildVerticalPaths(conn.children, busY, showPhotos);
+        let childVerticals;
+        if (tier === 2) {
+          // T2 override: Calculate child verticals manually using pill height
+          childVerticals = conn.children.map((child) => ({
+            startX: child.x,
+            startY: busY,
+            endX: child.x,
+            endY: child.y - T2_TEXT_PILL_HEIGHT / 2,
+          }));
+        } else {
+          // T1: Use PathCalculator
+          childVerticals = calculateChildVerticalPaths(conn.children, busY, showPhotos);
+        }
+
         conn.children.forEach((child, index) => {
           const childNode = nodes.find((n) => n.id === child.id);
           if (childNode) {
