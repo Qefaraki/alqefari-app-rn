@@ -2054,8 +2054,27 @@ const TreeView = ({
     [navigateToNode, nodes, calculatePathData, glowOpacity, pathOpacity],
   );
 
-  // Pan gesture with momentum
-  const panGesture = Gesture.Pan()
+  // Phase 2 Integration - Gesture callbacks for extracted gesture functions
+  const gestureCallbacks = {
+    // Called when pan/pinch ends (for transform sync)
+    onGestureEnd: () => {
+      syncTransformAndBounds();
+    },
+  };
+
+  // Phase 2 Integration - Gesture configuration
+  const gestureConfig = {
+    decelerationRate: 0.995, // Pan momentum decay rate
+    minZoom: minZoom,
+    maxZoom: maxZoom,
+  };
+
+  // Phase 2 Integration - Replace inline gestures with extracted functions
+  const panGesture = createPanGesture(gestureSharedValues, gestureCallbacks, gestureConfig);
+  const pinchGesture = createPinchGesture(gestureSharedValues, gestureCallbacks, gestureConfig);
+
+  // OLD INLINE CODE - TO BE REMOVED AFTER TESTING
+  /* const panGesture = Gesture.Pan()
     .onStart(() => {
       "worklet";
       // Don't start pan if we're pinching
@@ -2158,7 +2177,8 @@ const TreeView = ({
 
       // Sync React state after pinch completes (Phase 3B: On-demand sync)
       runOnJS(syncTransformAndBounds)();
-    });
+    }); */
+  // END OLD INLINE CODE
 
   // Handle node tap - show profile sheet (edit mode if admin)
   const handleNodeTap = useCallback(
