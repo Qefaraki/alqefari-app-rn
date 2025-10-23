@@ -57,9 +57,9 @@ import { Group, RoundedRect, Circle, Paragraph } from '@shopify/react-native-ski
 import { ImageNode } from './ImageNode';
 
 // Node dimensions constants (from TreeView utilities)
-// TEMP: Reduced padding (50%) until Perfect Tree redesign
-const NODE_WIDTH_WITH_PHOTO = 75;  // Was 85 (10px reduction)
-const NODE_HEIGHT_WITH_PHOTO = 85; // Was 105 (20px reduction)
+// TEMP: Minimal padding until Perfect Tree redesign
+const NODE_WIDTH_WITH_PHOTO = 65;  // Was 85, then 75, now 65 (minimal padding)
+const NODE_HEIGHT_WITH_PHOTO = 75; // Was 105, then 85, now 75 (minimal padding)
 const NODE_WIDTH_TEXT_ONLY = 65;
 const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 50;
@@ -444,10 +444,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             />
           )}
 
-          {/* Generation badge - positioned in top-right corner for photo nodes */}
-          {renderGenerationBadge(node.generation, x + width - 15, y + 4, 15, getCachedParagraph)}
-
-          {/* Name text - centered in space between photo bottom edge and card bottom edge */}
+          {/* Name text - positioned near bottom of card */}
           {(() => {
             const nameParagraph = getCachedParagraph(
               node.name,
@@ -459,14 +456,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
             if (!nameParagraph) return null;
 
-            // Photo: center at y-10, radius 25, so bottom edge at y-10+25 = y+15
-            // Card: center at y, height 85, so bottom edge at y+42.5
-            // Available space for text: from y+15 to y+42.5 = 27.5px
-            // Center text in this space
-            const photoBottomEdge = y + 15;
-            const cardBottomEdge = y + (height / 2);
-            const availableSpace = cardBottomEdge - photoBottomEdge;
-            const textY = photoBottomEdge + (availableSpace - nameParagraph.getHeight()) / 2;
+            // Position text near bottom of card - slightly higher than bottom edge
+            const textY = y + (height * 0.80) - (nameParagraph.getHeight() / 2);
 
             return <Paragraph paragraph={nameParagraph} x={x} y={textY} width={width} />;
           })()}

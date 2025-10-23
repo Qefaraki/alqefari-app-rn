@@ -1,18 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Animated,
 } from 'react-native';
 import tokens from './tokens';
 
 /**
- * Pinterest-inspired TabBar component with animated underline indicator
+ * Pinterest-inspired TabBar component with static underline indicator
  *
  * Replaces native tabs with minimal, modern design that matches Najdi Sadu
- * aesthetic. Features smooth spring animations and full RTL support.
+ * aesthetic. Static indicator for better RTL support and simplicity.
  *
  * @component
  * @example
@@ -37,34 +36,10 @@ const TabBar = ({
   showDivider = true,
 }) => {
   const [tabLayouts, setTabLayouts] = useState({});
-  const indicatorPosition = useRef(new Animated.Value(0)).current;
-  const indicatorWidth = useRef(new Animated.Value(0)).current;
 
-  // Animate indicator when activeTab changes
-  useEffect(() => {
-    const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
-    const layout = tabLayouts[activeIndex];
-
-    if (layout) {
-      Animated.parallel([
-        // Animate horizontal position with spring for natural iOS feel
-        Animated.spring(indicatorPosition, {
-          toValue: layout.x,
-          useNativeDriver: false,
-          tension: 120,    // iOS-standard spring tension
-          friction: 10,    // Smooth damping
-          velocity: 2,     // Initial velocity for snappy feel
-        }),
-        // Animate width to match active tab label width
-        Animated.spring(indicatorWidth, {
-          toValue: layout.width,
-          useNativeDriver: false,
-          tension: 120,
-          friction: 10,
-        }),
-      ]).start();
-    }
-  }, [activeTab, tabLayouts]);
+  // Get active tab layout for static indicator positioning
+  const activeIndex = tabs.findIndex(tab => tab.id === activeTab);
+  const activeLayout = tabLayouts[activeIndex];
 
   const handleTabPress = (tabId) => {
     onTabChange(tabId);
@@ -105,17 +80,19 @@ const TabBar = ({
         })}
       </View>
 
-      {/* Animated underline indicator */}
-      <Animated.View
-        style={[
-          styles.indicator,
-          {
-            backgroundColor: indicatorColor,
-            width: indicatorWidth,
-            transform: [{ translateX: indicatorPosition }],
-          },
-        ]}
-      />
+      {/* Static underline indicator */}
+      {activeLayout && (
+        <View
+          style={[
+            styles.indicator,
+            {
+              backgroundColor: indicatorColor,
+              width: activeLayout.width,
+              left: activeLayout.x,
+            },
+          ]}
+        />
+      )}
 
       {/* Optional hairline divider below tabs */}
       {showDivider && <View style={styles.divider} />}

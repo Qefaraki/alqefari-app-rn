@@ -19,10 +19,10 @@ export const SHADOW_RADIUS = 8;
 export const SHADOW_OFFSET_Y = 2;
 
 // Layout Spacing
-export const DEFAULT_SIBLING_GAP = 120;
+export const DEFAULT_SIBLING_GAP = 80;  // TEMP: Reduced from 120 for tighter spacing
 export const DEFAULT_GENERATION_GAP = 180;
-export const MIN_SIBLING_GAP = 80;
-export const MAX_SIBLING_GAP = 200;
+export const MIN_SIBLING_GAP = 60;      // TEMP: Reduced from 80
+export const MAX_SIBLING_GAP = 150;     // TEMP: Reduced from 200
 export const MIN_GENERATION_GAP = 120;
 export const MAX_GENERATION_GAP = 240;
 

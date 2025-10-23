@@ -76,10 +76,10 @@ export function calculateParentVerticalPath(
   busY: number,
   showPhotos: boolean = true
 ): PathSegment {
-  // TEMP: Use updated dimensions (85px photo cards, 35px text-only)
+  // TEMP: Use updated dimensions (75px photo cards, 35px text-only)
   const parentHeight =
     showPhotos && parent.photo_url
-      ? 85  // NODE_HEIGHT_WITH_PHOTO (updated from 105)
+      ? 75  // NODE_HEIGHT_WITH_PHOTO (minimal padding)
       : 35; // NODE_HEIGHT_TEXT_ONLY (unchanged)
 
   return {
@@ -149,11 +149,11 @@ export function calculateChildVerticalPaths(
 ): PathSegment[] {
   return children.map((child) => {
     const isRoot = !child.father_id;
-    // TEMP: Use updated dimensions (85px photo cards, 35px text-only)
+    // TEMP: Use updated dimensions (75px photo cards, 35px text-only)
     const childHeight = isRoot
       ? 100 // Root nodes have fixed 100px height
       : showPhotos && child.photo_url
-      ? 85  // NODE_HEIGHT_WITH_PHOTO (updated from 105)
+      ? 75  // NODE_HEIGHT_WITH_PHOTO (minimal padding)
       : 35; // NODE_HEIGHT_TEXT_ONLY (unchanged)
 
     return {

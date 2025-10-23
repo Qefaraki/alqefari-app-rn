@@ -7,8 +7,10 @@ import {
   SafeAreaView,
   Alert,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Host, Picker } from '@expo/ui/swift-ui';
 import TabBar from '../components/ui/TabBar';
 import tokens from '../components/ui/tokens';
 
@@ -134,6 +136,85 @@ const TabBarDemo = ({ onClose }) => {
           </View>
         </View>
 
+        {/* Variant 3: NATIVE iOS Segmented Control */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>iOS Native Segmented Control</Text>
+          </View>
+
+          <View style={styles.demoContainer}>
+            <Text style={styles.demoLabel}>Suggestion Statuses</Text>
+            {Platform.OS === 'ios' && (
+              <View style={styles.selectorSurface}>
+                <Host style={{ width: '100%', height: 36 }}>
+                  <Picker
+                    label=""
+                    options={['قيد المراجعة', 'مقبولة', 'مرفوضة']}
+                    variant="segmented"
+                    selectedIndex={0}
+                    onOptionSelected={({ nativeEvent: { index } }) => {
+                      // Segmented control selection
+                    }}
+                  />
+                </Host>
+              </View>
+            )}
+            {Platform.OS !== 'ios' && (
+              <Text style={styles.androidNote}>
+                iOS Native Control - Android devices show placeholder
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.demoContainer}>
+            <Text style={styles.demoLabel}>Role Filter</Text>
+            {Platform.OS === 'ios' && (
+              <View style={styles.selectorSurface}>
+                <Host style={{ width: '100%', height: 36 }}>
+                  <Picker
+                    label=""
+                    options={['الكل', 'مدير رئيسي', 'مشرف']}
+                    variant="segmented"
+                    selectedIndex={0}
+                    onOptionSelected={({ nativeEvent: { index } }) => {
+                      // Segmented control selection
+                    }}
+                  />
+                </Host>
+              </View>
+            )}
+            {Platform.OS !== 'ios' && (
+              <Text style={styles.androidNote}>
+                iOS Native Control - Android devices show placeholder
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.demoContainer}>
+            <Text style={styles.demoLabel}>Binary Toggle</Text>
+            {Platform.OS === 'ios' && (
+              <View style={styles.selectorSurface}>
+                <Host style={{ width: '100%', height: 36 }}>
+                  <Picker
+                    label=""
+                    options={['المستخدمون', 'المحظورون']}
+                    variant="segmented"
+                    selectedIndex={0}
+                    onOptionSelected={({ nativeEvent: { index } }) => {
+                      // Segmented control selection
+                    }}
+                  />
+                </Host>
+              </View>
+            )}
+            {Platform.OS !== 'ios' && (
+              <Text style={styles.androidNote}>
+                iOS Native Control - Android devices show placeholder
+              </Text>
+            )}
+          </View>
+        </View>
+
         <View style={styles.footer} />
       </ScrollView>
     </SafeAreaView>
@@ -202,6 +283,32 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.textMuted,
     marginBottom: tokens.spacing.sm,
     textTransform: 'uppercase',
+  },
+  selectorSurface: {
+    borderRadius: tokens.radii.lg,
+    backgroundColor: tokens.colors.najdi.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.text,
+    borderOpacity: 0.15,
+    paddingHorizontal: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  androidNote: {
+    fontSize: tokens.typography.callout.fontSize,
+    color: tokens.colors.najdi.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: tokens.spacing.sm,
   },
   footer: {
     height: tokens.spacing.xl,
