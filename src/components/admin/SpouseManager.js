@@ -535,7 +535,6 @@ SpouseManager.defaultProps = {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: tokens.colors.najdi.background,
   },
   header: {
@@ -612,10 +611,10 @@ const styles = StyleSheet.create({
 
   // Loading
   loadingContainer: {
-    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 100,
+    paddingVertical: 120,
+    minHeight: 300,
   },
   loadingText: {
     fontSize: 15,
@@ -626,9 +625,10 @@ const styles = StyleSheet.create({
 
   // Success
   successContainer: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 100,
+    minHeight: 300,
   },
   successIconContainer: {
     marginBottom: tokens.spacing.xl,
