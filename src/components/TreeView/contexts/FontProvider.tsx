@@ -86,6 +86,15 @@ export const FontProvider: React.FC<FontProviderProps> = ({ children }) => {
     return () => clearTimeout(timer);
   }, [fontMgr]);
 
+  // Cleanup animation on unmount (MUST be called unconditionally)
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.animation.stop();
+      }
+    };
+  }, []);
+
   // Show loading skeleton while fonts load
   // This prevents blank screen and provides immediate visual feedback
   if (!fontMgr && !fontLoadTimeout) {
@@ -112,15 +121,6 @@ export const FontProvider: React.FC<FontProviderProps> = ({ children }) => {
       animation.start();
       animationRef.current = { animation, shimmerAnim };
     }
-
-    // Cleanup animation on unmount
-    useEffect(() => {
-      return () => {
-        if (animationRef.current) {
-          animationRef.current.animation.stop();
-        }
-      };
-    }, []);
 
     return <SimpleTreeSkeleton shimmerAnim={animationRef.current.shimmerAnim} />;
   }
