@@ -74,6 +74,7 @@ import { SaduIcon, G2SaduIcon } from './TreeView/rendering/SaduIcon';
 import { calculateLODTier, createTierState } from './TreeView/lod/LODCalculator';
 import { BadgeRenderer } from './TreeView/rendering/BadgeRenderer';
 import { ShadowRenderer, renderT1Shadow, renderT2Shadow } from './TreeView/rendering/ShadowRenderer';
+import { TextPillRenderer } from './TreeView/rendering/TextPillRenderer';
 
 // Phase 1 Day 4a - Import extracted utilities
 import {
@@ -2554,77 +2555,26 @@ const TreeView = ({
     [],
   );
 
-  // Render T2 text pill (simplified, no images)
+  // Render T2 text pill (simplified, no images) - Phase 2: Using extracted TextPillRenderer
   const renderTier2Node = useCallback(
     (node) => {
-      const nodeWidth = 60;
-      const nodeHeight = 26;
-      const x = node.x - nodeWidth / 2;
-      const y = node.y - nodeHeight / 2;
       const isSelected = selectedPersonId === node.id;
 
-      // Capture the world-space frame for the highlight overlay
-      nodeFramesRef.current.set(node.id, {
-        x,
-        y,
-        width: nodeWidth,
-        height: nodeHeight,
-        borderRadius: 13,
-      });
-
       return (
-        <Group key={node.id}>
-          {/* Shadow (lighter for T2) */}
-          {renderT2Shadow(x, y, nodeWidth, nodeHeight, 13)}
-
-          {/* Main pill background */}
-          <RoundedRect
-            x={x}
-            y={y}
-            width={nodeWidth}
-            height={nodeHeight}
-            r={13}
-            color="#FFFFFF"
-          />
-
-          {/* Border */}
-          <RoundedRect
-            x={x}
-            y={y}
-            width={nodeWidth}
-            height={nodeHeight}
-            r={13}
-            color={isSelected ? "#A13333" : "#D1BBA360"}
-            style="stroke"
-            strokeWidth={isSelected ? 1.5 : 1}
-          />
-
-          {/* First name only */}
-          {(() => {
-            const firstName = node.name.split(" ")[0];
-            const nameParagraph = getCachedParagraph(
-              firstName,
-              "regular",
-              10,
-              "#242121",
-              nodeWidth,
-            );
-
-            if (!nameParagraph) return null;
-
-            return (
-              <Paragraph
-                paragraph={nameParagraph}
-                x={x}
-                y={y + 7}
-                width={nodeWidth}
-              />
-            );
-          })()}
-        </Group>
+        <TextPillRenderer
+          nodeId={node.id}
+          name={node.name}
+          x={node.x}
+          y={node.y}
+          isSelected={isSelected}
+          getCachedParagraph={getCachedParagraph}
+          onFrameCalculated={(frame) => {
+            nodeFramesRef.current.set(node.id, frame);
+          }}
+        />
       );
     },
-    [selectedPersonId],
+    [selectedPersonId, getCachedParagraph],
   );
 
   // Render node component (T1 - full detail)

@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Host, Picker } from "@expo/ui/swift-ui";
 import * as Haptics from "expo-haptics";
 import { supabase } from "../../services/supabase";
 import { phoneAuthService } from "../../services/phoneAuth";
@@ -25,6 +24,7 @@ import subscriptionManager from "../../services/subscriptionManager";
 import notificationService from "../../services/notifications";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import Toast from "../ui/Toast";
+import TabBar from "../ui/TabBar";
 import tokens from "../ui/tokens";
 import { featureFlags } from "../../config/featureFlags";
 import { formatRelativeTime } from "../../utils/formatTimestamp";
@@ -162,7 +162,7 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState(0); // 0: pending, 1: approved, 2: rejected
+  const [selectedTab, setSelectedTab] = useState("pending"); // Changed from index to ID-based
   const [allProfiles, setAllProfiles] = useState([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
   const [processingRequests, setProcessingRequests] = useState(new Set()); // Track processing requests
@@ -183,8 +183,11 @@ export default function ProfileConnectionManagerV2({ onBack }) {
   const MAX_CACHE_SIZE = 100;
   const DEBOUNCE_DELAY = 500;
 
-  const tabOptions = ["في الانتظار", "موافق عليها", "مرفوضة"];
-  const tabKeys = ["pending", "approved", "rejected"];
+  const tabs = [
+    { id: "pending", label: "في الانتظار" },
+    { id: "approved", label: "موافق عليها" },
+    { id: "rejected", label: "مرفوضة" },
+  ];
 
   const showToast = useCallback((message, type = "success") => {
     setToastState({ visible: true, message, type });
@@ -1197,22 +1200,17 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           </View>
         </View>
 
-        {/* Segmented Control */}
-        <View style={styles.selectorSurface}>
-          <View style={styles.segmentedControlContainer}>
-            <Host style={{ width: "100%", height: 36 }}>
-              <Picker
-                label=""
-                options={tabOptions}
-                variant="segmented"
-                selectedIndex={selectedTab}
-                onOptionSelected={({ nativeEvent: { index } }) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedTab(index);
-                }}
-              />
-            </Host>
-          </View>
+        {/* Tab Bar */}
+        <View style={styles.tabBarContainer}>
+          <TabBar
+            tabs={tabs}
+            activeTab={selectedTab}
+            onTabChange={(tabId) => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSelectedTab(tabId);
+            }}
+            showDivider={true}
+          />
         </View>
 
         {/* List */}
