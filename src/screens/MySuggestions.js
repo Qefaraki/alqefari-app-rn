@@ -36,6 +36,7 @@ import { supabase } from '../services/supabase';
 import suggestionService from '../services/suggestionService';
 import tokens from '../components/ui/tokens';
 import LargeTitleHeader from '../components/ios/LargeTitleHeader';
+import SegmentedControl from '../components/ui/SegmentedControl';
 
 // Najdi Sadu colors
 const COLORS = {
@@ -156,58 +157,15 @@ export default function MySuggestions({ onClose }) {
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        <View style={styles.tabs}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
-            onPress={() => handleTabPress('pending')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>
-              معلقة
-            </Text>
-            {counts.pending > 0 && (
-              <View style={[styles.badge, activeTab === 'pending' && styles.activeBadge]}>
-                <Text style={[styles.badgeText, activeTab === 'pending' && styles.activeBadgeText]}>
-                  {counts.pending}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'approved' && styles.activeTab]}
-            onPress={() => handleTabPress('approved')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabText, activeTab === 'approved' && styles.activeTabText]}>
-              موافق عليها
-            </Text>
-            {counts.approved > 0 && (
-              <View style={[styles.badge, activeTab === 'approved' && styles.activeBadge]}>
-                <Text style={[styles.badgeText, activeTab === 'approved' && styles.activeBadgeText]}>
-                  {counts.approved}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'rejected' && styles.activeTab]}
-            onPress={() => handleTabPress('rejected')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabText, activeTab === 'rejected' && styles.activeTabText]}>
-              مرفوضة
-            </Text>
-            {counts.rejected > 0 && (
-              <View style={[styles.badge, activeTab === 'rejected' && styles.activeBadge]}>
-                <Text style={[styles.badgeText, activeTab === 'rejected' && styles.activeBadgeText]}>
-                  {counts.rejected}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <SegmentedControl
+          options={[
+            { id: 'pending', label: 'معلقة' },
+            { id: 'approved', label: 'موافق عليها' },
+            { id: 'rejected', label: 'مرفوضة' },
+          ]}
+          value={activeTab}
+          onChange={handleTabPress}
+        />
       </View>
 
       {/* Content */}
@@ -468,54 +426,11 @@ const styles = StyleSheet.create({
 
   // Tabs
   tabsContainer: {
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.divider,
-    paddingHorizontal: tokens.spacing.md,
-  },
-  tabs: {
-    flexDirection: 'row',
-    gap: tokens.spacing.xs,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: tokens.spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    gap: 6,
-  },
-  activeTab: {
-    borderBottomColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-  },
-  activeTabText: {
-    color: COLORS.primary,
-  },
-  badge: {
-    backgroundColor: COLORS.textMuted + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    minWidth: 24,
-    alignItems: 'center',
-  },
-  activeBadge: {
-    backgroundColor: COLORS.primary + '20',
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.textMuted,
-  },
-  activeBadgeText: {
-    color: COLORS.primary,
   },
 
   // List

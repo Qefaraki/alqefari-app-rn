@@ -95,34 +95,33 @@ _See full documentation: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTE
 
 _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 
-## 📑 TabBar Component (Pinterest-Inspired Tabs)
+## 📑 SegmentedControl Component (iOS-Style Pill Tabs)
 
-**Status**: ✅ Complete (October 2025) - New standard tab component replacing native segmented controls
+**Status**: ✅ Complete - Standard tab component for content filtering
 
-**Location**: `src/components/ui/TabBar.js`
+**Location**: `src/components/ui/SegmentedControl.js`
 
-**Purpose**: Minimal, modern tab component with animated underline indicator. Replaces native iOS `@expo/ui` Picker for standard tab navigation across the app.
+**Purpose**: Clean, minimal pill-style segmented control matching iOS design patterns. Used for 2-4 option filtering across admin screens and user-facing features.
 
 ### Quick Usage
 
 ```javascript
-import TabBar from '../components/ui/TabBar';
+import SegmentedControl from '../components/ui/SegmentedControl';
+
+const options = [
+  { id: 'pending', label: 'قيد المراجعة' },
+  { id: 'approved', label: 'مقبولة' },
+  { id: 'rejected', label: 'مرفوضة' },
+];
 
 const MyScreen = () => {
   const [activeTab, setActiveTab] = useState('pending');
 
-  const tabs = [
-    { id: 'pending', label: 'قيد المراجعة' },
-    { id: 'approved', label: 'مقبولة' },
-    { id: 'rejected', label: 'مرفوضة' },
-  ];
-
   return (
-    <TabBar
-      tabs={tabs}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      showDivider={true}  // Optional, default: true
+    <SegmentedControl
+      options={options}
+      value={activeTab}
+      onChange={setActiveTab}
     />
   );
 };
@@ -131,78 +130,54 @@ const MyScreen = () => {
 ### API
 
 ```typescript
-interface TabItem {
+interface SegmentOption {
   id: string;          // Unique identifier
   label: string;       // Display text (Arabic)
 }
 
-interface TabBarProps {
-  tabs: TabItem[];                              // Array of 2-4 tabs
-  activeTab: string;                            // Currently active tab ID
-  onTabChange: (tabId: string) => void;        // Callback when tab changes
-  style?: ViewStyle;                            // Optional container styling
-  indicatorColor?: string;                      // Optional indicator color (default: Najdi Crimson)
-  showDivider?: boolean;                        // Optional bottom divider (default: true)
+interface SegmentedControlProps {
+  options: SegmentOption[];           // Array of 2-4 options
+  value: string;                      // Currently active option ID
+  onChange: (id: string) => void;     // Callback when option changes
+  style?: ViewStyle;                  // Optional container styling
 }
 ```
 
 ### Design Details
 
 **Visual Design**:
-- **Active indicator**: 2px Najdi Crimson underline
-- **Active text**: 600 weight, 100% opacity (Sadu Night)
-- **Inactive text**: 400 weight, 60% opacity
-- **Animation**: Spring physics (iOS-native feel)
-- **Divider**: Optional hairline separator below tabs
+- **Container**: Camel Hair Beige 40% background (#D1BBA3 with 40% opacity)
+- **Active pill**: White background with subtle shadow (0.06 opacity)
+- **Inactive text**: 500 weight, Text Muted color
+- **Active text**: 600 weight, Sadu Night color
+- **Border radius**: 10px container, 8px individual segments
+- **Animation**: Instant change (no animation delay)
 
 **Sizing**:
 - **Touch targets**: 44px minimum (iOS standard)
-- **Text size**: 17pt (body standard)
+- **Text size**: 13pt
 - **Font**: SF Arabic
+- **Container padding**: 2px
+- **Segment padding**: 8px vertical, 8px horizontal
 
 **Spacing**:
-- **Tab padding**: 12px vertical, 16px horizontal
-- **Indicator height**: 2px
-- **Divider opacity**: 10%
+- **Container border radius**: 10px
+- **Segment border radius**: 8px
+- **Shadow**: 0.06 opacity on active pill
 
-### Migration Status
+### Current Usage
 
-**Replaced**:
-- ✅ SuggestionReviewManager - `@expo/ui` Picker
-- ✅ PermissionManager - Custom segmented control
-- ✅ ProfileConnectionManagerV2 - `@expo/ui` Picker
+- ✅ **PermissionManager** - Role filter (الكل / مشرف / منسق)
+- ✅ **SuggestionReviewManager** - Status filter (قيد المراجعة / مقبولة / مرفوضة)
+- ✅ **ProfileConnectionManagerV2** - Link request filter (في الانتظار / موافق عليها / مرفوضة)
 
-**Kept**:
+**Being migrated to SegmentedControl**:
+- 🔄 **AdminMessagesManager** - Tab filter (طلبات الربط / الرسائل)
+- 🔄 **ApprovalInbox** - Tab filter (واردة / مرسلة)
+- 🔄 **MySuggestions** - Tab filter (معلقة / موافق عليها / مرفوضة)
+
+**Kept separate**:
 - `src/components/ProfileViewer/EditMode/TabsHost.js` - Specialized native pickers with dirty state indicators
-
-### Customization
-
-**Custom color**:
-```javascript
-<TabBar
-  tabs={tabs}
-  activeTab={activeTab}
-  onTabChange={setActiveTab}
-  indicatorColor="#D58C4A"  // Desert Ochre
-/>
-```
-
-**Without divider**:
-```javascript
-<TabBar
-  tabs={tabs}
-  activeTab={activeTab}
-  onTabChange={setActiveTab}
-  showDivider={false}
-/>
-```
-
-### Performance
-
-- Single animated element (underline only)
-- Memoized callbacks (no unnecessary re-renders)
-- Efficient coordinate transformation for hit detection
-- Works smoothly with 2-4 tabs
 
 ### RTL Support
 

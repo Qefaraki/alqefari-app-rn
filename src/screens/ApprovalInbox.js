@@ -21,6 +21,7 @@ import { ar } from "date-fns/locale";
 import * as Haptics from "expo-haptics";
 import { Swipeable } from 'react-native-gesture-handler';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import SegmentedControl from '../components/ui/SegmentedControl';
 
 // Najdi Sadu Design System Colors
 const COLORS = {
@@ -408,34 +409,15 @@ const ApprovalInbox = ({ visible, onClose }) => {
               </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "received" && styles.activeTab]}
-          onPress={() => setActiveTab("received")}
-        >
-          <Text
-            style={[styles.tabText, activeTab === "received" && styles.activeTabText]}
-          >
-            واردة
-          </Text>
-          {activeTab === "received" && suggestions.filter(s => s.status === "pending").length > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {suggestions.filter(s => s.status === "pending").length}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === "submitted" && styles.activeTab]}
-          onPress={() => setActiveTab("submitted")}
-        >
-          <Text
-            style={[styles.tabText, activeTab === "submitted" && styles.activeTabText]}
-          >
-            مرسلة
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.tabsContainer}>
+        <SegmentedControl
+          options={[
+            { id: "received", label: "واردة" },
+            { id: "submitted", label: "مرسلة" },
+          ]}
+          value={activeTab}
+          onChange={setActiveTab}
+        />
       </View>
 
       {/* Content */}
@@ -527,45 +509,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.text,
   },
-  tabs: {
-    flexDirection: "row",
+  tabsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: COLORS.container + "40",
-    paddingHorizontal: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  activeTab: {
-    borderBottomColor: COLORS.primary,
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.textMedium,
-  },
-  activeTabText: {
-    color: COLORS.primary,
-    fontWeight: "600",
-  },
-  badge: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 6,
-  },
-  badgeText: {
-    color: "white",
-    fontSize: 11,
-    fontWeight: "600",
   },
   scrollView: {
     flex: 1,

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import phoneAuthService from '../../services/phoneAuth';
+import SegmentedControl from '../ui/SegmentedControl';
 
 const AdminMessagesManager = ({ onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -221,24 +222,15 @@ const AdminMessagesManager = ({ onClose }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'requests' && styles.activeTab]}
-          onPress={() => setActiveTab('requests')}
-        >
-          <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-            طلبات الربط ({linkRequests.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'messages' && styles.activeTab]}
-          onPress={() => setActiveTab('messages')}
-        >
-          <Text style={[styles.tabText, activeTab === 'messages' && styles.activeTabText]}>
-            الرسائل ({messages.filter(m => m.status === 'unread').length})
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.tabsContainer}>
+        <SegmentedControl
+          options={[
+            { id: 'requests', label: `طلبات الربط (${linkRequests.length})` },
+            { id: 'messages', label: `الرسائل (${messages.filter(m => m.status === 'unread').length})` },
+          ]}
+          value={activeTab}
+          onChange={setActiveTab}
+        />
       </View>
 
       <ScrollView
@@ -306,29 +298,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#242121',
   },
-  tabs: {
-    flexDirection: 'row',
+  tabsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#D1BBA3' + '40',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  activeTab: {
-    borderBottomColor: '#A13333',
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#736372',
-  },
-  activeTabText: {
-    color: '#A13333',
   },
   card: {
     backgroundColor: '#FFFFFF',
