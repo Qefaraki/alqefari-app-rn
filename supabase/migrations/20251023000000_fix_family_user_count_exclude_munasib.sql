@@ -3,6 +3,9 @@
 -- Fix: Filter by hid IS NOT NULL to only count Al-Qefari family members
 -- Also filter out soft-deleted profiles for accurate counts
 
+-- Drop existing function first (PostgreSQL requires this for function modifications)
+DROP FUNCTION IF EXISTS admin_get_enhanced_statistics();
+
 CREATE OR REPLACE FUNCTION admin_get_enhanced_statistics()
 RETURNS json
 LANGUAGE plpgsql
