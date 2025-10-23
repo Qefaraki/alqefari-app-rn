@@ -2392,19 +2392,7 @@ const TreeView = ({
         }
 
         // Add child vertical lines
-        let childVerticals;
-        if (tier === 2) {
-          // T2 override: Calculate child verticals manually using pill height
-          childVerticals = conn.children.map((child) => ({
-            startX: child.x,
-            startY: busY,
-            endX: child.x,
-            endY: child.y - T2_TEXT_PILL_HEIGHT / 2,
-          }));
-        } else {
-          // T1: Use PathCalculator
-          childVerticals = calculateChildVerticalPaths(conn.children, busY, showPhotos);
-        }
+        const childVerticals = calculateChildVerticalPaths(conn.children, busY, showPhotos);
 
         conn.children.forEach((child, index) => {
           const childNode = nodes.find((n) => n.id === child.id);

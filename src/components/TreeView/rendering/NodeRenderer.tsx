@@ -57,12 +57,13 @@ import { Group, RoundedRect, Circle, Paragraph } from '@shopify/react-native-ski
 import { ImageNode } from './ImageNode';
 
 // Node dimensions constants (from TreeView utilities)
-const NODE_WIDTH_WITH_PHOTO = 85;
-const NODE_HEIGHT_WITH_PHOTO = 105;
+// TEMP: Reduced padding (50%) until Perfect Tree redesign
+const NODE_WIDTH_WITH_PHOTO = 75;  // Was 85 (10px reduction)
+const NODE_HEIGHT_WITH_PHOTO = 85; // Was 105 (20px reduction)
 const NODE_WIDTH_TEXT_ONLY = 65;
 const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 50;
-const CORNER_RADIUS = 13;
+const CORNER_RADIUS = 2; // Was 13, temp minimal rounding
 
 export interface LayoutNode {
   id: string;
