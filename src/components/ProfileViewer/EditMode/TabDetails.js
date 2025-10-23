@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import BioEditor from '../../admin/fields/BioEditor';
 import AchievementsEditor from '../../admin/AchievementsEditor';
 import TimelineEditor from '../../admin/TimelineEditor';
+import LocationInput from '../../admin/fields/LocationInput';
 import tokens from '../../ui/tokens';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -144,22 +145,26 @@ const TabDetails = ({ form, updateField }) => {
         icon="location-outline"
       >
         <View style={styles.locationFieldsContainer}>
-          <View>
-            <Text style={styles.locationFieldLabel}>مكان الميلاد</Text>
-            <LimitedInput
-              value={draft?.birth_place || ''}
-              onChange={(text) => updateField('birth_place', text)}
-              placeholder="مثال: الرياض، السعودية"
-              maxLength={100}
-            />
-          </View>
-          <View>
-            <Text style={styles.locationFieldLabel}>مكان الإقامة الحالي</Text>
-            <LimitedInput
+          <LocationInput
+            label="مكان الميلاد"
+            value={draft?.birth_place || ''}
+            onChange={(text) => updateField('birth_place', text)}
+            normalizedValue={draft?.birth_place_normalized}
+            onNormalizedChange={(data) =>
+              updateField('birth_place_normalized', data)
+            }
+            placeholder="مثال: الرياض، جدة، السعودية..."
+          />
+          <View style={{ marginTop: tokens.spacing.md }}>
+            <LocationInput
+              label="مكان الإقامة الحالي"
               value={draft?.current_residence || ''}
               onChange={(text) => updateField('current_residence', text)}
-              placeholder="مثال: جدة، السعودية"
-              maxLength={100}
+              normalizedValue={draft?.current_residence_normalized}
+              onNormalizedChange={(data) =>
+                updateField('current_residence_normalized', data)
+              }
+              placeholder="مثال: الرياض، جدة، السعودية..."
             />
           </View>
         </View>

@@ -100,13 +100,28 @@ jest.mock('react-native-reanimated', () => {
 // Mock Gesture Handler
 jest.mock('react-native-gesture-handler', () => {
   const View = require('react-native').View;
+
+  // Create chainable gesture builder mock
+  const createChainableMock = () => ({
+    onStart: jest.fn().mockReturnThis(),
+    onUpdate: jest.fn().mockReturnThis(),
+    onEnd: jest.fn().mockReturnThis(),
+    onFinalize: jest.fn().mockReturnThis(),
+    maxDistance: jest.fn().mockReturnThis(),
+    maxDuration: jest.fn().mockReturnThis(),
+    minDuration: jest.fn().mockReturnThis(),
+    runOnJS: jest.fn().mockReturnThis(),
+  });
+
   return {
     GestureDetector: View,
     Gesture: {
-      Pan: () => ({}),
-      Pinch: () => ({}),
-      Tap: () => ({}),
-      Simultaneous: (...args) => ({}),
+      Pan: jest.fn(() => createChainableMock()),
+      Pinch: jest.fn(() => createChainableMock()),
+      Tap: jest.fn(() => createChainableMock()),
+      LongPress: jest.fn(() => createChainableMock()),
+      Simultaneous: jest.fn((...gestures) => ({ type: 'simultaneous', gestures })),
+      Exclusive: jest.fn((...gestures) => ({ type: 'exclusive', gestures })),
     },
     GestureHandlerRootView: View,
   };
