@@ -924,6 +924,21 @@ const TreeView = ({
       // First get the root node
       const { data: rootData, error: rootError } =
         await profilesService.getBranchData(null, 1, 1);
+
+      // DEBUG: Detailed logging to identify exact validation failure
+      console.log("=== ROOT NODE DEBUG ===");
+      console.log("rootError:", rootError);
+      console.log("rootData type:", typeof rootData);
+      console.log("rootData is array?:", Array.isArray(rootData));
+      console.log("rootData length:", rootData?.length);
+      console.log("rootData value:", JSON.stringify(rootData, null, 2));
+      console.log("Validation checks:");
+      console.log("  - rootError?", !!rootError);
+      console.log("  - !rootData?", !rootData);
+      console.log("  - !Array.isArray?", !Array.isArray(rootData));
+      console.log("  - length === 0?", rootData?.length === 0);
+      console.log("======================");
+
       if (
         rootError ||
         !rootData ||
