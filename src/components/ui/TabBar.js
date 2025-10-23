@@ -50,7 +50,7 @@ const TabBar = ({
         // Animate horizontal position with spring for natural iOS feel
         Animated.spring(indicatorPosition, {
           toValue: layout.x,
-          useNativeDriver: true,
+          useNativeDriver: false,
           tension: 120,    // iOS-standard spring tension
           friction: 10,    // Smooth damping
           velocity: 2,     // Initial velocity for snappy feel
