@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PropTypes from "prop-types";
@@ -45,6 +46,9 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   const [showTreeModal, setShowTreeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Get screen dimensions for dynamic height calculation
+  const { height: windowHeight } = useWindowDimensions();
 
   // Get appropriate gender for spouse
   const spouseGender = person?.gender === "male" ? "female" : "male";
@@ -393,48 +397,57 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={searchResults}
-          renderItem={({ item, index }) => (
-            <SearchResultCard
-              item={item}
-              index={index}
-              onPress={() => handleSelectSpouse(item)}
-              showRelevanceScore={false}
-              enableAnimation={false}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.resultsList}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons
-                name="search-outline"
-                size={48}
-                color={tokens.colors.najdi.textMuted}
+        <View
+          style={{
+            maxHeight: Math.min(
+              searchResults.length * 92 + 100,
+              windowHeight * 0.6
+            ),
+          }}
+        >
+          <FlatList
+            data={searchResults}
+            renderItem={({ item, index }) => (
+              <SearchResultCard
+                item={item}
+                index={index}
+                onPress={() => handleSelectSpouse(item)}
+                showRelevanceScore={false}
+                enableAnimation={false}
               />
-              <Text style={styles.emptyText}>لا توجد نتائج</Text>
-              <Text style={styles.emptyHint}>
-                لم نجد {spouseTitle} بهذا الاسم في الشجرة
-              </Text>
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={handleAddAsNew}
-              >
-                <Text style={styles.addNewButtonText}>
-                  إضافة كشخص جديد
-                </Text>
+            )}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.resultsList}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
                 <Ionicons
-                  name="add-circle-outline"
-                  size={20}
-                  color={tokens.colors.najdi.primary}
+                  name="search-outline"
+                  size={48}
+                  color={tokens.colors.najdi.textMuted}
                 />
-              </TouchableOpacity>
-            </View>
-          }
-        />
+                <Text style={styles.emptyText}>لا توجد نتائج</Text>
+                <Text style={styles.emptyHint}>
+                  لم نجد {spouseTitle} بهذا الاسم في الشجرة
+                </Text>
+                <TouchableOpacity
+                  style={styles.addNewButton}
+                  onPress={handleAddAsNew}
+                >
+                  <Text style={styles.addNewButtonText}>
+                    إضافة كشخص جديد
+                  </Text>
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={20}
+                    color={tokens.colors.najdi.primary}
+                  />
+                </TouchableOpacity>
+              </View>
+            }
+          />
+        </View>
       )}
     </View>
   );
@@ -558,7 +571,8 @@ const styles = StyleSheet.create({
 
   // SEARCH Stage
   resultsList: {
-    paddingBottom: Math.max(100, tokens.spacing.xl + 20),
+    paddingBottom: tokens.spacing.md,
+    flexGrow: 0,
   },
 
   // Empty State
