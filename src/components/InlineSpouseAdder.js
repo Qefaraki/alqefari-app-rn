@@ -435,7 +435,7 @@ export default function InlineSpouseAdder({
             <Ionicons name="information-circle-outline" size={16} color={tokens.colors.najdi.textMuted} />
           </View>
           <Text style={styles.hintText}>
-            لا تنسَ كتابة اسم العائلة • مثال: مريم محمد علي السعوي
+            لا تنسَ كتابة اسم العائلة{'\n'}مثال: مريم محمد علي السعوي
           </Text>
         </View>
       </Animated.View>
