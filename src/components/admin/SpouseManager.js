@@ -526,7 +526,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           cancelText={selectedSpouse.gender === "female" ? "ليست هي" : "ليس هو"}
         />
       )}
-    </>
+    </Modal>
   );
 }
 
@@ -549,16 +549,20 @@ SpouseManager.defaultProps = {
 };
 
 const styles = StyleSheet.create({
-  // Bottom Sheet styling
-  sheetBackground: {
-    backgroundColor: tokens.colors.najdi.background, // Al-Jass White
+  // Modal styling
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end', // Align modal to bottom
+  },
+  modalContainer: {
+    height: '50%', // Half-screen height
+    backgroundColor: tokens.colors.najdi.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  handleIndicator: {
-    backgroundColor: tokens.colors.najdi.text + "30", // Sadu Night 20%
-    width: 40,
-    height: 4,
+  safeAreaContainer: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
