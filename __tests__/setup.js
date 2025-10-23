@@ -94,6 +94,16 @@ jest.mock('@expo/vector-icons', () => ({
 jest.mock('react-native-reanimated', () => {
   const Reanimated = require('react-native-reanimated/mock');
   Reanimated.default.call = () => {};
+
+  // Add missing functions for GestureHandler tests
+  Reanimated.cancelAnimation = jest.fn();
+  Reanimated.withDecay = jest.fn((config, callback) => {
+    if (callback) callback();
+    return 'decay-animation';
+  });
+  Reanimated.withTiming = jest.fn(() => 'timing-animation');
+  Reanimated.runOnJS = jest.fn((fn) => () => fn());
+
   return Reanimated;
 });
 

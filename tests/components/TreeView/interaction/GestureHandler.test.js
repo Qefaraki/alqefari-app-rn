@@ -13,6 +13,7 @@
  */
 
 import { Gesture } from 'react-native-gesture-handler';
+import { cancelAnimation, withDecay, withTiming, runOnJS } from 'react-native-reanimated';
 import {
   createPanGesture,
   createPinchGesture,
@@ -21,22 +22,6 @@ import {
   createComposedGesture,
   GESTURE_CONSTANTS,
 } from '../../../../src/components/TreeView/interaction/GestureHandler';
-
-// Mock Reanimated functions
-const mockCancelAnimation = jest.fn();
-const mockWithDecay = jest.fn((config, callback) => {
-  if (callback) callback();
-  return 'decay-animation';
-});
-const mockWithTiming = jest.fn(() => 'timing-animation');
-const mockRunOnJS = jest.fn((fn) => fn);
-
-jest.mock('react-native-reanimated', () => ({
-  cancelAnimation: mockCancelAnimation,
-  withDecay: mockWithDecay,
-  withTiming: mockWithTiming,
-  runOnJS: mockRunOnJS,
-}));
 
 describe('GestureHandler', () => {
   let sharedValues;
@@ -102,8 +87,8 @@ describe('GestureHandler', () => {
       // Simulate pan start
       onStartHandler();
 
-      expect(mockCancelAnimation).toHaveBeenCalledWith(sharedValues.translateX);
-      expect(mockCancelAnimation).toHaveBeenCalledWith(sharedValues.translateY);
+      expect(cancelAnimation).toHaveBeenCalledWith(sharedValues.translateX);
+      expect(cancelAnimation).toHaveBeenCalledWith(sharedValues.translateY);
       expect(sharedValues.savedTranslateX.value).toBe(0);
       expect(sharedValues.savedTranslateY.value).toBe(0);
     });
@@ -115,13 +100,13 @@ describe('GestureHandler', () => {
       const onStartHandler = panMock.onStart.mock.calls[0][0];
 
       // Clear mock calls
-      mockCancelAnimation.mockClear();
+      cancelAnimation.mockClear();
 
       // Simulate pan start during pinch
       onStartHandler();
 
       // Should not cancel animations or save state
-      expect(mockCancelAnimation).not.toHaveBeenCalled();
+      expect(cancelAnimation).not.toHaveBeenCalled();
     });
 
     test('should update translation during pan', () => {
@@ -164,7 +149,7 @@ describe('GestureHandler', () => {
       // Simulate pan end with velocity
       onEndHandler({ velocityX: 500, velocityY: -300 });
 
-      expect(mockWithDecay).toHaveBeenCalledWith(
+      expect(withDecay).toHaveBeenCalledWith(
         expect.objectContaining({
           velocity: 500,
           deceleration: 0.995,
@@ -172,7 +157,7 @@ describe('GestureHandler', () => {
         expect.any(Function)
       );
 
-      expect(mockWithDecay).toHaveBeenCalledWith(
+      expect(withDecay).toHaveBeenCalledWith(
         expect.objectContaining({
           velocity: -300,
           deceleration: 0.995,
@@ -198,13 +183,13 @@ describe('GestureHandler', () => {
       const panMock = Gesture.Pan.mock.results[0].value;
       const onEndHandler = panMock.onEnd.mock.calls[0][0];
 
-      mockWithDecay.mockClear();
+      withDecay.mockClear();
 
       // Simulate pan end during pinch
       onEndHandler({ velocityX: 500, velocityY: -300 });
 
       // Should not apply decay
-      expect(mockWithDecay).not.toHaveBeenCalled();
+      expect(withDecay).not.toHaveBeenCalled();
     });
 
     test('should use custom deceleration rate from config', () => {
@@ -216,7 +201,7 @@ describe('GestureHandler', () => {
       // Simulate pan end
       onEndHandler({ velocityX: 500, velocityY: -300 });
 
-      expect(mockWithDecay).toHaveBeenCalledWith(
+      expect(withDecay).toHaveBeenCalledWith(
         expect.objectContaining({
           velocity: 500,
           deceleration: 0.99,
@@ -250,9 +235,9 @@ describe('GestureHandler', () => {
       onStartHandler({ numberOfPointers: 2, focalX: 300, focalY: 400 });
 
       expect(sharedValues.isPinching.value).toBe(true);
-      expect(mockCancelAnimation).toHaveBeenCalledWith(sharedValues.translateX);
-      expect(mockCancelAnimation).toHaveBeenCalledWith(sharedValues.translateY);
-      expect(mockCancelAnimation).toHaveBeenCalledWith(sharedValues.scale);
+      expect(cancelAnimation).toHaveBeenCalledWith(sharedValues.translateX);
+      expect(cancelAnimation).toHaveBeenCalledWith(sharedValues.translateY);
+      expect(cancelAnimation).toHaveBeenCalledWith(sharedValues.scale);
       expect(sharedValues.savedTranslateX.value).toBe(100);
       expect(sharedValues.savedTranslateY.value).toBe(200);
       expect(sharedValues.savedScale.value).toBe(1.5);
@@ -553,7 +538,7 @@ describe('GestureHandler', () => {
 
       // Should compose with Simultaneous and Exclusive
       expect(Gesture.Exclusive).toHaveBeenCalled();
-      expect(mockGesture.Simultaneous).toHaveBeenCalled();
+      expect(Gesture.Simultaneous).toHaveBeenCalled();
     });
 
     test('should compose tap and long press exclusively', () => {
@@ -570,7 +555,7 @@ describe('GestureHandler', () => {
       createComposedGesture(sharedValues, callbacks);
 
       // Simultaneous should be called with pan, pinch, and exclusive(tap/longPress)
-      expect(mockGesture.Simultaneous).toHaveBeenCalledWith(
+      expect(Gesture.Simultaneous).toHaveBeenCalledWith(
         expect.anything(), // pan gesture
         expect.anything(), // pinch gesture
         expect.objectContaining({ type: 'exclusive' }) // exclusive(longPress, tap)
