@@ -172,12 +172,10 @@ interface SegmentedControlProps {
 - ✅ **ProfileConnectionManagerV2** - Link request filter (في الانتظار / موافق عليها / مرفوضة)
 
 **Being migrated to SegmentedControl**:
-- 🔄 **AdminMessagesManager** - Tab filter (طلبات الربط / الرسائل)
-- 🔄 **ApprovalInbox** - Tab filter (واردة / مرسلة)
-- 🔄 **MySuggestions** - Tab filter (معلقة / موافق عليها / مرفوضة)
-
-**Kept separate**:
-- `src/components/ProfileViewer/EditMode/TabsHost.js` - Specialized native pickers with dirty state indicators
+- ✅ **AdminMessagesManager** - Tab filter (طلبات الربط / الرسائل)
+- ✅ **ApprovalInbox** - Tab filter (واردة / مرسلة)
+- ✅ **MySuggestions** - Tab filter (معلقة / موافق عليها / مرفوضة)
+- ✅ **TabsHost** - Profile editor tabs (General / Family / Contact / Details)
 
 ### RTL Support
 
