@@ -62,8 +62,8 @@ export const SaduIcon: React.FC<SaduIconProps> = ({
 }) => {
   // Load appropriate pattern based on type
   const patternFile = pattern === 'root'
-    ? require('../../../assets/sadu_patterns/png/90.png')
-    : require('../../../assets/sadu_patterns/png/73.png');
+    ? require('../../../../assets/sadu_patterns/png/90.png')
+    : require('../../../../assets/sadu_patterns/png/73.png');
 
   const saduImage = useImage(patternFile);
 
