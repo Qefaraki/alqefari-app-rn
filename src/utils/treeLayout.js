@@ -11,7 +11,7 @@ function getNodeDimensions(node, showPhotos = true) {
 
 // Post-layout collision resolution function
 function resolveCollisions(hierarchyData, showPhotos = true) {
-  const minPadding = 10; // Minimal padding for dynamic widths
+  const minPadding = 1; // TEMP: Ultra-tight 1px gap (reduced from 10)
 
   // Helper function to calculate subtree bounding box
   function getSubtreeBounds(node) {
@@ -148,33 +148,33 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
 
   // Configure tree layout - optimized for variable width nodes
   const treeLayout = tree()
-    .nodeSize([80, 110]) // Base spacing for dynamic widths
+    .nodeSize([1, 110]) // TEMP: Minimal base spacing - actual spacing controlled by separation function
     .separation((a, b) => {
-      // Calculate separation based on actual node widths
+      // Calculate separation based on actual node widths with minimal gap
       const aWidth = a.data.nodeWidth || 60;
       const bWidth = b.data.nodeWidth || 60;
-      const avgWidth = (aWidth + bWidth) / 2;
 
       if (a.parent === b.parent) {
-        // Siblings: scale separation based on node sizes
-        return (avgWidth + 10) / 80;
+        // Siblings: Just node widths + 1px gap (ultra-tight)
+        return (aWidth / 2) + (bWidth / 2) + 1;
       } else {
-        // Cousins: slightly more space
-        return (avgWidth + 20) / 80;
+        // Cousins: Node widths + 2px gap
+        return (aWidth / 2) + (bWidth / 2) + 2;
       }
     });
 
   // Calculate positions
   const treeData = treeLayout(hierarchyData);
 
-  // Stage 2: Resolve collisions
-  const collisionResolvedData = resolveCollisions(treeData, showPhotos);
+  // Skip collision resolution - D3 separation function already creates exact 1px gaps
+  // The collision resolver was adding 15-20px of extra spacing by detecting false overlaps
+  // when comparing entire subtree bounds instead of just direct sibling nodes.
 
   // Convert to flat array with positions
   const nodes = [];
   const connections = [];
 
-  collisionResolvedData.each((d) => {
+  treeData.each((d) => {
     nodes.push({
       ...d.data,
       x: d.x,
@@ -186,7 +186,7 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
   // Group nodes by their parent to create connections
   const parentGroups = new Map();
 
-  collisionResolvedData.each((d) => {
+  treeData.each((d) => {
     if (d.parent) {
       const parentId = d.parent.data.id;
       if (!parentGroups.has(parentId)) {

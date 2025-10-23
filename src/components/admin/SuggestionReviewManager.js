@@ -17,7 +17,7 @@ import suggestionService from "../../services/suggestionService";
 import * as Haptics from "expo-haptics";
 import LargeTitleHeader from "../ios/LargeTitleHeader";
 import tokens from "../../components/ui/tokens";
-import TabBar from "../ui/TabBar";
+import SegmentedControl from "../ui/SegmentedControl";
 import SkeletonLoader from "../ui/SkeletonLoader";
 
 // Najdi Sadu Design System Colors
@@ -360,13 +360,12 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
         }
       />
 
-      {/* Tab Bar */}
-      <View style={styles.tabBarContainer}>
-        <TabBar
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          showDivider={true}
+      {/* Segmented Control */}
+      <View style={styles.segmentedControlContainer}>
+        <SegmentedControl
+          options={tabs}
+          value={activeTab}
+          onChange={setActiveTab}
         />
       </View>
 
@@ -481,7 +480,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  tabBarContainer: {
+  segmentedControlContainer: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
     backgroundColor: COLORS.background,

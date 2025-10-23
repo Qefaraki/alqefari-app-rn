@@ -21,7 +21,6 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import adminContactService from "../../services/adminContact";
 import Surface from "../ui/Surface";
-import TabBarDemo from "../../screens/TabBarDemo";
 import tokens from "../ui/tokens";
 
 const palette = tokens.colors.najdi;
@@ -46,7 +45,6 @@ const AdminSettingsView = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [showTabBarDemo, setShowTabBarDemo] = useState(false);
   const contentAnimation = useRef(new Animated.Value(0)).current;
 
   const loadSettings = useCallback(async () => {
@@ -309,28 +307,6 @@ const AdminSettingsView = ({ onClose }) => {
                       </View>
                     )}
                   </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.tertiaryButton}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setShowTabBarDemo(true);
-                    }}
-                    activeOpacity={0.85}
-                    accessibilityLabel="اختبار تصاميم التبويبات"
-                  >
-                    <View style={styles.buttonContent}>
-                      {renderSFSymbol(
-                        "layers-outline",
-                        "layers-outline",
-                        palette.text,
-                        18,
-                      )}
-                      <Text style={styles.tertiaryButtonText}>
-                        اختبار تصاميم التبويبات
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
                 </View>
               </Surface>
             </Animated.View>
@@ -364,16 +340,6 @@ const AdminSettingsView = ({ onClose }) => {
           </ScrollView>
         </View>
 
-        {/* TabBar Demo Modal */}
-        <Modal
-          visible={showTabBarDemo}
-          animationType="slide"
-          presentation="fullScreen"
-        >
-          <TabBarDemo
-            onClose={() => setShowTabBarDemo(false)}
-          />
-        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -1,61 +1,105 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, I18nManager } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import tokens from './tokens';
 
+/**
+ * Standard iOS-style segmented control with pill design
+ *
+ * Clean, minimal component for tab-like navigation with active state.
+ * Matches Najdi Sadu design system with Camel Hair Beige container
+ * and white active pills with subtle shadow. Full RTL support.
+ *
+ * @component
+ * @example
+ * const options = [
+ *   { id: 'pending', label: 'قيد المراجعة' },
+ *   { id: 'approved', label: 'مقبولة' },
+ *   { id: 'rejected', label: 'مرفوضة' },
+ * ];
+ *
+ * <SegmentedControl
+ *   options={options}
+ *   value={activeTab}
+ *   onChange={setActiveTab}
+ * />
+ */
 const SegmentedControl = ({
-  options = [], // [{label, value}]
+  options = [],
   value,
   onChange,
   style,
 }) => {
   return (
     <View style={[styles.container, style]}>
-      {options.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <TouchableOpacity
-            key={String(opt.value)}
-            style={[styles.segment, active && styles.activeSegment]}
-            onPress={() => onChange(opt.value)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={opt.label}
-          >
-            <Text style={[styles.label, active && styles.activeLabel]}>{opt.label}</Text>
-          </TouchableOpacity>
-        );
-      })}
+      <View style={styles.control}>
+        {options.map((option) => {
+          const isActive = option.id === value;
+          return (
+            <TouchableOpacity
+              key={option.id}
+              style={[
+                styles.segment,
+                isActive && styles.segmentActive,
+              ]}
+              onPress={() => onChange(option.id)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isActive }}
+              accessibilityLabel={option.label}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  isActive && styles.segmentTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: tokens.radii.md,
-    padding: 4,
-    gap: 4,
+    width: '100%',
+  },
+  control: {
+    flexDirection: 'row',
+    backgroundColor: tokens.colors.najdi.container + '40', // Camel Hair Beige 40%
+    borderRadius: 10,
+    padding: 2,
   },
   segment: {
     flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: tokens.radii.md,
   },
-  activeSegment: {
+  segmentActive: {
     backgroundColor: tokens.colors.surface,
-    borderWidth: 1,
-    borderColor: tokens.colors.outline,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  label: {
-    fontSize: 15,
-    color: tokens.colors.textMuted,
+  segmentText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: tokens.colors.najdi.textMuted,
+    fontFamily: 'SF Arabic',
+  },
+  segmentTextActive: {
+    fontSize: 13,
     fontWeight: '600',
-  },
-  activeLabel: {
-    color: tokens.colors.text,
+    color: tokens.colors.najdi.text,
+    fontFamily: 'SF Arabic',
   },
 });
 

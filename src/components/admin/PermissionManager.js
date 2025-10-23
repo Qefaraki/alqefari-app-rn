@@ -28,7 +28,7 @@ import { SkeletonUserCard } from "../ui/Skeleton";
 import enhancedSearchService from "../../services/enhancedSearchService";
 import { formatNameWithTitle } from "../../services/professionalTitleService";
 import { getGenerationLabel } from "../../utils/generationUtils";
-import TabBar from "../ui/TabBar";
+import SegmentedControl from "../ui/SegmentedControl";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -886,17 +886,16 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
                 </View>
               </View>
 
-              {/* Tab Bar for Role Filter */}
-              <View style={styles.tabBarContainer}>
-                <TabBar
-                  tabs={[
+              {/* Segmented Control for Role Filter */}
+              <View style={styles.segmentedControlContainer}>
+                <SegmentedControl
+                  options={[
                     { id: "all", label: "الكل" },
                     { id: "admin", label: "مشرف" },
                     { id: "moderator", label: "منسق" },
                   ]}
-                  activeTab={selectedRole}
-                  onTabChange={handleRoleFilterChange}
-                  showDivider={true}
+                  value={selectedRole}
+                  onChange={handleRoleFilterChange}
                 />
               </View>
 
@@ -1294,8 +1293,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Tab Bar (Pinterest-style underline)
-  tabBarContainer: {
+  // Segmented Control (iOS pill-style)
+  segmentedControlContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,

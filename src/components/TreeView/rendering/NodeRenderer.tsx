@@ -60,7 +60,7 @@ import { ImageNode } from './ImageNode';
 // TEMP: Minimal padding until Perfect Tree redesign
 const NODE_WIDTH_WITH_PHOTO = 65;  // Was 85, then 75, now 65 (minimal padding)
 const NODE_HEIGHT_WITH_PHOTO = 75; // Was 105, then 85, now 75 (minimal padding)
-const NODE_WIDTH_TEXT_ONLY = 65;
+const NODE_WIDTH_TEXT_ONLY = 50;   // Was 65 (further reduced for tighter spacing)
 const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 50;
 const CORNER_RADIUS = 4; // Smooth corners
@@ -464,8 +464,6 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
         </>
       ) : (
         <>
-          {/* Generation badge - centered horizontally at top */}
-          {renderGenerationBadge(node.generation, x, y + 4, width, getCachedParagraph)}
 
           {/* Text-only name - centered vertically */}
           {(() => {
@@ -522,12 +520,12 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
 // Export constants for testing
 export const NODE_RENDERER_CONSTANTS = {
-  NODE_WIDTH_WITH_PHOTO,
-  NODE_HEIGHT_WITH_PHOTO,
-  NODE_WIDTH_TEXT_ONLY,
-  NODE_HEIGHT_TEXT_ONLY,
-  PHOTO_SIZE,
-  CORNER_RADIUS,
+  NODE_WIDTH_WITH_PHOTO: 65,
+  NODE_HEIGHT_WITH_PHOTO: 75,
+  NODE_WIDTH_TEXT_ONLY: 50,   // Updated from 65
+  NODE_HEIGHT_TEXT_ONLY: 35,
+  PHOTO_SIZE: 50,
+  CORNER_RADIUS: 4,
   ROOT_WIDTH: 120,
   ROOT_HEIGHT: 100,
   ROOT_BORDER_RADIUS: 20,

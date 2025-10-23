@@ -24,7 +24,7 @@ import subscriptionManager from "../../services/subscriptionManager";
 import notificationService from "../../services/notifications";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import Toast from "../ui/Toast";
-import TabBar from "../ui/TabBar";
+import SegmentedControl from "../ui/SegmentedControl";
 import tokens from "../ui/tokens";
 import { featureFlags } from "../../config/featureFlags";
 import { formatRelativeTime } from "../../utils/formatTimestamp";
@@ -1200,16 +1200,15 @@ export default function ProfileConnectionManagerV2({ onBack }) {
           </View>
         </View>
 
-        {/* Tab Bar */}
-        <View style={styles.tabBarContainer}>
-          <TabBar
-            tabs={tabs}
-            activeTab={selectedTab}
-            onTabChange={(tabId) => {
+        {/* Segmented Control */}
+        <View style={styles.segmentedControlContainer}>
+          <SegmentedControl
+            options={tabs}
+            value={selectedTab}
+            onChange={(tabId) => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setSelectedTab(tabId);
             }}
-            showDivider={true}
           />
         </View>
 
@@ -1323,8 +1322,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // Tab Bar
-  tabBarContainer: {
+  // Segmented Control
+  segmentedControlContainer: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.md,
     backgroundColor: colors.background,

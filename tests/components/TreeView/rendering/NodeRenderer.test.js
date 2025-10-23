@@ -65,7 +65,7 @@ describe('NodeRenderer', () => {
     test('should export expected constants', () => {
       expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_WITH_PHOTO).toBe(65); // TEMP: Minimal padding
       expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_WITH_PHOTO).toBe(75); // TEMP: Minimal padding
-      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_TEXT_ONLY).toBe(65);
+      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_TEXT_ONLY).toBe(50);  // TEMP: Further reduced for tighter spacing
       expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_TEXT_ONLY).toBe(35);
       expect(NODE_RENDERER_CONSTANTS.PHOTO_SIZE).toBe(50);
       expect(NODE_RENDERER_CONSTANTS.CORNER_RADIUS).toBe(4); // Smooth corners
