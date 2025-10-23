@@ -59,6 +59,52 @@ import Animated, {
   cancelAnimation,
   useDerivedValue,
 } from "react-native-reanimated";
+
+// Phase 1 Day 4a - Import extracted utilities
+import {
+  // Constants
+  VIEWPORT_MARGIN_X,
+  VIEWPORT_MARGIN_Y,
+  MAX_TREE_SIZE,
+  WARNING_THRESHOLD,
+  CRITICAL_THRESHOLD,
+  LOD_T1_THRESHOLD,
+  LOD_T2_THRESHOLD,
+  NODE_WIDTH_WITH_PHOTO,
+  NODE_HEIGHT_WITH_PHOTO,
+  PHOTO_SIZE,
+  LINE_COLOR,
+  LINE_WIDTH,
+  CORNER_RADIUS,
+  SHADOW_OPACITY,
+  SHADOW_RADIUS,
+  SHADOW_OFFSET_Y,
+  DEFAULT_SIBLING_GAP,
+  DEFAULT_GENERATION_GAP,
+  MIN_SIBLING_GAP,
+  MAX_SIBLING_GAP,
+  MIN_GENERATION_GAP,
+  MAX_GENERATION_GAP,
+  IMAGE_BUCKETS,
+  DEFAULT_IMAGE_BUCKET,
+  BUCKET_HYSTERESIS,
+  ANIMATION_DURATION_SHORT,
+  ANIMATION_DURATION_MEDIUM,
+  ANIMATION_DURATION_LONG,
+  GESTURE_ACTIVE_OFFSET,
+  GESTURE_DECELERATION,
+  GESTURE_RUBBER_BAND_FACTOR,
+  MIN_ZOOM,
+  MAX_ZOOM,
+  DEFAULT_ZOOM,
+  // Utilities
+  hexToRgba,
+  createDimMatrix,
+  createGrayscaleMatrix,
+  interpolateColor,
+  performanceMonitor,
+} from './TreeView/utils';
+
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
