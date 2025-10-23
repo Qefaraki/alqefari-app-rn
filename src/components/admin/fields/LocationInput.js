@@ -207,7 +207,7 @@ const LocationInput = ({
           onChangeText={handleTextChange}
           placeholder={placeholder}
           placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
-          textAlign="right"
+          textAlign="start"
           editable={!loading}
         />
       </View>

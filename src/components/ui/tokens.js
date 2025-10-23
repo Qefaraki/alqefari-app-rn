@@ -50,6 +50,7 @@ const tokens = {
     md: 12,
     lg: 16,
     xl: 20,
+    full: 9999,  // Full pill shape for chips
   },
   // iOS-standard spacing scale (8px grid)
   spacing: {

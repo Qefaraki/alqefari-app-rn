@@ -66,7 +66,7 @@ import { SimpleTreeSkeleton } from './TreeView/SimpleTreeSkeleton';
 // Phase 2 Integration - Import extracted components
 import { SpatialGrid, GRID_CELL_SIZE, MAX_VISIBLE_NODES } from './TreeView/spatial/SpatialGrid';
 import { ImageNode } from './TreeView/rendering/ImageNode';
-import { SaduIcon, SaduIconG2 } from './TreeView/rendering/SaduIcon';
+import { SaduIcon, G2SaduIcon } from './TreeView/rendering/SaduIcon';
 
 // Phase 1 Day 4a - Import extracted utilities
 import {
@@ -3066,14 +3066,14 @@ const TreeView = ({
               {isG2Parent && (
                 <>
                   {/* Left Sadu icon */}
-                  <SaduIconG2
+                  <G2SaduIcon
                     x={x + 3}
                     y={hasPhoto ? y + 5 : y + nodeHeight / 2 - 7}
                     size={14}
                   />
 
                   {/* Right Sadu icon */}
-                  <SaduIconG2
+                  <G2SaduIcon
                     x={x + nodeWidth - 17}
                     y={hasPhoto ? y + 5 : y + nodeHeight / 2 - 7}
                     size={14}
