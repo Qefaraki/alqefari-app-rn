@@ -2565,16 +2565,24 @@ const TreeView = ({
     ];
   });
 
-  // Store current transform values to avoid accessing .value during render
-  const [currentTransform, setCurrentTransform] = useState({
-    x: 0,
-    y: 0,
-    scale: 1,
-  });
+  // Calculate current LOD tier reactively using useDerivedValue
+  // This ensures tier updates whenever scale changes (during zoom)
+  const currentTier = useDerivedValue(() => {
+    return calculateLODTier(scale.value, tierState.current);
+  }, [scale]);
 
-  // Calculate current LOD tier using the state instead of accessing .value directly
-  const tier = calculateLODTierLocal(currentTransform.scale);
+  // Read tier value for JS thread usage (culling, rendering decisions)
+  // NOTE: This is safe because tier changes are infrequent (only on zoom level changes)
+  const tier = currentTier.value;
   frameStatsRef.current.tier = tier;
+
+  // Read current transform values for viewport culling
+  // These are read directly from shared values to ensure they're always current
+  const currentTransform = {
+    x: translateX.value,
+    y: translateY.value,
+    scale: scale.value,
+  };
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
@@ -2773,7 +2781,9 @@ const TreeView = ({
             {renderAllHighlights()}
 
             {/* Render visible nodes */}
-            {culledNodes.map(renderNodeWithTier)}
+            {culledNodes.map((node) => (
+              <React.Fragment key={node.id}>{renderNodeWithTier(node)}</React.Fragment>
+            ))}
 
             {/* Pass 3: Invisible bridge lines intersecting viewport */}
             {bridgeSegments.map((seg) => (
