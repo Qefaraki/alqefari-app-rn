@@ -2627,12 +2627,20 @@ const TreeView = ({
   );
 
   // Compose gestures - allow simultaneous but with guards in each gesture
-  const composed = Gesture.Simultaneous(
+  const composed = createComposedGesture(
     panGesture,
     pinchGesture,
-    // Long press always enabled - permission check is inside the gesture
-    Gesture.Exclusive(longPressGesture, tapGesture),
+    longPressGesture,
+    tapGesture
   );
+
+  // OLD INLINE COMPOSED GESTURE (Phase 5: Replaced with createComposedGesture - Lines 2630-2635, 6 lines)
+  // const composed = Gesture.Simultaneous(
+  //   panGesture,
+  //   pinchGesture,
+  //   // Long press always enabled - permission check is inside the gesture
+  //   Gesture.Exclusive(longPressGesture, tapGesture),
+  // );
 
   // Render connection lines with proper elbow style
   const renderConnection = useCallback(
