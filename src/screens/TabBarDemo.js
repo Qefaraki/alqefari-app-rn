@@ -6,7 +6,9 @@ import {
   ScrollView,
   SafeAreaView,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import TabBar from '../components/ui/TabBar';
 import tokens from '../components/ui/tokens';
 
@@ -14,7 +16,7 @@ import tokens from '../components/ui/tokens';
  * Demo screen to compare TabBar variants with and without divider
  * Used to determine default divider behavior
  */
-const TabBarDemo = () => {
+const TabBarDemo = ({ onClose }) => {
   const [activeTab1, setActiveTab1] = useState('pending');
   const [activeTab2, setActiveTab2] = useState('all');
   const [activeTab3, setActiveTab3] = useState('users');
@@ -41,10 +43,21 @@ const TabBarDemo = () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>TabBar Variant Comparison</Text>
-          <Text style={styles.subtitle}>
-            Pinterest-Inspired Tab Component
-          </Text>
+          <View style={styles.headerContent}>
+            <Text style={styles.title}>TabBar Variant Comparison</Text>
+            <Text style={styles.subtitle}>
+              Pinterest-Inspired Tab Component
+            </Text>
+          </View>
+          {onClose && (
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            >
+              <Ionicons name="chevron-back" size={28} color={tokens.colors.najdi.text} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Variant 1: WITH DIVIDER */}
@@ -235,6 +248,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: tokens.colors.najdi.text,
     borderBottomOpacity: 0.1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerContent: {
+    flex: 1,
+  },
+  closeButton: {
+    padding: tokens.spacing.sm,
+    marginLeft: tokens.spacing.md,
   },
   title: {
     fontSize: tokens.typography.title2.fontSize,

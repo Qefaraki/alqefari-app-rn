@@ -23,6 +23,7 @@ import PermissionManager from "../components/admin/PermissionManager";
 import SuggestionReviewManager from "../components/admin/SuggestionReviewManager";
 import AdminBroadcastManager from "../components/admin/AdminBroadcastManager";
 import MessageTemplateManager from "../components/admin/MessageTemplateManager";
+import TabBarDemo from "./TabBarDemo";
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { supabase } from "../services/supabase";
@@ -69,6 +70,7 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
   const [showSuggestionReview, setShowSuggestionReview] = useState(false);
   const [showBroadcastManager, setShowBroadcastManager] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showTabBarDemo, setShowTabBarDemo] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [pendingSuggestionsCount, setPendingSuggestionsCount] = useState(0);
   const [munasibCounts, setMunasibCounts] = useState({ families: 0, members: 0 });
@@ -665,9 +667,32 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setShowBroadcastManager(true);
                 }}
-                showDivider={false}
+                showDivider={true}
               />
             )}
+
+            <ListItem
+              leading={
+                <Ionicons
+                  name="layers-outline"
+                  size={21}
+                  color={tokens.colors.najdi.secondary}
+                />
+              }
+              title="اختبار تصاميم التبويبات"
+              trailing={
+                <Ionicons
+                  name="chevron-back"
+                  size={18}
+                  color={tokens.colors.najdi.textMuted}
+                />
+              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowTabBarDemo(true);
+              }}
+              showDivider={false}
+            />
           </ListSection>
         </Animated.View>
 
@@ -840,6 +865,15 @@ const AdminDashboardUltraOptimized = ({ user, profile, openLinkRequests = false 
         () => setShowTemplateManager(false),
         MessageTemplateManager
       )}
+
+      {/* TabBar Design Demo Modal */}
+      <Modal
+        visible={showTabBarDemo}
+        animationType="slide"
+        presentationStyle="fullScreen"
+      >
+        <TabBarDemo onClose={() => setShowTabBarDemo(false)} />
+      </Modal>
     </SafeAreaView>
   );
 };

@@ -13,6 +13,7 @@ import {
   Animated,
   Image,
   Easing,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +21,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import adminContactService from "../../services/adminContact";
 import Surface from "../ui/Surface";
+import TabBarDemo from "../../screens/TabBarDemo";
 import tokens from "../ui/tokens";
 
 const palette = tokens.colors.najdi;
@@ -44,6 +46,7 @@ const AdminSettingsView = ({ onClose }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [showTabBarDemo, setShowTabBarDemo] = useState(false);
   const contentAnimation = useRef(new Animated.Value(0)).current;
 
   const loadSettings = useCallback(async () => {
@@ -306,6 +309,28 @@ const AdminSettingsView = ({ onClose }) => {
                       </View>
                     )}
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.tertiaryButton}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setShowTabBarDemo(true);
+                    }}
+                    activeOpacity={0.85}
+                    accessibilityLabel="اختبار تصاميم التبويبات"
+                  >
+                    <View style={styles.buttonContent}>
+                      {renderSFSymbol(
+                        "layers-outline",
+                        "layers-outline",
+                        palette.text,
+                        18,
+                      )}
+                      <Text style={styles.tertiaryButtonText}>
+                        اختبار تصاميم التبويبات
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 </View>
               </Surface>
             </Animated.View>
@@ -338,6 +363,17 @@ const AdminSettingsView = ({ onClose }) => {
             </Animated.View>
           </ScrollView>
         </View>
+
+        {/* TabBar Demo Modal */}
+        <Modal
+          visible={showTabBarDemo}
+          animationType="slide"
+          presentation="fullScreen"
+        >
+          <TabBarDemo
+            onClose={() => setShowTabBarDemo(false)}
+          />
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -500,6 +536,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  tertiaryButton: {
+    backgroundColor: `${palette.container}20`,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: `${palette.container}40`,
+    minHeight: tokens.touchTarget.minimum,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   disabledButton: {
     opacity: 0.6,
   },
@@ -517,6 +562,12 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     ...tokens.typography.callout,
     color: tokens.colors.accent,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
+  },
+  tertiaryButtonText: {
+    ...tokens.typography.callout,
+    color: palette.text,
     fontWeight: "600",
     fontFamily: Platform.OS === "ios" ? "SF Arabic" : "System",
   },
