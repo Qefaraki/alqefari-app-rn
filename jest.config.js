@@ -25,6 +25,7 @@ module.exports = {
   testMatch: [
     '**/__tests__/**/*.test.js',
     '**/__tests__/**/*.test.jsx',
+    '**/tests/**/*.test.js',  // Phase 1 tests
   ],
   moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
   verbose: true,
