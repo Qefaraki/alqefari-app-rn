@@ -327,7 +327,7 @@ class SpatialGrid {
     this.maxCellY = Math.floor(this.bounds.maxY / cellSize);
   }
 
-  getVisibleNodes({ x, y, width, height }, scale, idToNode) {
+  getVisibleNodes({ x, y, width, height }, scale) {
     // Transform viewport to world space with padding for smooth transitions
     const padding = 100 / scale; // Add padding to preload nearby nodes
     const worldMinX = (-x / scale) - padding;
@@ -1045,8 +1045,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
       // Spatial grid handles culling efficiently
       return spatialGrid.getVisibleNodes(
         { x: currentTransform.x, y: currentTransform.y, width: dimensions.width, height: dimensions.height },
-        currentTransform.scale,
-        indices?.idToNode || new Map()
+        currentTransform.scale
       );
     }
 
@@ -1073,7 +1072,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     }
 
     return visible;
-  }, [nodes, visibleBounds, currentTransform, spatialGrid, dimensions, indices]);
+  }, [nodes, visibleBounds, currentTransform, spatialGrid, dimensions]);
 
   // Prefetch neighbor nodes for better performance
   useEffect(() => {
@@ -2023,8 +2022,7 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         width: dimensions.width,
         height: dimensions.height,
       },
-      currentTransform.scale,
-      indices.idToNode,
+      currentTransform.scale
     );
   }, [
     isLoading,
@@ -2032,7 +2030,6 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
     spatialGrid,
     currentTransform,
     dimensions,
-    indices.idToNode,
     visibleNodes,
   ]);
 

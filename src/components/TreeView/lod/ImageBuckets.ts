@@ -36,14 +36,17 @@ export interface BucketState {
 /**
  * Select image bucket size based on pixel size
  *
- * Simple selection without hysteresis - finds smallest bucket >= pixelSize
+ * Simple selection without hysteresis - finds smallest bucket >= pixelSize.
+ * Falls back to DEFAULT_IMAGE_BUCKET (80) if pixelSize exceeds max bucket (256).
  *
  * @param pixelSize - Required pixel size for image
- * @returns Bucket size (40, 60, 80, 120, or 256)
+ * @returns Bucket size (40, 60, 80, 120, or 256). Returns DEFAULT_IMAGE_BUCKET (80)
+ *          if pixelSize exceeds max bucket (256).
  *
  * @example
  * selectBucket(50) // Returns 60
  * selectBucket(100) // Returns 120
+ * selectBucket(300) // Returns 80 (fallback to DEFAULT_IMAGE_BUCKET)
  */
 export function selectBucket(pixelSize: number): number {
   return IMAGE_BUCKETS.find((b) => b >= pixelSize) || DEFAULT_IMAGE_BUCKET;

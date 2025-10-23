@@ -192,26 +192,31 @@ const SpouseRow = React.memo(
         return;
       }
 
-      const trimmedName = editingName.trim();
-      if (!trimmedName) {
-        Alert.alert(ERROR_MESSAGES.EMPTY_SPOUSE_NAME.title, ERROR_MESSAGES.EMPTY_SPOUSE_NAME.message);
-        return;
-      }
-
-      // Validate minimum 2 words (name + surname), encourage 5 names
-      const words = trimmedName.split(/\s+/);
-      if (words.length < 2) {
-        Alert.alert(ERROR_MESSAGES.INVALID_NAME_FORMAT.title, ERROR_MESSAGES.INVALID_NAME_FORMAT.message);
-        return;
-      }
-
       const originalName = spouse.name?.trim() || '';
       const statusChanged = spouseData.status !== editingStatus;
-      const nameChanged = trimmedName !== originalName;
+      // For cousin marriages, skip name validation and updates - name is read-only
+      const nameChanged = !isCousinMarriage && editingName.trim() !== originalName;
 
       if (!statusChanged && !nameChanged) {
         onSave?.(spouseData);
         return;
+      }
+
+      // For Munasib: validate name
+      let trimmedName = '';
+      if (nameChanged) {
+        trimmedName = editingName.trim();
+        if (!trimmedName) {
+          Alert.alert(ERROR_MESSAGES.EMPTY_SPOUSE_NAME.title, ERROR_MESSAGES.EMPTY_SPOUSE_NAME.message);
+          return;
+        }
+
+        // Validate minimum 2 words (name + surname), encourage 5 names
+        const words = trimmedName.split(/\s+/);
+        if (words.length < 2) {
+          Alert.alert(ERROR_MESSAGES.INVALID_NAME_FORMAT.title, ERROR_MESSAGES.INVALID_NAME_FORMAT.message);
+          return;
+        }
       }
 
       // Validate required IDs before attempting save
@@ -245,7 +250,8 @@ const SpouseRow = React.memo(
           if (error) throw error;
         }
 
-        if (nameChanged && spouse.id) {
+        // Only update name for Munasib (not for cousin marriages)
+        if (nameChanged && !isCousinMarriage && spouse.id) {
           // Parse name to extract family_origin
           const spouseGender = spouse.gender || 'female';
           parsed = familyNameService.parseFullName(trimmedName, spouseGender);
@@ -270,9 +276,10 @@ const SpouseRow = React.memo(
           status: editingStatus,
           spouse_profile: {
             ...spouse,
-            name: trimmedName,
-            family_origin: parsed?.familyOrigin, // Update local state too
-            version: spouse.version ? spouse.version + 1 : 2, // Increment version after successful update
+            // Only update name in local state if we actually changed it
+            name: nameChanged ? trimmedName : spouse.name,
+            family_origin: nameChanged ? parsed?.familyOrigin : spouse.family_origin,
+            version: nameChanged ? (spouse.version ? spouse.version + 1 : 2) : spouse.version,
           },
         };
         onSave?.(updatedMarriage);
@@ -334,33 +341,18 @@ const SpouseRow = React.memo(
         </View>
 
         {isEditing ? (
-          isCousinMarriage ? (
-            // COUSIN MARRIAGE: Info message + Visit button
-            <View style={styles.cousinInfoView}>
+          <View style={styles.inlineEditor}>
+            {/* Name field - info message for cousins, editable for Munasib */}
+            {isCousinMarriage ? (
               <View style={styles.infoMessageBox}>
-                <Ionicons name="information-circle-outline" size={20} color={tokens.colors.najdi.textMuted} />
+                <Ionicons name="information-circle-outline" size={16} color={tokens.colors.najdi.textMuted} />
                 <Text style={styles.infoMessageText}>
                   {spouse.gender === 'male'
-                    ? 'هذا من أبناء الأسرة. قم بزيارة ملفه للتعديل.'
-                    : 'هذه من بنات الأسرة. قم بزيارة ملفها للتعديل.'}
+                    ? 'لتعديل بيانات الزوج، قم بزيارة ملفه الشخصي'
+                    : 'لتعديل بيانات الزوجة، قم بزيارة ملفها الشخصي'}
                 </Text>
               </View>
-
-              {onVisit && (
-                <TouchableOpacity
-                  style={styles.visitProfileButtonFull}
-                  onPress={handleVisit}
-                  accessibilityRole="button"
-                  accessibilityLabel={`زيارة ملف ${spouse.name}`}
-                >
-                  <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
-                  <Text style={styles.visitProfileButtonFullText}>زيارة الملف الشخصي</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            // MUNASIB MARRIAGE: Full inline editor
-            <View style={styles.inlineEditor}>
+            ) : (
               <View style={styles.inlineField}>
                 <Text style={styles.inlineFieldLabel}>اسم الزوجة</Text>
                 <TextInput
@@ -374,85 +366,87 @@ const SpouseRow = React.memo(
                   editable={!saving}
                 />
               </View>
+            )}
 
-              <View style={styles.inlineField}>
-                <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
-                <View style={styles.inlineSegments}>
-                  {[
-                    { label: 'حالي', value: 'current' },
-                    { label: 'سابق', value: 'past' },
-                  ].map((option) => {
-                    const active = editingStatus === option.value;
-                    return (
-                      <TouchableOpacity
-                        key={option.value}
-                        style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setEditingStatus(option.value);
-                        }}
-                        activeOpacity={0.85}
-                        disabled={saving}
-                      >
-                        <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View style={styles.inlineFooter}>
-                <View style={styles.inlineFooterLinks}>
-                  {onVisit ? (
+            {/* Marriage status toggle - SAME for both cousin and Munasib */}
+            <View style={styles.inlineField}>
+              <Text style={styles.inlineFieldLabel}>حالة الزواج</Text>
+              <View style={styles.inlineSegments}>
+                {[
+                  { label: 'حالي', value: 'current' },
+                  { label: 'سابق', value: 'past' },
+                ].map((option) => {
+                  const active = editingStatus === option.value;
+                  return (
                     <TouchableOpacity
-                      style={styles.inlineUtilityButton}
-                      onPress={handleVisit}
+                      key={option.value}
+                      style={[styles.inlineSegmentButton, active && styles.inlineSegmentButtonActive]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setEditingStatus(option.value);
+                      }}
+                      activeOpacity={0.85}
                       disabled={saving}
                     >
-                      <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
-                      <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                      <Text style={[styles.inlineSegmentLabel, active && styles.inlineSegmentLabelActive]}>
+                        {option.label}
+                      </Text>
                     </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity
-                    style={styles.inlineUtilityButton}
-                    onPress={handleDelete}
-                    disabled={saving}
-                  >
-                    <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
-                    <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.inlineActionButtons}>
-                  <TouchableOpacity
-                    style={styles.inlineCancelButton}
-                    onPress={handleToggle}
-                    activeOpacity={0.7}
-                    disabled={saving}
-                  >
-                    <Text style={styles.inlineCancelText}>إلغاء</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
-                    onPress={handleSave}
-                    activeOpacity={0.85}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <ActivityIndicator size="small" color={tokens.colors.surface} />
-                    ) : (
-                      <>
-                        <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
-                        <Text style={styles.inlineSaveText}>حفظ</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
+                  );
+                })}
               </View>
             </View>
-          )
+
+            {/* Action buttons - SAME for both: visit profile, delete, save/cancel */}
+            <View style={styles.inlineFooter}>
+              <View style={styles.inlineFooterLinks}>
+                {onVisit ? (
+                  <TouchableOpacity
+                    style={styles.inlineUtilityButton}
+                    onPress={handleVisit}
+                    disabled={saving}
+                  >
+                    <Ionicons name="open-outline" size={16} color={tokens.colors.najdi.primary} />
+                    <Text style={styles.inlineUtilityText}>زيارة الملف</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.inlineUtilityButton}
+                  onPress={handleDelete}
+                  disabled={saving}
+                >
+                  <Ionicons name="trash-outline" size={16} color={tokens.colors.najdi.primary} />
+                  <Text style={styles.inlineUtilityText}>حذف الزواج</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inlineActionButtons}>
+                <TouchableOpacity
+                  style={styles.inlineCancelButton}
+                  onPress={handleToggle}
+                  activeOpacity={0.7}
+                  disabled={saving}
+                >
+                  <Text style={styles.inlineCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.inlineSaveButton, saving && styles.inlineSaveButtonDisabled]}
+                  onPress={handleSave}
+                  activeOpacity={0.85}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={tokens.colors.surface} />
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark" size={18} color={tokens.colors.surface} />
+                      <Text style={styles.inlineSaveText}>حفظ</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         ) : null}
       </View>
     );

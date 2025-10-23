@@ -1,228 +1,433 @@
-import React, { useMemo } from "react";
+import React from "react";
 import {
   View,
   Text,
-  Pressable,
   Image,
+  Pressable,
   StyleSheet,
-  Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import PropTypes from "prop-types";
 import * as Haptics from "expo-haptics";
+import Animated, {
+  FadeIn,
+} from "react-native-reanimated";
 import { toArabicNumerals } from "../../utils/dateUtils";
-import { formatNameWithTitle } from "../../services/professionalTitleService";
-import useDynamicTypography from "../../hooks/useDynamicTypography";
 
 /**
- * SearchResultCard - Shared card component for search results
- * Used in SearchBar dropdown and SpouseManager modal
+ * SearchResultCard - Reusable search result card component
+ * Used by both SearchModal and SpouseManager
+ * Shows profile with breadcrumb ancestry, generation, and metadata
  *
- * Maintains exact visual consistency across the app
+ * Props:
+ * - item: Profile object with name, name_chain, gender, generation, birth_year_hijri, photo_url
+ * - index: Position in list (for animation delay)
+ * - onPress: Callback when card is pressed
+ * - showRelevanceScore: Show match score percentage (default: false)
+ * - enableAnimation: Show fade-in animation (default: false)
  */
-export default function SearchResultCard({ item, index, onPress, isLast = false }) {
-  const getTypography = useDynamicTypography();
-  const fontFamilyBase = Platform.OS === "ios" ? "System" : "Roboto";
-  const fontFamilyArabic = Platform.OS === "ios" ? "SF Arabic" : "Roboto";
+const SearchResultCard = ({
+  item,
+  index,
+  onPress,
+  showRelevanceScore = false,
+  enableAnimation = false,
+}) => {
+  const initials = item?.name ? item.name.charAt(0) : "؟";
+  const isAlive = !item?.death_year_hijri;
 
-  // Premium desert palette - ultra-thin aesthetic
-  const getDesertColor = (index) => {
-    const desertPalette = [
-      "#A13333", // Najdi Crimson
-      "#D58C4A", // Desert Ochre
-      "#D1BBA3", // Camel Hair Beige
-      "#A13333CC", // Najdi Crimson 80%
-      "#D58C4ACC", // Desert Ochre 80%
-      "#D1BBA3CC", // Camel Hair Beige 80%
-      "#A1333399", // Najdi Crimson 60%
-      "#D58C4A99", // Desert Ochre 60%
-      "#D1BBA399", // Camel Hair Beige 60%
-      "#A13333", // Najdi Crimson (repeat)
+  // Generate consistent colors from profile names
+  const generateColorFromName = (name) => {
+    const colors = [
+      "#FF6B6B",
+      "#4ECDC4",
+      "#45B7D1",
+      "#96CEB4",
+      "#FFEAA7",
+      "#DDA0DD",
+      "#98D8C8",
+      "#F7DC6F",
     ];
-    // Use index to ensure each result has a different color
-    return desertPalette[index % desertPalette.length];
+    const nameCode = name ? name.charCodeAt(0) : 0;
+    return colors[nameCode % colors.length];
   };
 
-  const nameTypography = useMemo(() => {
-    const typography = getTypography("headline", {
-      fontWeight: "500",
-      fontFamily: fontFamilyArabic,
-    });
-    return {
-      ...typography,
-      letterSpacing: -0.1,
-    };
-  }, [getTypography, fontFamilyArabic]);
+  // Get relevance color based on score
+  const getRelevanceColor = (score) => {
+    if (score >= 8) return "#00C851";
+    if (score >= 5) return "#FFB300";
+    return "#666";
+  };
 
-  const generationTypography = useMemo(
-    () =>
-      getTypography("footnote", {
-        fontFamily: fontFamilyArabic,
-        fontWeight: "400",
-      }),
-    [getTypography, fontFamilyArabic],
-  );
+  // Convert RPC match_score (0-10) to percentage (0-100)
+  const getRelevancePercentage = (matchScore) => {
+    if (!matchScore && matchScore !== 0) return 0;
+    return Math.round(matchScore * 10);
+  };
 
-  const avatarTypography = useMemo(() => {
-    const typography = getTypography("subheadline", {
-      fontFamily: fontFamilyBase,
-      fontWeight: "500",
-    });
-    return {
-      ...typography,
-      lineHeight: typography.fontSize,
-    };
-  }, [getTypography, fontFamilyBase]);
+  // Defensive breadcrumb building with 3-level fallback
+  const getBreadcrumbParts = (nameChain, gender) => {
+    if (!nameChain || typeof nameChain !== 'string') return [];
 
-  const initials = item.name ? item.name.charAt(0) : "؟";
-  const desertColor = getDesertColor(index);
+    // Try gender-specific marker first
+    const marker = gender === 'female' ? ' بنت ' : ' بن ';
+    let parts = nameChain.split(marker);
+
+    // Fallback: try opposite gender marker (edge case: munasib data)
+    if (parts.length === 1) {
+      const altMarker = gender === 'female' ? ' بن ' : ' بنت ';
+      parts = nameChain.split(altMarker);
+    }
+
+    // Last resort: split by spaces if no markers found
+    if (parts.length === 1) {
+      parts = nameChain.split(/\s+/);
+    }
+
+    return parts.slice(0, 3).map(p => p.trim()).filter(Boolean);
+  };
+
+  // Render breadcrumb hierarchy
+  const renderBreadcrumbs = () => {
+    if (!item?.name_chain) {
+      // Fallback: show just the profile name
+      return (
+        <Text style={styles.breadcrumbText} numberOfLines={1}>
+          {item?.name || 'غير محدد'}
+        </Text>
+      );
+    }
+
+    const parts = getBreadcrumbParts(item.name_chain, item?.gender);
+
+    if (parts.length === 0) {
+      return (
+        <Text style={styles.breadcrumbText} numberOfLines={1}>
+          غير محدد
+        </Text>
+      );
+    }
+
+    return parts.map((name, idx) => (
+      <React.Fragment key={idx}>
+        {idx > 0 && (
+          <Text style={styles.breadcrumbSeparator}>›</Text>
+        )}
+        <Text style={styles.breadcrumbText} numberOfLines={1}>
+          {name}
+        </Text>
+      </React.Fragment>
+    ));
+  };
+
+  // Determine which wrapper to use (animated or plain)
+  const CardWrapper = enableAnimation ? Animated.View : View;
+  const animationProps = enableAnimation ? {
+    entering: FadeIn.delay(Math.min(index * 50, 500)).springify()
+  } : {};
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
+  const relevanceScore = getRelevancePercentage(item?.match_score);
+  const avatarColor = generateColorFromName(item?.name);
+  const relevanceColor = getRelevanceColor(item?.match_score);
 
   return (
     <Pressable
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        onPress(item);
-      }}
+      onPress={handlePress}
       style={({ pressed }) => [
-        styles.resultCard,
-        pressed && styles.resultCardPressed,
-        isLast && styles.lastCard,
+        { opacity: pressed ? 0.7 : 1 },
+        { transform: [{ scale: pressed ? 0.98 : 1 }] },
       ]}
     >
-      <View style={styles.cardContent}>
-        {/* Saudi-style avatar - positioned on RIGHT for RTL */}
-        <View style={styles.avatarContainer}>
-          {item.photo_url ? (
-            <Image
-              source={{ uri: item.photo_url }}
-              style={styles.avatarPhoto}
-              defaultSource={require("../../../assets/icon.png")}
-            />
-          ) : (
-            <View
-              style={[
-                styles.avatarCircle,
-                {
-                  backgroundColor: desertColor,
-                },
-              ]}
-            >
-              <Text style={[styles.avatarLetter, avatarTypography]} allowFontScaling>
-                {initials}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Text content - RTL aligned to right edge */}
-        <View style={styles.textContainer}>
-          <Text style={[styles.nameText, nameTypography]} allowFontScaling numberOfLines={1}>
-            {formatNameWithTitle(item) || "بدون اسم"}
-          </Text>
-          <View style={styles.metaContainer}>
-            <Text
-              style={[styles.generationText, generationTypography, { color: desertColor }]}
-              allowFontScaling
-            >
-              الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-            </Text>
+      <CardWrapper
+        {...animationProps}
+        style={styles.modernCard}
+      >
+        {/* Left Side - Visual Identity */}
+        <View style={styles.visualSection}>
+          {/* Modern Avatar with Status Ring */}
+          <View style={[styles.avatarContainer, isAlive && styles.aliveRing]}>
+            {item?.photo_url ? (
+              <Image
+                source={{ uri: item.photo_url }}
+                style={styles.modernAvatar}
+                defaultSource={require("../../../assets/icon.png")}
+              />
+            ) : (
+              <View
+                style={[
+                  styles.avatarPlaceholder,
+                  { backgroundColor: avatarColor },
+                ]}
+              >
+                <Text style={styles.avatarInitial}>{initials}</Text>
+              </View>
+            )}
+            {/* Relevance Indicator */}
+            {showRelevanceScore && (
+              <View
+                style={[
+                  styles.relevanceDot,
+                  { backgroundColor: relevanceColor },
+                ]}
+              >
+                <Text style={styles.relevanceText}>{relevanceScore}%</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Chevron indicator on left edge */}
-        <View style={styles.chevronContainer}>
-          <Text style={styles.chevron} allowFontScaling={false}>
-            ‹
-          </Text>
+        {/* Center - Information Hierarchy */}
+        <View style={styles.contentSection}>
+          {/* Primary Info */}
+          <View style={styles.primaryInfo}>
+            <Text style={styles.modernName} numberOfLines={1}>
+              {item?.name || 'بدون اسم'}
+            </Text>
+            {isAlive && (
+              <View style={styles.liveBadge}>
+                <View style={styles.liveDot} />
+              </View>
+            )}
+          </View>
+
+          {/* Name Chain as Breadcrumb */}
+          <View style={styles.breadcrumbContainer}>
+            {renderBreadcrumbs()}
+          </View>
+
+          {/* Rich Metadata Row */}
+          <View style={styles.metadataRow}>
+            {/* Generation with Icon */}
+            <View style={styles.metaTag}>
+              <View style={styles.genIcon}>
+                <Text style={styles.genIconText}>ج</Text>
+              </View>
+              <Text style={styles.metaLabel}>
+                {toArabicNumerals(item?.generation?.toString() || "0")}
+              </Text>
+            </View>
+
+            {/* Birth Year */}
+            {item?.birth_year_hijri && (
+              <View style={styles.metaTag}>
+                <Ionicons name="calendar-outline" size={12} color="#666" />
+                <Text style={styles.metaLabel}>
+                  {toArabicNumerals(item.birth_year_hijri.toString())}هـ
+                </Text>
+              </View>
+            )}
+
+            {/* Location if available */}
+            {item?.location && (
+              <View style={styles.metaTag}>
+                <Ionicons name="location-outline" size={12} color="#666" />
+                <Text style={styles.metaLabel}>{item.location}</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+
+        {/* Right Side - Action Area */}
+        <View style={styles.actionSection}>
+          <View style={styles.goButton}>
+            <Ionicons name="arrow-back" size={18} color="#007AFF" />
+          </View>
+        </View>
+      </CardWrapper>
     </Pressable>
   );
-}
+};
+
+SearchResultCard.propTypes = {
+  item: PropTypes.shape({
+    id: PropTypes.string.isRequired,
+    name: PropTypes.string,
+    name_chain: PropTypes.string,
+    gender: PropTypes.oneOf(['male', 'female']),
+    generation: PropTypes.number,
+    photo_url: PropTypes.string,
+    birth_year_hijri: PropTypes.number,
+    death_year_hijri: PropTypes.number,
+    location: PropTypes.string,
+    match_score: PropTypes.number,
+  }).isRequired,
+  index: PropTypes.number.isRequired,
+  onPress: PropTypes.func.isRequired,
+  showRelevanceScore: PropTypes.bool,
+  enableAnimation: PropTypes.bool,
+};
+
+SearchResultCard.defaultProps = {
+  showRelevanceScore: false,
+  enableAnimation: false,
+};
 
 const styles = StyleSheet.create({
-  // iOS list item style - clean, continuous
-  resultCard: {
-    backgroundColor: "transparent", // iOS list items are transparent
-    borderRadius: 0, // No radius for continuous list
-    marginBottom: 0, // No gaps between items
-    overflow: "hidden",
-    borderWidth: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.08)", // Subtle divider
-  },
-  resultCardPressed: {
-    backgroundColor: "#D1BBA310", // Subtle press state
-    transform: [{ scale: 1 }], // No scale on press for iOS list
-  },
-  lastCard: {
-    borderBottomWidth: 0, // No separator on last item
-  },
-  cardContent: {
-    flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
+  // Ultra-modern card design inspired by Google Maps, Spotify, and Airbnb
+  modernCard: {
+    flexDirection: "row-reverse", // RTL: photo on left, text starts from right
     alignItems: "center",
-    paddingVertical: 11, // iOS list item standard
-    paddingLeft: 16, // iOS standard horizontal padding
-    paddingRight: 16,
-    minHeight: 44, // iOS touch target standard
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 16,
+    // Sophisticated shadow for depth
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    // Subtle border for definition
+    borderWidth: 0.5,
+    borderColor: "rgba(0,0,0,0.04)",
   },
-  // Refined avatar styling - on right side for RTL
+  visualSection: {
+    marginLeft: 14, // Changed from marginRight for RTL
+  },
   avatarContainer: {
-    marginLeft: 0, // Remove left margin
-    marginRight: 0, // Avatar should be flush right
+    position: "relative",
   },
-  avatarPhoto: {
-    width: 36, // iOS small avatar standard
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
+  aliveRing: {
+    borderWidth: 2,
+    borderColor: "#00C851",
+    borderRadius: 28,
+    padding: 2,
   },
-  avatarCircle: {
-    width: 36, // iOS small avatar standard
-    height: 36,
-    borderRadius: 18,
+  modernAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#F8F9FA",
+  },
+  avatarPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
-    // backgroundColor set dynamically
   },
-  avatarLetter: {
-    color: "#F9F7F3", // Al-Jass White
-    textAlign: "center",
+  avatarInitial: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    fontFamily: "SF Arabic",
   },
-
-  // Text styling - uses full width with forced RTL
-  textContainer: {
+  relevanceDot: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#00C851",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  relevanceText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  contentSection: {
     flex: 1,
     justifyContent: "center",
-    paddingLeft: 8,
-    paddingRight: 12,
-    alignItems: "flex-start", // Changed to flex-start for proper RTL text alignment
+    alignItems: "flex-end", // RTL: align text to the right
   },
-  nameText: {
-    color: "#242121", // Sadu Night
-    marginBottom: 3,
-    textAlign: "left", // Changed to left for proper display with row-reverse
-    alignSelf: "stretch", // Take full width
-    writingDirection: "rtl", // Force RTL writing direction
-  },
-  metaContainer: {
-    flexDirection: "row", // Normal row for generation text
+  primaryInfo: {
+    flexDirection: "row-reverse", // RTL: name first from right
     alignItems: "center",
-    alignSelf: "flex-start", // Align to start of container
-    justifyContent: "flex-start", // Ensure content aligns to start
+    marginBottom: 4,
   },
-  generationText: {
-    opacity: 0.6,
-    textAlign: "left", // Changed to left for proper display with row-reverse
-    writingDirection: "rtl", // Force RTL writing direction
-    // color set dynamically
+  modernName: {
+    fontSize: 17,
+    fontWeight: "600",
+    fontFamily: "SF Arabic",
+    color: "#1A1A1A",
+    flex: 1,
+    textAlign: "right", // RTL: align text to right
   },
-  // Minimal chevron - on left edge
-  chevronContainer: {
-    paddingLeft: 6,
+  liveBadge: {
+    marginRight: 8, // Changed from marginLeft for RTL
   },
-  chevron: {
-    fontSize: 18,
-    color: "#24212140", // Sadu Night 25%
-    fontWeight: "300",
-    opacity: 0.5,
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#00C851",
+  },
+  breadcrumbContainer: {
+    flexDirection: "row-reverse", // RTL: start from right
+    alignItems: "center",
+    marginBottom: 6,
+    flexWrap: "nowrap",
+  },
+  breadcrumbText: {
+    fontSize: 13,
+    color: "#666",
+    fontFamily: "SF Arabic",
+    maxWidth: 80,
+    textAlign: "right", // RTL: align text right
+  },
+  breadcrumbSeparator: {
+    fontSize: 12,
+    color: "#999",
+    marginHorizontal: 4,
+  },
+  metadataRow: {
+    flexDirection: "row-reverse", // RTL: tags from right to left
+    alignItems: "center",
+    gap: 10,
+    alignSelf: "flex-end", // RTL: align row to right
+  },
+  metaTag: {
+    flexDirection: "row-reverse", // RTL: icon and text reversed
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F8F9FA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  genIcon: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#007AFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  genIconText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    fontFamily: "SF Arabic",
+  },
+  metaLabel: {
+    fontSize: 12,
+    color: "#666",
+    fontFamily: "SF Arabic",
+    fontWeight: "500",
+  },
+  actionSection: {
+    justifyContent: "center",
+    marginRight: 12, // Changed from marginLeft for RTL
+  },
+  goButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F0F8FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
+
+export default React.memo(SearchResultCard);

@@ -98,11 +98,11 @@ export class SpatialGrid {
 
     // Convert IDs to nodes and apply hard cap
     const visibleNodes: LayoutNode[] = [];
-    for (const id of visibleIds) {
-      if (visibleNodes.length >= MAX_VISIBLE_NODES) break;
+    visibleIds.forEach((id) => {
+      if (visibleNodes.length >= MAX_VISIBLE_NODES) return;
       const node = idToNode.get(id);
       if (node) visibleNodes.push(node);
-    }
+    });
 
     return visibleNodes;
   }

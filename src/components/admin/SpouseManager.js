@@ -21,7 +21,7 @@ import { profilesService } from "../../services/profiles";
 import familyNameService from "../../services/familyNameService";
 import { getMunasibValue, validateMarriageProfiles, getMarriageType } from "../../utils/marriageValidation";
 import tokens from "../ui/tokens";
-import ProfileMatchCard from "../ProfileMatchCard";
+import SearchResultCard from "../search/SearchResultCard";
 import BranchTreeModal from "../BranchTreeModal";
 
 /**
@@ -396,14 +396,12 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         <FlatList
           data={searchResults}
           renderItem={({ item, index }) => (
-            <ProfileMatchCard
-              profile={{
-                ...item,
-                match_score: 100, // Default to 100% for exact name matches
-              }}
+            <SearchResultCard
+              item={item}
               index={index}
               onPress={() => handleSelectSpouse(item)}
-              isSelected={false}
+              showRelevanceScore={false}
+              enableAnimation={false}
             />
           )}
           keyExtractor={(item) => item.id}
@@ -471,15 +469,12 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.container}>
-        {/* Header with person info */}
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
             <Ionicons name="close" size={28} color={tokens.colors.najdi.text} />
           </TouchableOpacity>
-          <View style={styles.headerTitle}>
-            <Text style={styles.title}>إضافة {spouseTitle}</Text>
-            <Text style={styles.headerSubtitle}>{person?.name}</Text>
-          </View>
+          <Text style={styles.title}>إضافة {spouseTitle}</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -545,22 +540,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   title: {
     fontSize: 17,
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: tokens.colors.najdi.text,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.textMuted,
-    marginTop: tokens.spacing.xxs,
+    flex: 1,
+    textAlign: "center",
   },
 
   // Stage Container

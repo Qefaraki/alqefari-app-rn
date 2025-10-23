@@ -47,13 +47,17 @@ export interface Connection {
  * Calculate bus line Y coordinate (midpoint between parent and nearest child)
  *
  * @param parent - Parent node
- * @param children - Array of child nodes
+ * @param children - Array of child nodes (must have at least one child)
  * @returns Y coordinate for horizontal bus line
+ * @throws Error if children array is empty
  */
 export function calculateBusY(
   parent: LayoutNode,
   children: LayoutNode[]
 ): number {
+  if (children.length === 0) {
+    throw new Error('calculateBusY requires at least one child node');
+  }
   const childYs = children.map((child) => child.y);
   const minChildY = Math.min(...childYs);
   return parent.y + (minChildY - parent.y) / 2;
