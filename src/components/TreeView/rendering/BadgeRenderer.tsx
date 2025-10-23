@@ -205,8 +205,11 @@ export const BadgeRenderer: React.FC<BadgeRendererProps> = ({
     );
   }
 
-  // Filter out nulls and return as fragment
-  const validBadges = badges.filter((b): b is JSX.Element => b !== null);
+  // Filter out nulls, add keys, and return as fragment
+  const validBadges = badges
+    .filter((b): b is JSX.Element => b !== null)
+    .map((badge, index) => React.cloneElement(badge, { key: `badge-${index}` }));
+
   if (validBadges.length === 0) return null;
 
   return <>{validBadges}</>;
