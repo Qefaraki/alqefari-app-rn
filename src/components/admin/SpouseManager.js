@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: tokens.colors.najdi.container, // Camel Hair Beige
+    backgroundColor: "#FFFFFF", // Pure white (matches SearchBar)
     borderRadius: tokens.radii.sm,
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
