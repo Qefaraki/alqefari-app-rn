@@ -49,8 +49,8 @@ const SaudiCityPicker = ({ label, value, onChange, placeholder, enabled = true }
   };
 
   return (
-    <View style={[styles.container, !enabled && styles.disabled]}>
-      {label && <Text style={[styles.label, !enabled && styles.labelDisabled]}>{label}</Text>}
+    <View style={styles.container}>
+      {label && <Text style={styles.label}>{label}</Text>}
       <View style={[styles.pickerWrapper, !enabled && styles.pickerWrapperDisabled]}>
         <Picker
           selectedValue={value || ''}
@@ -66,6 +66,7 @@ const SaudiCityPicker = ({ label, value, onChange, placeholder, enabled = true }
               key={`${city}-${index}`}
               label={city}
               value={city}
+              enabled={!city.startsWith('─')}
             />
           ))}
         </Picker>
@@ -98,21 +99,15 @@ const styles = StyleSheet.create({
   container: {
     gap: tokens.spacing.xs,
   },
-  disabled: {
-    opacity: 0.6,
-  },
   label: {
     fontSize: 13,
-    fontWeight: '400',
-    color: tokens.colors.najdi.textMuted,
+    fontWeight: '500',
+    color: tokens.colors.najdi.text + 'C0',
     paddingHorizontal: tokens.spacing.xs,
-  },
-  labelDisabled: {
-    color: tokens.colors.najdi.textMuted + '80',
   },
   pickerWrapper: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: tokens.colors.najdi.container + '60',
     borderWidth: 1,
     borderRadius: tokens.radii.md,
     overflow: 'hidden',
@@ -120,28 +115,29 @@ const styles = StyleSheet.create({
   },
   pickerWrapperDisabled: {
     backgroundColor: tokens.colors.najdi.background + '80',
-    borderColor: tokens.colors.najdi.container + '20',
+    borderColor: tokens.colors.najdi.secondary + '40',
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
   },
   picker: {
     color: tokens.colors.najdi.text,
     backgroundColor: tokens.colors.najdi.background,
     ...(Platform.OS === 'ios' && {
-      fontSize: 16,
+      fontSize: 17,
     }),
     ...(Platform.OS === 'android' && {
-      fontSize: 16,
+      fontSize: 17,
     }),
   },
   pickerItem: {
-    fontSize: 16,
+    fontSize: 17,
     color: tokens.colors.najdi.text,
   },
   disabledMessage: {
-    fontSize: 11,
-    color: tokens.colors.najdi.textMuted,
+    fontSize: 12,
+    color: tokens.colors.najdi.secondary,
     paddingHorizontal: tokens.spacing.xs,
-    fontStyle: 'italic',
-    fontWeight: '300',
+    fontWeight: '400',
   },
 });
 

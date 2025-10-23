@@ -155,46 +155,27 @@ const TabDetails = ({ form, updateField }) => {
           />
 
           {/* Current Residence - Country Picker */}
-          <View style={{ marginTop: tokens.spacing.md }}>
-            <CountryPicker
-              label="الدولة"
-              value={draft?.current_residence_country || ''}
-              onChange={(country) => {
-                updateField('current_residence_country', country);
-                // Clear city if country changed from Saudi Arabia
-                if (country !== 'السعودية') {
-                  updateField('current_residence_city', '');
-                }
-              }}
-              placeholder="اختر دولة"
-            />
-          </View>
+          <CountryPicker
+            label="الدولة"
+            value={draft?.current_residence_country || ''}
+            onChange={(country) => {
+              updateField('current_residence_country', country);
+              // Clear city if country changed from Saudi Arabia
+              if (country !== 'السعودية') {
+                updateField('current_residence_city', '');
+              }
+            }}
+            placeholder="اختر دولة"
+          />
 
-          {/* Current Residence - City Picker (Only for Saudi Arabia) */}
-          {draft?.current_residence_country === 'السعودية' && (
-            <View style={{ marginTop: tokens.spacing.md }}>
-              <SaudiCityPicker
-                label="المدينة"
-                value={draft?.current_residence_city || ''}
-                onChange={(city) => updateField('current_residence_city', city)}
-                placeholder="اختر مدينة"
-                enabled={true}
-              />
-            </View>
-          )}
-
-          {/* Disabled city picker message when non-Saudi country selected */}
-          {draft?.current_residence_country && draft?.current_residence_country !== 'السعودية' && (
-            <View style={{ marginTop: tokens.spacing.md }}>
-              <SaudiCityPicker
-                label="المدينة"
-                value=""
-                onChange={() => {}}
-                placeholder="اختر مدينة"
-                enabled={false}
-              />
-            </View>
-          )}
+          {/* Current Residence - City Picker (Enabled only for Saudi Arabia) */}
+          <SaudiCityPicker
+            label="المدينة"
+            value={draft?.current_residence_city || ''}
+            onChange={(city) => updateField('current_residence_city', city)}
+            placeholder="اختر مدينة"
+            enabled={draft?.current_residence_country === 'السعودية'}
+          />
         </View>
       </Section>
 
@@ -236,7 +217,7 @@ const styles = StyleSheet.create({
 
   // Section Styles
   section: {
-    paddingVertical: tokens.spacing.lg,
+    paddingVertical: tokens.spacing.md,
   },
   sectionDivider: {
     borderBottomWidth: 1,
@@ -315,14 +296,7 @@ const styles = StyleSheet.create({
 
   // Location Fields Styles
   locationFieldsContainer: {
-    gap: tokens.spacing.md,
-  },
-  locationFieldLabel: {
-    fontSize: 13, // iOS caption1
-    fontWeight: '400',
-    color: tokens.colors.najdi.textMuted,
-    marginBottom: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
   },
 });
 

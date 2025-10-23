@@ -117,13 +117,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    fontWeight: '400',
-    color: tokens.colors.najdi.textMuted,
+    fontWeight: '500',
+    color: tokens.colors.najdi.text + 'C0',
     paddingHorizontal: tokens.spacing.xs,
   },
   pickerWrapper: {
     backgroundColor: tokens.colors.najdi.background,
-    borderColor: tokens.colors.najdi.container + '40',
+    borderColor: tokens.colors.najdi.container + '60',
     borderWidth: 1,
     borderRadius: tokens.radii.md,
     overflow: 'hidden',
@@ -133,14 +133,14 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.text,
     backgroundColor: tokens.colors.najdi.background,
     ...(Platform.OS === 'ios' && {
-      fontSize: 16,
+      fontSize: 17,
     }),
     ...(Platform.OS === 'android' && {
-      fontSize: 16,
+      fontSize: 17,
     }),
   },
   pickerItem: {
-    fontSize: 16,
+    fontSize: 17,
     color: tokens.colors.najdi.text,
   },
 });
