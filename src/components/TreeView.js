@@ -341,9 +341,9 @@ const getCachedParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
 // Image buckets for LOD
 // Phase 4: Removed 512px bucket (256px sufficient for 60px photos @ 3x retina = 180px)
 // 512px wastes memory (1MB vs 256KB decoded size per image)
-const IMAGE_BUCKETS = [64, 128, 256];
+// IMAGE_BUCKETS now imported from utils (Day 4b)
 const selectBucket = (pixelSize) => {
-  return IMAGE_BUCKETS.find((b) => b >= pixelSize) || 256;
+  return IMAGE_BUCKETS.find((b) => b >= pixelSize) || DEFAULT_IMAGE_BUCKET;
 };
 
 // Image component for photos with skeleton loader (Memoized for performance)
