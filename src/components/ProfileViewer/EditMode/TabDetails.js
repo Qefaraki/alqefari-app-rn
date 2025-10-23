@@ -4,7 +4,8 @@ import PropTypes from 'prop-types';
 import BioEditor from '../../admin/fields/BioEditor';
 import AchievementsEditor from '../../admin/AchievementsEditor';
 import TimelineEditor from '../../admin/TimelineEditor';
-import LocationInput from '../../admin/fields/LocationInput';
+import CountryPicker from '../../admin/fields/CountryPicker';
+import SaudiCityPicker from '../../admin/fields/SaudiCityPicker';
 import tokens from '../../ui/tokens';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -145,28 +146,55 @@ const TabDetails = ({ form, updateField }) => {
         icon="location-outline"
       >
         <View style={styles.locationFieldsContainer}>
-          <LocationInput
-            label="مكان الميلاد"
+          {/* Birth Place - Simple Text Input */}
+          <LimitedInput
             value={draft?.birth_place || ''}
             onChange={(text) => updateField('birth_place', text)}
-            normalizedValue={draft?.birth_place_normalized}
-            onNormalizedChange={(data) =>
-              updateField('birth_place_normalized', data)
-            }
-            placeholder="مثال: الرياض، جدة، السعودية..."
+            placeholder="مثال: الرياض، جدة، القاهرة..."
+            maxLength={100}
           />
+
+          {/* Current Residence - Country Picker */}
           <View style={{ marginTop: tokens.spacing.md }}>
-            <LocationInput
-              label="مكان الإقامة الحالي"
-              value={draft?.current_residence || ''}
-              onChange={(text) => updateField('current_residence', text)}
-              normalizedValue={draft?.current_residence_normalized}
-              onNormalizedChange={(data) =>
-                updateField('current_residence_normalized', data)
-              }
-              placeholder="مثال: الرياض، جدة، السعودية..."
+            <CountryPicker
+              label="الدولة"
+              value={draft?.current_residence_country || ''}
+              onChange={(country) => {
+                updateField('current_residence_country', country);
+                // Clear city if country changed from Saudi Arabia
+                if (country !== 'السعودية') {
+                  updateField('current_residence_city', '');
+                }
+              }}
+              placeholder="اختر دولة"
             />
           </View>
+
+          {/* Current Residence - City Picker (Only for Saudi Arabia) */}
+          {draft?.current_residence_country === 'السعودية' && (
+            <View style={{ marginTop: tokens.spacing.md }}>
+              <SaudiCityPicker
+                label="المدينة"
+                value={draft?.current_residence_city || ''}
+                onChange={(city) => updateField('current_residence_city', city)}
+                placeholder="اختر مدينة"
+                enabled={true}
+              />
+            </View>
+          )}
+
+          {/* Disabled city picker message when non-Saudi country selected */}
+          {draft?.current_residence_country && draft?.current_residence_country !== 'السعودية' && (
+            <View style={{ marginTop: tokens.spacing.md }}>
+              <SaudiCityPicker
+                label="المدينة"
+                value=""
+                onChange={() => {}}
+                placeholder="اختر مدينة"
+                enabled={false}
+              />
+            </View>
+          )}
         </View>
       </Section>
 
