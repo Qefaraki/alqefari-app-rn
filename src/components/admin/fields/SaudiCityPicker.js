@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   View,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import tokens from '../../ui/tokens';
+import { lookupPlaceByName } from '../../../services/locationLookup';
 
 const SAUDI_CITIES = [
   // Riyadh region
@@ -41,12 +42,21 @@ const SAUDI_CITIES = [
   'حفر الباطن',           // Hafr Al-Batin
 ];
 
-const SaudiCityPicker = ({ label, value, onChange, placeholder, enabled = true }) => {
-  const handleChange = (itemValue) => {
-    if (itemValue) {
+const SaudiCityPicker = ({ label, value, onChange, onNormalizedChange, placeholder, enabled = true }) => {
+  const handleChange = useCallback(async (itemValue) => {
+    if (itemValue && !itemValue.startsWith('─')) {
+      // Call text onChange immediately
       onChange(itemValue);
+
+      // Lookup normalized data from database
+      if (onNormalizedChange && enabled) {
+        const normalized = await lookupPlaceByName(itemValue);
+        if (normalized) {
+          onNormalizedChange(normalized);
+        }
+      }
     }
-  };
+  }, [onChange, onNormalizedChange, enabled]);
 
   return (
     <View style={styles.container}>
@@ -84,12 +94,14 @@ SaudiCityPicker.propTypes = {
   label: PropTypes.string,
   value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
+  onNormalizedChange: PropTypes.func,
   placeholder: PropTypes.string,
   enabled: PropTypes.bool,
 };
 
 SaudiCityPicker.defaultProps = {
   value: '',
+  onNormalizedChange: undefined,
   placeholder: 'اختر مدينة',
   label: null,
   enabled: true,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import {
   View,
@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import tokens from '../../ui/tokens';
+import { lookupPlaceByName } from '../../../services/locationLookup';
 
 const COUNTRIES = [
   // Saudi Arabia first
@@ -55,20 +56,30 @@ const COUNTRIES = [
   'دول أخرى',
 ];
 
-const CountryPicker = ({ label, value, onChange, placeholder }) => {
+const CountryPicker = ({ label, value, onChange, onNormalizedChange, placeholder }) => {
   // Filter out separator lines for validation
   const validCountries = useMemo(
     () => COUNTRIES.filter((c) => !c.startsWith('─')),
     []
   );
 
-  const handleChange = (itemValue) => {
+  const handleChange = useCallback(async (itemValue) => {
     if (itemValue && !itemValue.startsWith('─')) {
       // Strip emoji and spaces, keep only country name
       const cleanValue = itemValue.replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '').trim();
+
+      // Call text onChange immediately
       onChange(cleanValue);
+
+      // Lookup normalized data from database
+      if (onNormalizedChange) {
+        const normalized = await lookupPlaceByName(cleanValue);
+        if (normalized) {
+          onNormalizedChange(normalized);
+        }
+      }
     }
-  };
+  }, [onChange, onNormalizedChange]);
 
   const displayValue = value || (placeholder || 'اختر دولة');
 
@@ -102,11 +113,13 @@ CountryPicker.propTypes = {
   label: PropTypes.string,
   value: PropTypes.string,
   onChange: PropTypes.func.isRequired,
+  onNormalizedChange: PropTypes.func,
   placeholder: PropTypes.string,
 };
 
 CountryPicker.defaultProps = {
   value: '',
+  onNormalizedChange: undefined,
   placeholder: 'اختر دولة',
   label: null,
 };

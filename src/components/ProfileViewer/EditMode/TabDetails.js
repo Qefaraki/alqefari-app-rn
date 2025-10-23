@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, Text, StyleSheet } from 'react-native';
 import PropTypes from 'prop-types';
 import BioEditor from '../../admin/fields/BioEditor';
 import AchievementsEditor from '../../admin/AchievementsEditor';
@@ -7,56 +7,33 @@ import TimelineEditor from '../../admin/TimelineEditor';
 import CountryPicker from '../../admin/fields/CountryPicker';
 import SaudiCityPicker from '../../admin/fields/SaudiCityPicker';
 import tokens from '../../ui/tokens';
-import { Ionicons } from '@expo/vector-icons';
+import { FormSection, FormField } from '../../ui/form';
 
-// Section with enhanced styling and icons
-const Section = ({ title, subtitle, icon, children, isLast }) => (
-  <View style={[styles.section, !isLast && styles.sectionDivider]}>
-    <View style={styles.sectionHeader}>
-      {icon && (
-        <View style={styles.iconContainer}>
-          <Ionicons name={icon} size={20} color={tokens.colors.najdi.primary} />
-        </View>
-      )}
-      <View style={styles.sectionTitleContainer}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
-      </View>
-    </View>
-    <View style={styles.sectionContent}>{children}</View>
-  </View>
-);
-
-// Enhanced Input with character count and debouncing
 const LimitedInput = ({
   value,
   onChange,
   placeholder,
   maxLength = 100,
   multiline = false,
+  hint,
 }) => {
-  const [localValue, setLocalValue] = useState(value);
+  const [localValue, setLocalValue] = useState(value || '');
   const timeoutRef = useRef(null);
 
-  // Sync local value when external value changes
   useEffect(() => {
-    setLocalValue(value);
+    setLocalValue(value || '');
   }, [value]);
 
-  // Debounced onChange handler
   const handleChange = useCallback((text) => {
     setLocalValue(text);
-
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-
     timeoutRef.current = setTimeout(() => {
       onChange(text);
-    }, 350); // 350ms debounce
+    }, 300);
   }, [onChange]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -67,26 +44,32 @@ const LimitedInput = ({
 
   const charCount = localValue?.length || 0;
   const isNearLimit = charCount > maxLength * 0.8;
+  const isOverLimit = charCount > maxLength;
 
   return (
-    <View style={styles.limitedInputContainer}>
+    <View style={styles.limitedField}>
       <TextInput
-        style={[styles.input, multiline && styles.inputMultiline]}
+        style={[
+          styles.input,
+          multiline && styles.inputMultiline,
+          isOverLimit && styles.inputError,
+        ]}
         value={localValue}
         onChangeText={handleChange}
         placeholder={placeholder}
-        placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
-        maxLength={maxLength}
+        placeholderTextColor={tokens.colors.najdi.textMuted + '70'}
+        maxLength={maxLength + 1}
         multiline={multiline}
         numberOfLines={multiline ? 3 : 1}
         textAlignVertical={multiline ? 'top' : 'center'}
       />
       <View style={styles.inputFooter}>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : <View />}
         <Text
           style={[
             styles.charCount,
             isNearLimit && styles.charCountWarning,
-            charCount >= maxLength && styles.charCountError,
+            isOverLimit && styles.charCountError,
           ]}
         >
           {charCount}/{maxLength}
@@ -96,209 +79,151 @@ const LimitedInput = ({
   );
 };
 
+LimitedInput.propTypes = {
+  value: PropTypes.string,
+  onChange: PropTypes.func.isRequired,
+  placeholder: PropTypes.string,
+  maxLength: PropTypes.number,
+  multiline: PropTypes.bool,
+  hint: PropTypes.string,
+};
+
 const TabDetails = ({ form, updateField }) => {
   const { draft } = form;
 
   return (
     <View style={styles.container}>
-      <Section
-        title="السيرة الذاتية"
-        subtitle="نبذة مختصرة عن الشخصية"
-        icon="document-text-outline"
-      >
-        <BioEditor
-          value={draft?.bio || draft?.biography || ''}
-          onChange={(text) => updateField('bio', text)}
-          maxLength={500}
-        />
-      </Section>
+      <View style={styles.stack}>
+        <FormSection
+          title="السيرة الذاتية"
+          description="اكتب نبذة مختصرة عن الشخصية والإنجازات الأبرز."
+        >
+          <FormField>
+            <BioEditor
+              value={draft?.bio || draft?.biography || ''}
+              onChange={(text) => updateField('bio', text)}
+              maxLength={500}
+            />
+          </FormField>
+        </FormSection>
 
-      <Section
-        title="المهنة"
-        subtitle="المجال المهني أو الحرفة"
-        icon="briefcase-outline"
-      >
-        <LimitedInput
-          value={draft?.occupation || ''}
-          onChange={(text) => updateField('occupation', text)}
-          placeholder="مثال: مهندس برمجيات، طبيب، معلم..."
-          maxLength={100}
-        />
-      </Section>
+        <FormSection
+          title="المسار المهني"
+          description="أضف معلومات مختصرة عن العمل والدراسة."
+        >
+          <FormField label="المهنة" hint="مثال: مهندس برمجيات، طبيب، معلم...">
+            <LimitedInput
+              value={draft?.occupation || ''}
+              onChange={(text) => updateField('occupation', text)}
+              placeholder="مثال: مهندس برمجيات"
+              maxLength={100}
+            />
+          </FormField>
 
-      <Section
-        title="التعليم"
-        subtitle="المؤهلات العلمية والدراسية"
-        icon="school-outline"
-      >
-        <LimitedInput
-          value={draft?.education || ''}
-          onChange={(text) => updateField('education', text)}
-          placeholder="مثال: بكالوريوس علوم حاسب - جامعة الملك سعود"
-          maxLength={150}
-          multiline
-        />
-      </Section>
+          <FormField
+            label="التعليم"
+            hint="يمكنك إضافة الدرجة، التخصص، والجامعة."
+          >
+            <LimitedInput
+              value={draft?.education || ''}
+              onChange={(text) => updateField('education', text)}
+              placeholder="مثال: بكالوريوس علوم حاسب - جامعة الملك سعود"
+              maxLength={150}
+              multiline
+            />
+          </FormField>
+        </FormSection>
 
-      <Section
-        title="المواقع"
-        subtitle="أماكن الميلاد والإقامة"
-        icon="location-outline"
-      >
-        <View style={styles.locationFieldsContainer}>
-          {/* Birth Place - Simple Text Input */}
-          <LimitedInput
-            value={draft?.birth_place || ''}
-            onChange={(text) => updateField('birth_place', text)}
-            placeholder="مثال: الرياض، جدة، القاهرة..."
-            maxLength={100}
-          />
+        <FormSection
+          title="المواقع"
+          description="ساعد العائلة على معرفة أماكن الميلاد والإقامة."
+        >
+          <FormField label="مكان الميلاد" hint="مثال: الرياض، جدة، القاهرة...">
+            <LimitedInput
+              value={draft?.birth_place || ''}
+              onChange={(text) => updateField('birth_place', text)}
+              placeholder="اختر مدينة أو دولة الميلاد"
+              maxLength={100}
+            />
+          </FormField>
 
-          {/* Current Residence - Country Picker */}
-          <CountryPicker
-            label="الدولة"
-            value={draft?.current_residence_country || ''}
-            onChange={(country) => {
-              updateField('current_residence_country', country);
-              // Clear city if country changed from Saudi Arabia
-              if (country !== 'السعودية') {
-                updateField('current_residence_city', '');
-              }
-            }}
-            placeholder="اختر دولة"
-          />
+          <FormField label="الدولة الحالية">
+            <CountryPicker
+              label=""
+              value={draft?.current_residence_normalized?.country?.ar || ''}
+              onChange={(country) => {
+                updateField('current_residence', country);
+              }}
+              onNormalizedChange={(normalized) => {
+                updateField('current_residence_normalized', normalized);
+                // Clear city if country changed from Saudi Arabia
+                if (normalized?.country?.ar !== 'السعودية') {
+                  const clearedNormalized = {
+                    ...normalized,
+                    city: undefined,
+                  };
+                  updateField('current_residence_normalized', clearedNormalized);
+                }
+              }}
+              placeholder="اختر دولة"
+            />
+          </FormField>
 
-          {/* Current Residence - City Picker (Enabled only for Saudi Arabia) */}
-          <SaudiCityPicker
-            label="المدينة"
-            value={draft?.current_residence_city || ''}
-            onChange={(city) => updateField('current_residence_city', city)}
-            placeholder="اختر مدينة"
-            enabled={draft?.current_residence_country === 'السعودية'}
-          />
-        </View>
-      </Section>
+          <FormField
+            label="المدينة الحالية"
+            hint="يتوفر الاختيار عند تحديد السعودية كدولة."
+          >
+            <SaudiCityPicker
+              label=""
+              value={draft?.current_residence_normalized?.city?.ar || ''}
+              onChange={(city) => {
+                updateField('current_residence', city);
+              }}
+              onNormalizedChange={(normalized) => {
+                // Merge city into existing normalized data
+                const updated = {
+                  ...draft?.current_residence_normalized,
+                  original: normalized.city?.ar || normalized.original,
+                  city: normalized.city,
+                  confidence: normalized.confidence,
+                };
+                updateField('current_residence_normalized', updated);
+              }}
+              placeholder="اختر مدينة"
+              enabled={draft?.current_residence_normalized?.country?.ar === 'السعودية'}
+            />
+          </FormField>
+        </FormSection>
 
-      <Section
-        title="الإنجازات"
-        subtitle="الإنجازات والجوائز البارزة"
-        icon="trophy-outline"
-      >
-        <AchievementsEditor
-          achievements={draft?.achievements || []}
-          onChange={(items) => updateField('achievements', items)}
-        />
-      </Section>
+        <FormSection
+          title="الإنجازات"
+          description="أبرز الجوائز أو الإسهامات التي تود مشاركتها."
+        >
+          <FormField>
+            <AchievementsEditor
+              achievements={draft?.achievements || []}
+              onChange={(items) => updateField('achievements', items)}
+            />
+          </FormField>
+        </FormSection>
 
-      <Section
-        title="الخط الزمني"
-        subtitle="الأحداث والمحطات المهمة"
-        icon="time-outline"
-        isLast
-      >
-        <TimelineEditor
-          timeline={draft?.timeline || []}
-          onChange={(items) => updateField('timeline', items)}
-        />
-      </Section>
+        <FormSection
+          title="الخط الزمني"
+          description="رتب الأحداث والمحطات المهمة في حياة الشخص."
+        >
+          <FormField>
+            <TimelineEditor
+              timeline={draft?.timeline || []}
+              onChange={(items) => updateField('timeline', items)}
+            />
+          </FormField>
+        </FormSection>
+      </View>
 
-      {/* Bottom spacing */}
-      <View style={{ height: 32 }} />
+      <View style={styles.bottomSpacer} />
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: tokens.spacing.md,
-    paddingTop: tokens.spacing.xs,
-  },
-
-  // Section Styles
-  section: {
-    paddingVertical: tokens.spacing.md,
-  },
-  sectionDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: tokens.colors.najdi.container + '30',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: tokens.spacing.sm,
-    marginBottom: tokens.spacing.md,
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: tokens.colors.najdi.primary + '10',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionTitleContainer: {
-    flex: 1,
-    gap: tokens.spacing.xxs,
-  },
-  sectionTitle: {
-    fontSize: 20, // iOS title3
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
-    lineHeight: 25,
-  },
-  sectionSubtitle: {
-    fontSize: 13, // iOS caption1
-    fontWeight: '400',
-    color: tokens.colors.najdi.textMuted,
-    lineHeight: 18,
-  },
-  sectionContent: {
-    // Content goes here
-  },
-
-  // Input Styles
-  limitedInputContainer: {
-    gap: tokens.spacing.xs,
-  },
-  input: {
-    backgroundColor: tokens.colors.najdi.background,
-    borderRadius: tokens.radii.sm,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    fontSize: 17, // iOS body
-    fontWeight: '400',
-    color: tokens.colors.najdi.text,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '40',
-    minHeight: tokens.touchTarget.minimum,
-  },
-  inputMultiline: {
-    minHeight: 88, // ~3 lines
-    paddingTop: tokens.spacing.sm,
-  },
-  inputFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: tokens.spacing.xxs,
-  },
-  charCount: {
-    fontSize: 12, // iOS caption1
-    fontWeight: '400',
-    color: tokens.colors.najdi.textMuted,
-  },
-  charCountWarning: {
-    color: tokens.colors.najdi.secondary,
-  },
-  charCountError: {
-    color: tokens.colors.danger,
-  },
-
-  // Location Fields Styles
-  locationFieldsContainer: {
-    gap: tokens.spacing.sm,
-  },
-});
 
 TabDetails.propTypes = {
   form: PropTypes.shape({
@@ -307,7 +232,60 @@ TabDetails.propTypes = {
   updateField: PropTypes.func.isRequired,
 };
 
-// Memoize to prevent re-renders of inactive tabs
 export default React.memo(TabDetails, (prev, next) => {
   return prev.form.draft === next.form.draft;
+});
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  stack: {
+    gap: tokens.spacing.xl,
+  },
+  limitedField: {
+    gap: tokens.spacing.sm,
+  },
+  input: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '50',
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    fontSize: 16,
+    fontWeight: '400',
+    color: tokens.colors.najdi.text,
+  },
+  inputMultiline: {
+    minHeight: 96,
+    textAlignVertical: 'top',
+  },
+  inputError: {
+    borderColor: tokens.colors.danger,
+  },
+  inputFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hint: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: tokens.colors.najdi.textMuted,
+  },
+  charCount: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: tokens.colors.najdi.textMuted,
+  },
+  charCountWarning: {
+    color: tokens.colors.najdi.secondary,
+  },
+  charCountError: {
+    color: tokens.colors.danger,
+  },
+  bottomSpacer: {
+    height: tokens.spacing.xl,
+  },
 });

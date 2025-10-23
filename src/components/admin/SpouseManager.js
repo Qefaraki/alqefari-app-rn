@@ -711,6 +711,7 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: "center",
     paddingTop: 60,
+    paddingHorizontal: 16, // Allow text to wrap across 2 lines
   },
   emptyText: {
     fontSize: 17,
