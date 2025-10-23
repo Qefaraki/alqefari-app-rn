@@ -47,34 +47,12 @@
 
 ### Admin Dashboard Access by Role
 
-**Feature-Based System**: All feature permissions controlled via `src/config/adminFeatures.js`
+**Feature-Based System** (via `src/config/adminFeatures.js`): All admin roles (super_admin, admin, moderator) access dashboard. Features controlled by `requiredRoles` array.
 
-**Dashboard Access** (all admin roles): super_admin ✅ | admin ✅ | moderator ✅
-**Dashboard Statistics** (all admin roles): All admin roles can access dashboard statistics via `admin_get_enhanced_statistics()` RPC
+**Key rule**: Add feature config to `ADMIN_FEATURES` registry → visibility auto-handled by `useFeatureAccess()` hook (no manual conditionals).
 
-| Feature | Arabic | Super Admin | Admin | Moderator |
-|---------|--------|-------------|-------|-----------|
-| إدارة الصلاحيات | Permission Manager | ✅ | ❌ | ❌ |
-| إشعارات جماعية | Broadcast Manager | ✅ | ❌ | ❌ |
-| ربط الملفات | Link Requests | ✅ | ✅ | ❌ |
-| سجل النشاط | Activity Log | ✅ | ✅ | ❌ |
-| التواصل | Message Templates | ✅ | ✅ | ❌ |
-| الأنساب | Munasib Manager | ✅ | ✅ | ✅ |
-| مراجعة الاقتراحات | Suggestion Review | ✅ | ✅ | ✅ |
-
-**Architecture Notes (October 24, 2025):**
-- `isAdmin` check updated to align with feature-based system (includes moderator)
-- `admin_get_enhanced_statistics()` RPC updated to allow all admin roles
-- Features still respect granular permissions from `ADMIN_FEATURES` registry
-- No manual conditional logic needed in components
-
-**To add new features:**
-1. Add feature config to `ADMIN_FEATURES` registry with `requiredRoles` array
-2. Feature automatically respects role-based access control via `useFeatureAccess()` hook
-3. Feature visibility handled by `canAccess(featureId)` - no manual conditionals needed
-4. Route protection and RPC checks automatically respect the system
-
-_See full documentation: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTEM_V4.md)_
+📖 Full feature matrix: [`/docs/REFERENCE_TABLES.md`](docs/REFERENCE_TABLES.md#admin-dashboard-access-by-role)
+📖 Full docs: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTEM_V4.md)
 
 ## 🎨 Design System Quick Reference
 
@@ -95,239 +73,33 @@ _See full documentation: [`/docs/PERMISSION_SYSTEM_V4.md`](docs/PERMISSION_SYSTE
 
 _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 
-## 📑 SegmentedControl Component (iOS-Style Pill Tabs)
+## 📑 SegmentedControl Component Quick Ref
 
-**Status**: ✅ Complete - Standard tab component for content filtering
+**Status**: ✅ Complete - Standard iOS pill-style tabs
 
-**Location**: `src/components/ui/SegmentedControl.js`
-
-**Purpose**: Clean, minimal pill-style segmented control matching iOS design patterns. Used for 2-4 option filtering across admin screens and user-facing features.
-
-### Quick Usage
-
+**Usage**:
 ```javascript
-import SegmentedControl from '../components/ui/SegmentedControl';
-
-const options = [
-  { id: 'pending', label: 'قيد المراجعة' },
-  { id: 'approved', label: 'مقبولة' },
-  { id: 'rejected', label: 'مرفوضة' },
-];
-
-const MyScreen = () => {
-  const [activeTab, setActiveTab] = useState('pending');
-
-  return (
-    <SegmentedControl
-      options={options}
-      value={activeTab}
-      onChange={setActiveTab}
-    />
-  );
-};
+<SegmentedControl
+  options={[{ id: 'pending', label: 'قيد المراجعة' }]}
+  value={activeTab}
+  onChange={setActiveTab}
+/>
 ```
 
-### API
-
-```typescript
-interface SegmentOption {
-  id: string;          // Unique identifier
-  label: string;       // Display text (Arabic)
-}
-
-interface SegmentedControlProps {
-  options: SegmentOption[];           // Array of 2-4 options
-  value: string;                      // Currently active option ID
-  onChange: (id: string) => void;     // Callback when option changes
-  style?: ViewStyle;                  // Optional container styling
-}
-```
-
-### Design Details
-
-**Visual Design**:
-- **Container**: Camel Hair Beige 40% background (#D1BBA3 with 40% opacity)
-- **Active pill**: White background with subtle shadow (0.06 opacity)
-- **Inactive text**: 500 weight, Text Muted color
-- **Active text**: 600 weight, Sadu Night color
-- **Border radius**: 10px container, 8px individual segments
-- **Animation**: Instant change (no animation delay)
-
-**Sizing**:
-- **Touch targets**: 44px minimum (iOS standard)
-- **Text size**: 13pt
-- **Font**: SF Arabic
-- **Container padding**: 2px
-- **Segment padding**: 8px vertical, 8px horizontal
-
-**Spacing**:
-- **Container border radius**: 10px
-- **Segment border radius**: 8px
-- **Shadow**: 0.06 opacity on active pill
-
-### Current Usage
-
-- ✅ **PermissionManager** - Role filter (الكل / مشرف / منسق)
-- ✅ **SuggestionReviewManager** - Status filter (قيد المراجعة / مقبولة / مرفوضة)
-- ✅ **ProfileConnectionManagerV2** - Link request filter (في الانتظار / موافق عليها / مرفوضة)
-
-**Being migrated to SegmentedControl**:
-- ✅ **AdminMessagesManager** - Tab filter (طلبات الربط / الرسائل)
-- ✅ **ApprovalInbox** - Tab filter (واردة / مرسلة)
-- ✅ **MySuggestions** - Tab filter (معلقة / موافق عليها / مرفوضة)
-- ✅ **TabsHost** - Profile editor tabs (General / Family / Contact / Details)
-
-### RTL Support
-
-✅ Full native RTL support - no special handling needed
+✅ Full RTL support | Used in 7+ components
+📖 Full docs: [`/docs/components/SEGMENTED_CONTROL.md`](docs/components/SEGMENTED_CONTROL.md)
 
 ## 🎯 Gesture System Architecture
 
-**Status**: ✅ Complete (October 2025) - Fully extracted and tested
+**Status**: ✅ Complete (October 2025) - 134 tests, 100% pass rate
 
-The TreeView gesture system has been refactored into a modular, testable architecture using extracted components and callback patterns.
+**Flow**: Touch → GestureHandler → HitDetection → TreeView callback → State update
 
-### Gesture Flow
+**Core modules**: `GestureHandler.ts`, `HitDetection.ts`, `SelectionHandler.ts`
 
-```
-User Touch → GestureHandler → Callbacks → Business Logic
-                     ↓
-              HitDetection (coordinate mapping)
-                     ↓
-              TreeView (state updates, UI changes)
-```
+**Key pattern**: Memoized callbacks + coordinate transformation + permission checks
 
-### Core Modules
-
-#### `src/components/TreeView/interaction/GestureHandler.ts`
-Exports gesture creation functions with callback pattern:
-- `createPanGesture(sharedValues, callbacks, config)` - Pan with momentum decay
-- `createPinchGesture(sharedValues, callbacks, config)` - Pinch with anchored zoom
-- `createTapGesture(callbacks, config)` - Tap selection with thresholds
-- `createLongPressGesture(callbacks, config)` - Long-press admin actions
-- `createComposedGesture(sharedValues, callbacks, config)` - Combined gestures
-
-**Key Features:**
-- Momentum decay: 0.998 deceleration rate
-- Zoom limits: min 0.3, max 8.0
-- Tap thresholds: 10px max distance, 250ms max duration
-- Long press: 500ms min duration
-
-#### `src/components/TreeView/interaction/HitDetection.ts`
-Coordinate-to-node mapping with LOD support:
-- `detectChipTap(x, y, context, aggregationEnabled)` - T3 mode chip detection
-- `detectNodeTap(x, y, context, dimensions)` - T1/T2 mode node detection
-- `detectTap(x, y, context, aggregationEnabled, dimensions)` - Combined detection
-
-**Key Features:**
-- Screen-to-canvas coordinate transformation
-- T3 chip priority over nodes (aggregation mode)
-- Dynamic node dimensions (root: 120x100, photo: 85x90, text: 60x35)
-- Root chip scaling (1.3x vs 1.0x normal)
-
-### Usage in TreeView.js
-
-```javascript
-// 1. Create shared values object
-const gestureSharedValues = {
-  scale, translateX, translateY,
-  savedScale, savedTranslateX, savedTranslateY,
-  isPinching, initialFocalX, initialFocalY,
-};
-
-// 2. Create callbacks object (memoized for performance)
-const gestureCallbacks = useMemo(() => ({
-  onGestureEnd: () => {
-    syncTransformAndBounds();
-  },
-  onTap: (x, y) => {
-    syncTransformAndBounds();
-    const result = detectTap(x, y, gestureStateRef.current, ...);
-    if (result?.type === 'chip') handleChipTap(result.hero);
-    else if (result?.type === 'node') handleNodeTap(result.nodeId);
-  },
-  onLongPress: (x, y) => {
-    // Admin permission check + QuickAdd logic
-  },
-}), [dependencies]);
-
-// 3. Create config object
-const gestureConfig = {
-  decelerationRate: 0.995,
-  minZoom: 0.3,
-  maxZoom: 8.0,
-};
-
-// 4. Create composed gesture
-const composed = createComposedGesture(
-  gestureSharedValues,
-  gestureCallbacks,
-  gestureConfig
-);
-
-// 5. Apply to GestureDetector
-<GestureDetector gesture={composed}>
-  {/* Tree content */}
-</GestureDetector>
-```
-
-### Test Coverage
-
-**134 comprehensive tests** across 3 test files:
-- `GestureHandler.test.js` - 33 tests (pan, pinch, tap, longPress, composed)
-- `SelectionHandler.test.js` - 38 tests (node selection, chip selection, admin mode)
-- `HitDetection.test.js` - 63 tests (chip detection, node detection, coordinates)
-
-**Pass Rate**: 100% (134/134)
-
-### Critical Patterns
-
-1. **Transform Synchronization**: Always call `syncTransformAndBounds()` BEFORE hit detection
-2. **Callback Memoization**: Wrap `gestureCallbacks` in `useMemo` with dependencies
-3. **Coordinate Transformation**: Screen → Canvas via `(x - translateX) / scale`
-4. **Chip Priority**: In T3 mode, check chips first before nodes
-5. **Admin Permissions**: Long-press only for admin/super_admin/moderator roles
-
-### Performance Optimizations
-
-- ✅ Memoized callbacks (prevents gesture recreation on render)
-- ✅ Worklet optimization (gesture handlers run on UI thread)
-- ✅ Momentum decay (smooth pan deceleration)
-- ✅ Animation cancellation (prevents value drift)
-- ✅ Focal point anchoring (stable zoom center)
-
-### Files
-
-**Source:**
-- `src/components/TreeView/interaction/GestureHandler.ts` (9.5KB)
-- `src/components/TreeView/interaction/HitDetection.ts` (7.9KB)
-- `src/components/TreeView/interaction/SelectionHandler.ts` (7.4KB)
-
-**Tests:**
-- `tests/components/TreeView/interaction/GestureHandler.test.js`
-- `tests/components/TreeView/interaction/HitDetection.test.js`
-- `tests/components/TreeView/interaction/SelectionHandler.test.js`
-
-### Recent Refactoring (October 2025)
-
-**5-Phase Extraction:**
-- Phase 0: Infrastructure (FontProvider, ParagraphCacheProvider)
-- Phase 1: Hit Detection Extraction
-- Phase 2: Pan/Pinch Replacement
-- Phase 3: Tap Gesture Replacement
-- Phase 4: Long Press Replacement
-- Phase 5: Composed Gesture Replacement
-
-**Critical Fixes:**
-- Signature mismatch in createComposedGesture
-- useMemo optimization for gestureCallbacks
-- React Hooks order compliance (FontProvider)
-
-**Impact:**
-- Reduced TreeView.js by ~290 lines
-- Improved testability (134 tests vs 0 before)
-- Zero regressions maintained
-- Production-ready ✅
+📖 Full docs: [`/docs/architecture/GESTURE_SYSTEM.md`](docs/architecture/GESTURE_SYSTEM.md)
 
 ## 📱 Development Commands
 
@@ -634,21 +406,7 @@ To bypass (NOT recommended): `git commit --no-verify`
 
 ---
 
-## 📖 Real Incident Report
-
-**Date**: October 18, 2025
-**Affected**: 44+ children across 11 families
-**Issue**: Migration applied via MCP without creating `.sql` file
-**Impact**: Incorrect sibling_order values, user complaints, required full revert
-**Resolution**: 3 migrations + frontend redesign + this documentation update
-**Time Lost**: ~4 hours debugging and fixing
-
-**Files**:
-- `20251018184900_bulk_fix_duplicate_sibling_orders_APPLIED_NOT_COMMITTED.sql` (historical doc)
-- `20251018200000_revert_sibling_order_bulk_fix.sql` (the revert)
-- `20251018200001_remove_sibling_order_unique_constraint.sql` (constraint fix)
-
-**Never again.**
+📖 **Incident Report**: See [`/docs/reports/MIGRATION_INCIDENT_OCT2025.md`](docs/reports/MIGRATION_INCIDENT_OCT2025.md) - Oct 18 incident with 44 affected families, now prevented by this system.
 
 ## 🛠️ Tool Usage Constraints
 
@@ -779,219 +537,31 @@ _See full documentation: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md)_
 ### Deployment
 Use `mcp__supabase__apply_migration` only. No CLI commands.
 
-## 🗑️ Soft Delete Pattern
+## 🗑️ Soft Delete Pattern Quick Ref
 
-**📖 Full Documentation**: [`/docs/SOFT_DELETE_PATTERN.md`](docs/SOFT_DELETE_PATTERN.md)
+**Pattern**: Sets `deleted_at` timestamp (audit trail) + optimistic locking with `version` field
 
-**Status**: ✅ Deployed and operational
+**Key Functions**:
+- `admin_update_profile()` (requires `p_version`)
+- `admin_cascade_delete_profile()` (with safety checks)
 
-### Quick Summary
+⚠️ **Critical**: Always include `p_version` parameter to prevent concurrent edit conflicts
 
-**Soft Delete**: Sets `deleted_at` timestamp instead of removing records. Data remains for audit trail and recovery.
+📖 Full docs: [`/docs/SOFT_DELETE_PATTERN.md`](docs/SOFT_DELETE_PATTERN.md)
 
-**Optimistic Locking**: Each profile has `version` field. `admin_update_profile()` requires `p_version` parameter to prevent concurrent edits.
+## 🔄 Undo System Quick Ref
 
-**Cascade Delete**: `admin_cascade_delete_profile()` recursively soft-deletes profile and all descendants with full safety mechanisms (permission checks, locks, limits, audit trail).
+**Status**: ✅ Deployed (7 migrations, 100% safe)
 
-### Function Signature
-```javascript
-// Simple update with optimistic locking
-await supabase.rpc('admin_update_profile', {
-  p_id: profile.id,
-  p_version: profile.version || 1,  // Required!
-  p_updates: { name: 'New Name' }
-});
+**System**: Audit log with version checking + idempotency protection + advisory locking
 
-// Cascade delete with safety checks
-await supabase.rpc('admin_cascade_delete_profile', {
-  p_profile_id: child.id,
-  p_version: child.version || 1,
-  p_confirm_cascade: true,
-  p_max_descendants: 100
-});
-```
+**Action Types**: `profile_update`, `profile_soft_delete`, `profile_cascade_delete`, `add_marriage`
 
-**Common Error**: Missing `p_version` parameter causes function not found error.
+**Limits**: 30 days for users, unlimited for admins
 
-## 🔄 Undo System (January 2025)
+**Safety**: Version conflict prevention + parent validation + idempotency + operation groups
 
-**Status**: ✅ Deployed and operational
-
-### Quick Summary
-
-Production-ready undo functionality for audit log entries with comprehensive safety mechanisms, permission checks, and time limits.
-
-### Migrations
-
-| Migration | Purpose | Status |
-|-----------|---------|--------|
-| **20251014120000_undo_system.sql** | Initial undo system with 3 RPC functions | ✅ Deployed |
-| **20251014150000_fix_undo_permission_actor_comparison.sql** | Fix actor_id mapping bug | ✅ Deployed |
-| **20251015010000_fix_undo_profile_update_safety.sql** | Add version checking, parent validation, idempotency, locking | ✅ Deployed |
-| **20251015020000_fix_undo_profile_delete_safety.sql** | Add idempotency, locking, version increment | ✅ Deployed |
-| **20251015030000_fix_undo_cascade_delete_safety.sql** | Add safety checks to cascade undo | ✅ Deployed |
-| **20251015040000_integrate_operation_groups_with_cascade_delete.sql** | Link cascade delete to operation_groups | ✅ Deployed |
-| **20251015050000_fix_parent_validation_toctou.sql** | Fix parent locking TOCTOU vulnerability | ✅ Deployed |
-
-### Supported Action Types
-
-| Action Type | RPC Function | Admin Only | Time Limit | Dangerous |
-|-------------|-------------|-----------|-----------|-----------|
-| `profile_update` | `undo_profile_update` | ❌ | 30 days | ❌ |
-| `profile_soft_delete` | `undo_profile_delete` | ❌ | 30 days | ❌ |
-| `profile_cascade_delete` | `undo_cascade_delete` | ✅ | 7 days | ✅ |
-| `add_marriage` | `undo_marriage_create` | ✅ | Unlimited | ✅ |
-| `admin_update` | `undo_profile_update` | ❌ | 30 days | ❌ |
-| `admin_delete` | `undo_profile_delete` | ❌ | 30 days | ❌ |
-
-### Safety Mechanisms
-
-**Version Conflict Prevention**:
-- Checks current version vs expected version before undo
-- Increments version after restore to prevent concurrent modifications
-- Prevents overwriting newer changes with stale data
-- Returns clear error message when version mismatch detected
-
-**Parent Validation with Locking**:
-- Locks parent profiles during validation (SELECT FOR UPDATE NOWAIT)
-- Prevents orphan creation by verifying parent exists and is not deleted
-- Eliminates TOCTOU (Time-of-Check-Time-of-Use) race conditions
-- Maintains referential integrity throughout restore operation
-
-**Idempotency Protection**:
-- Checks `undone_at` timestamp before executing undo
-- Prevents double-undo operations that could cause data corruption
-- Shows friendly error message with timestamp when already undone
-- Ensures operations can be safely retried without side effects
-
-**Concurrent Operation Control**:
-- Advisory locks (pg_advisory_xact_lock) for transaction-level coordination
-- Row-level locks with NOWAIT for immediate failure on conflicts
-- Clear error messages for lock conflicts ("عملية أخرى قيد التنفيذ")
-- Prevents race conditions between multiple admin operations
-
-**Batch Operation Tracking**:
-- `operation_groups` table links related operations (cascade deletes)
-- Cascade delete creates groups automatically via `admin_cascade_delete_profile`
-- `undo_operation_group(group_id)` for atomic batch undo
-- Maintains consistency across multi-profile operations
-
-### Using the Undo System
-
-**From Activity Log Dashboard**:
-```javascript
-import undoService from '../../services/undoService';
-
-// Check if action can be undone
-const permission = await undoService.checkUndoPermission(auditLogId, userProfileId);
-if (permission.can_undo) {
-  // Perform undo
-  const result = await undoService.undoAction(auditLogId, userProfileId, actionType);
-  if (result.success) {
-    console.log(result.message);  // "تم التراجع بنجاح"
-  }
-}
-```
-
-**Helper Methods**:
-```javascript
-undoService.isDangerousAction(actionType)       // Returns true for cascade_delete, add_marriage
-undoService.requiresAdminApproval(actionType)   // Returns true for admin-only operations
-undoService.getActionDescription(actionType)    // Returns Arabic description
-undoService.getUndoTimeRemaining(createdAt)     // Returns time remaining (30 days for users)
-```
-
-**Batch Undo (Operation Groups)**:
-```javascript
-// Undo entire cascade delete operation as a group
-const result = await supabase.rpc('undo_operation_group', {
-  p_group_id: operationGroupId,
-  p_undo_reason: 'استرجاع جماعي للحذف المتسلسل'
-});
-// Returns: { success: true, restored_count: number }
-```
-
-### Permission Rules
-
-- **Regular Users**: Can undo their own actions within 30 days
-- **Admins/Super Admins**: Can undo any action, unlimited time
-- **Dangerous Operations**: Require confirmation dialog (cascade delete, marriage operations)
-- **Already Undone**: Cannot undo the same action twice (idempotency)
-
-### Database Functions
-
-1. **`check_undo_permission(p_audit_log_id, p_user_profile_id)`**
-   - Returns: `{can_undo: boolean, reason: string}`
-   - Checks user role, time limits, action type, and undone status
-
-2. **`undo_profile_update(p_audit_log_id, p_undo_reason)`**
-   - Restores profile data from `old_data` in audit log
-   - Version conflict prevention (checks current vs expected version)
-   - Parent validation with locking (for father_id, mother_id changes)
-   - Idempotency protection (checks undone_at)
-   - Creates new audit entry for the undo action
-
-3. **`undo_profile_delete(p_audit_log_id, p_undo_reason)`**
-   - Clears `deleted_at` to restore soft-deleted profile
-   - Idempotency protection (checks undone_at and current deleted_at)
-   - Row-level locking with NOWAIT
-   - Version increment after restore
-   - Creates new audit entry for restoration
-
-4. **`undo_cascade_delete(p_audit_log_id, p_undo_reason)`**
-   - Restores entire family subtree using `batch_id`
-   - Admin-only, 7-day time limit
-   - Idempotency protection across all descendants
-   - Advisory locking for batch coordination
-   - Returns count of restored profiles
-
-5. **`undo_marriage_create(p_audit_log_id, p_undo_reason)`**
-   - Soft deletes incorrectly created marriage
-   - Admin-only operation
-   - Creates audit trail for marriage deletion
-
-6. **`undo_operation_group(p_group_id, p_undo_reason)`**
-   - Batch undo for operation groups (cascade deletes)
-   - Atomically undoes all operations in group
-   - Returns restored_count for UI feedback
-
-### Known Limitations
-
-- **Descendant Version Checking**: Cascade undo doesn't validate each descendant's version (acceptable risk - admin-only operation, rarely concurrent edits on deleted profiles)
-- **Parent Lock Duration**: Holds parent locks during entire restore transaction (acceptable - rare operation, typical duration <100ms)
-- **No Rollback for Partial Failures**: If batch undo fails midway, completed undos remain (mitigated by transaction atomicity and idempotency)
-
-### UI Features
-
-- **Undo Button**: Appears on undoable activity log entries
-- **Dangerous Badge**: ⚠️ Warning icon for dangerous operations
-- **Confirmation Dialog**: Shown before dangerous operations with clear warnings
-- **Loading States**: Activity indicator during undo operation
-- **Arabic Messages**: All errors and success messages in Arabic
-- **Disabled State**: Shows "تم التراجع" badge when already undone
-
-### Testing
-
-See comprehensive test checklist: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/UNDO_SYSTEM_TEST_CHECKLIST.md)
-
-### Architecture
-
-**Registry Pattern** in `undoService.js`:
-- `ACTION_TYPE_CONFIG` maps each action type to its RPC function
-- No substring matching - explicit whitelist for safety
-- Type-safe with built-in safety flags (dangerous, requiresAdmin, timeLimitDays)
-
-**Audit Trail**:
-- Every undo creates a new audit log entry with action_type 'undo'
-- Original entry marked with `undone_at`, `undone_by`, `undo_reason`
-- Full traceability of who undid what, when, and why
-- Permanent record for compliance and debugging
-
-**Operation Groups**:
-- Links related operations (cascade deletes) for batch undo
-- `operation_groups` table with group_id, description, created_at
-- Foreign key from `audit_log` to `operation_groups` (optional)
-- Enables "Undo All" functionality for complex operations
+📖 Full docs: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/UNDO_SYSTEM_TEST_CHECKLIST.md) | Action types: [`/docs/REFERENCE_TABLES.md`](docs/REFERENCE_TABLES.md#undo-system---supported-action-types)
 
 ## 📰 News Screen Additions (January 2025)
 
@@ -1000,131 +570,35 @@ See comprehensive test checklist: [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](docs/U
 - Reusable news UI primitives (FeaturedNewsCarousel, NewsCard, RecentArticleItem)
 - NewsScreen with Gregorian/Hijri headers, infinite scroll, shimmer loading
 
-## 🚀 Over-The-Air (OTA) Updates (January 2025)
+## 🚀 Over-The-Air (OTA) Updates Quick Ref
 
-**📖 Full Documentation**: [`/docs/OTA_UPDATES.md`](docs/OTA_UPDATES.md)
+**Deploy JS/styling changes to users in minutes** (no App Store review)
 
-**Status**: ✅ Configured and ready to use
+**✅ Can update OTA**: JavaScript logic, styling, colors, text, UI layouts, Supabase calls
+**❌ Cannot OTA**: Native modules, permissions, SDK upgrades, app icon
 
-### Quick Summary
-
-Deploy JavaScript, styling, and asset changes to users in **minutes** without App Store review. Critical for rapid bug fixes, UI tweaks, and feature iterations.
-
-### What Can Be Updated OTA
-
-**✅ Update instantly (no rebuild):**
-- JavaScript logic (permission calculations, undo system)
-- Styling & colors (Najdi Sadu palette)
-- Arabic text & translations
-- UI layouts & RTL fixes
-- Supabase RPC calls
-- Admin dashboard features
-- Assets (images, fonts)
-
-**❌ Requires App Store rebuild:**
-- Native modules (`expo-camera`, `expo-notifications`)
-- App permissions & configuration
-- Expo SDK upgrades
-- App icon, splash screen
-
-### Daily Workflow
-
+**Key commands**:
 ```bash
-# 1. Fix bug or make change (JS/styling only)
-code src/components/ProfileEdit.js
-
-# 2. Test locally
-npm start
-
-# 3. Publish to preview (admin team tests)
-npm run update:preview -- --message "Fix profile edit bug"
-
-# 4. Publish to production (all users)
-npm run update:production -- --message "Fix profile edit bug"
-
-# 5. Users get update on next app open (minutes!)
+npm run update:preview -- --message "Fix"  # Test with admin team
+npm run update:production -- --message "Fix" # Deploy to all users
+npm run update:rollback                     # Emergency undo
 ```
 
-### Available Commands
+**Decision**: Native code changed? → Rebuild + App Store (days) | JS/styling? → OTA (minutes)
 
-```bash
-npm run update:preview -- --message "Your change"   # Preview channel
-npm run update:production -- --message "Your change" # Production channel
-npm run update:list                                  # List recent updates
-npm run update:rollback                              # Emergency rollback
-npm run update:view                                  # View channel status
-```
-
-### Emergency Rollback
-
-```bash
-# Published bad update? Rollback in 30 seconds
-npm run update:rollback
-# Select previous good update
-# All users get old version on next app open
-```
-
-### Decision Tree
-
-```
-Changed native code? ──┬─ YES → Rebuild + App Store (days)
-                       │
-                       └─ NO → OTA Update (minutes)
-```
-
-### Monitoring
-
-**Dashboard:** https://expo.dev/accounts/alqefari/projects/alqefari-family-tree
-
-**Expected adoption:**
-- 1 hour: 20-30%
-- 6 hours: 50-60%
-- 24 hours: 70-80%
-- 48 hours: 85-95%
-
-### Configuration
-
-**Runtime version:** Manual string (bare workflow)
-- Current: `"1.0.0"`
-- Increment when adding native code or upgrading SDK
-- Keep same for JS-only changes
-
-**Update timeout:** 5 seconds
-- App waits 5s for update download
-- If slow network, starts with cached version
-- Update downloads in background and applies on next restart
-
-_See full documentation: [`/docs/OTA_UPDATES.md`](docs/OTA_UPDATES.md)_
+📖 Full docs: [`/docs/OTA_UPDATES.md`](docs/OTA_UPDATES.md)
 
 ---
 
-## 📱 WhatsApp Message Template System (January 2025)
+## 📱 Message Templates Quick Ref
 
-**📖 Full Documentation**: [`/docs/MESSAGE_TEMPLATE_SYSTEM.md`](docs/MESSAGE_TEMPLATE_SYSTEM.md)
+**System**: Registry-based WhatsApp templates with dynamic variable replacement
 
-Unified, registry-based system for managing all WhatsApp contact messages with dynamic variable replacement.
+**Usage**: `await openWhatsApp('template_id', profile)` auto-fills `{name_chain}`, `{phone}`, `{hid}`
 
-### Quick Start
-```typescript
-// 1. Add to MESSAGE_TEMPLATES in templateRegistry.ts
-{
-  id: 'my_template',
-  name: 'اسم القالب',
-  defaultMessage: 'مرحباً {name_chain}، جوالك {phone}',
-  category: 'support',
-  variables: ['name_chain', 'phone'],
-}
+**Admin**: Admin Dashboard → "قوالب الرسائل" | Location: `templateRegistry.ts`
 
-// 2. Use in components
-const { openWhatsApp } = useMessageTemplate();
-await openWhatsApp('my_template', profile);
-```
-
-### Key Features
-- Registry-based: `src/services/messageTemplates/templateRegistry.ts`
-- Variable replacement: `{name_chain}`, `{phone}`, `{hid}` auto-filled
-- Admin UI: Admin Dashboard → "قوالب الرسائل"
-- Type-safe: Full TypeScript support
+📖 Full docs: [`/docs/MESSAGE_TEMPLATE_SYSTEM.md`](docs/MESSAGE_TEMPLATE_SYSTEM.md)
 
 ## 🚀 Multi-Agent Git Workflow
 
