@@ -1186,7 +1186,14 @@ const TreeView = ({
     if (!treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
     }
+
+    // Phase 1 Day 4d: Performance monitoring
+    const layoutStartTime = performance.now();
     const layout = calculateTreeLayout(treeData, showPhotos);
+    const layoutDuration = performance.now() - layoutStartTime;
+
+    // Log layout performance
+    performanceMonitor.logLayoutTime(layoutDuration, treeData.length);
 
     // Adjust root node position higher
     const adjustedNodes = layout.nodes.map(node => {
