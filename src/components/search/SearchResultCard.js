@@ -13,7 +13,6 @@ import Animated, {
   FadeIn,
 } from "react-native-reanimated";
 import { toArabicNumerals } from "../../utils/dateUtils";
-import tokens from "../ui/tokens";
 
 /**
  * SearchResultCard - Reusable search result card component
@@ -55,15 +54,14 @@ const SearchResultCard = ({
 
   // Get relevance color based on score
   const getRelevanceColor = (score) => {
-    if (score >= 8) return "#00C851";
-    if (score >= 5) return "#FFB300";
+    if (score >= 80) return "#00C851";
+    if (score >= 50) return "#FFB300";
     return "#666";
   };
 
-  // Convert RPC match_score (0-10) to percentage (0-100)
-  const getRelevancePercentage = (matchScore) => {
-    if (!matchScore && matchScore !== 0) return 0;
-    return Math.round(matchScore * 10);
+  // Mock relevance score based on index (original design)
+  const getRelevancePercentage = (index) => {
+    return Math.max(80 - index * 5, 30);
   };
 
   // Defensive breadcrumb building with 3-level fallback
@@ -121,9 +119,9 @@ const SearchResultCard = ({
     ));
   };
 
-  // Always use Animated.View, conditionally apply animation
+  // Animation with spring effect (original design)
   const animationProps = enableAnimation ? {
-    entering: FadeIn.delay(Math.min(index * 50, 500)).springify()
+    entering: FadeIn.delay(index * 50).springify()
   } : {};
 
   const handlePress = () => {
@@ -131,9 +129,9 @@ const SearchResultCard = ({
     onPress();
   };
 
-  const relevanceScore = getRelevancePercentage(item?.match_score);
+  const relevanceScore = getRelevancePercentage(index);
   const avatarColor = generateColorFromName(item?.name);
-  const relevanceColor = getRelevanceColor(item?.match_score);
+  const relevanceColor = getRelevanceColor(relevanceScore);
 
   return (
     <Pressable
@@ -217,7 +215,7 @@ const SearchResultCard = ({
             {/* Birth Year */}
             {item?.birth_year_hijri && (
               <View style={styles.metaTag}>
-                <Ionicons name="calendar-outline" size={12} color={tokens.colors.textMuted} />
+                <Ionicons name="calendar-outline" size={12} color="#666" />
                 <Text style={styles.metaLabel}>
                   {toArabicNumerals(item.birth_year_hijri.toString())}هـ
                 </Text>
@@ -227,7 +225,7 @@ const SearchResultCard = ({
             {/* Location if available */}
             {item?.location && (
               <View style={styles.metaTag}>
-                <Ionicons name="location-outline" size={12} color={tokens.colors.textMuted} />
+                <Ionicons name="location-outline" size={12} color="#666" />
                 <Text style={styles.metaLabel}>{item.location}</Text>
               </View>
             )}
@@ -237,7 +235,7 @@ const SearchResultCard = ({
         {/* Right Side - Action Area */}
         <View style={styles.actionSection}>
           <View style={styles.goButton}>
-            <Ionicons name="arrow-back" size={18} color={tokens.colors.accent} />
+            <Ionicons name="arrow-back" size={18} color="#007AFF" />
           </View>
         </View>
       </Animated.View>
@@ -271,35 +269,34 @@ SearchResultCard.defaultProps = {
 
 const styles = StyleSheet.create({
   // Ultra-modern card design inspired by Google Maps, Spotify, and Airbnb
-  // NOTE: App uses forceRTL(true) - React Native auto-flips layouts
-  // Use normal "row", "left", "flex-start" - don't use row-reverse/right/flex-end
+  // Original styling - EXACT match to commit 7fbe7af91
   modernCard: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: photo on left, text starts from right
     alignItems: "center",
-    backgroundColor: tokens.colors.surface,
-    marginHorizontal: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.md,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 16,
     // Sophisticated shadow for depth
-    shadowColor: tokens.shadow.ios.shadowColor,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: tokens.shadow.ios.shadowRadius,
-    elevation: tokens.shadow.android.elevation,
+    shadowRadius: 12,
+    elevation: 3,
     // Subtle border for definition
     borderWidth: 0.5,
-    borderColor: tokens.colors.divider,
+    borderColor: "rgba(0,0,0,0.04)",
   },
   visualSection: {
-    marginRight: tokens.spacing.sm, // 12px - React Native auto-flips in RTL
+    marginLeft: 14, // Changed from marginRight for RTL
   },
   avatarContainer: {
     position: "relative",
   },
   aliveRing: {
     borderWidth: 2,
-    borderColor: tokens.colors.success,
+    borderColor: "#00C851",
     borderRadius: 28,
     padding: 2,
   },
@@ -307,7 +304,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: tokens.colors.bg,
+    backgroundColor: "#F8F9FA",
   },
   avatarPlaceholder: {
     width: 52,
@@ -319,7 +316,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 22,
     fontWeight: "700",
-    color: tokens.colors.surface,
+    color: "#FFFFFF",
     fontFamily: "SF Arabic",
   },
   relevanceDot: {
@@ -329,24 +326,24 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: tokens.colors.success,
+    backgroundColor: "#00C851",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: tokens.colors.surface,
+    borderColor: "#FFFFFF",
   },
   relevanceText: {
     fontSize: 9,
     fontWeight: "700",
-    color: tokens.colors.surface,
+    color: "#FFFFFF",
   },
   contentSection: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "flex-start", // React Native auto-flips flex-start ↔ flex-end in RTL
+    alignItems: "flex-end", // RTL: align text to the right
   },
   primaryInfo: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: name first from right
     alignItems: "center",
     marginBottom: 4,
   },
@@ -354,81 +351,81 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
+    color: "#1A1A1A",
     flex: 1,
-    textAlign: "left", // React Native auto-flips left ↔ right in RTL
+    textAlign: "right", // RTL: align text to right
   },
   liveBadge: {
-    marginLeft: tokens.spacing.xs, // 8px - React Native auto-flips in RTL
+    marginRight: 8, // Changed from marginLeft for RTL
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: tokens.colors.success,
+    backgroundColor: "#00C851",
   },
   breadcrumbContainer: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: start from right
     alignItems: "center",
     marginBottom: 6,
     flexWrap: "nowrap",
   },
   breadcrumbText: {
     fontSize: 13,
-    color: tokens.colors.textMuted,
+    color: "#666",
     fontFamily: "SF Arabic",
     maxWidth: 80,
-    textAlign: "left", // React Native auto-flips left ↔ right in RTL
+    textAlign: "right", // RTL: align text right
   },
   breadcrumbSeparator: {
     fontSize: 12,
-    color: tokens.colors.textMuted,
-    marginHorizontal: tokens.spacing.xs,
+    color: "#999",
+    marginHorizontal: 4,
   },
   metadataRow: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: tags from right to left
     alignItems: "center",
     gap: 10,
-    alignSelf: "flex-start", // React Native auto-flips flex-start ↔ flex-end in RTL
+    alignSelf: "flex-end", // RTL: align row to right
   },
   metaTag: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: icon and text reversed
     alignItems: "center",
-    gap: tokens.spacing.xs,
-    backgroundColor: tokens.colors.bg,
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xxs,
-    borderRadius: tokens.radii.sm,
+    gap: 4,
+    backgroundColor: "#F8F9FA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   genIcon: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: tokens.colors.accent,
+    backgroundColor: "#007AFF",
     alignItems: "center",
     justifyContent: "center",
   },
   genIconText: {
     fontSize: 9,
     fontWeight: "700",
-    color: tokens.colors.surface,
+    color: "#FFFFFF",
     fontFamily: "SF Arabic",
   },
   metaLabel: {
     fontSize: 12,
-    color: tokens.colors.textMuted,
+    color: "#666",
     fontFamily: "SF Arabic",
     fontWeight: "500",
   },
   actionSection: {
     justifyContent: "center",
-    marginLeft: tokens.spacing.sm, // 12px - React Native auto-flips in RTL
+    marginRight: 12, // Changed from marginLeft for RTL
   },
   goButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#E8F4FF", // Light blue background for action button
+    backgroundColor: "#F0F8FF",
     alignItems: "center",
     justifyContent: "center",
   },
