@@ -117,6 +117,15 @@ import {
   performanceMonitor,
 } from './TreeView/utils';
 
+// Phase 1 Day 3 - Import gesture functions
+import {
+  createPanGesture,
+  createPinchGesture,
+  createTapGesture,
+  createLongPressGesture,
+  createComposedGesture,
+} from './TreeView/interaction/GestureHandler';
+
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
@@ -692,6 +701,19 @@ const TreeView = ({
   // Initial focal point tracking for proper zoom+pan on physical devices
   const initialFocalX = useSharedValue(0);
   const initialFocalY = useSharedValue(0);
+
+  // Phase 1 Integration - Package shared values for gesture functions
+  const gestureSharedValues = {
+    scale,
+    translateX,
+    translateY,
+    savedScale,
+    savedTranslateX,
+    savedTranslateY,
+    isPinching,
+    initialFocalX,
+    initialFocalY,
+  };
 
   // Load tree data using branch loading
   const loadTreeData = async () => {
