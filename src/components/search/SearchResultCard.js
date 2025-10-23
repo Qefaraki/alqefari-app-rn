@@ -19,13 +19,13 @@ const SearchResultCard = ({
   item,
   index,
   onPress,
+  isLast,
 }) => {
   const initials = item.name ? item.name.charAt(0) : "؟";
   const getTypography = useDynamicTypography();
   const nameTypography = getTypography(16, 600);
   const generationTypography = getTypography(13, 400);
   const avatarTypography = getTypography(18, 600);
-  const isLast = index === 99; // Simplified, actual prop would be passed
 
   // Premium desert palette - ultra-thin aesthetic
   const getDesertColor = (index) => {
@@ -57,6 +57,7 @@ const SearchResultCard = ({
       style={({ pressed }) => [
         styles.resultCard,
         pressed && styles.resultCardPressed,
+        isLast && styles.lastCard,
       ]}
     >
       <View style={styles.cardContent}>
@@ -129,6 +130,9 @@ const styles = StyleSheet.create({
   resultCardPressed: {
     backgroundColor: "#D1BBA310", // Subtle press state (Camel Hair 20%)
     transform: [{ scale: 1 }], // No scale on press for iOS list
+  },
+  lastCard: {
+    borderBottomWidth: 0, // No separator on last item
   },
   cardContent: {
     flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
