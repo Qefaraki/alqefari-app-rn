@@ -123,6 +123,245 @@ HINT: "Perhaps you meant to call admin_update_profile(p_id, p_updates, p_version
 
 ---
 
+# Marriage Deletion System (Error Correction)
+
+**Status**: ✅ Deployed and operational (October 2025)
+
+**Important Note**: Marriage deletion is for **data entry errors only** - when an admin accidentally creates a wrong marriage. This is NOT for divorce scenarios. When a marriage is deleted:
+- The marriage record is soft-deleted (`deleted_at` timestamp)
+- Children remain in the tree with their father
+- Mother reference is cleared (`mother_id = NULL`) for children
+- Spouse profile is deleted ONLY if it's a Munasib (non-family) with no other marriages
+
+## Components & Files
+
+- **MarriageDeletionSheet.js** - Modal confirmation dialog with real-time data fetching
+- **SpouseRow.js** - Delete button wrapper with permission validation
+- **TabFamily.js** - orchestrates marriage deletion flow and permissions
+
+## How It Works
+
+### Step 1: User Initiates Deletion
+User clicks the delete button on a spouse in the family tree. SpouseRow validates that:
+- User has `canEditFamily` permission
+- Marriage data exists with valid `marriage_id`
+- Spouse profile exists
+
+### Step 2: Deletion Sheet Opens with Real-Time Data
+MarriageDeletionSheet opens and immediately fetches accurate data:
+
+**1. Determine Marriage Type**:
+```javascript
+// Cousin marriage = both spouses have HID (Al-Qefari family)
+const isCousinMarriage = spouse.hid !== null && spouse.hid?.trim() !== '';
+```
+
+**2. Count ALL Children**:
+```javascript
+// Query by father_id or mother_id (not from marriage.children array)
+const { count: affectedChildren } = await supabase
+  .from('profiles')
+  .select('id', { count: 'exact', head: true })
+  .eq(parentColumn, spouseId)
+  .is('deleted_at', null);
+```
+
+**3. Check if Munasib Spouse Profile Will Be Deleted**:
+```javascript
+// For Munasib (non-family), check other marriages
+const { count: otherMarriagesCount } = await supabase
+  .from('marriages')
+  .select('id', { count: 'exact', head: true })
+  .or(`husband_id.eq.${spouseId},wife_id.eq.${spouseId}`)
+  .neq('id', marriage.marriage_id)
+  .is('deleted_at', null);
+
+const willDeleteProfile = otherMarriagesCount === 0;
+```
+
+### Step 3: Show Contextual Warning
+Warning message varies by marriage type:
+
+**Cousin Marriage**:
+```
+الزواج سيتم حذفه. ملف [الاسم] سيبقى في الشجرة (زواج قريب).
+```
+
+**Munasib (Profile Will Be Deleted)**:
+```
+الزواج وملف [الاسم] سيتم حذفهما معاً من الشجرة.
+```
+
+**Munasib (Profile Will Remain)**:
+```
+الزواج سيتم حذفه فقط. ملف [الاسم] سيبقى (لديه زيجات أخرى).
+```
+
+**Children Warning**:
+```
+سيتم إزالة رابط [الأب/الأم] من [عدد] أطفال.
+```
+
+### Step 4: Confirm and Execute
+When user confirms:
+1. Permission re-validated (catches permission changes while sheet was open)
+2. `admin_soft_delete_marriage()` RPC called
+3. Database soft-deletes marriage and handles cleanup atomically
+4. Audit trail logged with marriage ID and affected children count
+5. UI updates optimistically and refreshes profile data
+
+## Safety Features
+
+### Network Timeout (10 seconds)
+All Supabase queries wrapped with timeout to prevent infinite loading:
+```javascript
+const fetchWithTimeout = (promise, ms = 10000) => {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('انتهى وقت الاتصال. تحقق من اتصال الإنترنت.')), ms)
+  );
+  return Promise.race([promise, timeout]);
+};
+```
+
+If fetch exceeds 10 seconds on slow network:
+- Sheet shows error message
+- User can click "حاول مرة أخرى" to retry
+- No need to close/reopen sheet
+
+### Triple Permission Validation
+1. **SpouseRow**: Checks `canEditFamily` before opening sheet
+2. **MarriageDeletionSheet**: Validates data before showing delete button
+3. **TabFamily**: Re-checks `canEditFamily` before deletion RPC call
+
+Catches scenarios where permissions changed while sheet was open.
+
+### Real-Time Data Fetching
+- Fetches children count on sheet open (not stale `marriage.children` array)
+- Fetches other marriages count for accurate profile deletion prediction
+- Detects if marriage already deleted (RPC will catch and show error)
+
+### Graceful Error Handling
+- Network timeout → Show error with retry button
+- Missing spouse data → Show error, disable delete button
+- Marriage already deleted → RPC rejection with clear message
+- Permission denied → Show permission error
+
+## Database Function
+
+### `admin_soft_delete_marriage()`
+
+**Location**: Supabase RPC function (deployed via migration)
+
+**Behavior**:
+1. Validates marriage exists and not already deleted
+2. Checks user has edit permission on both spouse profiles
+3. Soft-deletes marriage (`deleted_at = NOW()`)
+4. For Munasib spouse: If no other marriages, soft-delete spouse profile
+5. For all children: If spouse was mother, clear `mother_id`
+6. Creates audit log entry with marriage ID and affected children count
+7. Transaction-based: All-or-nothing atomicity
+
+**Signature**:
+```sql
+admin_soft_delete_marriage(
+  p_marriage_id UUID,
+  p_reason TEXT DEFAULT NULL
+)
+```
+
+**Example**:
+```javascript
+const { data, error } = await supabase.rpc('admin_soft_delete_marriage', {
+  p_marriage_id: marriage.marriage_id,
+  p_reason: 'حذف زواج خاطئ',
+});
+
+if (error) {
+  if (error.message?.includes('not found')) {
+    // Marriage already deleted by another admin
+  } else if (error.message?.includes('Unauthorized')) {
+    // User lacks permission to delete
+  }
+}
+```
+
+## Undo Capability
+
+Marriage deletion is **fully reversible** via the Undo System:
+
+- Location: Admin Dashboard → Activity Log → Undo button on deletion entry
+- Time limit: 30 days for regular admins, unlimited for super admins
+- Function: `undo_marriage_delete()` in undo system
+- Restores: Marriage record + spouse profile (if deleted) + parent references
+
+See [`/docs/UNDO_SYSTEM_TEST_CHECKLIST.md`](/docs/UNDO_SYSTEM_TEST_CHECKLIST.md) for full undo documentation.
+
+## Testing Scenarios
+
+All 8 critical test scenarios:
+
+1. **Delete cousin marriage (0 children)**
+   - Expected: Only marriage deleted, spouse profile remains
+   - Verify: Marriage shows in audit log, spouse still searchable
+
+2. **Delete cousin marriage (3+ children)**
+   - Expected: Marriage deleted, children remain with father, mother_id cleared
+   - Verify: Audit log shows affected_children_count = 3
+
+3. **Delete Munasib marriage (single, 0 children)**
+   - Expected: Marriage AND spouse profile deleted
+   - Verify: Spouse no longer searchable
+
+4. **Delete Munasib marriage (single, 5 children)**
+   - Expected: Marriage deleted, spouse profile deleted, children lose mother reference
+   - Verify: Children still have father_id, mother_id is NULL
+
+5. **Delete Munasib with multiple marriages**
+   - Expected: Marriage deleted, spouse profile remains, other marriages unaffected
+   - Verify: Spouse still has other marriage entries
+
+6. **Error: Network timeout on slow network**
+   - Setup: Throttle to 3G in dev tools
+   - Expected: Spinner shows for 10 seconds, then error with retry button
+   - Verify: User can click retry to retry fetching
+
+7. **Error: Permission change while sheet open**
+   - Setup: Revoke admin role while sheet open
+   - Expected: Delete button disabled OR deletion RPC rejected with permission error
+   - Verify: Cannot delete without permission
+
+8. **Error: Marriage deleted by another admin**
+   - Setup: Delete marriage via database while sheet open
+   - Expected: RPC call fails with "not found" error
+   - Verify: Clear error message shown
+
+## Error Messages
+
+| Scenario | Message | Action |
+|----------|---------|--------|
+| Missing spouse data | "بيانات الزوج/الزوجة غير متوفرة" | Disable delete button |
+| Network timeout | "انتهى وقت الاتصال. تحقق من اتصال الإنترنت." | Show retry button |
+| Fetch failed | "فشل تحميل معلومات الحذف. يرجى المحاولة مرة أخرى." | Show retry button |
+| Permission denied | "ليس لديك صلاحية لحذف هذا الزواج" | Close sheet, show alert |
+| Not found | "الزواج غير موجود. ربما تم حذفه مسبقاً." | Close sheet, show alert |
+
+## Code Locations
+
+- **UI Component**: `src/components/ProfileViewer/EditMode/MarriageDeletionSheet.js` (Full implementation)
+- **Delete Button**: `src/components/ProfileViewer/EditMode/SpouseRow.js:146-163` (handleDelete)
+- **Flow Orchestration**: `src/components/ProfileViewer/EditMode/TabFamily.js:572-657` (confirmDeleteMarriage)
+
+## Best Practices
+
+1. **Always show affected children count** - Users must understand full impact
+2. **Distinguish cousin vs Munasib** - Different consequences for each type
+3. **Re-validate permissions** - Catch permission changes while sheet open
+4. **Handle network timeouts** - Provide retry mechanism, not indefinite spinner
+5. **Log audit trail** - Essential for admin oversight and undo capability
+6. **Test with real family data** - Verify accuracy with actual marriage counts and children
+
+---
+
 # Cascading Soft Delete (Migrations 084a & 084b)
 
 **Status**: ✅ Deployed and operational (January 2025)

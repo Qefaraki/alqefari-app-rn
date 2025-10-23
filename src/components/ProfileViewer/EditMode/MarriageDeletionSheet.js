@@ -16,7 +16,24 @@ import { supabase } from '../../../services/supabase';
  * - Whether spouse profile will be deleted
  * - How many children will be affected
  * - Clear, accurate warnings
+ *
+ * Features:
+ * - Network timeout (10 seconds) to prevent infinite loading
+ * - Retry button on network errors
+ * - Real-time data fetching (accurate counts, not stale props)
  */
+
+// Timeout wrapper for network operations
+const fetchWithTimeout = (promise, ms = 10000) => {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(
+      () => reject(new Error('انتهى وقت الاتصال. تحقق من اتصال الإنترنت.')),
+      ms
+    )
+  );
+  return Promise.race([promise, timeout]);
+};
+
 const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
   const [loading, setLoading] = useState(true);
   const [deletionInfo, setDeletionInfo] = useState(null);
@@ -52,11 +69,13 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
       // Important: Count ALL children with this parent, not just from this marriage
       const parentColumn = spouse.gender === 'male' ? 'father_id' : 'mother_id';
 
-      const { count: affectedChildren, error: childrenError } = await supabase
+      const childrenQuery = supabase
         .from('profiles')
         .select('id', { count: 'exact', head: true })
         .eq(parentColumn, spouseId)
         .is('deleted_at', null);
+
+      const { count: affectedChildren, error: childrenError } = await fetchWithTimeout(childrenQuery);
 
       if (childrenError) throw childrenError;
 
@@ -65,12 +84,14 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
       let willDeleteProfile = false;
 
       if (!isCousinMarriage) {
-        const { count, error: marriageError } = await supabase
+        const marriageQuery = supabase
           .from('marriages')
           .select('id', { count: 'exact', head: true })
           .or(`husband_id.eq.${spouseId},wife_id.eq.${spouseId}`)
           .neq('id', marriage.marriage_id)
           .is('deleted_at', null);
+
+        const { count, error: marriageError } = await fetchWithTimeout(marriageQuery);
 
         if (marriageError) throw marriageError;
 
@@ -177,13 +198,27 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
               <Text style={styles.loadingText}>جارٍ تحميل معلومات الحذف...</Text>
             </View>
           ) : error ? (
-            <View style={styles.errorContainer}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={24}
-                color={tokens.colors.najdi.crimson}
-              />
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.errorContainerWrapper}>
+              <View style={styles.errorContainer}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={24}
+                  color={tokens.colors.najdi.crimson}
+                />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={fetchDeletionInfo}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={16}
+                  color={tokens.colors.najdi.primary}
+                />
+                <Text style={styles.retryButtonText}>حاول مرة أخرى</Text>
+              </TouchableOpacity>
             </View>
           ) : deletionInfo ? (
             <View style={styles.contentContainer}>
@@ -281,6 +316,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: tokens.colors.najdi.textMuted,
   },
+  errorContainerWrapper: {
+    gap: tokens.spacing.md,
+  },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,6 +332,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: tokens.colors.najdi.text,
     lineHeight: 22,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.sm,
+    paddingVertical: tokens.spacing.md,
+    paddingHorizontal: tokens.spacing.lg,
+    borderRadius: tokens.radii.lg,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.primary,
+    backgroundColor: tokens.colors.najdi.background,
+  },
+  retryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: tokens.colors.najdi.primary,
   },
   contentContainer: {
     gap: tokens.spacing.lg,
