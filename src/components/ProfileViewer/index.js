@@ -215,6 +215,7 @@ const EditModeContent = React.memo(({
         gap: 20,
       }}
       showsVerticalScrollIndicator={false}
+      keyboardDismissMode="interactive"
       onScroll={Animated.event(
         [{ nativeEvent: { contentOffset: { y: scrollY } } }],
         { useNativeDriver: false },
@@ -930,6 +931,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
           handleComponent={handleComponent}
           animatedPosition={animatedPosition}
           animateOnMount={true}
+          keyboardBehavior="interactive"
+          keyboardBlurBehavior="restore"
+          android_keyboardInputMode="adjustResize"
           onClose={() => {
             onClose?.();
           }}
