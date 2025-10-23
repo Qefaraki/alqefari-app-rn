@@ -133,30 +133,23 @@ import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../services/highlightingServic
 import { createRenderer } from "./TreeView/highlightRenderers";
 import { detectCousinMarriage } from "../utils/cousinMarriageDetector";
 
-// Asymmetric margins to match tree layout: horizontal spacing is 2-3x wider than vertical
-// Phase 3B: Increased margins by 50% to buffer gesture lag at high zoom levels
-const VIEWPORT_MARGIN_X = 3000; // Covers ~30 siblings + collision expansion + gesture buffer
-const VIEWPORT_MARGIN_Y = 1200;  // Covers ~10 generations + gesture buffer
-const NODE_WIDTH_WITH_PHOTO = 85;
-const NODE_WIDTH_TEXT_ONLY = 60;
-const NODE_HEIGHT_WITH_PHOTO = 90;
-const NODE_HEIGHT_TEXT_ONLY = 35;
-const PHOTO_SIZE = 60;
-const LINE_COLOR = "#D1BBA340"; // Camel Hair Beige 40%
-const LINE_WIDTH = 2;
-const CORNER_RADIUS = 8;
+// Phase 1 Day 4b: Constants now imported from ./TreeView/utils
+// Removed inline definitions:
+// - VIEWPORT_MARGIN_X, VIEWPORT_MARGIN_Y
+// - NODE_WIDTH_WITH_PHOTO, NODE_HEIGHT_WITH_PHOTO, PHOTO_SIZE
+// - LINE_COLOR, LINE_WIDTH, CORNER_RADIUS
+// - hexToRgba function
 
-// Helper function to convert hex color to rgba with opacity
-const hexToRgba = (hex, alpha) => {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
+// Note: NODE_WIDTH_TEXT_ONLY, NODE_HEIGHT_TEXT_ONLY kept (not in extracted constants yet)
+const NODE_WIDTH_TEXT_ONLY = 60;
+const NODE_HEIGHT_TEXT_ONLY = 35;
 
 // ANCESTRY_COLORS now imported from highlightingService.js
 
-// LOD Constants
+// Phase 1 Day 4b: LOD constants partially migrated
+// Removed: BUCKET_HYSTERESIS (now imported from utils)
+// Kept: SCALE_QUANTUM, HYSTERESIS, T1_BASE, T2_BASE (LOD system-specific, not in extracted constants)
+// Kept: MAX_VISIBLE_NODES, MAX_VISIBLE_EDGES, LOD_ENABLED, AGGREGATION_ENABLED (runtime config)
 const SCALE_QUANTUM = 0.05; // 5% quantization steps
 const HYSTERESIS = 0.15; // ±15% hysteresis
 const T1_BASE = 48; // Full card threshold (px)
@@ -165,9 +158,6 @@ const MAX_VISIBLE_NODES = 500; // 10% safety buffer for asymmetric margins at ex
 const MAX_VISIBLE_EDGES = 300; // Hard cap per frame
 const LOD_ENABLED = true; // Kill switch
 const AGGREGATION_ENABLED = true; // T3 chips toggle
-
-// Image bucket hysteresis constants
-const BUCKET_HYSTERESIS = 0.15; // ±15% hysteresis
 const BUCKET_DEBOUNCE_MS = 150; // ms
 
 // Create font manager/provider once
