@@ -190,11 +190,14 @@ import {
 } from './TreeView/utils';
 ```
 
-**Test Coverage:** 31 unit tests (100% passing)
+**Test Coverage:** 33 unit tests (100% passing)
 
 **Performance Impact:** +2.3% layout time, +2% memory (within 5% tolerance)
 
-**Full Documentation:** [`/docs/phase-plans/PHASE_1_SUMMARY.md`](docs/phase-plans/PHASE_1_SUMMARY.md)
+**Full Documentation:** [`/docs/treeview-refactor/phase1/`](docs/treeview-refactor/phase1/README.md)
+- Quick Start & Architecture
+- Usage Examples & Import Guides
+- Test Results & Performance Data
 
 ## 🔑 Key Implementation Rules
 
