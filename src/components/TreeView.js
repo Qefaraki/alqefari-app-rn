@@ -84,6 +84,8 @@ import {
   LOD_T2_THRESHOLD,
   NODE_WIDTH_WITH_PHOTO,
   NODE_HEIGHT_WITH_PHOTO,
+  NODE_WIDTH_TEXT_ONLY,
+  NODE_HEIGHT_TEXT_ONLY,
   PHOTO_SIZE,
   LINE_COLOR,
   LINE_WIDTH,
@@ -154,16 +156,13 @@ import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../services/highlightingServic
 import { createRenderer } from "./TreeView/highlightRenderers";
 import { detectCousinMarriage } from "../utils/cousinMarriageDetector";
 
-// Phase 1 Day 4b: Constants now imported from ./TreeView/utils
+// Phase 1 Day 4b: All constants now imported from ./TreeView/utils
 // Removed inline definitions:
 // - VIEWPORT_MARGIN_X, VIEWPORT_MARGIN_Y
 // - NODE_WIDTH_WITH_PHOTO, NODE_HEIGHT_WITH_PHOTO, PHOTO_SIZE
+// - NODE_WIDTH_TEXT_ONLY, NODE_HEIGHT_TEXT_ONLY (now imported)
 // - LINE_COLOR, LINE_WIDTH, CORNER_RADIUS
 // - hexToRgba function
-
-// Note: NODE_WIDTH_TEXT_ONLY, NODE_HEIGHT_TEXT_ONLY kept (not in extracted constants yet)
-const NODE_WIDTH_TEXT_ONLY = 60;
-const NODE_HEIGHT_TEXT_ONLY = 35;
 
 // ANCESTRY_COLORS now imported from highlightingService.js
 
