@@ -7,7 +7,7 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { BottomSheetTextInput, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../services/supabase';
 import tokens from '../../ui/tokens';
@@ -311,7 +311,7 @@ const LocationInput = ({
       {showDropdown && (
         <View style={styles.dropdown} pointerEvents="box-none">
           {suggestions.length > 0 ? (
-            <ScrollView
+            <BottomSheetScrollView
               keyboardShouldPersistTaps="handled"
               style={styles.scroll}
               contentContainerStyle={styles.scrollContent}
@@ -345,7 +345,7 @@ const LocationInput = ({
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </BottomSheetScrollView>
           ) : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>لا توجد نتائج</Text>
