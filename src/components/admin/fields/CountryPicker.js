@@ -4,9 +4,9 @@ import {
   View,
   Text,
   StyleSheet,
-  Picker,
   Platform,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import tokens from '../../ui/tokens';
 
 const COUNTRIES = [
