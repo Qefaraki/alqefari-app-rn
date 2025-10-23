@@ -6,8 +6,9 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
+  TextInput,
 } from 'react-native';
-import { BottomSheetTextInput, BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../services/supabase';
 import tokens from '../../ui/tokens';
@@ -268,7 +269,7 @@ const LocationInput = ({
           color={tokens.colors.najdi.textMuted}
           style={styles.leadingIcon}
         />
-        <BottomSheetTextInput
+        <TextInput
           ref={inputRef}
           style={styles.input}
           value={inputText}
@@ -280,8 +281,8 @@ const LocationInput = ({
           textAlign="right"
           autoCorrect={false}
           autoCapitalize="none"
-          clearButtonMode="never"
           returnKeyType="done"
+          blurOnSubmit={false}
         />
         {inputText.length > 0 && (
           <Pressable
