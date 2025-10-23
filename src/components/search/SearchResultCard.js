@@ -7,37 +7,30 @@ import {
   StyleSheet,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import PropTypes from "prop-types";
-import * as Haptics from "expo-haptics";
 import Animated, {
   FadeIn,
 } from "react-native-reanimated";
 import { toArabicNumerals } from "../../utils/dateUtils";
-import tokens from "../ui/tokens";
 
 /**
  * SearchResultCard - Reusable search result card component
  * Used by both SearchModal and SpouseManager
- * Shows profile with breadcrumb ancestry, generation, and metadata
- *
- * Props:
- * - item: Profile object with name, name_chain, gender, generation, birth_year_hijri, photo_url
- * - index: Position in list (for animation delay)
- * - onPress: Callback when card is pressed
- * - showRelevanceScore: Show match score percentage (default: false)
- * - enableAnimation: Show fade-in animation (default: false)
+ * Renders card with avatar, name, breadcrumb ancestry, and metadata
  */
 const SearchResultCard = ({
   item,
   index,
   onPress,
-  showRelevanceScore = false,
+  showRelevanceScore = true,
   enableAnimation = false,
 }) => {
-  const initials = item?.name ? item.name.charAt(0) : "؟";
-  const isAlive = !item?.death_year_hijri;
+  const initials = item.name ? item.name.charAt(0) : "؟";
+  const isAlive = !item.death_year_hijri;
 
-  // Generate consistent colors from profile names
+  // Create relevance score visual (based on match quality)
+  const relevanceScore = Math.max(80 - index * 5, 30); // Mock score for demo
+
+  // Helper function to generate consistent colors from names
   const generateColorFromName = (name) => {
     const colors = [
       "#FF6B6B",
@@ -49,95 +42,24 @@ const SearchResultCard = ({
       "#98D8C8",
       "#F7DC6F",
     ];
-    const nameCode = name ? name.charCodeAt(0) : 0;
-    return colors[nameCode % colors.length];
+    const colorIndex = name ? name.charCodeAt(0) % colors.length : 0;
+    return colors[colorIndex];
   };
 
-  // Get relevance color based on score
+  // Helper function for relevance color
   const getRelevanceColor = (score) => {
-    if (score >= 8) return "#00C851";
-    if (score >= 5) return "#FFB300";
+    if (score >= 80) return "#00C851";
+    if (score >= 60) return "#FFB300";
     return "#666";
   };
 
-  // Convert RPC match_score (0-10) to percentage (0-100)
-  const getRelevancePercentage = (matchScore) => {
-    if (!matchScore && matchScore !== 0) return 0;
-    return Math.round(matchScore * 10);
-  };
-
-  // Defensive breadcrumb building with 3-level fallback
-  const getBreadcrumbParts = (nameChain, gender) => {
-    if (!nameChain || typeof nameChain !== 'string') return [];
-
-    // Try gender-specific marker first
-    const marker = gender === 'female' ? ' بنت ' : ' بن ';
-    let parts = nameChain.split(marker);
-
-    // Fallback: try opposite gender marker (edge case: munasib data)
-    if (parts.length === 1) {
-      const altMarker = gender === 'female' ? ' بن ' : ' بنت ';
-      parts = nameChain.split(altMarker);
-    }
-
-    // Last resort: split by spaces if no markers found
-    if (parts.length === 1) {
-      parts = nameChain.split(/\s+/);
-    }
-
-    return parts.slice(0, 3).map(p => p.trim()).filter(Boolean);
-  };
-
-  // Render breadcrumb hierarchy
-  const renderBreadcrumbs = () => {
-    if (!item?.name_chain || item.name_chain.trim() === '') {
-      // Fallback: show just the profile name
-      return (
-        <Text style={styles.breadcrumbText} numberOfLines={1}>
-          {item?.name || 'غير محدد'}
-        </Text>
-      );
-    }
-
-    const parts = getBreadcrumbParts(item.name_chain, item?.gender);
-
-    if (parts.length === 0) {
-      return (
-        <Text style={styles.breadcrumbText} numberOfLines={1}>
-          غير محدد
-        </Text>
-      );
-    }
-
-    return parts.map((name, idx) => (
-      <React.Fragment key={idx}>
-        {idx > 0 && (
-          <Text style={styles.breadcrumbSeparator}>›</Text>
-        )}
-        <Text style={styles.breadcrumbText} numberOfLines={1}>
-          {name}
-        </Text>
-      </React.Fragment>
-    ));
-  };
-
-  // Always use Animated.View, conditionally apply animation
   const animationProps = enableAnimation ? {
-    entering: FadeIn.delay(Math.min(index * 50, 500)).springify()
+    entering: FadeIn.delay(index * 50).springify()
   } : {};
-
-  const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress();
-  };
-
-  const relevanceScore = getRelevancePercentage(item?.match_score);
-  const avatarColor = generateColorFromName(item?.name);
-  const relevanceColor = getRelevanceColor(item?.match_score);
 
   return (
     <Pressable
-      onPress={handlePress}
+      onPress={onPress}
       style={({ pressed }) => [
         { opacity: pressed ? 0.7 : 1 },
         { transform: [{ scale: pressed ? 0.98 : 1 }] },
@@ -151,7 +73,7 @@ const SearchResultCard = ({
         <View style={styles.visualSection}>
           {/* Modern Avatar with Status Ring */}
           <View style={[styles.avatarContainer, isAlive && styles.aliveRing]}>
-            {item?.photo_url ? (
+            {item.photo_url ? (
               <Image
                 source={{ uri: item.photo_url }}
                 style={styles.modernAvatar}
@@ -161,7 +83,7 @@ const SearchResultCard = ({
               <View
                 style={[
                   styles.avatarPlaceholder,
-                  { backgroundColor: avatarColor },
+                  { backgroundColor: generateColorFromName(item.name) },
                 ]}
               >
                 <Text style={styles.avatarInitial}>{initials}</Text>
@@ -172,7 +94,7 @@ const SearchResultCard = ({
               <View
                 style={[
                   styles.relevanceDot,
-                  { backgroundColor: relevanceColor },
+                  { backgroundColor: getRelevanceColor(relevanceScore) },
                 ]}
               >
                 <Text style={styles.relevanceText}>{relevanceScore}%</Text>
@@ -186,7 +108,7 @@ const SearchResultCard = ({
           {/* Primary Info */}
           <View style={styles.primaryInfo}>
             <Text style={styles.modernName} numberOfLines={1}>
-              {item?.name || 'بدون اسم'}
+              {item.name}
             </Text>
             {isAlive && (
               <View style={styles.liveBadge}>
@@ -197,27 +119,39 @@ const SearchResultCard = ({
 
           {/* Name Chain as Breadcrumb */}
           <View style={styles.breadcrumbContainer}>
-            {renderBreadcrumbs()}
+            {item.name_chain
+              ?.split(" بن ")
+              .slice(0, 3)
+              .map((name, idx) => (
+                <React.Fragment key={idx}>
+                  {idx > 0 && (
+                    <Text style={styles.breadcrumbSeparator}>›</Text>
+                  )}
+                  <Text style={styles.breadcrumbText} numberOfLines={1}>
+                    {name.trim()}
+                  </Text>
+                </React.Fragment>
+              ))}
           </View>
 
           {/* Rich Metadata Row */}
           <View style={styles.metadataRow}>
             {/* Generation with Icon - only show for Al-Qefari family members (hid !== null) */}
-            {item?.generation && item?.hid !== null && (
+            {item.generation && item?.hid !== null && (
               <View style={styles.metaTag}>
                 <View style={styles.genIcon}>
                   <Text style={styles.genIconText}>ج</Text>
                 </View>
                 <Text style={styles.metaLabel}>
-                  {toArabicNumerals(item?.generation?.toString() || "0")}
+                  {toArabicNumerals(item.generation?.toString() || "0")}
                 </Text>
               </View>
             )}
 
             {/* Birth Year */}
-            {item?.birth_year_hijri && (
+            {item.birth_year_hijri && (
               <View style={styles.metaTag}>
-                <Ionicons name="calendar-outline" size={12} color={tokens.colors.textMuted} />
+                <Ionicons name="calendar-outline" size={12} color="#666" />
                 <Text style={styles.metaLabel}>
                   {toArabicNumerals(item.birth_year_hijri.toString())}هـ
                 </Text>
@@ -225,9 +159,9 @@ const SearchResultCard = ({
             )}
 
             {/* Location if available */}
-            {item?.location && (
+            {item.location && (
               <View style={styles.metaTag}>
-                <Ionicons name="location-outline" size={12} color={tokens.colors.textMuted} />
+                <Ionicons name="location-outline" size={12} color="#666" />
                 <Text style={styles.metaLabel}>{item.location}</Text>
               </View>
             )}
@@ -237,7 +171,7 @@ const SearchResultCard = ({
         {/* Right Side - Action Area */}
         <View style={styles.actionSection}>
           <View style={styles.goButton}>
-            <Ionicons name="arrow-back" size={18} color={tokens.colors.accent} />
+            <Ionicons name="arrow-back" size={18} color="#007AFF" />
           </View>
         </View>
       </Animated.View>
@@ -245,61 +179,35 @@ const SearchResultCard = ({
   );
 };
 
-SearchResultCard.propTypes = {
-  item: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    name: PropTypes.string,
-    name_chain: PropTypes.string,
-    gender: PropTypes.oneOf(['male', 'female']),
-    generation: PropTypes.number,
-    photo_url: PropTypes.string,
-    birth_year_hijri: PropTypes.number,
-    death_year_hijri: PropTypes.number,
-    location: PropTypes.string,
-    match_score: PropTypes.number,
-  }).isRequired,
-  index: PropTypes.number.isRequired,
-  onPress: PropTypes.func.isRequired,
-  showRelevanceScore: PropTypes.bool,
-  enableAnimation: PropTypes.bool,
-};
-
-SearchResultCard.defaultProps = {
-  showRelevanceScore: false,
-  enableAnimation: false,
-};
-
 const styles = StyleSheet.create({
   // Ultra-modern card design inspired by Google Maps, Spotify, and Airbnb
-  // NOTE: App uses forceRTL(true) - React Native auto-flips layouts
-  // Use normal "row", "left", "flex-start" - don't use row-reverse/right/flex-end
   modernCard: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: photo on left, text starts from right
     alignItems: "center",
-    backgroundColor: tokens.colors.surface,
-    marginHorizontal: tokens.spacing.md,
-    marginBottom: tokens.spacing.sm,
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.md,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 16,
     // Sophisticated shadow for depth
-    shadowColor: tokens.shadow.ios.shadowColor,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
-    shadowRadius: tokens.shadow.ios.shadowRadius,
-    elevation: tokens.shadow.android.elevation,
+    shadowRadius: 12,
+    elevation: 3,
     // Subtle border for definition
     borderWidth: 0.5,
-    borderColor: tokens.colors.divider,
+    borderColor: "rgba(0,0,0,0.04)",
   },
   visualSection: {
-    marginRight: tokens.spacing.sm, // 12px - React Native auto-flips in RTL
+    marginLeft: 14, // Changed from marginRight for RTL
   },
   avatarContainer: {
     position: "relative",
   },
   aliveRing: {
     borderWidth: 2,
-    borderColor: tokens.colors.success,
+    borderColor: "#00C851",
     borderRadius: 28,
     padding: 2,
   },
@@ -307,7 +215,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: tokens.colors.bg,
+    backgroundColor: "#F8F9FA",
   },
   avatarPlaceholder: {
     width: 52,
@@ -319,7 +227,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontSize: 22,
     fontWeight: "700",
-    color: tokens.colors.surface,
+    color: "#FFFFFF",
     fontFamily: "SF Arabic",
   },
   relevanceDot: {
@@ -329,24 +237,24 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: tokens.colors.success,
+    backgroundColor: "#00C851",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: tokens.colors.surface,
+    borderColor: "#FFFFFF",
   },
   relevanceText: {
     fontSize: 9,
     fontWeight: "700",
-    color: tokens.colors.surface,
+    color: "#FFFFFF",
   },
   contentSection: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "flex-start", // React Native auto-flips flex-start ↔ flex-end in RTL
+    alignItems: "flex-end", // RTL: align text to the right
   },
   primaryInfo: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: name first from right
     alignItems: "center",
     marginBottom: 4,
   },
@@ -354,84 +262,84 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     fontFamily: "SF Arabic",
-    color: tokens.colors.najdi.text,
+    color: "#1A1A1A",
     flex: 1,
-    textAlign: "left", // React Native auto-flips left ↔ right in RTL
+    textAlign: "right", // RTL: align text to right
   },
   liveBadge: {
-    marginLeft: tokens.spacing.xs, // 8px - React Native auto-flips in RTL
+    marginRight: 8, // Changed from marginLeft for RTL
   },
   liveDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: tokens.colors.success,
+    backgroundColor: "#00C851",
   },
   breadcrumbContainer: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: start from right
     alignItems: "center",
     marginBottom: 6,
     flexWrap: "nowrap",
   },
   breadcrumbText: {
     fontSize: 13,
-    color: tokens.colors.textMuted,
+    color: "#666",
     fontFamily: "SF Arabic",
     maxWidth: 80,
-    textAlign: "left", // React Native auto-flips left ↔ right in RTL
+    textAlign: "right", // RTL: align text right
   },
   breadcrumbSeparator: {
     fontSize: 12,
-    color: tokens.colors.textMuted,
-    marginHorizontal: tokens.spacing.xs,
+    color: "#999",
+    marginHorizontal: 4,
   },
   metadataRow: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: tags from right to left
     alignItems: "center",
     gap: 10,
-    alignSelf: "flex-start", // React Native auto-flips flex-start ↔ flex-end in RTL
+    alignSelf: "flex-end", // RTL: align row to right
   },
   metaTag: {
-    flexDirection: "row", // React Native auto-flips to row-reverse in RTL
+    flexDirection: "row-reverse", // RTL: icon and text reversed
     alignItems: "center",
-    gap: tokens.spacing.xs,
-    backgroundColor: tokens.colors.bg,
-    paddingHorizontal: tokens.spacing.xs,
-    paddingVertical: tokens.spacing.xxs,
-    borderRadius: tokens.radii.sm,
+    gap: 4,
+    backgroundColor: "#F8F9FA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   genIcon: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: tokens.colors.accent,
+    backgroundColor: "#007AFF",
     alignItems: "center",
     justifyContent: "center",
   },
   genIconText: {
     fontSize: 9,
     fontWeight: "700",
-    color: tokens.colors.surface,
+    color: "#FFFFFF",
     fontFamily: "SF Arabic",
   },
   metaLabel: {
     fontSize: 12,
-    color: tokens.colors.textMuted,
+    color: "#666",
     fontFamily: "SF Arabic",
     fontWeight: "500",
   },
   actionSection: {
     justifyContent: "center",
-    marginLeft: tokens.spacing.sm, // 12px - React Native auto-flips in RTL
+    marginRight: 12, // Changed from marginLeft for RTL
   },
   goButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#E8F4FF", // Light blue background for action button
+    backgroundColor: "#F0F8FF",
     alignItems: "center",
     justifyContent: "center",
   },
 });
 
-export default React.memo(SearchResultCard);
+export default SearchResultCard;
