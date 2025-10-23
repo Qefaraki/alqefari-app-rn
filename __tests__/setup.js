@@ -165,6 +165,8 @@ jest.mock('@shopify/react-native-skia', () => ({
         moveTo: jest.fn(),
         lineTo: jest.fn(),
         close: jest.fn(),
+        addPath: jest.fn(),
+        reset: jest.fn(),
       })),
     },
     ParagraphBuilder: {
