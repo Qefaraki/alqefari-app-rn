@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import BottomSheet, {
   BottomSheetScrollView,
+  BottomSheetFlatList,
   BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
 import PropTypes from "prop-types";
@@ -59,8 +60,9 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   const snapPoints = useMemo(() => {
     if (stage === "SEARCH" && !loading && searchResults.length > 0) {
       // Content-based: min 400px, max 60% screen
+      // 92px per result + 280px (200 base + 80 for TextInput field)
       const contentHeight = Math.min(
-        Math.max(400, searchResults.length * 92 + 200),
+        Math.max(400, searchResults.length * 92 + 280),
         windowHeight * 0.6
       );
       return [contentHeight];
@@ -68,7 +70,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
     // Fixed heights for other stages
     const heights = {
-      SEARCH: loading ? 300 : 360, // Input or empty state
+      SEARCH: loading ? 300 : 400, // Input field + empty state (was 360)
       CREATE: 300, // Loading spinner
       SUCCESS: 360, // Success animation
     };
@@ -435,72 +437,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     );
   };
 
-  // Render SEARCH stage
-  const renderSearchStage = () => (
-    <View style={styles.stageContainer}>
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-          <Text style={styles.loadingText}>
-            جاري البحث عن {parsedData?.firstName || ''}...
-          </Text>
-        </View>
-      ) : (
-        <View
-          style={{
-            maxHeight: Math.min(
-              searchResults.length * 92 + 100,
-              windowHeight * 0.6
-            ),
-          }}
-        >
-          <FlatList
-            data={searchResults}
-            renderItem={({ item, index }) => (
-              <SearchResultCard
-                item={item}
-                index={index}
-                onPress={() => handleSelectSpouse(item)}
-                showRelevanceScore={false}
-                enableAnimation={false}
-              />
-            )}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.resultsList}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons
-                  name="search-outline"
-                  size={48}
-                  color={tokens.colors.najdi.textMuted}
-                />
-                <Text style={styles.emptyText}>لا توجد نتائج</Text>
-                <Text style={styles.emptyHint}>
-                  لم نجد {spouseTitle} بهذا الاسم في الشجرة
-                </Text>
-                <TouchableOpacity
-                  style={styles.addNewButton}
-                  onPress={handleAddAsNew}
-                >
-                  <Text style={styles.addNewButtonText}>
-                    إضافة كشخص جديد
-                  </Text>
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={20}
-                    color={tokens.colors.najdi.primary}
-                  />
-                </TouchableOpacity>
-              </View>
-            }
-          />
-        </View>
-      )}
-    </View>
-  );
-
   // Render CREATE stage (loading)
   const renderCreateStage = () => (
     <View style={styles.stageContainer}>
@@ -534,6 +470,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={styles.handleIndicator}
         backgroundStyle={styles.sheetBackground}
+        keyboardBehavior="interactive"
+        keyboardBlurBehavior="restore"
       >
         {/* Header */}
         <View style={styles.header}>
@@ -544,15 +482,92 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Scrollable Stage Content */}
-        <BottomSheetScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {stage === "SEARCH" && renderSearchStage()}
-          {stage === "CREATE" && renderCreateStage()}
-          {stage === "SUCCESS" && renderSuccessStage()}
-        </BottomSheetScrollView>
+        {/* Conditional Content Based on Stage */}
+        {stage === "SEARCH" ? (
+          <>
+            {/* TextInput for Manual Spouse Entry - Only in SEARCH stage */}
+            {!loading && (
+              <View style={styles.inputContainer}>
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="search-outline"
+                    size={20}
+                    color={tokens.colors.najdi.textMuted}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholder={`ابحث عن ${spouseTitle} أو أدخل اسم جديد`}
+                    placeholderTextColor={tokens.colors.najdi.textMuted}
+                    style={styles.textInput}
+                    onSubmitEditing={handleSubmit}
+                    returnKeyType="search"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                    editable={!loading}
+                  />
+                  {fullName.length > 0 && (
+                    <TouchableOpacity onPress={() => setFullName("")} style={styles.clearButton}>
+                      <Ionicons name="close-circle" size={20} color={tokens.colors.najdi.textMuted} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Loading State or Search Results */}
+            {loading ? (
+              <View style={styles.stageContainer}>
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+                  <Text style={styles.loadingText}>
+                    جاري البحث عن {parsedData?.firstName || ''}...
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <BottomSheetFlatList
+                data={searchResults}
+                renderItem={({ item, index }) => (
+                  <SearchResultCard
+                    item={item}
+                    index={index}
+                    onPress={() => handleSelectSpouse(item)}
+                    showRelevanceScore={false}
+                    enableAnimation={false}
+                  />
+                )}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.resultsList}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
+                  fullName.length > 0 ? (
+                    <View style={styles.emptyContainer}>
+                      <Ionicons name="search-outline" size={48} color={tokens.colors.najdi.textMuted} />
+                      <Text style={styles.emptyText}>لا توجد نتائج</Text>
+                      <Text style={styles.emptyHint}>لم نجد {spouseTitle} بهذا الاسم في الشجرة</Text>
+                      <TouchableOpacity style={styles.addNewButton} onPress={handleAddAsNew}>
+                        <Text style={styles.addNewButtonText}>إضافة كشخص جديد</Text>
+                        <Ionicons name="add-circle-outline" size={20} color={tokens.colors.najdi.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  ) : null
+                }
+              />
+            )}
+          </>
+        ) : (
+          /* CREATE/SUCCESS Stages - Use ScrollView */
+          <BottomSheetScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {stage === "CREATE" && renderCreateStage()}
+            {stage === "SUCCESS" && renderSuccessStage()}
+          </BottomSheetScrollView>
+        )}
       </BottomSheet>
 
       {/* Tree Modal for spouse confirmation */}
@@ -606,6 +621,39 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: tokens.spacing.lg,
+  },
+
+  // TextInput Container
+  inputContainer: {
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.md,
+    paddingBottom: tokens.spacing.sm,
+    backgroundColor: tokens.colors.najdi.background,
+  },
+  inputWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: tokens.colors.najdi.container,
+    borderRadius: tokens.radii.sm,
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.text + "20",
+  },
+  inputIcon: {
+    marginRight: tokens.spacing.sm,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: "SF Arabic",
+    color: tokens.colors.najdi.text,
+    paddingVertical: tokens.spacing.xs,
+    textAlign: "right", // RTL support
+  },
+  clearButton: {
+    padding: tokens.spacing.xs,
+    marginLeft: tokens.spacing.xs,
   },
 
   header: {
