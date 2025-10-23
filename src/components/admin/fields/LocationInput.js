@@ -33,10 +33,20 @@ const LocationInput = ({
   const [loading, setLoading] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const debounceRef = useRef(null);
+  const requestSequenceRef = useRef(0);  // Track request sequence to prevent stale results
 
   useEffect(() => {
     setInputText(value || '');
   }, [value]);
+
+  // Cleanup debounce and requests on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const searchPlaces = useCallback(
     async (query) => {
@@ -46,23 +56,29 @@ const LocationInput = ({
         return;
       }
 
+      // Track request sequence to prevent stale results from older requests
+      const currentSequence = ++requestSequenceRef.current;
+
       setLoading(true);
       const { data, error } = await supabase.rpc('search_place_autocomplete', {
         p_query: query,
         p_limit: 8,
       });
 
-      if (!error && data) {
-        setSuggestions(data);
+      // Only update state if this is still the latest request
+      if (currentSequence === requestSequenceRef.current) {
+        if (!error && data) {
+          setSuggestions(data);
 
-        // Semi-required: Show warning if common place has no match
-        if (data.length === 0 && query.length > 3) {
-          setShowWarning(true);
-        } else {
-          setShowWarning(false);
+          // Semi-required: Show warning if common place has no match
+          if (data.length === 0 && query.length > 3) {
+            setShowWarning(true);
+          } else {
+            setShowWarning(false);
+          }
         }
+        setLoading(false);
       }
-      setLoading(false);
     },
     []
   );
@@ -155,6 +171,20 @@ const LocationInput = ({
           <Text style={styles.warningText}>
             لم نجد مطابقة. يمكنك المتابعة بهذا النص أو اختر من القائمة.
           </Text>
+        </View>
+      )}
+
+      {loading && inputText.length >= 2 && suggestions.length === 0 && (
+        <View style={styles.skeletonLoaderContainer}>
+          {[0, 1, 2].map((index) => (
+            <View key={index} style={styles.skeletonItem}>
+              <View style={styles.skeletonIcon} />
+              <View style={styles.skeletonText}>
+                <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+                <View style={styles.skeletonLine} />
+              </View>
+            </View>
+          ))}
         </View>
       )}
 
@@ -297,6 +327,43 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: tokens.colors.najdi.textMuted,
     textAlign: 'right',
+  },
+  skeletonLoaderContainer: {
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.sm,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.container + '40',
+    maxHeight: 300,
+    overflow: 'hidden',
+    marginTop: tokens.spacing.xs,
+  },
+  skeletonItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: tokens.spacing.md,
+    paddingVertical: tokens.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.najdi.container + '20',
+    gap: tokens.spacing.sm,
+  },
+  skeletonIcon: {
+    width: 24,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: tokens.colors.najdi.container + '20',
+  },
+  skeletonText: {
+    flex: 1,
+    gap: tokens.spacing.xxs,
+  },
+  skeletonLine: {
+    height: 14,
+    backgroundColor: tokens.colors.najdi.container + '20',
+    borderRadius: 4,
+    marginBottom: tokens.spacing.xs,
+  },
+  skeletonLineShort: {
+    width: '60%',
   },
 });
 

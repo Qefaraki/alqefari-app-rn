@@ -60,7 +60,9 @@ When you add a **new column** to the `profiles` table, you **MUST** update these
 | dob_is_public | ✅ | ✅ | ❌ | ✅ |
 | **Location & Work** | | | | |
 | birth_place | ✅ | ✅ | ❌ | ✅ |
+| birth_place_normalized | ✅ | ✅ | ❌ | ✅ |
 | current_residence | ✅ | ✅ | ❌ | ✅ |
+| current_residence_normalized | ✅ | ✅ | ❌ | ✅ |
 | occupation | ✅ | ✅ | ❌ | ✅ |
 | education | ✅ | ✅ | ❌ | ✅ |
 | **Contact** | | | | |
@@ -282,6 +284,125 @@ const totalCount = data[0]?.total_count || 0;
 ```
 
 **Permission:** Admin/super_admin only (checked in function)
+
+## Location System (October 2025)
+
+**Migration:** `20251023150357_add_location_normalization.sql` + support migrations
+
+Hybrid system for flexible location input with statistical aggregation capabilities.
+
+### Features
+
+- **Flexible Input:** Users can type cities, countries, or freeform text
+- **Normalized Reference:** Automatic matching to place_standards database with structured JSONB
+- **Arabic-First Search:** Normalizes Hamza, Teh Marbuta, diacritics, and alternative spellings
+- **Hierarchical Data:** Cities linked to countries via parent_id
+- **Regional Prioritization:** Saudi cities (order 500-999) → Gulf (2000-2099) → Arab (3000-3099) → Western (4000-4099) → Other (5000+)
+
+### Database Tables
+
+**place_standards** - Reference table for all locations
+```
+id, place_name (ar), place_name_en, place_type (city/country),
+parent_id (for cities), country_code (ISO 2-letter),
+region (saudi/gulf/arab/western/other), display_order, alternate_names[], latitude, longitude
+```
+
+**profiles.birth_place** - User-entered text (flexible, user-controlled)
+**profiles.birth_place_normalized** - Structured JSONB reference
+```jsonb
+{
+  "original": "الرياض",
+  "city": {"ar": "الرياض", "en": "Riyadh", "id": 1},
+  "country": {"ar": "السعودية", "en": "Saudi Arabia", "code": "SA", "id": 999},
+  "confidence": 1.0
+}
+```
+
+Same structure for **current_residence** and **current_residence_normalized**.
+
+### RPC Functions
+
+**search_place_autocomplete(p_query, p_limit)** - Arabic-first autocomplete
+```javascript
+const { data } = await supabase.rpc('search_place_autocomplete', {
+  p_query: 'رياض',     // User input (Arabic normalized internally)
+  p_limit: 8            // Max 8 suggestions
+});
+// Returns: { id, display_name, display_name_en, region, country_name, normalized_data }
+```
+
+**get_location_statistics()** - Aggregate data by normalized location
+```javascript
+const { data } = await supabase.rpc('get_location_statistics');
+// Returns: { location_ar, location_en, location_type, birth_count, residence_count, total_count }
+```
+
+### Component: LocationInput
+
+**Location:** `src/components/admin/fields/LocationInput.js`
+
+**Features:**
+- Debounced search (350ms for smooth typing)
+- Request sequence tracking (prevents stale results)
+- Skeleton loading UI (while searching)
+- Semi-required validation (warns if no match found)
+- Regional color coding for suggestions
+- Supports freeform input or structured selection
+
+**Usage:**
+```javascript
+<LocationInput
+  label="مكان الميلاد"
+  value={draft?.birth_place || ''}
+  onChange={(text) => updateField('birth_place', text)}
+  normalizedValue={draft?.birth_place_normalized}
+  onNormalizedChange={(data) => updateField('birth_place_normalized', data)}
+  placeholder="مثال: الرياض، جدة، السعودية..."
+/>
+```
+
+### Data Integrity
+
+**Validation Constraints:**
+- `birth_place_normalized` must have either city or country reference
+- If city present: must have ar, en, id (and optional country link)
+- If country present: must have ar, en, code, id
+- confidence must be 0-1 numeric value
+- place_standards records validated for valid names, type, region, display_order
+
+**Indexes:**
+- `idx_profiles_birth_place_city_id` - Efficient city-based aggregation
+- `idx_profiles_birth_place_country_id` - Efficient country-based aggregation
+- `idx_place_standards_name` - Fast Arabic lookups
+- `idx_place_standards_order` - Efficient priority ordering
+
+### Example: Using Location Data
+
+**In ProfileViewer/TabDetails.js:**
+```javascript
+import LocationInput from '../../admin/fields/LocationInput';
+
+<LocationInput
+  label="مكان الميلاد"
+  value={draft?.birth_place}
+  onChange={(text) => updateField('birth_place', text)}
+  normalizedValue={draft?.birth_place_normalized}
+  onNormalizedChange={(data) => updateField('birth_place_normalized', data)}
+/>
+```
+
+**Seeding Data:**
+```bash
+node scripts/seedLocationData.js
+```
+
+Uses UPSERT for idempotency (safe to run multiple times). Seeds:
+- 27 Saudi places (26 cities + 1 country)
+- 5 Gulf countries
+- 12 Arab countries (including Palestine PS)
+- 12 Western education destinations (USA, UK, Australia, Canada first)
+- 8 Other countries
 
 ## Why This Matters
 

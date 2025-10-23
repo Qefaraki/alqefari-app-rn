@@ -581,6 +581,16 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     const marriage = state.marriageToDelete;
     if (!marriage) return;
 
+    // Security: Re-check permission before deletion (in case permissions changed)
+    if (!canEditFamily) {
+      Alert.alert('غير مسموح', 'ليس لديك صلاحية لحذف هذا الزواج');
+      dispatch({
+        type: 'SET_DELETION_SHEET',
+        payload: { visible: false, marriage: null },
+      });
+      return;
+    }
+
     // Close sheet
     dispatch({
       type: 'SET_DELETION_SHEET',
@@ -602,7 +612,16 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         p_marriage_id: marriage.marriage_id,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific error cases
+        if (error.message?.includes('not found')) {
+          throw new Error('الزواج غير موجود. ربما تم حذفه مسبقاً.');
+        }
+        if (error.message?.includes('Unauthorized')) {
+          throw new Error('ليس لديك صلاحية لحذف هذا الزواج');
+        }
+        throw error;
+      }
 
       if (!data?.success) {
         throw new Error(data?.message || 'فشل حذف الزواج');
@@ -622,7 +641,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
     } catch (error) {
       // STEP 6: Error recovery - restore with feedback
       if (__DEV__) {
-        console.error('Error deleting marriage:', error);
+        console.error('[TabFamily] Marriage deletion error:', error);
       }
 
       // Error haptic
@@ -639,7 +658,8 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
       // Show error toast after restoration animation
       setTimeout(() => {
-        Alert.alert('خطأ', error.message || 'فشل حذف الزواج. حاول مرة أخرى.');
+        const errorMessage = error.message || 'فشل حذف الزواج. حاول مرة أخرى.';
+        Alert.alert('خطأ في الحذف', errorMessage);
 
         // Clear error state after user acknowledges
         dispatch({
@@ -648,7 +668,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         });
       }, 500);
     }
-  }, [state.marriageToDelete, dispatch, refreshProfile, onDataChanged, person.id]);
+  }, [state.marriageToDelete, dispatch, refreshProfile, onDataChanged, person.id, canEditFamily]);
 
   const cancelDeleteMarriage = useCallback(() => {
     dispatch({
@@ -1445,7 +1465,7 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
 
       <MarriageDeletionSheet
         visible={state.deletionSheetVisible}
-        spouseName={state.marriageToDelete?.spouse_profile?.name}
+        marriage={state.marriageToDelete}
         onConfirm={confirmDeleteMarriage}
         onCancel={cancelDeleteMarriage}
       />

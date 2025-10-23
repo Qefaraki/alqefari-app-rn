@@ -541,11 +541,11 @@ async function seedLocationData() {
   console.log('🌍 Starting location data seeding...\n');
 
   try {
-    // 1. Insert Saudi Arabia (parent for cities)
-    console.log('1️⃣ Inserting Saudi Arabia...');
+    // 1. Insert/Update Saudi Arabia (parent for cities) - UPSERT for idempotency
+    console.log('1️⃣ Inserting/Updating Saudi Arabia...');
     const { data: saudiData, error: saudiError } = await supabase
       .from('place_standards')
-      .insert({
+      .upsert({
         place_name: 'السعودية',
         place_name_en: 'Saudi Arabia',
         place_type: 'country',
@@ -553,16 +553,18 @@ async function seedLocationData() {
         region: 'saudi',
         display_order: 999,
         alternate_names: ['المملكة العربية السعودية', 'KSA'],
+      }, {
+        onConflict: 'place_name_en',
       })
       .select('id')
       .single();
 
     if (saudiError) throw saudiError;
     const saudiId = saudiData.id;
-    console.log(`✅ Saudi Arabia inserted (ID: ${saudiId})\n`);
+    console.log(`✅ Saudi Arabia processed (ID: ${saudiId})\n`);
 
-    // 2. Insert Saudi cities
-    console.log('2️⃣ Inserting Saudi cities...');
+    // 2. Insert/Update Saudi cities - UPSERT for idempotency
+    console.log('2️⃣ Inserting/Updating Saudi cities...');
     const cityBatch = SAUDI_CITIES_TOP.map((city) => ({
       place_name: city.ar,
       place_name_en: city.en,
@@ -578,78 +580,98 @@ async function seedLocationData() {
 
     const { error: citiesError } = await supabase
       .from('place_standards')
-      .insert(cityBatch);
+      .upsert(cityBatch, {
+        onConflict: 'place_name_en',
+      });
 
     if (citiesError) throw citiesError;
-    console.log(`✅ ${SAUDI_CITIES_TOP.length} Saudi cities inserted\n`);
+    console.log(`✅ ${SAUDI_CITIES_TOP.length} Saudi cities processed\n`);
 
-    // 3. Insert Gulf countries
-    console.log('3️⃣ Inserting Gulf countries...');
-    for (const country of GULF_COUNTRIES) {
-      const { error } = await supabase.from('place_standards').insert({
-        place_name: country.ar,
-        place_name_en: country.en,
-        place_type: 'country',
-        country_code: country.code,
-        region: 'gulf',
-        display_order: country.order,
-        alternate_names: country.alternates || [],
+    // 3. Insert/Update Gulf countries - UPSERT for idempotency
+    console.log('3️⃣ Inserting/Updating Gulf countries...');
+    const gulfBatch = GULF_COUNTRIES.map(country => ({
+      place_name: country.ar,
+      place_name_en: country.en,
+      place_type: 'country',
+      country_code: country.code,
+      region: 'gulf',
+      display_order: country.order,
+      alternate_names: country.alternates || [],
+    }));
+    const { error: gulfError } = await supabase
+      .from('place_standards')
+      .upsert(gulfBatch, {
+        onConflict: 'place_name_en',
       });
-      if (error) throw error;
+    if (gulfError) throw gulfError;
+    for (const country of GULF_COUNTRIES) {
       console.log(`✅ ${country.en}`);
     }
     console.log();
 
-    // 4. Insert Arab countries
-    console.log('4️⃣ Inserting Arab countries...');
-    for (const country of ARAB_COUNTRIES) {
-      const { error } = await supabase.from('place_standards').insert({
-        place_name: country.ar,
-        place_name_en: country.en,
-        place_type: 'country',
-        country_code: country.code,
-        region: 'arab',
-        display_order: country.order,
-        alternate_names: country.alternates || [],
+    // 4. Insert/Update Arab countries - UPSERT for idempotency
+    console.log('4️⃣ Inserting/Updating Arab countries...');
+    const arabBatch = ARAB_COUNTRIES.map(country => ({
+      place_name: country.ar,
+      place_name_en: country.en,
+      place_type: 'country',
+      country_code: country.code,
+      region: 'arab',
+      display_order: country.order,
+      alternate_names: country.alternates || [],
+    }));
+    const { error: arabError } = await supabase
+      .from('place_standards')
+      .upsert(arabBatch, {
+        onConflict: 'place_name_en',
       });
-      if (error) throw error;
+    if (arabError) throw arabError;
+    for (const country of ARAB_COUNTRIES) {
       const note = country.code === 'PS' ? ' (فلسطين - NOT Israel)' : '';
       console.log(`✅ ${country.en}${note}`);
     }
     console.log();
 
-    // 5. Insert Western countries
-    console.log('5️⃣ Inserting Western education destinations...');
-    for (const country of WESTERN_COUNTRIES) {
-      const { error } = await supabase.from('place_standards').insert({
-        place_name: country.ar,
-        place_name_en: country.en,
-        place_type: 'country',
-        country_code: country.code,
-        region: 'western',
-        display_order: country.order,
-        alternate_names: country.alternates || [],
+    // 5. Insert/Update Western countries - UPSERT for idempotency
+    console.log('5️⃣ Inserting/Updating Western education destinations...');
+    const westernBatch = WESTERN_COUNTRIES.map(country => ({
+      place_name: country.ar,
+      place_name_en: country.en,
+      place_type: 'country',
+      country_code: country.code,
+      region: 'western',
+      display_order: country.order,
+      alternate_names: country.alternates || [],
+    }));
+    const { error: westernError } = await supabase
+      .from('place_standards')
+      .upsert(westernBatch, {
+        onConflict: 'place_name_en',
       });
-      if (error) throw error;
+    if (westernError) throw westernError;
+    for (const country of WESTERN_COUNTRIES) {
       console.log(`✅ ${country.en}`);
     }
     console.log();
 
-    // 6. Insert other countries
-    console.log('6️⃣ Inserting other countries...');
-    for (const country of OTHER_COUNTRIES) {
-      const { error } = await supabase.from('place_standards').insert({
-        place_name: country.ar,
-        place_name_en: country.en,
-        place_type: 'country',
-        country_code: country.code,
-        region: 'other',
-        display_order: country.order,
-        alternate_names: country.alternates || [],
+    // 6. Insert/Update other countries - UPSERT for idempotency
+    console.log('6️⃣ Inserting/Updating other countries...');
+    const otherBatch = OTHER_COUNTRIES.map(country => ({
+      place_name: country.ar,
+      place_name_en: country.en,
+      place_type: 'country',
+      country_code: country.code,
+      region: 'other',
+      display_order: country.order,
+      alternate_names: country.alternates || [],
+    }));
+    const { error: otherError } = await supabase
+      .from('place_standards')
+      .upsert(otherBatch, {
+        onConflict: 'place_name_en',
       });
-      if (error) throw error;
-    }
-    console.log(`✅ ${OTHER_COUNTRIES.length} other countries inserted\n`);
+    if (otherError) throw otherError;
+    console.log(`✅ ${OTHER_COUNTRIES.length} other countries processed\n`);
 
     console.log('🎉 Seeding complete!');
     console.log(

@@ -1,17 +1,136 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import tokens from '../../ui/tokens';
+import { supabase } from '../../../services/supabase';
 
 /**
  * MarriageDeletionSheet
  *
- * Simple iOS-style confirmation sheet for marriage deletion.
- * Clean design with clear warning - no technical details.
+ * Enhanced confirmation sheet for marriage deletion with real-time consequences.
+ *
+ * Fetches actual data to show:
+ * - Marriage type (cousin vs Munasib)
+ * - Whether spouse profile will be deleted
+ * - How many children will be affected
+ * - Clear, accurate warnings
  */
-const MarriageDeletionSheet = ({ visible, spouseName, onConfirm, onCancel }) => {
+const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
+  const [loading, setLoading] = useState(true);
+  const [deletionInfo, setDeletionInfo] = useState(null);
+  const [error, setError] = useState(null);
+
+  // Fetch deletion consequences when sheet opens
+  useEffect(() => {
+    if (visible && marriage?.spouse_profile) {
+      fetchDeletionInfo();
+    } else {
+      setLoading(false);
+      setDeletionInfo(null);
+      setError(null);
+    }
+  }, [visible, marriage]);
+
+  const fetchDeletionInfo = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const spouse = marriage.spouse_profile;
+      const spouseId = spouse.id;
+
+      if (!spouseId) {
+        throw new Error('بيانات الزوج/الزوجة غير متوفرة');
+      }
+
+      // 1. Determine if cousin marriage (Al-Qefari family member)
+      const isCousinMarriage = spouse.hid !== null && spouse.hid?.trim() !== '';
+
+      // 2. Count ALL children who will lose parent reference
+      // Important: Count ALL children with this parent, not just from this marriage
+      const parentColumn = spouse.gender === 'male' ? 'father_id' : 'mother_id';
+
+      const { count: affectedChildren, error: childrenError } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq(parentColumn, spouseId)
+        .is('deleted_at', null);
+
+      if (childrenError) throw childrenError;
+
+      // 3. For Munasib only: Check if spouse has other marriages
+      let otherMarriagesCount = 0;
+      let willDeleteProfile = false;
+
+      if (!isCousinMarriage) {
+        const { count, error: marriageError } = await supabase
+          .from('marriages')
+          .select('id', { count: 'exact', head: true })
+          .or(`husband_id.eq.${spouseId},wife_id.eq.${spouseId}`)
+          .neq('id', marriage.marriage_id)
+          .is('deleted_at', null);
+
+        if (marriageError) throw marriageError;
+
+        otherMarriagesCount = count || 0;
+        willDeleteProfile = otherMarriagesCount === 0;
+      }
+
+      setDeletionInfo({
+        isCousinMarriage,
+        affectedChildren: affectedChildren || 0,
+        willDeleteProfile,
+        otherMarriagesCount,
+        spouseName: spouse.name,
+        spouseGender: spouse.gender,
+      });
+    } catch (err) {
+      if (__DEV__) {
+        console.error('[MarriageDeletionSheet] Error fetching deletion info:', err);
+      }
+      setError('فشل تحميل معلومات الحذف. يرجى المحاولة مرة أخرى.');
+      setDeletionInfo(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getWarningText = () => {
+    if (!deletionInfo) return '';
+
+    const { isCousinMarriage, willDeleteProfile, affectedChildren, spouseName } = deletionInfo;
+
+    const warnings = [];
+
+    // Marriage type warning
+    if (isCousinMarriage) {
+      warnings.push(`الزواج سيتم حذفه. ملف ${spouseName} سيبقى في الشجرة (زواج قريب).`);
+    } else if (willDeleteProfile) {
+      warnings.push(`الزواج وملف ${spouseName} سيتم حذفهما معاً من الشجرة.`);
+    } else {
+      warnings.push(
+        `الزواج سيتم حذفه فقط. ملف ${spouseName} سيبقى (لديه زيجات أخرى).`
+      );
+    }
+
+    // Children warning
+    if (affectedChildren > 0) {
+      const childrenLabel =
+        affectedChildren === 1
+          ? 'طفل واحد'
+          : affectedChildren === 2
+          ? 'طفلين'
+          : `${affectedChildren} أطفال`;
+
+      const parentLabel = deletionInfo.spouseGender === 'male' ? 'الأب' : 'الأم';
+      warnings.push(`سيتم إزالة رابط ${parentLabel} من ${childrenLabel}.`);
+    }
+
+    return warnings.join('\n\n');
+  };
+
   const handleConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onConfirm();
@@ -42,41 +161,70 @@ const MarriageDeletionSheet = ({ visible, spouseName, onConfirm, onCancel }) => 
           {/* Warning Icon */}
           <View style={styles.iconContainer}>
             <Ionicons
-              name="warning"
+              name="trash-outline"
               size={48}
               color={tokens.colors.najdi.crimson}
             />
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>هل أنت متأكد؟</Text>
+          <Text style={styles.title}>حذف زواج خاطئ</Text>
 
-          {/* Spouse Name */}
-          {spouseName && (
-            <Text style={styles.spouseName}>حذف الزواج مع {spouseName}</Text>
+          {/* Content: Loading, Error, or Data */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
+              <Text style={styles.loadingText}>جارٍ تحميل معلومات الحذف...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={24}
+                color={tokens.colors.najdi.crimson}
+              />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : deletionInfo ? (
+            <View style={styles.contentContainer}>
+              {/* Warning Box */}
+              <View style={styles.warningBox}>
+                <Ionicons
+                  name="warning-outline"
+                  size={20}
+                  color={tokens.colors.najdi.crimson}
+                />
+                <Text style={styles.warningText}>{getWarningText()}</Text>
+              </View>
+
+              {/* Permanent Warning */}
+              <Text style={styles.permanentWarning}>
+                لا يمكن التراجع عن هذا الإجراء.
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.errorText}>بيانات الزواج غير متوفرة</Text>
           )}
-
-          {/* Warning Message */}
-          <Text style={styles.warningText}>
-            هذا الإجراء لا يمكن التراجع عنه
-          </Text>
 
           {/* Action Buttons */}
           <View style={styles.actions}>
             <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleConfirm}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.deleteButtonText}>حذف</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
               style={styles.cancelButton}
               onPress={handleCancel}
               activeOpacity={0.6}
+              disabled={loading}
             >
               <Text style={styles.cancelButtonText}>إلغاء</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.deleteButton, (loading || error) && styles.deleteButtonDisabled]}
+              onPress={handleConfirm}
+              activeOpacity={0.8}
+              disabled={loading || !!error}
+            >
+              <Ionicons name="trash-outline" size={18} color={tokens.colors.surface} />
+              <Text style={styles.deleteButtonText}>حذف الزواج</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -124,24 +272,62 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: tokens.spacing.xs,
   },
-  spouseName: {
-    fontSize: 17,
-    fontWeight: '600',
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: tokens.spacing.xl,
+    gap: tokens.spacing.md,
+  },
+  loadingText: {
+    fontSize: 15,
     color: tokens.colors.najdi.textMuted,
-    textAlign: 'center',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.lg,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 15,
+    color: tokens.colors.najdi.text,
+    lineHeight: 22,
+  },
+  contentContainer: {
+    gap: tokens.spacing.lg,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: tokens.spacing.sm,
+    padding: tokens.spacing.md,
+    backgroundColor: tokens.colors.najdi.background,
+    borderRadius: tokens.radii.lg,
+    borderWidth: 1,
+    borderColor: tokens.colors.najdi.crimson + '33',
   },
   warningText: {
+    flex: 1,
     fontSize: 15,
-    fontWeight: '500',
+    color: tokens.colors.najdi.text,
+    lineHeight: 22,
+  },
+  permanentWarning: {
+    fontSize: 14,
+    fontWeight: '600',
     color: tokens.colors.najdi.crimson,
     textAlign: 'center',
-    marginBottom: tokens.spacing.sm,
   },
   actions: {
-    gap: tokens.spacing.sm,
-    marginTop: tokens.spacing.sm,
+    flexDirection: 'row',
+    gap: tokens.spacing.md,
   },
   deleteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: tokens.spacing.xs,
     backgroundColor: tokens.colors.najdi.crimson,
     borderRadius: tokens.radii.lg,
     paddingVertical: 16,
@@ -155,18 +341,24 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
   deleteButtonText: {
     fontSize: 17,
     fontWeight: '700',
     color: tokens.colors.surface,
   },
   cancelButton: {
+    flex: 1,
     backgroundColor: 'transparent',
     borderRadius: tokens.radii.lg,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+    borderWidth: 1,
+    borderColor: tokens.colors.divider,
   },
   cancelButtonText: {
     fontSize: 17,
