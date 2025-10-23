@@ -48,7 +48,7 @@ const SearchResultCard = ({
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onPress();
+    onPress(item);
   };
 
   return (
