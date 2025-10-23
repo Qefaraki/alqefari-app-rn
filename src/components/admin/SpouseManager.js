@@ -536,6 +536,8 @@ SpouseManager.defaultProps = {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: tokens.colors.najdi.background,
+    flex: 0, // Wrap content instead of expanding to fill modal
+    alignSelf: 'stretch', // Use full width
   },
   header: {
     flexDirection: "row",
