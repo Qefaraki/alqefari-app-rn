@@ -90,6 +90,80 @@ jest.mock('@expo/vector-icons', () => ({
   Feather: 'Feather',
 }));
 
+// Mock Reanimated
+jest.mock('react-native-reanimated', () => {
+  const Reanimated = require('react-native-reanimated/mock');
+  Reanimated.default.call = () => {};
+  return Reanimated;
+});
+
+// Mock Gesture Handler
+jest.mock('react-native-gesture-handler', () => {
+  const View = require('react-native').View;
+  return {
+    GestureDetector: View,
+    Gesture: {
+      Pan: () => ({}),
+      Pinch: () => ({}),
+      Tap: () => ({}),
+      Simultaneous: (...args) => ({}),
+    },
+    GestureHandlerRootView: View,
+  };
+});
+
+// Mock Skia (Phase 2 - TreeView component tests)
+jest.mock('@shopify/react-native-skia', () => ({
+  Canvas: 'Canvas',
+  Group: 'Group',
+  Rect: 'Rect',
+  RoundedRect: 'RoundedRect',
+  Circle: 'Circle',
+  Line: 'Line',
+  Path: 'Path',
+  Image: 'SkiaImage',
+  Text: 'SkiaText',
+  Paragraph: 'Paragraph',
+  Paint: 'Paint',
+  ColorMatrix: 'ColorMatrix',
+  Blur: 'Blur',
+  Shadow: 'Shadow',
+  Mask: 'Mask',
+  Box: 'Box',
+  BoxShadow: 'BoxShadow',
+  Skia: {
+    Color: jest.fn((color) => color),
+    Font: jest.fn(() => ({})),
+    Paint: jest.fn(() => ({})),
+    Path: {
+      Make: jest.fn(() => ({
+        moveTo: jest.fn(),
+        lineTo: jest.fn(),
+        close: jest.fn(),
+      })),
+    },
+    ParagraphBuilder: {
+      Make: jest.fn(() => ({
+        pushStyle: jest.fn(),
+        addText: jest.fn(),
+        build: jest.fn(() => ({
+          layout: jest.fn(),
+          getMaxWidth: jest.fn(() => 100),
+          getHeight: jest.fn(() => 20),
+        })),
+      })),
+    },
+  },
+  useImage: jest.fn(() => null),
+  useFont: jest.fn(() => null),
+  vec: jest.fn((x, y) => ({ x, y })),
+  rect: jest.fn((x, y, width, height) => ({ x, y, width, height })),
+  rrect: jest.fn(() => ({})),
+  listFontFamilies: jest.fn(() => []),
+  PaintStyle: { Fill: 0, Stroke: 1 },
+  CornerPathEffect: 'CornerPathEffect',
+}));
+
 // Suppress console warnings in tests
 const originalWarn = console.warn;
 const originalError = console.error;
