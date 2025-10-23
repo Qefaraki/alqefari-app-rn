@@ -14,7 +14,9 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  withSequence,
 } from "react-native-reanimated";
+import * as Haptics from 'expo-haptics';
 import PropTypes from "prop-types";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../services/supabase";
@@ -28,7 +30,7 @@ const ANIMATION = {
   INPUT_FOCUS_DELAY: 60,
 
   // Expansion animation
-  EXPAND_HEIGHT: 120, // 60px input + 48px hint box + 12px safety margin
+  EXPAND_HEIGHT: 124, // 64px input + 48px hint box + 12px safety margin
   EXPAND_SPRING: { damping: 18, stiffness: 220 },
   EXPAND_OPACITY_DURATION: 180,
 
@@ -38,6 +40,9 @@ const ANIMATION = {
 
   // State reset delay (must match or exceed collapse animation)
   STATE_RESET_DELAY: 140,
+
+  // Shake animation for empty submit
+  SHAKE_DURATION: 50,
 };
 
 export default function InlineSpouseAdder({
@@ -55,6 +60,7 @@ export default function InlineSpouseAdder({
   // Reanimated shared values
   const heightSV = useSharedValue(0);
   const opacitySV = useSharedValue(0);
+  const shakeSV = useSharedValue(0);
   const inputRef = useRef(null);
   const collapseTimeoutRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -114,13 +120,27 @@ export default function InlineSpouseAdder({
     collapseTimeoutRef.current = setTimeout(() => {
       setIsExpanded(false);
       setSpouseName("");
+      shakeSV.value = 0;
       collapseTimeoutRef.current = null;
     }, ANIMATION.STATE_RESET_DELAY);
+  };
+
+  const shakeInput = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    shakeSV.value = withSequence(
+      withTiming(-8, { duration: ANIMATION.SHAKE_DURATION }),
+      withTiming(8, { duration: ANIMATION.SHAKE_DURATION }),
+      withTiming(-8, { duration: ANIMATION.SHAKE_DURATION }),
+      withTiming(0, { duration: ANIMATION.SHAKE_DURATION })
+    );
   };
 
   const handleSave = async () => {
     const trimmedName = spouseName.trim();
     if (!trimmedName) return;
+
+    // Haptic feedback for primary action
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     if (__DEV__) {
       console.log('[InlineSpouseAdder] handleSave called with name:', trimmedName);
@@ -319,17 +339,26 @@ export default function InlineSpouseAdder({
   };
 
   const handleCancel = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     collapse();
     if (onCancel) onCancel();
   };
 
   const handleSubmit = () => {
-    if (spouseName.trim()) handleSave();
+    if (spouseName.trim()) {
+      handleSave();
+    } else {
+      shakeInput();
+    }
   };
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: heightSV.value,
     opacity: opacitySV.value,
+  }));
+
+  const inputRowAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeSV.value }],
   }));
 
   if (!isExpanded && !visible) return null;
@@ -345,8 +374,8 @@ export default function InlineSpouseAdder({
       ) : null}
 
       {/* Inline Input */}
-      <Animated.View style={[styles.container, animatedStyle]}>
-        <View style={styles.inputRow}>
+      <Animated.View style={[styles.container, animatedStyle, loading && { opacity: 0.6 }]}>
+        <Animated.View style={[styles.inputRow, inputRowAnimatedStyle]}>
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={handleCancel}
@@ -364,9 +393,9 @@ export default function InlineSpouseAdder({
             style={styles.input}
             value={spouseName}
             onChangeText={setSpouseName}
-            placeholder="مثال: مريم محمد علي السعوي"
+            placeholder={person?.gender === 'male' ? "اسم الزوجة الكامل" : "اسم الزوج الكامل"}
             accessibilityLabel="الاسم الكامل"
-            placeholderTextColor={tokens.colors.najdi.textMuted}
+            placeholderTextColor={tokens.colors.najdi.textMuted + "80"}
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
             textAlign="right"
@@ -382,16 +411,13 @@ export default function InlineSpouseAdder({
             />
           ) : (
             <TouchableOpacity
-              style={[
-                styles.saveButton,
-                (!spouseName.trim() || loading) && styles.saveButtonDisabled,
-              ]}
+              style={styles.saveButton}
               onPress={handleSave}
               disabled={!spouseName.trim() || loading}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons
-                name="checkmark-circle"
+                name="add-circle"
                 size={24}
                 color={
                   spouseName.trim()
@@ -401,13 +427,15 @@ export default function InlineSpouseAdder({
               />
             </TouchableOpacity>
           )}
-        </View>
+        </Animated.View>
 
         {/* Surname Hint */}
         <View style={styles.hintBox}>
-          <Ionicons name="information-circle-outline" size={16} color={tokens.colors.najdi.textMuted} />
+          <View style={{ marginTop: 1 }}>
+            <Ionicons name="information-circle-outline" size={16} color={tokens.colors.najdi.textMuted} />
+          </View>
           <Text style={styles.hintText}>
-            لا تنسَ كتابة اسم العائلة • مثال: السعوي، القفاري
+            لا تنسَ كتابة اسم العائلة • مثال: مريم محمد علي السعوي
           </Text>
         </View>
       </Animated.View>
@@ -468,7 +496,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    height: 60,
+    height: 64,
   },
   input: {
     flex: 1,
@@ -493,7 +521,9 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginTop: 8,
+    marginTop: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: tokens.colors.najdi.container + "40",
   },
   hintText: {
     flex: 1,
