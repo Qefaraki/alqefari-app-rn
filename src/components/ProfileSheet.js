@@ -1209,12 +1209,15 @@ const ProfileSheet = ({ editMode = false }) => {
 
               {/* Metrics row inside hero */}
               <View style={styles.metricsGrid}>
-                <GlassMetricPill
-                  value={getArabicOrdinal(person.generation)}
-                  label="الجيل"
-                  onPress={scrollToFamily}
-                  style={[styles.pill, styles.metricItem]}
-                />
+                {/* Generation pill - only show for Al-Qefari family members (hid !== null) */}
+                {person?.generation && person?.hid !== null && (
+                  <GlassMetricPill
+                    value={getArabicOrdinal(person.generation)}
+                    label="الجيل"
+                    onPress={scrollToFamily}
+                    style={[styles.pill, styles.metricItem]}
+                  />
+                )}
                 {children.length > 0 && (
                   <GlassMetricPill
                     value={children.length}

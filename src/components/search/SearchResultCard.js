@@ -202,15 +202,17 @@ const SearchResultCard = ({
 
           {/* Rich Metadata Row */}
           <View style={styles.metadataRow}>
-            {/* Generation with Icon */}
-            <View style={styles.metaTag}>
-              <View style={styles.genIcon}>
-                <Text style={styles.genIconText}>ج</Text>
+            {/* Generation with Icon - only show for Al-Qefari family members (hid !== null) */}
+            {item?.generation && item?.hid !== null && (
+              <View style={styles.metaTag}>
+                <View style={styles.genIcon}>
+                  <Text style={styles.genIconText}>ج</Text>
+                </View>
+                <Text style={styles.metaLabel}>
+                  {toArabicNumerals(item?.generation?.toString() || "0")}
+                </Text>
               </View>
-              <Text style={styles.metaLabel}>
-                {toArabicNumerals(item?.generation?.toString() || "0")}
-              </Text>
-            </View>
+            )}
 
             {/* Birth Year */}
             {item?.birth_year_hijri && (

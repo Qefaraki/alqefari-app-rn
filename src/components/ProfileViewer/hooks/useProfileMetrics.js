@@ -133,9 +133,10 @@ export const useProfileMetrics = (person) => {
   }, [dataSource, father, person]);
 
   const generationLabel = useMemo(() => {
-    if (!person?.generation) return null;
+    // Hide generation for Munasib (external spouses) - they have hid === null
+    if (!person?.generation || person?.hid === null) return null;
     return getArabicOrdinal(person.generation);
-  }, [person?.generation]);
+  }, [person?.generation, person?.hid]);
 
   return {
     father,
