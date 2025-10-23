@@ -49,6 +49,8 @@ module.exports = [
     rules: {
       // ESLint recommended rules
       ...js.configs.recommended.rules,
+      // React plugin rules for JSX usage detection
+      ...react.configs.recommended.rules,
 
       // Enforce code style rules from CLAUDE.md
       'no-console': 'error', // NO console.log in final code
@@ -60,6 +62,7 @@ module.exports = [
       // React specific
       'react/prop-types': 'off', // We're not using PropTypes
       'react/react-in-jsx-scope': 'off', // Not needed in React Native
+      'react/display-name': 'off', // Common in React Native
 
       // React Native specific
       'react-native/no-unused-styles': 'error',

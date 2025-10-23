@@ -50,12 +50,15 @@ const ToggleGroup = ({ value, options, onChange }) => {
     <View style={styles.toggleContainer}>
       {options.map((option, index) => {
         const isActive = option.value === value;
+        const shouldSpanFull =
+          options.length % 2 !== 0 && index === options.length - 1;
 
         return (
           <Animated.View
             key={option.value}
             style={[
               styles.toggleWrapper,
+              shouldSpanFull && styles.toggleWrapperFull,
               { transform: [{ scale: scaleAnimsRef.current[index] }] },
             ]}
           >
@@ -65,13 +68,15 @@ const ToggleGroup = ({ value, options, onChange }) => {
                 isActive && styles.toggleChipActive,
               ]}
               onPress={() => handlePress(option, index)}
-              activeOpacity={0.8}
+              activeOpacity={0.9}
             >
               <Animated.Text
                 style={[
                   styles.toggleLabel,
                   isActive && styles.toggleLabelActive,
                 ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {option.label}
               </Animated.Text>
@@ -127,10 +132,7 @@ const TabGeneral = ({ form, updateField }) => {
   return (
     <View style={styles.container}>
       <View style={styles.stack}>
-        <FormSection
-          title="الصورة"
-          description="استخدم صورة واضحة لسهولة تعرف العائلة عليك"
-        >
+        <FormSection>
           <FormField>
             <PhotoEditor
               value={draft?.photo_url || ''}
@@ -142,10 +144,7 @@ const TabGeneral = ({ form, updateField }) => {
           </FormField>
         </FormSection>
 
-        <FormSection
-          title="البيانات الأساسية"
-          description="اجعل الاسم والكنية متسقين مع السجلات الرسمية."
-        >
+        <FormSection>
           <FormField label="الاسم الكامل" required>
             <NameEditor
               value={draft?.name || ''}
@@ -162,7 +161,7 @@ const TabGeneral = ({ form, updateField }) => {
               value={kunyaValue}
               onChangeText={handleKunyaChange}
               placeholder="أبو محمد"
-              placeholderTextColor={`${tokens.colors.najdi.textMuted  }80`}
+              placeholderTextColor={`${tokens.colors.najdi.textMuted}80`}
             />
           </FormField>
 
@@ -179,7 +178,7 @@ const TabGeneral = ({ form, updateField }) => {
           </FormField>
         </FormSection>
 
-        <FormSection title="السمات">
+        <FormSection spacing="sm">
           <FormField label="الجنس">
             <ToggleGroup
               value={draft?.gender || 'male'}
@@ -191,14 +190,7 @@ const TabGeneral = ({ form, updateField }) => {
             />
           </FormField>
 
-          <FormField
-            label="الحالة"
-            hint={
-              draft?.status === 'deceased'
-                ? 'سيتم إظهار تاريخ الوفاة والخصائص المتعلقة به.'
-                : 'يمكن تغيير الحالة لاحقًا.'
-            }
-          >
+          <FormField label="الحالة">
             <ToggleGroup
               value={draft?.status || 'alive'}
               onChange={(value) => updateField('status', value)}
@@ -210,7 +202,7 @@ const TabGeneral = ({ form, updateField }) => {
           </FormField>
         </FormSection>
 
-        <FormSection title="التواريخ">
+        <FormSection>
           <FormField label="تاريخ الميلاد">
             <DateEditor
               value={draft?.dob_data}
@@ -228,7 +220,7 @@ const TabGeneral = ({ form, updateField }) => {
           ) : null}
         </FormSection>
 
-        <FormSection title="الخصوصية">
+        <FormSection>
           <FormField
             label="عرض تاريخ الميلاد للعائلة"
             hint="يمكن لأفراد العائلة مشاهدة تاريخ الميلاد الكامل عند التفعيل."
@@ -286,7 +278,7 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.najdi.background,
     borderRadius: tokens.radii.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: `${tokens.colors.najdi.container  }50`,
+    borderColor: tokens.colors.najdi.container + '50',
     paddingHorizontal: tokens.spacing.md,
     paddingVertical: tokens.spacing.sm,
     fontSize: 16,
@@ -299,26 +291,31 @@ const styles = StyleSheet.create({
     gap: tokens.spacing.sm,
   },
   toggleWrapper: {
-    minWidth: 96,
+    flexBasis: '48%',
+    flexGrow: 1,
+  },
+  toggleWrapperFull: {
+    flexBasis: '100%',
   },
   toggleChip: {
+    minHeight: tokens.touchTarget.minimum,
     borderRadius: tokens.radii.md,
-    borderWidth: 1.5,
-    borderColor: `${tokens.colors.najdi.container  }70`,
-    paddingHorizontal: tokens.spacing.lg,
-    paddingVertical: tokens.spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '35',
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
     backgroundColor: tokens.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   toggleChipActive: {
     borderColor: tokens.colors.najdi.primary,
-    backgroundColor: `${tokens.colors.najdi.primary  }12`,
+    backgroundColor: tokens.colors.najdi.primary + '12',
   },
   toggleLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: tokens.colors.najdi.textMuted,
+    color: tokens.colors.najdi.text,
   },
   toggleLabelActive: {
     color: tokens.colors.najdi.primary,

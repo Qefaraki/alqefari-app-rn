@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -11,35 +11,21 @@ import {
   Dimensions,
   Easing,
   Image,
-  LayoutAnimation,
   Linking,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from "react-native";
-import BottomSheet, {
-  BottomSheetScrollView,
-  BottomSheetBackdrop,
-  useBottomSheetDynamicSnapPoints,
-} from "@gorhom/bottom-sheet";
+import BottomSheet from "@gorhom/bottom-sheet";
 import {
   useSharedValue,
   useAnimatedReaction,
-  runOnJS,
   runOnUI,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
-// Expo UI native components
-import { Host, HStack, Button as UIButton, Text as UIText, Spacer } from "@expo/ui/swift-ui";
-import { Host as AndroidHost, HStack as AndroidHStack, Button as AndroidButton, Text as AndroidText, Spacer as AndroidSpacer } from "@expo/ui/jetpack-compose";
 import { useTreeStore } from "../stores/useTreeStore";
 import {
   familyData,

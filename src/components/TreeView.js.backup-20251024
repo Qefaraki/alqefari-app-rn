@@ -150,9 +150,6 @@ import {
 // Phase 1 Day 4d - Import Arabic text rendering
 import { createArabicParagraph } from './TreeView/rendering/ArabicTextRenderer';
 
-// Phase 2 Day 10 - Import paragraph cache
-import { getCachedParagraph } from './TreeView/rendering/ParagraphCache';
-
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
@@ -282,14 +279,53 @@ try {
 // Phase 1 Day 4d: createArabicParagraph now imported from ./TreeView/rendering/ArabicTextRenderer
 // Removed inline implementation (lines 270-334)
 
-// Phase 2 Day 10: getCachedParagraph now imported from ParagraphCache.ts
-// Removed duplicate implementation (38 lines)
+// Paragraph cache with LRU eviction (Phase 1 Performance Optimization)
+const paragraphCache = new Map();
+const PARAGRAPH_CACHE_SIZE = 500;
+let paragraphCacheHits = 0;
+let paragraphCacheMisses = 0;
+
+// Memoized paragraph creation - checks cache first
+const getCachedParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
+  if (!text) return null;
+
+  // Create cache key from parameters
+  const key = `${text}-${fontWeight}-${fontSize}-${color}-${maxWidth}`;
+
+  // Check cache first
+  if (paragraphCache.has(key)) {
+    paragraphCacheHits++;
+    // Move to end (most recently used)
+    const paragraph = paragraphCache.get(key);
+    paragraphCache.delete(key);
+    paragraphCache.set(key, paragraph);
+    return paragraph;
+  }
+
+  // Cache miss - create new paragraph
+  paragraphCacheMisses++;
+  const paragraph = createArabicParagraph(text, fontWeight, fontSize, color, maxWidth);
+
+  if (paragraph) {
+    paragraphCache.set(key, paragraph);
+
+    // LRU eviction if cache exceeds size limit
+    if (paragraphCache.size > PARAGRAPH_CACHE_SIZE) {
+      const firstKey = paragraphCache.keys().next().value;
+      paragraphCache.delete(firstKey);
+    }
+  }
+
+  return paragraph;
+};
 
 // Image buckets for LOD
 // Phase 4: Removed 512px bucket (256px sufficient for 60px photos @ 3x retina = 180px)
 // 512px wastes memory (1MB vs 256KB decoded size per image)
 // IMAGE_BUCKETS now imported from utils (Day 4b)
-// selectBucket removed - use selectBucketWithHysteresis from ImageBuckets.ts
+const selectBucket = (pixelSize) => {
+  return IMAGE_BUCKETS.find((b) => b >= pixelSize) || DEFAULT_IMAGE_BUCKET;
+};
 
 const TreeView = ({
   setProfileEditMode,

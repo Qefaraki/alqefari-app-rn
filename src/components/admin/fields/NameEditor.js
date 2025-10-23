@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import tokens from "../../ui/tokens";
 
 const NameEditor = ({ value, onChange, placeholder, fontSize = 36, variant = "card" }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -179,8 +180,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   containerForm: {
-    backgroundColor: "#FFF",
+    backgroundColor: tokens.colors.najdi.background,
     borderRadius: 12,
+    borderColor: tokens.colors.najdi.container + "40",
   },
   innerContainer: {
     flexDirection: "row",
@@ -207,7 +209,9 @@ const styles = StyleSheet.create({
   inputForm: {
     fontSize: 18,
     fontWeight: "600",
+    color: tokens.colors.najdi.text,
     paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   invalidInput: {
     color: "#EF4444",

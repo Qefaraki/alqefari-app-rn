@@ -7,12 +7,12 @@ import {
   Animated,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import {
   PROFESSIONAL_TITLES,
   validateCustomTitle,
-  formatNameWithTitle,
 } from '../../../services/professionalTitleService';
 
 const TitleSelector = ({ value, customValue, onChange, personName }) => {
@@ -63,15 +63,6 @@ const TitleSelector = ({ value, customValue, onChange, personName }) => {
     outputRange: [0, 140],
   });
 
-  const previewName = formatNameWithTitle(
-    {
-      name: personName,
-      professional_title: selectedTitle,
-      title_abbreviation: customInput,
-    },
-    { maxLength: 40 }
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.optionsGrid}>
@@ -80,24 +71,28 @@ const TitleSelector = ({ value, customValue, onChange, personName }) => {
           return (
             <TouchableOpacity
               key={title.value}
-              style={[styles.optionChip, isActive && styles.optionChipActive]}
+              style={[
+                styles.optionChip,
+                isActive && styles.optionChipActive,
+                title.value === 'other' && styles.optionChipFull,
+              ]}
               onPress={() => handleTitleSelect(title.value)}
-              activeOpacity={0.8}
+              activeOpacity={0.9}
             >
-              <Text style={[styles.optionLabel, isActive && styles.optionLabelActive]}>
+              <Text
+                style={[
+                  styles.optionLabel,
+                  isActive && styles.optionLabelActive,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {title.label}
               </Text>
             </TouchableOpacity>
           );
         })}
       </View>
-
-      {selectedTitle && (
-        <View style={styles.preview}>
-          <Text style={styles.previewLabel}>سيظهر بجانب الاسم:</Text>
-          <Text style={styles.previewName}>{previewName}</Text>
-        </View>
-      )}
 
       <Animated.View
         style={[styles.otherContainer, { height: otherHeight }]}
@@ -125,42 +120,40 @@ const styles = StyleSheet.create({
   optionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: tokens.spacing.xs,
+    gap: tokens.spacing.sm,
   },
   optionChip: {
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderRadius: tokens.radii.sm,
-    borderWidth: 1.5,
-    borderColor: tokens.colors.najdi.container,
-    backgroundColor: tokens.colors.najdi.background,
+    flexBasis: '48%',
+    flexGrow: 1,
+    borderRadius: tokens.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: tokens.colors.najdi.container + '30',
+    backgroundColor: tokens.colors.surface,
+    paddingVertical: tokens.spacing.xs,
+    paddingHorizontal: tokens.spacing.sm,
+    minHeight: tokens.touchTarget.minimum,
+    justifyContent: 'center',
+  },
+  optionChipFull: {
+    flexBasis: '100%',
   },
   optionChipActive: {
     borderColor: tokens.colors.najdi.primary,
-    backgroundColor: `${tokens.colors.najdi.primary  }10`,
+    backgroundColor: tokens.colors.najdi.primary + '12',
+  },
+  chipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacing.xs,
   },
   optionLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: tokens.colors.najdi.textMuted,
+    color: tokens.colors.najdi.text,
   },
   optionLabelActive: {
     color: tokens.colors.najdi.primary,
-  },
-  preview: {
-    padding: tokens.spacing.md,
-    backgroundColor: `${tokens.colors.najdi.container  }20`,
-    borderRadius: tokens.radii.sm,
-    gap: tokens.spacing.xxs,
-  },
-  previewLabel: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
-  },
-  previewName: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
   },
   otherContainer: {
     overflow: 'hidden',

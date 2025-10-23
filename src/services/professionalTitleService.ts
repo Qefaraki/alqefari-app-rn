@@ -19,6 +19,7 @@ export interface ProfessionalTitle {
   value: ProfessionalTitleValue;
   label: string;
   abbrev: string | null;
+  hint?: string;
 }
 
 export interface ProfileWithTitle {
@@ -34,14 +35,46 @@ export interface ProfileWithTitle {
  * Note: 'mister' (أستاذ) has NO abbreviation - it's just a normal Mr.
  */
 export const PROFESSIONAL_TITLES: ProfessionalTitle[] = [
-  { value: 'doctor', label: 'دكتور', abbrev: 'د.' },
-  { value: 'prof_doctor', label: 'أستاذ دكتور', abbrev: 'أ.د.' },
-  { value: 'engineer', label: 'مهندس', abbrev: 'م.' },
-  { value: 'mister', label: 'أستاذ', abbrev: null }, // No abbreviation
-  { value: 'sheikh', label: 'الشيخ', abbrev: 'الشيخ' },
-  { value: 'major_general', label: 'اللواء', abbrev: 'اللواء' },
-  { value: 'brigadier', label: 'عميد', abbrev: 'عميد' },
-  { value: 'other', label: 'آخر (أدخل يدوياً)', abbrev: null },
+  {
+    value: 'mister',
+    label: 'أستاذ',
+    abbrev: null
+  },
+  {
+    value: 'prof_doctor',
+    label: 'أستاذ دكتور',
+    abbrev: 'أ.د.'
+  },
+  {
+    value: 'doctor',
+    label: 'دكتور',
+    abbrev: 'د.'
+  },
+  {
+    value: 'engineer',
+    label: 'مهندس',
+    abbrev: 'م.'
+  },
+  {
+    value: 'sheikh',
+    label: 'الشيخ',
+    abbrev: 'الشيخ'
+  },
+  {
+    value: 'major_general',
+    label: 'اللواء',
+    abbrev: 'اللواء'
+  },
+  {
+    value: 'brigadier',
+    label: 'عميد',
+    abbrev: 'عميد'
+  },
+  {
+    value: 'other',
+    label: 'لقب آخر',
+    abbrev: null
+  }
 ];
 
 /**
