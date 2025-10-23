@@ -6,15 +6,14 @@ import {
   Pressable,
   StyleSheet,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import Animated, {
-  FadeIn,
-} from "react-native-reanimated";
+import * as Haptics from "expo-haptics";
 import { toArabicNumerals } from "../../utils/dateUtils";
+import useDynamicTypography from "../../hooks/useDynamicTypography";
 
 /**
- * SearchResultCard - Simple reusable search result card
- * Used by both SearchModal and SpouseManager
+ * SearchResultCard - Original simple card with desert Sadu colors
+ * Used by both SearchModal and SearchBar
+ * Shows: name_chain, generation with desert color
  */
 const SearchResultCard = ({
   item,
@@ -22,127 +21,181 @@ const SearchResultCard = ({
   onPress,
 }) => {
   const initials = item.name ? item.name.charAt(0) : "؟";
+  const getTypography = useDynamicTypography();
+  const nameTypography = getTypography(16, 600);
+  const generationTypography = getTypography(13, 400);
+  const avatarTypography = getTypography(18, 600);
+  const isLast = index === 99; // Simplified, actual prop would be passed
+
+  // Premium desert palette - ultra-thin aesthetic
+  const getDesertColor = (index) => {
+    const desertPalette = [
+      "#A13333", // Najdi Crimson
+      "#D58C4A", // Desert Ochre
+      "#D1BBA3", // Camel Hair Beige
+      "#A13333CC", // Najdi Crimson 80%
+      "#D58C4ACC", // Desert Ochre 80%
+      "#D1BBA3CC", // Camel Hair Beige 80%
+      "#A1333399", // Najdi Crimson 60%
+      "#D58C4A99", // Desert Ochre 60%
+      "#D1BBA399", // Camel Hair Beige 60%
+      "#A13333", // Najdi Crimson (repeat)
+    ];
+    return desertPalette[index % desertPalette.length];
+  };
+
+  const desertColor = getDesertColor(index);
+
+  const handlePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
 
   return (
-    <Animated.View entering={FadeIn.delay(100)}>
-      <Pressable onPress={onPress}>
-        <View style={styles.resultCard}>
-          {/* Photo */}
-          <View style={styles.photoContainer}>
-            {item.photo_url ? (
-              <Image
-                source={{ uri: item.photo_url }}
-                style={styles.photo}
-                defaultSource={require("../../../assets/icon.png")}
-              />
-            ) : (
-              <View style={styles.photoPlaceholder}>
-                <Text style={styles.initials}>{initials}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Info */}
-          <View style={styles.infoContainer}>
-            <Text style={styles.primaryName}>{item.name}</Text>
-            <Text style={styles.nameChain} numberOfLines={2}>
-              {item.name_chain}
-            </Text>
-            <View style={styles.metaRow}>
-              {/* Generation Badge - only show for Al-Qefari members (hid !== null) */}
-              {item.generation && item?.hid !== null && (
-                <View style={styles.generationBadge}>
-                  <Text style={styles.generationText}>
-                    الجيل {toArabicNumerals(item.generation?.toString() || "0")}
-                  </Text>
-                </View>
-              )}
-              {item.birth_year_hijri && (
-                <Text style={styles.yearText}>
-                  {toArabicNumerals(item.birth_year_hijri.toString())} هـ
-                </Text>
-              )}
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.resultCard,
+        pressed && styles.resultCardPressed,
+      ]}
+    >
+      <View style={styles.cardContent}>
+        {/* Avatar - positioned on RIGHT for RTL */}
+        <View style={styles.avatarContainer}>
+          {item.photo_url ? (
+            <Image
+              source={{ uri: item.photo_url }}
+              style={styles.avatarPhoto}
+              defaultSource={require("../../../assets/icon.png")}
+            />
+          ) : (
+            <View
+              style={[
+                styles.avatarCircle,
+                {
+                  backgroundColor: desertColor,
+                },
+              ]}
+            >
+              <Text style={[styles.avatarLetter, avatarTypography]} allowFontScaling>
+                {initials}
+              </Text>
             </View>
-          </View>
-
-          {/* Arrow */}
-          <Ionicons name="chevron-forward" size={20} color="#8A8A8E" />
+          )}
         </View>
-      </Pressable>
-    </Animated.View>
+
+        {/* Text content - RTL aligned */}
+        <View style={styles.textContainer}>
+          {/* Show ONLY name_chain, no duplicate */}
+          <Text
+            style={[styles.nameText, nameTypography]}
+            allowFontScaling
+            numberOfLines={1}
+          >
+            {item.name_chain || item.name || "بدون اسم"}
+          </Text>
+          {/* Generation with desert color */}
+          <View style={styles.metaContainer}>
+            <Text
+              style={[styles.generationText, generationTypography, { color: desertColor }]}
+              allowFontScaling
+            >
+              الجيل {toArabicNumerals(item.generation?.toString() || "0")}
+            </Text>
+          </View>
+        </View>
+
+        {/* Chevron indicator on left edge */}
+        <View style={styles.chevronContainer}>
+          <Text style={styles.chevron} allowFontScaling={false}>
+            ‹
+          </Text>
+        </View>
+      </View>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   resultCard: {
-    flexDirection: "row",
+    backgroundColor: "transparent", // iOS list items are transparent
+    borderRadius: 0, // No radius for continuous list
+    marginBottom: 0, // No gaps between items
+    overflow: "hidden",
+    borderWidth: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(0,0,0,0.08)", // Subtle divider
+  },
+  resultCardPressed: {
+    backgroundColor: "#D1BBA310", // Subtle press state (Camel Hair 20%)
+    transform: [{ scale: 1 }], // No scale on press for iOS list
+  },
+  cardContent: {
+    flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
     alignItems: "center",
-    padding: 12,
-    marginBottom: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    paddingVertical: 11, // iOS list item standard
+    paddingLeft: 16, // iOS standard horizontal padding
+    paddingRight: 16,
+    minHeight: 44, // iOS touch target standard
   },
-  photoContainer: {
-    marginRight: 12,
+  // Avatar styling - on right side for RTL
+  avatarContainer: {
+    marginLeft: 0,
+    marginRight: 0,
   },
-  photo: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#F2F2F7",
+  avatarPhoto: {
+    width: 36, // iOS small avatar standard
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#D1BBA320", // Camel Hair Beige 20%
   },
-  photoPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#007AFF",
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  initials: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    fontFamily: "SF Arabic",
+  avatarLetter: {
+    color: "#F9F7F3", // Al-Jass White
+    textAlign: "center",
   },
-  infoContainer: {
+
+  // Text styling - uses full width with forced RTL
+  textContainer: {
     flex: 1,
+    justifyContent: "center",
+    paddingLeft: 8,
+    paddingRight: 12,
+    alignItems: "flex-start", // For proper RTL text alignment
   },
-  primaryName: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: "#000000",
-    marginBottom: 2,
+  nameText: {
+    color: "#242121", // Sadu Night
+    marginBottom: 3,
+    textAlign: "left", // For proper display with row-reverse
+    alignSelf: "stretch",
+    writingDirection: "rtl", // Force RTL writing direction
   },
-  nameChain: {
-    fontSize: 13,
-    color: "#8A8A8E",
-    fontFamily: "SF Arabic",
-    marginBottom: 4,
-    lineHeight: 18,
-  },
-  metaRow: {
+  metaContainer: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  generationBadge: {
-    backgroundColor: "#007AFF15",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginRight: 8,
+    alignSelf: "flex-start",
+    justifyContent: "flex-start",
   },
   generationText: {
-    fontSize: 11,
-    color: "#007AFF",
-    fontFamily: "SF Arabic",
-    fontWeight: "600",
+    opacity: 0.6,
+    textAlign: "left", // For proper display with row-reverse
+    writingDirection: "rtl", // Force RTL writing direction
   },
-  yearText: {
-    fontSize: 11,
-    color: "#8A8A8E",
-    fontFamily: "SF Arabic",
+  // Minimal chevron - on left edge
+  chevronContainer: {
+    paddingLeft: 6,
+  },
+  chevron: {
+    fontSize: 18,
+    color: "#24212140", // Sadu Night 25%
+    fontWeight: "300",
+    opacity: 0.5,
   },
 });
 
