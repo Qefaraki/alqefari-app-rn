@@ -46,6 +46,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   const [showTreeModal, setShowTreeModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTimer, setSearchTimer] = useState(null);
 
   // Get appropriate gender for spouse
   const spouseGender = person?.gender === "male" ? "female" : "male";
@@ -56,10 +57,11 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
   // Auto-trigger search when modal opens with prefilledName
   useEffect(() => {
     if (visible && prefilledName) {
-      // Pre-filled from inline adder: auto-submit to search
-      setFullName(prefilledName);
+      // Show only first name in search field (e.g., "نورة" not "نورة القفاري")
+      const firstNameOnly = prefilledName.trim().split(/\s+/)[0];
+      setFullName(firstNameOnly);
 
-      // Parse and search immediately (Al-Qefari family members only)
+      // Parse full name for search (need all parts for accurate matching)
       const parsed = familyNameService.parseFullName(prefilledName.trim(), spouseGender);
       setParsedData(parsed);
       performSearch(parsed);
@@ -74,7 +76,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     }
 
     try {
-      setLoading(true);
       const enhancedSearchService = require("../../services/enhancedSearchService").default;
 
       // Split query for name chain search
@@ -101,10 +102,28 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     } catch (err) {
       console.error("Search exception:", err);
       setSearchResults([]);
-    } finally {
-      setLoading(false);
     }
   }, [spouseGender]);
+
+  // Debounced search handler (300ms like SearchBar)
+  const handleSearchTextChange = useCallback((text) => {
+    setFullName(text);
+
+    // Clear previous timer
+    if (searchTimer) clearTimeout(searchTimer);
+
+    // If text cleared, clear results immediately
+    if (!text || text.trim().length === 0) {
+      setSearchResults([]);
+      return;
+    }
+
+    // Debounce search - wait 300ms after user stops typing
+    const timer = setTimeout(() => {
+      performLiveSearch(text);
+    }, 300);
+    setSearchTimer(timer);
+  }, [searchTimer, performLiveSearch]);
 
   // Handle SearchBar result selection
   const handleSearchBarSelect = (item) => {
@@ -488,19 +507,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
 
             {/* Conditional Content Based on Stage */}
             {stage === "SEARCH" ? (
-              loading ? (
-                /* Loading State - Use ScrollView */
-                <ScrollView contentContainerStyle={styles.stageContainer}>
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={tokens.colors.najdi.primary} />
-                    <Text style={styles.loadingText}>
-                      جاري البحث عن {parsedData?.firstName || ''}...
-                    </Text>
-                  </View>
-                </ScrollView>
-              ) : (
-                /* Search Results - FlatList with TextInput as header */
-                <FlatList
+              /* Search Results - FlatList with TextInput as header */
+              <FlatList
                   data={searchResults}
                   renderItem={({ item, index }) => (
                     <SearchResultCard
@@ -526,11 +534,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
                         />
                         <TextInput
                           value={fullName}
-                          onChangeText={(text) => {
-                            setFullName(text);
-                            performLiveSearch(text);
-                          }}
-                          placeholder={`ابحث عن ${spouseTitle} من القفاري`}
+                          onChangeText={handleSearchTextChange}
+                          placeholder={`ابحث عن ${spouseTitle}`}
                           placeholderTextColor={tokens.colors.najdi.textMuted}
                           style={styles.textInput}
                           returnKeyType="search"
@@ -562,7 +567,6 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
                     ) : null
                   }
                 />
-              )
             ) : (
               /* CREATE/SUCCESS Stages - Use ScrollView */
               <ScrollView
@@ -645,11 +649,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF", // Pure white (matches SearchBar)
-    borderRadius: tokens.radii.sm,
-    paddingHorizontal: tokens.spacing.md,
-    paddingVertical: tokens.spacing.sm,
-    borderWidth: 1,
-    borderColor: tokens.colors.najdi.text + "20",
+    borderRadius: 22, // iOS search pill radius (matches SearchBar)
+    paddingHorizontal: 16, // iOS standard padding
+    height: 44, // iOS standard height
+    borderWidth: 0, // No border (matches SearchBar)
   },
   inputIcon: {
     marginRight: tokens.spacing.sm,
