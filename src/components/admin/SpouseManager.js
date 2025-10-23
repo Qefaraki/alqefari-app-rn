@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import familyNameService from "../../services/familyNameService";
 import { getMunasibValue, validateMarriageProfiles, getMarriageType } from "../../utils/marriageValidation";
 import tokens from "../ui/tokens";
 import SearchResultCard from "../search/SearchResultCard";
-import SearchBar from "../SearchBar";
 import BranchTreeModal from "../BranchTreeModal";
 
 /**
@@ -66,6 +65,65 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       performSearch(parsed);
     }
   }, [visible, prefilledName]);
+
+  // Live search with gender & marriage status filtering
+  const performLiveSearch = useCallback(async (searchText) => {
+    if (!searchText || searchText.length < 1) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const enhancedSearchService = require("../../services/enhancedSearchService").default;
+
+      // Split query for name chain search
+      const names = searchText
+        .trim()
+        .split(/\s+/)
+        .filter((name) => name.length > 0);
+
+      // Use search service
+      const { data, error } = await enhancedSearchService.searchWithFuzzyMatching(names, {
+        limit: 20,
+      });
+
+      if (error) {
+        console.error("❌ Search error:", error);
+        setSearchResults([]);
+      } else {
+        // Filter results: correct gender + not married + not deleted
+        const filtered = (data || []).filter(
+          (profile) => profile.gender === spouseGender && !profile.currently_married && !profile.deleted_at
+        );
+        setSearchResults(filtered);
+      }
+    } catch (err) {
+      console.error("Search exception:", err);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [spouseGender]);
+
+  // Handle SearchBar result selection
+  const handleSearchBarSelect = (item) => {
+    if (!item) return;
+
+    // Validate selected profile is unmarried and correct gender
+    if (item.gender !== spouseGender) {
+      Alert.alert("خطأ", `يجب أن يكون ${spouseTitle} من نفس النوع الاجتماعي`);
+      return;
+    }
+
+    if (item.currently_married) {
+      Alert.alert("خطأ", `${item.name_chain} متزوج بالفعل`);
+      return;
+    }
+
+    // Handle selected spouse
+    handleSelectSpouse(item);
+  };
 
   // Handle name submission with validation and smart detection
   const handleSubmit = async () => {
@@ -448,7 +506,7 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
                     <SearchResultCard
                       item={item}
                       index={index}
-                      onPress={() => handleSelectSpouse(item)}
+                      onPress={() => handleSearchBarSelect(item)}
                       showRelevanceScore={false}
                       enableAnimation={false}
                     />
@@ -468,17 +526,22 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
                         />
                         <TextInput
                           value={fullName}
-                          onChangeText={setFullName}
-                          placeholder={`ابحث عن ${spouseTitle} أو أدخل اسم جديد`}
+                          onChangeText={(text) => {
+                            setFullName(text);
+                            performLiveSearch(text);
+                          }}
+                          placeholder={`ابحث عن ${spouseTitle} من القفاري`}
                           placeholderTextColor={tokens.colors.najdi.textMuted}
                           style={styles.textInput}
-                          onSubmitEditing={handleSubmit}
                           returnKeyType="search"
                           autoCorrect={false}
                           autoCapitalize="none"
                         />
                         {fullName.length > 0 && (
-                          <TouchableOpacity onPress={() => setFullName("")} style={styles.clearButton}>
+                          <TouchableOpacity onPress={() => {
+                            setFullName("");
+                            setSearchResults([]);
+                          }} style={styles.clearButton}>
                             <Ionicons name="close-circle" size={20} color={tokens.colors.najdi.textMuted} />
                           </TouchableOpacity>
                         )}
