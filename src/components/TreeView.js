@@ -2944,6 +2944,7 @@ const TreeView = ({
                   nodeId={node.id}
                   selectBucket={node._selectBucket}
                   showPhotos={showPhotos}
+                  useBatchedSkiaImage={useBatchedSkiaImage}
                 />
               )}
 
