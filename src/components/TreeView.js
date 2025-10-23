@@ -131,6 +131,19 @@ import {
 // Phase 3 - Import hit detection functions
 import { detectTap } from './TreeView/interaction/HitDetection';
 
+// Phase 1 Day 4c - Import path calculation functions
+import {
+  calculateBusY,
+  calculateParentVerticalPath,
+  shouldRenderBusLine,
+  calculateBusLine,
+  calculateChildVerticalPaths,
+  calculateConnectionPaths,
+} from './TreeView/spatial/PathCalculator';
+
+// Phase 1 Day 4d - Import Arabic text rendering
+import { createArabicParagraph } from './TreeView/rendering/ArabicTextRenderer';
+
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
@@ -257,68 +270,8 @@ try {
   // Font collection creation failed
 }
 
-// Helper function to create Arabic text paragraphs with proper shaping
-const createArabicParagraph = (text, fontWeight, fontSize, color, maxWidth) => {
-  if (!text || !Skia.ParagraphBuilder) return null;
-
-  try {
-    const paragraphStyle = {
-      textAlign: 2, // Center align (0=left, 1=right, 2=center)
-      textDirection: 1, // RTL direction (0=LTR, 1=RTL)
-      maxLines: 1,
-      ellipsis: "...",
-    };
-
-    // If we have a matched Arabic typeface, ensure it's registered on the provider
-    if (arabicTypeface && arabicFontProvider) {
-      try {
-        arabicFontProvider.registerFont(arabicTypeface, SF_ARABIC_ALIAS);
-      } catch (e) {}
-    }
-
-    const textStyle = {
-      color: Skia.Color(color),
-      fontSize: fontSize,
-      fontFamilies: arabicTypeface
-        ? [SF_ARABIC_ALIAS]
-        : [
-            SF_ARABIC_ALIAS,
-            ".SF Arabic",
-            ".SF NS Arabic",
-            ".SFNSArabic",
-            "Geeza Pro",
-            "GeezaPro",
-            "Damascus",
-            "Al Nile",
-            "Baghdad",
-            "System",
-          ],
-      fontStyle: {
-        weight: fontWeight === "bold" ? 700 : 400,
-      },
-    };
-
-    // Create paragraph builder
-    const builder = arabicFontProvider
-      ? Skia.ParagraphBuilder.Make(paragraphStyle, arabicFontProvider)
-      : Skia.ParagraphBuilder.Make(paragraphStyle);
-
-    if (!builder) return null;
-
-    builder.pushStyle(textStyle);
-    builder.addText(text);
-
-    const paragraph = builder.build();
-    if (!paragraph) return null;
-
-    paragraph.layout(maxWidth);
-
-    return paragraph;
-  } catch (error) {
-    console.error("Error creating paragraph:", error);
-    return null;
-  }
-};
+// Phase 1 Day 4d: createArabicParagraph now imported from ./TreeView/rendering/ArabicTextRenderer
+// Removed inline implementation (lines 270-334)
 
 // Paragraph cache with LRU eviction (Phase 1 Performance Optimization)
 const paragraphCache = new Map();
@@ -1433,15 +1386,15 @@ const TreeView = ({
 
       const parentX = conn.parent.x;
       const parentY = conn.parent.y;
-      const childXs = conn.children.map((c) => c.x);
-      const childYs = conn.children.map((c) => c.y);
-      const minChildX = Math.min(...childXs);
-      const maxChildX = Math.max(...childXs);
-      const busY = parentY + (Math.min(...childYs) - parentY) / 2;
 
-      // Only draw a bus line if there are multiple children or an offset
-      const shouldHaveBus =
-        conn.children.length > 1 || Math.abs(parentX - conn.children[0].x) > 5;
+      // Use PathCalculator for bus line calculations
+      const busY = calculateBusY(conn.parent, conn.children);
+      const shouldHaveBus = shouldRenderBusLine(conn.children, conn.parent);
+
+      // Calculate horizontal span for viewport culling
+      const busLine = calculateBusLine(conn.children, busY);
+      const minChildX = busLine.startX;
+      const maxChildX = busLine.endX;
       if (!shouldHaveBus) continue;
 
       // Intersection test with viewport in canvas coords
@@ -2359,26 +2312,18 @@ const TreeView = ({
       const parent = nodes.find((n) => n.id === connection.parent.id);
       if (!parent) return null;
 
-      // Calculate bus line position
-      const childYs = connection.children.map((child) => child.y);
-      const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
-
-      // Calculate horizontal span
-      const childXs = connection.children.map((child) => child.x);
-      const minChildX = Math.min(...childXs);
-      const maxChildX = Math.max(...childXs);
+      // Use PathCalculator for geometry calculations
+      const busY = calculateBusY(parent, connection.children);
+      const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
 
       const lines = [];
 
       // Vertical line from parent
-      const parentHeight = (showPhotos && parent.photo_url)
-        ? NODE_HEIGHT_WITH_PHOTO
-        : NODE_HEIGHT_TEXT_ONLY;
       lines.push(
         <Line
           key={`parent-down-${parent.id}`}
-          p1={vec(parent.x, parent.y + parentHeight / 2)}
-          p2={vec(parent.x, busY)}
+          p1={vec(parentVertical.startX, parentVertical.startY)}
+          p2={vec(parentVertical.endX, parentVertical.endY)}
           color={LINE_COLOR}
           style="stroke"
           strokeWidth={LINE_WIDTH}
@@ -2386,15 +2331,13 @@ const TreeView = ({
       );
 
       // Horizontal bus line (only if multiple children or offset)
-      if (
-        connection.children.length > 1 ||
-        Math.abs(parent.x - connection.children[0].x) > 5
-      ) {
+      if (shouldRenderBusLine(connection.children, parent)) {
+        const busLine = calculateBusLine(connection.children, busY);
         lines.push(
           <Line
             key={`bus-${parent.id}`}
-            p1={vec(minChildX, busY)}
-            p2={vec(maxChildX, busY)}
+            p1={vec(busLine.startX, busLine.startY)}
+            p2={vec(busLine.endX, busLine.endY)}
             color={LINE_COLOR}
             style="stroke"
             strokeWidth={LINE_WIDTH}
@@ -2403,19 +2346,17 @@ const TreeView = ({
       }
 
       // Vertical lines to children
-      connection.children.forEach((child) => {
+      const childVerticals = calculateChildVerticalPaths(connection.children, busY, showPhotos);
+      connection.children.forEach((child, index) => {
         const childNode = nodes.find((n) => n.id === child.id);
         if (!childNode) return;
 
-        const childHeight = (showPhotos && childNode.photo_url)
-          ? NODE_HEIGHT_WITH_PHOTO
-          : NODE_HEIGHT_TEXT_ONLY;
-
+        const path = childVerticals[index];
         lines.push(
           <Line
             key={`child-up-${child.id}`}
-            p1={vec(childNode.x, busY)}
-            p2={vec(childNode.x, childNode.y - childHeight / 2)}
+            p1={vec(path.startX, path.startY)}
+            p2={vec(path.endX, path.endY)}
             color={LINE_COLOR}
             style="stroke"
             strokeWidth={LINE_WIDTH}
@@ -2452,39 +2393,29 @@ const TreeView = ({
         const parent = nodes.find((n) => n.id === conn.parent.id);
         if (!parent) continue;
 
-        // Calculate positions
-        const childYs = conn.children.map((child) => child.y);
-        const busY = parent.y + (Math.min(...childYs) - parent.y) / 2;
-        const parentHeight = (showPhotos && parent.photo_url)
-          ? NODE_HEIGHT_WITH_PHOTO
-          : NODE_HEIGHT_TEXT_ONLY;
+        // Use PathCalculator for all geometry calculations
+        const busY = calculateBusY(parent, conn.children);
+        const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
 
         // Add parent vertical line
-        pathBuilder.moveTo(parent.x, parent.y + parentHeight / 2);
-        pathBuilder.lineTo(parent.x, busY);
+        pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
+        pathBuilder.lineTo(parentVertical.endX, parentVertical.endY);
 
         // Add horizontal bus line if needed
-        if (
-          conn.children.length > 1 ||
-          Math.abs(parent.x - conn.children[0].x) > 5
-        ) {
-          const childXs = conn.children.map((child) => child.x);
-          const minChildX = Math.min(...childXs);
-          const maxChildX = Math.max(...childXs);
-
-          pathBuilder.moveTo(minChildX, busY);
-          pathBuilder.lineTo(maxChildX, busY);
+        if (shouldRenderBusLine(conn.children, parent)) {
+          const busLine = calculateBusLine(conn.children, busY);
+          pathBuilder.moveTo(busLine.startX, busLine.startY);
+          pathBuilder.lineTo(busLine.endX, busLine.endY);
         }
 
         // Add child vertical lines
-        conn.children.forEach((child) => {
+        const childVerticals = calculateChildVerticalPaths(conn.children, busY, showPhotos);
+        conn.children.forEach((child, index) => {
           const childNode = nodes.find((n) => n.id === child.id);
           if (childNode) {
-            const isRoot = !childNode.father_id;
-            const childHeight = isRoot ? 100 :
-              ((showPhotos && childNode.photo_url) ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-            pathBuilder.moveTo(childNode.x, busY);
-            pathBuilder.lineTo(childNode.x, childNode.y - childHeight / 2);
+            const path = childVerticals[index];
+            pathBuilder.moveTo(path.startX, path.startY);
+            pathBuilder.lineTo(path.endX, path.endY);
           }
         });
 
