@@ -130,13 +130,13 @@ const styles = StyleSheet.create({
   tabRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    minHeight: tokens.touchTarget.minimum,
+    minHeight: 44,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: tokens.spacing.sm,
+    paddingVertical: 8,
     paddingHorizontal: tokens.spacing.md,
   },
   label: {
@@ -156,8 +156,8 @@ const styles = StyleSheet.create({
   indicator: {
     position: 'absolute',
     bottom: 0,
-    height: 2,
-    borderRadius: 1,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: tokens.colors.najdi.primary,
   },
   divider: {

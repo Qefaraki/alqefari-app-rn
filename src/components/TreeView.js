@@ -1172,11 +1172,12 @@ const TreeView = ({
     setCurrentTransform(current);
     setCurrentScale(current.scale);
 
+    // TEMP: Disabled LOD tier calculation until Perfect Tree redesign
     // Calculate and update LOD tier based on current scale
     // This ensures tier reflects zoom level after gesture ends
-    const newTier = calculateLODTier(current.scale, tierState.current);
-    setTier(newTier);
-    frameStatsRef.current.tier = newTier;
+    // const newTier = calculateLODTier(current.scale, tierState.current);
+    // setTier(newTier);
+    frameStatsRef.current.tier = 1;
 
     // Calculate visible bounds
     const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
@@ -2375,25 +2376,9 @@ const TreeView = ({
         const parent = nodes.find((n) => n.id === conn.parent.id);
         if (!parent) continue;
 
-        // T2 height override: Text pills are 26px tall (not 35px like T1 text-only nodes)
-        const T2_TEXT_PILL_HEIGHT = 26;
-
         // Use PathCalculator for all geometry calculations
         const busY = calculateBusY(parent, conn.children);
-
-        let parentVertical;
-        if (tier === 2) {
-          // T2 override: Calculate parent vertical manually using pill height
-          parentVertical = {
-            startX: parent.x,
-            startY: parent.y + T2_TEXT_PILL_HEIGHT / 2,
-            endX: parent.x,
-            endY: busY,
-          };
-        } else {
-          // T1: Use PathCalculator
-          parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
-        }
+        const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
 
         // Add parent vertical line
         pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
@@ -2601,6 +2586,7 @@ const TreeView = ({
   });
 
   // Store current tier and transform in state
+  // TEMP: Always T1 until Perfect Tree redesign
   // Updated by syncTransformAndBounds callback after gestures end
   // This avoids Reanimated threading violations from reading .value during render
   const [tier, setTier] = useState(1);
@@ -2637,17 +2623,16 @@ const TreeView = ({
     visibleNodes,
   ]);
 
+  // TEMP: Always render T1 until Perfect Tree redesign
   // Update render callbacks to pass tier and scale
   const renderNodeWithTier = useCallback(
     (node) => {
       if (!node) return null;
-      if (tier === 2) {
-        return renderTier2Node(node);
-      }
+      // TEMP: Always T1, no tier switching
       // Tier 1 - full node with tier info for image loading
       const modifiedNode = {
         ...node,
-        _tier: tier,
+        _tier: 1,
         _scale: currentTransform.scale,
         _selectBucket: selectBucketWithHysteresis,
         _hasChildren: indices.parentToChildren.has(node.id),
