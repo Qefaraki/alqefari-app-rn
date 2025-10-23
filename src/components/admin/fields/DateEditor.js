@@ -275,8 +275,8 @@ const DateEditor = ({ label, value, onChange, error }) => {
           <View style={styles.segmentContainer}>
             <SegmentedControl
               options={[
-                { label: "هجري", value: "hijri" },
-                { label: "ميلادي", value: "gregorian" },
+                { label: "هجري", id: "hijri" },
+                { label: "ميلادي", id: "gregorian" },
               ]}
               value={activeCalendar}
               onChange={handleCalendarTypeChange}
@@ -354,11 +354,11 @@ const DateEditor = ({ label, value, onChange, error }) => {
                 value={isApproximate}
                 onValueChange={handleApproximateToggle}
                 trackColor={{
-                  false: tokens.colors.najdi.container + '60',
+                  false: `${tokens.colors.najdi.container  }60`,
                   true: tokens.colors.najdi.secondary, // Desert Ochre
                 }}
                 thumbColor={tokens.colors.najdi.background}
-                ios_backgroundColor={tokens.colors.najdi.container + '60'}
+                ios_backgroundColor={`${tokens.colors.najdi.container  }60`}
               />
             </View>
 
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   input: {
     height: tokens.touchTarget.minimum, // 44px
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '60', // Camel Hair Beige 60%
+    borderColor: `${tokens.colors.najdi.container  }60`, // Camel Hair Beige 60%
     borderRadius: tokens.radii.sm, // 8px
     fontSize: 18,
     fontWeight: "500",
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
     flex: 1.5,
   },
   conversionDisplay: {
-    backgroundColor: tokens.colors.najdi.container + '20', // Camel Hair Beige 20%
+    backgroundColor: `${tokens.colors.najdi.container  }20`, // Camel Hair Beige 20%
     padding: tokens.spacing.sm, // 12px
     borderRadius: tokens.radii.sm, // 8px
     marginBottom: tokens.spacing.md, // 16px
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   clearButton: {
     backgroundColor: tokens.colors.najdi.background, // Al-Jass White #F9F7F3
     borderWidth: 1,
-    borderColor: tokens.colors.najdi.container + '60', // Camel Hair border
+    borderColor: `${tokens.colors.najdi.container  }60`, // Camel Hair border
   },
   presetButtonText: {
     fontSize: 16,

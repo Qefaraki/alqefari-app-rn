@@ -362,8 +362,8 @@ const EditProfileScreen = ({ visible, profile, onClose, onSave }) => {
                       setFormData({ ...formData, gender: val })
                     }
                     options={[
-                      { label: "ذكر", value: "male" },
-                      { label: "أنثى", value: "female" },
+                      { label: "ذكر", id: "male" },
+                      { label: "أنثى", id: "female" },
                     ]}
                   />
                 </View>
