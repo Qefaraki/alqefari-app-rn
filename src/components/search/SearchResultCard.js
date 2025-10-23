@@ -24,7 +24,7 @@ const SearchResultCard = ({
   const initials = item.name ? item.name.charAt(0) : "؟";
   const getTypography = useDynamicTypography();
   const nameTypography = getTypography(16, 600);
-  const generationTypography = getTypography(13, 400);
+  const generationTypography = getTypography('caption1', { fontWeight: '400' });
   const avatarTypography = getTypography(18, 600);
 
   // Premium desert palette - ultra-thin aesthetic
@@ -91,7 +91,8 @@ const SearchResultCard = ({
           <Text
             style={[styles.nameText, nameTypography]}
             allowFontScaling
-            numberOfLines={1}
+            numberOfLines={2}
+            accessibilityLabel={item.name_chain || item.name || "بدون اسم"}
           >
             {item.name_chain || item.name || "بدون اسم"}
           </Text>
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
   cardContent: {
     flexDirection: "row-reverse", // RTL: avatar on right, chevron on left
     alignItems: "center",
-    paddingVertical: 11, // iOS list item standard
+    paddingVertical: 11, // iOS list item standard for 44pt height alignment
     paddingLeft: 16, // iOS standard horizontal padding
     paddingRight: 16,
     minHeight: 44, // iOS touch target standard
@@ -179,6 +180,7 @@ const styles = StyleSheet.create({
     textAlign: "left", // For proper display with row-reverse
     alignSelf: "stretch",
     writingDirection: "rtl", // Force RTL writing direction
+    maxWidth: "100%", // Ensure proper wrapping for 2-line names
   },
   metaContainer: {
     flexDirection: "row",
