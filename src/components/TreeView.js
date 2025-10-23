@@ -3369,19 +3369,8 @@ const TreeView = ({
     };
   }, [currentTransform, tier, indices, culledNodes]);
 
-  // Show loading state
-  // Show network error state if there's an error
-  if (networkError) {
-    return (
-      <NetworkErrorView
-        errorType={networkError}
-        onRetry={handleRetry}
-        isRetrying={isRetrying}
-      />
-    );
-  }
-
   // Start shimmer animation for skeleton
+  // IMPORTANT: This hook MUST be before any early returns to avoid React hooks error
   useEffect(() => {
     if (showSkeleton) {
       RNAnimated.loop(
@@ -3400,6 +3389,18 @@ const TreeView = ({
       ).start();
     }
   }, [showSkeleton]);
+
+  // Show loading state
+  // Show network error state if there's an error
+  if (networkError) {
+    return (
+      <NetworkErrorView
+        errorType={networkError}
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+      />
+    );
+  }
 
   // Tree skeleton component - better resembles actual tree
   const TreeSkeleton = () => (
