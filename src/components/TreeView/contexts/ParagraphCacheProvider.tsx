@@ -59,6 +59,14 @@ export const ParagraphCacheProvider: React.FC<ParagraphCacheProviderProps> = ({
   children,
   maxSize = 500, // Default: max visible nodes on screen
 }) => {
+  // Validate maxSize to prevent infinite eviction loops
+  const validatedMaxSize = Math.max(1, Math.floor(maxSize));
+  if (validatedMaxSize !== maxSize) {
+    console.warn(
+      `[ParagraphCache] Invalid maxSize ${maxSize}, using ${validatedMaxSize}`
+    );
+  }
+
   // useRef for singleton behavior - creates once, persists across renders
   const cacheRef = useRef(new Map<string, Paragraph>());
 
@@ -69,7 +77,7 @@ export const ParagraphCacheProvider: React.FC<ParagraphCacheProviderProps> = ({
 
     set: (key: string, value: Paragraph) => {
       // LRU eviction: Remove oldest entry if cache is full
-      if (cacheRef.current.size >= maxSize) {
+      if (cacheRef.current.size >= validatedMaxSize) {
         const firstKey = cacheRef.current.keys().next().value;
         if (firstKey) {
           cacheRef.current.delete(firstKey);

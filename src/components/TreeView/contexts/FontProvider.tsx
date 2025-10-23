@@ -26,7 +26,7 @@
  * - Load all fonts before rendering tree to prevent FOUC
  */
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useFonts, FontMgr } from '@shopify/react-native-skia';
 import { SimpleTreeSkeleton } from '../SimpleTreeSkeleton';
 import { Animated as RNAnimated } from 'react-native';
@@ -64,29 +64,64 @@ export const FontProvider: React.FC<FontProviderProps> = ({ children }) => {
 
   const fontMgr = useFonts(fontConfig);
 
+  // Font load timeout state (prevents infinite hang if fonts fail)
+  const [fontLoadTimeout, setFontLoadTimeout] = useState(false);
+  const animationRef = useRef<any>(null);
+
+  // Set timeout for font loading (5 seconds)
+  useEffect(() => {
+    if (fontMgr) return; // Fonts loaded successfully
+
+    const timer = setTimeout(() => {
+      console.warn('[FontProvider] Font loading timeout after 5s, proceeding without custom fonts');
+      setFontLoadTimeout(true);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [fontMgr]);
+
   // Show loading skeleton while fonts load
   // This prevents blank screen and provides immediate visual feedback
-  if (!fontMgr) {
+  if (!fontMgr && !fontLoadTimeout) {
     // Create shimmer animation for skeleton
-    const shimmerAnim = new RNAnimated.Value(0.3);
+    if (!animationRef.current) {
+      const shimmerAnim = new RNAnimated.Value(0.3);
 
-    // Start shimmer animation loop
-    RNAnimated.loop(
-      RNAnimated.sequence([
-        RNAnimated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        RNAnimated.timing(shimmerAnim, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+      // Start shimmer animation loop
+      const animation = RNAnimated.loop(
+        RNAnimated.sequence([
+          RNAnimated.timing(shimmerAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          RNAnimated.timing(shimmerAnim, {
+            toValue: 0.3,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      );
 
-    return <SimpleTreeSkeleton shimmerAnim={shimmerAnim} />;
+      animation.start();
+      animationRef.current = { animation, shimmerAnim };
+    }
+
+    // Cleanup animation on unmount
+    useEffect(() => {
+      return () => {
+        if (animationRef.current) {
+          animationRef.current.animation.stop();
+        }
+      };
+    }, []);
+
+    return <SimpleTreeSkeleton shimmerAnim={animationRef.current.shimmerAnim} />;
+  }
+
+  // If timeout occurred, log error and proceed with null fontMgr (graceful degradation)
+  if (!fontMgr && fontLoadTimeout) {
+    console.error('[FontProvider] Failed to load SF Arabic fonts, using system default');
   }
 
   return <FontContext.Provider value={fontMgr}>{children}</FontContext.Provider>;
