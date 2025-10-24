@@ -190,7 +190,7 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
   });
 
   // Calculate and apply top-alignment offsets (MUTATE node.y to include offset)
-  // Use effectiveShowPhotos to determine heights (accounts for zoom LOD)
+  // Use showPhotos (passed as effectiveShowPhotos from TreeView) to determine heights (accounts for zoom LOD)
   depthGroups.forEach((nodesAtDepth) => {
     // Find shortest node in this generation (will be the top-aligned reference)
     const minHeight = Math.min(
@@ -201,9 +201,9 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
         // Root node is always 100px tall
         if (isRoot) return 100;
 
-        // Use effectiveShowPhotos to determine if photos are shown in layout
+        // Use showPhotos to determine if photos are shown in layout
         // Photo nodes are 75px, text-only are 35px
-        return (effectiveShowPhotos && hasPhotoUrl) ? 75 : 35;
+        return (showPhotos && hasPhotoUrl) ? 75 : 35;
       })
     );
 
@@ -216,8 +216,8 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
       if (isRoot) {
         nodeHeight = 100;
       } else {
-        // Use effectiveShowPhotos to determine actual rendered height
-        nodeHeight = (effectiveShowPhotos && hasPhotoUrl) ? 75 : 35;
+        // Use showPhotos to determine actual rendered height
+        nodeHeight = (showPhotos && hasPhotoUrl) ? 75 : 35;
       }
 
       // Calculate offset to align top edges
