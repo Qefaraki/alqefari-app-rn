@@ -292,18 +292,34 @@ export function useTreeDataLoader({
 
         // Add to Zustand store
         useTreeStore.getState().addNode(newNode);
-      }
-    }, 500); // Debounce 500ms to batch rapid changes
+      } else if (payload.eventType === "DELETE" && payload.old) {
+        // Remove node
+        const nodeId = payload.old.id;
 
-    // Subscribe to profile changes
-    const subscription = profilesService.subscribeToProfileChanges(handleProfileChange);
+        // Remove from Zustand store
+        useTreeStore.getState().removeNode(nodeId);
+      }
+    }, 150); // 150ms debounce - batches rapid updates together
+
+    // Subscribe to profile changes via Supabase
+    const { supabase } = profilesService;
+    const channel = supabase
+      .channel("profiles_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profiles",
+        },
+        handleProfileChange
+      )
+      .subscribe();
 
     return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
+      channel.unsubscribe();
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [setTreeData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { loadTreeData, handleRetry };
 }
