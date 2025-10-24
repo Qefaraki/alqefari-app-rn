@@ -19,7 +19,7 @@ The original TreeView.js was a 9,610-line monolith that:
 A three-phase refactoring approach:
 1. **Phase 1**: Extract components (18 modules, 6,635 lines)
 2. **Phase 2**: Extract hooks & cleanup (1 hook, 288 lines)
-3. **Phase 3**: Performance optimization (LOD fixes, progressive loading)
+3. **Phase 3**: Performance optimization (progressive loading, theme system)
 
 ### Key Metrics
 
@@ -83,13 +83,12 @@ Future performance enhancements for scaling to 10,000+ profiles.
 
 - **[Phase 3 Index](./phase3/README.md)** - Overview & planning
 - **[Master Plan](./phase3/01-PLAN.md)** - Comprehensive Phase 3 plan
-- **[LOD System](./phase3/lod-system/)** - Fix tier thrashing & size jumping (30h) - **CRITICAL**
 - **[Progressive Loading](./phase3/progressive-loading/)** - Viewport-based loading (25h) - **CRITICAL**
 - **[Theme System](./phase3/theme-system/)** - Design tokens & dark mode (20h)
 - **[Advanced Navigation](./phase3/advanced-navigation/)** - Minimap, quick access (30h)
 - **[Enhanced Highlighting](./phase3/enhanced-highlighting/)** - Ancestry overlay (15h)
 
-**⚠️ URGENT**: With 2,000+ profiles currently loaded, Phase 3A (LOD fixes) and 3B (Progressive Loading) are **critical** for app stability. LOD system is currently DISABLED due to bugs (see lines 851, 2253, 2290 in TreeView.js).
+**Note**: Level of Detail (LOD) system has been postponed to a later date. Photos are now controlled via UI toggle for simplicity.
 
 ### 📁 Research
 Background research that informed the Perfect Tree design.

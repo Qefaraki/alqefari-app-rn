@@ -425,10 +425,6 @@ const TreeView = ({
   const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
   const [userLineagePathNodeIds, setUserLineagePathNodeIds] = useState(null);
 
-  // Unified PTS Architecture: Threshold-based effective photo visibility
-  // Only recalculates layout when crossing 0.4x zoom threshold (not every frame)
-  const [effectiveShowPhotos, setEffectiveShowPhotos] = useState(showPhotos);
-
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
     () => ({
@@ -629,8 +625,7 @@ const TreeView = ({
     settingsRef,
   });
 
-  // Calculate layout - based on treeData only, not loading state
-  // Unified PTS Architecture: Use effectiveShowPhotos which accounts for zoom threshold
+  // Calculate layout - based on treeData and showPhotos prop
   const { nodes, connections } = useMemo(() => {
     if (!treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
@@ -638,7 +633,7 @@ const TreeView = ({
 
     // Phase 1 Day 4d: Performance monitoring
     const layoutStartTime = performance.now();
-    const layout = calculateTreeLayout(treeData, effectiveShowPhotos);
+    const layout = calculateTreeLayout(treeData, showPhotos);
     const layoutDuration = performance.now() - layoutStartTime;
 
     // Log layout performance
@@ -653,13 +648,13 @@ const TreeView = ({
       console.log('🎯 LAYOUT CALCULATED:');
       console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
       console.log(`  TreeData length: ${treeData.length}`);
-      console.log(`  Effective photos: ${effectiveShowPhotos}`);
+      console.log(`  Show photos: ${showPhotos}`);
     }
 
     return { nodes: layout.nodes, connections: layout.connections };
-  }, [treeData, effectiveShowPhotos]);
+  }, [treeData, showPhotos]);
 
-  // Build indices for LOD system with O(N) complexity
+  // Build indices for node lookup and relationships with O(N) complexity
   const indices = useMemo(() => {
     if (nodes.length === 0) {
       return {
@@ -2262,29 +2257,6 @@ const TreeView = ({
     scale: 1,
   });
 
-  // Detect zoom threshold crossing (0.4x) with hysteresis to prevent layout thrashing
-  // Unified PTS Architecture: Only recalculates layout when crossing threshold, not every frame
-  useEffect(() => {
-    const threshold = 0.4;
-    const hysteresis = 0.05; // Don't recalc until we're clearly past boundary
-
-    const checkThreshold = () => {
-      const scale = currentTransform.scale;
-
-      if (effectiveShowPhotos && scale < (threshold - hysteresis)) {
-        // Crossed below threshold - hide photos in layout
-        setEffectiveShowPhotos(false);
-        console.log(`📉 Crossed zoom threshold: ${scale.toFixed(2)}x - hiding photos in layout`);
-      } else if (!effectiveShowPhotos && scale > (threshold + hysteresis)) {
-        // Crossed above threshold - show photos in layout
-        setEffectiveShowPhotos(true);
-        console.log(`📈 Crossed zoom threshold: ${scale.toFixed(2)}x - showing photos in layout`);
-      }
-    };
-
-    checkThreshold();
-  }, [currentTransform.scale, effectiveShowPhotos]);
-
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
     if (isLoading) return [];
@@ -2312,20 +2284,16 @@ const TreeView = ({
     visibleNodes,
   ]);
 
-  // Simple LOD: Toggle photo loading based on zoom level
-  // Photos hidden when scale < 0.4 to save memory
+  // Render nodes with tier-based styling
   const renderNodeWithTier = useCallback(
     (node) => {
       if (!node) return null;
-
-      // Simple LOD: Show photos only when zoomed in enough
-      const showPhoto = currentTransform.scale >= 0.4;
 
       const modifiedNode = {
         ...node,
         _tier: 1, // Always T1 (full cards)
         _scale: currentTransform.scale,
-        _showPhoto: showPhoto, // Toggle photo loading based on zoom
+        _showPhoto: showPhotos, // Use user-controlled photo visibility prop
         _selectBucket: selectBucketWithHysteresis,
         _hasChildren: indices.parentToChildren.has(node.id),
       };
@@ -2333,7 +2301,7 @@ const TreeView = ({
     },
     [
       tier,
-      currentTransform.scale,
+      showPhotos, // Changed from currentTransform.scale
       renderNode,
       renderTier2Node,
       selectBucketWithHysteresis,
