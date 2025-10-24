@@ -429,28 +429,6 @@ const TreeView = ({
   // Only recalculates layout when crossing 0.4x zoom threshold (not every frame)
   const [effectiveShowPhotos, setEffectiveShowPhotos] = useState(showPhotos);
 
-  // Detect zoom threshold crossing (0.4x) with hysteresis to prevent layout thrashing
-  useEffect(() => {
-    const threshold = 0.4;
-    const hysteresis = 0.05; // Don't recalc until we're clearly past boundary
-
-    const checkThreshold = () => {
-      const scale = currentTransform.scale;
-
-      if (effectiveShowPhotos && scale < (threshold - hysteresis)) {
-        // Crossed below threshold - hide photos in layout
-        setEffectiveShowPhotos(false);
-        console.log(`📉 Crossed zoom threshold: ${scale.toFixed(2)}x - hiding photos in layout`);
-      } else if (!effectiveShowPhotos && scale > (threshold + hysteresis)) {
-        // Crossed above threshold - show photos in layout
-        setEffectiveShowPhotos(true);
-        console.log(`📈 Crossed zoom threshold: ${scale.toFixed(2)}x - showing photos in layout`);
-      }
-    };
-
-    checkThreshold();
-  }, [currentTransform.scale, effectiveShowPhotos]);
-
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
     () => ({
@@ -2283,6 +2261,29 @@ const TreeView = ({
     y: 0,
     scale: 1,
   });
+
+  // Detect zoom threshold crossing (0.4x) with hysteresis to prevent layout thrashing
+  // Unified PTS Architecture: Only recalculates layout when crossing threshold, not every frame
+  useEffect(() => {
+    const threshold = 0.4;
+    const hysteresis = 0.05; // Don't recalc until we're clearly past boundary
+
+    const checkThreshold = () => {
+      const scale = currentTransform.scale;
+
+      if (effectiveShowPhotos && scale < (threshold - hysteresis)) {
+        // Crossed below threshold - hide photos in layout
+        setEffectiveShowPhotos(false);
+        console.log(`📉 Crossed zoom threshold: ${scale.toFixed(2)}x - hiding photos in layout`);
+      } else if (!effectiveShowPhotos && scale > (threshold + hysteresis)) {
+        // Crossed above threshold - show photos in layout
+        setEffectiveShowPhotos(true);
+        console.log(`📈 Crossed zoom threshold: ${scale.toFixed(2)}x - showing photos in layout`);
+      }
+    };
+
+    checkThreshold();
+  }, [currentTransform.scale, effectiveShowPhotos]);
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
