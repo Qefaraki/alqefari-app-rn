@@ -15,6 +15,7 @@ import { useEffect } from 'react';
 import { Alert, Animated as RNAnimated } from 'react-native';
 import { useTreeStore, TREE_DATA_SCHEMA_VERSION } from '../../../stores/useTreeStore';
 import profilesService from '../../../services/profiles';
+import { supabase } from '../../../services/supabase';
 import { formatDateByPreference } from '../../../utils/dateDisplay';
 import { familyData } from '../../../data/family-data';
 
@@ -302,7 +303,6 @@ export function useTreeDataLoader({
     }, 150); // 150ms debounce - batches rapid updates together
 
     // Subscribe to profile changes via Supabase
-    const { supabase } = profilesService;
     const channel = supabase
       .channel("profiles_changes")
       .on(
