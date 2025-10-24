@@ -412,14 +412,14 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
       {hasPhoto ? (
         <>
           {/* Photo placeholder */}
-          {renderPhotoPlaceholder(node.x, renderY - 10, PHOTO_SIZE / 2)}
+          {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE / 2)}
 
           {/* Load and display image if available */}
           {node.photo_url && (
             <ImageNode
               url={node.photo_url}
               x={node.x - PHOTO_SIZE / 2}
-              y={renderY - 10 - PHOTO_SIZE / 2}
+              y={node.y - 10 - PHOTO_SIZE / 2}
               width={PHOTO_SIZE}
               height={PHOTO_SIZE}
               radius={PHOTO_SIZE / 2}
