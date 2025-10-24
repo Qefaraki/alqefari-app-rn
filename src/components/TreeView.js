@@ -2010,13 +2010,8 @@ const TreeView = ({
     (connections, culledNodesArray, tier, showPhotos) => {
       if (tier === 3) return { elements: null, count: 0 };
 
-      // Enrich nodes with photo visibility to match node rendering
-      // Use same photo visibility as nodes (user toggle) for consistent heights in PathCalculator
-      const enrichedNodes = culledNodesArray.map(n => ({
-        ...n,
-        _showPhoto: showPhotos,
-      }));
-      const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
+      // Create set of visible node IDs for filtering children
+      const visibleNodeIds = new Set(culledNodesArray.map(n => n.id));
 
       let edgeCount = 0;
       const paths = [];
@@ -2035,19 +2030,14 @@ const TreeView = ({
           continue;
         }
 
-        // Skip if parent not in visible culled nodes
-        const parent = nodeMap.get(conn.parent.id);
-        if (!parent) {
-          // Parent outside viewport - connection not renderable until parent scrolls in
-          continue;
-        }
-
         // Get visible children - filter to only those in culled nodes
-        const children = conn.children
-          .map((c) => nodeMap.get(c.id))
-          .filter(Boolean);
+        // Note: parent can be outside viewport; Skia clipping will handle it
+        const visibleChildren = conn.children.filter(c => visibleNodeIds.has(c.id));
+        if (visibleChildren.length === 0) continue; // Skip if no visible children
 
-        if (children.length === 0) continue; // Skip if no visible children
+        // Enrich parent and children with photo visibility for PathCalculator
+        const parent = { ...conn.parent, _showPhoto: showPhotos };
+        const children = visibleChildren.map(c => ({ ...c, _showPhoto: showPhotos }));
 
         // Use PathCalculator for all geometry calculations
         // Now uses actual node objects with _showPhoto per-node state
@@ -2392,6 +2382,15 @@ const TreeView = ({
     showPhotos,
   );
 
+  // Calculate viewport rectangle for clipping (Option A: Skia Group Clipping)
+  // This allows connections to render outside viewport but be clipped by Skia
+  const viewportRect = rect(
+    -currentTransform.x,
+    -currentTransform.y,
+    dimensions.width,
+    dimensions.height
+  );
+
   // Update frame stats
   frameStatsRef.current.nodesDrawn = tier === 3 ? 3 : culledNodes.length;
   frameStatsRef.current.edgesDrawn = tier === 3 ? 0 : edgesDrawn;
@@ -2440,8 +2439,10 @@ const TreeView = ({
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
           <Group transform={transform}>
-            {/* Render batched edges first */}
-            {edgeElements}
+            {/* Render batched edges with viewport clipping (Option A: Skia handles visibility) */}
+            <Group clip={viewportRect}>
+              {edgeElements}
+            </Group>
 
             {/* Highlighted ancestry paths (above edges, below nodes) - UNIFIED SYSTEM */}
             {renderAllHighlights()}
