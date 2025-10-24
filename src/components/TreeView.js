@@ -2007,17 +2007,18 @@ const TreeView = ({
 
   // Render edges with batching and capping
   const renderEdgesBatched = useCallback(
-    (connections, visibleNodeIds, tier) => {
+    (connections, culledNodesArray, tier) => {
       if (tier === 3) return { elements: null, count: 0 };
 
       // Enrich nodes with per-node LOD state before creating map
       // Ensures PathCalculator uses actual zoom-based photo visibility, not global setting
       const showPhoto = currentTransform.scale >= 0.4;
-      const enrichedNodes = nodes.map(n => ({
+      const enrichedNodes = culledNodesArray.map(n => ({
         ...n,
         _showPhoto: showPhoto,
       }));
       const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
+      const visibleNodeIds = new Set(culledNodesArray.map(n => n.id));
 
       let edgeCount = 0;
       const paths = [];
@@ -2113,7 +2114,7 @@ const TreeView = ({
 
       return { elements: paths, count: edgeCount };
     },
-    [nodes, currentTransform],
+    [currentTransform],
   );
 
   // Render highlighted ancestry path
@@ -2309,12 +2310,6 @@ const TreeView = ({
     ],
   );
 
-  // Create visible node ID set for edge rendering
-  const visibleNodeIds = useMemo(
-    () => new Set(culledNodes.map((n) => n.id)),
-    [culledNodes],
-  );
-
   // Keep gestureStateRef in sync for tap gesture
   useEffect(() => {
     gestureStateRef.current = {
@@ -2393,7 +2388,7 @@ const TreeView = ({
   // Render edges with batching
   const { elements: edgeElements, count: edgesDrawn } = renderEdgesBatched(
     connections,
-    visibleNodeIds,
+    culledNodes,
     tier,
   );
 
