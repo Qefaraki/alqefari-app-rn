@@ -65,13 +65,13 @@ const CountryPicker = ({ label, value, onChange, onNormalizedChange, placeholder
 
   const handleChange = useCallback(async (itemValue) => {
     if (itemValue && !itemValue.startsWith('─')) {
-      // Strip emoji and spaces, keep only country name
+      // Store FULL value with emoji for picker matching
+      onChange(itemValue);
+
+      // Strip emoji ONLY for database lookup
       const cleanValue = itemValue.replace(/[\u{1F1E0}-\u{1F1FF}]/gu, '').trim();
 
-      // Call text onChange immediately
-      onChange(cleanValue);
-
-      // Lookup normalized data from database
+      // Lookup normalized data from database using clean value
       if (onNormalizedChange) {
         const normalized = await lookupPlaceByName(cleanValue);
         if (normalized) {

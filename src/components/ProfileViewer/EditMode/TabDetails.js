@@ -150,20 +150,16 @@ const TabDetails = ({ form, updateField }) => {
           <FormField label="الدولة الحالية">
             <CountryPicker
               label=""
-              value={draft?.current_residence_normalized?.country?.ar || ''}
+              value={draft?.current_residence || ''}
               onChange={(country) => {
                 updateField('current_residence', country);
               }}
               onNormalizedChange={(normalized) => {
-                updateField('current_residence_normalized', normalized);
                 // Clear city if country changed from Saudi Arabia
-                if (normalized?.country?.ar !== 'السعودية') {
-                  const clearedNormalized = {
-                    ...normalized,
-                    city: undefined,
-                  };
-                  updateField('current_residence_normalized', clearedNormalized);
-                }
+                const finalNormalized = normalized?.country?.ar !== 'السعودية'
+                  ? { ...normalized, city: undefined }
+                  : normalized;
+                updateField('current_residence_normalized', finalNormalized);
               }}
               placeholder="اختر دولة"
             />
@@ -190,7 +186,7 @@ const TabDetails = ({ form, updateField }) => {
                 updateField('current_residence_normalized', updated);
               }}
               placeholder="اختر مدينة"
-              enabled={draft?.current_residence_normalized?.country?.ar === 'السعودية'}
+              enabled={draft?.current_residence?.includes('السعودية')}
             />
           </FormField>
         </FormSection>
