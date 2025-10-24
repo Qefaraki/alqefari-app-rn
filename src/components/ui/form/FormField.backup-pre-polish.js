@@ -66,11 +66,9 @@ const styles = StyleSheet.create({
     marginBottom: tokens.spacing.xxs,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: tokens.colors.najdi.text,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
   },
   required: {
     color: tokens.colors.danger,

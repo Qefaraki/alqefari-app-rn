@@ -11,7 +11,7 @@
  * - Cache invalidation on schema changes
  */
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Alert, Animated as RNAnimated } from 'react-native';
 import { useTreeStore, TREE_DATA_SCHEMA_VERSION } from '../../../stores/useTreeStore';
 import profilesService from '../../../services/profiles';
@@ -19,17 +19,16 @@ import { supabase } from '../../../services/supabase';
 import { formatDateByPreference } from '../../../utils/dateDisplay';
 import { familyData } from '../../../data/family-data';
 
-// Debounce helper for real-time updates
+// Debounce helper for real-time updates with cleanup support
 const debounce = (func, wait) => {
   let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
+  const debounced = function executedFunction(...args) {
     clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+    timeout = setTimeout(() => func(...args), wait);
   };
+  // Add cancel method for cleanup
+  debounced.cancel = () => clearTimeout(timeout);
+  return debounced;
 };
 
 export function useTreeDataLoader({
@@ -42,7 +41,7 @@ export function useTreeDataLoader({
   contentFadeAnim,
   settingsRef,
 }) {
-  const loadTreeData = async () => {
+  const loadTreeData = useCallback(async () => {
     const startTime = Date.now();
 
     // Check if we already have adequate data (at least 5000 nodes means we have the full tree)
@@ -224,27 +223,17 @@ export function useTreeDataLoader({
       setShowSkeleton(false);
       setIsLoading(false);
     }
-  };
+  }, [setTreeData, setIsLoading, setNetworkError, setShowSkeleton, setIsRetrying, skeletonFadeAnim, contentFadeAnim]);
 
-  const handleRetry = async () => {
+  const handleRetry = useCallback(async () => {
     setIsRetrying(true);
     await loadTreeData();
-  };
+  }, [loadTreeData, setIsRetrying]);
 
   // Load tree on mount
   useEffect(() => {
     loadTreeData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Sync loading state with treeData changes
-  useEffect(() => {
-    const { treeData } = useTreeStore.getState();
-    if (treeData && treeData.length > 0) {
-      console.log('[TreeView] Tree data updated, hiding loading state');
-      setIsLoading(false);
-      setShowSkeleton(false);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadTreeData]);
 
   // Real-time subscription for profile updates (Debounced for performance)
   useEffect(() => {
@@ -317,6 +306,8 @@ export function useTreeDataLoader({
       .subscribe();
 
     return () => {
+      // Cancel pending debounced calls to prevent updates on unmounted component
+      handleProfileChange.cancel();
       channel.unsubscribe();
     };
   }, [setTreeData]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -90,6 +90,11 @@ const styles = StyleSheet.create({
     color: tokens.colors.najdi.primary,
   },
   body: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${tokens.colors.najdi.container  }35`,
+    padding: tokens.spacing.md,
     gap: tokens.spacing.md,
   },
   footer: {

@@ -3,16 +3,17 @@ import {
   View,
   Text,
   TextInput,
+  TouchableOpacity,
   Animated,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import {
   PROFESSIONAL_TITLES,
   validateCustomTitle,
 } from '../../../services/professionalTitleService';
-import ChoiceChip from '../../ui/ChoiceChip';
 
 const TitleSelector = ({ value, customValue, onChange, personName }) => {
   const [selectedTitle, setSelectedTitle] = useState(value || null);
@@ -65,23 +66,30 @@ const TitleSelector = ({ value, customValue, onChange, personName }) => {
   return (
     <View style={styles.container}>
       <View style={styles.optionsGrid}>
-        {PROFESSIONAL_TITLES.map((title, index) => {
+        {PROFESSIONAL_TITLES.map((title) => {
           const isActive = selectedTitle === title.value;
-          const isLastOdd =
-            PROFESSIONAL_TITLES.length % 2 !== 0 &&
-            index === PROFESSIONAL_TITLES.length - 1;
           return (
-            <ChoiceChip
+            <TouchableOpacity
               key={title.value}
-              label={title.label}
-              selected={isActive}
-              onPress={() => handleTitleSelect(title.value)}
-              grow={isLastOdd || title.value === 'other'}
               style={[
                 styles.optionChip,
-                (isLastOdd || title.value === 'other') && styles.optionChipFull,
+                isActive && styles.optionChipActive,
+                title.value === 'other' && styles.optionChipFull,
               ]}
-            />
+              onPress={() => handleTitleSelect(title.value)}
+              activeOpacity={0.9}
+            >
+              <Text
+                style={[
+                  styles.optionLabel,
+                  isActive && styles.optionLabelActive,
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {title.label}
+              </Text>
+            </TouchableOpacity>
           );
         })}
       </View>
