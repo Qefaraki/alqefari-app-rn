@@ -2006,38 +2006,50 @@ const TreeView = ({
   );
 
   // Render edges with batching and capping
-  const renderEdgesBatched = useCallback(
-    (connections, culledNodesArray, tier, showPhotos) => {
-      if (tier === 3) return { elements: null, count: 0 };
+  // Pre-build all connection paths once (cached by useMemo)
+  // Removed currentTransform dependency to eliminate per-frame rebuild lag
+  const allBatchedEdgePaths = useMemo(() => {
+    if (tier === 3) return { elements: null, count: 0 };
 
-      // Create set of visible node IDs for filtering children
-      const visibleNodeIds = new Set(culledNodesArray.map(n => n.id));
+    // REQUIRED: Dimension guard (prevents invalid clip on first render)
+    if (dimensions.width === 0 || dimensions.height === 0) {
+      return { elements: null, count: 0 };
+    }
 
-      let edgeCount = 0;
-      const paths = [];
-      const pathBuilder = Skia.Path.Make();
-      let currentBatch = 0;
+    // RECOMMENDED: Early return for empty data
+    if (connections.length === 0) {
+      return { elements: null, count: 0 };
+    }
 
-      for (const conn of connections) {
-        if (edgeCount >= MAX_VISIBLE_EDGES) break;
+    // RECOMMENDED: Performance logging
+    let startTime;
+    if (__DEV__) {
+      startTime = performance.now();
+    }
 
-        // Validate connection structure (defensive programming)
-        if (!conn?.parent?.id || !Array.isArray(conn.children)) {
-          if (__DEV__) {
-            // eslint-disable-next-line no-console
-            console.warn('[TreeView] Malformed connection object', conn);
-          }
-          continue;
+    let edgeCount = 0;
+    const paths = [];
+    const pathBuilder = Skia.Path.Make();
+    let currentBatch = 0;
+
+    for (const conn of connections) {
+      if (edgeCount >= MAX_VISIBLE_EDGES) break;
+
+      // Validate connection structure (defensive programming)
+      if (!conn?.parent?.id || !Array.isArray(conn.children)) {
+        if (__DEV__) {
+          // eslint-disable-next-line no-console
+          console.warn('[TreeView] Malformed connection object', conn);
         }
+        continue;
+      }
 
-        // Get visible children - filter to only those in culled nodes
-        // Note: parent can be outside viewport; Skia clipping will handle it
-        const visibleChildren = conn.children.filter(c => visibleNodeIds.has(c.id));
-        if (visibleChildren.length === 0) continue; // Skip if no visible children
-
-        // Enrich parent and children with photo visibility for PathCalculator
-        const parent = { ...conn.parent, _showPhoto: showPhotos };
-        const children = visibleChildren.map(c => ({ ...c, _showPhoto: showPhotos }));
+      // ✅ NO FILTERING - render ALL connections, let Skia clip
+      // This is the core fix: we build paths for all connections,
+      // and rely on the clipping group in the render hierarchy
+      const parent = { ...conn.parent, _showPhoto: showPhotos };
+      const children = conn.children.map(c => ({ ...c, _showPhoto: showPhotos }));
+      if (children.length === 0) continue; // Skip if no children at all
 
         // Use PathCalculator for all geometry calculations
         // Now uses actual node objects with _showPhoto per-node state
@@ -2101,9 +2113,14 @@ const TreeView = ({
         );
       }
 
+      // RECOMMENDED: Performance logging
+      if (__DEV__) {
+        console.log(`[TreeView] Built ${edgeCount} edge paths in ${performance.now() - startTime}ms`);
+      }
+
       return { elements: paths, count: edgeCount };
     },
-    [currentTransform, showPhotos],
+    [connections, showPhotos, tier, dimensions], // ✅ REQUIRED: Added dimensions, removed currentTransform
   );
 
   // Render highlighted ancestry path
@@ -2374,22 +2391,8 @@ const TreeView = ({
     );
   }
 
-  // Render edges with batching
-  const { elements: edgeElements, count: edgesDrawn } = renderEdgesBatched(
-    connections,
-    culledNodes,
-    tier,
-    showPhotos,
-  );
-
-  // Calculate viewport rectangle for clipping (Option A: Skia Group Clipping)
-  // This allows connections to render outside viewport but be clipped by Skia
-  const viewportRect = rect(
-    -currentTransform.x,
-    -currentTransform.y,
-    dimensions.width,
-    dimensions.height
-  );
+  // Use pre-built batched edge paths (no longer a function call)
+  const edgesDrawn = allBatchedEdgePaths.count;
 
   // Update frame stats
   frameStatsRef.current.nodesDrawn = tier === 3 ? 3 : culledNodes.length;
@@ -2438,79 +2441,81 @@ const TreeView = ({
       <RNAnimated.View style={{ flex: 1, opacity: contentFadeAnim }}>
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
-          <Group transform={transform}>
-            {/* Render batched edges with viewport clipping (Option A: Skia handles visibility) */}
-            <Group clip={viewportRect}>
-              {edgeElements}
-            </Group>
+            {/* Static screen-space clip (camera lens) */}
+            <Group clip={rect(0, 0, dimensions.width, dimensions.height)}>
+              {/* Transform inside (world moves behind lens) */}
+              <Group transform={transform}>
+                {/* Pre-built batched paths - no rebuilding on pan/zoom */}
+                {allBatchedEdgePaths.elements}
 
-            {/* Highlighted ancestry paths (above edges, below nodes) - UNIFIED SYSTEM */}
-            {renderAllHighlights()}
+                {/* Highlighted ancestry paths (above edges, below nodes) - UNIFIED SYSTEM */}
+                {renderAllHighlights()}
 
-            {/* Render visible nodes */}
-            {culledNodes.map((node) => (
-              <React.Fragment key={node.id}>{renderNodeWithTier(node)}</React.Fragment>
-            ))}
+                {/* Render visible nodes */}
+                {culledNodes.map((node) => (
+                  <React.Fragment key={node.id}>{renderNodeWithTier(node)}</React.Fragment>
+                ))}
 
-            {/* Pass 3: Invisible bridge lines intersecting viewport */}
-            {bridgeSegments.map((seg) => (
-              <Line
-                key={seg.id}
-                p1={vec(seg.x1, seg.y)}
-                p2={vec(seg.x2, seg.y)}
-                color={LINE_COLOR}
-                style="stroke"
-                strokeWidth={LINE_WIDTH}
-              />
-            ))}
-
-            {/* Search highlight glow (rendered on top of everything) */}
-            {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
-              const frame = nodeFramesRef.current.get(highlightedNodeIdState);
-              if (!frame) return null;
-
-              return (
-                <Group opacity={glowOpacityState}>
-                  {/* Soft multi-layer glow using Box + BoxShadow */}
-                  <Box
-                    box={rrect(
-                      rect(frame.x, frame.y, frame.width, frame.height),
-                      frame.borderRadius,
-                      frame.borderRadius
-                    )}
-                    color="transparent"
-                  >
-                    {/* Layer 5: Outermost halo - very soft, large spread */}
-                    <BoxShadow dx={0} dy={0} blur={50} color="rgba(213, 140, 74, 0.45)" />
-
-                    {/* Layer 4: Outer glow - golden halo */}
-                    <BoxShadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.40)" />
-
-                    {/* Layer 3: Middle glow - building intensity */}
-                    <BoxShadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
-
-                    {/* Layer 2: Inner glow - warm crimson accent */}
-                    <BoxShadow dx={0} dy={0} blur={20} color="rgba(161, 51, 51, 0.30)" />
-
-                    {/* Layer 1: Tight glow - color definition */}
-                    <BoxShadow dx={0} dy={0} blur={10} color="rgba(229, 168, 85, 0.50)" />
-                  </Box>
-
-                  {/* Crisp golden border on top */}
-                  <RoundedRect
-                    x={frame.x}
-                    y={frame.y}
-                    width={frame.width}
-                    height={frame.height}
-                    r={frame.borderRadius}
-                    color="#E5A855"
+                {/* Pass 3: Invisible bridge lines intersecting viewport */}
+                {bridgeSegments.map((seg) => (
+                  <Line
+                    key={seg.id}
+                    p1={vec(seg.x1, seg.y)}
+                    p2={vec(seg.x2, seg.y)}
+                    color={LINE_COLOR}
                     style="stroke"
-                    strokeWidth={2}
+                    strokeWidth={LINE_WIDTH}
                   />
-                </Group>
-              );
-            })()}
-          </Group>
+                ))}
+
+                {/* Search highlight glow (rendered on top of everything) */}
+                {highlightedNodeIdState && glowOpacityState > 0.01 && (() => {
+                  const frame = nodeFramesRef.current.get(highlightedNodeIdState);
+                  if (!frame) return null;
+
+                  return (
+                    <Group opacity={glowOpacityState}>
+                      {/* Soft multi-layer glow using Box + BoxShadow */}
+                      <Box
+                        box={rrect(
+                          rect(frame.x, frame.y, frame.width, frame.height),
+                          frame.borderRadius,
+                          frame.borderRadius
+                        )}
+                        color="transparent"
+                      >
+                        {/* Layer 5: Outermost halo - very soft, large spread */}
+                        <BoxShadow dx={0} dy={0} blur={50} color="rgba(213, 140, 74, 0.45)" />
+
+                        {/* Layer 4: Outer glow - golden halo */}
+                        <BoxShadow dx={0} dy={0} blur={40} color="rgba(213, 140, 74, 0.40)" />
+
+                        {/* Layer 3: Middle glow - building intensity */}
+                        <BoxShadow dx={0} dy={0} blur={30} color="rgba(213, 140, 74, 0.35)" />
+
+                        {/* Layer 2: Inner glow - warm crimson accent */}
+                        <BoxShadow dx={0} dy={0} blur={20} color="rgba(161, 51, 51, 0.30)" />
+
+                        {/* Layer 1: Tight glow - color definition */}
+                        <BoxShadow dx={0} dy={0} blur={10} color="rgba(229, 168, 85, 0.50)" />
+                      </Box>
+
+                      {/* Crisp golden border on top */}
+                      <RoundedRect
+                        x={frame.x}
+                        y={frame.y}
+                        width={frame.width}
+                        height={frame.height}
+                        r={frame.borderRadius}
+                        color="#E5A855"
+                        style="stroke"
+                        strokeWidth={2}
+                      />
+                    </Group>
+                  );
+                })()}
+              </Group>
+            </Group>
         </Canvas>
         </GestureDetector>
       </RNAnimated.View>
