@@ -389,8 +389,15 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   // Calculate position (centered)
   // Apply top-alignment offset at render time (node.y is D3 center, single source of truth)
   const renderY = node.y + (node.topAlignOffset || 0);
+
+  // LOD: Adjust vertical position when photos hidden to align with text-only nodes
+  // When hasPhoto=false, node height is 35px instead of 75px
+  // Shift UP by 20px so it aligns with text-only nodes (which are naturally at this position)
+  const heightDifference = NODE_HEIGHT_WITH_PHOTO - NODE_HEIGHT_TEXT_ONLY; // 75 - 35 = 40px
+  const verticalOffset = hasPhoto ? 0 : -(heightDifference / 2); // -20px when no photo
+
   const x = node.x - width / 2;
-  const y = renderY - height / 2;
+  const y = renderY - height / 2 + verticalOffset;
 
   // Track frame for highlight system
   nodeFramesRef.current.set(node.id, {
