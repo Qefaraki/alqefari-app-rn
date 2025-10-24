@@ -96,17 +96,17 @@ const TitleSelector = ({ value, customValue, onChange, personName: _personName }
                 onPress={() => handleTitleSelect(title.value)}
               >
                 <View style={styles.rowHeader}>
-                  <View style={styles.leadingIcon}>
-                    {isSelected ? (
-                      <Ionicons name="checkmark" size={20} color={BRAND_TINT} />
-                    ) : null}
-                  </View>
                   <Text
                     style={[styles.rowLabel, isSelected && styles.rowLabelSelected]}
                     numberOfLines={1}
                   >
                     {title.label}
                   </Text>
+                  <View style={styles.trailingIcon}>
+                    {isSelected ? (
+                      <Ionicons name="checkmark" size={20} color={BRAND_TINT} />
+                    ) : null}
+                  </View>
                 </View>
                 {showInput ? (
                   <Animated.View style={[styles.otherContainer, { height: otherHeight }]}> 
@@ -169,10 +169,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  leadingIcon: {
-    width: 20,
-    alignItems: 'center',
-  },
   rowLabel: {
     fontSize: 17,
     fontWeight: '500',
@@ -183,6 +179,10 @@ const styles = StyleSheet.create({
   rowLabelSelected: {
     color: BRAND_TINT,
     fontWeight: '600',
+  },
+  trailingIcon: {
+    width: 20,
+    alignItems: 'center',
   },
   otherContainer: {
     marginTop: 12,
