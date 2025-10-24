@@ -3,57 +3,73 @@ import {
   View,
   Text,
   TextInput,
+  TouchableOpacity,
   Animated,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import tokens from '../../ui/tokens';
 import {
   PROFESSIONAL_TITLES,
   validateCustomTitle,
 } from '../../../services/professionalTitleService';
-import ChoiceChip from '../../ui/ChoiceChip';
+const BRAND_TINT = '#C7342A';
+const ROW_BORDER = '#E7E7EB';
+const ROW_BG_SELECTED = '#F7EFED';
+const ROW_BORDER_SELECTED = '#DCC1BB';
 
-const TitleSelector = ({ value, customValue, onChange }) => {
-  const [selectedTitle, setSelectedTitle] = useState(value || null);
-  const [customInput, setCustomInput] = useState(customValue || '');
+const TitleSelector = ({ value, customValue, onChange, personName: _personName }) => {
+  const [pendingTitle, setPendingTitle] = useState(value || null);
+  const [pendingCustom, setPendingCustom] = useState(customValue || '');
   const [validationError, setValidationError] = useState('');
+  const customInputRef = useRef(null);
 
   const otherHeightAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const showOther = selectedTitle === 'other';
+    const showOther = pendingTitle === 'other';
     Animated.spring(otherHeightAnim, {
       toValue: showOther ? 1 : 0,
       damping: 20,
       stiffness: 200,
       useNativeDriver: false,
     }).start();
-  }, [selectedTitle]);
+  }, [pendingTitle]);
+
+  useEffect(() => {
+    setPendingTitle(value || null);
+  }, [value]);
+
+  useEffect(() => {
+    setPendingCustom(customValue || '');
+  }, [customValue]);
 
   const handleTitleSelect = (titleValue) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedTitle(titleValue);
+    setPendingTitle(titleValue);
     setValidationError('');
 
     if (titleValue === 'other') {
-      onChange({ professional_title: 'other', title_abbreviation: customInput });
-    } else {
-      const title = PROFESSIONAL_TITLES.find((t) => t.value === titleValue);
-      onChange({
-        professional_title: titleValue,
-        title_abbreviation: title?.abbrev || '',
-      });
+      customInputRef.current?.focus?.();
+      return;
     }
+
+    const title = PROFESSIONAL_TITLES.find((t) => t.value === titleValue);
+    setPendingCustom('');
+    onChange({
+      professional_title: titleValue,
+      title_abbreviation: title?.abbrev || '',
+    });
   };
 
   const handleCustomInput = (text) => {
-    setCustomInput(text);
+    setPendingCustom(text);
     const validation = validateCustomTitle(text);
     setValidationError(validation.error || '');
 
     if (validation.valid) {
-      onChange({ professional_title: 'other', title_abbreviation: text });
+      onChange({ professional_title: 'other', title_abbreviation: text.trim() });
     }
   };
 
@@ -64,87 +80,131 @@ const TitleSelector = ({ value, customValue, onChange }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.optionsGrid}>
-        {PROFESSIONAL_TITLES.map((title, index) => {
-          const isActive = selectedTitle === title.value;
-          const isLastOdd =
-            PROFESSIONAL_TITLES.length % 2 !== 0 &&
-            index === PROFESSIONAL_TITLES.length - 1;
+      <View style={styles.list}>
+        {PROFESSIONAL_TITLES.map((title) => {
+          const isSelected = pendingTitle === title.value;
+          const showInput = title.value === 'other' && isSelected;
           return (
-            <ChoiceChip
-              key={title.value}
-              label={title.label}
-              selected={isActive}
-              onPress={() => handleTitleSelect(title.value)}
-              grow={isLastOdd || title.value === 'other'}
-              style={[
-                styles.optionChip,
-                (isLastOdd || title.value === 'other') && styles.optionChipFull,
-              ]}
-            />
+            <View key={title.value} style={styles.rowWrapper}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.row,
+                  isSelected && styles.rowSelected,
+                  showInput && styles.rowExpanded,
+                ]}
+                onPress={() => handleTitleSelect(title.value)}
+              >
+                <View style={styles.rowHeader}>
+                  <View style={styles.leadingIcon}>
+                    {isSelected ? (
+                      <Ionicons name="checkmark" size={20} color={BRAND_TINT} />
+                    ) : null}
+                  </View>
+                  <Text
+                    style={[styles.rowLabel, isSelected && styles.rowLabelSelected]}
+                    numberOfLines={1}
+                  >
+                    {title.label}
+                  </Text>
+                </View>
+                {showInput ? (
+                  <Animated.View style={[styles.otherContainer, { height: otherHeight }]}> 
+                    <TextInput
+                      ref={customInputRef}
+                      style={[styles.otherInput, validationError && styles.otherInputError]}
+                      value={pendingCustom}
+                      onChangeText={handleCustomInput}
+                      placeholder="اكتب اللقب هنا"
+                      placeholderTextColor={tokens.colors.najdi.textMuted + '80'}
+                      maxLength={20}
+                    />
+                    {validationError ? (
+                      <Text style={styles.errorText}>{validationError}</Text>
+                    ) : null}
+                  </Animated.View>
+                ) : null}
+              </TouchableOpacity>
+            </View>
           );
         })}
       </View>
 
-      <Animated.View
-        style={[styles.otherContainer, { height: otherHeight }]}
-        pointerEvents={selectedTitle === 'other' ? 'auto' : 'none'}
-      >
-        <Text style={styles.otherLabel}>أدخل اللقب المخصص</Text>
-        <TextInput
-          style={[styles.otherInput, validationError && styles.otherInputError]}
-          value={customInput}
-          onChangeText={handleCustomInput}
-          placeholder="مثال: د., أ.د., م."
-          placeholderTextColor={`${tokens.colors.najdi.textMuted  }80`}
-          maxLength={20}
-        />
-        {validationError ? <Text style={styles.errorText}>{validationError}</Text> : null}
-      </Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    gap: tokens.spacing.md,
+    gap: 24,
+    paddingStart: 14,
+    paddingEnd: 16,
+    paddingTop: 24,
   },
-  optionsGrid: {
+  list: {
+    gap: 12,
+  },
+  rowWrapper: {
+    gap: 8,
+  },
+  row: {
+    backgroundColor: '#FFFFFF',
+    borderColor: ROW_BORDER,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingStart: 14,
+    paddingEnd: 16,
+    paddingVertical: 12,
+    minHeight: 56,
+  },
+  rowExpanded: {
+    paddingBottom: 16,
+  },
+  rowSelected: {
+    borderColor: ROW_BORDER_SELECTED,
+    backgroundColor: ROW_BG_SELECTED,
+  },
+  rowHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.sm,
+    alignItems: 'center',
+    gap: 12,
   },
-  optionChip: {
-    flexBasis: '48%',
-    flexGrow: 1,
+  leadingIcon: {
+    width: 20,
+    alignItems: 'center',
   },
-  optionChipFull: {
-    flexBasis: '100%',
+  rowLabel: {
+    fontSize: 17,
+    fontWeight: '500',
+    color: '#101114',
+    flex: 1,
+    textAlign: 'left',
+  },
+  rowLabelSelected: {
+    color: BRAND_TINT,
+    fontWeight: '600',
   },
   otherContainer: {
-    overflow: 'hidden',
-    gap: tokens.spacing.xs,
-  },
-  otherLabel: {
-    fontSize: 13,
-    color: tokens.colors.najdi.textMuted,
+    marginTop: 12,
+    gap: 8,
   },
   otherInput: {
-    fontSize: 17,
+    fontSize: 16,
     color: tokens.colors.najdi.text,
     borderWidth: 1,
-    borderColor: `${tokens.colors.najdi.container  }40`,
-    borderRadius: tokens.radii.sm,
-    paddingHorizontal: tokens.spacing.md,
+    borderColor: ROW_BORDER,
+    borderRadius: 12,
+    paddingStart: 14,
+    paddingEnd: 16,
     paddingVertical: tokens.spacing.sm,
-    backgroundColor: tokens.colors.najdi.background,
+    backgroundColor: '#FFFFFF',
   },
   otherInputError: {
-    borderColor: tokens.colors.najdi.primary,
+    borderColor: BRAND_TINT,
   },
   errorText: {
     fontSize: 12,
-    color: tokens.colors.najdi.primary,
+    color: BRAND_TINT,
   },
 });
 
