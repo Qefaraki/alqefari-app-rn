@@ -10,12 +10,13 @@ Phase 3 focuses on performance optimization to support 10,000+ profiles with 60f
 
 ## Documentation Index
 
-- **[01-PLAN.md](./01-PLAN.md)** - Comprehensive Phase 3 master plan
-- **[lod-system/](./lod-system/)** - Phase 3A: LOD System Redesign (30h) - **CRITICAL**
-- **[progressive-loading/](./progressive-loading/)** - Phase 3B: Progressive Loading (25h) - **CRITICAL**
-- **[theme-system/](./theme-system/)** - Phase 3C: Theme System (20h)
-- **[advanced-navigation/](./advanced-navigation/)** - Phase 3D: Advanced Navigation (30h)
-- **[enhanced-highlighting/](./enhanced-highlighting/)** - Phase 3E: Enhanced Highlighting (15h)
+- **[01-PLAN.md](./01-PLAN.md)** - Comprehensive Phase 3 master plan (full details)
+- **[02-IMPLEMENTATION_ROADMAP.md](./02-IMPLEMENTATION_ROADMAP.md)** - Actionable implementation roadmap (how to execute)
+- **[lod-system/](./lod-system/)** - Phase 3A: LOD System Redesign (30h, 4-5 days) - **CRITICAL**
+- **[progressive-loading/](./progressive-loading/)** - Phase 3B: Progressive Loading (25h, 3-4 days) - **CRITICAL**
+- **[theme-system/](./theme-system/)** - Phase 3C: Theme System (20h, 3 days)
+- **[advanced-navigation/](./advanced-navigation/)** - Phase 3D: Advanced Navigation (30h, 4-5 days)
+- **[enhanced-highlighting/](./enhanced-highlighting/)** - Phase 3E: Enhanced Highlighting (15h, 2-3 days)
 
 ## Critical Work (Start Immediately)
 
