@@ -2018,7 +2018,6 @@ const TreeView = ({
         _showPhoto: showPhoto,
       }));
       const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
-      const visibleNodeIds = new Set(culledNodesArray.map(n => n.id));
 
       let edgeCount = 0;
       const paths = [];
@@ -2028,25 +2027,26 @@ const TreeView = ({
       for (const conn of connections) {
         if (edgeCount >= MAX_VISIBLE_EDGES) break;
 
-        // Only render if parent or any child is visible
-        if (
-          !visibleNodeIds.has(conn.parent.id) &&
-          !conn.children.some((c) => visibleNodeIds.has(c.id))
-        ) {
+        // Validate connection structure (defensive programming)
+        if (!conn?.parent?.id || !Array.isArray(conn.children)) {
+          if (__DEV__) {
+            // eslint-disable-next-line no-console
+            console.warn('[TreeView] Malformed connection object', conn);
+          }
           continue;
         }
 
-        // Use Map for O(1) lookup with per-node LOD state (_showPhoto)
+        // Skip if parent not in visible culled nodes
         const parent = nodeMap.get(conn.parent.id);
         if (!parent) {
-          console.warn(`Parent node ${conn.parent.id} not found in visible nodes`);
+          // Parent outside viewport - connection not renderable until parent scrolls in
           continue;
         }
 
-        // Get children with per-node LOD state (_showPhoto)
+        // Get visible children - filter to only those in culled nodes
         const children = conn.children
           .map((c) => nodeMap.get(c.id))
-          .filter(Boolean); // Remove undefined (nodes not in visible set)
+          .filter(Boolean);
 
         if (children.length === 0) continue; // Skip if no visible children
 
