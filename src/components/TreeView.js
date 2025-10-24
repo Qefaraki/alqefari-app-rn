@@ -2007,15 +2007,14 @@ const TreeView = ({
 
   // Render edges with batching and capping
   const renderEdgesBatched = useCallback(
-    (connections, culledNodesArray, tier) => {
+    (connections, culledNodesArray, tier, showPhotos) => {
       if (tier === 3) return { elements: null, count: 0 };
 
-      // Enrich nodes with per-node LOD state before creating map
-      // Ensures PathCalculator uses actual zoom-based photo visibility, not global setting
-      const showPhoto = currentTransform.scale >= 0.4;
+      // Enrich nodes with photo visibility to match node rendering
+      // Use same photo visibility as nodes (user toggle) for consistent heights in PathCalculator
       const enrichedNodes = culledNodesArray.map(n => ({
         ...n,
-        _showPhoto: showPhoto,
+        _showPhoto: showPhotos,
       }));
       const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
 
@@ -2114,7 +2113,7 @@ const TreeView = ({
 
       return { elements: paths, count: edgeCount };
     },
-    [currentTransform],
+    [currentTransform, showPhotos],
   );
 
   // Render highlighted ancestry path
@@ -2390,6 +2389,7 @@ const TreeView = ({
     connections,
     culledNodes,
     tier,
+    showPhotos,
   );
 
   // Update frame stats
