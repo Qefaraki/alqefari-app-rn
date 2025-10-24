@@ -220,9 +220,60 @@ export const createFromGregorian = (year, month, day) => {
 };
 
 /**
- * Convert a moment object to our JSONB structure
+ * Create a date object from partial date components (year-only or year+month)
+ * Supports storing dates where user only knows the year
+ * @param {number} year - Year (required)
+ * @param {number|null} month - Month (optional, defaults to July/7 for conversion)
+ * @param {number|null} day - Day (optional, defaults to 1 for conversion)
+ * @param {boolean} isHijri - Whether input is Hijri calendar
+ * @returns {Object|null} - Moment object with stored year/month/day values
  */
-export const toDateData = (momentObj, approximate = false) => {
+export const createFromPartialDate = (year, month = null, day = null, isHijri = false) => {
+  // Year is required
+  if (!year || isNaN(year)) {
+    return null;
+  }
+
+  // Determine default month/day for conversion (use mid-year for approximation)
+  const monthForConversion = month || 7; // July for Gregorian, mid-year
+  const dayForConversion = day || 1;
+
+  try {
+    let momentObj;
+
+    if (isHijri) {
+      momentObj = createFromHijri(year, monthForConversion, dayForConversion);
+    } else {
+      momentObj = createFromGregorian(year, monthForConversion, dayForConversion);
+    }
+
+    if (!momentObj) {
+      return null;
+    }
+
+    // Store the actual input values (with nulls for missing fields)
+    momentObj._partialYear = year;
+    momentObj._partialMonth = month;
+    momentObj._partialDay = day;
+    momentObj._isPartialDate = true;
+
+    return momentObj;
+  } catch (error) {
+    console.error("Error creating partial date:", error);
+    return null;
+  }
+};
+
+/**
+ * Convert a moment object to our JSONB structure
+ * Supports partial dates (year-only or year+month)
+ * @param {Object} momentObj - Moment object to convert
+ * @param {boolean} approximate - Whether this is an approximate date
+ * @param {boolean} hasMonth - Whether to include month in output (for partial dates)
+ * @param {boolean} hasDay - Whether to include day in output (for partial dates)
+ * @returns {Object|null} - JSONB structure or null
+ */
+export const toDateData = (momentObj, approximate = false, hasMonth = true, hasDay = true) => {
   if (!momentObj || !momentObj.isValid()) {
     return null;
   }
@@ -230,8 +281,8 @@ export const toDateData = (momentObj, approximate = false) => {
   try {
     // Get Gregorian values
     const gregorianYear = momentObj.year();
-    const gregorianMonth = momentObj.month() + 1;
-    const gregorianDay = momentObj.date();
+    const gregorianMonth = hasMonth ? momentObj.month() + 1 : null;
+    const gregorianDay = hasDay ? momentObj.date() : null;
 
     // Get Hijri values with error handling
     let hijriYear, hijriMonth, hijriDay;
@@ -240,62 +291,89 @@ export const toDateData = (momentObj, approximate = false) => {
     // Check if we have stored Hijri values (for ancient dates)
     if (momentObj._hijriYear && momentObj._hijriMonth && momentObj._hijriDay) {
       hijriYear = momentObj._hijriYear;
-      hijriMonth = momentObj._hijriMonth;
-      hijriDay = momentObj._hijriDay;
-      display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+      hijriMonth = hasMonth ? momentObj._hijriMonth : null;
+      hijriDay = hasDay ? momentObj._hijriDay : null;
+
+      if (hasMonth && hasDay) {
+        display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+      } else if (hasMonth) {
+        display = `${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+      } else {
+        display = `${toArabicNumerals(hijriYear)} هـ`;
+      }
     } else {
       // For dates without stored Hijri values, try different approaches
       try {
         // First try moment-hijri's built-in conversion
         hijriYear = momentObj.iYear();
-        hijriMonth = momentObj.iMonth() + 1;
-        hijriDay = momentObj.iDate();
+        hijriMonth = hasMonth ? momentObj.iMonth() + 1 : null;
+        hijriDay = hasDay ? momentObj.iDate() : null;
 
         // Validate Hijri values
-        if (!isNaN(hijriDay) && !isNaN(hijriMonth) && !isNaN(hijriYear)) {
-          display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+        if (!isNaN(hijriYear)) {
+          if (hasMonth && hasDay && !isNaN(hijriDay) && !isNaN(hijriMonth)) {
+            display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+          } else if (hasMonth && !isNaN(hijriMonth)) {
+            display = `${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+          } else {
+            display = `${toArabicNumerals(hijriYear)} هـ`;
+          }
         } else {
           throw new Error("Invalid Hijri conversion");
         }
       } catch (hijriError) {
-        // If moment-hijri fails, use our custom converter
-        const hijriConverted = gregorianToHijri(
-          gregorianYear,
-          gregorianMonth,
-          gregorianDay,
-        );
-        if (hijriConverted) {
-          hijriYear = hijriConverted.year;
-          hijriMonth = hijriConverted.month;
-          hijriDay = hijriConverted.day;
-          display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+        // If moment-hijri fails, use our custom converter (only if we have all components)
+        if (hasMonth && hasDay) {
+          const hijriConverted = gregorianToHijri(
+            gregorianYear,
+            gregorianMonth,
+            gregorianDay,
+          );
+          if (hijriConverted) {
+            hijriYear = hijriConverted.year;
+            hijriMonth = hijriConverted.month;
+            hijriDay = hijriConverted.day;
+            display = `${toArabicNumerals(hijriDay)}/${toArabicNumerals(hijriMonth)}/${toArabicNumerals(hijriYear)} هـ`;
+          } else {
+            // If all conversions fail, use Gregorian display
+            hijriYear = hijriMonth = hijriDay = null;
+            if (hasMonth && hasDay) {
+              display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
+            } else if (hasMonth) {
+              display = `${gregorianMonth}/${gregorianYear}`;
+            } else {
+              display = `${gregorianYear}`;
+            }
+          }
         } else {
-          // If all conversions fail, use Gregorian display
-          hijriYear = hijriMonth = hijriDay = null;
-          display = `${gregorianDay}/${gregorianMonth}/${gregorianYear}`;
+          // For partial dates, just use year
+          hijriYear = momentObj.iYear();
+          hijriMonth = null;
+          hijriDay = null;
+          display = `${toArabicNumerals(hijriYear)} هـ`;
         }
       }
     }
 
     // Return structure compatible with database
     // Using nested structure as primary format
+    // Only include month/day if they are present
+    const gregorianObj = { year: gregorianYear };
+    if (hasMonth) gregorianObj.month = gregorianMonth;
+    if (hasDay) gregorianObj.day = gregorianDay;
+
     const result = {
-      gregorian: {
-        year: gregorianYear,
-        month: gregorianMonth,
-        day: gregorianDay,
-      },
-      approximate: approximate || false,
+      gregorian: gregorianObj,
+      approximate: approximate || !hasMonth || !hasDay, // Auto-set approximate for partial dates
       display,
     };
 
     // Add Hijri if available
-    if (hijriYear && hijriMonth && hijriDay) {
-      result.hijri = {
-        year: hijriYear,
-        month: hijriMonth,
-        day: hijriDay,
-      };
+    if (hijriYear) {
+      const hijriObj = { year: hijriYear };
+      if (hasMonth && hijriMonth) hijriObj.month = hijriMonth;
+      if (hasDay && hijriDay) hijriObj.day = hijriDay;
+      result.hijri = hijriObj;
     }
 
     return result;
@@ -307,6 +385,7 @@ export const toDateData = (momentObj, approximate = false) => {
 
 /**
  * Parse a date data object to moment
+ * Supports both complete dates and partial dates (year-only)
  */
 export const fromDateData = (dateData) => {
   if (!dateData) return null;
@@ -314,20 +393,32 @@ export const fromDateData = (dateData) => {
   try {
     // Prefer Gregorian for internal consistency
     if (dateData.gregorian) {
-      return createFromGregorian(
-        dateData.gregorian.year,
-        dateData.gregorian.month,
-        dateData.gregorian.day,
-      );
+      const { year, month, day } = dateData.gregorian;
+
+      // Handle partial dates
+      if (year && !month && !day) {
+        return createFromPartialDate(year, null, null, false);
+      } else if (year && month && !day) {
+        return createFromPartialDate(year, month, null, false);
+      }
+
+      // Complete date
+      return createFromGregorian(year, month, day);
     }
 
     // Fallback to Hijri if Gregorian not available
     if (dateData.hijri) {
-      return createFromHijri(
-        dateData.hijri.year,
-        dateData.hijri.month,
-        dateData.hijri.day,
-      );
+      const { year, month, day } = dateData.hijri;
+
+      // Handle partial dates
+      if (year && !month && !day) {
+        return createFromPartialDate(year, null, null, true);
+      } else if (year && month && !day) {
+        return createFromPartialDate(year, month, null, true);
+      }
+
+      // Complete date
+      return createFromHijri(year, month, day);
     }
   } catch (error) {
     return null;

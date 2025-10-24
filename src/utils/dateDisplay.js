@@ -78,6 +78,7 @@ function formatDate(day, month, year, type = "gregorian", settings = {}) {
 
 /**
  * Format a date object based on user's preferences
+ * Supports both complete dates and partial dates (year-only)
  * @param {Object} dateData - The date object with hijri/gregorian data
  * @param {Object} settings - User's date display settings
  * @returns {string} Formatted date string
@@ -101,24 +102,27 @@ export function formatDateByPreference(dateData, settings = {}) {
   // Format primary calendar
   if (preference === "hijri") {
     // Try to get Hijri date
-    if (
-      dateData.hijri &&
-      dateData.hijri.day &&
-      dateData.hijri.month &&
-      dateData.hijri.year
-    ) {
-      primaryDate = formatDate(
-        dateData.hijri.day,
-        dateData.hijri.month,
-        dateData.hijri.year,
-        "hijri",
-        finalSettings,
-      );
+    if (dateData.hijri) {
+      const { day, month, year } = dateData.hijri;
+
+      // Handle partial dates (year-only)
+      if (year && !month && !day) {
+        // Year only - simple format
+        const yearStr = finalSettings.arabicNumerals ? toArabicNumerals(year.toString()) : year;
+        primaryDate = `${yearStr} هـ`;
+      } else if (year && month && !day) {
+        // Year + month
+        primaryDate = formatDate(month, month, year, "hijri", finalSettings);
+      } else if (year && month && day) {
+        // Complete date
+        primaryDate = formatDate(day, month, year, "hijri", finalSettings);
+      }
     } else if (
       dateData.hijri_day &&
       dateData.hijri_month &&
       dateData.hijri_year
     ) {
+      // Legacy format
       primaryDate = formatDate(
         dateData.hijri_day,
         dateData.hijri_month,
@@ -129,46 +133,45 @@ export function formatDateByPreference(dateData, settings = {}) {
     }
 
     // Get Gregorian for secondary if showing both
-    if (finalSettings.showBothCalendars) {
-      if (
-        dateData.gregorian &&
-        dateData.gregorian.day &&
-        dateData.gregorian.month &&
-        dateData.gregorian.year
-      ) {
-        secondaryDate = formatDate(
-          dateData.gregorian.day,
-          dateData.gregorian.month,
-          dateData.gregorian.year,
-          "gregorian",
-          finalSettings,
-        );
-      } else if (dateData.day && dateData.month && dateData.year) {
-        secondaryDate = formatDate(
-          dateData.day,
-          dateData.month,
-          dateData.year,
-          "gregorian",
-          finalSettings,
-        );
+    if (finalSettings.showBothCalendars && dateData.gregorian) {
+      const { day, month, year } = dateData.gregorian;
+
+      // Handle partial dates
+      if (year && !month && !day) {
+        secondaryDate = year.toString();
+      } else if (year && month && !day) {
+        secondaryDate = formatDate(month, month, year, "gregorian", finalSettings);
+      } else if (year && month && day) {
+        secondaryDate = formatDate(day, month, year, "gregorian", finalSettings);
       }
-    }
-  } else {
-    // Try to get Gregorian date
-    if (
-      dateData.gregorian &&
-      dateData.gregorian.day &&
-      dateData.gregorian.month &&
-      dateData.gregorian.year
-    ) {
-      primaryDate = formatDate(
-        dateData.gregorian.day,
-        dateData.gregorian.month,
-        dateData.gregorian.year,
+    } else if (finalSettings.showBothCalendars && dateData.day && dateData.month && dateData.year) {
+      // Legacy format
+      secondaryDate = formatDate(
+        dateData.day,
+        dateData.month,
+        dateData.year,
         "gregorian",
         finalSettings,
       );
+    }
+  } else {
+    // Try to get Gregorian date
+    if (dateData.gregorian) {
+      const { day, month, year } = dateData.gregorian;
+
+      // Handle partial dates (year-only)
+      if (year && !month && !day) {
+        // Year only - simple format
+        primaryDate = year.toString();
+      } else if (year && month && !day) {
+        // Year + month
+        primaryDate = formatDate(month, month, year, "gregorian", finalSettings);
+      } else if (year && month && day) {
+        // Complete date
+        primaryDate = formatDate(day, month, year, "gregorian", finalSettings);
+      }
     } else if (dateData.day && dateData.month && dateData.year) {
+      // Legacy format
       primaryDate = formatDate(
         dateData.day,
         dateData.month,
@@ -179,33 +182,31 @@ export function formatDateByPreference(dateData, settings = {}) {
     }
 
     // Get Hijri for secondary if showing both
-    if (finalSettings.showBothCalendars) {
-      if (
-        dateData.hijri &&
-        dateData.hijri.day &&
-        dateData.hijri.month &&
-        dateData.hijri.year
-      ) {
-        secondaryDate = formatDate(
-          dateData.hijri.day,
-          dateData.hijri.month,
-          dateData.hijri.year,
-          "hijri",
-          finalSettings,
-        );
-      } else if (
-        dateData.hijri_day &&
-        dateData.hijri_month &&
-        dateData.hijri_year
-      ) {
-        secondaryDate = formatDate(
-          dateData.hijri_day,
-          dateData.hijri_month,
-          dateData.hijri_year,
-          "hijri",
-          finalSettings,
-        );
+    if (finalSettings.showBothCalendars && dateData.hijri) {
+      const { day, month, year } = dateData.hijri;
+
+      // Handle partial dates
+      if (year && !month && !day) {
+        secondaryDate = `${finalSettings.arabicNumerals ? toArabicNumerals(year.toString()) : year} هـ`;
+      } else if (year && month && !day) {
+        secondaryDate = formatDate(month, month, year, "hijri", finalSettings);
+      } else if (year && month && day) {
+        secondaryDate = formatDate(day, month, year, "hijri", finalSettings);
       }
+    } else if (
+      finalSettings.showBothCalendars &&
+      dateData.hijri_day &&
+      dateData.hijri_month &&
+      dateData.hijri_year
+    ) {
+      // Legacy format
+      secondaryDate = formatDate(
+        dateData.hijri_day,
+        dateData.hijri_month,
+        dateData.hijri_year,
+        "hijri",
+        finalSettings,
+      );
     }
   }
 
