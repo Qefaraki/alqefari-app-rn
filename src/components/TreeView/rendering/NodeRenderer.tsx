@@ -65,11 +65,6 @@ const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 50;
 const CORNER_RADIUS = 10; // Smooth rounded corners
 
-// LOD Alignment Compensation
-// When LOD hides photos, nodes shrink from 75px to 35px, requiring compensation
-const PHOTO_TEXT_HEIGHT_DIFF = NODE_HEIGHT_WITH_PHOTO - NODE_HEIGHT_TEXT_ONLY; // 40px
-const LOD_OFFSET_COMPENSATION = PHOTO_TEXT_HEIGHT_DIFF / 2; // 20px
-
 export interface LayoutNode {
   id: string;
   name: string;
@@ -392,26 +387,10 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   );
 
   // Calculate position (centered)
-  // Apply top-alignment offset at render time (node.y is D3 center, single source of truth)
-  const hasPhotoUrl = !!node.photo_url;
-
-  /**
-   * LOD Alignment Compensation:
-   * When photos are hidden by LOD (zoom < 0.4), nodes with photo_url
-   * shrink from 75px to 35px height. But topAlignOffset was calculated
-   * assuming 75px, causing a 20px downward shift. We compensate by
-   * shifting back up 20px to maintain alignment with text-only siblings.
-   * Root nodes are excluded as they maintain 100px height regardless of LOD.
-   *
-   * Uses per-node _showPhoto state (not global showPhotos setting) to detect
-   * when LOD specifically hides photos, ensuring coordinate consistency with PathCalculator.
-   */
-  const photoHiddenByLOD = !isRoot && hasPhotoUrl && showPhotos && node._showPhoto === false;
-  const lodCompensation = photoHiddenByLOD ? -LOD_OFFSET_COMPENSATION : 0;
-
-  const renderY = node.y + (node.topAlignOffset || 0);
+  // Unified PTS Architecture: node.y already includes root offset + top-alignment
+  // No runtime offsets needed - just use node.y directly!
   const x = node.x - width / 2;
-  const y = renderY - height / 2 + lodCompensation;
+  const y = node.y - height / 2;
 
   // Track frame for highlight system
   nodeFramesRef.current.set(node.id, {

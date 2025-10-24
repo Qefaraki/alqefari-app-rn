@@ -170,7 +170,16 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
   // The collision resolver was adding 15-20px of extra spacing by detecting false overlaps
   // when comparing entire subtree bounds instead of just direct sibling nodes.
 
-  // Post-process for top-alignment (D3 uses center-based coordinates)
+  // Unified PTS Architecture: Bake all offsets into node.y (D3 coordinate system)
+  // Step 1: Apply root node visual spacing (-80px) FIRST
+  treeData.each((d) => {
+    const isRoot = d.depth === 0 && !d.data.father_id;
+    if (isRoot) {
+      d.y -= 80;  // Root nodes get visual spacing at top of tree
+    }
+  });
+
+  // Step 2: Apply top-alignment offsets (mutate node.y to include top-alignment)
   // Group nodes by depth (generation) and adjust Y to align top edges
   const depthGroups = new Map();
   treeData.each((d) => {
@@ -180,43 +189,44 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
     depthGroups.get(d.depth).push(d);
   });
 
-  // Calculate top-alignment offsets (store separately, don't mutate D3 coordinates)
-  // IMPORTANT: Always assume photos are SHOWN when calculating offsets
-  // This ensures consistent alignment even when LOD hides photos at runtime
+  // Calculate and apply top-alignment offsets (MUTATE node.y to include offset)
+  // Use effectiveShowPhotos to determine heights (accounts for zoom LOD)
   depthGroups.forEach((nodesAtDepth) => {
     // Find shortest node in this generation (will be the top-aligned reference)
-    // Always assume photos are ON (75px) for consistent LOD behavior
     const minHeight = Math.min(
       ...nodesAtDepth.map(node => {
-        const hasPhotoUrl = !!node.data.photo_url;  // Check if photo exists (not showPhotos setting)
+        const hasPhotoUrl = !!node.data.photo_url;
         const isRoot = node.depth === 0 && !node.data.father_id;
 
         // Root node is always 100px tall
         if (isRoot) return 100;
 
+        // Use effectiveShowPhotos to determine if photos are shown in layout
         // Photo nodes are 75px, text-only are 35px
-        // Use photo_url to determine node type, not showPhotos setting
-        return hasPhotoUrl ? 75 : 35;
+        return (effectiveShowPhotos && hasPhotoUrl) ? 75 : 35;
       })
     );
 
-    // Store top-alignment offset for each node (for rendering)
+    // MUTATE node.y to include top-alignment offset (bake into final position)
     nodesAtDepth.forEach(node => {
-      const hasPhotoUrl = !!node.data.photo_url;  // Check if photo exists (not showPhotos setting)
+      const hasPhotoUrl = !!node.data.photo_url;
       const isRoot = node.depth === 0 && !node.data.father_id;
 
       let nodeHeight;
       if (isRoot) {
         nodeHeight = 100;
       } else {
-        // Use photo_url to determine node type, not showPhotos setting
-        nodeHeight = hasPhotoUrl ? 75 : 35;
+        // Use effectiveShowPhotos to determine actual rendered height
+        nodeHeight = (effectiveShowPhotos && hasPhotoUrl) ? 75 : 35;
       }
 
-      // Store offset WITHOUT mutating node.y (D3 center remains pure)
-      // Positive offset moves taller nodes DOWN to align top edges with shortest node
+      // Calculate offset to align top edges
       const offset = (nodeHeight - minHeight) / 2;
-      node.topAlignOffset = offset;
+
+      // BAKE offset into node.y (now it's final render position!)
+      node.y += offset;
+
+      // NOTE: DO NOT store node.topAlignOffset anymore - y includes it now
     });
   });
 
@@ -228,8 +238,8 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
     nodes.push({
       ...d.data,
       x: d.x,
-      y: d.y,  // D3 center coordinate (single source of truth)
-      topAlignOffset: d.topAlignOffset || 0,  // Offset for rendering only
+      y: d.y,  // FINAL render position (includes root offset + top-alignment)
+      // NOTE: NO topAlignOffset anymore - y is the final position!
       depth: d.depth,
     });
   });
@@ -244,8 +254,8 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
         parentGroups.set(parentId, {
           parent: {
             x: d.parent.x,
-            y: d.parent.y,  // D3 center (single source of truth)
-            topAlignOffset: d.parent.topAlignOffset || 0,  // Top-alignment offset for rendering
+            y: d.parent.y,  // FINAL position (includes root offset + top-alignment)
+            // NOTE: NO topAlignOffset - y is the final position!
             id: parentId,
             photo_url: d.parent.data.photo_url,  // For height calculation (75px vs 35px)
             father_id: d.parent.data.father_id,  // For root detection (100px)
@@ -255,8 +265,8 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
       }
       parentGroups.get(parentId).children.push({
         x: d.x,
-        y: d.y,  // D3 center (single source of truth)
-        topAlignOffset: d.topAlignOffset || 0,  // Top-alignment offset for rendering
+        y: d.y,  // FINAL position (includes root offset + top-alignment)
+        // NOTE: NO topAlignOffset - y is the final position!
         id: d.data.id,
         photo_url: d.data.photo_url,  // For height calculation (75px vs 35px)
         father_id: d.data.father_id,  // For root detection (100px)

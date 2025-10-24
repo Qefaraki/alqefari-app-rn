@@ -425,6 +425,32 @@ const TreeView = ({
   const [highlightedPathNodeIds, setHighlightedPathNodeIds] = useState(null);
   const [userLineagePathNodeIds, setUserLineagePathNodeIds] = useState(null);
 
+  // Unified PTS Architecture: Threshold-based effective photo visibility
+  // Only recalculates layout when crossing 0.4x zoom threshold (not every frame)
+  const [effectiveShowPhotos, setEffectiveShowPhotos] = useState(showPhotos);
+
+  // Detect zoom threshold crossing (0.4x) with hysteresis to prevent layout thrashing
+  useEffect(() => {
+    const threshold = 0.4;
+    const hysteresis = 0.05; // Don't recalc until we're clearly past boundary
+
+    const checkThreshold = () => {
+      const scale = currentTransform.scale;
+
+      if (effectiveShowPhotos && scale < (threshold - hysteresis)) {
+        // Crossed below threshold - hide photos in layout
+        setEffectiveShowPhotos(false);
+        console.log(`📉 Crossed zoom threshold: ${scale.toFixed(2)}x - hiding photos in layout`);
+      } else if (!effectiveShowPhotos && scale > (threshold + hysteresis)) {
+        // Crossed above threshold - show photos in layout
+        setEffectiveShowPhotos(true);
+        console.log(`📈 Crossed zoom threshold: ${scale.toFixed(2)}x - showing photos in layout`);
+      }
+    };
+
+    checkThreshold();
+  }, [currentTransform.scale, effectiveShowPhotos]);
+
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
     () => ({
@@ -626,6 +652,7 @@ const TreeView = ({
   });
 
   // Calculate layout - based on treeData only, not loading state
+  // Unified PTS Architecture: Use effectiveShowPhotos which accounts for zoom threshold
   const { nodes, connections } = useMemo(() => {
     if (!treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
@@ -633,46 +660,26 @@ const TreeView = ({
 
     // Phase 1 Day 4d: Performance monitoring
     const layoutStartTime = performance.now();
-    const layout = calculateTreeLayout(treeData, showPhotos);
+    const layout = calculateTreeLayout(treeData, effectiveShowPhotos);
     const layoutDuration = performance.now() - layoutStartTime;
 
     // Log layout performance
     performanceMonitor.logLayoutTime(layoutDuration, treeData.length);
 
-    // Adjust root node position higher
-    const adjustedNodes = layout.nodes.map(node => {
-      const isRoot = !node.father_id;
-      return {
-        ...node,
-        y: isRoot ? node.y - 80 : node.y
-      };
-    });
-
-    // Adjust connections for root node
-    const adjustedConnections = layout.connections.map(conn => {
-      // Check if this connection involves the root node as parent
-      const rootNode = adjustedNodes.find(n => !n.father_id);
-      if (rootNode && conn.parent.id === rootNode.id) {
-        return {
-          ...conn,
-          parent: {
-            ...conn.parent,
-            y: conn.parent.y - 80
-          }
-        };
-      }
-      return conn;
-    });
+    // NOTE: Root node -80 offset is now baked into treeLayout.js
+    // No adjustedNodes transformation needed anymore
+    // Layout returns final positions (node.y includes root offset + top-alignment)
 
     // DEBUG: Log canvas coordinates summary
-    if (adjustedNodes.length > 0) {
+    if (layout.nodes.length > 0) {
       console.log('🎯 LAYOUT CALCULATED:');
-      console.log(`  Nodes: ${adjustedNodes.length}, Connections: ${adjustedConnections.length}`);
+      console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
       console.log(`  TreeData length: ${treeData.length}`);
+      console.log(`  Effective photos: ${effectiveShowPhotos}`);
     }
 
-    return { nodes: adjustedNodes, connections: adjustedConnections };
-  }, [treeData, showPhotos]);
+    return { nodes: layout.nodes, connections: layout.connections };
+  }, [treeData, effectiveShowPhotos]);
 
   // Build indices for LOD system with O(N) complexity
   const indices = useMemo(() => {
@@ -2133,7 +2140,7 @@ const TreeView = ({
 
       return { elements: paths, count: edgeCount };
     },
-    [nodes, showPhotos],
+    [nodes],
   );
 
   // Render highlighted ancestry path

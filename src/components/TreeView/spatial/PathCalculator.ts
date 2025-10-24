@@ -22,16 +22,10 @@ import {
   NODE_HEIGHT_TEXT_ONLY,
 } from '../utils/constants/nodes';
 
-// LOD Alignment Compensation
-// Must match NodeRenderer.tsx constant - when LOD hides photos, nodes shift by this amount
-const PHOTO_TEXT_HEIGHT_DIFF = NODE_HEIGHT_WITH_PHOTO - NODE_HEIGHT_TEXT_ONLY; // 40px
-const LOD_OFFSET_COMPENSATION = PHOTO_TEXT_HEIGHT_DIFF / 2; // 20px
-
 export interface LayoutNode {
   id: string;
   x: number;
-  y: number;
-  topAlignOffset?: number;
+  y: number;  // FINAL position (includes root offset + top-alignment)
   father_id?: string | null;
   photo_url?: string | null;
   [key: string]: any;
@@ -69,28 +63,20 @@ export function calculateBusY(
     throw new Error('calculateBusY requires at least one child node');
   }
 
-  // Parent bottom edge (apply top-alignment offset + LOD compensation)
-  // Use per-node _showPhoto state (not global showPhotos) for accurate LOD height
+  // Unified PTS Architecture: node.y already includes all offsets (root + top-alignment)
+  // Just use node.y directly to get parent and child positions
+
+  // Parent bottom edge
   const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
   const parentHeight = parentShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-  const isRootParent = !parent.father_id;
-  const parentHasPhotoUrl = !!parent.photo_url;
-  const parentPhotoHidden = !isRootParent && parentHasPhotoUrl && !parentShowingPhoto;
-  const parentLodComp = parentPhotoHidden ? -LOD_OFFSET_COMPENSATION : 0;
-  const parentRenderY = parent.y + (parent.topAlignOffset || 0) + parentLodComp;
-  const parentBottom = parentRenderY + parentHeight / 2;
+  const parentBottom = parent.y + parentHeight / 2;
 
-  // Nearest child top edge (apply top-alignment offset + LOD compensation)
-  // Use per-node _showPhoto state (not global showPhotos) for accurate LOD height
+  // Nearest child top edge
   const childTops = children.map(child => {
     const isRootChild = !child.father_id;
     const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
     const childHeight = isRootChild ? 100 : (childShowingPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY);
-    const childHasPhotoUrl = !!child.photo_url;
-    const childPhotoHidden = !isRootChild && childHasPhotoUrl && !childShowingPhoto;
-    const childLodComp = childPhotoHidden ? -LOD_OFFSET_COMPENSATION : 0;
-    const childRenderY = child.y + (child.topAlignOffset || 0) + childLodComp;
-    return childRenderY - childHeight / 2;
+    return child.y - childHeight / 2;
   });
   const minChildTop = Math.min(...childTops);
 
@@ -111,22 +97,15 @@ export function calculateParentVerticalPath(
   busY: number,
   showPhotos: boolean = true
 ): PathSegment {
-  // Use per-node _showPhoto state (not global showPhotos) for accurate LOD height
+  // Unified PTS Architecture: parent.y already includes all offsets
   const parentShowingPhoto = ((parent as any)._showPhoto ?? showPhotos) && parent.photo_url;
   const parentHeight = parentShowingPhoto
     ? NODE_HEIGHT_WITH_PHOTO
     : NODE_HEIGHT_TEXT_ONLY;
 
-  // Apply top-alignment offset + LOD compensation to get actual rendered position
-  const isRootParent = !parent.father_id;
-  const parentHasPhotoUrl = !!parent.photo_url;
-  const parentPhotoHidden = !isRootParent && parentHasPhotoUrl && !parentShowingPhoto;
-  const parentLodComp = parentPhotoHidden ? -LOD_OFFSET_COMPENSATION : 0;
-  const parentRenderY = parent.y + (parent.topAlignOffset || 0) + parentLodComp;
-
   return {
     startX: parent.x,
-    startY: parentRenderY + parentHeight / 2,
+    startY: parent.y + parentHeight / 2,
     endX: parent.x,
     endY: busY,
   };
@@ -190,8 +169,8 @@ export function calculateChildVerticalPaths(
   showPhotos: boolean = true
 ): PathSegment[] {
   return children.map((child) => {
+    // Unified PTS Architecture: child.y already includes all offsets
     const isRootChild = !child.father_id;
-    // Use per-node _showPhoto state (not global showPhotos) for accurate LOD height
     const childShowingPhoto = ((child as any)._showPhoto ?? showPhotos) && child.photo_url;
     const childHeight = isRootChild
       ? 100 // Root nodes have fixed 100px height
@@ -199,17 +178,11 @@ export function calculateChildVerticalPaths(
       ? NODE_HEIGHT_WITH_PHOTO
       : NODE_HEIGHT_TEXT_ONLY;
 
-    // Apply top-alignment offset + LOD compensation to get actual rendered position
-    const childHasPhotoUrl = !!child.photo_url;
-    const childPhotoHidden = !isRootChild && childHasPhotoUrl && !childShowingPhoto;
-    const childLodComp = childPhotoHidden ? -LOD_OFFSET_COMPENSATION : 0;
-    const childRenderY = child.y + (child.topAlignOffset || 0) + childLodComp;
-
     return {
       startX: child.x,
       startY: busY,
       endX: child.x,
-      endY: childRenderY - childHeight / 2,
+      endY: child.y - childHeight / 2,
     };
   });
 }
