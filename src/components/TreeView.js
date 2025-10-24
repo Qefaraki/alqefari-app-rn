@@ -2113,7 +2113,7 @@ const TreeView = ({
 
       return { elements: paths, count: edgeCount };
     },
-    [nodes],
+    [nodes, currentTransform],
   );
 
   // Render highlighted ancestry path
