@@ -429,13 +429,6 @@ const TreeView = ({
   // Only recalculates layout when crossing 0.4x zoom threshold (not every frame)
   const [effectiveShowPhotos, setEffectiveShowPhotos] = useState(showPhotos);
 
-  // Part 1: Debounced scale to prevent rapid threshold crossings during zoom
-  const [debouncedScale, setDebouncedScale] = useState(1);
-
-  // Part 2: Double-buffered layout to prevent rendering race conditions
-  const [stableLayout, setStableLayout] = useState({ nodes: [], connections: [] });
-  const [isLayoutTransitioning, setIsLayoutTransitioning] = useState(false);
-
   // Sync shared values to state for Skia re-renders
   useAnimatedReaction(
     () => ({
@@ -666,31 +659,9 @@ const TreeView = ({
     return { nodes: layout.nodes, connections: layout.connections };
   }, [treeData, effectiveShowPhotos]);
 
-  // Part 2: Double-buffered layout - commit pending layout to stable layout at frame boundary
-  // This prevents rendering race conditions during layout transitions
-  useEffect(() => {
-    // If layout changed (effectiveShowPhotos triggered recalc) and we're not already transitioning
-    if (nodes.length > 0 && !isLayoutTransitioning) {
-      setIsLayoutTransitioning(true);
-
-      // Swap layouts at frame boundary to ensure atomic rendering
-      requestAnimationFrame(() => {
-        setStableLayout({ nodes, connections });
-        setIsLayoutTransitioning(false);
-
-        // Log transition completion for debugging
-        console.log(`[Double-Buffer] Layout committed: ${nodes.length} nodes, transitioning=${isLayoutTransitioning}`);
-      });
-    }
-  }, [nodes, connections, isLayoutTransitioning]);
-
   // Build indices for LOD system with O(N) complexity
-  // Use stableLayout instead of nodes to prevent rendering race conditions
   const indices = useMemo(() => {
-    // Use stableLayout nodes (not nodes from pending layout)
-    const layoutNodes = stableLayout.nodes.length > 0 ? stableLayout.nodes : nodes;
-
-    if (layoutNodes.length === 0) {
+    if (nodes.length === 0) {
       return {
         idToNode: new Map(),
         parentToChildren: new Map(),
@@ -711,7 +682,7 @@ const TreeView = ({
     const centroids = {};
 
     // Build maps - only truthy father_id
-    layoutNodes.forEach((node) => {
+    nodes.forEach((node) => {
       idToNode.set(node.id, node);
       if (node.father_id) {
         if (!parentToChildren.has(node.father_id)) {
@@ -722,12 +693,12 @@ const TreeView = ({
     });
 
     // BUG #14 FIX: Populate node.children property from parentToChildren map
-    layoutNodes.forEach((node) => {
+    nodes.forEach((node) => {
       node.children = parentToChildren.get(node.id) || [];
     });
 
     // BFS for depths
-    const root = layoutNodes.find((n) => !n.father_id);
+    const root = nodes.find((n) => !n.father_id);
     if (!root) {
       console.error("No root node found!");
       return {
@@ -791,7 +762,7 @@ const TreeView = ({
     });
 
     // Select heroes: root + top 2 gen-2 with children (depth === 1)
-    const gen2Nodes = layoutNodes.filter((n) => depths[n.id] === 1);
+    const gen2Nodes = nodes.filter((n) => depths[n.id] === 1);
     const gen2WithKids = gen2Nodes.filter(
       (n) => (parentToChildren.get(n.id) || []).length > 0,
     );
@@ -808,25 +779,21 @@ const TreeView = ({
       heroes: new Set([root.id, ...heroGen2.map((n) => n.id)]),
       heroNodes: [root, ...heroGen2],
     };
-  }, [stableLayout]);
+  }, [nodes]);
 
   // Create spatial grid for efficient culling
-  // Use stableLayout.nodes to prevent race conditions during layout transitions
   const spatialGrid = useMemo(() => {
-    const gridNodes = stableLayout.nodes.length > 0 ? stableLayout.nodes : nodes;
-    if (gridNodes.length === 0) return null;
-    return new SpatialGrid(gridNodes);
-  }, [stableLayout.nodes, nodes]);
+    if (nodes.length === 0) return null;
+    return new SpatialGrid(nodes);
+  }, [nodes]);
 
   // Calculate tree bounds
-  // Use stableLayout.nodes to prevent race conditions during layout transitions
   const treeBounds = useMemo(() => {
-    const boundNodes = stableLayout.nodes.length > 0 ? stableLayout.nodes : nodes;
-    if (boundNodes.length === 0)
+    if (nodes.length === 0)
       return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0 };
 
-    const xs = boundNodes.map((n) => n.x);
-    const ys = boundNodes.map((n) => n.y);
+    const xs = nodes.map((n) => n.x);
+    const ys = nodes.map((n) => n.y);
 
     const minX = Math.min(...xs);
     const maxX = Math.max(...xs);
@@ -841,7 +808,7 @@ const TreeView = ({
       width: maxX - minX,
       height: maxY - minY,
     };
-  }, [stableLayout.nodes, nodes]);
+  }, [nodes]);
 
   // Visible bounds for culling
   const [visibleBounds, setVisibleBounds] = useState({
@@ -2044,16 +2011,14 @@ const TreeView = ({
   );
 
   // Render edges with batching and capping
-  // Use stableLayout.nodes to prevent race conditions during layout transitions
   const renderEdgesBatched = useCallback(
     (connections, visibleNodeIds, tier) => {
       if (tier === 3) return { elements: null, count: 0 };
 
       // Enrich nodes with per-node LOD state before creating map
       // Ensures PathCalculator uses actual zoom-based photo visibility, not global setting
-      const edgeNodes = stableLayout.nodes.length > 0 ? stableLayout.nodes : nodes;
       const showPhoto = currentTransform.scale >= 0.4;
-      const enrichedNodes = edgeNodes.map(n => ({
+      const enrichedNodes = nodes.map(n => ({
         ...n,
         _showPhoto: showPhoto,
       }));
@@ -2153,7 +2118,7 @@ const TreeView = ({
 
       return { elements: paths, count: edgeCount };
     },
-    [stableLayout.nodes, nodes, currentTransform.scale],
+    [nodes],
   );
 
   // Render highlighted ancestry path
@@ -2297,16 +2262,6 @@ const TreeView = ({
     scale: 1,
   });
 
-  // Part 1: Debounce scale changes to prevent rapid threshold oscillation (150ms delay)
-  // Waits for user to stop zooming before updating layout
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedScale(currentTransform.scale);
-    }, 150); // Wait 150ms after last scale change
-
-    return () => clearTimeout(timer);
-  }, [currentTransform.scale]);
-
   // Detect zoom threshold crossing (0.4x) with hysteresis to prevent layout thrashing
   // Unified PTS Architecture: Only recalculates layout when crossing threshold, not every frame
   useEffect(() => {
@@ -2314,7 +2269,7 @@ const TreeView = ({
     const hysteresis = 0.05; // Don't recalc until we're clearly past boundary
 
     const checkThreshold = () => {
-      const scale = debouncedScale; // Use debounced scale (waits 150ms after zoom stops)
+      const scale = currentTransform.scale;
 
       if (effectiveShowPhotos && scale < (threshold - hysteresis)) {
         // Crossed below threshold - hide photos in layout
@@ -2328,7 +2283,7 @@ const TreeView = ({
     };
 
     checkThreshold();
-  }, [debouncedScale, effectiveShowPhotos]);
+  }, [currentTransform.scale, effectiveShowPhotos]);
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
@@ -2363,15 +2318,14 @@ const TreeView = ({
     (node) => {
       if (!node) return null;
 
-      // CRITICAL: Use effectiveShowPhotos (from layout calculation) instead of scale
-      // This ensures photo visibility matches the layout positions (no 40px misalignment)
-      const showPhoto = effectiveShowPhotos;
+      // Simple LOD: Show photos only when zoomed in enough
+      const showPhoto = currentTransform.scale >= 0.4;
 
       const modifiedNode = {
         ...node,
         _tier: 1, // Always T1 (full cards)
         _scale: currentTransform.scale,
-        _showPhoto: showPhoto, // Use layout-based photo visibility
+        _showPhoto: showPhoto, // Toggle photo loading based on zoom
         _selectBucket: selectBucketWithHysteresis,
         _hasChildren: indices.parentToChildren.has(node.id),
       };
@@ -2379,7 +2333,7 @@ const TreeView = ({
     },
     [
       tier,
-      effectiveShowPhotos, // Changed from currentTransform.scale
+      currentTransform.scale,
       renderNode,
       renderTier2Node,
       selectBucketWithHysteresis,
