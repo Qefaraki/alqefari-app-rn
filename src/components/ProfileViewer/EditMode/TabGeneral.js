@@ -3,8 +3,6 @@ import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
-  Switch,
   Animated,
   StyleSheet,
 } from 'react-native';
@@ -15,7 +13,8 @@ import NameEditor from '../../admin/fields/NameEditor';
 import DateEditor from '../../admin/fields/DateEditor';
 import TitleSelector from '../../admin/fields/TitleSelector';
 import tokens from '../../ui/tokens';
-import { FormSection, FormField } from '../../ui/form';
+import ChoiceChip from '../../ui/ChoiceChip';
+import { FormField, ProfileFormCard } from '../../ui/form';
 
 /**
  * Responsive toggle pills with subtle haptics.
@@ -62,25 +61,12 @@ const ToggleGroup = ({ value, options, onChange }) => {
               { transform: [{ scale: scaleAnimsRef.current[index] }] },
             ]}
           >
-            <TouchableOpacity
-              style={[
-                styles.toggleChip,
-                isActive && styles.toggleChipActive,
-              ]}
+            <ChoiceChip
+              label={option.label}
+              selected={isActive}
               onPress={() => handlePress(option, index)}
-              activeOpacity={0.9}
-            >
-              <Animated.Text
-                style={[
-                  styles.toggleLabel,
-                  isActive && styles.toggleLabelActive,
-                ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {option.label}
-              </Animated.Text>
-            </TouchableOpacity>
+              grow={shouldSpanFull}
+            />
           </Animated.View>
         );
       })}
@@ -132,8 +118,9 @@ const TabGeneral = ({ form, updateField }) => {
   return (
     <View style={styles.container}>
       <View style={styles.stack}>
-        <FormSection>
-          <FormField>
+        <ProfileFormCard style={styles.card}>
+          <Text style={styles.cardCaption}>الصورة</Text>
+          <View style={styles.cardContent}>
             <PhotoEditor
               value={draft?.photo_url || ''}
               onChange={(url) => updateField('photo_url', url)}
@@ -141,113 +128,110 @@ const TabGeneral = ({ form, updateField }) => {
               personName={draft?.name}
               profileId={profileId}
             />
-          </FormField>
-        </FormSection>
+          </View>
+        </ProfileFormCard>
 
-        <FormSection>
-          <FormField label="الاسم الكامل" required>
-            <NameEditor
-              value={draft?.name || ''}
-              onChange={(text) => updateField('name', text)}
-              placeholder="الاسم الكامل"
-              fontSize={18}
-              variant="form"
-            />
-          </FormField>
-
-          <FormField label="الكنية" hint="مثال: أبو محمد">
-            <TextInput
-              style={styles.textInput}
-              value={kunyaValue}
-              onChangeText={handleKunyaChange}
-              placeholder="أبو محمد"
-              placeholderTextColor={`${tokens.colors.najdi.textMuted}80`}
-            />
-          </FormField>
-
-          <FormField label="اللقب المهني">
-            <TitleSelector
-              value={draft?.professional_title}
-              customValue={draft?.title_abbreviation}
-              onChange={({ professional_title, title_abbreviation }) => {
-                updateField('professional_title', professional_title);
-                updateField('title_abbreviation', title_abbreviation);
-              }}
-              personName={draft?.name}
-            />
-          </FormField>
-        </FormSection>
-
-        <FormSection spacing="sm">
-          <FormField label="الجنس">
-            <ToggleGroup
-              value={draft?.gender || 'male'}
-              onChange={(value) => updateField('gender', value)}
-              options={[
-                { value: 'male', label: 'ذكر' },
-                { value: 'female', label: 'أنثى' },
-              ]}
-            />
-          </FormField>
-
-          <FormField label="الحالة">
-            <ToggleGroup
-              value={draft?.status || 'alive'}
-              onChange={(value) => updateField('status', value)}
-              options={[
-                { value: 'alive', label: 'حي' },
-                { value: 'deceased', label: 'متوفى' },
-              ]}
-            />
-          </FormField>
-        </FormSection>
-
-        <FormSection>
-          <FormField label="تاريخ الميلاد">
-            <DateEditor
-              value={draft?.dob_data}
-              onChange={(value) => updateField('dob_data', value)}
-            />
-          </FormField>
-
-          {draft?.status === 'deceased' ? (
-            <FormField label="تاريخ الوفاة">
-              <DateEditor
-                value={draft?.dod_data}
-                onChange={(value) => updateField('dod_data', value)}
+        <ProfileFormCard style={styles.card}>
+          <Text style={styles.cardCaption}>البيانات الشخصية</Text>
+          <View style={styles.cardContent}>
+            <FormField label="الاسم الكامل" required>
+              <NameEditor
+                value={draft?.name || ''}
+                onChange={(text) => updateField('name', text)}
+                placeholder="الاسم الكامل"
+                fontSize={18}
+                variant="form"
               />
             </FormField>
-          ) : null}
-        </FormSection>
 
-        <FormSection>
-          <FormField
-            label="عرض تاريخ الميلاد للعائلة"
-            hint="يمكن لأفراد العائلة مشاهدة تاريخ الميلاد الكامل عند التفعيل."
-            accessory={
-              <Switch
-                value={draft?.dob_is_public !== false}
-                onValueChange={(value) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  updateField('dob_is_public', value);
-                }}
-                trackColor={{
-                  false: `${tokens.colors.najdi.container  }60`,
-                  true: tokens.colors.najdi.primary,
-                }}
-                thumbColor={tokens.colors.surface}
-                ios_backgroundColor={`${tokens.colors.najdi.container  }60`}
+            <FormField label="الكنية">
+              <TextInput
+                style={styles.textInput}
+                value={kunyaValue}
+                onChangeText={handleKunyaChange}
+                placeholder="أبو محمد"
+                placeholderTextColor={`${tokens.colors.najdi.textMuted}80`}
               />
-            }
-          >
-            <Text style={styles.readOnlyCopy}>
-              تحكّم في ظهور تاريخ ميلادك للأقارب داخل التطبيق.
-            </Text>
-          </FormField>
-        </FormSection>
-      </View>
+            </FormField>
 
-      <View style={styles.bottomSpacer} />
+            <FormField label="اللقب المهني">
+              <TitleSelector
+                value={draft?.professional_title}
+                customValue={draft?.title_abbreviation}
+                onChange={({ professional_title, title_abbreviation }) => {
+                  updateField('professional_title', professional_title);
+                  updateField('title_abbreviation', title_abbreviation);
+                }}
+                personName={draft?.name}
+              />
+            </FormField>
+          </View>
+        </ProfileFormCard>
+
+        <ProfileFormCard style={styles.card}>
+          <Text style={styles.cardCaption}>الاختيارات</Text>
+          <View style={styles.cardContent}>
+            <FormField label="الجنس">
+              <ToggleGroup
+                value={draft?.gender || 'male'}
+                onChange={(val) => updateField('gender', val)}
+                options={[
+                  { value: 'male', label: 'ذكر' },
+                  { value: 'female', label: 'أنثى' },
+                ]}
+              />
+            </FormField>
+
+            <FormField label="الحالة">
+              <ToggleGroup
+                value={draft?.status || 'alive'}
+                onChange={(val) => updateField('status', val)}
+                options={[
+                  { value: 'alive', label: 'حي' },
+                  { value: 'deceased', label: 'متوفى' },
+                ]}
+              />
+            </FormField>
+          </View>
+        </ProfileFormCard>
+
+        <ProfileFormCard style={styles.card}>
+          <Text style={styles.cardCaption}>التواريخ</Text>
+          <View style={styles.cardContent}>
+            <FormField label="تاريخ الميلاد">
+              <DateEditor
+                value={draft?.dob_data}
+                onChange={(value) => updateField('dob_data', value)}
+              />
+            </FormField>
+
+            {draft?.status === 'deceased' ? (
+              <FormField label="تاريخ الوفاة">
+                <DateEditor
+                  value={draft?.dod_data}
+                  onChange={(value) => updateField('dod_data', value)}
+                />
+              </FormField>
+            ) : null}
+          </View>
+        </ProfileFormCard>
+
+        <ProfileFormCard style={styles.card}>
+          <Text style={styles.cardCaption}>الخصوصية</Text>
+          <View style={styles.cardContent}>
+            <FormField label="مشاركة تاريخ الميلاد">
+              <ToggleGroup
+                value={draft?.dob_is_public === false ? 'private' : 'public'}
+                onChange={(val) => updateField('dob_is_public', val === 'public')}
+                options={[
+                  { value: 'public', label: 'مرئي للعائلة' },
+                  { value: 'private', label: 'مخفي' },
+                ]}
+              />
+            </FormField>
+          </View>
+        </ProfileFormCard>
+      </View>
     </View>
   );
 };
@@ -270,9 +254,25 @@ export default React.memo(TabGeneral, (prev, next) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingBottom: tokens.spacing.xl,
   },
   stack: {
     gap: tokens.spacing.xl,
+    paddingHorizontal: tokens.spacing.lg,
+    paddingTop: tokens.spacing.lg,
+  },
+  card: {
+    gap: tokens.spacing.md,
+  },
+  cardCaption: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: tokens.colors.najdi.textMuted,
+  },
+  cardContent: {
+    gap: tokens.spacing.md,
   },
   textInput: {
     backgroundColor: tokens.colors.najdi.background,
@@ -296,37 +296,5 @@ const styles = StyleSheet.create({
   },
   toggleWrapperFull: {
     flexBasis: '100%',
-  },
-  toggleChip: {
-    minHeight: tokens.touchTarget.minimum,
-    borderRadius: tokens.radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '35',
-    paddingVertical: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.sm,
-    backgroundColor: tokens.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toggleChipActive: {
-    borderColor: tokens.colors.najdi.primary,
-    backgroundColor: tokens.colors.najdi.primary + '12',
-  },
-  toggleLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
-  },
-  toggleLabelActive: {
-    color: tokens.colors.najdi.primary,
-  },
-  readOnlyCopy: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: tokens.colors.najdi.textMuted,
-    lineHeight: 18,
-  },
-  bottomSpacer: {
-    height: tokens.spacing.xl,
   },
 });

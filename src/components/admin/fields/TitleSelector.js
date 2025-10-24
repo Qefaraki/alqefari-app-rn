@@ -14,7 +14,7 @@ import {
 } from '../../../services/professionalTitleService';
 import ChoiceChip from '../../ui/ChoiceChip';
 
-const TitleSelector = ({ value, customValue, onChange, personName }) => {
+const TitleSelector = ({ value, customValue, onChange }) => {
   const [selectedTitle, setSelectedTitle] = useState(value || null);
   const [customInput, setCustomInput] = useState(customValue || '');
   const [validationError, setValidationError] = useState('');
@@ -117,35 +117,9 @@ const styles = StyleSheet.create({
   optionChip: {
     flexBasis: '48%',
     flexGrow: 1,
-    borderRadius: tokens.radii.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: tokens.colors.najdi.container + '30',
-    backgroundColor: tokens.colors.surface,
-    paddingVertical: tokens.spacing.xs,
-    paddingHorizontal: tokens.spacing.sm,
-    minHeight: tokens.touchTarget.minimum,
-    justifyContent: 'center',
   },
   optionChipFull: {
     flexBasis: '100%',
-  },
-  optionChipActive: {
-    borderColor: tokens.colors.najdi.primary,
-    backgroundColor: tokens.colors.najdi.primary + '12',
-  },
-  chipContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: tokens.spacing.xs,
-  },
-  optionLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: tokens.colors.najdi.text,
-  },
-  optionLabelActive: {
-    color: tokens.colors.najdi.primary,
   },
   otherContainer: {
     overflow: 'hidden',

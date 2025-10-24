@@ -2,6 +2,7 @@
 
 ## 📖 Documentation Index
 
+### Core Systems
 - **[Design System](docs/DESIGN_SYSTEM.md)** - Najdi Sadu color palette, typography, components
 - **[Permission System](docs/PERMISSION_SYSTEM_V4.md)** - Family-based edit permissions & roles
 - **[Field Mapping](docs/FIELD_MAPPING.md)** - RPC function field maintenance
@@ -10,6 +11,13 @@
 - **[Undo System](docs/UNDO_SYSTEM_TEST_CHECKLIST.md)** - Activity log undo functionality
 - **[Message Templates](docs/MESSAGE_TEMPLATE_SYSTEM.md)** - WhatsApp template system
 - **[OTA Updates](docs/OTA_UPDATES.md)** - Over-the-air update deployment & rollback
+
+### Perfect Tree System (PTS)
+- **[PTS Documentation Hub](docs/PTS/README.md)** - Complete Perfect Tree System documentation
+  - Phase 1: Component Extraction (18 modules, 6,635 lines)
+  - Phase 2: Hook Extraction & Cleanup (288 lines)
+  - Phase 3: Performance Optimization (PLANNED - LOD fixes, progressive loading)
+  - Architecture, testing, audits, and daily logs
 
 ## ⚠️ IMPORTANT: Native RTL Mode is ENABLED
 
