@@ -2030,9 +2030,14 @@ const TreeView = ({
     (connections, visibleNodeIds, tier) => {
       if (tier === 3) return { elements: null, count: 0 };
 
-      // Create node map for O(1) lookup (instead of O(n) find)
-      // Performance: 1,200 Map lookups (~0.01ms) vs 600K array comparisons (~15ms)
-      const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+      // Enrich nodes with per-node LOD state before creating map
+      // Ensures PathCalculator uses actual zoom-based photo visibility, not global setting
+      const showPhoto = currentTransform.scale >= 0.4;
+      const enrichedNodes = nodes.map(n => ({
+        ...n,
+        _showPhoto: showPhoto,
+      }));
+      const nodeMap = new Map(enrichedNodes.map((n) => [n.id, n]));
 
       let edgeCount = 0;
       const paths = [];
