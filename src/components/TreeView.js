@@ -2071,8 +2071,8 @@ const TreeView = ({
 
         // Use PathCalculator for all geometry calculations
         // Now uses actual node objects with _showPhoto per-node state
-        const busY = calculateBusY(parent, children, showPhotos);
-        const parentVertical = calculateParentVerticalPath(parent, busY, showPhotos);
+        const busY = calculateBusY(parent, children, showPhoto);
+        const parentVertical = calculateParentVerticalPath(parent, busY, showPhoto);
 
         // Add parent vertical line
         pathBuilder.moveTo(parentVertical.startX, parentVertical.startY);
@@ -2086,7 +2086,7 @@ const TreeView = ({
         }
 
         // Add child vertical lines
-        const childVerticals = calculateChildVerticalPaths(children, busY, showPhotos);
+        const childVerticals = calculateChildVerticalPaths(children, busY, showPhoto);
 
         children.forEach((child, index) => {
           const path = childVerticals[index];

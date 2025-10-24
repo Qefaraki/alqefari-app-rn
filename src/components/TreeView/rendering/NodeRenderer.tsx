@@ -402,8 +402,11 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
    * assuming 75px, causing a 20px downward shift. We compensate by
    * shifting back up 20px to maintain alignment with text-only siblings.
    * Root nodes are excluded as they maintain 100px height regardless of LOD.
+   *
+   * Uses per-node _showPhoto state (not global showPhotos setting) to detect
+   * when LOD specifically hides photos, ensuring coordinate consistency with PathCalculator.
    */
-  const photoHiddenByLOD = !isRoot && hasPhotoUrl && !showPhotos;
+  const photoHiddenByLOD = !isRoot && hasPhotoUrl && showPhotos && node._showPhoto === false;
   const lodCompensation = photoHiddenByLOD ? -LOD_OFFSET_COMPENSATION : 0;
 
   const renderY = node.y + (node.topAlignOffset || 0);
