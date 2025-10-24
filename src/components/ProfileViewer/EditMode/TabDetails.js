@@ -150,11 +150,19 @@ const TabDetails = ({ form, updateField }) => {
           <FormField label="الدولة الحالية">
             <CountryPicker
               label=""
-              value={draft?.current_residence_country || ''}
+              value={draft?.current_residence_normalized?.country?.ar || ''}
               onChange={(country) => {
-                updateField('current_residence_country', country);
-                if (country !== 'السعودية') {
-                  updateField('current_residence_city', '');
+                updateField('current_residence', country);
+              }}
+              onNormalizedChange={(normalized) => {
+                updateField('current_residence_normalized', normalized);
+                // Clear city if country changed from Saudi Arabia
+                if (normalized?.country?.ar !== 'السعودية') {
+                  const clearedNormalized = {
+                    ...normalized,
+                    city: undefined,
+                  };
+                  updateField('current_residence_normalized', clearedNormalized);
                 }
               }}
               placeholder="اختر دولة"
@@ -167,10 +175,22 @@ const TabDetails = ({ form, updateField }) => {
           >
             <SaudiCityPicker
               label=""
-              value={draft?.current_residence_city || ''}
-              onChange={(city) => updateField('current_residence_city', city)}
+              value={draft?.current_residence_normalized?.city?.ar || ''}
+              onChange={(city) => {
+                updateField('current_residence', city);
+              }}
+              onNormalizedChange={(normalized) => {
+                // Merge city into existing normalized data
+                const updated = {
+                  ...draft?.current_residence_normalized,
+                  original: normalized.city?.ar || normalized.original,
+                  city: normalized.city,
+                  confidence: normalized.confidence,
+                };
+                updateField('current_residence_normalized', updated);
+              }}
               placeholder="اختر مدينة"
-              enabled={draft?.current_residence_country === 'السعودية'}
+              enabled={draft?.current_residence_normalized?.country?.ar === 'السعودية'}
             />
           </FormField>
         </FormSection>
