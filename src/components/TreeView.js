@@ -848,12 +848,9 @@ const TreeView = ({
     setCurrentTransform(current);
     setCurrentScale(current.scale);
 
-    // TEMP: Disabled LOD tier calculation until Perfect Tree redesign
-    // Calculate and update LOD tier based on current scale
-    // This ensures tier reflects zoom level after gesture ends
-    // const newTier = calculateLODTier(current.scale, tierState.current);
-    // setTier(newTier);
-    frameStatsRef.current.tier = 1;
+    // Simple LOD: Show/hide photos based on zoom level
+    // Photos disabled at scale < 0.4 to save memory when zoomed out
+    frameStatsRef.current.tier = 1; // Always T1 (full cards), just toggle photos
 
     // Calculate visible bounds
     const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
@@ -2222,10 +2219,13 @@ const TreeView = ({
   // Render node component (T1 - full detail) - Phase 2: Using extracted NodeRenderer
   const renderNode = useCallback(
     (node) => {
+      // Use per-node photo toggle if available (from LOD), otherwise use global setting
+      const shouldShowPhotos = node._showPhoto !== undefined ? node._showPhoto : showPhotos;
+
       return (
         <NodeRenderer
           node={node}
-          showPhotos={showPhotos}
+          showPhotos={shouldShowPhotos}
           selectedPersonId={selectedPersonId}
           heroNodes={indices?.heroNodes}
           searchTiers={indices?.searchTiers}
@@ -2250,9 +2250,8 @@ const TreeView = ({
   });
 
   // Store current tier and transform in state
-  // TEMP: Always T1 until Perfect Tree redesign
+  // Always T1 (full cards) - Simple LOD just toggles photo loading
   // Updated by syncTransformAndBounds callback after gestures end
-  // This avoids Reanimated threading violations from reading .value during render
   const [tier, setTier] = useState(1);
   const [currentTransform, setCurrentTransform] = useState({
     x: 0,
@@ -2287,17 +2286,20 @@ const TreeView = ({
     visibleNodes,
   ]);
 
-  // TEMP: Always render T1 until Perfect Tree redesign
-  // Update render callbacks to pass tier and scale
+  // Simple LOD: Toggle photo loading based on zoom level
+  // Photos hidden when scale < 0.4 to save memory
   const renderNodeWithTier = useCallback(
     (node) => {
       if (!node) return null;
-      // TEMP: Always T1, no tier switching
-      // Tier 1 - full node with tier info for image loading
+
+      // Simple LOD: Show photos only when zoomed in enough
+      const showPhoto = currentTransform.scale >= 0.4;
+
       const modifiedNode = {
         ...node,
-        _tier: 1,
+        _tier: 1, // Always T1 (full cards)
         _scale: currentTransform.scale,
+        _showPhoto: showPhoto, // Toggle photo loading based on zoom
         _selectBucket: selectBucketWithHysteresis,
         _hasChildren: indices.parentToChildren.has(node.id),
       };
