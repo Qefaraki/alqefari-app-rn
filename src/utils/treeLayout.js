@@ -181,31 +181,36 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
   });
 
   // Calculate top-alignment offsets (store separately, don't mutate D3 coordinates)
+  // IMPORTANT: Always assume photos are SHOWN when calculating offsets
+  // This ensures consistent alignment even when LOD hides photos at runtime
   depthGroups.forEach((nodesAtDepth) => {
     // Find shortest node in this generation (will be the top-aligned reference)
+    // Always assume photos are ON (75px) for consistent LOD behavior
     const minHeight = Math.min(
       ...nodesAtDepth.map(node => {
-        const hasPhoto = showPhotos && !!node.data.photo_url;
+        const hasPhotoUrl = !!node.data.photo_url;  // Check if photo exists (not showPhotos setting)
         const isRoot = node.depth === 0 && !node.data.father_id;
 
         // Root node is always 100px tall
         if (isRoot) return 100;
 
         // Photo nodes are 75px, text-only are 35px
-        return hasPhoto ? 75 : 35;
+        // Use photo_url to determine node type, not showPhotos setting
+        return hasPhotoUrl ? 75 : 35;
       })
     );
 
     // Store top-alignment offset for each node (for rendering)
     nodesAtDepth.forEach(node => {
-      const hasPhoto = showPhotos && !!node.data.photo_url;
+      const hasPhotoUrl = !!node.data.photo_url;  // Check if photo exists (not showPhotos setting)
       const isRoot = node.depth === 0 && !node.data.father_id;
 
       let nodeHeight;
       if (isRoot) {
         nodeHeight = 100;
       } else {
-        nodeHeight = hasPhoto ? 75 : 35;
+        // Use photo_url to determine node type, not showPhotos setting
+        nodeHeight = hasPhotoUrl ? 75 : 35;
       }
 
       // Store offset WITHOUT mutating node.y (D3 center remains pure)
