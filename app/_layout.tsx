@@ -9,6 +9,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SplashScreen from 'expo-splash-screen';
 import BrandedErrorScreen from "../src/components/ui/BrandedErrorScreen";
 import Toast from 'react-native-toast-message';
+import { useNetworkStore } from "../src/stores/networkStore";
+import NetworkStatusIndicator from "../src/components/NetworkStatusIndicator";
 
 // Keep the splash screen visible while we determine auth state
 SplashScreen.preventAutoHideAsync();
@@ -57,6 +59,17 @@ function RootLayoutNav() {
 
   // Determine if we're ready to make routing decisions
   const isReady = !isLoading && hasCompletedOnboarding !== null;
+
+  // Initialize network monitoring on app start
+  useEffect(() => {
+    const networkStore = useNetworkStore.getState();
+    networkStore.initialize();
+
+    // Cleanup listeners on unmount
+    return () => {
+      networkStore.cleanup();
+    };
+  }, []);
 
   // Hide splash screen when ready
   useEffect(() => {
@@ -137,7 +150,13 @@ function RootLayoutNav() {
   }, [user, profile, hasCompletedOnboarding, isGuestMode, isPendingApproval, isReady, segments]);
 
   // Return slot which will render the appropriate route group
-  return <Slot />;
+  // NetworkStatusIndicator banner shows globally when offline
+  return (
+    <>
+      <NetworkStatusIndicator mode="banner" dismissible />
+      <Slot />
+    </>
+  );
 }
 
 export default function RootLayout() {

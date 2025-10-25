@@ -1,3 +1,5 @@
+import { useNetworkStore } from '../stores/networkStore';
+
 /**
  * fetchWithTimeout - Wraps a promise with a timeout mechanism
  *
@@ -5,9 +7,17 @@
  * original promise against a timeout promise. Essential for network
  * operations that may not have built-in timeouts.
  *
+ * ENHANCED: Now with network-aware features:
+ * - Pre-flight network check
+ * - Mid-request offline detection
+ * - Differentiation between timeout and offline errors
+ *
  * @param {Promise} promise - The promise to wrap with timeout
  * @param {number} timeoutMs - Timeout duration in milliseconds (default: 5000)
  * @param {string} operationName - Name of operation for error messages (default: 'Operation')
+ * @param {Object} options - Additional options
+ * @param {boolean} options.checkNetwork - Check network before fetch (default: true)
+ * @param {AbortController} options.abortController - For canceling mid-request
  * @returns {Promise} - Resolves/rejects based on whichever happens first
  *
  * @example
@@ -19,7 +29,17 @@
  * );
  *
  * @example
- * // With error handling
+ * // With network check and mid-request abort
+ * const controller = new AbortController();
+ * const data = await fetchWithTimeout(
+ *   supabase.from('profiles').select('*'),
+ *   5000,
+ *   'Load profiles',
+ *   { checkNetwork: true, abortController: controller }
+ * );
+ *
+ * @example
+ * // With error handling for timeout vs offline
  * try {
  *   const marriages = await fetchWithTimeout(
  *     profilesService.getPersonMarriages(personId),
@@ -27,19 +47,48 @@
  *     'Load marriages'
  *   );
  * } catch (error) {
- *   if (error.message.includes('timeout')) {
- *     Alert.alert(
- *       'عفواً عمي...',
- *       'التحميل استغرق وقتاً أطول من المتوقع. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.'
- *     );
+ *   if (error.message === 'NETWORK_OFFLINE') {
+ *     Alert.alert('خطأ', 'لا يوجد اتصال بالإنترنت');
+ *   } else if (error.message.includes('NETWORK_TIMEOUT')) {
+ *     Alert.alert('خطأ', 'الاتصال بطيء جداً. حاول مرة أخرى');
+ *   } else if (error.message.includes('timeout')) {
+ *     Alert.alert('خطأ', 'التحميل استغرق وقتاً أطول من المتوقع');
  *   }
  * }
  */
-export const fetchWithTimeout = (promise, timeoutMs = 5000, operationName = 'Operation') => {
+export const fetchWithTimeout = (
+  promise,
+  timeoutMs = 5000,
+  operationName = 'Operation',
+  options = {}
+) => {
+  const { checkNetwork = true, abortController = null } = options;
+
+  // Pre-flight network check
+  if (checkNetwork) {
+    const networkStore = useNetworkStore.getState();
+    if (!networkStore.isOnline()) {
+      return Promise.reject(new Error('NETWORK_OFFLINE'));
+    }
+  }
+
+  // Create abort signal listener if provided
+  let abortListener = null;
+  if (abortController) {
+    abortListener = () => {
+      // Network became unavailable mid-request
+      throw new Error('NETWORK_TIMEOUT');
+    };
+    abortController.signal.addEventListener('abort', abortListener);
+  }
+
   // Create timeout promise that rejects after specified duration
   const timeoutPromise = new Promise((_, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error(`${operationName} timeout after ${timeoutMs}ms`));
+      if (abortListener) {
+        abortController?.signal.removeEventListener('abort', abortListener);
+      }
+      reject(new Error(`NETWORK_TIMEOUT: ${operationName} timeout after ${timeoutMs}ms`));
     }, timeoutMs);
 
     // Note: setTimeout returns a timer ID, not a cleanup function
@@ -48,7 +97,12 @@ export const fetchWithTimeout = (promise, timeoutMs = 5000, operationName = 'Ope
 
   // Race the original promise against the timeout
   // Whichever resolves/rejects first wins
-  return Promise.race([promise, timeoutPromise]);
+  return Promise.race([promise, timeoutPromise])
+    .finally(() => {
+      if (abortListener) {
+        abortController?.signal.removeEventListener('abort', abortListener);
+      }
+    });
 };
 
 /**

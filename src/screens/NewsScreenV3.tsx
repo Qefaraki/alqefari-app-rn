@@ -25,7 +25,7 @@ import { NewsArticle, stripHtmlForDisplay } from '../services/news';
 import EnhancedCarousel from '../components/ui/news/EnhancedCarousel';
 import { WorldClassNewsCard } from '../components/ui/news/WorldClassNewsCard';
 import { NewsListItemSkeleton } from '../components/ui/news/NewsListItem';
-import NetworkError from '../components/NetworkError';
+import NetworkStatusIndicator from '../components/NetworkStatusIndicator';
 import ArticleReaderModal from '../components/ArticleViewer/ArticleReaderModal';
 import tokens from '../components/ui/tokens';
 import { useAuth } from '../contexts/AuthContextSimple';
@@ -315,13 +315,14 @@ const NewsScreenV3: React.FC = () => {
   if (error && featured.length === 0 && recent.length === 0) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <NetworkError
+        <NetworkStatusIndicator
+          mode="fullscreen"
           onRetry={() => {
             clearError();
             initialize();
           }}
-          message={error}
-          type={error === 'network' ? 'offline' : 'server'}
+          errorType={error === 'network' ? 'network' : error === 'timeout' ? 'timeout' : 'server'}
+          customMessage={typeof error === 'string' ? error : undefined}
         />
       </SafeAreaView>
     );
