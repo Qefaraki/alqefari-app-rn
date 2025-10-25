@@ -37,9 +37,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
 import tokens, { useAccessibilitySize } from '../../../ui/tokens';
-import { formatNameWithTitle } from '../../../services/professionalTitleService';
-import { useTreeStore } from '../../../stores/useTreeStore';
-import { toArabicNumerals } from '../../../utils/dateUtils';
+import { formatNameWithTitle } from '../../../../services/professionalTitleService';
+import { useTreeStore } from '../../../../stores/useTreeStore';
+import { toArabicNumerals } from '../../../../utils/dateUtils';
 
 const { colors, spacing, typography, profileViewer } = tokens;
 const { hero: heroTokens } = profileViewer;

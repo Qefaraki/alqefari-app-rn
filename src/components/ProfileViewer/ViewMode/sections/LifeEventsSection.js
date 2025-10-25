@@ -22,7 +22,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import tokens, { useAccessibilitySize, hexWithOpacity } from '../../../ui/tokens';
-import { toArabicNumerals } from '../../../utils/dateUtils';
+import { toArabicNumerals } from '../../../../utils/dateUtils';
 
 const { colors, spacing, typography, profileViewer } = tokens;
 const { timeline: timelineTokens } = profileViewer;

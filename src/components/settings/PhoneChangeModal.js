@@ -218,11 +218,13 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
     try {
       await verifyCurrentPhoneOtp(currentPhone, otpCode);
+      triggerSuccessFlash();
       setStep(3);
       setCurrentOtp('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_) {
       setError('رمز التحقق غير صحيح');
+      triggerErrorShake();
       setCurrentOtp('');
       if (currentOtpRef.current) {
         currentOtpRef.current.clear();
@@ -296,7 +298,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       // Log to audit_log (non-blocking)
       logPhoneChange(currentPhone, fullNewPhone);
 
-      // Success
+      // Success animation
+      triggerSuccessFlash();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert('تم التغيير', 'تم تغيير رقم الهاتف بنجاح.');
 
@@ -305,6 +308,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       onComplete(fullNewPhone);
     } catch (_) {
       setError('رمز التحقق غير صحيح');
+      triggerErrorShake();
       setNewOtp('');
       if (newOtpRef.current) {
         newOtpRef.current.clear();
@@ -332,18 +336,29 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     }
   };
 
-  // Progress indicator
+  // Progress indicator with animation
   const renderProgressDots = () => (
     <View style={styles.progressContainer}>
-      {[1, 2, 3, 4].map((dot) => (
-        <View
-          key={dot}
-          style={[
-            styles.progressDot,
-            step >= dot && styles.progressDotActive,
-          ]}
-        />
-      ))}
+      {[1, 2, 3, 4].map((dot) => {
+        const isActive = step >= dot;
+        return (
+          <Animated.View
+            key={dot}
+            style={[
+              styles.progressDot,
+              isActive && styles.progressDotActive,
+              {
+                transform: [
+                  {
+                    scale: isActive ? 1.15 : 1,
+                  },
+                ],
+                opacity: isActive ? 1 : 0.4,
+              },
+            ]}
+          />
+        );
+      })}
     </View>
   );
 
@@ -368,10 +383,11 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
               },
             ]}
           >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => {}} // Prevent closing when tapping inside modal
-            >
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <TouchableOpacity
+                activeOpacity={1}
+                onPress={() => {}} // Prevent closing when tapping inside modal
+              >
               {/* Header */}
               <View style={styles.header}>
                 <TouchableOpacity
@@ -545,13 +561,28 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
                 {/* Error message */}
                 {error && (
-                  <View style={styles.errorContainer}>
+                  <Animated.View
+                    style={[
+                      styles.errorContainer,
+                      {
+                        transform: [
+                          {
+                            translateX: shakeAnim.interpolate({
+                              inputRange: [-1, 0, 1],
+                              outputRange: [-10, 0, 10],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
                     <Ionicons name="alert-circle" size={16} color="#FF6B6B" />
                     <Text style={styles.errorText}>{error}</Text>
-                  </View>
+                  </Animated.View>
                 )}
               </View>
             </TouchableOpacity>
+            </KeyboardAvoidingView>
           </Animated.View>
         </TouchableOpacity>
       </BlurView>
@@ -688,11 +719,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.alJassWhite,
   },
   countdownText: {
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '600',
     fontFamily: 'SF Arabic',
-    color: `${colors.alJassWhite}60`,
+    color: colors.desertOchre,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 12,
   },
   resendButton: {
     fontSize: 14,
@@ -707,6 +739,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 107, 107, 0.1)',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.4)',
     paddingVertical: 12,
     paddingHorizontal: 12,
     marginTop: 16,
