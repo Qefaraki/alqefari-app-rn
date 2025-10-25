@@ -21,6 +21,11 @@ class SubscriptionManager {
     this.lastRetryTime = new Map();
     this.activeRetryTimeouts = new Map(); // Track active retry timeouts
 
+    // Network state handling
+    this.isNetworkConnected = true;
+    this.pausedChannels = new Set(); // Track paused subscriptions
+    this.networkUnsubscribe = null;
+
     // Configuration
     this.config = {
       maxChannels: 5,
@@ -482,12 +487,92 @@ class SubscriptionManager {
   }
 
   /**
+   * Initialize network state listener
+   * Automatically called from app root to handle disconnections
+   */
+  initializeNetworkListener() {
+    try {
+      // Import here to avoid circular dependency
+      const { useNetworkStore } = require('../stores/networkStore');
+
+      // Listen to network state changes
+      this.networkUnsubscribe = useNetworkStore.subscribe(
+        (state) => {
+          const isConnected = state.isConnected && state.isInternetReachable !== false;
+          return isConnected;
+        },
+        (isConnected) => {
+          this.isNetworkConnected = isConnected;
+
+          if (!isConnected) {
+            this.handleNetworkDisconnect();
+          } else {
+            this.handleNetworkReconnect();
+          }
+        }
+      );
+
+      console.log('[SubscriptionManager] Network listener initialized');
+    } catch (error) {
+      console.warn('[SubscriptionManager] Failed to initialize network listener:', error);
+    }
+  }
+
+  /**
+   * Handle network disconnection
+   * Pauses all active subscriptions and clears retry timers
+   */
+  async handleNetworkDisconnect() {
+    console.warn('[SubscriptionManager] Network disconnected - pausing subscriptions');
+
+    // Clear all retry timeouts to prevent stale retries
+    for (const [channelName, timeout] of this.activeRetryTimeouts.entries()) {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
+    this.activeRetryTimeouts.clear();
+
+    // Mark all channels as paused
+    for (const channelName of this.activeChannels.keys()) {
+      this.pausedChannels.add(channelName);
+    }
+
+    // Reset retry attempts for fresh restart on reconnect
+    this.retryAttempts.clear();
+  }
+
+  /**
+   * Handle network reconnection
+   * Resumes all paused subscriptions and resets circuit breakers
+   */
+  async handleNetworkReconnect() {
+    console.log('[SubscriptionManager] Network reconnected - resuming subscriptions');
+
+    // Reset circuit breakers for fresh attempts
+    for (const channelName of this.pausedChannels.keys()) {
+      this.resetCircuitBreaker(channelName);
+    }
+
+    // Clear paused channels set (subscriptions will retry naturally)
+    this.pausedChannels.clear();
+
+    console.log('[SubscriptionManager] Subscriptions ready for reconnection');
+  }
+
+  /**
    * Cleanup all subscriptions
    */
   async cleanup() {
     // Clear health monitoring
     if (this.healthInterval) {
       clearInterval(this.healthInterval);
+    }
+
+    // Clear network listener
+    if (this.networkUnsubscribe) {
+      this.networkUnsubscribe();
+      this.networkUnsubscribe = null;
     }
 
     // Clear all debounce timers
@@ -515,6 +600,7 @@ class SubscriptionManager {
     this.retryAttempts.clear();
     this.circuitBreaker.clear();
     this.lastRetryTime.clear();
+    this.pausedChannels.clear();
   }
 }
 

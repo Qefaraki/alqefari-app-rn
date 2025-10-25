@@ -11,6 +11,7 @@ import BrandedErrorScreen from "../src/components/ui/BrandedErrorScreen";
 import Toast from 'react-native-toast-message';
 import { useNetworkStore } from "../src/stores/networkStore";
 import NetworkStatusIndicator from "../src/components/NetworkStatusIndicator";
+import subscriptionManager from "../src/services/subscriptionManager";
 
 // Keep the splash screen visible while we determine auth state
 SplashScreen.preventAutoHideAsync();
@@ -65,9 +66,14 @@ function RootLayoutNav() {
     const networkStore = useNetworkStore.getState();
     networkStore.initialize();
 
+    // Initialize subscription manager network listener
+    // This allows graceful pause/resume of all subscriptions on network changes
+    subscriptionManager.initializeNetworkListener();
+
     // Cleanup listeners on unmount
     return () => {
       networkStore.cleanup();
+      subscriptionManager.cleanup();
     };
   }, []);
 

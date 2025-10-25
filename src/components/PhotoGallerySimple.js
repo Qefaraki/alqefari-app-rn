@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Galeria } from '@nandorojo/galeria';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
@@ -20,8 +21,8 @@ import RobustImage from './ui/RobustImage';
 import tokens from './ui/tokens';
 
 const { width: screenWidth } = Dimensions.get('window');
-const GAP = 4;
-const SECTION_PADDING = 16;
+const GAP = 8;
+const SECTION_PADDING = 8;
 const MAX_IMAGE_SIZE = 1920;
 const palette = tokens.colors.najdi;
 
@@ -291,9 +292,18 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     return { width, height: width };
   }, [columns, containerWidth]);
 
+  const galleryUrls = useMemo(
+    () => photos.map((photo) => photo.photo_url).filter(Boolean),
+    [photos],
+  );
+
   const renderAddTile = (showHint = false) => {
     const remainder = photoCount % columns;
-    const extraSpacing = (columns !== 1 && remainder !== columns - 1) ? GAP : 0;
+    const extraSpacing = (() => {
+      if (columns === 1) return 0;
+      if (remainder === 0 || remainder === columns - 1) return 0;
+      return GAP;
+    })();
     return (
       <TouchableOpacity
         key="add-photo"
@@ -307,54 +317,74 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
           },
         ]}
         onPress={handleSelectPhotos}
-      activeOpacity={0.85}
-      disabled={uploading}
-      accessibilityRole="button"
-      accessibilityLabel="إضافة صورة جديدة"
-    >
-      {uploading ? (
-        <PhotoSkeleton style={styles.addSkeleton} />
-      ) : (
-        <>
-          <View style={styles.addIconContainer}>
-            <Ionicons name="cloud-upload-outline" size={22} color={palette.text} />
-          </View>
-          <Text style={styles.addText}>إضافة صور</Text>
-          {showHint ? (
-            <Text style={styles.addHint}>بإمكانك اختيار عدة صور في آنٍ واحد</Text>
-          ) : null}
-        </>
-      )}
+        activeOpacity={0.85}
+        disabled={uploading}
+        accessibilityRole="button"
+        accessibilityLabel="إضافة صورة جديدة"
+      >
+        {uploading ? (
+          <PhotoSkeleton style={styles.addSkeleton} />
+        ) : (
+          <>
+            <View style={styles.addIconContainer}>
+              <Ionicons name="cloud-upload-outline" size={22} color={palette.text} />
+            </View>
+            <Text style={styles.addText}>إضافة صور</Text>
+            {showHint ? (
+              <Text style={styles.addHint}>بإمكانك اختيار عدة صور في آنٍ واحد</Text>
+            ) : null}
+          </>
+        )}
       </TouchableOpacity>
     );
   };
 
   const renderTiles = () => {
     return photos.map((photo, index) => {
+      const key = photo.id || photo.photo_url || index;
       const marginRight = (columns !== 1 && (index + 1) % columns !== 0) ? GAP : 0;
+      const tileStyle = {
+        width: tileSize.width,
+        height: tileSize.height,
+        marginRight,
+        marginBottom: GAP,
+      };
+
+      if (isEditMode) {
+        return (
+          <View key={key} style={[styles.photoTile, tileStyle]}>
+            <RobustImage
+              source={{ uri: photo.photo_url }}
+              style={styles.photoImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              maxRetries={3}
+              showRetryButton={false}
+              onError={(error) => handleImageError(photo.id, error)}
+              recyclingKey={key}
+              transition={180}
+            />
+            {renderDeleteButton(photo.id)}
+          </View>
+        );
+      }
+
       return (
-        <View
-          key={photo.id || photo.photo_url}
-          style={[styles.photoTile, {
-            width: tileSize.width,
-            height: tileSize.height,
-            marginRight,
-            marginBottom: GAP,
-          }]}
-        >
-          <RobustImage
-            source={{ uri: photo.photo_url }}
-            style={styles.photoImage}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            maxRetries={3}
-            showRetryButton={true}
-            onError={(error) => handleImageError(photo.id, error)}
-            recyclingKey={photo.id || photo.photo_url}
-            transition={200}
-          />
-          {isEditMode ? renderDeleteButton(photo.id) : null}
-        </View>
+        <Galeria.Image index={index} key={key}>
+          <View style={[styles.photoTile, tileStyle]}>
+            <RobustImage
+              source={{ uri: photo.photo_url }}
+              style={styles.photoImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              maxRetries={3}
+              showRetryButton={false}
+              onError={(error) => handleImageError(photo.id, error)}
+              recyclingKey={key}
+              transition={180}
+            />
+          </View>
+        </Galeria.Image>
       );
     });
   };
@@ -370,17 +400,31 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   if (photoCount === 0) {
     return isEditMode ? (
       <View style={styles.galleryContainer}>
-        {renderAddTile(true)}
+        <View style={[styles.gridContainer, styles.singleColumn]}>
+          {renderAddTile(true)}
+        </View>
       </View>
     ) : null;
   }
 
+  if (isEditMode) {
+    return (
+      <View style={styles.galleryContainer}>
+        <View style={[styles.gridContainer, columns === 1 && styles.singleColumn]}>
+          {renderTiles()}
+          {renderAddTile(false)}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.galleryContainer}>
-      <View style={[styles.gridContainer, columns === 1 && styles.singleColumn]}>
-        {renderTiles()}
-        {isEditMode ? renderAddTile(false) : null}
-      </View>
+      <Galeria urls={galleryUrls}>
+        <View style={[styles.gridContainer, columns === 1 && styles.singleColumn]}>
+          {renderTiles()}
+        </View>
+      </Galeria>
     </View>
   );
 };
@@ -388,6 +432,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
 const styles = StyleSheet.create({
   galleryContainer: {
     marginTop: 12,
+    paddingHorizontal: SECTION_PADDING,
   },
   loadingContainer: {
     paddingVertical: 28,

@@ -17,7 +17,7 @@ import { toArabicNumerals } from '../../../utils/dateUtils';
 
 const { colors, spacing } = tokens;
 
-const AVATAR_SIZE = 68;
+const AVATAR_SIZE = 100;
 
 const constructCommonName = (person, nodesMap) => {
   if (!person) return '';
