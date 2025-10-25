@@ -427,6 +427,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                     <TouchableOpacity
                       style={[styles.button, loading && styles.buttonDisabled]}
                       onPress={handleSendCurrentOtp}
+                      onPressIn={() => buttonScale.setValue(0.98)}
+                      onPressOut={() => buttonScale.setValue(1)}
                       disabled={loading || !currentPhone}
                     >
                       {loading ? (
