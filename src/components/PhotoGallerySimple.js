@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   Dimensions,
-  ScrollView,
   Animated,
   Easing,
 } from 'react-native';
@@ -18,18 +17,13 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../services/supabase';
 import storageService from '../services/storage';
 import RobustImage from './ui/RobustImage';
-import { toArabicNumerals } from '../utils/dateUtils';
+import tokens from './ui/tokens';
 
 const { width: screenWidth } = Dimensions.get('window');
-const STACK_CARD_HEIGHT = 260;
-const STACK_GAP = 8;
-const CAROUSEL_CARD_WIDTH = 280;
-const CAROUSEL_CARD_HEIGHT = 200;
-const CAROUSEL_GAP = 12;
-const GRID_COLUMNS = 3;
-const GRID_GAP = 8;
+const GAP = 4;
 const SECTION_PADDING = 16;
 const MAX_IMAGE_SIZE = 1920;
+const palette = tokens.colors.najdi;
 
 /**
  * Skeleton Loader Component - iOS Photos Style
@@ -75,22 +69,12 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const scrollViewRef = useRef(null);
-  const [shouldScrollToEnd, setShouldScrollToEnd] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
   const photoCount = photos.length;
 
-  const layoutType = useMemo(() => {
-    if (photoCount === 0) return 'empty';
-    if (photoCount <= 2) return 'stack';
-    if (photoCount <= 5) return 'carousel';
-    return 'grid';
-  }, [photoCount]);
-
-  const gridCardWidth = useMemo(() => {
-    const totalGap = GRID_GAP * (GRID_COLUMNS - 1);
-    return (screenWidth - SECTION_PADDING * 2 - totalGap) / GRID_COLUMNS;
-  }, []);
+  const containerWidth = useMemo(
+    () => screenWidth - SECTION_PADDING * 2,
+    [],
+  );
 
   // Load photos
   const loadPhotos = useCallback(async () => {
@@ -151,42 +135,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     loadPhotos();
   }, [loadPhotos]);
 
-  useEffect(() => {
-    if (layoutType !== 'carousel') {
-      setActiveIndex(0);
-      return;
-    }
-    setActiveIndex((prev) => {
-      const maxIndex = Math.max(photoCount - 1, 0);
-      return prev > maxIndex ? maxIndex : prev;
-    });
-  }, [layoutType, photoCount]);
-
-  // Scroll to end after new photo added (prevents drawer jump)
-  useEffect(() => {
-    if (
-      shouldScrollToEnd &&
-      scrollViewRef.current &&
-      photoCount > 0 &&
-      layoutType === 'carousel'
-    ) {
-      const offset = (photoCount - 1) * (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP);
-      setTimeout(() => {
-        scrollViewRef.current.scrollTo({ x: offset, animated: true });
-        setActiveIndex(Math.max(0, photoCount - 1));
-        setShouldScrollToEnd(false);
-      }, 150);
-    } else if (shouldScrollToEnd) {
-      setShouldScrollToEnd(false);
-    }
-  }, [photoCount, shouldScrollToEnd, layoutType]);
-
-  // Trigger scroll when upload completes
-  useEffect(() => {
-    if (!uploading && photoCount > 0 && layoutType === 'carousel') {
-      setShouldScrollToEnd(true);
-    }
-  }, [uploading, photoCount, layoutType]);
 
   // Log image errors for diagnostics (downgraded to warning for filtered records)
   const handleImageError = (photoId, error) => {
@@ -323,393 +271,212 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
       accessibilityLabel="حذف الصورة"
     >
       <View style={styles.deleteIconContainer}>
-        <Ionicons name="close" size={16} color="#F9F7F3" />
+        <Ionicons name="trash-outline" size={16} color="#FFFFFF" />
       </View>
     </TouchableOpacity>
   );
 
-  const renderPhotoCard = (photo, layoutKey, extraStyles = null) => {
-    if (!photo || !photo.photo_url) return null;
+  const columns = useMemo(() => {
+    if (photoCount <= 1) return 1;
+    if (photoCount === 2) return 2;
+    return 3;
+  }, [photoCount]);
 
-    const containerStyles = [
-      styles.photoCard,
-      styles[`${layoutKey}Card`],
-    ];
-    if (extraStyles) {
-      containerStyles.push(extraStyles);
+  const tileSize = useMemo(() => {
+    if (columns === 1) {
+      const size = containerWidth;
+      return { width: size, height: size };
     }
+    const width = Math.floor((containerWidth - GAP * (columns - 1)) / columns);
+    return { width, height: width };
+  }, [columns, containerWidth]);
 
-    const imageStyles = [
-      styles.photoImage,
-      styles[`${layoutKey}Image`],
-    ].filter(Boolean);
-
+  const renderAddTile = (showHint = false) => {
+    const remainder = photoCount % columns;
+    const extraSpacing = (columns !== 1 && remainder !== columns - 1) ? GAP : 0;
     return (
-      <View key={photo.id || photo.photo_url} style={containerStyles}>
-        <RobustImage
-          source={{ uri: photo.photo_url }}
-          style={imageStyles}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          maxRetries={3}
-          showRetryButton={true}
-          onError={(error) => handleImageError(photo.id, error)}
-          recyclingKey={photo.id || photo.photo_url}
-          transition={300}
-        />
-        {isEditMode ? renderDeleteButton(photo.id) : null}
-      </View>
-    );
-  };
-
-  const renderAddCard = (layoutKey, extraStyles = null) => (
-    <TouchableOpacity
-      key="add-photo"
-      style={[
-        styles.addCard,
-        styles[`${layoutKey}AddCard`],
-        extraStyles,
-      ]}
-      onPress={handleSelectPhotos}
+      <TouchableOpacity
+        key="add-photo"
+        style={[
+          styles.addTile,
+          {
+            width: tileSize.width,
+            height: tileSize.height,
+            marginRight: extraSpacing,
+            marginBottom: GAP,
+          },
+        ]}
+        onPress={handleSelectPhotos}
       activeOpacity={0.85}
       disabled={uploading}
       accessibilityRole="button"
       accessibilityLabel="إضافة صورة جديدة"
     >
       {uploading ? (
-        <PhotoSkeleton style={[styles.photoImage, styles[`${layoutKey}Image`]]} />
+        <PhotoSkeleton style={styles.addSkeleton} />
       ) : (
         <>
           <View style={styles.addIconContainer}>
-            <Ionicons name="add" size={28} color="#A13333" />
+            <Ionicons name="cloud-upload-outline" size={22} color={palette.text} />
           </View>
-          <Text style={styles.addText}>إضافة</Text>
+          <Text style={styles.addText}>إضافة صور</Text>
+          {showHint ? (
+            <Text style={styles.addHint}>بإمكانك اختيار عدة صور في آنٍ واحد</Text>
+          ) : null}
         </>
       )}
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
-  const renderStackLayout = () => (
-    <View style={styles.stackContainer}>
-      {photos.map((photo, index) => {
-        const isLast = index === photos.length - 1 && !isEditMode;
-        return renderPhotoCard(photo, 'stack', isLast ? { marginBottom: 0 } : null);
-      })}
-      {isEditMode ? renderAddCard('stack') : null}
-    </View>
-  );
+  const renderTiles = () => {
+    return photos.map((photo, index) => {
+      const marginRight = (columns !== 1 && (index + 1) % columns !== 0) ? GAP : 0;
+      return (
+        <View
+          key={photo.id || photo.photo_url}
+          style={[styles.photoTile, {
+            width: tileSize.width,
+            height: tileSize.height,
+            marginRight,
+            marginBottom: GAP,
+          }]}
+        >
+          <RobustImage
+            source={{ uri: photo.photo_url }}
+            style={styles.photoImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            maxRetries={3}
+            showRetryButton={true}
+            onError={(error) => handleImageError(photo.id, error)}
+            recyclingKey={photo.id || photo.photo_url}
+            transition={200}
+          />
+          {isEditMode ? renderDeleteButton(photo.id) : null}
+        </View>
+      );
+    });
+  };
 
-  const renderCarouselLayout = () => (
-    <View style={styles.carouselContainer}>
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.carouselContent}
-        decelerationRate="fast"
-        snapToInterval={CAROUSEL_CARD_WIDTH + CAROUSEL_GAP}
-        snapToAlignment="start"
-        onMomentumScrollEnd={(event) => {
-          const rawIndex = Math.round(
-            event.nativeEvent.contentOffset.x / (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP)
-          );
-          const clamped = Math.min(photoCount - 1, Math.max(0, rawIndex));
-          setActiveIndex(clamped);
-        }}
-      >
-        {photos.map((photo, index) => {
-          const isLast = index === photos.length - 1 && !isEditMode;
-          return renderPhotoCard(
-            photo,
-            'carousel',
-            isLast ? { marginEnd: 0 } : null,
-          );
-        })}
-        {isEditMode ? renderAddCard('carousel') : null}
-      </ScrollView>
-      {photoCount > 0 ? (
-        <>
-          <View style={styles.carouselCounter}>
-            <Text style={styles.carouselCounterText}>
-              {toArabicNumerals(String(Math.min(activeIndex + 1, photoCount)))} / {toArabicNumerals(String(photoCount))}
-            </Text>
-          </View>
-          <View style={styles.carouselDots}>
-            {photos.map((_, index) => {
-              const isActive = index === Math.min(activeIndex, photoCount - 1);
-              return (
-                <View
-                  key={`dot-${index}`}
-                  style={[styles.carouselDot, isActive && styles.carouselDotActive]}
-                />
-              );
-            })}
-          </View>
-        </>
-      ) : null}
-    </View>
-  );
-
-  const renderGridLayout = () => (
-    <View style={styles.gridContainer}>
-      {photos.map((photo, index) => {
-        const marginRight = (index % GRID_COLUMNS) === GRID_COLUMNS - 1 ? 0 : GRID_GAP;
-        return renderPhotoCard(photo, 'grid', {
-          width: gridCardWidth,
-          marginRight,
-          marginBottom: GRID_GAP,
-        });
-      })}
-      {isEditMode
-        ? renderAddCard('grid', {
-            width: gridCardWidth,
-            marginRight: (photos.length % GRID_COLUMNS) === GRID_COLUMNS - 1 ? 0 : GRID_GAP,
-            marginBottom: GRID_GAP,
-          })
-        : null}
-    </View>
-  );
-
-  const renderEmptyEditState = () => (
-    <View style={styles.emptyEditContainer}>
-      {renderAddCard('stack')}
-    </View>
-  );
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color="#A13333" />
+        <ActivityIndicator size="small" color={palette.text} />
       </View>
     );
   }
 
-  if (photoCount === 0 && !isEditMode) {
-    return null;
-  }
-
-  if (layoutType === 'empty') {
-    return (
+  if (photoCount === 0) {
+    return isEditMode ? (
       <View style={styles.galleryContainer}>
-        {isEditMode ? renderEmptyEditState() : null}
+        {renderAddTile(true)}
       </View>
-    );
-  }
-
-  let content = null;
-  if (layoutType === 'stack') {
-    content = renderStackLayout();
-  } else if (layoutType === 'carousel') {
-    content = renderCarouselLayout();
-  } else {
-    content = renderGridLayout();
+    ) : null;
   }
 
   return (
     <View style={styles.galleryContainer}>
-      {content}
+      <View style={[styles.gridContainer, columns === 1 && styles.singleColumn]}>
+        {renderTiles()}
+        {isEditMode ? renderAddTile(false) : null}
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   galleryContainer: {
-    marginTop: 8,
+    marginTop: 12,
   },
-
   loadingContainer: {
-    paddingVertical: 32,
+    paddingVertical: 28,
     alignItems: 'center',
   },
-
-  stackContainer: {
-    paddingHorizontal: SECTION_PADDING,
+  gridContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
-
-  photoCard: {
-    borderRadius: 12,
+  singleColumn: {
+    alignItems: 'center',
+  },
+  photoTile: {
+    backgroundColor: '#FAFAFC',
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(17,17,17,0.06)',
     overflow: 'hidden',
-    backgroundColor: '#D1BBA3',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
     position: 'relative',
   },
-
-  stackCard: {
-    width: '100%',
-    height: STACK_CARD_HEIGHT,
-    marginBottom: STACK_GAP,
-  },
-
-  stackImage: {
-    width: '100%',
-    height: STACK_CARD_HEIGHT,
-  },
-
-  photoSkeleton: {
-    borderRadius: 12,
-    overflow: 'hidden',
+  photoImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#D1BBA3',
   },
-
-  skeletonShimmer: {
-    flex: 1,
-    backgroundColor: '#F9F7F3', // Al-Jass White
-  },
-
   deleteButton: {
     position: 'absolute',
     top: 12,
     right: 12,
     zIndex: 10,
   },
-
   deleteIconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#A13333', // Najdi Crimson
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(17,17,17,0.75)',
     alignItems: 'center',
     justifyContent: 'center',
-
-    // Depth shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
   },
-
-  addCard: {
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D1BBA3',
+  addTile: {
+    borderWidth: 1,
     borderStyle: 'dashed',
-    backgroundColor: '#F9F7F3',
+    borderColor: 'rgba(17,17,17,0.2)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: 22,
+    paddingHorizontal: 16,
   },
-
-  stackAddCard: {
+  addSkeleton: {
     width: '100%',
-    height: STACK_CARD_HEIGHT,
-    marginBottom: STACK_GAP,
+    height: '100%',
+    borderRadius: 18,
+    overflow: 'hidden',
   },
-
-  carouselAddCard: {
-    width: CAROUSEL_CARD_WIDTH,
-    height: CAROUSEL_CARD_HEIGHT,
-    marginEnd: CAROUSEL_GAP,
+  photoSkeleton: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
   },
-
-  gridAddCard: {
-    height: 160,
+  skeletonShimmer: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
   },
-
   addIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#D1BBA320',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(36,33,33,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-
   addText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#736372',
+    fontSize: 15,
+    fontWeight: '700',
+    color: palette.text,
   },
-
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-
-  carouselContainer: {
-    position: 'relative',
-    paddingBottom: 32,
-  },
-
-  carouselContent: {
-    paddingHorizontal: SECTION_PADDING,
-    paddingVertical: 4,
-    paddingRight: SECTION_PADDING + 80,
-  },
-
-  carouselCard: {
-    width: CAROUSEL_CARD_WIDTH,
-    height: CAROUSEL_CARD_HEIGHT,
-    marginEnd: CAROUSEL_GAP,
-  },
-
-  carouselImage: {
-    width: '100%',
-    height: CAROUSEL_CARD_HEIGHT,
-  },
-
-  carouselCounter: {
-    position: 'absolute',
-    top: 12,
-    right: SECTION_PADDING,
-    backgroundColor: 'rgba(36,33,33,0.65)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-
-  carouselCounterText: {
-    color: '#F9F7F3',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  carouselDots: {
-    position: 'absolute',
-    bottom: 4,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  carouselDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D1BBA3',
-    marginHorizontal: 4,
-  },
-
-  carouselDotActive: {
-    backgroundColor: '#A13333',
-  },
-
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: SECTION_PADDING,
-    marginTop: 4,
-  },
-
-  gridCard: {
-    height: 160,
-    marginBottom: GRID_GAP,
-  },
-
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-
-  emptyEditContainer: {
-    paddingHorizontal: SECTION_PADDING,
+  addHint: {
+    fontSize: 12,
+    color: 'rgba(36,33,33,0.6)',
+    marginTop: 6,
   },
 });
 

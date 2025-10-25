@@ -102,7 +102,7 @@ const ViewModeContent = React.memo(({
       <BlurView intensity={22} tint="light" style={styles.actionBlur}>
         {canEdit ? (
           <TouchableOpacity
-            style={[styles.actionButton, styles.firstActionButton]}
+            style={styles.actionButton}
             onPress={handleEditPress}
             accessibilityRole="button"
             accessibilityLabel="إعدادات الملف"
@@ -114,7 +114,7 @@ const ViewModeContent = React.memo(({
         ) : null}
         {canEdit ? <View style={styles.actionDivider} /> : null}
         <TouchableOpacity
-          style={[styles.actionButton, !canEdit && styles.firstActionButton]}
+          style={styles.actionButton}
           onPress={handleMenuPress}
           accessibilityRole="button"
           accessibilityLabel="المزيد من الخيارات"
@@ -304,26 +304,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Track previous person ID to prevent mode reset on first open (only on navigation between profiles)
   const prevPersonIdRef = useRef(null);
 
-  // Diagnostic: Log version field status (helps identify stale cache issues)
-  useEffect(() => {
-    if (person?.id) {
-      if (!person.version) {
-        console.error('[ProfileViewer] ⚠️ Person object missing version field!', {
-          id: person.id,
-          name: person.name,
-          hasVersion: 'version' in person,
-          versionValue: person.version,
-          allKeys: Object.keys(person).sort()
-        });
-      } else {
-        console.log('[ProfileViewer] ✓ Person loaded with version:', {
-          id: person.id,
-          name: person.name,
-          version: person.version
-        });
-      }
-    }
-  }, [person?.id]);
+  // Note: person.version may be undefined initially (structure-only data from progressive loading)
+  // On-demand fetch in enterEditMode() handles missing version before save (see line 615-646)
 
   const renderBackdrop = useCallback(
     (props) => (
@@ -1146,9 +1128,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 14,
     backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  firstActionButton: {
-    marginStart: 0,
   },
   actionDivider: {
     width: StyleSheet.hairlineWidth,

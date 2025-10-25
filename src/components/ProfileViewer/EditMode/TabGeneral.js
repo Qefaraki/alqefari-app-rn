@@ -15,6 +15,7 @@ import TitleSelector from '../../admin/fields/TitleSelector';
 import tokens from '../../ui/tokens';
 import ChoiceChip from '../../ui/ChoiceChip';
 import { FormField, ProfileFormCard } from '../../ui/form';
+import PhotoGallerySimple from '../../PhotoGallerySimple';
 
 /**
  * Responsive toggle pills with subtle haptics.
@@ -231,6 +232,29 @@ const TabGeneral = ({ form, updateField }) => {
             </FormField>
           </View>
         </ProfileFormCard>
+
+        <ProfileFormCard style={styles.card}>
+          <Text style={styles.cardCaption}>الصور</Text>
+          <View style={[styles.cardContent, styles.galleryContent]}>
+            {profileId ? (
+              <>
+                <Text style={styles.galleryHint}>
+                  يمكنك إضافة الصور أو إعادة ترتيبها أو حذفها وسيتم تحديث الملف فوراً.
+                </Text>
+                <View style={styles.galleryWrapper}>
+                  <PhotoGallerySimple
+                    profileId={profileId}
+                    isEditMode={true}
+                  />
+                </View>
+              </>
+            ) : (
+              <Text style={styles.galleryHint}>
+                سيظهر محرر الصور بعد إنشاء الملف وحفظه للمرة الأولى.
+              </Text>
+            )}
+          </View>
+        </ProfileFormCard>
       </View>
     </View>
   );
@@ -273,6 +297,18 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     gap: tokens.spacing.md,
+  },
+  galleryContent: {
+    gap: tokens.spacing.sm,
+  },
+  galleryHint: {
+    fontSize: 14,
+    color: tokens.colors.najdi.textMuted,
+    lineHeight: 20,
+  },
+  galleryWrapper: {
+    borderRadius: tokens.radii.lg,
+    backgroundColor: 'transparent',
   },
   textInput: {
     backgroundColor: tokens.colors.najdi.background,

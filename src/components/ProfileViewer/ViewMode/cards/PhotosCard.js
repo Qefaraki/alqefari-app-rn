@@ -22,8 +22,6 @@ const PhotosCard = React.memo(({
 
   if (!person?.id) return null;
 
-  const canEdit = accessMode === 'direct';
-
   if (photoCount === 0) {
     return null;
   }
@@ -38,7 +36,7 @@ const PhotosCard = React.memo(({
       </View>
       <PhotoGallerySimple
         profileId={person.id}
-        isEditMode={canEdit}
+        isEditMode={false}
         onPhotosLoaded={handlePhotosLoaded}
       />
     </View>
