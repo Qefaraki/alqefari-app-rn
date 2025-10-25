@@ -35,13 +35,13 @@ describe('Tree Layout Integration', () => {
       expect(NODE_HEIGHT_TEXT_ONLY).toBe(STANDARD_NODE.HEIGHT_TEXT_ONLY);
     });
 
-    test('should maintain compact layout with tighter spacing', () => {
-      // Standard node width: 50px photo + 2px padding × 2
+    test('should maximize photo fill with no padding', () => {
+      // Standard node width: 54px photo + 0px padding
       expect(STANDARD_NODE.WIDTH).toBe(54); // Compact spacing
       expect(STANDARD_NODE.WIDTH % 2).toBe(0); // Even number for symmetric centering
 
-      // Padding is compact for tighter layout
-      expect(STANDARD_NODE.WIDTH).toBe(50 + 2 * 2); // Photo size + 2px padding × 2
+      // No padding - photo fills entire card width
+      expect(STANDARD_NODE.WIDTH).toBe(54 + 0 * 2); // Photo size + 0px padding × 2
     });
 
     test('root node width must stay constant', () => {
@@ -53,12 +53,11 @@ describe('Tree Layout Integration', () => {
       expect(ROOT_NODE.WIDTH % 8).toBe(0);
     });
 
-    test('selection border must fit within padding', () => {
-      // Selection border (2.5px) must fit within horizontal padding (2px)
-      // 2.5 ≈ 2px (border slightly overlaps, acceptable for visibility)
+    test('selection border with no padding', () => {
+      // Selection border (2.5px) with no horizontal padding (0px)
+      // Border extends inward or outward beyond photo edge
       expect(STANDARD_NODE.SELECTION_BORDER).toBe(2.5);
-      expect(STANDARD_NODE.WIDTH - 50).toBe(4); // 2px × 2 = 4px padding
-      expect(STANDARD_NODE.SELECTION_BORDER).toBeLessThanOrEqual(3);
+      expect(STANDARD_NODE.WIDTH - 54).toBe(0); // 0px × 2 = 0px padding (photo fills width)
     });
   });
 

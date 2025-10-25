@@ -5,29 +5,30 @@
  * Used by both renderer (NodeRenderer, TextPillRenderer) and layout system (treeLayout.js).
  *
  * Phase 1 Consolidation (Oct 25 - Audited & Fixed):
- * - Standard node width: 54px (50px photo + 2px padding × 2)
+ * - Standard node width: 54px (54px photo + 0px padding)
  * - Unified layout system and renderer dimensions
  * - Eliminated 31px delta between d3 (85px) and renderer (54px)
  * - Selection border: 2.5px for visibility
  *
- * Oct 26 Update:
- * - Reduced horizontal padding to 2px for tighter visual appearance
+ * Oct 26 Updates:
  * - Reduced sibling spacing by 25% for denser layout
+ * - Removed horizontal padding (0px) - photo fills card width
+ * - Increased photo size from 50px to 54px for better visual density
  */
 
 // Padding - single configurable source (compact spacing)
 export const NODE_PADDING = {
-  HORIZONTAL: 2,  // Compact padding for tighter nodes
+  HORIZONTAL: 0,  // No horizontal padding - photo fills card width
   VERTICAL: 4,    // Vertical padding maintains visual balance
 } as const;
 
 // Photo dimensions
-export const PHOTO_SIZE = 50; // Circle diameter in pixels
+export const PHOTO_SIZE = 54; // Circle diameter in pixels (fills 54px card width)
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {
-  // Photo nodes: 50px photo + 2px padding × 2 (compact spacing)
-  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (50 + 2×2)
+  // Photo nodes: 54px photo + 0px padding (photo fills card width)
+  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (54 + 0×2)
   HEIGHT: PHOTO_SIZE + NODE_PADDING.VERTICAL * 2 + 17,  // 75px (photo + padding + name space)
 
   // Text-only nodes: same width for consistency
