@@ -56,14 +56,16 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 // Import extracted components
 import { ImageNode } from './ImageNode';
 
-// Node dimensions constants (from TreeView utilities)
-// TEMP: Minimal padding until Perfect Tree redesign
-const NODE_WIDTH_WITH_PHOTO = 65;  // Was 85, then 75, now 65 (minimal padding)
-const NODE_HEIGHT_WITH_PHOTO = 75; // Was 105, then 85, now 75 (minimal padding)
-const NODE_WIDTH_TEXT_ONLY = 65;   // Same as photo width for consistent spacing
-const NODE_HEIGHT_TEXT_ONLY = 35;
+// Node dimensions constants - Minimal Modern Design (October 2025)
+// Photo nodes: 75x85px with squircle photo
+// Text nodes: 75x38px for compact display
+const NODE_WIDTH_WITH_PHOTO = 75;  // Modern compact size
+const NODE_HEIGHT_WITH_PHOTO = 85; // Slightly taller for photo + name
+const NODE_WIDTH_TEXT_ONLY = 75;   // Same width for vertical alignment
+const NODE_HEIGHT_TEXT_ONLY = 38;  // Compact, no wasted space
 const PHOTO_SIZE = 50;
-const CORNER_RADIUS = 10; // Smooth rounded corners
+const PHOTO_BORDER_RADIUS = 14; // Squircle (42% for iOS-style rounded square)
+const CORNER_RADIUS = 12; // Modern rounded corners
 
 export interface LayoutNode {
   id: string;
@@ -182,19 +184,23 @@ export function isSearchTier2(nodeId: string, searchTiers?: Record<string, numbe
 /**
  * Render soft blurred shadow (used as child of RoundedRect)
  *
- * iOS-style soft shadow with Gaussian blur.
+ * Minimal aesthetic: subtle shadow with 8% opacity.
  * Uses Camel Hair Beige to match connection lines.
+ * Offset: 1px down, 4px blur radius.
  *
  * @returns Shadow component
  */
 export function renderShadow(): JSX.Element {
   return (
-    <Shadow dx={0} dy={2} blur={8} color="#D1BBA370" />
+    <Shadow dx={0} dy={1} blur={4} color="#D1BBA314" />
   );
 }
 
 /**
  * Render node background
+ *
+ * Al-Jass White background (#F9F7F3) with soft shadow.
+ * No border - minimal aesthetic relies on shadow for depth.
  *
  * @param x - Background X position
  * @param y - Background Y position
@@ -217,7 +223,7 @@ export function renderBackground(
       width={width}
       height={height}
       r={borderRadius}
-      color="#FFFFFF"
+      color="#F9F7F3"
     >
       {/* Soft blurred shadow */}
       {renderShadow()}
@@ -262,30 +268,30 @@ export function renderBorder(
 }
 
 /**
- * Render photo placeholder (skeleton)
+ * Render photo placeholder (skeleton) - Squircle style
  *
- * @param centerX - Circle center X
- * @param centerY - Circle center Y
- * @param radius - Circle radius
+ * Shows rounded rectangle skeleton while photo loads.
+ * Uses Camel Hair Beige for subtle placeholder fill.
+ *
+ * @param x - Left edge X position
+ * @param y - Top edge Y position
+ * @param size - Square size (50x50 for photo)
  * @returns Placeholder elements
  */
 export function renderPhotoPlaceholder(
-  centerX: number,
-  centerY: number,
-  radius: number,
+  x: number,
+  y: number,
+  size: number,
 ): JSX.Element {
   return (
-    <>
-      <Circle cx={centerX} cy={centerY} r={radius} color="#D1BBA320" />
-      <Circle
-        cx={centerX}
-        cy={centerY}
-        r={radius}
-        color="#D1BBA340"
-        style="stroke"
-        strokeWidth={1}
-      />
-    </>
+    <RoundedRect
+      x={x}
+      y={y}
+      width={size}
+      height={size}
+      r={PHOTO_BORDER_RADIUS}
+      color="#D1BBA320"
+    />
   );
 }
 
@@ -411,8 +417,12 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
       {hasPhoto ? (
         <>
-          {/* Photo placeholder */}
-          {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE / 2)}
+          {/* Photo placeholder - squircle style */}
+          {renderPhotoPlaceholder(
+            node.x - PHOTO_SIZE / 2,
+            node.y - 10 - PHOTO_SIZE / 2,
+            PHOTO_SIZE
+          )}
 
           {/* Load and display image if available */}
           {node.photo_url && (
@@ -422,7 +432,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               y={node.y - 10 - PHOTO_SIZE / 2}
               width={PHOTO_SIZE}
               height={PHOTO_SIZE}
-              radius={PHOTO_SIZE / 2}
+              radius={PHOTO_BORDER_RADIUS}
               tier={node._tier || 1}
               scale={node._scale || 1}
               nodeId={node.id}
@@ -508,15 +518,19 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
 // Export constants for testing
 export const NODE_RENDERER_CONSTANTS = {
-  NODE_WIDTH_WITH_PHOTO: 65,
-  NODE_HEIGHT_WITH_PHOTO: 75,
-  NODE_WIDTH_TEXT_ONLY: 65,   // Same as photo width
-  NODE_HEIGHT_TEXT_ONLY: 35,
+  // Modern minimal design (October 2025)
+  NODE_WIDTH_WITH_PHOTO: 75,
+  NODE_HEIGHT_WITH_PHOTO: 85,
+  NODE_WIDTH_TEXT_ONLY: 75,   // Same width for vertical alignment
+  NODE_HEIGHT_TEXT_ONLY: 38,  // Compact, no wasted space
   PHOTO_SIZE: 50,
-  CORNER_RADIUS: 10,  // Updated from 4
+  PHOTO_BORDER_RADIUS: 14,    // Squircle (42% for iOS style)
+  CORNER_RADIUS: 12,          // Modern rounded corners
+  // Root node (no change)
   ROOT_WIDTH: 120,
   ROOT_HEIGHT: 100,
   ROOT_BORDER_RADIUS: 20,
+  // G2 parent nodes (updated to match new dimensions)
   G2_PHOTO_WIDTH: 95,
   G2_TEXT_WIDTH: 75,
   G2_BORDER_RADIUS: 16,

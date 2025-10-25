@@ -1,30 +1,25 @@
 /**
- * TextPillRenderer - LOD Tier 2 text-only pill rendering
+ * TextPillRenderer - LOD Tier 2 minimal text-only node rendering
  *
  * Phase 2 Day 4 - Extracted from TreeView.js (lines 2963-3040)
+ * October 2025 - Updated for minimal modern aesthetic
  *
  * Renders compact text-only pills for Level of Detail (LOD) Tier 2.
  * Used when zoomed out to show more nodes with minimal visual weight.
  *
  * LOD Tier 2 Characteristics:
  * - Triggered at scale < 0.48 (approximately)
- * - Small pill size: 60x26 px
- * - First name only (truncates full name)
- * - Lighter shadow (0.5px offset, 3% opacity)
- * - Rounded corners (13px radius)
+ * - Compact size: 75x38px (same width as photo nodes, compact height)
+ * - Full name display (truncated if needed)
+ * - Lighter shadow (1px offset, 6% opacity - less weight than photo nodes)
+ * - Minimal rounded corners (10px radius)
+ * - No border - minimal aesthetic
  *
- * Design Constraints (Najdi Sadu):
- * - White background (#FFFFFF)
- * - Camel Hair Beige border (#D1BBA3 60% opacity)
- * - Najdi Crimson selection (#A13333)
+ * Design Constraints (Najdi Sadu Minimal):
+ * - Al-Jass White background (#F9F7F3)
+ * - Camel Hair Beige shadow (#D1BBA3 6% opacity)
  * - Sadu Night text (#242121)
- * - Font size 10px (regular weight)
- *
- * KNOWN ISSUE (Phase 2 - AS-IS extraction):
- * - Text pill jumps when selected due to border width change
- * - Border width changes from 1 to 1.5, causing 0.5px shift
- * - Will be fixed in Phase 3 refactoring
- * - AS-IS extraction preserves bug for before/after comparison
+ * - Font size 11px bold (same as photo nodes)
  *
  * Performance:
  * - Uses cached paragraph for text rendering
@@ -66,16 +61,28 @@ export interface TextPillRendererProps {
 }
 
 /**
- * Extract first name from full name
+ * Render minimal shadow for T2 pill
  *
- * Splits full name by space and returns first segment.
- * Used to minimize text in compact T2 pills.
+ * Lighter shadow than photo nodes (6% opacity).
+ * Offset: 1px down, 3px blur radius.
  *
- * @param fullName - Full name string (e.g., "عبدالله محمد")
- * @returns First name only (e.g., "عبدالله")
+ * @param x - Left edge X
+ * @param y - Top edge Y
+ * @param width - Pill width
+ * @param height - Pill height
+ * @param borderRadius - Corner radius
+ * @returns Shadow element
  */
-export function extractFirstName(fullName: string): string {
-  return fullName.split(' ')[0];
+export function renderT2PillShadow(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  borderRadius: number
+) {
+  // Note: Using renderT2Shadow from ShadowRenderer if available
+  // Otherwise, shadow is embedded in RoundedRect child
+  return null; // Shadow will be rendered as child of RoundedRect
 }
 
 /**
@@ -115,35 +122,21 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
     });
   }
 
-  // Extract first name for compact display
-  const firstName = extractFirstName(name);
-
-  // Create cached paragraph for text rendering
+  // Create cached paragraph for text rendering (full name, bold)
   const nameParagraph = getCachedParagraph(
-    firstName,
-    'regular',
+    name,
+    'bold',
     PILL_CONSTANTS.FONT_SIZE,
     PILL_CONSTANTS.TEXT_COLOR,
     nodeWidth
   );
-
-  // Calculate border width based on selection state
-  // KNOWN ISSUE: Width change causes 0.5px jump (Phase 3 fix)
-  const borderWidth = isSelected
-    ? PILL_CONSTANTS.SELECTED_BORDER_WIDTH
-    : PILL_CONSTANTS.DEFAULT_BORDER_WIDTH;
-
-  // Calculate border color based on selection state
-  const borderColor = isSelected
-    ? PILL_CONSTANTS.SELECTED_BORDER_COLOR
-    : PILL_CONSTANTS.DEFAULT_BORDER_COLOR;
 
   return (
     <Group key={nodeId}>
       {/* Shadow (lighter for T2 pills) */}
       {renderT2Shadow(x, y, nodeWidth, nodeHeight, cornerRadius)}
 
-      {/* Main pill background */}
+      {/* Main pill background - Al-Jass White with soft shadow */}
       <RoundedRect
         x={x}
         y={y}
@@ -153,24 +146,12 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
         color={PILL_CONSTANTS.BACKGROUND_COLOR}
       />
 
-      {/* Border */}
-      <RoundedRect
-        x={x}
-        y={y}
-        width={nodeWidth}
-        height={nodeHeight}
-        r={cornerRadius}
-        color={borderColor}
-        style="stroke"
-        strokeWidth={borderWidth}
-      />
-
-      {/* First name text */}
+      {/* Text - centered vertically (full name, bold) */}
       {nameParagraph && (
         <Paragraph
           paragraph={nameParagraph}
           x={x}
-          y={y + PILL_CONSTANTS.TEXT_OFFSET_Y}
+          y={y + (nodeHeight - nameParagraph.getHeight()) / 2}
           width={nodeWidth}
         />
       )}
@@ -180,22 +161,25 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
 
 // Export constants for testing
 export const PILL_CONSTANTS = {
-  // Dimensions
-  WIDTH: 60,
-  HEIGHT: 26,
-  CORNER_RADIUS: 4, // Smooth corners
+  // Dimensions - Minimal Modern Design (October 2025)
+  WIDTH: 75,        // Same as photo nodes for vertical alignment
+  HEIGHT: 38,       // Compact, same as text-only nodes in NodeRenderer
+  CORNER_RADIUS: 10, // Modern rounded corners
 
-  // Colors (Najdi Sadu palette)
-  BACKGROUND_COLOR: '#FFFFFF',
+  // Colors (Najdi Sadu Minimal Palette)
+  BACKGROUND_COLOR: '#F9F7F3', // Al-Jass White
   TEXT_COLOR: '#242121', // Sadu Night
-  DEFAULT_BORDER_COLOR: '#D1BBA360', // Camel Hair Beige 60%
-  SELECTED_BORDER_COLOR: '#A13333', // Najdi Crimson
+  SHADOW_COLOR: '#D1BBA30F', // Camel Hair Beige 6% opacity (lighter than photo nodes)
 
-  // Border widths
-  DEFAULT_BORDER_WIDTH: 1,
-  SELECTED_BORDER_WIDTH: 1.5, // KNOWN ISSUE: Causes 0.5px jump
+  // No border in minimal aesthetic
+  DEFAULT_BORDER_COLOR: 'transparent',
+  SELECTED_BORDER_COLOR: 'transparent',
+
+  // Border widths (not used, but kept for compatibility)
+  DEFAULT_BORDER_WIDTH: 0,
+  SELECTED_BORDER_WIDTH: 0,
 
   // Typography
-  FONT_SIZE: 10,
-  TEXT_OFFSET_Y: 4, // CHANGED: 7 → 4 (15% of height instead of 27%)
+  FONT_SIZE: 11,    // Same as photo nodes
+  FONT_WEIGHT: 'bold' as const, // Bold for consistency
 };

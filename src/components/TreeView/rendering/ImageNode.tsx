@@ -1,10 +1,12 @@
 /**
- * ImageNode - Photo avatar rendering with LOD
+ * ImageNode - Photo avatar rendering with LOD (Squircle style)
  *
  * Phase 2 Day 5 - Extracted from TreeView.js (lines 350-428)
+ * October 2025 - Updated to squircles (rounded squares) instead of circles
  *
- * Renders circular avatar photos for tree nodes with LOD-aware loading.
- * Integrates with ImageBuckets for resolution selection and batched loading.
+ * Renders squircle (iOS-style rounded square) avatar photos for tree nodes
+ * with LOD-aware loading. Integrates with ImageBuckets for resolution
+ * selection and batched loading.
  *
  * LOD Integration:
  * - Tier 1: Load image at appropriate bucket size
@@ -12,19 +14,19 @@
  *
  * Loading States:
  * 1. **Hidden**: showPhotos=false or tier > 1 → returns null
- * 2. **Skeleton**: Image loading → Shows placeholder circles
- * 3. **Loaded**: Image ready → Displays with circular mask
+ * 2. **Skeleton**: Image loading → Shows placeholder squircle
+ * 3. **Loaded**: Image ready → Displays with squircle mask
  *
  * Performance Optimizations:
  * - Bucket selection: 40/60/80/120/256px based on screen pixels
  * - Hysteresis: Prevents bucket thrashing during zoom
  * - Batched loading: useBatchedSkiaImage with priority
- * - Circular mask: Single Circle component (no Path complexity)
+ * - Squircle mask: RoundedRect with 14px radius (42% of size)
  *
  * Design Constraints (Najdi Sadu):
  * - Skeleton: Camel Hair Beige with 20% opacity (#D1BBA320)
- * - Inner stroke: 10% opacity for subtle depth (#D1BBA310)
- * - Fit: cover (maintains aspect ratio, fills circle)
+ * - Squircle radius: 14px (42% of 50px size)
+ * - Fit: cover (maintains aspect ratio, fills squircle)
  *
  * KNOWN PATTERNS (AS-IS for Phase 2):
  * - Uses useBatchedSkiaImage (custom hook from TreeView)
@@ -34,7 +36,7 @@
 
 import React from 'react';
 import { PixelRatio } from 'react-native';
-import { Group, Circle, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
+import { Group, Circle, RoundedRect, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
 
 export interface ImageNodeProps {
   // Image source
@@ -127,55 +129,47 @@ export function shouldLoadImage(
 }
 
 /**
- * Render image skeleton placeholder
+ * Render image skeleton placeholder - Squircle style
  *
- * Shows placeholder while image loads.
+ * Shows rounded rectangle placeholder while image loads.
  * Uses Najdi design colors for consistency.
  *
  * @param x - Top-left X position
  * @param y - Top-left Y position
- * @param radius - Circle radius
- * @returns Group with skeleton circles
+ * @param size - Square size (50x50px)
+ * @param borderRadius - Squircle radius (14px)
+ * @returns Group with skeleton squircle
  */
 export function renderImageSkeleton(
   x: number,
   y: number,
-  radius: number
+  size: number,
+  borderRadius: number
 ): JSX.Element {
   return (
-    <Group>
-      {/* Base circle background */}
-      <Circle
-        cx={x + radius}
-        cy={y + radius}
-        r={radius}
-        color={IMAGE_NODE_CONSTANTS.SKELETON_COLOR}
-      />
-      {/* Inner stroke for depth */}
-      <Circle
-        cx={x + radius}
-        cy={y + radius}
-        r={radius - 1}
-        color={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_COLOR}
-        style="stroke"
-        strokeWidth={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_WIDTH}
-      />
-    </Group>
+    <RoundedRect
+      x={x}
+      y={y}
+      width={size}
+      height={size}
+      r={borderRadius}
+      color={IMAGE_NODE_CONSTANTS.SKELETON_COLOR}
+    />
   );
 }
 
 /**
- * Render loaded image with circular mask
+ * Render loaded image with squircle mask
  *
- * Displays image clipped to circular shape.
- * Uses alpha mask for clean edge rendering.
+ * Displays image clipped to rounded square (squircle) shape.
+ * Uses alpha mask with RoundedRect for iOS-style corners.
  *
  * @param image - Loaded Skia image
  * @param x - Top-left X position
  * @param y - Top-left Y position
  * @param width - Image width
  * @param height - Image height
- * @param radius - Circle radius (for mask)
+ * @param borderRadius - Squircle border radius (14px)
  * @returns Group with masked image
  */
 export function renderLoadedImage(
@@ -184,13 +178,22 @@ export function renderLoadedImage(
   y: number,
   width: number,
   height: number,
-  radius: number
+  borderRadius: number
 ): JSX.Element {
   return (
     <Group>
       <Mask
         mode="alpha"
-        mask={<Circle cx={x + radius} cy={y + radius} r={radius} color="white" />}
+        mask={
+          <RoundedRect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            r={borderRadius}
+            color="white"
+          />
+        }
       >
         <SkiaImage
           image={image}
@@ -252,7 +255,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
 
     // Show skeleton if image not loaded
     if (!image) {
-      return renderImageSkeleton(x, y, radius);
+      return renderImageSkeleton(x, y, width, radius);
     }
 
     // Show loaded image
