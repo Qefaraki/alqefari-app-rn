@@ -662,7 +662,20 @@ const TreeView = ({
       }
     : traditionalResult;
 
-  // Calculate layout - based on treeData and showPhotos prop
+  // Phase 3B: Extract stable layout keys to prevent enrichment-triggered recalc
+  // Only layout-affecting fields: id, parent IDs, sibling order, photo dimensions
+  // Enrichment-only fields (bio, education, kunya) don't affect this key
+  const layoutKeys = useMemo(() => {
+    if (!treeData || treeData.length === 0) return '';
+
+    return treeData
+      .map(n =>
+        `${n.id}|${n.father_id || ''}|${n.mother_id || ''}|${n.sibling_order}|${n.photo_url || ''}|${n.nodeWidth}`
+      )
+      .join(',');
+  }, [treeData]);
+
+  // Calculate layout - based on layout keys and showPhotos prop
   const { nodes, connections } = useMemo(() => {
     if (!treeData || treeData.length === 0) {
       return { nodes: [], connections: [] };
@@ -689,7 +702,7 @@ const TreeView = ({
     }
 
     return { nodes: layout.nodes, connections: layout.connections };
-  }, [treeData, showPhotos]);
+  }, [layoutKeys, showPhotos]);
 
   // Build indices for node lookup and relationships with O(N) complexity
   const indices = useMemo(() => {
