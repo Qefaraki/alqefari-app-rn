@@ -30,8 +30,9 @@ export function useStructureLoader() {
   const loadStructure = useCallback(async () => {
     try {
       // Phase 1a: Try AsyncStorage cache first
+      // Cache v4: No nodeWidth property (removed in migration 20251026000001)
       try {
-        const cachedJson = await AsyncStorage.getItem('tree-structure-v3');
+        const cachedJson = await AsyncStorage.getItem('tree-structure-v4');
         if (cachedJson) {
           const cachedStructure = JSON.parse(cachedJson);
 
@@ -79,9 +80,9 @@ export function useStructureLoader() {
         `✅ [Phase 1] Structure loaded: ${data.length} profiles (${sizeMB} MB) in ${duration.toFixed(0)}ms`
       );
 
-      // Phase 1d: Save to AsyncStorage cache
+      // Phase 1d: Save to AsyncStorage cache (v4: fresh data without nodeWidth)
       try {
-        await AsyncStorage.setItem('tree-structure-v3', JSON.stringify(data));
+        await AsyncStorage.setItem('tree-structure-v4', JSON.stringify(data));
         console.log(`💾 [Phase 1] Structure cached to AsyncStorage`);
       } catch (cacheError) {
         console.warn('[Phase 1] Failed to cache structure (optional):', cacheError);
