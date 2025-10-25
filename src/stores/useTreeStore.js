@@ -1,6 +1,4 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DEFAULT_BOUNDS,
   clampStageToBounds,
@@ -11,58 +9,13 @@ import {
 export const TREE_DATA_SCHEMA_VERSION = 3; // v3: Force reload to include version field in all cached profiles
 
 /**
- * Custom AsyncStorage Adapter for Zustand Persist
+ * Tree Store
  *
- * Wraps React Native's AsyncStorage to match Zustand's persist interface.
- * Zustand persist calls storage.setItem(name, JSON.stringify(state))
- * but React Native AsyncStorage expects setItem(key, value) as strings.
- * This adapter bridges the gap.
+ * Cache is managed manually via AsyncStorage in useStructureLoader.js
+ * Simple pattern: load on mount, save after network fetch
+ * No middleware complexity - direct control over cache lifecycle
  */
-const AsyncStorageAdapter = {
-  getItem: async (name) => {
-    try {
-      const value = await AsyncStorage.getItem(name);
-      return value;
-    } catch (error) {
-      console.error('[AsyncStorageAdapter] getItem failed:', error);
-      return null;
-    }
-  },
-  setItem: async (name, value) => {
-    try {
-      await AsyncStorage.setItem(name, value);
-    } catch (error) {
-      console.error('[AsyncStorageAdapter] setItem failed:', error);
-    }
-  },
-  removeItem: async (name) => {
-    try {
-      await AsyncStorage.removeItem(name);
-    } catch (error) {
-      console.error('[AsyncStorageAdapter] removeItem failed:', error);
-    }
-  },
-};
-
-/**
- * Tree Store with AsyncStorage Persistence
- *
- * Persisted fields (survives app restarts):
- * - treeData: Full tree structure loaded from Phase 1 (2114 profiles = ~0.32MB)
- * - isTreeLoaded: Loading state flag (set when cache is valid)
- * - cachedSchemaVersion: Schema version for invalidation on migrations
- *
- * Unpersisted fields (reset on app restart):
- * - stage, treeBounds, zoom, selection: User's current viewport + interaction state
- * - profileSheetProgress, selectedPersonId, etc.: Temporary UI state
- *
- * Behavior:
- * - First launch: Skeleton → Network fetch (194ms) → Tree rendered → Cache saved to disk
- * - Subsequent launches: AsyncStorage loaded → Tree appears instantly (no skeleton)
- */
-export const useTreeStore = create(
-  persist(
-    (set, get) => ({
+export const useTreeStore = create((set, get) => ({
   // Camera State
   stage: {
     x: 0,
@@ -485,15 +438,4 @@ export const useTreeStore = create(
 
     requestAnimationFrame(tick);
   },
-    }),
-    {
-      name: 'tree-cache-v3',
-      storage: AsyncStorageAdapter,
-      partialize: (state) => ({
-        treeData: state.treeData,
-        isTreeLoaded: state.isTreeLoaded,
-        cachedSchemaVersion: state.cachedSchemaVersion,
-      }),
-    }
-  )
-);
+}));

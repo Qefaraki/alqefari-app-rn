@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTreeStore } from '../../../stores/useTreeStore';
 import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
@@ -28,23 +29,26 @@ export function useStructureLoader() {
 
   const loadStructure = useCallback(async () => {
     try {
-      // Check cache first - independent of loading state
-      // Cache is valid if it has 50+ nodes (minimum threshold for real data)
-      // CRITICAL FIX: Don't require isTreeLoaded - it's always false on mount!
-      const storeState = useTreeStore.getState();
-      const cachedStructure = storeState.treeData;
-
-      if (cachedStructure && cachedStructure.length >= 50) {
-        const startTime = performance.now();
-        console.log(`🚀 [Phase 1] Using cached structure (${cachedStructure.length} profiles)`);
-        setStructure(cachedStructure);
-        setIsLoading(false);
-        const duration = performance.now() - startTime;
-        console.log(`✅ [Phase 1] Cache load complete in ${duration.toFixed(0)}ms (instant, no network))`);
-        return;
+      // Phase 1a: Try AsyncStorage cache first
+      try {
+        const cachedJson = await AsyncStorage.getItem('tree-structure-v3');
+        if (cachedJson) {
+          const cachedStructure = JSON.parse(cachedJson);
+          if (cachedStructure && cachedStructure.length >= 50) {
+            console.log(`🚀 [Phase 1] Using cached structure (${cachedStructure.length} profiles)`);
+            setStructure(cachedStructure);
+            useTreeStore.getState().setTreeData(cachedStructure);
+            setIsLoading(false);
+            setError(null);
+            return;
+          }
+        }
+      } catch (cacheError) {
+        console.warn('[Phase 1] Cache load failed, will fetch from network:', cacheError);
+        // Continue to network fetch
       }
 
-      // Network check
+      // Phase 1b: Network check
       const networkStore = useNetworkStore.getState();
       if (!networkStore.isOnline()) {
         console.error('❌ [Phase 1] Network offline');
@@ -53,7 +57,7 @@ export function useStructureLoader() {
         return;
       }
 
-      // Load structure from backend
+      // Phase 1c: Load structure from backend
       console.log('📦 [Phase 1] Loading tree structure...');
       const startTime = performance.now();
 
@@ -73,7 +77,16 @@ export function useStructureLoader() {
         `✅ [Phase 1] Structure loaded: ${data.length} profiles (${sizeMB} MB) in ${duration.toFixed(0)}ms`
       );
 
-      // Cache structure
+      // Phase 1d: Save to AsyncStorage cache
+      try {
+        await AsyncStorage.setItem('tree-structure-v3', JSON.stringify(data));
+        console.log(`💾 [Phase 1] Structure cached to AsyncStorage`);
+      } catch (cacheError) {
+        console.warn('[Phase 1] Failed to cache structure (optional):', cacheError);
+        // Cache failure is non-critical
+      }
+
+      // Phase 1e: Update store
       setStructure(data);
       useTreeStore.getState().setTreeData(data);
       useTreeStore.getState().setCachedSchemaVersion(TREE_STRUCTURE_SCHEMA_VERSION);
