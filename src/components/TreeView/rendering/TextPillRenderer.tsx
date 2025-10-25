@@ -1,25 +1,25 @@
 /**
- * TextPillRenderer - LOD Tier 2 minimal text-only node rendering
+ * TextPillRenderer - LOD Tier 2 glassmorphism text-only node rendering
  *
  * Phase 2 Day 4 - Extracted from TreeView.js (lines 2963-3040)
- * October 2025 - Updated for minimal modern aesthetic
+ * October 2025 - Updated for glassmorphism aesthetic (pure white, ultra compact)
  *
- * Renders compact text-only pills for Level of Detail (LOD) Tier 2.
- * Used when zoomed out to show more nodes with minimal visual weight.
+ * Renders ultra-compact text-only glass cards for Level of Detail (LOD) Tier 2.
+ * Used when zoomed out to show more nodes with minimal visual footprint.
  *
  * LOD Tier 2 Characteristics:
  * - Triggered at scale < 0.48 (approximately)
- * - Compact size: 75x38px (same width as photo nodes, compact height)
+ * - Ultra-compact size: 75x28px (dynamic width, minimal height)
  * - Full name display (truncated if needed)
- * - Lighter shadow (1px offset, 6% opacity - less weight than photo nodes)
- * - Minimal rounded corners (10px radius)
- * - No border - minimal aesthetic
+ * - Strong shadow (2px offset, 12% black opacity - glass effect)
+ * - Tight rounded corners (8px radius) for modern look
+ * - No border - glassmorphism aesthetic
  *
- * Design Constraints (Najdi Sadu Minimal):
- * - Al-Jass White background (#F9F7F3)
- * - Camel Hair Beige shadow (#D1BBA3 6% opacity)
+ * Design Constraints (Glassmorphism):
+ * - Pure white background (#FFFFFF)
+ * - Strong shadow (#0000001F - 12% black opacity)
  * - Sadu Night text (#242121)
- * - Font size 11px bold (same as photo nodes)
+ * - Font size 10pt bold (ultra compact)
  *
  * Performance:
  * - Uses cached paragraph for text rendering
@@ -161,17 +161,17 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
 
 // Export constants for testing
 export const PILL_CONSTANTS = {
-  // Dimensions - Minimal Modern Design (October 2025)
-  WIDTH: 75,        // Same as photo nodes for vertical alignment
-  HEIGHT: 38,       // Compact, same as text-only nodes in NodeRenderer
-  CORNER_RADIUS: 10, // Modern rounded corners
+  // Dimensions - Glassmorphism (October 2025) - Ultra compact
+  WIDTH: 75,        // Dynamic per text width, but base is 75px
+  HEIGHT: 28,       // Compact: 4px + text + 4px
+  CORNER_RADIUS: 8, // Tight modern corners for glassmorphism
 
-  // Colors (Najdi Sadu Minimal Palette)
-  BACKGROUND_COLOR: '#F9F7F3', // Al-Jass White
-  TEXT_COLOR: '#242121', // Sadu Night
-  SHADOW_COLOR: '#D1BBA30F', // Camel Hair Beige 6% opacity (lighter than photo nodes)
+  // Colors - Glassmorphism Palette
+  BACKGROUND_COLOR: '#FFFFFF', // Pure white glass card
+  TEXT_COLOR: '#242121', // Sadu Night for contrast
+  SHADOW_COLOR: '#0000001F', // Strong shadow: 12% black opacity
 
-  // No border in minimal aesthetic
+  // No border in glassmorphism aesthetic
   DEFAULT_BORDER_COLOR: 'transparent',
   SELECTED_BORDER_COLOR: 'transparent',
 
@@ -179,7 +179,7 @@ export const PILL_CONSTANTS = {
   DEFAULT_BORDER_WIDTH: 0,
   SELECTED_BORDER_WIDTH: 0,
 
-  // Typography
-  FONT_SIZE: 11,    // Same as photo nodes
-  FONT_WEIGHT: 'bold' as const, // Bold for consistency
+  // Typography - Ultra compact
+  FONT_SIZE: 10,    // Smaller for compact height (was 11pt)
+  FONT_WEIGHT: 'bold' as const, // Bold for clarity
 };

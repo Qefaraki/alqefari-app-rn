@@ -56,16 +56,16 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 // Import extracted components
 import { ImageNode } from './ImageNode';
 
-// Node dimensions constants - Minimal Modern Design (October 2025)
-// Photo nodes: 75x85px with squircle photo
-// Text nodes: 75x38px for compact display
-const NODE_WIDTH_WITH_PHOTO = 75;  // Modern compact size
-const NODE_HEIGHT_WITH_PHOTO = 85; // Slightly taller for photo + name
-const NODE_WIDTH_TEXT_ONLY = 75;   // Same width for vertical alignment
-const NODE_HEIGHT_TEXT_ONLY = 38;  // Compact, no wasted space
+// Node dimensions constants - Glassmorphism Design (October 2025)
+// Photo nodes: 58x72px (minimal padding around 50x50 photo)
+// Text nodes: Dynamic width (text + 12px padding), 28px height
+const NODE_WIDTH_WITH_PHOTO = 58;  // 4px padding + 50px photo + 4px padding
+const NODE_HEIGHT_WITH_PHOTO = 72; // 4px top + 50px photo + 2px gap + 10pt text + 4px bottom
+const NODE_WIDTH_TEXT_ONLY = 75;   // Will be overridden by dynamic calculation
+const NODE_HEIGHT_TEXT_ONLY = 28;  // Compact: 4px top + 10pt text + 4px bottom + line height
 const PHOTO_SIZE = 50;
 const PHOTO_BORDER_RADIUS = 14; // Squircle (42% for iOS-style rounded square)
-const CORNER_RADIUS = 12; // Modern rounded corners
+const CORNER_RADIUS = 8; // Tight modern corners for glassmorphism
 
 export interface LayoutNode {
   id: string;
@@ -182,25 +182,26 @@ export function isSearchTier2(nodeId: string, searchTiers?: Record<string, numbe
 }
 
 /**
- * Render soft blurred shadow (used as child of RoundedRect)
+ * Render glassmorphism shadow (used as child of RoundedRect)
  *
- * Minimal aesthetic: subtle shadow with 8% opacity.
- * Uses Camel Hair Beige to match connection lines.
- * Offset: 1px down, 4px blur radius.
+ * Glassmorphism aesthetic: layered shadows for depth and glass effect.
+ * Strong outer shadow: 0px 2px 8px with 12% black opacity
+ * Creates lifted glass card effect.
  *
  * @returns Shadow component
  */
 export function renderShadow(): JSX.Element {
   return (
-    <Shadow dx={0} dy={1} blur={4} color="#D1BBA314" />
+    <Shadow dx={0} dy={2} blur={8} color="#0000001F" />
   );
 }
 
 /**
- * Render node background
+ * Render glassmorphism background
  *
- * Al-Jass White background (#F9F7F3) with soft shadow.
- * No border - minimal aesthetic relies on shadow for depth.
+ * Pure white glass card (#FFFFFF) with strong shadow for depth.
+ * Creates modern frosted glass effect with layered shadows.
+ * Tight rounded corners (8px) for contemporary aesthetic.
  *
  * @param x - Background X position
  * @param y - Background Y position
@@ -223,9 +224,9 @@ export function renderBackground(
       width={width}
       height={height}
       r={borderRadius}
-      color="#F9F7F3"
+      color="#FFFFFF"
     >
-      {/* Soft blurred shadow */}
+      {/* Glassmorphism shadow for depth */}
       {renderShadow()}
     </RoundedRect>
   );
@@ -442,33 +443,34 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             />
           )}
 
-          {/* Name text - positioned near bottom of card */}
+          {/* Name text - positioned below photo with minimal gap */}
           {(() => {
             const nameParagraph = getCachedParagraph(
               node.name,
               "bold",
-              isRoot ? 22 : 11,
+              isRoot ? 22 : 10,
               "#242121",
               width,
             );
 
             if (!nameParagraph) return null;
 
-            // Position text near bottom of card - slightly higher than bottom edge
-            const textY = y + (height * 0.80) - (nameParagraph.getHeight() / 2) + 2;
+            // Position text 2px below photo (minimal gap)
+            // Photo is at y + 4 (top padding), size 50, ends at y + 54
+            // Text starts at y + 54 + 2 = y + 56
+            const textY = y + 56;
 
             return <Paragraph paragraph={nameParagraph} x={x} y={textY} width={width} />;
           })()}
         </>
       ) : (
         <>
-
-          {/* Text-only name - centered vertically */}
+          {/* Text-only name - centered vertically (no decorations) */}
           {(() => {
             const nameParagraph = getCachedParagraph(
               node.name,
               "bold",
-              isRoot ? 22 : 11,
+              isRoot ? 22 : 10,
               "#242121",
               width,
             );
@@ -480,36 +482,6 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
             return <Paragraph paragraph={nameParagraph} x={textX} y={textY} width={width} />;
           })()}
-
-          {/* Sadu icons for root node */}
-          {isRoot && !hasPhoto && (
-            <>
-              {/* Left Sadu icon */}
-              <SaduIcon x={x + 5} y={y + height / 2 - 10} size={20} />
-
-              {/* Right Sadu icon */}
-              <SaduIcon x={x + width - 25} y={y + height / 2 - 10} size={20} />
-            </>
-          )}
-
-          {/* Sadu icons for Generation 2 parent nodes */}
-          {isG2Parent && (
-            <>
-              {/* Left Sadu icon */}
-              <SaduIconG2
-                x={x + 3}
-                y={hasPhoto ? y + 5 : y + height / 2 - 7}
-                size={14}
-              />
-
-              {/* Right Sadu icon */}
-              <SaduIconG2
-                x={x + width - 17}
-                y={hasPhoto ? y + 5 : y + height / 2 - 7}
-                size={14}
-              />
-            </>
-          )}
         </>
       )}
     </Group>
@@ -518,20 +490,20 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
 // Export constants for testing
 export const NODE_RENDERER_CONSTANTS = {
-  // Modern minimal design (October 2025)
-  NODE_WIDTH_WITH_PHOTO: 75,
-  NODE_HEIGHT_WITH_PHOTO: 85,
-  NODE_WIDTH_TEXT_ONLY: 75,   // Same width for vertical alignment
-  NODE_HEIGHT_TEXT_ONLY: 38,  // Compact, no wasted space
+  // Glassmorphism design (October 2025) - Ultra compact
+  NODE_WIDTH_WITH_PHOTO: 58,  // 4px padding + 50px photo + 4px padding
+  NODE_HEIGHT_WITH_PHOTO: 72, // 4px + 50px photo + 2px gap + 10pt text + 4px = 72px
+  NODE_WIDTH_TEXT_ONLY: 75,   // Dynamic, overridden per-node
+  NODE_HEIGHT_TEXT_ONLY: 28,  // 4px + 10pt text + 4px = 28px compact
   PHOTO_SIZE: 50,
   PHOTO_BORDER_RADIUS: 14,    // Squircle (42% for iOS style)
-  CORNER_RADIUS: 12,          // Modern rounded corners
+  CORNER_RADIUS: 8,           // Tight modern corners for glassmorphism
   // Root node (no change)
   ROOT_WIDTH: 120,
   ROOT_HEIGHT: 100,
   ROOT_BORDER_RADIUS: 20,
-  // G2 parent nodes (updated to match new dimensions)
-  G2_PHOTO_WIDTH: 95,
+  // G2 parent nodes
+  G2_PHOTO_WIDTH: 58,         // Same as regular photo nodes
   G2_TEXT_WIDTH: 75,
-  G2_BORDER_RADIUS: 16,
+  G2_BORDER_RADIUS: 8,        // Tight corners
 };
