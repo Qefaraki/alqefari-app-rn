@@ -66,7 +66,7 @@ import { useCachedSkiaImage } from "../hooks/useCachedSkiaImage";
 // Profile editing and search components removed for simplified view
 import { supabase } from "../services/supabase";
 // Haptics and LottieGlow removed - no interaction in simplified view
-import NetworkErrorView from "./NetworkErrorView";
+import NetworkStatusIndicator from "./NetworkStatusIndicator";
 
 // Asymmetric margins to match tree layout: horizontal spacing is 2-3x wider than vertical
 const VIEWPORT_MARGIN_X = 2000; // Covers ~20 siblings + collision expansion (max in DB: 10)
@@ -2078,8 +2078,9 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
   // Show network error state if there's an error
   if (networkError) {
     return (
-      <NetworkErrorView
-        errorType={networkError}
+      <NetworkStatusIndicator
+        mode="fullscreen"
+        errorType={networkError === 'network' ? 'network' : 'server'}
         onRetry={handleRetry}
         isRetrying={isRetrying}
       />

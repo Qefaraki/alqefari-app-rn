@@ -35,6 +35,7 @@ import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAuth } from "../contexts/AuthContextSimple";
+import { useNetworkGuard } from "../hooks/useNetworkGuard";
 
 const { height: screenHeight } = Dimensions.get("window");
 
@@ -43,6 +44,7 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   const { isAdmin } = useAdminMode();
   const { settings } = useSettings();
   const { userProfile } = useAuth();
+  const { checkBeforeAction } = useNetworkGuard();
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState("basics");
   const [errors, setErrors] = useState({});
@@ -165,6 +167,11 @@ const ModernProfileEditor = ({ visible, profile, onClose, onSave }) => {
   // EXACT copy of ProfileSheet's handleSave
   const handleSave = async () => {
     if (!editedData || !profile) return;
+
+    // NETWORK CHECK: Pre-flight check before save
+    if (!checkBeforeAction('حفظ التعديلات')) {
+      return; // User already shown alert
+    }
 
     // CRITICAL: Require admin mode to save
     if (!isAdmin) {

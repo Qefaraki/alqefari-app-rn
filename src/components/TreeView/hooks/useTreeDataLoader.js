@@ -2,6 +2,7 @@
  * useTreeDataLoader - Tree data loading and real-time synchronization
  *
  * Extracted from TreeView.js (Phase 2 Day 10)
+ * Enhanced with offline handling (Oct 2025)
  *
  * Manages:
  * - Initial tree loading with schema version checking
@@ -9,13 +10,15 @@
  * - Network error handling and retry logic
  * - Skeleton fade animations
  * - Cache invalidation on schema changes
+ * - Offline detection with pre-flight checks
  */
 
 import { useEffect, useCallback } from 'react';
 import { Alert, Animated as RNAnimated } from 'react-native';
 import { useTreeStore, TREE_DATA_SCHEMA_VERSION } from '../../../stores/useTreeStore';
+import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
-import { supabase } from '../../../services/supabase';
+import { supabase, handleSupabaseError } from '../../../services/supabase';
 import { formatDateByPreference } from '../../../utils/dateDisplay';
 import { familyData } from '../../../data/family-data';
 
@@ -61,6 +64,22 @@ export function useTreeDataLoader({
       console.log(`⚠️ Schema version mismatch (cached: v${cachedVersion}, current: v${TREE_DATA_SCHEMA_VERSION}), reloading tree...`);
     } else if (existingData && existingData.length > 0) {
       console.log('⚠️ Partial tree data exists:', existingData.length, 'nodes, loading full tree...');
+    }
+
+    // OFFLINE CHECK: Pre-flight network check (silent, just set error state)
+    const networkStore = useNetworkStore.getState();
+    if (!networkStore.isOnline()) {
+      console.log('⚠️ Network offline - showing cached data or error');
+      setNetworkError('network');
+      setShowSkeleton(false);
+      setIsLoading(false);
+      // Return existing data if available, otherwise empty
+      if (existingData && existingData.length > 0) {
+        setTreeData(existingData);
+      } else {
+        setTreeData([]);
+      }
+      return;
     }
 
     setIsLoading(true);

@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../services/supabase";
 import { useTreeStore } from "../stores/useTreeStore";
 import { useAdminMode } from "../contexts/AdminModeContext";
+import { useNetworkGuard } from "../hooks/useNetworkGuard";
 import useDynamicTypography from "../hooks/useDynamicTypography";
 import SearchResultCard from "./search/SearchResultCard";
 
@@ -35,6 +36,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const { isOffline } = useNetworkGuard();
   const inputRef = useRef(null);
   const getTypography = useDynamicTypography();
   const fontFamilyBase = Platform.OS === "ios" ? "System" : "Roboto";
@@ -231,6 +233,14 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
       if (!searchText || searchText.length < 1) {
         setResults([]);
         setShowResults(false);
+        return;
+      }
+
+      // NETWORK CHECK: Show error if offline
+      if (isOffline) {
+        setResults([]);
+        setShowResults(false);
+        console.log('Search not available - user is offline');
         return;
       }
 

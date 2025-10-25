@@ -178,7 +178,7 @@ import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
 import * as Haptics from "expo-haptics";
-import NetworkErrorView from "./NetworkErrorView";
+import NetworkStatusIndicator from "./NetworkStatusIndicator";
 import { useHighlighting } from "../hooks/useHighlighting";
 import { HIGHLIGHT_TYPES, ANCESTRY_COLORS } from "../services/highlightingService";
 import { createRenderer } from "./TreeView/highlightRenderers";
@@ -2351,8 +2351,9 @@ const TreeView = ({
   // Show network error state if there's an error
   if (networkError) {
     return (
-      <NetworkErrorView
-        errorType={networkError}
+      <NetworkStatusIndicator
+        mode="fullscreen"
+        errorType={networkError === 'network' ? 'network' : 'server'}
         onRetry={handleRetry}
         isRetrying={isRetrying}
       />

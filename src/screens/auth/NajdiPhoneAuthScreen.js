@@ -26,6 +26,7 @@ import DuolingoProgressBar from "../../components/DuolingoProgressBar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { phoneAuthService } from "../../services/phoneAuth";
+import { useNetworkGuard } from "../../hooks/useNetworkGuard";
 import { router } from "expo-router";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -63,6 +64,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState("");
+  const { checkBeforeAction } = useNetworkGuard();
 
   // Ref for OTP input
   const otpRef = useRef(null);
@@ -182,6 +184,11 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
       return;
     }
 
+    // NETWORK CHECK: Verify connection before sending OTP
+    if (!checkBeforeAction('إرسال رمز التحقق')) {
+      return; // User already shown alert
+    }
+
     setLoading(true);
     setError("");
 
@@ -228,6 +235,11 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
       setError("يرجى إدخال رمز التحقق كاملاً (٦ أرقام)");
       shakeError();
       return;
+    }
+
+    // NETWORK CHECK: Verify connection before verifying OTP
+    if (!checkBeforeAction('التحقق من الرمز')) {
+      return; // User already shown alert
     }
 
     setLoading(true);
