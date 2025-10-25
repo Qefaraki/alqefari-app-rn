@@ -386,12 +386,23 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   useEffect(() => {
     if (person?.id) {
       console.log('[ProfileViewer] Opening sheet for person:', person.id);
-      setCurrentSnapIndex(0); // State drives sheet position
+
+      // If navigating between profiles (already have a previous person), maintain current snap index
+      // Otherwise, default to 36% (index 0) for fresh opens
+      if (prevPersonIdRef.current && currentSnapIndex >= 0) {
+        // Navigation between profiles - maintain current position
+        console.log('[ProfileViewer] Maintaining snap index:', currentSnapIndex);
+        // Don't change currentSnapIndex - keep user's current position
+      } else {
+        // Fresh open - default to 36%
+        console.log('[ProfileViewer] Fresh open - setting to 36%');
+        setCurrentSnapIndex(0);
+      }
     } else if (!loading) {
       console.log('[ProfileViewer] Closing sheet (no person)');
       setCurrentSnapIndex(-1);
     }
-  }, [person?.id, loading]);
+  }, [person?.id, loading, currentSnapIndex]);
 
   // ✅ Debug logging for diagnostics
   useEffect(() => {
