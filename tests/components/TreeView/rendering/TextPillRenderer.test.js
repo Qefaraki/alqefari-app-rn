@@ -35,7 +35,7 @@ describe('TextPillRenderer', () => {
 
   describe('PILL_CONSTANTS', () => {
     test('should export expected dimensions', () => {
-      expect(PILL_CONSTANTS.WIDTH).toBe(60);
+      expect(PILL_CONSTANTS.WIDTH).toBe(54);  // Consolidated with photo node width
       expect(PILL_CONSTANTS.HEIGHT).toBe(26);
       expect(PILL_CONSTANTS.CORNER_RADIUS).toBe(4); // Smooth corners
     });
@@ -140,7 +140,7 @@ describe('TextPillRenderer', () => {
         'regular',
         10,
         '#242121',
-        60
+        54  // Consolidated width
       );
     });
 
@@ -160,9 +160,9 @@ describe('TextPillRenderer', () => {
       );
 
       expect(onFrameCalculated).toHaveBeenCalledWith({
-        x: 100 - 30, // centerX - width/2
+        x: 100 - 27, // centerX - width/2 (54/2 = 27)
         y: 200 - 13, // centerY - height/2
-        width: 60,
+        width: 54,   // Consolidated width
         height: 26,
         borderRadius: 4, // Smooth corners
       });
@@ -184,9 +184,9 @@ describe('TextPillRenderer', () => {
       );
 
       expect(onFrameCalculated).toHaveBeenCalledWith({
-        x: -130, // -100 - 30
+        x: -127, // -100 - 27 (width/2)
         y: -213, // -200 - 13
-        width: 60,
+        width: 54,   // Consolidated width
         height: 26,
         borderRadius: 4, // Smooth corners
       });
@@ -208,9 +208,9 @@ describe('TextPillRenderer', () => {
       );
 
       expect(onFrameCalculated).toHaveBeenCalledWith({
-        x: -30, // 0 - 30
+        x: -27, // 0 - 27 (width/2)
         y: -13, // 0 - 13
-        width: 60,
+        width: 54,   // Consolidated width
         height: 26,
         borderRadius: 4, // Smooth corners
       });
@@ -447,9 +447,9 @@ describe('TextPillRenderer', () => {
       );
 
       // All pills should have same dimensions regardless of name or selection
-      expect(onFrameCalculated1.mock.calls[0][0].width).toBe(60);
+      expect(onFrameCalculated1.mock.calls[0][0].width).toBe(54);  // Consolidated width
       expect(onFrameCalculated1.mock.calls[0][0].height).toBe(26);
-      expect(onFrameCalculated2.mock.calls[0][0].width).toBe(60);
+      expect(onFrameCalculated2.mock.calls[0][0].width).toBe(54);  // Consolidated width
       expect(onFrameCalculated2.mock.calls[0][0].height).toBe(26);
     });
   });

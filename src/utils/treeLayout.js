@@ -1,11 +1,16 @@
 import { hierarchy, tree } from "d3-hierarchy";
+import { STANDARD_NODE, ROOT_NODE } from "../components/TreeView/rendering/nodeConstants";
 
 // Helper function to get node dimensions - uses dynamic widths from data
 function getNodeDimensions(node, showPhotos = true) {
   const hasPhoto = showPhotos && !!node.data.photo_url;
+  const isRoot = node.depth === 0 && !node.data.father_id;
+
   return {
-    width: node.data.nodeWidth || (hasPhoto ? 85 : 60),
-    height: hasPhoto ? 75 : 35,  // Updated from 105 to match rendering
+    width: node.data.nodeWidth || (
+      isRoot ? ROOT_NODE.WIDTH : (hasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY)
+    ),
+    height: isRoot ? ROOT_NODE.HEIGHT : (hasPhoto ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY),
   };
 }
 
@@ -151,8 +156,17 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
     .nodeSize([1, 110]) // TEMP: Minimal base spacing - actual spacing controlled by separation function
     .separation((a, b) => {
       // Calculate separation based on actual node widths with minimal gap
-      const aWidth = a.data.nodeWidth || 60;
-      const bWidth = b.data.nodeWidth || 60;
+      const aHasPhoto = showPhotos && !!a.data.photo_url;
+      const bHasPhoto = showPhotos && !!b.data.photo_url;
+      const aIsRoot = a.depth === 0 && !a.data.father_id;
+      const bIsRoot = b.depth === 0 && !b.data.father_id;
+
+      const aWidth = a.data.nodeWidth || (
+        aIsRoot ? ROOT_NODE.WIDTH : (aHasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY)
+      );
+      const bWidth = b.data.nodeWidth || (
+        bIsRoot ? ROOT_NODE.WIDTH : (bHasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY)
+      );
 
       if (a.parent === b.parent) {
         // Siblings: Node widths + 9px gap
@@ -198,12 +212,11 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
         const hasPhotoUrl = !!node.data.photo_url;
         const isRoot = node.depth === 0 && !node.data.father_id;
 
-        // Root node is always 100px tall
-        if (isRoot) return 100;
+        // Root node uses ROOT_NODE.HEIGHT
+        if (isRoot) return ROOT_NODE.HEIGHT;
 
         // Use showPhotos to determine if photos are shown in layout
-        // Photo nodes are 75px, text-only are 35px
-        return (showPhotos && hasPhotoUrl) ? 75 : 35;
+        return (showPhotos && hasPhotoUrl) ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
       })
     );
 
@@ -214,10 +227,10 @@ export function calculateTreeLayout(familyData, showPhotos = true) {
 
       let nodeHeight;
       if (isRoot) {
-        nodeHeight = 100;
+        nodeHeight = ROOT_NODE.HEIGHT;
       } else {
         // Use showPhotos to determine actual rendered height
-        nodeHeight = (showPhotos && hasPhotoUrl) ? 75 : 35;
+        nodeHeight = (showPhotos && hasPhotoUrl) ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
       }
 
       // Calculate offset to align top edges

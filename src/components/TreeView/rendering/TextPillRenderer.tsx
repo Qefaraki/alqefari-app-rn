@@ -35,6 +35,7 @@
 import React from 'react';
 import { Group, RoundedRect, Paragraph } from '@shopify/react-native-skia';
 import { renderT2Shadow } from './ShadowRenderer';
+import { TEXT_PILL } from './nodeConstants';
 
 export interface TextPillRendererProps {
   // Node data
@@ -96,9 +97,9 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
   getCachedParagraph,
   onFrameCalculated,
 }) => {
-  const nodeWidth = PILL_CONSTANTS.WIDTH;
-  const nodeHeight = PILL_CONSTANTS.HEIGHT;
-  const cornerRadius = PILL_CONSTANTS.CORNER_RADIUS;
+  const nodeWidth = TEXT_PILL.WIDTH;
+  const nodeHeight = TEXT_PILL.HEIGHT;
+  const cornerRadius = TEXT_PILL.CORNER_RADIUS;
 
   // Calculate top-left corner from center position
   const x = centerX - nodeWidth / 2;
@@ -122,21 +123,21 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
   const nameParagraph = getCachedParagraph(
     firstName,
     'regular',
-    PILL_CONSTANTS.FONT_SIZE,
-    PILL_CONSTANTS.TEXT_COLOR,
+    TEXT_PILL.FONT_SIZE,
+    TEXT_PILL.TEXT_COLOR,
     nodeWidth
   );
 
   // Calculate border width based on selection state
   // KNOWN ISSUE: Width change causes 0.5px jump (Phase 3 fix)
   const borderWidth = isSelected
-    ? PILL_CONSTANTS.SELECTED_BORDER_WIDTH
-    : PILL_CONSTANTS.DEFAULT_BORDER_WIDTH;
+    ? TEXT_PILL.SELECTED_BORDER_WIDTH
+    : TEXT_PILL.DEFAULT_BORDER_WIDTH;
 
   // Calculate border color based on selection state
   const borderColor = isSelected
-    ? PILL_CONSTANTS.SELECTED_BORDER_COLOR
-    : PILL_CONSTANTS.DEFAULT_BORDER_COLOR;
+    ? TEXT_PILL.SELECTED_BORDER_COLOR
+    : TEXT_PILL.DEFAULT_BORDER_COLOR;
 
   return (
     <Group key={nodeId}>
@@ -178,24 +179,24 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
   );
 };
 
-// Export constants for testing
+// Export constants for testing (re-exported from nodeConstants.ts)
 export const PILL_CONSTANTS = {
-  // Dimensions
-  WIDTH: 60,
-  HEIGHT: 26,
-  CORNER_RADIUS: 4, // Smooth corners
+  // Dimensions (from TEXT_PILL constants)
+  WIDTH: TEXT_PILL.WIDTH,           // 54 (consolidated with photo nodes)
+  HEIGHT: TEXT_PILL.HEIGHT,         // 26
+  CORNER_RADIUS: TEXT_PILL.CORNER_RADIUS,  // 4
 
   // Colors (Najdi Sadu palette)
-  BACKGROUND_COLOR: '#FFFFFF',
-  TEXT_COLOR: '#242121', // Sadu Night
-  DEFAULT_BORDER_COLOR: '#D1BBA360', // Camel Hair Beige 60%
-  SELECTED_BORDER_COLOR: '#A13333', // Najdi Crimson
+  BACKGROUND_COLOR: TEXT_PILL.BACKGROUND_COLOR,  // #FFFFFF
+  TEXT_COLOR: TEXT_PILL.TEXT_COLOR,  // Sadu Night
+  DEFAULT_BORDER_COLOR: TEXT_PILL.DEFAULT_BORDER_COLOR,  // Camel Hair Beige 60%
+  SELECTED_BORDER_COLOR: TEXT_PILL.SELECTED_BORDER_COLOR,  // Najdi Crimson
 
   // Border widths
-  DEFAULT_BORDER_WIDTH: 1,
-  SELECTED_BORDER_WIDTH: 1.5, // KNOWN ISSUE: Causes 0.5px jump
+  DEFAULT_BORDER_WIDTH: TEXT_PILL.DEFAULT_BORDER_WIDTH,  // 1
+  SELECTED_BORDER_WIDTH: TEXT_PILL.SELECTED_BORDER_WIDTH,  // 1.5 - KNOWN ISSUE: Causes 0.5px jump
 
   // Typography
-  FONT_SIZE: 10,
-  TEXT_OFFSET_Y: 4, // CHANGED: 7 → 4 (15% of height instead of 27%)
+  FONT_SIZE: TEXT_PILL.FONT_SIZE,    // 10
+  TEXT_OFFSET_Y: TEXT_PILL.TEXT_OFFSET_Y,  // 4 (15% of height)
 };

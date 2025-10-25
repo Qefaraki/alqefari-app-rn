@@ -55,15 +55,7 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 
 // Import extracted components
 import { ImageNode } from './ImageNode';
-import { PHOTO_SIZE } from '../utils/constants/nodes';
-
-// Node dimensions constants (from TreeView utilities)
-// TEMP: Minimal padding until Perfect Tree redesign
-const NODE_WIDTH_WITH_PHOTO = 65;  // Was 85, then 75, now 65 (minimal padding)
-const NODE_HEIGHT_WITH_PHOTO = 75; // Was 105, then 85, now 75 (minimal padding)
-const NODE_WIDTH_TEXT_ONLY = 65;   // Same as photo width for consistent spacing
-const NODE_HEIGHT_TEXT_ONLY = 35;
-const CORNER_RADIUS = 10; // Smooth rounded corners
+import { STANDARD_NODE, ROOT_NODE, G2_NODE, PHOTO_SIZE, SHADOW_STYLES, COLORS } from './nodeConstants';
 
 export interface LayoutNode {
   id: string;
@@ -141,17 +133,17 @@ export function calculateNodeDimensions(
   let borderRadius: number;
 
   if (isRoot) {
-    width = 120;
-    height = 100;
-    borderRadius = 20;
+    width = ROOT_NODE.WIDTH;
+    height = ROOT_NODE.HEIGHT;
+    borderRadius = ROOT_NODE.BORDER_RADIUS;
   } else if (isG2Parent) {
-    width = hasPhoto ? 95 : 75;
-    height = hasPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-    borderRadius = 16;
+    width = hasPhoto ? G2_NODE.WIDTH_PHOTO : G2_NODE.WIDTH_TEXT;
+    height = hasPhoto ? G2_NODE.HEIGHT_PHOTO : G2_NODE.HEIGHT_TEXT;
+    borderRadius = G2_NODE.BORDER_RADIUS;
   } else {
-    width = node.nodeWidth || (hasPhoto ? NODE_WIDTH_WITH_PHOTO : NODE_WIDTH_TEXT_ONLY);
-    height = hasPhoto ? NODE_HEIGHT_WITH_PHOTO : NODE_HEIGHT_TEXT_ONLY;
-    borderRadius = CORNER_RADIUS;
+    width = node.nodeWidth || (hasPhoto ? STANDARD_NODE.WIDTH : STANDARD_NODE.WIDTH_TEXT_ONLY);
+    height = hasPhoto ? STANDARD_NODE.HEIGHT : STANDARD_NODE.HEIGHT_TEXT_ONLY;
+    borderRadius = STANDARD_NODE.CORNER_RADIUS;
   }
 
   return { width, height, borderRadius };
@@ -189,7 +181,12 @@ export function isSearchTier2(nodeId: string, searchTiers?: Record<string, numbe
  */
 export function renderShadow(): JSX.Element {
   return (
-    <Shadow dx={0} dy={2} blur={8} color="#D1BBA370" />
+    <Shadow
+      dx={SHADOW_STYLES.STANDARD_DX}
+      dy={SHADOW_STYLES.STANDARD_DY}
+      blur={SHADOW_STYLES.STANDARD_BLUR}
+      color={SHADOW_STYLES.STANDARD_COLOR}
+    />
   );
 }
 
@@ -217,7 +214,7 @@ export function renderBackground(
       width={width}
       height={height}
       r={borderRadius}
-      color="#FFFFFF"
+      color={COLORS.NODE_BACKGROUND}
     >
       {/* Glassmorphism shadow for depth */}
       {renderShadow()}
@@ -234,6 +231,7 @@ export function renderBackground(
  * @param height - Border height
  * @param borderRadius - Corner radius
  * @param isSelected - Whether node is selected
+ * @param isRoot - Whether node is root (affects border width)
  * @returns Border element
  */
 export function renderBorder(
@@ -243,9 +241,12 @@ export function renderBorder(
   height: number,
   borderRadius: number,
   isSelected: boolean,
+  isRoot: boolean = false,
 ): JSX.Element | null {
   // Only render border for selected nodes
   if (!isSelected) return null;
+
+  const strokeWidth = isRoot ? ROOT_NODE.SELECTION_BORDER : STANDARD_NODE.SELECTION_BORDER;
 
   return (
     <RoundedRect
@@ -254,9 +255,9 @@ export function renderBorder(
       width={width}
       height={height}
       r={borderRadius}
-      color="#A13333"
+      color={COLORS.SELECTION_BORDER}
       style="stroke"
-      strokeWidth={2.5}
+      strokeWidth={strokeWidth}
     />
   );
 }
@@ -276,7 +277,7 @@ export function renderPhotoPlaceholder(
 ): JSX.Element {
   return (
     <>
-      <Circle cx={centerX} cy={centerY} r={radius} color="#D1BBA320" />
+      <Circle cx={centerX} cy={centerY} r={radius} color={COLORS.SKELETON} />
       <Circle
         cx={centerX}
         cy={centerY}
@@ -342,7 +343,7 @@ export function renderNameText(
     name,
     "bold",
     isRoot ? 22 : 11,
-    "#242121",
+    COLORS.TEXT,
     width,
   );
 
@@ -407,7 +408,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
       {renderBackground(x, y, width, height, borderRadius)}
 
       {/* Border */}
-      {renderBorder(x, y, width, height, borderRadius, isSelected)}
+      {renderBorder(x, y, width, height, borderRadius, isSelected, isRoot)}
 
       {hasPhoto ? (
         <>
@@ -438,7 +439,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               node.name,
               "bold",
               isRoot ? 22 : 11,
-              "#242121",
+              COLORS.TEXT,
               width,
             );
 
@@ -459,7 +460,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
               node.name,
               "bold",
               isRoot ? 22 : 11,
-              "#242121",
+              COLORS.TEXT,
               width,
             );
 
@@ -506,18 +507,19 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
   );
 };
 
-// Export constants for testing
+// Export constants for testing (re-exported from nodeConstants.ts)
 export const NODE_RENDERER_CONSTANTS = {
-  NODE_WIDTH_WITH_PHOTO: 65,
-  NODE_HEIGHT_WITH_PHOTO: 75,
-  NODE_WIDTH_TEXT_ONLY: 65,   // Same as photo width
-  NODE_HEIGHT_TEXT_ONLY: 35,
-  PHOTO_SIZE: 50,
-  CORNER_RADIUS: 10,  // Updated from 4
-  ROOT_WIDTH: 120,
-  ROOT_HEIGHT: 100,
-  ROOT_BORDER_RADIUS: 20,
-  G2_PHOTO_WIDTH: 95,
-  G2_TEXT_WIDTH: 75,
-  G2_BORDER_RADIUS: 16,
+  NODE_WIDTH_WITH_PHOTO: STANDARD_NODE.WIDTH,      // 54
+  NODE_HEIGHT_WITH_PHOTO: STANDARD_NODE.HEIGHT,    // 75
+  NODE_WIDTH_TEXT_ONLY: STANDARD_NODE.WIDTH_TEXT_ONLY,  // 54
+  NODE_HEIGHT_TEXT_ONLY: STANDARD_NODE.HEIGHT_TEXT_ONLY,  // 35
+  PHOTO_SIZE: PHOTO_SIZE,                          // 50
+  CORNER_RADIUS: STANDARD_NODE.CORNER_RADIUS,      // 10
+  SELECTION_BORDER: STANDARD_NODE.SELECTION_BORDER,  // 2
+  ROOT_WIDTH: ROOT_NODE.WIDTH,                     // 120
+  ROOT_HEIGHT: ROOT_NODE.HEIGHT,                   // 100
+  ROOT_BORDER_RADIUS: ROOT_NODE.BORDER_RADIUS,     // 20
+  G2_PHOTO_WIDTH: G2_NODE.WIDTH_PHOTO,             // 95
+  G2_TEXT_WIDTH: G2_NODE.WIDTH_TEXT,               // 75
+  G2_BORDER_RADIUS: G2_NODE.BORDER_RADIUS,         // 16
 };
