@@ -59,6 +59,7 @@ import { supabase, handleSupabaseError } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
+import { useAuth } from '../../contexts/AuthContextSimple';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -268,6 +269,7 @@ SkeletonContent.displayName = 'SkeletonContent';
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading = false }) => {
   const insets = useSafeAreaInsets();
   const { checkBeforeAction } = useNetworkGuard();
+  const { profile: userProfile } = useAuth();
 
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
@@ -626,7 +628,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     // Verify permission online before entering edit mode
     try {
       const { data: permission, error } = await supabase.rpc('check_family_permission_v4', {
-        p_user_id: person?.user_id,
+        p_user_id: userProfile?.id,
         p_target_id: person?.id,
       });
 
@@ -657,7 +659,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
 
     enterEditMode();
-  }, [accessMode, canEdit, checkBeforeAction, enterEditMode, rememberChoice, person, onClose]);
+  }, [accessMode, canEdit, checkBeforeAction, enterEditMode, rememberChoice, person, onClose, userProfile]);
 
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
