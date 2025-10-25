@@ -22,99 +22,93 @@
 
 ---
 
-## Day 1: Country/City Selector Fix + UUID Validation (Oct 25)
+## Day 1: Country/City Selector Fix (Oct 25)
 
-**Status**: ✅ Complete (Revision)
+**Status**: ✅ Complete (FINAL SOLUTION)
 
-### Bug 1: Country Selector Flashing
-**Problem**: When selecting a city, country dropdown flashed to default then returned to city value
+### Problems Identified
 
-**Root Cause**:
-- `current_residence` (display) and `current_residence_normalized` (structured data) were out of sync
-- Only normalized data updated on city selection, not display field
+**Problem 1: UUID Error "invalid input syntax for uuid: 2"**
+- Root cause: Sending `current_residence_normalized` with nested objects containing numeric IDs to RPC
+- `city.id: 2` was being cast as UUID → PostgreSQL error
+- **Solution**: Stop sending normalized data to RPC entirely
 
-**Solution**:
-Updated `SaudiCityPicker.onNormalizedChange` to also update `current_residence` field immediately:
+**Problem 2: Country Selector Flashing**
+- Root cause: Overcomplicated state sync between `current_residence` and `current_residence_normalized`
+- **Solution**: Use simple local state for display, send only strings to database
+
+### Final Simplified Architecture
+
+**Storage** (Database only):
+- `current_residence` = Plain Arabic strings (no emoji, no nested objects)
+  - Saudi with city: `"الرياض"`
+  - Other country: `"مصر"`
+
+**Display** (Local React State):
+- `selectedCountry` = Local state for CountryPicker
+- `selectedCity` = Local state for SaudiCityPicker
+- Pickers read from local state, not form draft
+- No sync issues because they're independent
+
+**On Save**:
+- Remove `current_residence_normalized` from RPC payload
+- Send only `current_residence` (simple string)
+- No UUID errors, no nested objects
+
+### Implementation
+
+**TabDetails.js Changes**:
 ```javascript
-if (normalized.city?.ar) {
-  updateField('current_residence', normalized.city.ar);
-}
+const [selectedCountry, setSelectedCountry] = useState(draft?.current_residence || '');
+const [selectedCity, setSelectedCity] = useState('');
+
+<CountryPicker
+  value={selectedCountry}
+  onChange={(country) => {
+    setSelectedCountry(country);
+    if (!country.includes('السعودية')) setSelectedCity('');
+    updateField('current_residence', country);
+  }}
+/>
+
+<SaudiCityPicker
+  value={selectedCity}
+  onChange={(city) => {
+    setSelectedCity(city);
+    updateField('current_residence', city);
+  }}
+  enabled={selectedCountry.includes('السعودية')}
+/>
 ```
 
-### Bug 2: UUID Error "invalid input syntax for uuid: 2"
-**Problem**: Save failed with UUID error on any profile edit
-
-**Root Cause**:
-Potentially corrupted UUID fields being sent to RPC
-
-**Solution**:
-Added UUID validation in `ProfileViewer.directSave` to strip invalid UUIDs before RPC:
+**ProfileViewer.js Changes**:
 ```javascript
-const isValidUUID = (value) => {
-  if (!value) return true;
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(value);
-};
-
-['father_id', 'mother_id', 'spouse_id'].forEach(field => {
-  if (field in payload && !isValidUUID(payload[field])) {
-    console.error(`Invalid UUID for ${field}:`, payload[field]);
-    delete payload[field];
-  }
-});
+// Simply delete normalized data before RPC
+delete payload.current_residence_normalized;
 ```
-
-Database verification: No corrupted UUIDs found in profiles table ✅
-
-### Files Modified
-- `src/components/ProfileViewer/EditMode/TabDetails.js` (lines 188-192)
-- `src/components/ProfileViewer/index.js` (lines 651-665)
-
-### Data Architecture
-- **CountryPicker** → `current_residence` (display: "🇸🇦 السعودية" or "🇪🇬 مصر")
-- **SaudiCityPicker** → `current_residence` (for Saudi: just city name) + `current_residence_normalized`
-- **Single Source of Truth**: `current_residence_normalized` (structured: {country, city})
 
 ### Testing Status
-✅ Country selection does NOT flash when city selected
-✅ City picker only enabled when Saudi Arabia selected
-✅ Normalized data maintains both country and city
-✅ UUID validation prevents RPC errors
-✅ No data conflicts or overwriting
-✅ Database clean (no corrupted UUIDs)
+✅ Country selector doesn't flash
+✅ City picker only enabled when Saudi selected
+✅ No UUID errors on save
+✅ Simple Arabic strings stored in database
+✅ No nested objects, no emoji, no IDs sent to RPC
 
-### Implementation Details
+### Why This is Better
 
-**Form State During Editing** (stays synced):
-- CountryPicker displays: "🇸🇦 السعودية" (with emoji)
-- SaudiCityPicker displays: "الرياض" (just city)
-- `current_residence` (form value): "🇸🇦 السعودية"
-- `current_residence_normalized`: {country: {...}, city: {...}}
-
-**Transform on Save**:
-```javascript
-if (normalized?.country?.ar === 'السعودية' && normalized?.city?.ar) {
-  // Saudi + City: store just city
-  current_residence = "الرياض"
-} else if (normalized?.country?.ar) {
-  // Other country: store country name (no emoji)
-  current_residence = "مصر"
-}
-```
-
-**Database Result**:
-- Saudi location: `current_residence = "الرياض"`
-- Egypt: `current_residence = "مصر"`
-- No emoji in database ✅
+1. **No complexity**: Just strings, no normalization
+2. **No sync issues**: Local state independent from form
+3. **No errors**: Numeric IDs never sent to RPC
+4. **Maintainable**: Anyone can understand the code
+5. **Best practice**: Separation of display state and database state
 
 ### Commits
-1. `d8897f5f2` - "fix: Resolve country selector flashing + add UUID validation"
-   - Initial attempt (reverted due to logic flaw)
-2. `bf967531e` - Documentation update
-3. `d331fc3d7` - "fix: Correct country/city selector - transform on save"
-   - Correct implementation
-   - Transform logic in directSave
-   - Clean database values (no emoji)
+1. `d8897f5f2`, `bf967531e`, `d331fc3d7`, `5d2b799a8` - Previous attempts (iterations)
+2. `8f42e29de` - **FINAL**: "fix: Simplify country/city selector - remove overcomplicated normalization"
+   - Removes normalization entirely
+   - Uses simple local state
+   - Deletes normalized data from RPC
+   - Clean, simple, maintainable
 
 ---
 
