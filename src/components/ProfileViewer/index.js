@@ -367,6 +367,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     setLoadingStates((prev) => ({ ...prev, [key]: false }));
   }, []);
 
+  // Cleanup on unmount to prevent state updates on unmounted component
+  // Resets debounce timer to avoid React warnings
+  useEffect(() => {
+    return () => {
+      setLastSaveAttempt(0);
+    };
+  }, []);
+
   // Open/close sheet when person changes
   // Pure declarative control - state drives BottomSheet index prop
   useEffect(() => {
@@ -840,9 +848,15 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
 
     // Debounce: Prevent rapid saves (prevent duplicate submissions)
-    const now = Date.now();
+    const now = performance.now();
     if (now - lastSaveAttempt < 500) {
       console.warn('[ProfileViewer] Ignoring rapid save attempt (debounce)');
+      // Show feedback to user instead of silent failure
+      Alert.alert(
+        'يرجى الانتظار',
+        'يتم حفظ التغييرات. يرجى الانتظار لحظة.',
+        [{ text: 'حسناً' }]
+      );
       return;
     }
     setLastSaveAttempt(now);
@@ -881,6 +895,9 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         Alert.alert('غير متاح', 'ليس لديك صلاحية لتعديل هذا الملف.');
       }
     } catch (error) {
+      // Reset debounce timer to allow immediate retry on error
+      setLastSaveAttempt(0);
+
       console.error('ProfileViewer save error', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 
