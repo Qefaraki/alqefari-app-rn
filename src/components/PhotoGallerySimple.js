@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
-import { FlatGrid } from 'react-native-super-grid';
+import { SimpleGrid } from 'react-native-super-grid';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
@@ -353,7 +353,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   if (photoCount === 0) {
     return isEditMode ? (
       <View style={styles.galleryContainer}>
-        <FlatGrid
+        <SimpleGrid
           itemDimension={160}
           data={[{ id: 'add-tile', isAddTile: true }]}
           spacing={GAP}
@@ -364,12 +364,12 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     ) : null;
   }
 
-  // Edit mode with FlatGrid
+  // Edit mode with SimpleGrid
   if (isEditMode) {
     const editData = [...photos, { id: 'add-tile', isAddTile: true }];
     return (
       <View style={styles.galleryContainer}>
-        <FlatGrid
+        <SimpleGrid
           itemDimension={160}
           data={editData}
           spacing={GAP}
@@ -384,7 +384,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   return (
     <View style={styles.galleryContainer}>
       <Galeria urls={galleryUrls}>
-        <FlatGrid
+        <SimpleGrid
           itemDimension={160}
           data={photos}
           spacing={GAP}
