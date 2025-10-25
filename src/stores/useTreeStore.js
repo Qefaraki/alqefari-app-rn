@@ -81,6 +81,9 @@ export const useTreeStore = create((set, get) => ({
     });
   },
 
+  // Phase 3B: Set cached schema version for progressive loading
+  setCachedSchemaVersion: (version) => set({ cachedSchemaVersion: version }),
+
   // Clear tree data and force refetch (useful after migrations)
   clearTreeData: () =>
     set({
