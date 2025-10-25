@@ -62,15 +62,6 @@ export const useNetworkStore = create((set, get) => ({
   initialize: () => {
     if (unsubscribe) return; // Already initialized
 
-    // Debounced state setter to prevent rapid updates
-    const debouncedSet = debounce((state) => {
-      set({
-        isConnected: state.isConnected ?? true,
-        isInternetReachable: state.isInternetReachable ?? true,
-        connectionType: state.type ?? 'unknown',
-      });
-    }, 300);
-
     // Get initial state and listen for changes
     NetInfo.fetch().then((state) => {
       set({
@@ -80,8 +71,39 @@ export const useNetworkStore = create((set, get) => ({
       });
     });
 
-    // Subscribe to network changes
-    unsubscribe = NetInfo.addEventListener(debouncedSet);
+    // Subscribe to network changes with asymmetric debouncing
+    // Immediate: going online (users are waiting)
+    // Debounced: going offline (prevent flicker from momentary drops)
+    unsubscribe = NetInfo.addEventListener((state) => {
+      const currentState = get();
+      const wasOffline = !currentState.isConnected || currentState.isInternetReachable === false;
+      const nowOnline = state.isConnected && state.isInternetReachable !== false;
+
+      // Clear any existing timer
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+
+      // Immediate update when reconnecting (user is waiting)
+      if (wasOffline && nowOnline) {
+        set({
+          isConnected: state.isConnected ?? true,
+          isInternetReachable: state.isInternetReachable ?? true,
+          connectionType: state.type ?? 'unknown',
+        });
+        return;
+      }
+
+      // Debounce when going offline or uncertain (prevent flicker)
+      debounceTimer = setTimeout(() => {
+        set({
+          isConnected: state.isConnected ?? true,
+          isInternetReachable: state.isInternetReachable ?? true,
+          connectionType: state.type ?? 'unknown',
+        });
+      }, 300);
+    });
   },
 
   /**
