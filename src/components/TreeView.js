@@ -844,6 +844,28 @@ const TreeView = ({
 
   // Note: visibleBounds is now derived from currentTransform (see useMemo below)
 
+  // Track current transform for viewport calculations
+  // This drives all visibility and bounds calculations
+  const [currentTransform, setCurrentTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+  });
+
+  // Derived visible bounds - auto-updates when currentTransform changes
+  // Replaces manual setVisibleBounds calls (React best practice)
+  const visibleBounds = useMemo(() => {
+    const dynamicMarginX = VIEWPORT_MARGIN_X / currentTransform.scale;
+    const dynamicMarginY = VIEWPORT_MARGIN_Y / currentTransform.scale;
+
+    return {
+      minX: (-currentTransform.x - dynamicMarginX) / currentTransform.scale,
+      maxX: (-currentTransform.x + dimensions.width + dynamicMarginX) / currentTransform.scale,
+      minY: (-currentTransform.y - dynamicMarginY) / currentTransform.scale,
+      maxY: (-currentTransform.y + dimensions.height + dynamicMarginY) / currentTransform.scale,
+    };
+  }, [currentTransform.x, currentTransform.y, currentTransform.scale, dimensions.width, dimensions.height]);
+
   // Track last stable scale to detect significant changes
   const lastStableScale = useRef(1);
 
@@ -2265,29 +2287,11 @@ const TreeView = ({
     ];
   });
 
-  // Store current tier and transform in state
+  // Store current tier in state
   // Always T1 (full cards) - Simple LOD just toggles photo loading
   // Updated by syncTransform callback after gestures end
+  // Note: currentTransform and visibleBounds now declared at top of component
   const [tier, setTier] = useState(1);
-  const [currentTransform, setCurrentTransform] = useState({
-    x: 0,
-    y: 0,
-    scale: 1,
-  });
-
-  // Derived visible bounds - auto-updates when currentTransform changes
-  // Replaces manual setVisibleBounds calls (React best practice)
-  const visibleBounds = useMemo(() => {
-    const dynamicMarginX = VIEWPORT_MARGIN_X / currentTransform.scale;
-    const dynamicMarginY = VIEWPORT_MARGIN_Y / currentTransform.scale;
-
-    return {
-      minX: (-currentTransform.x - dynamicMarginX) / currentTransform.scale,
-      maxX: (-currentTransform.x + dimensions.width + dynamicMarginX) / currentTransform.scale,
-      minY: (-currentTransform.y - dynamicMarginY) / currentTransform.scale,
-      maxY: (-currentTransform.y + dimensions.height + dynamicMarginY) / currentTransform.scale,
-    };
-  }, [currentTransform.x, currentTransform.y, currentTransform.scale, dimensions.width, dimensions.height]);
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {

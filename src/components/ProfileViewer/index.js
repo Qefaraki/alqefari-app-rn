@@ -296,6 +296,27 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Track previous person ID to prevent mode reset on first open (only on navigation between profiles)
   const prevPersonIdRef = useRef(null);
 
+  // Diagnostic: Log version field status (helps identify stale cache issues)
+  useEffect(() => {
+    if (person?.id) {
+      if (!person.version) {
+        console.error('[ProfileViewer] ⚠️ Person object missing version field!', {
+          id: person.id,
+          name: person.name,
+          hasVersion: 'version' in person,
+          versionValue: person.version,
+          allKeys: Object.keys(person).sort()
+        });
+      } else {
+        console.log('[ProfileViewer] ✓ Person loaded with version:', {
+          id: person.id,
+          name: person.name,
+          version: person.version
+        });
+      }
+    }
+  }, [person?.id]);
+
   const renderBackdrop = useCallback(
     (props) => (
       <BottomSheetBackdrop
@@ -700,9 +721,19 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         personId: person.id
       });
 
+      // Validation: Ensure version field exists (fail if missing, don't silently fallback)
+      if (!person.version || typeof person.version !== 'number') {
+        console.error('[ProfileViewer] ⚠️ Missing or invalid version field:', {
+          hasVersion: 'version' in person,
+          versionValue: person.version,
+          versionType: typeof person.version
+        });
+        throw new Error('البيانات قديمة أو غير كاملة. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
+      }
+
       const { error, data } = await profilesService.updateProfile(
         person.id,
-        person.version || 1,
+        person.version,
         payload,
       );
 

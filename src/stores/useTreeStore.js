@@ -6,7 +6,7 @@ import {
 
 // Schema version - increment when adding new fields to profiles table
 // This forces cache invalidation after migrations
-export const TREE_DATA_SCHEMA_VERSION = 2; // v2: Added kunya field (Migration 015)
+export const TREE_DATA_SCHEMA_VERSION = 3; // v3: Force reload to include version field in all cached profiles
 
 export const useTreeStore = create((set, get) => ({
   // Camera State
