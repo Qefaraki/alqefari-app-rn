@@ -311,7 +311,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
           {
             width: tileSize.width,
             height: tileSize.height,
-            marginRight: extraSpacing,
+            marginEnd: extraSpacing,
             marginBottom: GAP,
           },
         ]}
@@ -341,11 +341,11 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   const renderTiles = () => {
     return photos.map((photo, index) => {
       const key = photo.id || photo.photo_url || index;
-      const marginRight = (columns !== 1 && (index + 1) % columns !== 0) ? GAP : 0;
+      const marginEnd = (columns !== 1 && (index + 1) % columns !== 0) ? GAP : 0;
       const tileStyle = {
         width: tileSize.width,
         height: tileSize.height,
-        marginRight,
+        marginEnd,
         marginBottom: GAP,
       };
 

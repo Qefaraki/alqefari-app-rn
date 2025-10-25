@@ -1,11 +1,17 @@
 /**
- * PhoneChangeModal - 4-Step Phone Number Change Flow
+ * PhoneChangeModal - 3-Step Phone Number Change Flow
  *
  * Steps:
- * 1. Verify current phone (OTP)
+ * 1. Verify current phone (OTP) - Auto-sent on open
  * 2. Enter new phone number
  * 3. Verify new phone (OTP)
- * 4. Complete change + audit log
+ *
+ * Flow:
+ * - Modal opens → Auto-send OTP to current phone
+ * - Show Step 1 OTP input immediately
+ * - User verifies current phone → Step 2 (enter new phone)
+ * - User enters new phone → Step 3 (verify new phone OTP auto-sent)
+ * - Verify new phone → Complete change
  *
  * Reuses:
  * - PhoneInputField from components/ui/PhoneInputField
@@ -26,6 +32,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Easing,
 } from 'react-native';
 import { OtpInput } from 'react-native-otp-entry';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,7 +68,7 @@ const colors = {
  */
 export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onCancel = () => {} }) {
   const { checkBeforeAction } = useNetworkGuard();
-  const [step, setStep] = useState(1); // 1: Verify current, 2: Enter new, 3: Verify new, 4: Complete
+  const [step, setStep] = useState(1); // 1: Verify current (OTP), 2: Enter new phone, 3: Verify new (OTP)
   const [currentPhone, setCurrentPhone] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(null);
@@ -70,6 +77,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
+  const [isInitialSending, setIsInitialSending] = useState(true); // Auto-send OTP on open
 
   // Refs
   const currentOtpRef = useRef(null);
@@ -78,25 +86,51 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
   // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(600)).current; // For slide-down close animation
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const countdownColor = useRef(new Animated.Value(0)).current;
 
-  // Initialize modal - get current phone
+  // Initialize modal - get current phone and auto-send OTP
   React.useEffect(() => {
     if (isVisible) {
       loadCurrentPhone();
+
+      // Slide in and fade in animation
       Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 300,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
+
+      // Auto-send OTP to current phone after brief delay
+      const autoSendTimer = setTimeout(() => {
+        handleAutoSendCurrentOtp();
+      }, 500);
+
+      return () => clearTimeout(autoSendTimer);
     } else {
       resetModal();
     }
+
+    // Cleanup: Stop animations on unmount
+    return () => {
+      shakeAnim.stopAnimation?.();
+      successAnim.stopAnimation?.();
+      buttonScale.stopAnimation?.();
+      countdownColor.stopAnimation?.();
+      fadeAnim.stopAnimation?.();
+      slideAnim.stopAnimation?.();
+    };
   }, [isVisible]);
 
   // Countdown timer
@@ -134,14 +168,12 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     setNewOtp('');
     setError('');
     setCountdown(0);
+    setIsInitialSending(true);
     shakeAnim.setValue(0);
     successAnim.setValue(0);
     countdownColor.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    slideAnim.setValue(600);
+    fadeAnim.setValue(0);
   };
 
   // Error shake animation (from NajdiPhoneAuthScreen pattern)
@@ -182,12 +214,46 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   };
 
   const handleCancel = () => {
-    resetModal();
-    onCancel();
+    // Slide down and fade out animation
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 600,
+        duration: 300,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      resetModal();
+      onCancel();
+    });
   };
 
-  // Step 1: Send OTP to current phone
-  const handleSendCurrentOtp = async () => {
+  // Auto-send OTP to current phone when modal opens
+  const handleAutoSendCurrentOtp = async () => {
+    if (!checkBeforeAction('إرسال رمز التحقق')) {
+      setIsInitialSending(false);
+      return;
+    }
+
+    try {
+      await sendCurrentPhoneOtp(currentPhone);
+      setCountdown(60);
+      setIsInitialSending(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (_) {
+      setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
+      setIsInitialSending(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
+
+  // Step 2: Send OTP to new phone (old Step 3)
+  const handleSendNewOtp = async () => {
     if (!checkBeforeAction('إرسال رمز التحقق')) return;
 
     setLoading(true);

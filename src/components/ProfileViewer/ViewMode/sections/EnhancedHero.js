@@ -144,11 +144,11 @@ const EnhancedHero = ({
           position: 'relative',
           overflow: 'visible',
         },
-        // Absolute positioned buttons (top-left and top-right)
+        // Absolute positioned buttons (RTL-safe: use right for LEFT, left for RIGHT)
         closeButton: {
           position: 'absolute',
           top: heroTokens.paddingVertical,
-          left: heroTokens.paddingHorizontal,
+          right: heroTokens.paddingHorizontal,
           zIndex: 10,
           width: heroTokens.actionButtonTouchTarget,
           height: heroTokens.actionButtonTouchTarget,
@@ -158,7 +158,7 @@ const EnhancedHero = ({
         actionButtonsContainer: {
           position: 'absolute',
           top: heroTokens.paddingVertical,
-          right: heroTokens.paddingHorizontal,
+          left: heroTokens.paddingHorizontal,
           flexDirection: 'row',
           gap: heroTokens.headerSpacing,
           zIndex: 10,
