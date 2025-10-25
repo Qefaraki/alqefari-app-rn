@@ -2338,7 +2338,7 @@ const TreeView = ({
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
-    if (isLoading) return [];
+    if (!isTreeLoaded) return [];
     if (tier === 3) return [];
     if (!spatialGrid) return visibleNodes;
 
@@ -2354,6 +2354,7 @@ const TreeView = ({
       indices.idToNode,
     );
   }, [
+    isTreeLoaded,
     tier,
     spatialGrid,
     currentTransform,
