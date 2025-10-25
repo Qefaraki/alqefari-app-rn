@@ -1258,6 +1258,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
@@ -1441,7 +1442,7 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           .order("id", { ascending: true }) // Deterministic tiebreaker for same timestamps
           .range(start, end);
 
-        const { data, error } = await query;
+        const { data, error, count } = await query;
 
         if (currentRequestId !== requestIdRef.current) {
           return;
@@ -1455,6 +1456,10 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         } else {
           setActivities(data || []);
           setPage(1); // We loaded page 0, next page is 1
+          // Only update total count on initial load (not load more)
+          if (count !== null && count !== undefined) {
+            setTotalCount(count);
+          }
         }
 
         setHasMore((data?.length || 0) === PAGE_SIZE);
@@ -2029,9 +2034,38 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           lastLoadTimeRef.current = Date.now();
         }}
         ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator color={tokens.colors.najdi.crimson} />
+          activities.length > 0 ? (
+            <View style={styles.listFooterContainer}>
+              {loadingMore ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator color={tokens.colors.najdi.crimson} />
+                  <Text style={styles.footerLoaderText}>جاري التحميل...</Text>
+                </View>
+              ) : hasMore ? (
+                <View style={styles.footerContent}>
+                  <Text style={styles.footerCountText}>
+                    عرض {Math.min(activities.length, totalCount)} من {totalCount} نتيجة
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={() => {
+                      if (!loadingMore && hasMore) {
+                        fetchActivities(page, true);
+                      }
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.loadMoreButtonText}>تحميل المزيد</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.footerContent}>
+                  <Text style={styles.footerEndText}>لا توجد نتائج أخرى</Text>
+                  <Text style={styles.footerCountText}>
+                    تم عرض جميع {totalCount} نتيجة
+                  </Text>
+                </View>
+              )}
             </View>
           ) : null
         }
@@ -2534,6 +2568,47 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    fontWeight: "500",
+  },
+  listFooterContainer: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  footerContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 16,
+  },
+  footerCountText: {
+    fontSize: 13,
+    color: tokens.colors.najdi.textMuted,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  footerEndText: {
+    fontSize: 15,
+    color: tokens.colors.najdi.text,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  loadMoreButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: tokens.colors.najdi.crimson,
+    alignItems: "center",
+  },
+  loadMoreButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: tokens.colors.najdi.alJass,
   },
   sheetOverlay: {
     flex: 1,
