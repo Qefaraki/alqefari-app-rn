@@ -23,16 +23,16 @@ export const NODE_PADDING = {
 } as const;
 
 // Photo dimensions
-export const PHOTO_SIZE = 54; // Circle diameter in pixels (fills 54px card width)
+export const PHOTO_SIZE = 50; // Circle diameter in pixels
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {
-  // Photo nodes: 54px photo + 0px padding (photo fills card width)
-  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (54 + 0×2)
+  // Photo nodes: 50px photo + 0px padding (photo fills 50px card width)
+  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 50px (50 + 0×2)
   HEIGHT: PHOTO_SIZE + NODE_PADDING.VERTICAL * 2 + 17,  // 75px (photo + padding + name space)
 
   // Text-only nodes: same width for consistency
-  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (matches photo)
+  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 50px (matches photo)
   HEIGHT_TEXT_ONLY: 35,
 
   CORNER_RADIUS: 10,

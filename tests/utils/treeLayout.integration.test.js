@@ -36,12 +36,12 @@ describe('Tree Layout Integration', () => {
     });
 
     test('should maximize photo fill with no padding', () => {
-      // Standard node width: 54px photo + 0px padding
-      expect(STANDARD_NODE.WIDTH).toBe(54); // Compact spacing
+      // Standard node width: 50px photo + 0px padding
+      expect(STANDARD_NODE.WIDTH).toBe(50); // Compact spacing
       expect(STANDARD_NODE.WIDTH % 2).toBe(0); // Even number for symmetric centering
 
       // No padding - photo fills entire card width
-      expect(STANDARD_NODE.WIDTH).toBe(54 + 0 * 2); // Photo size + 0px padding × 2
+      expect(STANDARD_NODE.WIDTH).toBe(50 + 0 * 2); // Photo size + 0px padding × 2
     });
 
     test('root node width must stay constant', () => {
@@ -67,30 +67,30 @@ describe('Tree Layout Integration', () => {
       // - For siblings: (aWidth / 2) + (bWidth / 2) + 9px gap
       // - For cousins: (aWidth / 2) + (bWidth / 2) + 40px gap
 
-      const aWidth = STANDARD_NODE.WIDTH;  // 54px
-      const bWidth = STANDARD_NODE.WIDTH;  // 54px
+      const aWidth = STANDARD_NODE.WIDTH;  // 50px
+      const bWidth = STANDARD_NODE.WIDTH;  // 50px
       const siblingGap = 9;
       const cousinGap = 40;
 
-      // Sibling separation: 27 + 27 + 9 = 63px (min space between siblings)
+      // Sibling separation: 25 + 25 + 9 = 59px (min space between siblings)
       const siblingSeparation = aWidth / 2 + bWidth / 2 + siblingGap;
-      expect(siblingSeparation).toBe(63);
+      expect(siblingSeparation).toBe(59);
 
-      // Cousin separation: 27 + 27 + 40 = 94px (min space between cousins)
+      // Cousin separation: 25 + 25 + 40 = 90px (min space between cousins)
       const cousinSeparation = aWidth / 2 + bWidth / 2 + cousinGap;
-      expect(cousinSeparation).toBe(94);
+      expect(cousinSeparation).toBe(90);
 
       // These calculations should match what d3 actually uses
       // (Verified by integration testing on sample tree data)
     });
 
     test('photo vs text-only nodes have same separation', () => {
-      // Both photo and text-only use STANDARD_NODE.WIDTH (54px)
+      // Both photo and text-only use STANDARD_NODE.WIDTH (50px)
       const photoWidth = STANDARD_NODE.WIDTH;
       const textWidth = STANDARD_NODE.WIDTH_TEXT_ONLY;
 
       expect(photoWidth).toBe(textWidth);
-      expect(photoWidth).toBe(54);
+      expect(photoWidth).toBe(50);
 
       // This ensures consistent spacing regardless of LOD tier
     });
@@ -103,14 +103,14 @@ describe('Tree Layout Integration', () => {
 
       // Test: 3 siblings with minimum spacing
       const numSiblings = 3;
-      const nodeWidth = STANDARD_NODE.WIDTH;  // 54px
+      const nodeWidth = STANDARD_NODE.WIDTH;  // 50px
       const gap = 9;  // sibling gap
 
       // Rough bounds: (node1 width/2) + gap + (node2 width/2) + gap + (node3 width/2)
-      // = 27 + 9 + 54 + 9 + 27 = 126px total width for 3 siblings
+      // = 25 + 9 + 50 + 9 + 25 = 118px total width for 3 siblings
       const totalWidth = numSiblings * nodeWidth + (numSiblings - 1) * gap;
-      expect(totalWidth).toBe(3 * 54 + 2 * 9);
-      expect(totalWidth).toBe(180);
+      expect(totalWidth).toBe(3 * 50 + 2 * 9);
+      expect(totalWidth).toBe(168);
 
       // This should NOT produce overlaps if d3 uses same width in separation()
     });
@@ -120,22 +120,22 @@ describe('Tree Layout Integration', () => {
     test('should NOT have alternative width values like 85px or 60px', () => {
       // Old constants file had NODE_WIDTH_WITH_PHOTO = 85 (WRONG)
       // Old audit had 58px (8px grid compliance)
-      // New compact version uses 54px (tighter layout, user request)
+      // Current compact version uses 50px (minimal padding, no image bucket changes)
 
-      // Standard node should be 54px, not 85px or 58px
+      // Standard node should be 50px, not 85px or 58px
       expect(STANDARD_NODE.WIDTH).not.toBe(85);
       expect(STANDARD_NODE.WIDTH).not.toBe(65);
       expect(STANDARD_NODE.WIDTH).not.toBe(58);
 
       // Only valid value (compact spacing)
-      expect(STANDARD_NODE.WIDTH).toBe(54);
+      expect(STANDARD_NODE.WIDTH).toBe(50);
     });
 
     test('should NOT have conflicting TEXT-ONLY widths', () => {
       // Both photo and text nodes should use same width for consistency
       expect(STANDARD_NODE.WIDTH).toBe(STANDARD_NODE.WIDTH_TEXT_ONLY);
-      expect(STANDARD_NODE.WIDTH).toBe(54);
-      expect(STANDARD_NODE.WIDTH_TEXT_ONLY).toBe(54);
+      expect(STANDARD_NODE.WIDTH).toBe(50);
+      expect(STANDARD_NODE.WIDTH_TEXT_ONLY).toBe(50);
 
       // No more mismatched widths (old: 65px vs 60px)
     });
@@ -144,21 +144,21 @@ describe('Tree Layout Integration', () => {
   describe('Performance Impact', () => {
     test('width reduction maintains minimum sibling spacing', () => {
       // Old audit: 58px nodes + 9px gap = 67px per node pair
-      // Current: 54px nodes + 9px gap = 63px per node pair
-      // Reduction: 4px per sibling pair (6% additional tightness)
+      // Current: 50px nodes + 9px gap = 59px per node pair
+      // Reduction: 8px per sibling pair (12% additional tightness)
 
       const oldSpacing = 58 + 9;  // 67px (audit version)
-      const newSpacing = STANDARD_NODE.WIDTH + 9;  // 63px (current compact version)
+      const newSpacing = STANDARD_NODE.WIDTH + 9;  // 59px (current compact version, no image bucket changes)
       const savings = oldSpacing - newSpacing;
 
-      expect(newSpacing).toBe(63);
-      expect(savings).toBe(4);
+      expect(newSpacing).toBe(59);
+      expect(savings).toBe(8);
 
       // Dense tree (10 siblings):
       // Old: 10 × 67 = 670px width
-      // New: 10 × 63 = 630px width
-      // Savings: 40px (6% reduction) without overlaps
-      expect(10 * newSpacing).toBe(630);
+      // New: 10 × 59 = 590px width
+      // Savings: 80px (12% reduction) without overlaps
+      expect(10 * newSpacing).toBe(590);
       expect(10 * oldSpacing).toBe(670);
     });
   });
@@ -173,8 +173,8 @@ describe('Tree Layout Integration', () => {
       expect(NODE_HEIGHT_TEXT_ONLY).toBeDefined();
 
       // Values should match new compact standard
-      expect(NODE_WIDTH_WITH_PHOTO).toBe(54);
-      expect(NODE_WIDTH_TEXT_ONLY).toBe(54);
+      expect(NODE_WIDTH_WITH_PHOTO).toBe(50);
+      expect(NODE_WIDTH_TEXT_ONLY).toBe(50);
       expect(NODE_HEIGHT_WITH_PHOTO).toBe(75);
       expect(NODE_HEIGHT_TEXT_ONLY).toBe(35);
     });

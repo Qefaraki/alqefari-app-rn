@@ -697,7 +697,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   step: {
-    alignItems: 'center',
     alignSelf: 'stretch',
   },
   title: {
