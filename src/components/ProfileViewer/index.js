@@ -862,6 +862,11 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
     setLastSaveAttempt(now);
 
+    // Network guard: prevent save if offline
+    if (!await checkBeforeAction('حفظ التعديلات')) {
+      return;
+    }
+
     try {
       setSaving(true);
       const changes = diffObjects(form.original, form.draft);
