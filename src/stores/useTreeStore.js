@@ -48,6 +48,10 @@ export const useTreeStore = create((set, get) => ({
   // Cache schema version tracking
   cachedSchemaVersion: null,
 
+  // Phase 3B: Loading state tracking (atomic with tree data)
+  // Prevents skeleton flash by signaling when cached data is valid and ready to display
+  isTreeLoaded: false,
+
   // Actions to update the state
   setStage: (newStage) => set({ stage: newStage }),
 
@@ -61,9 +65,20 @@ export const useTreeStore = create((set, get) => ({
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
 
   setTreeData: (data) => {
+    // Phase 3B: Validate cache quality - check if data is valid and ready for display
+    // Criteria: At least 50 nodes + first 5 nodes have required fields
+    const isValidCache = data &&
+      data.length >= 50 &&
+      data.slice(0, 5).every(n =>
+        n.hid !== undefined &&
+        n.generation !== undefined &&
+        n.father_id !== undefined
+      );
+
     // DEBUG: Log first 3 nodes to verify all fields including version
     if (data && data.length > 0) {
       console.log('📦 [useTreeStore] setTreeData called with', data.length, `nodes, schema v${  TREE_DATA_SCHEMA_VERSION}`);
+      console.log('📦 Cache quality:', isValidCache ? '✅ Valid' : '❌ Invalid');
       console.log('📦 First node keys:', Object.keys(data[0]).sort());
       console.log('📦 Sample nodes (first 3):');
       data.slice(0, 3).forEach((node, i) => {
@@ -81,6 +96,7 @@ export const useTreeStore = create((set, get) => ({
       treeData: data || [],
       nodesMap: new Map((data || []).map((node) => [node.id, node])),
       cachedSchemaVersion: TREE_DATA_SCHEMA_VERSION,
+      isTreeLoaded: isValidCache,  // ✅ ATOMIC: Set loading state with data
     });
   },
 

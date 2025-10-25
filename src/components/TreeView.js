@@ -362,44 +362,31 @@ const TreeView = ({
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
 
-  // Ref to track last logged cache state (prevent console spam on every render)
-  const lastLoggedCacheStateRef = useRef(null);
+  // Phase 3B: Skeleton-in-Store Pattern - PROVEN SOLUTION
+  // Direct store subscription: Always reads current hydrated state
+  // No race conditions: Zustand hydration is atomic with isTreeLoaded flag
+  const isTreeLoaded = useTreeStore((s) => s.isTreeLoaded);
 
-  // Phase 3B: CRITICAL FIX - Memoize cache validation
-  // Must not run on every render - only when treeData changes
-  const hasCachedStructure = useMemo(() => {
-    if (!treeData || treeData.length === 0) return false;
-    if (treeData.length < 50) return false; // Too small = partial cache
-    // Check first 5 nodes for required structure fields
-    return treeData.slice(0, 5).every(n =>
-      n.hid !== undefined &&
-      n.generation !== undefined &&
-      n.father_id !== undefined
-    );
-  }, [treeData]);
+  // Local state follows store (initially based on hydrated state)
+  const [showSkeleton, setShowSkeleton] = useState(() => !isTreeLoaded);
 
-  const hasPreloadedData = treeData && treeData.length > 0;
+  // Effect: Sync skeleton visibility with store state
+  useEffect(() => {
+    if (isTreeLoaded && showSkeleton) {
+      console.log('💾 [TreeView] Cache detected, hiding skeleton');
+      setShowSkeleton(false);
+    }
+  }, [isTreeLoaded, showSkeleton]);
 
-  // Initialize loading state - Phase 3B: Optimistic rendering
-  // For progressive mode: Show skeleton only if no valid cache
-  // Cached launches: Tree appears instantly from cache, no skeleton needed
-  const [isLoading, setIsLoading] = useState(
-    USE_PROGRESSIVE_LOADING
-      ? !hasCachedStructure  // Show skeleton only if cache invalid/missing
-      : !hasPreloadedData
-  );
-  const [showSkeleton, setShowSkeleton] = useState(
-    USE_PROGRESSIVE_LOADING
-      ? !hasCachedStructure  // Show skeleton only if cache invalid/missing
-      : !hasPreloadedData
-  );
-  // Initialize animations: Phase 3B - Show cached content immediately, hide skeleton
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING && hasCachedStructure ? 0 : (hasPreloadedData ? 0 : 1))).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING && hasCachedStructure ? 1 : (hasPreloadedData ? 1 : 0))).current;
+  // Initialize animations based on hydrated store state
+  const hasCacheOnMount = isTreeLoaded;
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(hasCacheOnMount ? 0 : 1)).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(hasCacheOnMount ? 1 : 0)).current;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [setIsLoading] = useState(() => () => {}); // Dummy setter for traditional loader (not used in progressive mode)
 
   // Admin mode state
   const { isAdminMode } = useAdminMode();
@@ -670,84 +657,6 @@ const TreeView = ({
       })
     : null;
 
-  // Phase 3B: CRITICAL FIX - Log cache status only once (not on every render!)
-  // Moved from render path to effect to prevent console spam
-  useEffect(() => {
-    if (!USE_PROGRESSIVE_LOADING) return;
-
-    const currentState = hasCachedStructure
-      ? 'cache_hit'
-      : treeData.length > 0
-      ? 'cache_corrupted'
-      : 'cache_miss';
-
-    // Only log if state changed
-    if (lastLoggedCacheStateRef.current !== currentState) {
-      lastLoggedCacheStateRef.current = currentState;
-
-      if (currentState === 'cache_hit') {
-        console.log(`💾 [TreeView] Cache hit: ${treeData.length} nodes cached and valid`);
-      } else if (currentState === 'cache_corrupted') {
-        console.log(`⚠️ [TreeView] Partial/corrupted cache: ${treeData.length} nodes. Showing skeleton.`);
-      } else {
-        console.log('[TreeView] Cache miss: Showing skeleton, loading from network.');
-      }
-    }
-  }, [hasCachedStructure, treeData.length]);
-
-  // Phase 3B: CRITICAL FIX - Log layout computation timing (not in useMemo)
-  // Only logs once per layout change, not on every render
-  const lastNodeCountRef = useRef(null);
-  useEffect(() => {
-    if (!USE_PROGRESSIVE_LOADING || !nodes.length) return;
-
-    // Only log when layout actually changed
-    if (lastNodeCountRef.current !== nodes.length) {
-      lastNodeCountRef.current = nodes.length;
-      if (hasCachedStructure) {
-        console.log(`⚡ [TreeView] Layout from cache computed (${nodes.length} nodes)`);
-      }
-    }
-  }, [nodes.length, hasCachedStructure]);
-
-  // Phase 3B: Sync progressive loading state when Phase 1 completes
-  // When progressiveResult indicates loading is done, hide skeleton
-  // This uses the hook's isLoading state (which tracks Phase 1 completion)
-  useEffect(() => {
-    if (USE_PROGRESSIVE_LOADING && progressiveResult &&
-        !progressiveResult.isLoading && isLoading) {
-      // Phase 1 complete, structure loaded and layout calculated
-      console.log('[TreeView] Progressive loading Phase 1 complete, hiding skeleton');
-      setIsLoading(false);
-      setShowSkeleton(false);
-    }
-  }, [progressiveResult?.isLoading, isLoading]);
-
-  // Phase 3B: Handle fresh data transitions when new data arrives from progressive loading
-  // Detects when fresh data differs from cached data and manages smooth merging
-  // CRITICAL FIX: Removed hasCachedStructure from deps (it doesn't change after initial render)
-  useEffect(() => {
-    if (!USE_PROGRESSIVE_LOADING || !progressiveResult?.treeData) return;
-
-    // Check if fresh data differs from what we have
-    const freshDataLength = progressiveResult.treeData.length;
-    const currentDataLength = treeData.length;
-
-    if (freshDataLength !== currentDataLength) {
-      // Data changed - log the transition
-      console.log(`🔄 [TreeView] Data update: ${currentDataLength} → ${freshDataLength} nodes`);
-
-      // If we have valid cache and now have fresh data, note the update
-      if (hasCachedStructure && freshDataLength > currentDataLength) {
-        console.log(`✨ [TreeView] Fresh data merged: +${freshDataLength - currentDataLength} new nodes`);
-      }
-
-      // The store update happens through progressive loading mechanism
-      // Layout will automatically recalculate due to layoutKeys dependency
-      // d3 determinism ensures positions remain stable (same input = same output)
-    }
-  }, [progressiveResult?.treeData, treeData.length]);
-
   // Unified API: Both loading strategies update the Zustand store
   // For progressive loading, we create stub functions since it handles loading internally
   const { loadTreeData, handleRetry } = USE_PROGRESSIVE_LOADING
@@ -814,17 +723,16 @@ const TreeView = ({
       console.error('❌ [TreeView] Layout computation failed:', error);
 
       // If we were showing cached content and it fails, clear cache and show skeleton
-      if (USE_PROGRESSIVE_LOADING && hasCachedStructure) {
+      if (isTreeLoaded) {
         console.warn('⚠️ [TreeView] Clearing corrupted cache and showing skeleton');
         useTreeStore.getState().clearTreeData();
-        setIsLoading(true);
         setShowSkeleton(true);
       }
 
       // Return empty to prevent crash (next render will have fresh data or skeleton)
       return { nodes: [], connections: [] };
     }
-  }, [layoutKeys, showPhotos]);
+  }, [layoutKeys, showPhotos, isTreeLoaded]);
 
   // Build indices for node lookup and relationships with O(N) complexity
   const indices = useMemo(() => {
@@ -2446,7 +2354,6 @@ const TreeView = ({
       indices.idToNode,
     );
   }, [
-    isLoading,
     tier,
     spatialGrid,
     currentTransform,
@@ -2524,7 +2431,7 @@ const TreeView = ({
     );
   }
 
-  if (isLoading) {
+  if (showSkeleton && !isTreeLoaded) {
     return (
       <View style={{ flex: 1 }}>
         {/* Skeleton with fade out */}
