@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from "../services/supabase";
 import AuthStateMachine, { AuthStates } from "../services/AuthStateMachine";
 import subscriptionManager from "../services/subscriptionManager";
+import { useTreeStore } from "../stores/useTreeStore";
 import * as SplashScreen from 'expo-splash-screen';
 
 const AuthContext = createContext({});
@@ -25,6 +27,26 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     console.log('[DEBUG AuthContext] Mounting AuthProvider');
+
+    // Pre-warm tree cache from AsyncStorage before any components mount
+    const preWarmCache = async () => {
+      try {
+        const cached = await AsyncStorage.getItem('tree-structure-v3');
+        if (cached) {
+          const data = JSON.parse(cached);
+          if (data && Array.isArray(data) && data.length >= 50) {
+            console.log('[Tree Cache] Pre-warming: found', data.length, 'profiles in AsyncStorage');
+            useTreeStore.getState().setTreeData(data);
+            console.log('[Tree Cache] Pre-warm complete - TreeView will load instantly');
+          }
+        }
+      } catch (error) {
+        console.warn('[Tree Cache] Pre-warm failed (non-critical):', error);
+        // Non-critical - useStructureLoader will fetch from network if needed
+      }
+    };
+
+    preWarmCache();
 
     // Subscribe to state machine changes
     unsubscribeRef.current = AuthStateMachine.subscribe((newState) => {
