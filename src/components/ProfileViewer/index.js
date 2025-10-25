@@ -795,7 +795,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         person.id,
         person.version,
         payload,
-        requestId,  // Pass requestId for idempotency
       );
 
       if (error) {
