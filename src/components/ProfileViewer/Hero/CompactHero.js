@@ -18,7 +18,6 @@ import { toArabicNumerals } from '../../../utils/dateUtils';
 const { colors, spacing } = tokens;
 
 const AVATAR_SIZE = 68;
-const ACTION_SIZE = 36;
 
 const constructCommonName = (person, nodesMap) => {
   if (!person) return '';
@@ -53,11 +52,12 @@ const getInitial = (value) => (value ? value.trim().charAt(0) : '?');
 const CompactHero = ({
   person,
   metrics,
-  canEdit,
-  onEditPress,
-  onMenuPress,
   onCopyChain,
 }) => {
+  if (!person) {
+    return null;
+  }
+
   const nodesMap = useTreeStore((s) => s.nodesMap);
   const isRTL = I18nManager.isRTL;
 
@@ -161,7 +161,7 @@ const CompactHero = ({
           <View style={styles.personalRow}>
             {birthPlace ? (
               <View style={styles.personalItem}>
-                <Ionicons name="location-outline" size={16} color={colors.najdi.secondary} />
+                <Ionicons name="location-outline" size={16} color={`${colors.najdi.text}80`} />
                 <Text style={styles.personalText} numberOfLines={1}>
                   {birthPlace}
                 </Text>
@@ -169,7 +169,7 @@ const CompactHero = ({
             ) : null}
             {birthYearDisplay ? (
               <View style={styles.personalItem}>
-                <Ionicons name="calendar-outline" size={16} color={colors.najdi.secondary} />
+                <Ionicons name="calendar-outline" size={16} color={`${colors.najdi.text}80`} />
                 <Text style={styles.personalText} numberOfLines={1}>
                   {birthYearDisplay}
                 </Text>
@@ -177,29 +177,6 @@ const CompactHero = ({
             ) : null}
           </View>
         ) : null}
-      </View>
-
-      <View style={[styles.actions, isRTL ? styles.actionsRtl : styles.actionsLtr]}>
-        {canEdit ? (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
-            onPress={onEditPress}
-            accessibilityRole="button"
-            accessibilityLabel="تحرير الملف"
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        ) : null}
-        <TouchableOpacity
-          style={[styles.actionButton, styles.menuButton]}
-          onPress={onMenuPress}
-          accessibilityRole="button"
-          accessibilityLabel="المزيد من الخيارات"
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        >
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.najdi.text} />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -259,14 +236,15 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     flex: 1,
-    paddingHorizontal: spacing.sm,
     paddingTop: 4,
   },
   textBlockRtl: {
-    paddingRight: spacing.xl + ACTION_SIZE,
+    marginRight: spacing.sm,
+    marginLeft: spacing.md,
   },
   textBlockLtr: {
-    paddingLeft: spacing.xl + ACTION_SIZE,
+    marginLeft: spacing.sm,
+    marginRight: spacing.md,
   },
   name: {
     fontSize: 20,
@@ -297,44 +275,8 @@ const styles = StyleSheet.create({
   },
   personalText: {
     fontSize: 13,
-    color: colors.najdi.secondary,
-    maxWidth: 160,
-  },
-  actions: {
-    position: 'absolute',
-    top: spacing.md,
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  actionsRtl: {
-    right: spacing.lg,
-  },
-  actionsLtr: {
-    left: spacing.lg,
-  },
-  actionButton: {
-    width: ACTION_SIZE,
-    height: ACTION_SIZE,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#00000055',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  editButton: {
-    backgroundColor: colors.najdi.primary,
-  },
-  menuButton: {
-    backgroundColor: colors.najdi.container,
+    color: `${colors.najdi.text}B3`,
+    maxWidth: 180,
   },
 });
 

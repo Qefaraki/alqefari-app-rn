@@ -12,6 +12,8 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  TouchableOpacity,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -23,11 +25,13 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import CompactHero from './Hero/CompactHero';
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
 import ProfessionalCard from './ViewMode/cards/ProfessionalCard';
 import ContactCard from './ViewMode/cards/ContactCard';
-import FamilyCard from './ViewMode/cards/FamilyCard';
+import FamilyList from './ViewMode/cards/FamilyList';
 import TimelineCard from './ViewMode/cards/TimelineCard';
 import PhotosCard from './ViewMode/cards/PhotosCard';
 import HeroSkeleton from '../ui/skeletons/HeroSkeleton';
@@ -53,10 +57,12 @@ import suggestionService, {
 } from '../../services/suggestionService';
 import { supabase } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
-import { useAdminMode } from '../../contexts/AdminModeContext';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
+import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
+const palette = tokens.colors.najdi;
+const ACTION_BUTTON_SIZE = 36;
 
 // Memoized ViewMode component - prevents recreation on every render (50% performance gain)
 const ViewModeContent = React.memo(({
@@ -71,7 +77,6 @@ const ViewModeContent = React.memo(({
   metrics,
   marriages,
   onNavigateToProfile,
-  isAdminMode,
   accessMode,
   scrollY,
   scrollRef,
@@ -93,12 +98,37 @@ const ViewModeContent = React.memo(({
     scrollEventThrottle={16}
     accessibilityLiveRegion="polite"
   >
+    <View style={styles.actionRow}>
+      <BlurView intensity={22} tint="light" style={styles.actionBlur}>
+        {canEdit ? (
+          <TouchableOpacity
+            style={[styles.actionButton, styles.firstActionButton]}
+            onPress={handleEditPress}
+            accessibilityRole="button"
+            accessibilityLabel="إعدادات الملف"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="settings-outline" size={18} color={palette.text} />
+            <Text style={styles.actionLabel}>إعدادات</Text>
+          </TouchableOpacity>
+        ) : null}
+        {canEdit ? <View style={styles.actionDivider} /> : null}
+        <TouchableOpacity
+          style={[styles.actionButton, !canEdit && styles.firstActionButton]}
+          onPress={handleMenuPress}
+          accessibilityRole="button"
+          accessibilityLabel="المزيد من الخيارات"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={18} color={palette.text} />
+          <Text style={styles.actionLabel}>القائمة</Text>
+        </TouchableOpacity>
+      </BlurView>
+    </View>
+
     <CompactHero
       person={person}
       metrics={metrics}
-      canEdit={canEdit}
-      onEditPress={handleEditPress}
-      onMenuPress={handleMenuPress}
       onCopyChain={handleCopyChain}
     />
 
@@ -134,14 +164,13 @@ const ViewModeContent = React.memo(({
       {loadingStates.marriages ? (
         <FamilyCardSkeleton tileCount={4} />
       ) : (
-        <FamilyCard
+        <FamilyList
           father={metrics.father}
           mother={metrics.mother}
           marriages={marriages}
           children={metrics.children}
           person={person}
           onNavigate={onNavigateToProfile}
-          showMarriages={isAdminMode}
         />
       )}
     </View>
@@ -154,7 +183,6 @@ const ViewModeContent = React.memo(({
     prevProps.loadingStates?.permissions === nextProps.loadingStates?.permissions &&
     prevProps.loadingStates?.marriages === nextProps.loadingStates?.marriages &&
     prevProps.pending?.length === nextProps.pending?.length &&
-    prevProps.isAdminMode === nextProps.isAdminMode &&
     prevProps.accessMode === nextProps.accessMode &&
     prevProps.canEdit === nextProps.canEdit
   );
@@ -264,7 +292,6 @@ SkeletonContent.displayName = 'SkeletonContent';
 
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading = false }) => {
   const insets = useSafeAreaInsets();
-  const { isAdminMode } = useAdminMode();
 
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
@@ -583,13 +610,48 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   }, [mode, form.isDirty, screenWidth, closeSheetFromGesture]);
 
   // Define edit mode handlers before menuOptions to prevent stale closure
-  const enterEditMode = useCallback(() => {
+  const enterEditMode = useCallback(async () => {
+    // ✅ FIX: Fetch version if missing (structure-only data from progressive loading)
+    if (!person?.version || typeof person.version !== 'number') {
+      console.log('[ProfileViewer] Fetching version for edit mode...');
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('version')
+          .eq('id', person.id)
+          .single();
+
+        if (error) throw error;
+
+        if (data?.version) {
+          // Update person in store with version
+          useTreeStore.getState().updateNode(person.id, { version: data.version });
+          console.log(`[ProfileViewer] Version fetched: ${data.version}`);
+          // Re-render will trigger with updated person object, then enter edit
+          // Use setTimeout to allow state update to propagate
+          setTimeout(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            form.reset();
+            setMode('edit');
+            setActiveTab('general');
+          }, 50);
+          return;
+        }
+      } catch (err) {
+        console.error('[ProfileViewer] Version fetch failed:', err);
+        Alert.alert('خطأ', 'فشل تحميل بيانات الملف الشخصي');
+        return;
+      }
+    }
+
+    // Normal edit mode entry (version already present)
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     form.reset();
     setMode('edit');
     setActiveTab('general');
     // Don't force snap - maintain current position
-  }, [form]);
+  }, [form, person, setMode, setActiveTab]);
 
   const handleEditPress = useCallback(() => {
     if (!canEdit) {
@@ -999,7 +1061,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             metrics={metrics}
             marriages={marriages}
             onNavigateToProfile={onNavigateToProfile}
-            isAdminMode={isAdminMode}
             accessMode={accessMode}
             scrollY={scrollY}
             scrollRef={viewScrollRef}
@@ -1049,6 +1110,58 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 };
 
 const styles = StyleSheet.create({
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  actionBlur: {
+    borderRadius: 22,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#e4d9cf',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#00000022',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: ACTION_BUTTON_SIZE,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  firstActionButton: {
+    marginStart: 0,
+  },
+  actionDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 20,
+    backgroundColor: 'rgba(36,33,33,0.12)',
+    marginHorizontal: 4,
+  },
+  actionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: palette.text,
+    marginStart: 6,
+  },
   handleContainer: {
     alignItems: 'center',
     paddingVertical: 10,

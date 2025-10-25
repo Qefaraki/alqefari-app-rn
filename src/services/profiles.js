@@ -120,27 +120,6 @@ export const profilesService = {
   },
 
   /**
-   * Get visible nodes based on viewport
-   * @param {Object} viewport - Viewport bounds {left, top, right, bottom}
-   * @param {number} zoomLevel - Current zoom level
-   * @param {number} limit - Maximum nodes to return
-   */
-  async getVisibleNodes(viewport, zoomLevel = 1.0, limit = 200) {
-    try {
-      const { data, error } = await supabase.rpc("get_visible_nodes", {
-        p_viewport: viewport,
-        p_zoom_level: zoomLevel,
-        p_limit: limit,
-      });
-
-      if (error) throw error;
-      return { data, error: null };
-    } catch (error) {
-      return { data: null, error: handleSupabaseError(error) };
-    }
-  },
-
-  /**
    * Safe search with pagination
    * @param {string} query - Search term
    * @param {number} limit - Results per page

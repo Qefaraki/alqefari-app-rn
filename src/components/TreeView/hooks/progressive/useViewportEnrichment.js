@@ -137,17 +137,6 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
 
         // Phase 1: Batch accumulation instead of direct updateNode
         data.forEach(enrichedProfile => {
-          // ✅ PRODUCTION-SAFE VALIDATION: Catch missing version field
-          if (!('version' in enrichedProfile)) {
-            console.warn(
-              `[Phase 3] Profile ${enrichedProfile.id} missing version field. ` +
-              `Edits may fail. Auto-applying fallback. ` +
-              `Fix in src/services/profiles.js:enrichVisibleNodes()`
-            );
-            // Automatic fallback to prevent edit failures
-            enrichedProfile.version = 1;
-          }
-
           // Accumulate in pending batch
           pendingUpdatesRef.current.set(enrichedProfile.id, enrichedProfile);
           enrichedNodesRef.current.add(enrichedProfile.id);

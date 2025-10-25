@@ -1,32 +1,75 @@
-import React from 'react';
-import InfoCard from '../components/InfoCard';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import PhotoGallerySimple from '../../../PhotoGallerySimple';
+import tokens from '../../../ui/tokens';
+import { toArabicNumerals } from '../../../../utils/dateUtils';
 
-const PhotosCard = React.memo(
-  ({ person, accessMode }) => {
-    if (!person?.id) return null;
+const palette = tokens.colors.najdi;
 
-    // Enable editing for users with direct access (admin/moderator/inner circle)
-    const canEdit = accessMode === 'direct';
+const PhotosCard = React.memo(({
+  person,
+  accessMode,
+}) => {
+  const [photoCount, setPhotoCount] = useState(null);
 
-    return (
-      <InfoCard title="الصور">
-        <PhotoGallerySimple
-          profileId={person.id}
-          isEditMode={canEdit}
-        />
-      </InfoCard>
-    );
-  },
-  (prevProps, nextProps) => {
-    // Only re-render if person ID or access mode changed
-    return (
-      prevProps.person?.id === nextProps.person?.id &&
-      prevProps.accessMode === nextProps.accessMode
-    );
+  const handlePhotosLoaded = useCallback((count) => {
+    setPhotoCount(count);
+  }, []);
+
+  useEffect(() => {
+    setPhotoCount(null);
+  }, [person?.id]);
+
+  if (!person?.id) return null;
+
+  const canEdit = accessMode === 'direct';
+
+  if (photoCount === 0) {
+    return null;
   }
-);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>الصور</Text>
+        {photoCount > 0 ? (
+          <Text style={styles.count}>{toArabicNumerals(String(photoCount))}</Text>
+        ) : null}
+      </View>
+      <PhotoGallerySimple
+        profileId={person.id}
+        isEditMode={canEdit}
+        onPhotosLoaded={handlePhotosLoaded}
+      />
+    </View>
+  );
+}, (prevProps, nextProps) => (
+  prevProps.person?.id === nextProps.person?.id &&
+  prevProps.accessMode === nextProps.accessMode
+));
 
 PhotosCard.displayName = 'PhotosCard';
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 12,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: palette.text,
+  },
+  count: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: `${palette.text}99`,
+  },
+});
 
 export default PhotosCard;
