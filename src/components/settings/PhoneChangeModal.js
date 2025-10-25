@@ -429,10 +429,11 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
               },
             ]}
           >
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}>
               <TouchableOpacity
                 activeOpacity={1}
                 onPress={() => {}} // Prevent closing when tapping inside modal
+                style={{ width: '100%' }}
               >
               {/* Header */}
               <View style={styles.header}>
