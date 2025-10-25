@@ -88,7 +88,7 @@ export function selectBucketWithHysteresis(
   bucketTimers: Map<string, NodeJS.Timeout>
 ): number {
   const current = bucketStates.get(nodeId) || DEFAULT_IMAGE_BUCKET;
-  const target = IMAGE_BUCKETS.find((b) => b >= pixelSize) || 256;
+  const target = IMAGE_BUCKETS.find((b) => b >= pixelSize) || 1024;
 
   // Apply hysteresis: stay at current bucket if within ±15% threshold
   if (target > current && pixelSize < current * (1 + BUCKET_HYSTERESIS)) {

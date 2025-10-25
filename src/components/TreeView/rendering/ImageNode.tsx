@@ -104,7 +104,7 @@ export function selectImageBucket(
   // Use 1.2x multiplier instead of 2x to avoid over-fetching
   // PixelRatio.get() already accounts for device retina, don't double-apply
   const targetSize = pixelSize * 1.2;
-  return imageBuckets.find((b) => b >= targetSize) || 256;
+  return imageBuckets.find((b) => b >= targetSize) || 1024;
 }
 
 /**
@@ -268,8 +268,8 @@ ImageNode.displayName = 'ImageNode';
 
 // Export constants for testing
 export const IMAGE_NODE_CONSTANTS = {
-  DEFAULT_BUCKETS: [40, 60, 80, 120, 180, 256],
-  FALLBACK_BUCKET: 256,
+  DEFAULT_BUCKETS: [40, 60, 80, 120, 180, 256, 512, 1024],
+  FALLBACK_BUCKET: 1024,
   RETINA_MULTIPLIER: 1.2,
   SKELETON_COLOR: '#D1BBA320', // Camel Hair Beige 20%
   SKELETON_STROKE_COLOR: '#D1BBA310', // Camel Hair Beige 10%

@@ -122,7 +122,8 @@ export const NODE_HEIGHT_WITH_PHOTO = STANDARD_NODE.HEIGHT;
 export const NODE_HEIGHT_TEXT_ONLY = STANDARD_NODE.HEIGHT_TEXT_ONLY;
 
 // Image bucket constants (from old constants/nodes.ts)
-export const IMAGE_BUCKETS = [40, 60, 80, 120, 180, 256] as const;
+// Extended with 512px and 1024px for extreme zoom quality (crossfade + morph effect)
+export const IMAGE_BUCKETS = [40, 60, 80, 120, 180, 256, 512, 1024] as const;
 export const DEFAULT_IMAGE_BUCKET = 80;
 export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
 
