@@ -66,7 +66,7 @@ const NetworkStatusIndicator = ({
           Animated.timing(slideAnim, {
             toValue: 0,
             duration: 300,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.timing(fadeAnim, {
             toValue: 1,
@@ -80,7 +80,7 @@ const NetworkStatusIndicator = ({
           Animated.timing(slideAnim, {
             toValue: -100,
             duration: 300,
-            useNativeDriver: false,
+            useNativeDriver: true,
           }),
           Animated.timing(fadeAnim, {
             toValue: 0,
