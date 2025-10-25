@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useNetworkStore } from '../stores/networkStore';
@@ -48,6 +49,7 @@ const NetworkStatusIndicator = ({
 }) => {
   const { isConnected, isInternetReachable } = useNetworkStore();
   const [userDismissed, setUserDismissed] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-100)).current;
@@ -142,18 +144,25 @@ const NetworkStatusIndicator = ({
 
   const content = getContent();
 
-  // Don't render if visible is false and mode is banner
-  if (mode === 'banner' && !visible) {
-    return null;
-  }
-
-  // Banner mode: Persistent top banner
+  // Banner mode: Don't render at all when online
   if (mode === 'banner') {
+    // Return null immediately if user is online (not offline)
+    if (!isOffline) {
+      return null;
+    }
+
+    // Return null if user dismissed banner
+    if (userDismissed) {
+      return null;
+    }
+
+    // Only render if offline and not dismissed
     return (
       <Animated.View
         style={[
           styles.banner,
           {
+            paddingTop: insets.top + 12, // Add status bar height
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
           },
@@ -274,7 +283,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    position: 'relative',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     zIndex: 100,
   },
   bannerContent: {
