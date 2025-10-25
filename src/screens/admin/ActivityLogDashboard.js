@@ -1741,7 +1741,9 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         );
 
         if (result.success) {
-          showToast("✓ تم التراجع بنجاح", "success");
+          // Success feedback with haptic
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          showToast("✓ تم التراجع بنجاح عن " + undoService.getActionDescription(activity.action_type), "success");
 
           if (detailsVisible) {
             setTimeout(() => {
@@ -1770,25 +1772,30 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
               });
             } else if (fetchError) {
               console.warn('[ActivityLogDashboard] Failed to refetch profile after undo:', fetchError);
-              showToast("⚠ تم التراجع ولكن فشل تحديث العرض. يرجى إعادة تحميل الصفحة.", "warning");
+              showToast("⚠️ تم التراجع ولكن فشل تحديث العرض. سيحدث الآن...", "warning");
             }
           }
 
           fetchActivities(0, false);
         } else {
-          showToast(result.error || "فشل التراجع", "error");
+          // Better error message with context
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+          showToast(result.error || "فشل التراجع عن هذا الإجراء", "error");
         }
       } catch (error) {
         console.error("Undo error:", error);
         const parsedError = parseUndoError(error);
 
+        // Show error with haptic feedback
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         showToast(parsedError.message, "error");
 
+        // Auto-refresh if needed
         if (parsedError.shouldRefresh) {
           setTimeout(() => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            console.log('[ActivityLogDashboard] Auto-refreshing after error:', parsedError.type);
             fetchActivities(0, false);
-          }, 2000);
+          }, 1500);
         }
       } finally {
         setUndoingActivityId((current) => (current === activity.id ? null : current));
@@ -1806,6 +1813,31 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
     ]
   );
 
+  // Build preview message showing what will change when undoing
+  const buildUndoPreview = (activity) => {
+    const changedFields = getMeaningfulFields(activity.changed_fields || []);
+    const fieldCount = changedFields.length;
+
+    if (fieldCount === 0) {
+      return "لن يتم تغيير أي بيانات";
+    }
+
+    if (fieldCount === 1) {
+      const field = changedFields[0];
+      const fieldLabel = getFieldLabel(field) || field;
+      const oldValue = formatSimpleValue(activity.old_data?.[field]);
+      return `سيتم استرجاع ${fieldLabel}:\n"${oldValue}"`;
+    }
+
+    if (fieldCount <= 3) {
+      const labels = changedFields.map(f => getFieldLabel(f) || f).join('، ');
+      return `سيتم استرجاع ${fieldCount} حقول:\n${labels}`;
+    }
+
+    const labels = changedFields.slice(0, 2).map(f => getFieldLabel(f) || f).join('، ');
+    return `سيتم استرجاع ${fieldCount} حقول:\n${labels} وغيرها...`;
+  };
+
   const handleUndo = useCallback(
     (activity) => {
       if (!profile?.id) {
@@ -1813,29 +1845,39 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
         return;
       }
 
-      if (undoService.isDangerousAction(activity.action_type)) {
-        const actionLabel = undoService.getActionDescription(activity.action_type);
-        Alert.alert(
-          "تأكيد التراجع",
-          `هذا إجراء حساس: ${actionLabel}.\nسيتم استرجاع جميع البيانات المرتبطة، هل أنت متأكد؟`,
-          [
-            {
-              text: "إلغاء",
-              style: "cancel",
-              onPress: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
-            },
-            {
-              text: "تأكيد التراجع",
-              style: "destructive",
-              onPress: () => executeUndo(activity),
-            },
-          ],
-          { cancelable: false }
-        );
-        return;
+      const preview = buildUndoPreview(activity);
+      const actionLabel = undoService.getActionDescription(activity.action_type);
+      const isDangerous = undoService.isDangerousAction(activity.action_type);
+
+      // Build confirmation message with preview
+      let message = `${preview}\n\n`;
+
+      if (isDangerous) {
+        message += `⚠️ هذا إجراء حساس: ${actionLabel}\nسيتم استرجاع جميع البيانات المرتبطة`;
+      } else {
+        message += `هذا سيعكس: ${actionLabel}`;
       }
 
-      executeUndo(activity);
+      Alert.alert(
+        "تأكيد التراجع",
+        message,
+        [
+          {
+            text: "إلغاء",
+            style: "cancel",
+            onPress: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
+          },
+          {
+            text: isDangerous ? "نعم، تراجع" : "تراجع",
+            style: isDangerous ? "destructive" : "default",
+            onPress: () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              executeUndo(activity);
+            },
+          },
+        ],
+        { cancelable: false }
+      );
     },
     [profile, executeUndo, showToast]
   );
@@ -2019,20 +2061,21 @@ export default function ActivityLogDashboard({ onClose, onNavigateToProfile, pro
           </View>
         }
         onEndReached={() => {
+          // Auto-load more items when user scrolls to 50% from bottom
           const now = Date.now();
-          // Throttle: max 1 request per second
-          if (now - lastLoadTimeRef.current < 1000) return;
 
-          if (hasMore && !loading && !loadingMore) {
+          // Throttle: max 1 request per 500ms to prevent duplicate requests
+          if (now - lastLoadTimeRef.current < 500) {
+            return;
+          }
+
+          // Load more if we have more results and not already loading
+          if (hasMore && !loadingMore) {
             lastLoadTimeRef.current = now;
             fetchActivities(page, true);
           }
         }}
-        onEndReachedThreshold={0.3}
-        onMomentumScrollBegin={() => {
-          // Prevent initial trigger when list mounts
-          lastLoadTimeRef.current = Date.now();
-        }}
+        onEndReachedThreshold={0.5}
         ListFooterComponent={
           activities.length > 0 ? (
             <View style={styles.listFooterContainer}>
