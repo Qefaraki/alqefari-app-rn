@@ -442,6 +442,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   singleColumn: {
     alignItems: 'center',
@@ -461,7 +462,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     position: 'absolute',
     top: 12,
-    right: 12,
+    end: 12,
     zIndex: 10,
   },
   deleteIconContainer: {
