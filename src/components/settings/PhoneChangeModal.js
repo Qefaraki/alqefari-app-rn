@@ -330,7 +330,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
               <View style={styles.header}>
                 <TouchableOpacity
                   onPress={handleBackStep}
-                  disabled={step === 1}
+                  disabled={step === 1 || loading}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   <Ionicons
