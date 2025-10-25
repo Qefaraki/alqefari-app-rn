@@ -90,6 +90,7 @@ export const profilesService = {
         .from('profiles')
         .select(`
           id,
+          version,
           photo_url,
           kunya,
           nickname,

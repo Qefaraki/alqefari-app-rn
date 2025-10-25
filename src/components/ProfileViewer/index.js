@@ -23,10 +23,8 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet';
 import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Hero from './Hero/Hero';
+import CompactHero from './Hero/CompactHero';
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
-import PersonalCard from './ViewMode/cards/PersonalCard';
-import DatesCard from './ViewMode/cards/DatesCard';
 import ProfessionalCard from './ViewMode/cards/ProfessionalCard';
 import ContactCard from './ViewMode/cards/ContactCard';
 import FamilyCard from './ViewMode/cards/FamilyCard';
@@ -65,10 +63,7 @@ const ViewModeContent = React.memo(({
   insets,
   handleMenuPress,
   handleCopyChain,
-  bioExpanded,
-  setBioExpanded,
-  metricsPayload,
-  closeSheet,
+  handleEditPress,
   pending,
   pendingSummary,
   loadingStates,
@@ -80,14 +75,15 @@ const ViewModeContent = React.memo(({
   accessMode,
   scrollY,
   scrollRef,
+  canEdit,
 }) => (
   <BottomSheetScrollView
     ref={scrollRef}
     contentContainerStyle={{
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: insets.bottom + 80,
-      gap: 20,
+      gap: 16,
     }}
     showsVerticalScrollIndicator={false}
     onScroll={Animated.event(
@@ -97,15 +93,13 @@ const ViewModeContent = React.memo(({
     scrollEventThrottle={16}
     accessibilityLiveRegion="polite"
   >
-    <Hero
+    <CompactHero
       person={person}
-      onMenu={handleMenuPress}
+      metrics={metrics}
+      canEdit={canEdit}
+      onEditPress={handleEditPress}
+      onMenuPress={handleMenuPress}
       onCopyChain={handleCopyChain}
-      bioExpanded={bioExpanded}
-      onToggleBio={() => setBioExpanded((prev) => !prev)}
-      metrics={metricsPayload}
-      onClose={closeSheet}
-      topInset={insets.top}
     />
 
     <PendingReviewBanner
@@ -113,31 +107,20 @@ const ViewModeContent = React.memo(({
       onPress={() => Alert.alert('التغييرات المعلقة', pendingSummary)}
     />
 
-    <View
-      accessible={true}
-      accessibilityLiveRegion="polite"
-      accessibilityLabel={
-        loadingStates.permissions
-          ? "جاري تحميل بيانات الملف الشخصي"
-          : "تم تحميل بيانات الملف الشخصي"
-      }
-    >
-      {loadingStates.permissions ? (
-        <>
-          <GenericCardSkeleton rows={3} titleWidth={80} />
-          <GenericCardSkeleton rows={2} titleWidth={100} />
-          <GenericCardSkeleton rows={3} titleWidth={90} />
-          <GenericCardSkeleton rows={2} titleWidth={100} />
-        </>
-      ) : (
-        <>
-          <PersonalCard person={person} />
-          <DatesCard person={person} />
-          <ProfessionalCard person={person} />
-          <ContactCard person={person} />
-        </>
-      )}
-    </View>
+    <PhotosCard person={person} accessMode={accessMode} />
+
+    {loadingStates.permissions ? (
+      <>
+        <GenericCardSkeleton rows={3} titleWidth={90} />
+        <GenericCardSkeleton rows={2} titleWidth={80} />
+      </>
+    ) : (
+      <>
+        <TimelineCard timeline={person?.timeline} />
+        <ProfessionalCard person={person} />
+        <ContactCard person={person} />
+      </>
+    )}
 
     <View
       accessible={true}
@@ -163,19 +146,17 @@ const ViewModeContent = React.memo(({
       )}
     </View>
 
-    <TimelineCard timeline={person?.timeline} />
-    <PhotosCard person={person} accessMode={accessMode} />
   </BottomSheetScrollView>
 ), (prevProps, nextProps) => {
   // Custom comparator - only re-render when actual data changes
   return (
     prevProps.person?.id === nextProps.person?.id &&
-    prevProps.bioExpanded === nextProps.bioExpanded &&
     prevProps.loadingStates?.permissions === nextProps.loadingStates?.permissions &&
     prevProps.loadingStates?.marriages === nextProps.loadingStates?.marriages &&
     prevProps.pending?.length === nextProps.pending?.length &&
     prevProps.isAdminMode === nextProps.isAdminMode &&
-    prevProps.accessMode === nextProps.accessMode
+    prevProps.accessMode === nextProps.accessMode &&
+    prevProps.canEdit === nextProps.canEdit
   );
 });
 ViewModeContent.displayName = 'ViewModeContent';
@@ -341,7 +322,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     [],
   );
   const [activeTab, setActiveTab] = useState('general');
-  const [bioExpanded, setBioExpanded] = useState(false);
   const [preEditVisible, setPreEditVisible] = useState(false);
   const [rememberChoice, setRememberChoice] = useState(false);
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
@@ -949,19 +929,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     return groupDirtyByTab(form.dirtyFields || [], tabConfig);
   }, [form.dirtyFields]);
 
-  const metricsPayload = useMemo(
-    () => ({
-      generationLabel: metrics.generationLabel,
-      childrenCount: metrics.rawChildren?.length || 0,
-      siblingsCount: metrics.siblingsCount,
-      descendantsCount: metrics.descendantsCount,
-      occupation: person?.occupation,
-      residence: person?.current_residence,
-      onScrollToFamily: () => setActiveTab('family'),
-    }),
-    [metrics, person?.current_residence, person?.occupation],
-  );
-
   const pendingSummary = useMemo(() => {
     if (!pending || pending.length === 0) return 'لا توجد تغييرات معلقة.';
     return pending
@@ -1024,10 +991,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             insets={insets}
             handleMenuPress={handleMenuPress}
             handleCopyChain={handleCopyChain}
-            bioExpanded={bioExpanded}
-            setBioExpanded={setBioExpanded}
-            metricsPayload={metricsPayload}
-            closeSheet={closeSheet}
+            handleEditPress={handleEditPress}
             pending={pending}
             pendingSummary={pendingSummary}
             loadingStates={loadingStates}
@@ -1039,6 +1003,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
             accessMode={accessMode}
             scrollY={scrollY}
             scrollRef={viewScrollRef}
+            canEdit={canEdit}
           />
         ) : (
           <EditModeContent
