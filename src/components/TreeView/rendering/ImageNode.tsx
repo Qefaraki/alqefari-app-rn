@@ -319,6 +319,10 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     showPhotos = true,
     useBatchedSkiaImage,
   }) => {
+    const renderCountRef = React.useRef(0);
+    const lastBucketRef = React.useRef<number | null>(null);
+    const lastIsUpgradingRef = React.useRef(false);
+
     // Determine if image should load
     const shouldLoad = shouldLoadImage(tier, url, showPhotos);
 
@@ -332,6 +336,16 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
         : selectImageBucket(pixelSize)
       : null;
 
+    // Log bucket selection changes
+    React.useEffect(() => {
+      if (bucket !== lastBucketRef.current) {
+        console.log(
+          `[ImageNode] ${nodeId}: Bucket changed: ${lastBucketRef.current || 'init'} → ${bucket}px (pixelSize: ${pixelSize.toFixed(0)}, scale: ${scale.toFixed(1)})`
+        );
+        lastBucketRef.current = bucket;
+      }
+    }, [bucket, nodeId, pixelSize, scale]);
+
     // Load image with batched loading and upgrade tracking
     const imageResult = shouldLoad ? useBatchedSkiaImage(url, bucket, 'visible') : null;
 
@@ -341,9 +355,29 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     const isUpgrading = imageResult?.isUpgrading || false;
     const currentBucket = imageResult?.currentBucket || null;
 
+    // Log upgrade flag changes
+    React.useEffect(() => {
+      if (isUpgrading !== lastIsUpgradingRef.current) {
+        console.log(
+          `[ImageNode] ${nodeId}: Upgrade flag: ${lastIsUpgradingRef.current} → ${isUpgrading} (currentBucket: ${currentBucket}px)`
+        );
+        lastIsUpgradingRef.current = isUpgrading;
+      }
+    }, [isUpgrading, nodeId, currentBucket]);
+
     // Morph animation - only triggers at extreme zoom
     const { lowResOpacity, highResOpacity, highResScale, isAnimating } =
       usePhotoMorphTransition(isUpgrading, scale, true);
+
+    // Log render count for debugging
+    React.useEffect(() => {
+      renderCountRef.current++;
+      if (renderCountRef.current % 20 === 0) {
+        console.log(
+          `[ImageNode] ${nodeId}: Render #${renderCountRef.current} (image loaded: ${!!image}, isAnimating: ${isAnimating})`
+        );
+      }
+    });
 
     // For morph animation: we need to render two versions of the image
     // Low-res: the currently displayed image (fading out)

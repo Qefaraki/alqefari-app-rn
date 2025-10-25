@@ -47,6 +47,8 @@ export function useBatchedSkiaImageWithMorph(
   const [currentBucket, setCurrentBucket] = useState<number | null>(null);
   const mounted = useRef(true);
   const previousBucketRef = useRef<number | null>(null);
+  const hookIdRef = useRef(`hook-${Math.random().toString(36).substr(2, 9)}`);
+  const imageLoadStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -62,6 +64,9 @@ export function useBatchedSkiaImageWithMorph(
       return;
     }
 
+    const hookId = hookIdRef.current;
+    console.log(`[useBatchedSkiaImageWithMorph] ${hookId}: Starting load for bucket=${bucket}px`);
+
     // Try cache first for both sizes (synchronous)
     const thumbnailUrl = skiaImageCache.urlForBucket(url, 64);
     const highResUrl = skiaImageCache.urlForBucket(url, bucket);
@@ -72,6 +77,9 @@ export function useBatchedSkiaImageWithMorph(
     if (cachedHighRes) {
       // High-res already cached - use it immediately
       const isUpgrade = previousBucketRef.current && previousBucketRef.current < bucket;
+      console.log(
+        `[useBatchedSkiaImageWithMorph] ${hookId}: Found cached high-res (${bucket}px), isUpgrade=${isUpgrade} (prev: ${previousBucketRef.current})`
+      );
       setImage(cachedHighRes);
       setCurrentBucket(bucket);
       setIsUpgrading(isUpgrade);
@@ -81,19 +89,33 @@ export function useBatchedSkiaImageWithMorph(
 
     if (cachedThumbnail) {
       // Thumbnail cached - show it while loading high-res
+      console.log(
+        `[useBatchedSkiaImageWithMorph] ${hookId}: Found cached thumbnail (64px), now loading ${bucket}px`
+      );
       setImage(cachedThumbnail);
       setCurrentBucket(64);
       setIsUpgrading(false);
     }
 
+    imageLoadStartRef.current = Date.now();
+
     // Enqueue loads in priority queue
     // 1. Load thumbnail first (64px, high priority) - for progressive loading
     if (!cachedThumbnail) {
+      console.log(`[useBatchedSkiaImageWithMorph] ${hookId}: Enqueueing thumbnail (64px)`);
       imageLoadQueue.enqueue(url, 64, priority, (error) => {
-        if (!mounted.current || error) return;
+        if (!mounted.current || error) {
+          console.log(
+            `[useBatchedSkiaImageWithMorph] ${hookId}: Thumbnail load error or unmounted`
+          );
+          return;
+        }
 
         const thumb = skiaImageCache.get(thumbnailUrl);
         if (thumb) {
+          console.log(
+            `[useBatchedSkiaImageWithMorph] ${hookId}: Thumbnail loaded (64px) in ${Date.now() - (imageLoadStartRef.current || 0)}ms`
+          );
           setImage(thumb); // Show thumbnail immediately
           setCurrentBucket(64);
           setIsUpgrading(false);
@@ -102,13 +124,23 @@ export function useBatchedSkiaImageWithMorph(
     }
 
     // 2. Load high-res in queue (will batch with other images)
+    console.log(`[useBatchedSkiaImageWithMorph] ${hookId}: Enqueueing high-res (${bucket}px)`);
     imageLoadQueue.enqueue(url, bucket, priority, (error) => {
-      if (!mounted.current || error) return;
+      if (!mounted.current || error) {
+        console.log(
+          `[useBatchedSkiaImageWithMorph] ${hookId}: High-res load error or unmounted`
+        );
+        return;
+      }
 
       const high = skiaImageCache.get(highResUrl);
       if (high) {
         // Determine if this is an upgrade (bucket increased)
         const isUpgrade = previousBucketRef.current && previousBucketRef.current < bucket;
+        const loadTime = Date.now() - (imageLoadStartRef.current || 0);
+        console.log(
+          `[useBatchedSkiaImageWithMorph] ${hookId}: High-res loaded (${bucket}px) in ${loadTime}ms, isUpgrade=${isUpgrade} (prev: ${previousBucketRef.current})`
+        );
         setImage(high); // Upgrade to high-res when available
         setCurrentBucket(bucket);
         setIsUpgrading(isUpgrade);
