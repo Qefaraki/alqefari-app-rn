@@ -369,33 +369,10 @@ const TreeView = ({
   // Derived state (not stored locally) - prevents state desync
   const showSkeleton = !isTreeLoaded;
 
-  // Initialize animations based on actual cache state
-  // CRITICAL FIX: Check store state directly, not isTreeLoaded (which is always false on mount)
-  const hasCacheOnMount = useTreeStore.getState().treeData?.length >= 50;
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(hasCacheOnMount ? 0 : 1)).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(hasCacheOnMount ? 1 : 0)).current;
+  // Simple opacity based on loading state (no animation)
+  const skeletonOpacity = isTreeLoaded ? 0 : 1;
+  const contentOpacity = isTreeLoaded ? 1 : 0;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
-
-  // Fade animation effect: Trigger when tree loads from network (if no cache on mount)
-  useEffect(() => {
-    if (isTreeLoaded && !hasCacheOnMount) {
-      console.log('🎬 [TreeView] Triggering fade animation: skeleton → content');
-      RNAnimated.parallel([
-        RNAnimated.timing(skeletonFadeAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        RNAnimated.timing(contentFadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        console.log('✅ [TreeView] Fade animation complete');
-      });
-    }
-  }, [isTreeLoaded, hasCacheOnMount, skeletonFadeAnim, contentFadeAnim]);
 
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
@@ -2407,7 +2384,7 @@ const TreeView = ({
               right: 0,
               bottom: 0,
               zIndex: 10,
-              opacity: skeletonFadeAnim,
+              opacity: skeletonOpacity,
             }}
             pointerEvents="none"
           >
@@ -2419,7 +2396,7 @@ const TreeView = ({
         <RNAnimated.View
           style={{
             flex: 1,
-            opacity: contentFadeAnim,
+            opacity: contentOpacity,
           }}
         />
       </View>
@@ -2464,7 +2441,7 @@ const TreeView = ({
             right: 0,
             bottom: 0,
             zIndex: 10,
-            opacity: skeletonFadeAnim,
+            opacity: skeletonOpacity,
           }}
           pointerEvents="none"
         >
@@ -2473,7 +2450,7 @@ const TreeView = ({
       )}
 
       {/* Main tree content with fade in */}
-      <RNAnimated.View style={{ flex: 1, opacity: contentFadeAnim }}>
+      <RNAnimated.View style={{ flex: 1, opacity: contentOpacity }}>
         <GestureDetector gesture={composed}>
           <Canvas style={{ flex: 1 }}>
             {/* Static screen-space clip (camera lens) */}
