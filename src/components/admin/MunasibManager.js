@@ -18,6 +18,7 @@ import FamilyDetailModal from "./FamilyDetailModal";
 import SkeletonLoader from "../ui/SkeletonLoader";
 import LargeTitleHeader from "../ios/LargeTitleHeader";
 import tokens from "../ui/tokens";
+import { useNetworkGuard } from "../../hooks/useNetworkGuard";
 
 const palette = tokens.colors.najdi;
 const spacing = tokens.spacing;
@@ -67,6 +68,9 @@ export default function MunasibManager({ onClose, onNavigateToProfile }) {
   const [filteredStats, setFilteredStats] = useState([]);
   const [selectedFamily, setSelectedFamily] = useState(null);
   const [showFamilyDetail, setShowFamilyDetail] = useState(false);
+
+  // Network guard for offline protection
+  const { checkBeforeAction } = useNetworkGuard();
 
   useEffect(() => {
     loadFamilyStats();

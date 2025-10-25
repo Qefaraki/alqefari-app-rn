@@ -76,7 +76,6 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
   // Animation
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Initialize modal - get current phone
   React.useEffect(() => {

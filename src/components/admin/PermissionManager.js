@@ -29,6 +29,7 @@ import enhancedSearchService from "../../services/enhancedSearchService";
 import { formatNameWithTitle } from "../../services/professionalTitleService";
 import { getGenerationLabel } from "../../utils/generationUtils";
 import SegmentedControl from "../ui/SegmentedControl";
+import { useNetworkGuard } from "../../hooks/useNetworkGuard";
 
 // Exact colors from ProfileConnectionManagerV2
 const colors = {
@@ -298,6 +299,9 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 50;
 
+  // Network guard for offline protection
+  const { checkBeforeAction } = useNetworkGuard();
+
   // Load current user's role
   useEffect(() => {
     loadCurrentUserRole();
@@ -497,6 +501,9 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   const changeUserRole = async (userId, newRole) => {
     if (actionLoading) return; // Prevent duplicate calls
 
+    // Network guard: prevent action if offline
+    if (!await checkBeforeAction('تغيير الصلاحية')) return;
+
     try {
       setActionLoading('role');
 
@@ -534,6 +541,9 @@ const PermissionManager = ({ onClose, onBack, user, profile }) => {
   // Toggle suggestion block (Android-compatible)
   const toggleSuggestionBlock = async (userId, currentlyBlocked) => {
     if (actionLoading) return; // Prevent duplicate calls
+
+    // Network guard: prevent action if offline
+    if (!await checkBeforeAction('تغيير حالة الحظر')) return;
 
     try {
       const shouldBlock = !currentlyBlocked;

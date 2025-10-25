@@ -19,6 +19,7 @@ import LargeTitleHeader from "../ios/LargeTitleHeader";
 import tokens from "../../components/ui/tokens";
 import SegmentedControl from "../ui/SegmentedControl";
 import SkeletonLoader from "../ui/SkeletonLoader";
+import { useNetworkGuard } from "../../hooks/useNetworkGuard";
 
 // Najdi Sadu Design System Colors
 const COLORS = {
@@ -72,6 +73,9 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
     { id: "approved", label: "مقبولة" },
     { id: "rejected", label: "مرفوضة" },
   ];
+
+  // Network guard for offline protection
+  const { checkBeforeAction } = useNetworkGuard();
 
   useEffect(() => {
     loadSuggestions({ useOverlay: !initialLoading });
@@ -140,6 +144,9 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
   };
 
   const handleApprove = async (suggestion) => {
+    // Network guard: prevent action if offline
+    if (!await checkBeforeAction('قبول الاقتراح')) return;
+
     try {
       await suggestionService.approveSuggestion(suggestion.id);
 
@@ -155,6 +162,9 @@ const SuggestionReviewManager = ({ onClose, onBack }) => {
   };
 
   const handleReject = async (suggestion, reason) => {
+    // Network guard: prevent action if offline
+    if (!await checkBeforeAction('رفض الاقتراح')) return;
+
     try {
       await suggestionService.rejectSuggestion(
         suggestion.id,
