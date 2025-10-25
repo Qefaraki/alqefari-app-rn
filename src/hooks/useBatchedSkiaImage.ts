@@ -3,6 +3,24 @@ import type { SkImage } from "@shopify/react-native-skia";
 import skiaImageCache from "../services/skiaImageCache";
 import imageLoadQueue from "../services/imageLoadQueue";
 
+export interface BatchedImageResult {
+  /**
+   * Current best available image (highRes > lowRes > thumbnail > null)
+   */
+  image: SkImage | null;
+
+  /**
+   * True when high-res image just loaded and is replacing lower res
+   * Used to trigger morph/transition animations
+   */
+  isUpgrading: boolean;
+
+  /**
+   * Current bucket size of displayed image
+   */
+  currentBucket: number | null;
+}
+
 /**
  * Hook for batched image loading with progressive rendering
  * Phase 2 Performance Optimization
@@ -11,19 +29,23 @@ import imageLoadQueue from "../services/imageLoadQueue";
  * - Priority-based batch loading (visible > prefetch)
  * - Progressive loading: thumbnail (64px) → high-res
  * - Reduced state update cascades (batched in groups of 15)
+ * - Tracks image quality upgrades for transition animations
  *
  * @param url - The image URL to load
  * @param bucket - The size bucket (default 256)
  * @param priority - Loading priority ('visible' or 'prefetch')
- * @returns SkImage (best available: highRes > thumbnail > null)
+ * @returns BatchedImageResult with image, upgrade tracking, and bucket info
  */
 export function useBatchedSkiaImage(
   url: string | null,
   bucket = 256,
   priority: "visible" | "prefetch" = "visible"
-): SkImage | null {
+): BatchedImageResult {
   const [image, setImage] = useState<SkImage | null>(null);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [currentBucket, setCurrentBucket] = useState<number | null>(null);
   const mounted = useRef(true);
+  const previousBucketRef = useRef<number | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -35,6 +57,7 @@ export function useBatchedSkiaImage(
   useEffect(() => {
     if (!url) {
       setImage(null);
+      setCurrentBucket(null);
       return;
     }
 
@@ -47,13 +70,19 @@ export function useBatchedSkiaImage(
 
     if (cachedHighRes) {
       // High-res already cached - use it immediately
+      const isUpgrade = previousBucketRef.current && previousBucketRef.current < bucket;
       setImage(cachedHighRes);
+      setCurrentBucket(bucket);
+      setIsUpgrading(isUpgrade);
+      previousBucketRef.current = bucket;
       return;
     }
 
     if (cachedThumbnail) {
       // Thumbnail cached - show it while loading high-res
       setImage(cachedThumbnail);
+      setCurrentBucket(64);
+      setIsUpgrading(false);
     }
 
     // Enqueue loads in priority queue
@@ -65,6 +94,8 @@ export function useBatchedSkiaImage(
         const thumb = skiaImageCache.get(thumbnailUrl);
         if (thumb) {
           setImage(thumb); // Show thumbnail immediately
+          setCurrentBucket(64);
+          setIsUpgrading(false);
         }
       });
     }
@@ -75,10 +106,29 @@ export function useBatchedSkiaImage(
 
       const high = skiaImageCache.get(highResUrl);
       if (high) {
+        // Determine if this is an upgrade (bucket increased)
+        const isUpgrade = previousBucketRef.current && previousBucketRef.current < bucket;
         setImage(high); // Upgrade to high-res when available
+        setCurrentBucket(bucket);
+        setIsUpgrading(isUpgrade);
+        previousBucketRef.current = bucket;
       }
     });
   }, [url, bucket, priority]); // Rerun when url or bucket changes
 
-  return image;
+  // Reset upgrade flag after a short delay to prevent multiple animations
+  useEffect(() => {
+    if (isUpgrading) {
+      const timer = setTimeout(() => {
+        setIsUpgrading(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isUpgrading]);
+
+  return {
+    image,
+    isUpgrading,
+    currentBucket,
+  };
 }
