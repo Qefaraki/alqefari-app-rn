@@ -169,7 +169,8 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
     }
   };
 
-  // Search for Al-Qefari family members using UNIFIED search_name_chain RPC
+  // Search for Al-Qefari family members using search_name_chain RPC
+  // Gender and person exclusion filtering applied client-side
   const performSearch = async (parsed) => {
     setStage("SEARCH");
     setLoading(true);
@@ -178,21 +179,25 @@ export default function SpouseManager({ visible, person, onClose, onSpouseAdded,
       // Parse name into array (same as SearchModal)
       const names = parsed.firstName.split(/\s+/).filter(n => n.length > 0);
 
-      // Use UNIFIED search_name_chain with server-side filtering! 🎯
-      // This is the same RPC that SearchModal uses, but with optional gender filtering
+      // Call RPC with correct 3-parameter signature
+      // Note: p_gender and p_exclude_id were rolled back in migration 20251025142017
       const { data, error: searchError } = await supabase.rpc('search_name_chain', {
         p_names: names,
-        p_gender: spouseGender,        // Server-side gender filter ✅
-        p_exclude_id: person?.id,      // Exclude current person ✅
-        p_limit: 8
+        p_limit: 50  // Increased to provide buffer for filtering
       });
 
       if (searchError) throw searchError;
 
-      // Filter to Has HID (Al-Qefari only, not munasib)
-      // Gender is already filtered server-side, but we verify for defense-in-depth
+      // Apply client-side filters:
+      // 1. Has HID (Al-Qefari only, not munasib)
+      // 2. Correct gender (with null check for safety)
+      // 3. Exclude current person (with null check for safety)
+      // 4. Limit to 8 results after filtering
       const filtered = (data || [])
-        .filter(p => p.hid !== null); // Only Al-Qefari members
+        .filter(p => p.hid !== null)                          // Only Al-Qefari members
+        .filter(p => p.gender && p.gender === spouseGender)   // Gender filter + null check
+        .filter(p => person?.id && p.id !== person.id)        // Exclude current person + null check
+        .slice(0, 8);                                         // Limit to 8 results after all filters
 
       setSearchResults(filtered);
     } catch (error) {
