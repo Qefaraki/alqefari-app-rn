@@ -22,37 +22,72 @@
 
 ---
 
-## Day 1: Country/City Selector Fix (Oct 25)
+## Day 1: Country/City Selector Fix + UUID Validation (Oct 25)
 
-**Status**: ✅ Complete
+**Status**: ✅ Complete (Revision)
 
-### Bug Report
-When user selected a city (e.g., "الرياض"), the country dropdown reset to "Choose Country" instead of remaining on "🇸🇦 السعودية".
+### Bug 1: Country Selector Flashing
+**Problem**: When selecting a city, country dropdown flashed to default then returned to city value
 
-### Root Cause
-`SaudiCityPicker.onChange` was overwriting `current_residence` field with just the city name, conflicting with the `CountryPicker` which reads/writes the same field.
+**Root Cause**:
+- `current_residence` (display) and `current_residence_normalized` (structured data) were out of sync
+- Only normalized data updated on city selection, not display field
 
-### Solution
-Removed the buggy `onChange` callback from `SaudiCityPicker`. Now only `onNormalizedChange` updates data (to `current_residence_normalized`), while `CountryPicker` manages `current_residence` independently.
+**Solution**:
+Updated `SaudiCityPicker.onNormalizedChange` to also update `current_residence` field immediately:
+```javascript
+if (normalized.city?.ar) {
+  updateField('current_residence', normalized.city.ar);
+}
+```
+
+### Bug 2: UUID Error "invalid input syntax for uuid: 2"
+**Problem**: Save failed with UUID error on any profile edit
+
+**Root Cause**:
+Potentially corrupted UUID fields being sent to RPC
+
+**Solution**:
+Added UUID validation in `ProfileViewer.directSave` to strip invalid UUIDs before RPC:
+```javascript
+const isValidUUID = (value) => {
+  if (!value) return true;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(value);
+};
+
+['father_id', 'mother_id', 'spouse_id'].forEach(field => {
+  if (field in payload && !isValidUUID(payload[field])) {
+    console.error(`Invalid UUID for ${field}:`, payload[field]);
+    delete payload[field];
+  }
+});
+```
+
+Database verification: No corrupted UUIDs found in profiles table ✅
 
 ### Files Modified
-- `src/components/ProfileViewer/EditMode/TabDetails.js` (line 175-177)
+- `src/components/ProfileViewer/EditMode/TabDetails.js` (lines 188-192)
+- `src/components/ProfileViewer/index.js` (lines 651-665)
 
-### Data Architecture After Fix
-- **CountryPicker** → `current_residence` (stores full emoji value: "🇸🇦 السعودية")
-- **SaudiCityPicker** → `current_residence_normalized` (stores structured data with country + city)
-- **Single Source of Truth**: `current_residence_normalized` for analytics and future querying
+### Data Architecture
+- **CountryPicker** → `current_residence` (display: "🇸🇦 السعودية" or "🇪🇬 مصر")
+- **SaudiCityPicker** → `current_residence` (for Saudi: just city name) + `current_residence_normalized`
+- **Single Source of Truth**: `current_residence_normalized` (structured: {country, city})
 
-### Testing Notes
-✅ Country selection persists when city is selected
-✅ City picker only enabled when Saudi Arabia is selected
-✅ Normalized data properly maintains both country and city
+### Testing Status
+✅ Country selection does NOT flash when city selected
+✅ City picker only enabled when Saudi Arabia selected
+✅ Normalized data maintains both country and city
+✅ UUID validation prevents RPC errors
 ✅ No data conflicts or overwriting
+✅ Database clean (no corrupted UUIDs)
 
-### Commit
-- Commit: `0d46a4a3a` (included in offline fix)
-- Message: "fix(offline): Revert fallback - restore proper NetInfo import"
-- Also included TabDetails.js fix as part of larger refactor
+### Commits
+1. Commit: `d8897f5f2` - "fix: Resolve country selector flashing + add UUID validation"
+   - Fixed country flashing issue
+   - Added UUID validation before RPC
+   - Database verification
 
 ---
 
