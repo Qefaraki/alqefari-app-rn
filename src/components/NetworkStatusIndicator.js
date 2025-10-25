@@ -57,6 +57,13 @@ const NetworkStatusIndicator = ({
 
   const isOffline = !isConnected || isInternetReachable === false;
 
+  // Reset dismiss flag when network reconnects
+  useEffect(() => {
+    if (!isOffline && userDismissed) {
+      setUserDismissed(false);
+    }
+  }, [isOffline, userDismissed]);
+
   // Auto-show/hide banner based on network state
   useEffect(() => {
     if (mode === 'banner') {
