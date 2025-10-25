@@ -53,6 +53,9 @@ const CompactHero = ({
   person,
   metrics,
   onCopyChain,
+  canEdit,
+  onEdit,
+  onMenuPress,
 }) => {
   if (!person) {
     return null;
@@ -124,6 +127,31 @@ const CompactHero = ({
 
   return (
     <View style={styles.container}>
+      {/* Action Buttons - Top Right */}
+      <View style={styles.actionButtons}>
+        {canEdit && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={onEdit}
+            accessibilityRole="button"
+            accessibilityLabel="تحرير الملف"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={onMenuPress}
+          accessibilityRole="button"
+          accessibilityLabel="المزيد من الخيارات"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.najdi.text} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Avatar - Centered */}
       <TouchableOpacity
         style={styles.avatarWrapper}
         accessibilityRole="imagebutton"
@@ -134,7 +162,8 @@ const CompactHero = ({
         {renderAvatar()}
       </TouchableOpacity>
 
-      <View style={[styles.textBlock, isRTL ? styles.textBlockRtl : styles.textBlockLtr]}>
+      {/* Text Block - Centered */}
+      <View style={styles.textBlock}>
         <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>
           {formatNameWithTitle(person)}
         </Text>
@@ -161,7 +190,7 @@ const CompactHero = ({
           <View style={styles.personalRow}>
             {birthPlace ? (
               <View style={styles.personalItem}>
-                <Ionicons name="location-outline" size={16} color={`${colors.najdi.text}80`} />
+                <Ionicons name="location-outline" size={16} color="#D58C4A" />
                 <Text style={styles.personalText} numberOfLines={1}>
                   {birthPlace}
                 </Text>
@@ -169,7 +198,7 @@ const CompactHero = ({
             ) : null}
             {birthYearDisplay ? (
               <View style={styles.personalItem}>
-                <Ionicons name="calendar-outline" size={16} color={`${colors.najdi.text}80`} />
+                <Ionicons name="calendar-outline" size={16} color="#D58C4A" />
                 <Text style={styles.personalText} numberOfLines={1}>
                   {birthYearDisplay}
                 </Text>
@@ -187,9 +216,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.najdi.background,
     borderRadius: tokens.radii.lg,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    paddingVertical: spacing.lg,
+    flexDirection: 'column',
+    alignItems: 'center',
     minHeight: 104,
     position: 'relative',
     overflow: 'visible',
@@ -202,6 +231,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
+    marginBottom: spacing.md,
     ...Platform.select({
       ios: {
         shadowColor: colors.najdi.text,
@@ -235,38 +265,34 @@ const styles = StyleSheet.create({
     color: colors.najdi.text,
   },
   textBlock: {
-    flex: 1,
-    paddingTop: 4,
-  },
-  textBlockRtl: {
-    marginRight: spacing.sm,
-    marginLeft: spacing.md,
-  },
-  textBlockLtr: {
-    marginLeft: spacing.sm,
-    marginRight: spacing.md,
+    alignItems: 'center',
+    width: '100%',
   },
   name: {
     fontSize: 20,
     fontWeight: '700',
     color: colors.najdi.text,
+    textAlign: 'center',
   },
   lineage: {
     fontSize: 15,
     color: `${colors.najdi.text}B3`,
     marginTop: 4,
+    textAlign: 'center',
   },
   metadata: {
     fontSize: 13,
     fontWeight: '600',
     color: `${colors.najdi.text}D9`,
     marginTop: 8,
+    textAlign: 'center',
   },
   personalRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.xs,
     marginTop: 4,
+    justifyContent: 'center',
   },
   personalItem: {
     flexDirection: 'row',
@@ -275,8 +301,55 @@ const styles = StyleSheet.create({
   },
   personalText: {
     fontSize: 13,
-    color: `${colors.najdi.text}B3`,
+    color: '#D58C4A',
     maxWidth: 180,
+    textAlign: 'center',
+  },
+  actionButtons: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    zIndex: 10,
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#A13333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#D1BBA3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
 });
 

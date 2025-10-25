@@ -62,7 +62,6 @@ import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
 const palette = tokens.colors.najdi;
-const ACTION_BUTTON_SIZE = 36;
 
 // Memoized ViewMode component - prevents recreation on every render (50% performance gain)
 const ViewModeContent = React.memo(({
@@ -98,38 +97,13 @@ const ViewModeContent = React.memo(({
     scrollEventThrottle={16}
     accessibilityLiveRegion="polite"
   >
-    <View style={styles.actionRow}>
-      <BlurView intensity={22} tint="light" style={styles.actionBlur}>
-        {canEdit ? (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleEditPress}
-            accessibilityRole="button"
-            accessibilityLabel="إعدادات الملف"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="settings-outline" size={18} color={palette.text} />
-            <Text style={styles.actionLabel}>إعدادات</Text>
-          </TouchableOpacity>
-        ) : null}
-        {canEdit ? <View style={styles.actionDivider} /> : null}
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={handleMenuPress}
-          accessibilityRole="button"
-          accessibilityLabel="المزيد من الخيارات"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="ellipsis-horizontal" size={18} color={palette.text} />
-          <Text style={styles.actionLabel}>القائمة</Text>
-        </TouchableOpacity>
-      </BlurView>
-    </View>
-
     <CompactHero
       person={person}
       metrics={metrics}
       onCopyChain={handleCopyChain}
+      canEdit={canEdit}
+      onEdit={handleEditPress}
+      onMenuPress={handleMenuPress}
     />
 
     <PendingReviewBanner
@@ -1092,55 +1066,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 };
 
 const styles = StyleSheet.create({
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  actionBlur: {
-    borderRadius: 22,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#e4d9cf',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#00000022',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.18,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: ACTION_BUTTON_SIZE,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-  },
-  actionDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 20,
-    backgroundColor: 'rgba(36,33,33,0.12)',
-    marginHorizontal: 4,
-  },
-  actionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: palette.text,
-    marginStart: 6,
-  },
   handleContainer: {
     alignItems: 'center',
     paddingVertical: 10,
