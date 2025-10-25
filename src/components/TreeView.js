@@ -170,7 +170,6 @@ import { useTreeDataLoader } from './TreeView/hooks/useTreeDataLoader';
 // Phase 3B - Import progressive loading hook (two-phase loading strategy)
 import { useProgressiveTreeView } from './TreeView/hooks/useProgressiveTreeView';
 
-import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore, TREE_DATA_SCHEMA_VERSION } from "../stores/useTreeStore";

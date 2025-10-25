@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTreeStore } from '../../../stores/useTreeStore';
-import { familyData, getChildren } from '../../../data/family-data';
 import { supabase } from '../../../services/supabase';
 import { fetchWithTimeout } from '../../../utils/fetchWithTimeout';
 import { getArabicOrdinal } from '../../../utils/generationUtils';
@@ -9,7 +8,7 @@ export const useProfileMetrics = (person) => {
   const treeData = useTreeStore((s) => s.treeData);
   const nodesMap = useTreeStore((s) => s.nodesMap);
 
-  const dataSource = treeData && treeData.length > 0 ? treeData : familyData;
+  const dataSource = treeData && treeData.length > 0 ? treeData : [];
 
   const father = useMemo(() => {
     if (!person) return null;

@@ -50,7 +50,6 @@ import Animated, {
   cancelAnimation,
   useDerivedValue,
 } from "react-native-reanimated";
-import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
 import { calculateTreeLayout } from "../utils/treeLayout";
 import { useTreeStore } from "../stores/useTreeStore";
@@ -678,9 +677,9 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
           setNetworkError("empty");
           setTreeData([]);
         } else {
-          // Fall back to local data
-          console.log("Falling back to local data");
-          setTreeData(familyData || []);
+          // No fallback data - show empty tree on error (more honest UX)
+          console.log("Tree data error - showing empty state");
+          setTreeData([]);
         }
         // Don't trigger fade animation on error
         // Skeleton removed
@@ -707,8 +706,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
           setNetworkError("network");
           setTreeData([]);
         } else {
-          // Fall back to local data if backend fails
-          setTreeData(familyData || []);
+          // No fallback data - show empty tree on error (more honest UX)
+          setTreeData([]);
         }
       } else {
         setTreeData(data || []);
@@ -732,8 +731,8 @@ const SimplifiedTreeView = ({ focusPersonId }) => {
         setNetworkError("network");
         setTreeData([]);
       } else {
-        // Fall back to local data
-        setTreeData(familyData || []);
+        // No fallback data - show empty tree on error (more honest UX)
+        setTreeData([]);
       }
       // Don't trigger fade animation on error
       // Skeleton removed

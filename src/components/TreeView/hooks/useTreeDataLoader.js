@@ -20,7 +20,6 @@ import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 import { supabase, handleSupabaseError } from '../../../services/supabase';
 import { formatDateByPreference } from '../../../utils/dateDisplay';
-import { familyData } from '../../../data/family-data';
 
 // Debounce helper for real-time updates with cleanup support
 const debounce = (func, wait) => {
@@ -143,9 +142,9 @@ export function useTreeDataLoader({
           setNetworkError("empty");
           setTreeData([]);
         } else {
-          // Fall back to local data
-          console.log("Falling back to local data");
-          setTreeData(familyData || []);
+          // No fallback data - show empty tree on error (more honest UX)
+          console.log("Tree data error - showing empty state");
+          setTreeData([]);
         }
         // Don't trigger fade animation on error
         setShowSkeleton(false);
@@ -172,8 +171,8 @@ export function useTreeDataLoader({
           setNetworkError("network");
           setTreeData([]);
         } else {
-          // Fall back to local data if backend fails
-          setTreeData(familyData || []);
+          // No fallback data - show empty tree on error (more honest UX)
+          setTreeData([]);
         }
       } else {
         // Monitor tree size and warn when approaching limit
@@ -246,8 +245,8 @@ export function useTreeDataLoader({
         setNetworkError("network");
         setTreeData([]);
       } else {
-        // Fall back to local data
-        setTreeData(familyData || []);
+        // No fallback data - show empty tree on error (more honest UX)
+        setTreeData([]);
       }
       // Don't trigger fade animation on error
       setShowSkeleton(false);
