@@ -18,10 +18,11 @@ interface QueueItem {
 class ImageLoadQueue {
   private queue: QueueItem[] = [];
   private processing = false;
-  // Phase 4: Reduced from 15 to 6 for smoother progressive loading
-  // Benefits even without LOD: 240MB spike → 96MB, 1.5s decode → 600ms
-  private batchSize = 6; // Load 6 images per batch
-  private batchDelay = 50; // 50ms between batches (smooth loading)
+  // Reduced from 6 to 2 to avoid main thread blocking during scroll
+  // With 256px images (not 512px): 2 images × 8ms decode = 16ms (within frame budget)
+  // Slower progressive loading trade-off for smooth 60fps scrolling
+  private batchSize = 2; // Load 2 images per batch (was 6, caused frame drops)
+  private batchDelay = 16; // 16ms between batches (align with 60fps frame time)
 
   /**
    * Enqueue image load request

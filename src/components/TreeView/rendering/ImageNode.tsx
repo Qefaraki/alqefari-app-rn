@@ -98,9 +98,12 @@ export function calculatePixelSize(width: number, scale: number): number {
  */
 export function selectImageBucket(
   pixelSize: number,
-  imageBuckets: number[] = [40, 60, 80, 120, 256]
+  imageBuckets: number[] = [40, 60, 80, 120, 180, 256]
 ): number {
-  return imageBuckets.find((b) => b >= pixelSize * 2) || 512;
+  // Use 1.2x multiplier instead of 2x to avoid over-fetching
+  // PixelRatio.get() already accounts for device retina, don't double-apply
+  const targetSize = pixelSize * 1.2;
+  return imageBuckets.find((b) => b >= targetSize) || 256;
 }
 
 /**

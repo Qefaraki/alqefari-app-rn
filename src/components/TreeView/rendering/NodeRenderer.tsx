@@ -55,6 +55,7 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 
 // Import extracted components
 import { ImageNode } from './ImageNode';
+import { PHOTO_SIZE } from '../utils/constants/nodes';
 
 // Node dimensions constants (from TreeView utilities)
 // TEMP: Minimal padding until Perfect Tree redesign
@@ -62,7 +63,6 @@ const NODE_WIDTH_WITH_PHOTO = 65;  // Was 85, then 75, now 65 (minimal padding)
 const NODE_HEIGHT_WITH_PHOTO = 75; // Was 105, then 85, now 75 (minimal padding)
 const NODE_WIDTH_TEXT_ONLY = 65;   // Same as photo width for consistent spacing
 const NODE_HEIGHT_TEXT_ONLY = 35;
-const PHOTO_SIZE = 50;
 const CORNER_RADIUS = 10; // Smooth rounded corners
 
 export interface LayoutNode {

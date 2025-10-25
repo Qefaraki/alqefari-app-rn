@@ -27,6 +27,7 @@ export const MIN_GENERATION_GAP = 120;
 export const MAX_GENERATION_GAP = 240;
 
 // Image Buckets for LOD
-export const IMAGE_BUCKETS = [40, 60, 80, 120, 256] as const;
+// Added 180 for optimal sizing at 1.2x multiplier (PHOTO_SIZE * 3x retina * 1.2)
+export const IMAGE_BUCKETS = [40, 60, 80, 120, 180, 256] as const;
 export const DEFAULT_IMAGE_BUCKET = 80;
 export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
