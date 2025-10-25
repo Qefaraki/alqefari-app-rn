@@ -184,12 +184,7 @@ const TabDetails = ({ form, updateField }) => {
                   confidence: normalized.confidence,
                 };
                 updateField('current_residence_normalized', updated);
-
-                // Also update current_residence to keep display in sync
-                // For Saudi cities, store just the city name (not country)
-                if (normalized.city?.ar) {
-                  updateField('current_residence', normalized.city.ar);
-                }
+                // current_residence is transformed during save based on country/city
               }}
               placeholder="اختر مدينة"
               enabled={draft?.current_residence?.includes('السعودية')}
