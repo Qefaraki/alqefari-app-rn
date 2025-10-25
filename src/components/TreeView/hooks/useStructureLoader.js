@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTreeStore } from '../../../stores/useTreeStore';
-import { useNetworkStore } from '../../../stores/useNetworkStore';
+import { useNetworkStore } from '../../../stores/networkStore';
 import profilesService from '../../../services/profiles';
 
 const TREE_STRUCTURE_SCHEMA_VERSION = '1.0.0';
