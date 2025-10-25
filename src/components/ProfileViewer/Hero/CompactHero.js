@@ -219,7 +219,6 @@ const CompactHero = ({
         ) : null}
       </View>
     </View>
-    </View>
   );
 };
 
