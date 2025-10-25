@@ -31,8 +31,37 @@ export function usePhotoMorphTransition(
   // This prevents animation noise during normal scrolling
   const shouldAnimate = shouldAnimateBlur && scale >= 3.0 && isUpgrading;
 
+  // Debug logging
+  const logRef = useRef<{ lastScale?: number; lastIsUpgrading?: boolean }>({});
+
+  useEffect(() => {
+    // Log scale changes
+    if (logRef.current.lastScale !== scale) {
+      console.log(
+        `[PhotoMorph] Scale changed: ${logRef.current.lastScale?.toFixed(1) || 'init'} → ${scale.toFixed(1)} (threshold: 3.0, meets threshold: ${scale >= 3.0})`
+      );
+      logRef.current.lastScale = scale;
+    }
+
+    // Log upgrade changes
+    if (logRef.current.lastIsUpgrading !== isUpgrading) {
+      console.log(
+        `[PhotoMorph] Upgrade flag: ${logRef.current.lastIsUpgrading} → ${isUpgrading}`
+      );
+      logRef.current.lastIsUpgrading = isUpgrading;
+    }
+
+    // Log animation decision
+    if (shouldAnimate) {
+      console.log(
+        `[PhotoMorph] 🎬 ANIMATION TRIGGERED: scale=${scale.toFixed(1)}, isUpgrading=${isUpgrading}, shouldAnimateBlur=${shouldAnimateBlur}`
+      );
+    }
+  }, [scale, isUpgrading, shouldAnimate]);
+
   useEffect(() => {
     if (shouldAnimate) {
+      console.log(`[PhotoMorph] Starting 250ms crossfade + pop animation...`);
       // Crossfade + scale animation (250ms = iOS-standard timing)
       lowResOpacity.value = withTiming(0, {
         duration: 250,
@@ -45,6 +74,9 @@ export function usePhotoMorphTransition(
         duration: 250,
       });
     } else {
+      console.log(
+        `[PhotoMorph] Instant swap (not animating): scale=${scale.toFixed(1)}, isUpgrading=${isUpgrading}`
+      );
       // Instant swap if not animating (or below threshold)
       lowResOpacity.value = 0;
       highResOpacity.value = 1;

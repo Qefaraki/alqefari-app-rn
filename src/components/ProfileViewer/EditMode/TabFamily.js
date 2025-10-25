@@ -33,7 +33,6 @@ import SpouseRow, { TabFamilyContext } from './SpouseRow';
 import ChildRow from './ChildRow';
 import FamilySkeleton from './FamilySkeleton';
 import { useTreeStore } from '../../../stores/useTreeStore';
-import MarriageDeletionSheet from './MarriageDeletionSheet';
 
 // Re-export context for child components (SpouseRow, ChildRow)
 export { TabFamilyContext };
@@ -92,8 +91,6 @@ const initialState = {
   spouseFeedback: null,
   prefilledSpouseName: null,
   activeEditor: null, // { type: 'marriage' | 'child', entity: {} }
-  deletionSheetVisible: false,
-  marriageToDelete: null,
 };
 
 const familyReducer = (state, action) => {
@@ -228,12 +225,6 @@ const familyReducer = (state, action) => {
     }
     case 'RESET_ACTIVE_EDITOR':
       return { ...state, activeEditor: null };
-    case 'SET_DELETION_SHEET':
-      return {
-        ...state,
-        deletionSheetVisible: action.payload.visible,
-        marriageToDelete: action.payload.marriage || null,
-      };
     case 'RESET_STATE':
       return initialState;
     default:
@@ -569,32 +560,60 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
   }, []);
 
   const handleDeleteSpouse = useCallback((marriage) => {
-    // Show confirmation sheet
-    dispatch({
-      type: 'SET_DELETION_SHEET',
-      payload: { visible: true, marriage },
-    });
-  }, [dispatch]);
+    if (!marriage?.spouse_profile) return;
 
-  const confirmDeleteMarriage = useCallback(async () => {
-    const marriage = state.marriageToDelete;
+    const spouse = marriage.spouse_profile;
+    const spouseName = spouse.name || 'هذا الشخص';
+
+    // Determine if cousin marriage (Al-Qefari family member)
+    const isCousinMarriage = spouse.hid !== null && spouse.hid?.trim() !== '';
+
+    // For munasib, check if spouse has other marriages to determine if profile will be deleted
+    let willDeleteProfile = false;
+    let message = '';
+
+    if (isCousinMarriage) {
+      // Cousin: only marriage is deleted, profile stays
+      message = `سيتم حذف الزواج فقط.\n\n${spouseName} سيبقى في التطبيق.`;
+    } else {
+      // For munasib, need to check other marriages
+      // This is an approximation - we check if there are other marriages in the current state
+      const otherMarriages = state.familyData?.spouses?.filter(
+        (s) => s.marriage_id !== marriage.marriage_id && s.spouse_profile?.id === spouse.id
+      ) || [];
+
+      willDeleteProfile = otherMarriages.length === 0;
+
+      if (willDeleteProfile) {
+        message = `سيتم حذف ${spouseName} نهائياً.`;
+      } else {
+        message = `سيتم حذف الزواج فقط.\n\n${spouseName} سيبقى في التطبيق.`;
+      }
+    }
+
+    // Show native confirmation alert
+    Alert.alert(
+      'حذف زواج',
+      message,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: () => confirmDeleteMarriage(marriage),
+        },
+      ]
+    );
+  }, [state.familyData?.spouses, confirmDeleteMarriage]);
+
+  const confirmDeleteMarriage = useCallback(async (marriage) => {
     if (!marriage) return;
 
     // Security: Re-check permission before deletion (in case permissions changed)
     if (!canEditFamily) {
       Alert.alert('غير مسموح', 'ليس لديك صلاحية لحذف هذا الزواج');
-      dispatch({
-        type: 'SET_DELETION_SHEET',
-        payload: { visible: false, marriage: null },
-      });
       return;
     }
-
-    // Close sheet
-    dispatch({
-      type: 'SET_DELETION_SHEET',
-      payload: { visible: false, marriage: null },
-    });
 
     // STEP 1: Optimistic UI update (immediate visual feedback)
     dispatch({
@@ -667,14 +686,8 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         });
       }, 500);
     }
-  }, [state.marriageToDelete, dispatch, refreshProfile, onDataChanged, person.id, canEditFamily]);
+  }, [dispatch, refreshProfile, onDataChanged, person.id, canEditFamily]);
 
-  const cancelDeleteMarriage = useCallback(() => {
-    dispatch({
-      type: 'SET_DELETION_SHEET',
-      payload: { visible: false, marriage: null },
-    });
-  }, [dispatch]);
 
   const handleSpouseAddedInline = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1424,13 +1437,6 @@ const TabFamily = ({ person, accessMode, onDataChanged, onNavigateToProfile }) =
         onClose={handleChildModalClose}
         onChildAdded={handleChildAdded}
       />
-
-          <MarriageDeletionSheet
-            visible={state.deletionSheetVisible}
-            marriage={state.marriageToDelete}
-            onConfirm={confirmDeleteMarriage}
-            onCancel={cancelDeleteMarriage}
-          />
         </View>
       </View>
     </TabFamilyContext.Provider>
