@@ -648,6 +648,22 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     async (changes) => {
       const payload = { ...changes };
 
+      // UUID validation helper - prevent RPC errors from corrupted UUID fields
+      const isValidUUID = (value) => {
+        if (!value) return true; // null/undefined is fine
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(value);
+      };
+
+      // Validate UUID fields before sending to RPC
+      ['father_id', 'mother_id', 'spouse_id'].forEach(field => {
+        if (field in payload && !isValidUUID(payload[field])) {
+          console.error(`[ProfileViewer] Invalid UUID for ${field}:`, payload[field]);
+          // Remove corrupted field to prevent RPC error
+          delete payload[field];
+        }
+      });
+
       // DEBUG: Log version before save
       console.log('[ProfileViewer] Saving with version:', {
         personName: person.name,
