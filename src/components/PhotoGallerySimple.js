@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
+import { FlatGrid } from 'react-native-super-grid';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from 'expo-haptics';
@@ -20,9 +21,7 @@ import storageService from '../services/storage';
 import RobustImage from './ui/RobustImage';
 import tokens from './ui/tokens';
 
-const { width: screenWidth } = Dimensions.get('window');
 const GAP = 8;
-const SECTION_PADDING = 8;
 const MAX_IMAGE_SIZE = 1920;
 const palette = tokens.colors.najdi;
 
@@ -64,18 +63,16 @@ const PhotoSkeleton = ({ style }) => {
 };
 
 /**
- * Simplified Photo Gallery - Horizontal Scroll (iOS Photos Style)
+ * PhotoGallerySimple - 2-Column Grid with FlatGrid
+ *
+ * Automatically responsive grid layout using react-native-super-grid.
+ * Handles 2-column layout, RTL mode, and dynamic photo loading.
  */
 const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = () => {} }) => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const photoCount = photos.length;
-
-  const containerWidth = useMemo(
-    () => screenWidth - SECTION_PADDING * 2,
-    [],
-  );
 
   // Load photos
   const loadPhotos = useCallback(async () => {
@@ -90,9 +87,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
 
       if (!error && data) {
         // Defensive filtering: Skip invalid/orphaned photo records
-        // Prevents console errors from broken image URLs
         const validPhotos = data.filter(photo => {
-          // Basic validation checks
           if (!photo.photo_url || !photo.storage_path) {
             if (__DEV__) {
               console.warn(`[PhotoGallerySimple] Skipping photo ${photo.id}: missing URL or storage path`);
@@ -100,7 +95,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
             return false;
           }
 
-          // Validate URL format
           try {
             new URL(photo.photo_url);
             return true;
@@ -115,7 +109,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
         setPhotos(validPhotos);
         onPhotosLoaded(validPhotos.length);
 
-        // Log if we filtered out orphaned records (helps with debugging)
         if (__DEV__ && validPhotos.length < data.length) {
           console.info(
             `[PhotoGallerySimple] Filtered ${data.length - validPhotos.length} invalid photo records for profile ${profileId}`
@@ -136,8 +129,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     loadPhotos();
   }, [loadPhotos]);
 
-
-  // Log image errors for diagnostics (downgraded to warning for filtered records)
+  // Log image errors
   const handleImageError = (photoId, error) => {
     if (__DEV__) {
       console.warn('[PhotoGallerySimple] Image load error:', {
@@ -196,7 +188,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
         const compressedUri = await compressImage(asset.uri);
         const timestamp = Date.now();
         const random = Math.random().toString(36).substring(7);
-        // CRITICAL FIX: Include profiles/ prefix to match actual storage location
         const storagePath = `profiles/${profileId}/${timestamp}_${random}_${i}.jpg`;
 
         const { url, error: uploadError } = await storageService.uploadProfilePhoto(
@@ -207,7 +198,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
 
         if (uploadError) throw uploadError;
 
-        // Insert to database with correct storage path
         await supabase.from('profile_photos').insert({
           profile_id: profileId,
           photo_url: url,
@@ -242,7 +232,6 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
           try {
             await supabase.from('profile_photos').delete().eq('id', photoId);
 
-            // Reorder remaining photos
             const remaining = photos.filter((p) => p.id !== photoId);
             for (let i = 0; i < remaining.length; i++) {
               await supabase
@@ -277,115 +266,79 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     </TouchableOpacity>
   );
 
-  const columns = useMemo(() => {
-    if (photoCount <= 1) return 1;
-    return 2;
-  }, [photoCount]);
-
-  const tileSize = useMemo(() => {
-    if (columns === 1) {
-      const size = containerWidth;
-      return { width: size, height: size };
-    }
-    const width = Math.floor((containerWidth - GAP * (columns - 1)) / columns);
-    return { width, height: width };
-  }, [columns, containerWidth]);
-
+  // Gallery URLs for Galeria
   const galleryUrls = useMemo(
     () => photos.map((photo) => photo.photo_url).filter(Boolean),
     [photos],
   );
 
-  const renderAddTile = (showHint = false) => {
-    const remainder = photoCount % columns;
-    const extraSpacing = (() => {
-      if (columns === 1) return 0;
-      if (remainder === 0 || remainder === columns - 1) return 0;
-      return GAP;
-    })();
-    return (
-      <TouchableOpacity
-        key="add-photo"
-        style={[
-          styles.addTile,
-          {
-            width: tileSize.width,
-            height: tileSize.height,
-            marginEnd: extraSpacing,
-            marginBottom: GAP,
-          },
-        ]}
-        onPress={handleSelectPhotos}
-        activeOpacity={0.85}
-        disabled={uploading}
-        accessibilityRole="button"
-        accessibilityLabel="إضافة صورة جديدة"
-      >
-        {uploading ? (
-          <PhotoSkeleton style={styles.addSkeleton} />
-        ) : (
-          <>
-            <View style={styles.addIconContainer}>
-              <Ionicons name="cloud-upload-outline" size={22} color={palette.text} />
-            </View>
-            <Text style={styles.addText}>إضافة صور</Text>
-            {showHint ? (
-              <Text style={styles.addHint}>بإمكانك اختيار عدة صور في آنٍ واحد</Text>
-            ) : null}
-          </>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const renderTiles = () => {
-    return photos.map((photo, index) => {
-      const key = photo.id || photo.photo_url || index;
-      const marginEnd = (columns !== 1 && (index + 1) % columns !== 0) ? GAP : 0;
-      const tileStyle = {
-        width: tileSize.width,
-        height: tileSize.height,
-        marginEnd,
-        marginBottom: GAP,
-      };
-
-      if (isEditMode) {
-        return (
-          <View key={key} style={[styles.photoTile, tileStyle]}>
-            <RobustImage
-              source={{ uri: photo.photo_url }}
-              style={styles.photoImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              maxRetries={3}
-              showRetryButton={false}
-              onError={(error) => handleImageError(photo.id, error)}
-              recyclingKey={key}
-              transition={180}
-            />
-            {renderDeleteButton(photo.id)}
-          </View>
-        );
-      }
-
+  // Unified render item for both edit and view modes
+  const renderItem = ({ item, index }) => {
+    // Handle add tile (edit mode only)
+    if (item.isAddTile) {
       return (
-        <Galeria.Image index={index} key={key}>
-          <View style={[styles.photoTile, tileStyle]}>
-            <RobustImage
-              source={{ uri: photo.photo_url }}
-              style={styles.photoImage}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-              maxRetries={3}
-              showRetryButton={false}
-              onError={(error) => handleImageError(photo.id, error)}
-              recyclingKey={key}
-              transition={180}
-            />
-          </View>
-        </Galeria.Image>
+        <TouchableOpacity
+          key="add-photo"
+          style={styles.addTile}
+          onPress={handleSelectPhotos}
+          activeOpacity={0.85}
+          disabled={uploading}
+          accessibilityRole="button"
+          accessibilityLabel="إضافة صورة جديدة"
+        >
+          {uploading ? (
+            <PhotoSkeleton style={styles.addSkeleton} />
+          ) : (
+            <>
+              <View style={styles.addIconContainer}>
+                <Ionicons name="cloud-upload-outline" size={22} color={palette.text} />
+              </View>
+              <Text style={styles.addText}>إضافة صور</Text>
+              <Text style={styles.addHint}>بإمكانك اختيار عدة صور في آنٍ واحد</Text>
+            </>
+          )}
+        </TouchableOpacity>
       );
-    });
+    }
+
+    // Edit mode with delete button
+    if (isEditMode) {
+      return (
+        <View style={styles.photoTile}>
+          <RobustImage
+            source={{ uri: item.photo_url }}
+            style={styles.photoImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            maxRetries={3}
+            showRetryButton={false}
+            onError={(error) => handleImageError(item.id, error)}
+            recyclingKey={item.id}
+            transition={180}
+          />
+          {renderDeleteButton(item.id)}
+        </View>
+      );
+    }
+
+    // View mode with Galeria integration
+    return (
+      <Galeria.Image index={index} key={item.id}>
+        <View style={styles.photoTile}>
+          <RobustImage
+            source={{ uri: item.photo_url }}
+            style={styles.photoImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            maxRetries={3}
+            showRetryButton={false}
+            onError={(error) => handleImageError(item.id, error)}
+            recyclingKey={item.id}
+            transition={180}
+          />
+        </View>
+      </Galeria.Image>
+    );
   };
 
   if (loading) {
@@ -396,33 +349,48 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     );
   }
 
+  // Empty state (edit mode shows add tile, view mode shows nothing)
   if (photoCount === 0) {
     return isEditMode ? (
       <View style={styles.galleryContainer}>
-        <View style={[styles.gridContainer, styles.singleColumn]}>
-          {renderAddTile(true)}
-        </View>
+        <FlatGrid
+          itemDimension={160}
+          data={[{ id: 'add-tile', isAddTile: true }]}
+          spacing={GAP}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+        />
       </View>
     ) : null;
   }
 
+  // Edit mode with FlatGrid
   if (isEditMode) {
+    const editData = [...photos, { id: 'add-tile', isAddTile: true }];
     return (
       <View style={styles.galleryContainer}>
-        <View style={[styles.gridContainer, columns === 1 && styles.singleColumn]}>
-          {renderTiles()}
-          {renderAddTile(false)}
-        </View>
+        <FlatGrid
+          itemDimension={160}
+          data={editData}
+          spacing={GAP}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+        />
       </View>
     );
   }
 
+  // View mode with Galeria integration
   return (
     <View style={styles.galleryContainer}>
       <Galeria urls={galleryUrls}>
-        <View style={[styles.gridContainer, columns === 1 && styles.singleColumn]}>
-          {renderTiles()}
-        </View>
+        <FlatGrid
+          itemDimension={160}
+          data={photos}
+          spacing={GAP}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+        />
       </Galeria>
     </View>
   );
@@ -431,23 +399,13 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
 const styles = StyleSheet.create({
   galleryContainer: {
     marginTop: 12,
-    paddingHorizontal: SECTION_PADDING,
   },
   loadingContainer: {
     paddingVertical: 28,
     alignItems: 'center',
   },
-  gridContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  singleColumn: {
-    alignItems: 'center',
-  },
   photoTile: {
+    aspectRatio: 1,
     backgroundColor: '#FAFAFC',
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
@@ -478,6 +436,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   addTile: {
+    aspectRatio: 1,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: 'rgba(17,17,17,0.2)',
@@ -486,15 +445,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 22,
     paddingHorizontal: 16,
+    borderRadius: 14,
   },
   addSkeleton: {
     width: '100%',
     height: '100%',
-    borderRadius: 18,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   photoSkeleton: {
-    borderRadius: 18,
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: '#F3F4F6',
   },

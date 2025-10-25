@@ -91,7 +91,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   const buttonScale = useRef(new Animated.Value(1)).current;
   const resendScale = useRef(new Animated.Value(1)).current;
 
-  // Initialize modal - get current phone and auto-send OTP
+  // Initialize modal - get current phone and start animations
   useEffect(() => {
     if (isVisible) {
       loadCurrentPhone();
@@ -110,17 +110,20 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
           useNativeDriver: true,
         }),
       ]).start();
-
-      // Auto-send OTP to current phone after brief delay
-      const autoSendTimer = setTimeout(() => {
-        handleAutoSendCurrentOtp();
-      }, 500);
-
-      return () => clearTimeout(autoSendTimer);
     } else {
       resetModal();
     }
   }, [isVisible]);
+
+  // Auto-send OTP when currentPhone is loaded
+  useEffect(() => {
+    if (isVisible && currentPhone && step === 1 && countdown === 0) {
+      const autoSendTimer = setTimeout(() => {
+        handleAutoSendCurrentOtp();
+      }, 300);
+      return () => clearTimeout(autoSendTimer);
+    }
+  }, [isVisible, currentPhone, step, countdown]);
 
   // Countdown timer
   useEffect(() => {
@@ -222,6 +225,12 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
   // Auto-send OTP to current phone when modal opens
   const handleAutoSendCurrentOtp = async () => {
+    // Ensure currentPhone is loaded before attempting to send
+    if (!currentPhone) {
+      console.warn('[PhoneChange] Current phone not loaded yet, skipping auto-send');
+      return;
+    }
+
     if (!checkBeforeAction('إرسال رمز التحقق')) {
       return;
     }
