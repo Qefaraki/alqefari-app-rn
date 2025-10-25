@@ -152,7 +152,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       setCountdown(60);
       setStep(2);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
+    } catch (_) {
       setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -175,7 +175,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       setStep(3);
       setCurrentOtp('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
+    } catch (_) {
       setError('رمز التحقق غير صحيح');
       setCurrentOtp('');
       if (currentOtpRef.current) {
@@ -223,7 +223,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       setCountdown(60);
       setStep(4);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
+    } catch (_) {
       setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -257,7 +257,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       // Reset and call completion callback
       resetModal();
       onComplete(fullNewPhone);
-    } catch (err) {
+    } catch (_) {
       setError('رمز التحقق غير صحيح');
       setNewOtp('');
       if (newOtpRef.current) {
