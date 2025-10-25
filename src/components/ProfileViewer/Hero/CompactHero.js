@@ -126,30 +126,45 @@ const CompactHero = ({
   };
 
   return (
-    <View style={styles.container}>
-      {/* Action Buttons - Top Right */}
-      <View style={styles.actionButtons}>
+    <View style={styles.headerRow}>
+      {/* Close/Dismiss Button - Left */}
+      <TouchableOpacity
+        style={styles.headerButton}
+        onPress={onMenuPress}
+        accessibilityRole="button"
+        accessibilityLabel="إغلاق"
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      >
+        <Ionicons name="chevron-down" size={24} color="#000000" />
+      </TouchableOpacity>
+
+      <View style={{ flex: 1 }} />
+
+      {/* Action Buttons - Right */}
+      <View style={styles.actionButtonsRight}>
         {canEdit && (
           <TouchableOpacity
-            style={styles.editButton}
+            style={styles.headerButton}
             onPress={onEdit}
             accessibilityRole="button"
             accessibilityLabel="تحرير الملف"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="create-outline" size={22} color="#000000" />
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={styles.menuButton}
+          style={styles.headerButton}
           onPress={onMenuPress}
           accessibilityRole="button"
           accessibilityLabel="المزيد من الخيارات"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Ionicons name="ellipsis-horizontal" size={20} color={colors.najdi.text} />
+          <Ionicons name="ellipsis-horizontal" size={22} color="#000000" />
         </TouchableOpacity>
       </View>
+
+    <View style={styles.container}>
 
       {/* Avatar - Centered */}
       <TouchableOpacity
@@ -208,10 +223,28 @@ const CompactHero = ({
         ) : null}
       </View>
     </View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.najdi.background,
+  },
+  headerButton: {
+    padding: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButtonsRight: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'center',
+  },
   container: {
     backgroundColor: colors.najdi.background,
     borderRadius: tokens.radii.lg,
@@ -248,8 +281,6 @@ const styles = StyleSheet.create({
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
   },
   avatarFallback: {
     width: AVATAR_SIZE,
@@ -304,52 +335,6 @@ const styles = StyleSheet.create({
     color: '#D58C4A',
     maxWidth: 180,
     textAlign: 'center',
-  },
-  actionButtons: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    zIndex: 10,
-  },
-  editButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#A13333',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  menuButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#D1BBA3',
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
   },
 });
 
