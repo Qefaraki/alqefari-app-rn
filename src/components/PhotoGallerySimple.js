@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
+import { Image } from 'expo-image';
 import { SimpleGrid } from 'react-native-super-grid';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -22,7 +23,7 @@ import RobustImage from './ui/RobustImage';
 import tokens from './ui/tokens';
 
 const GAP = 3; // Instagram-style tight spacing
-const BORDER_RADIUS = 3; // Instagram-style sharp corners
+const BORDER_RADIUS = 5; // Slightly softer corners
 const MAX_IMAGE_SIZE = 1920;
 const palette = tokens.colors.najdi;
 
@@ -323,20 +324,17 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     }
 
     // View mode with Galeria integration
-    // ✅ View wrapper OUTSIDE Galeria.Image for styling
-    // ✅ Galeria.Image wraps image DIRECTLY (no intermediate wrapper)
+    // ✅ Using expo-image directly (not RobustImage wrapper)
+    // ✅ Galeria.Image detects the direct Image component
+    // ✅ No overlay wrappers that would block Galeria tap detection
     return (
       <View style={styles.photoTile} key={item.id}>
         <Galeria.Image index={index}>
-          <RobustImage
+          <Image
             source={{ uri: item.photo_url }}
             style={styles.photoImage}
             contentFit="cover"
             cachePolicy="memory-disk"
-            maxRetries={3}
-            showRetryButton={false}
-            onError={(error) => handleImageError(item.id, error)}
-            recyclingKey={item.id}
             transition={180}
           />
         </Galeria.Image>
