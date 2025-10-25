@@ -357,7 +357,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     return isEditMode ? (
       <View style={styles.galleryContainer}>
         <SimpleGrid
-          itemDimension={160}
+          itemDimension={140}
           maxItemsPerRow={2}
           data={[{ id: 'add-tile', isAddTile: true }]}
           spacing={GAP}
@@ -372,10 +372,11 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   if (isEditMode) {
     const editData = [...photos, { id: 'add-tile', isAddTile: true }];
     const columns = photoCount <= 4 ? 2 : 3;
+    const baseItemDimension = columns === 3 ? 100 : 140;
     return (
       <View style={styles.galleryContainer}>
         <SimpleGrid
-          itemDimension={160}
+          itemDimension={baseItemDimension}
           maxItemsPerRow={columns}
           data={editData}
           spacing={GAP}
