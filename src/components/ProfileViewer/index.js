@@ -67,6 +67,7 @@ import { useTreeStore } from '../../stores/useTreeStore';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
 import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import { useAuth } from '../../contexts/AuthContextSimple';
+import { useEnsureProfileEnriched } from '../../hooks/useEnsureProfileEnriched';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -361,6 +362,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     accessMode,
   );
   const profileSheetProgress = useTreeStore((s) => s.profileSheetProgress);
+
+  // Ensure profile has version field before allowing edits
+  // Enriches non-enriched nodes (from structure-only progressive loading)
+  useEnsureProfileEnriched(person);
 
   // Helper to hide skeleton immediately - defined early so useEffects can reference it
   // No artificial delays - improves perceived performance
