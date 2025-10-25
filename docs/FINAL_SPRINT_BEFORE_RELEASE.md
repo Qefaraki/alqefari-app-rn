@@ -37,6 +37,15 @@
 - Root cause: Overcomplicated state sync between `current_residence` and `current_residence_normalized`
 - **Solution**: Use simple local state for display, send only strings to database
 
+**Problem 3: Version Field Missing After Edits via Search**
+- Root cause: `search_name_chain()` RPC was missing the `version` field that `get_branch_data()` includes
+- When users searched for profiles and edited them, they got `version=undefined`, breaking saves
+- Temporary workaround: Bumped TREE_DATA_SCHEMA_VERSION to invalidate cache
+- **Permanent Solution**: Added `version INT` field to `search_name_chain()` RPC
+  - Migration: `20251025120000_add_version_to_search_name_chain.sql`
+  - Now all profile retrieval methods return version for optimistic locking
+  - Frontend needs zero code changes (field just appears)
+
 ### Final Simplified Architecture
 
 **Storage** (Database only):
@@ -104,11 +113,21 @@ delete payload.current_residence_normalized;
 
 ### Commits
 1. `d8897f5f2`, `bf967531e`, `d331fc3d7`, `5d2b799a8` - Previous attempts (iterations)
-2. `8f42e29de` - **FINAL**: "fix: Simplify country/city selector - remove overcomplicated normalization"
+2. `8f42e29de` - "fix: Simplify country/city selector - remove overcomplicated normalization"
    - Removes normalization entirely
    - Uses simple local state
    - Deletes normalized data from RPC
    - Clean, simple, maintainable
+3. `c7a1b33c6` - "docs: Update Day 1 completion status"
+4. `3934028ca` - "fix(cache): Bump TREE_DATA_SCHEMA_VERSION to force refresh"
+   - Temporary cache invalidation workaround
+   - Added version field validation
+   - Added diagnostics for missing version
+5. `ee7233fac` - **PERMANENT FIX**: "fix(rpc): Add version field to search_name_chain for optimistic locking"
+   - Adds `version INT` to search_name_chain() RETURNS TABLE
+   - All search results now include version field
+   - Enables optimistic locking for searched profiles
+   - No frontend code changes needed
 
 ---
 
