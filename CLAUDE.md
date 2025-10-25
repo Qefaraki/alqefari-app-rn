@@ -16,7 +16,9 @@
 - **[PTS Documentation Hub](docs/PTS/README.md)** - Complete Perfect Tree System documentation
   - Phase 1: Component Extraction (18 modules, 6,635 lines)
   - Phase 2: Hook Extraction & Cleanup (288 lines)
-  - Phase 3: Performance Optimization (PLANNED - progressive loading, theme system, etc.)
+  - Phase 3B: Progressive Loading (0.45 MB structure + viewport enrichment)
+    - **[Test Plan](docs/PROGRESSIVE_LOADING_TEST_PLAN.md)** - 50+ test cases
+    - **[Integration Checklist](docs/PROGRESSIVE_LOADING_INTEGRATION_CHECKLIST.md)** - Verification & deployment
   - Architecture, testing, audits, and daily logs
 
 ## ⚠️ IMPORTANT: Native RTL Mode is ENABLED
@@ -607,6 +609,47 @@ npm run update:rollback                     # Emergency undo
 **Admin**: Admin Dashboard → "قوالب الرسائل" | Location: `templateRegistry.ts`
 
 📖 Full docs: [`/docs/MESSAGE_TEMPLATE_SYSTEM.md`](docs/MESSAGE_TEMPLATE_SYSTEM.md)
+
+## 📊 Progressive Loading (Phase 3B) Quick Ref
+
+**Status**: ✅ Implementation Complete (Days 1-3) | ⏳ Testing In Progress (Day 4)
+
+**Strategy**: Two-phase loading - structure (0.45 MB) + viewport enrichment
+
+**Benefits**:
+- 89.4% data reduction (0.45 MB vs 4.26 MB)
+- <500ms initial load time (vs ~800ms full tree)
+- Zero jumping (d3 layout determinism)
+- Progressive photos as user scrolls
+
+**Enable for Testing**:
+```javascript
+// src/components/TreeView.js line 215
+const USE_PROGRESSIVE_LOADING = true; // Change false → true
+```
+
+**Architecture**:
+- **Phase 1**: Load structure (RPC: `get_structure_only()`) → <500ms
+- **Phase 2**: Calculate layout once with d3 → ~350ms
+- **Phase 3**: Enrich visible nodes progressively → on scroll
+
+**Components**:
+- Backend: `get_structure_only()` RPC (Supabase)
+- Service: `getStructureOnly()`, `enrichVisibleNodes()` methods
+- Hooks: `useProgressiveTreeView()`, `useStructureLoader()`, `useViewportEnrichment()`
+- Feature flag: `USE_PROGRESSIVE_LOADING` in TreeView.js
+
+**Test Documentation**:
+- **[Test Plan](docs/PROGRESSIVE_LOADING_TEST_PLAN.md)** - 50+ test cases covering all phases
+- **[Integration Checklist](docs/PROGRESSIVE_LOADING_INTEGRATION_CHECKLIST.md)** - Verification & production readiness
+
+**Next Steps**:
+1. Run comprehensive test suite (2-3 hours)
+2. Document results in `PROGRESSIVE_LOADING_TEST_RESULTS.md`
+3. Integrate real-time subscriptions (~3 hours)
+4. Production rollout planning
+
+📖 Full docs: [`/docs/PTS/README.md`](docs/PTS/README.md) (Phase 3B section)
 
 ## 🚀 Multi-Agent Git Workflow
 
