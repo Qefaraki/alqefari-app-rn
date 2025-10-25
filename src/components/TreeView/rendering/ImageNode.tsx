@@ -99,7 +99,7 @@ export function calculatePixelSize(width: number, scale: number): number {
  */
 export function selectImageBucket(
   pixelSize: number,
-  imageBuckets: number[] = IMAGE_BUCKETS
+  imageBuckets: readonly number[] = IMAGE_BUCKETS
 ): number {
   // Use 1.2x multiplier instead of 2x to avoid over-fetching
   // PixelRatio.get() already accounts for device retina, don't double-apply

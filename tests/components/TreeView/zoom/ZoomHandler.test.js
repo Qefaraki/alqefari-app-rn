@@ -22,6 +22,7 @@ import {
   calculateFitToViewTransform,
   ZOOM_CONSTANTS,
 } from '../../../../src/components/TreeView/zoom/ZoomHandler';
+import { NODE_WIDTH_WITH_PHOTO } from '../../../../src/components/TreeView/rendering/nodeConstants';
 
 describe('ZoomHandler', () => {
   const mockViewport = {
