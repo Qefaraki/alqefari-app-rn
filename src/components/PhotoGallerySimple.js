@@ -325,7 +325,11 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     // View mode with Galeria integration
     return (
       <Galeria.Image index={index} key={item.id}>
-        <View style={styles.photoTile}>
+        <TouchableOpacity
+          activeOpacity={0.95}
+          style={styles.photoTile}
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+        >
           <RobustImage
             source={{ uri: item.photo_url }}
             style={styles.photoImage}
@@ -337,7 +341,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
             recyclingKey={item.id}
             transition={180}
           />
-        </View>
+        </TouchableOpacity>
       </Galeria.Image>
     );
   };
@@ -356,6 +360,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
       <View style={styles.galleryContainer}>
         <SimpleGrid
           itemDimension={160}
+          maxItemsPerRow={2}
           data={[{ id: 'add-tile', isAddTile: true }]}
           spacing={GAP}
           renderItem={renderItem}
@@ -368,10 +373,12 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   // Edit mode with SimpleGrid
   if (isEditMode) {
     const editData = [...photos, { id: 'add-tile', isAddTile: true }];
+    const columns = photoCount <= 4 ? 2 : 3;
     return (
       <View style={styles.galleryContainer}>
         <SimpleGrid
           itemDimension={160}
+          maxItemsPerRow={columns}
           data={editData}
           spacing={GAP}
           renderItem={renderItem}
@@ -382,11 +389,13 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   }
 
   // View mode with Galeria integration
+  const columns = photoCount <= 4 ? 2 : 3;
   return (
     <View style={styles.galleryContainer}>
       <Galeria urls={galleryUrls}>
         <SimpleGrid
           itemDimension={160}
+          maxItemsPerRow={columns}
           data={photos}
           spacing={GAP}
           renderItem={renderItem}
@@ -408,7 +417,7 @@ const styles = StyleSheet.create({
   photoTile: {
     aspectRatio: 1,
     backgroundColor: '#FAFAFC',
-    borderRadius: 14,
+    borderRadius: BORDER_RADIUS,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(17,17,17,0.06)',
     overflow: 'hidden',
@@ -446,16 +455,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 22,
     paddingHorizontal: 16,
-    borderRadius: 14,
+    borderRadius: BORDER_RADIUS,
   },
   addSkeleton: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
+    borderRadius: BORDER_RADIUS,
     overflow: 'hidden',
   },
   photoSkeleton: {
-    borderRadius: 14,
+    borderRadius: BORDER_RADIUS,
     overflow: 'hidden',
     backgroundColor: '#F3F4F6',
   },
