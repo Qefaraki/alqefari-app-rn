@@ -134,11 +134,51 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     setNewOtp('');
     setError('');
     setCountdown(0);
+    shakeAnim.setValue(0);
+    successAnim.setValue(0);
+    countdownColor.setValue(0);
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
     }).start();
+  };
+
+  // Error shake animation (from NajdiPhoneAuthScreen pattern)
+  const triggerErrorShake = () => {
+    Animated.sequence([
+      Animated.timing(shakeAnim, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: -1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shakeAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  // Success checkmark flash animation
+  const triggerSuccessFlash = () => {
+    Animated.sequence([
+      Animated.timing(successAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(successAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const handleCancel = () => {
