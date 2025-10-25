@@ -18,6 +18,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
+import * as Crypto from 'expo-crypto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
   BottomSheetScrollView,
@@ -703,6 +704,10 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   const directSave = useCallback(
     async (changes) => {
+      // Generate unique request ID for idempotency (prevent duplicate saves on retry)
+      const requestId = Crypto.randomUUID();
+      console.log('[ProfileViewer] Save initiated with requestId:', requestId);
+
       const payload = { ...changes };
 
       // DEBUG: Find UUID "2" error source
@@ -771,6 +776,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         person.id,
         person.version,
         payload,
+        requestId,  // Pass requestId for idempotency
       );
 
       if (error) {

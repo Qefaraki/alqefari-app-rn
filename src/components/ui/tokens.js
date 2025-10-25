@@ -77,6 +77,91 @@ const tokens = {
       elevation: 3,
     },
   },
+  // Profile Viewer patterns - all specs support Dynamic Type scaling
+  profileViewer: {
+    // Pattern 1: Enhanced Hero (avatar + action buttons, centered)
+    hero: {
+      avatarSize: 100,
+      avatarBorderRadius: 50,
+      minHeight: 160,  // Min height to prevent cramping at large text sizes
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      actionButtonSize: 24,  // Icon size
+      actionButtonPadding: 8,  // Padding inside touch target
+      actionButtonTouchTarget: 44,  // Minimum iOS touch target
+      headerSpacing: 8,  // Gap between close button and action buttons
+      nameMaxWidth: '90%',  // Prevent bunching on small screens
+    },
+    // Pattern 2: Bio Section (1000 char limit, 150 char preview)
+    bio: {
+      charLimit: 1000,
+      previewChars: 150,
+      expandButtonHeight: 44,
+      expandButtonFontSize: 15,
+      expandButtonFontWeight: '600',
+      containerPadding: 16,
+      containerMarginVertical: 8,
+    },
+    // Pattern 3: Inline Field Rows (flexible height, multi-line support)
+    inlineRow: {
+      minHeight: 44,  // Flexible - grows with content
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      iconSize: 18,
+      iconColorMuted: true,  // Use textMuted color for secondary icons
+      gapBetweenElements: 12,  // Between icon and text
+      borderBottomOpacity: 0.06,  // Subtle divider
+    },
+    // Pattern 4: Life Events Timeline (vertical timeline)
+    timeline: {
+      dotSize: 12,
+      dotBorderWidth: 2,
+      lineWidth: 1,
+      lineColorOpacity: 0.15,
+      leftPadding: 24,  // Space for timeline on left
+      eventMinHeight: 60,  // Flexible - grows with content
+      yearFontSize: 13,
+      yearFontWeight: '600',
+      descriptionFontSize: 15,
+      descriptionMaxLines: 0,  // Unlimited wrapping
+    },
+    // Social Media Section specs
+    social: {
+      iconSize: 20,
+      gridGap: 16,
+      gridItemMinWidth: 60,  // Min width for label below icon
+      labelFontSize: 12,
+      labelFontWeight: '500',
+    },
+  },
+};
+
+// Dynamic Type scaling - scales values proportionally with system text size
+// Supports iOS accessibility text sizes (XS, S, M, L, XL, XXL, Accessibility XXL)
+// Scale factor ranges from 0.85 (smallest) to 1.5+ (largest)
+export const useScaledValue = (baseValue, maxScale = 1.3) => {
+  // When Dynamic Type is implemented, this will read from UITraitCollection
+  // For now, returns base value (hook structure is ready for future implementation)
+  if (typeof baseValue !== 'number') return baseValue;
+
+  // Future implementation will scale like:
+  // const scale = Math.min(fontSizeScale / 17, maxScale);
+  // return Math.round(baseValue * scale);
+
+  return baseValue;
+};
+
+// Accessibility size detection - identifies when user has enabled large accessibility text
+// Trigger alternative layouts or simplified information hierarchies at extreme sizes
+export const useAccessibilitySize = () => {
+  // When Dynamic Type is implemented, this will detect if current size is accessibility level
+  // For now, returns false (hook structure ready for future implementation)
+
+  return {
+    isAccessibilitySize: false,  // True if text size > XXL (accessibility level)
+    currentTextSize: 'medium',   // XS, S, M, L, XL, XXL, or 'accessibility'
+    shouldUseAlternateLayout: false,  // True if should switch to simplified layout
+  };
 };
 
 export default tokens;

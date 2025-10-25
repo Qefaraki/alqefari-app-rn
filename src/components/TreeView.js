@@ -670,7 +670,8 @@ const TreeView = ({
   // SIMPLIFIED: Use progressive loading results directly (already calculated layout)
   // Progressive hook handles: Phase 1 (load structure) + Phase 2 (calculate layout)
   // No duplicate calculation needed - just use the result
-  const { nodes = [], connections = [] } = progressiveResult || { nodes: [], connections: [] };
+  // NOTE: Progressive hook returns { treeData, connections } - rename treeData to nodes
+  const { treeData: nodes = [], connections = [] } = progressiveResult || { treeData: [], connections: [] };
 
   // Build indices for node lookup and relationships with O(N) complexity
   const indices = useMemo(() => {

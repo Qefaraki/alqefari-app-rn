@@ -491,12 +491,13 @@ export const profilesService = {
    * @param {number} currentVersion - Current version for optimistic locking
    * @param {Object} updates - Fields to update
    */
-  async updateProfile(profileId, currentVersion, updates) {
+  async updateProfile(profileId, currentVersion, updates, requestId = null) {
     try {
       const { data, error } = await supabase.rpc("admin_update_profile", {
         p_id: profileId,
         p_version: currentVersion,
         p_updates: updates,
+        p_request_id: requestId,  // For idempotency - prevents duplicate operations
       });
 
       if (error) {
