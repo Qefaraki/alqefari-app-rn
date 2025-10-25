@@ -94,19 +94,19 @@ BEGIN
     ),
     deduplicated AS (
         -- Handle cousin marriages (same person appears via multiple parents)
-        SELECT DISTINCT ON (id)
-            id,
-            hid,
-            name,
-            father_id,
-            mother_id,
-            generation,
-            sibling_order,
-            gender,
-            photo_url,
-            nodeWidth
+        SELECT DISTINCT ON (branch.id)
+            branch.id,
+            branch.hid,
+            branch.name,
+            branch.father_id,
+            branch.mother_id,
+            branch.generation,
+            branch.sibling_order,
+            branch.gender,
+            branch.photo_url,
+            branch.nodeWidth
         FROM branch
-        ORDER BY id
+        ORDER BY branch.id
         LIMIT p_limit
     )
     SELECT
