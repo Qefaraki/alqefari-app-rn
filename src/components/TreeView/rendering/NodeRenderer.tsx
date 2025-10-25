@@ -56,16 +56,14 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 // Import extracted components
 import { ImageNode } from './ImageNode';
 
-// Node dimensions constants - Glassmorphism Design (October 2025)
-// Photo nodes: 52x72px (only 1px padding all around 50x50 photo)
-// Text nodes: Dynamic width (text + 12px padding), 28px height
-const NODE_WIDTH_WITH_PHOTO = 52;  // 1px padding + 50px photo + 1px padding (ultra minimal)
-const NODE_HEIGHT_WITH_PHOTO = 72; // 1px top + 50px photo + gap + 10pt text + 1px bottom
-const NODE_WIDTH_TEXT_ONLY = 75;   // Will be overridden by dynamic calculation
-const NODE_HEIGHT_TEXT_ONLY = 28;  // Compact: 4px top + 10pt text + 4px bottom + line height
+// Node dimensions constants (from TreeView utilities)
+// TEMP: Minimal padding until Perfect Tree redesign
+const NODE_WIDTH_WITH_PHOTO = 65;  // Was 85, then 75, now 65 (minimal padding)
+const NODE_HEIGHT_WITH_PHOTO = 75; // Was 105, then 85, now 75 (minimal padding)
+const NODE_WIDTH_TEXT_ONLY = 65;   // Same as photo width for consistent spacing
+const NODE_HEIGHT_TEXT_ONLY = 35;
 const PHOTO_SIZE = 50;
-const PHOTO_BORDER_RADIUS = 8;  // Subtle rounded corners (less bulbous than 14px)
-const CORNER_RADIUS = 8; // Tight modern corners for glassmorphism
+const CORNER_RADIUS = 10; // Smooth rounded corners
 
 export interface LayoutNode {
   id: string;
@@ -182,26 +180,21 @@ export function isSearchTier2(nodeId: string, searchTiers?: Record<string, numbe
 }
 
 /**
- * Render glassmorphism shadow (used as child of RoundedRect)
+ * Render soft blurred shadow (used as child of RoundedRect)
  *
- * Glassmorphism aesthetic: layered shadows for depth and glass effect.
- * Strong outer shadow: 0px 2px 8px with 12% black opacity
- * Creates lifted glass card effect.
+ * iOS-style soft shadow with Gaussian blur.
+ * Uses Camel Hair Beige to match connection lines.
  *
  * @returns Shadow component
  */
 export function renderShadow(): JSX.Element {
   return (
-    <Shadow dx={0} dy={2} blur={8} color="#0000001F" />
+    <Shadow dx={0} dy={2} blur={8} color="#D1BBA370" />
   );
 }
 
 /**
- * Render glassmorphism background
- *
- * Pure white glass card (#FFFFFF) with strong shadow for depth.
- * Creates modern frosted glass effect with layered shadows.
- * Tight rounded corners (8px) for contemporary aesthetic.
+ * Render node background
  *
  * @param x - Background X position
  * @param y - Background Y position
@@ -269,30 +262,30 @@ export function renderBorder(
 }
 
 /**
- * Render photo placeholder (skeleton) - Squircle style
+ * Render photo placeholder (skeleton)
  *
- * Shows rounded rectangle skeleton while photo loads.
- * Uses Camel Hair Beige for subtle placeholder fill.
- *
- * @param x - Left edge X position
- * @param y - Top edge Y position
- * @param size - Square size (50x50 for photo)
+ * @param centerX - Circle center X
+ * @param centerY - Circle center Y
+ * @param radius - Circle radius
  * @returns Placeholder elements
  */
 export function renderPhotoPlaceholder(
-  x: number,
-  y: number,
-  size: number,
+  centerX: number,
+  centerY: number,
+  radius: number,
 ): JSX.Element {
   return (
-    <RoundedRect
-      x={x}
-      y={y}
-      width={size}
-      height={size}
-      r={PHOTO_BORDER_RADIUS}
-      color="#D1BBA320"
-    />
+    <>
+      <Circle cx={centerX} cy={centerY} r={radius} color="#D1BBA320" />
+      <Circle
+        cx={centerX}
+        cy={centerY}
+        r={radius}
+        color="#D1BBA340"
+        style="stroke"
+        strokeWidth={1}
+      />
+    </>
   );
 }
 
@@ -418,22 +411,18 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
       {hasPhoto ? (
         <>
-          {/* Photo placeholder - subtle rounded corners (1px padding) */}
-          {renderPhotoPlaceholder(
-            node.x - PHOTO_SIZE / 2,
-            node.y - 35,
-            PHOTO_SIZE
-          )}
+          {/* Photo placeholder */}
+          {renderPhotoPlaceholder(node.x, node.y - 10, PHOTO_SIZE / 2)}
 
           {/* Load and display image if available */}
           {node.photo_url && (
             <ImageNode
               url={node.photo_url}
               x={node.x - PHOTO_SIZE / 2}
-              y={node.y - 35}
+              y={node.y - 10 - PHOTO_SIZE / 2}
               width={PHOTO_SIZE}
               height={PHOTO_SIZE}
-              radius={PHOTO_BORDER_RADIUS}
+              radius={PHOTO_SIZE / 2}
               tier={node._tier || 1}
               scale={node._scale || 1}
               nodeId={node.id}
@@ -443,34 +432,33 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             />
           )}
 
-          {/* Name text - positioned below photo with minimal gap */}
+          {/* Name text - positioned near bottom of card */}
           {(() => {
             const nameParagraph = getCachedParagraph(
               node.name,
               "bold",
-              isRoot ? 22 : 10,
+              isRoot ? 22 : 11,
               "#242121",
               width,
             );
 
             if (!nameParagraph) return null;
 
-            // Position text below photo with minimal gap
-            // Photo is at y + 1 (top padding), size 50, ends at y + 51
-            // Text starts at y + 51 + 1 (gap) = y + 52
-            const textY = y + 52;
+            // Position text near bottom of card - slightly higher than bottom edge
+            const textY = y + (height * 0.80) - (nameParagraph.getHeight() / 2) + 2;
 
             return <Paragraph paragraph={nameParagraph} x={x} y={textY} width={width} />;
           })()}
         </>
       ) : (
         <>
-          {/* Text-only name - centered vertically (no decorations) */}
+
+          {/* Text-only name - centered vertically */}
           {(() => {
             const nameParagraph = getCachedParagraph(
               node.name,
               "bold",
-              isRoot ? 22 : 10,
+              isRoot ? 22 : 11,
               "#242121",
               width,
             );
@@ -482,6 +470,36 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
             return <Paragraph paragraph={nameParagraph} x={textX} y={textY} width={width} />;
           })()}
+
+          {/* Sadu icons for root node */}
+          {isRoot && !hasPhoto && (
+            <>
+              {/* Left Sadu icon */}
+              <SaduIcon x={x + 5} y={y + height / 2 - 10} size={20} />
+
+              {/* Right Sadu icon */}
+              <SaduIcon x={x + width - 25} y={y + height / 2 - 10} size={20} />
+            </>
+          )}
+
+          {/* Sadu icons for Generation 2 parent nodes */}
+          {isG2Parent && (
+            <>
+              {/* Left Sadu icon */}
+              <SaduIconG2
+                x={x + 3}
+                y={hasPhoto ? y + 5 : y + height / 2 - 7}
+                size={14}
+              />
+
+              {/* Right Sadu icon */}
+              <SaduIconG2
+                x={x + width - 17}
+                y={hasPhoto ? y + 5 : y + height / 2 - 7}
+                size={14}
+              />
+            </>
+          )}
         </>
       )}
     </Group>
@@ -490,20 +508,16 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
 // Export constants for testing
 export const NODE_RENDERER_CONSTANTS = {
-  // Glassmorphism design (October 2025) - Ultra minimal padding, less rounded corners
-  NODE_WIDTH_WITH_PHOTO: 52,  // 1px padding + 50px photo + 1px padding
-  NODE_HEIGHT_WITH_PHOTO: 72, // 1px + 50px photo + gap + text + 1px = 72px
-  NODE_WIDTH_TEXT_ONLY: 75,   // Dynamic, overridden per-node
-  NODE_HEIGHT_TEXT_ONLY: 28,  // 4px + 10pt text + 4px = 28px compact
+  NODE_WIDTH_WITH_PHOTO: 65,
+  NODE_HEIGHT_WITH_PHOTO: 75,
+  NODE_WIDTH_TEXT_ONLY: 65,   // Same as photo width
+  NODE_HEIGHT_TEXT_ONLY: 35,
   PHOTO_SIZE: 50,
-  PHOTO_BORDER_RADIUS: 8,     // Subtle rounded corners (less bulbous)
-  CORNER_RADIUS: 8,           // Tight modern corners for glassmorphism
-  // Root node (no change)
+  CORNER_RADIUS: 10,  // Updated from 4
   ROOT_WIDTH: 120,
   ROOT_HEIGHT: 100,
   ROOT_BORDER_RADIUS: 20,
-  // G2 parent nodes
-  G2_PHOTO_WIDTH: 52,         // Same as regular photo nodes
+  G2_PHOTO_WIDTH: 95,
   G2_TEXT_WIDTH: 75,
-  G2_BORDER_RADIUS: 8,        // Tight corners
+  G2_BORDER_RADIUS: 16,
 };

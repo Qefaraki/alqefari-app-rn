@@ -1,12 +1,10 @@
 /**
- * ImageNode - Photo avatar rendering with LOD (Squircle style)
+ * ImageNode - Photo avatar rendering with LOD
  *
  * Phase 2 Day 5 - Extracted from TreeView.js (lines 350-428)
- * October 2025 - Updated to squircles (rounded squares) instead of circles
  *
- * Renders squircle (iOS-style rounded square) avatar photos for tree nodes
- * with LOD-aware loading. Integrates with ImageBuckets for resolution
- * selection and batched loading.
+ * Renders circular avatar photos for tree nodes with LOD-aware loading.
+ * Integrates with ImageBuckets for resolution selection and batched loading.
  *
  * LOD Integration:
  * - Tier 1: Load image at appropriate bucket size
@@ -129,47 +127,55 @@ export function shouldLoadImage(
 }
 
 /**
- * Render image skeleton placeholder - Squircle style
+ * Render image skeleton placeholder
  *
- * Shows rounded rectangle placeholder while image loads.
+ * Shows placeholder while image loads.
  * Uses Najdi design colors for consistency.
  *
  * @param x - Top-left X position
  * @param y - Top-left Y position
- * @param size - Square size (50x50px)
- * @param borderRadius - Squircle radius (14px)
- * @returns Group with skeleton squircle
+ * @param radius - Circle radius
+ * @returns Group with skeleton circles
  */
 export function renderImageSkeleton(
   x: number,
   y: number,
-  size: number,
-  borderRadius: number
+  radius: number
 ): JSX.Element {
   return (
-    <RoundedRect
-      x={x}
-      y={y}
-      width={size}
-      height={size}
-      r={borderRadius}
-      color={IMAGE_NODE_CONSTANTS.SKELETON_COLOR}
-    />
+    <Group>
+      {/* Base circle background */}
+      <Circle
+        cx={x + radius}
+        cy={y + radius}
+        r={radius}
+        color={IMAGE_NODE_CONSTANTS.SKELETON_COLOR}
+      />
+      {/* Inner stroke for depth */}
+      <Circle
+        cx={x + radius}
+        cy={y + radius}
+        r={radius - 1}
+        color={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_COLOR}
+        style="stroke"
+        strokeWidth={IMAGE_NODE_CONSTANTS.SKELETON_STROKE_WIDTH}
+      />
+    </Group>
   );
 }
 
 /**
- * Render loaded image with squircle mask
+ * Render loaded image with circular mask
  *
- * Displays image clipped to rounded square (squircle) shape.
- * Uses alpha mask with RoundedRect for iOS-style corners.
+ * Displays image clipped to circular shape.
+ * Uses alpha mask for clean edge rendering.
  *
  * @param image - Loaded Skia image
  * @param x - Top-left X position
  * @param y - Top-left Y position
  * @param width - Image width
  * @param height - Image height
- * @param borderRadius - Squircle border radius (14px)
+ * @param radius - Circle radius (for mask)
  * @returns Group with masked image
  */
 export function renderLoadedImage(
@@ -178,22 +184,13 @@ export function renderLoadedImage(
   y: number,
   width: number,
   height: number,
-  borderRadius: number
+  radius: number
 ): JSX.Element {
   return (
     <Group>
       <Mask
         mode="alpha"
-        mask={
-          <RoundedRect
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            r={borderRadius}
-            color="white"
-          />
-        }
+        mask={<Circle cx={x + radius} cy={y + radius} r={radius} color="white" />}
       >
         <SkiaImage
           image={image}
@@ -255,7 +252,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
 
     // Show skeleton if image not loaded
     if (!image) {
-      return renderImageSkeleton(x, y, width, radius);
+      return renderImageSkeleton(x, y, radius);
     }
 
     // Show loaded image

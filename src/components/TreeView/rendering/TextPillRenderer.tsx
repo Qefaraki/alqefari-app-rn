@@ -1,25 +1,30 @@
 /**
- * TextPillRenderer - LOD Tier 2 glassmorphism text-only node rendering
+ * TextPillRenderer - LOD Tier 2 text-only pill rendering
  *
  * Phase 2 Day 4 - Extracted from TreeView.js (lines 2963-3040)
- * October 2025 - Updated for glassmorphism aesthetic (pure white, ultra compact)
  *
- * Renders ultra-compact text-only glass cards for Level of Detail (LOD) Tier 2.
- * Used when zoomed out to show more nodes with minimal visual footprint.
+ * Renders compact text-only pills for Level of Detail (LOD) Tier 2.
+ * Used when zoomed out to show more nodes with minimal visual weight.
  *
  * LOD Tier 2 Characteristics:
  * - Triggered at scale < 0.48 (approximately)
- * - Ultra-compact size: 75x28px (dynamic width, minimal height)
- * - Full name display (truncated if needed)
- * - Strong shadow (2px offset, 12% black opacity - glass effect)
- * - Tight rounded corners (8px radius) for modern look
- * - No border - glassmorphism aesthetic
+ * - Small pill size: 60x26 px
+ * - First name only (truncates full name)
+ * - Lighter shadow (0.5px offset, 3% opacity)
+ * - Rounded corners (13px radius)
  *
- * Design Constraints (Glassmorphism):
- * - Pure white background (#FFFFFF)
- * - Strong shadow (#0000001F - 12% black opacity)
+ * Design Constraints (Najdi Sadu):
+ * - White background (#FFFFFF)
+ * - Camel Hair Beige border (#D1BBA3 60% opacity)
+ * - Najdi Crimson selection (#A13333)
  * - Sadu Night text (#242121)
- * - Font size 10pt bold (ultra compact)
+ * - Font size 10px (regular weight)
+ *
+ * KNOWN ISSUE (Phase 2 - AS-IS extraction):
+ * - Text pill jumps when selected due to border width change
+ * - Border width changes from 1 to 1.5, causing 0.5px shift
+ * - Will be fixed in Phase 3 refactoring
+ * - AS-IS extraction preserves bug for before/after comparison
  *
  * Performance:
  * - Uses cached paragraph for text rendering
@@ -61,28 +66,16 @@ export interface TextPillRendererProps {
 }
 
 /**
- * Render minimal shadow for T2 pill
+ * Extract first name from full name
  *
- * Lighter shadow than photo nodes (6% opacity).
- * Offset: 1px down, 3px blur radius.
+ * Splits full name by space and returns first segment.
+ * Used to minimize text in compact T2 pills.
  *
- * @param x - Left edge X
- * @param y - Top edge Y
- * @param width - Pill width
- * @param height - Pill height
- * @param borderRadius - Corner radius
- * @returns Shadow element
+ * @param fullName - Full name string (e.g., "عبدالله محمد")
+ * @returns First name only (e.g., "عبدالله")
  */
-export function renderT2PillShadow(
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  borderRadius: number
-) {
-  // Note: Using renderT2Shadow from ShadowRenderer if available
-  // Otherwise, shadow is embedded in RoundedRect child
-  return null; // Shadow will be rendered as child of RoundedRect
+export function extractFirstName(fullName: string): string {
+  return fullName.split(' ')[0];
 }
 
 /**
@@ -122,21 +115,35 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
     });
   }
 
-  // Create cached paragraph for text rendering (full name, bold)
+  // Extract first name for compact display
+  const firstName = extractFirstName(name);
+
+  // Create cached paragraph for text rendering
   const nameParagraph = getCachedParagraph(
-    name,
-    'bold',
+    firstName,
+    'regular',
     PILL_CONSTANTS.FONT_SIZE,
     PILL_CONSTANTS.TEXT_COLOR,
     nodeWidth
   );
+
+  // Calculate border width based on selection state
+  // KNOWN ISSUE: Width change causes 0.5px jump (Phase 3 fix)
+  const borderWidth = isSelected
+    ? PILL_CONSTANTS.SELECTED_BORDER_WIDTH
+    : PILL_CONSTANTS.DEFAULT_BORDER_WIDTH;
+
+  // Calculate border color based on selection state
+  const borderColor = isSelected
+    ? PILL_CONSTANTS.SELECTED_BORDER_COLOR
+    : PILL_CONSTANTS.DEFAULT_BORDER_COLOR;
 
   return (
     <Group key={nodeId}>
       {/* Shadow (lighter for T2 pills) */}
       {renderT2Shadow(x, y, nodeWidth, nodeHeight, cornerRadius)}
 
-      {/* Main pill background - Al-Jass White with soft shadow */}
+      {/* Main pill background */}
       <RoundedRect
         x={x}
         y={y}
@@ -146,12 +153,24 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
         color={PILL_CONSTANTS.BACKGROUND_COLOR}
       />
 
-      {/* Text - centered vertically (full name, bold) */}
+      {/* Border */}
+      <RoundedRect
+        x={x}
+        y={y}
+        width={nodeWidth}
+        height={nodeHeight}
+        r={cornerRadius}
+        color={borderColor}
+        style="stroke"
+        strokeWidth={borderWidth}
+      />
+
+      {/* First name text */}
       {nameParagraph && (
         <Paragraph
           paragraph={nameParagraph}
           x={x}
-          y={y + (nodeHeight - nameParagraph.getHeight()) / 2}
+          y={y + PILL_CONSTANTS.TEXT_OFFSET_Y}
           width={nodeWidth}
         />
       )}
@@ -161,25 +180,22 @@ export const TextPillRenderer: React.FC<TextPillRendererProps> = ({
 
 // Export constants for testing
 export const PILL_CONSTANTS = {
-  // Dimensions - Glassmorphism (October 2025) - Ultra compact
-  WIDTH: 75,        // Dynamic per text width, but base is 75px
-  HEIGHT: 28,       // Compact: 4px + text + 4px
-  CORNER_RADIUS: 8, // Tight modern corners for glassmorphism
+  // Dimensions
+  WIDTH: 60,
+  HEIGHT: 26,
+  CORNER_RADIUS: 4, // Smooth corners
 
-  // Colors - Glassmorphism Palette
-  BACKGROUND_COLOR: '#FFFFFF', // Pure white glass card
-  TEXT_COLOR: '#242121', // Sadu Night for contrast
-  SHADOW_COLOR: '#0000001F', // Strong shadow: 12% black opacity
+  // Colors (Najdi Sadu palette)
+  BACKGROUND_COLOR: '#FFFFFF',
+  TEXT_COLOR: '#242121', // Sadu Night
+  DEFAULT_BORDER_COLOR: '#D1BBA360', // Camel Hair Beige 60%
+  SELECTED_BORDER_COLOR: '#A13333', // Najdi Crimson
 
-  // No border in glassmorphism aesthetic
-  DEFAULT_BORDER_COLOR: 'transparent',
-  SELECTED_BORDER_COLOR: 'transparent',
+  // Border widths
+  DEFAULT_BORDER_WIDTH: 1,
+  SELECTED_BORDER_WIDTH: 1.5, // KNOWN ISSUE: Causes 0.5px jump
 
-  // Border widths (not used, but kept for compatibility)
-  DEFAULT_BORDER_WIDTH: 0,
-  SELECTED_BORDER_WIDTH: 0,
-
-  // Typography - Ultra compact
-  FONT_SIZE: 10,    // Smaller for compact height (was 11pt)
-  FONT_WEIGHT: 'bold' as const, // Bold for clarity
+  // Typography
+  FONT_SIZE: 10,
+  TEXT_OFFSET_Y: 4, // CHANGED: 7 → 4 (15% of height instead of 27%)
 };
