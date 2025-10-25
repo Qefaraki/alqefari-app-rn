@@ -690,19 +690,8 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
         }
       });
 
-      // Transform current_residence based on country/city
-      // Database should store clean values: just city for Saudi, just country for others
-      if ('current_residence_normalized' in payload) {
-        const normalized = payload.current_residence_normalized;
-
-        if (normalized?.country?.ar === 'السعودية' && normalized?.city?.ar) {
-          // Saudi + City: store just the city name
-          payload.current_residence = normalized.city.ar;
-        } else if (normalized?.country?.ar) {
-          // Other country: store just the country name (no emoji)
-          payload.current_residence = normalized.country.ar;
-        }
-      }
+      // Remove normalized data - don't send to RPC (contains numeric IDs that cause UUID errors)
+      delete payload.current_residence_normalized;
 
       // DEBUG: Log version before save
       console.log('[ProfileViewer] Saving with version:', {

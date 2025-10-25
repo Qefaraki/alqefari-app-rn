@@ -90,6 +90,23 @@ LimitedInput.propTypes = {
 
 const TabDetails = ({ form, updateField }) => {
   const { draft } = form;
+  const [selectedCountry, setSelectedCountry] = React.useState(
+    draft?.current_residence || ''
+  );
+  const [selectedCity, setSelectedCity] = React.useState('');
+
+  // Initialize city from current_residence if it's Saudi
+  React.useEffect(() => {
+    if (draft?.current_residence && draft.current_residence.includes('السعودية')) {
+      // Try to extract city from current_residence
+      const parts = draft.current_residence.split(',');
+      if (parts.length > 1) {
+        setSelectedCity(parts[1].trim());
+      }
+    } else if (draft?.current_residence && draft.current_residence !== selectedCountry) {
+      setSelectedCountry(draft.current_residence);
+    }
+  }, [draft?.id]); // Only on profile change
 
   return (
     <View style={styles.container}>
@@ -150,16 +167,15 @@ const TabDetails = ({ form, updateField }) => {
           <FormField label="الدولة الحالية">
             <CountryPicker
               label=""
-              value={draft?.current_residence || ''}
+              value={selectedCountry}
               onChange={(country) => {
+                setSelectedCountry(country);
+                // If changing from Saudi, clear city
+                if (!country.includes('السعودية')) {
+                  setSelectedCity('');
+                }
+                // Update form field
                 updateField('current_residence', country);
-              }}
-              onNormalizedChange={(normalized) => {
-                // Clear city if country changed from Saudi Arabia
-                const finalNormalized = normalized?.country?.ar !== 'السعودية'
-                  ? { ...normalized, city: undefined }
-                  : normalized;
-                updateField('current_residence_normalized', finalNormalized);
               }}
               placeholder="اختر دولة"
             />
@@ -171,23 +187,14 @@ const TabDetails = ({ form, updateField }) => {
           >
             <SaudiCityPicker
               label=""
-              value={draft?.current_residence_normalized?.city?.ar || ''}
-              onChange={() => {
-                // No-op: normalized data handled by onNormalizedChange
-              }}
-              onNormalizedChange={(normalized) => {
-                // Merge city into existing normalized data
-                const updated = {
-                  ...draft?.current_residence_normalized,
-                  original: normalized.city?.ar || normalized.original,
-                  city: normalized.city,
-                  confidence: normalized.confidence,
-                };
-                updateField('current_residence_normalized', updated);
-                // current_residence is transformed during save based on country/city
+              value={selectedCity}
+              onChange={(city) => {
+                setSelectedCity(city);
+                // Update form field: store city for Saudi
+                updateField('current_residence', city);
               }}
               placeholder="اختر مدينة"
-              enabled={draft?.current_residence?.includes('السعودية')}
+              enabled={selectedCountry.includes('السعودية')}
             />
           </FormField>
         </FormSection>
