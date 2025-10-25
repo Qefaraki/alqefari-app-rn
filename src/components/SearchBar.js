@@ -513,7 +513,7 @@ const SearchBar = ({ onSelectResult, onClearHighlight, style }) => {
         >
           <Animated.View
             style={{
-              opacity: selectedPersonId ? 0 : (isAdminMode ? 1 : searchBarOpacity),
+              opacity: searchBarOpacity,
             }}
           >
             <Pressable

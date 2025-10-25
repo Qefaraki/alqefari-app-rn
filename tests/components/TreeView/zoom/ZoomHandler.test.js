@@ -441,9 +441,9 @@ describe('ZoomHandler', () => {
 
       const result = calculateFitToViewTransform(bounds, mockViewport, config);
 
-      // T2 threshold override: 48 / (50 * 2) * 1.2 = 0.576
+      // T2 threshold override: 48 / (38 * 2) * 1.2 = 0.758
       // Exceeds minZoom config of 0.5, so T2 minimum applies
-      expect(result.scale).toBeCloseTo(0.576, 1);
+      expect(result.scale).toBeCloseTo(0.758, 2);
     });
 
     test('should apply all config options', () => {

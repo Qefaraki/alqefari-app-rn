@@ -89,7 +89,7 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
       // Add layout properties to nodes
       const nodesWithLayout = branchData.map(node => ({
         ...node,
-        nodeWidth: node.photo_url ? 50 : 40, // Smaller nodes for performance
+        nodeWidth: 38, // Ultra-compact width (50px photo overflows 6px card edges)
         nodeHeight: node.photo_url ? 60 : 35,
       }));
 
@@ -200,7 +200,7 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
       // Add layout properties
       const nodesWithLayout = uniqueNodes.map(node => ({
         ...node,
-        nodeWidth: node.photo_url ? 50 : 40,
+        nodeWidth: 38, // Ultra-compact width (50px photo overflows 6px card edges)
         nodeHeight: node.photo_url ? 60 : 35,
       }));
 
@@ -236,7 +236,7 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
             nodesMap.current.set(node.id, node);
             newNodes.push({
               ...node,
-              nodeWidth: node.photo_url ? 50 : 40,
+              nodeWidth: 38, // Ultra-compact width (50px photo overflows 6px card edges)
               nodeHeight: node.photo_url ? 60 : 35,
             });
           }
