@@ -11,6 +11,40 @@ import {
 export const TREE_DATA_SCHEMA_VERSION = 3; // v3: Force reload to include version field in all cached profiles
 
 /**
+ * Custom AsyncStorage Adapter for Zustand Persist
+ *
+ * Wraps React Native's AsyncStorage to match Zustand's persist interface.
+ * Zustand persist calls storage.setItem(name, JSON.stringify(state))
+ * but React Native AsyncStorage expects setItem(key, value) as strings.
+ * This adapter bridges the gap.
+ */
+const AsyncStorageAdapter = {
+  getItem: async (name) => {
+    try {
+      const value = await AsyncStorage.getItem(name);
+      return value;
+    } catch (error) {
+      console.error('[AsyncStorageAdapter] getItem failed:', error);
+      return null;
+    }
+  },
+  setItem: async (name, value) => {
+    try {
+      await AsyncStorage.setItem(name, value);
+    } catch (error) {
+      console.error('[AsyncStorageAdapter] setItem failed:', error);
+    }
+  },
+  removeItem: async (name) => {
+    try {
+      await AsyncStorage.removeItem(name);
+    } catch (error) {
+      console.error('[AsyncStorageAdapter] removeItem failed:', error);
+    }
+  },
+};
+
+/**
  * Tree Store with AsyncStorage Persistence
  *
  * Persisted fields (survives app restarts):
@@ -454,7 +488,7 @@ export const useTreeStore = create(
     }),
     {
       name: 'tree-cache-v3',
-      storage: AsyncStorage,
+      storage: AsyncStorageAdapter,
       partialize: (state) => ({
         treeData: state.treeData,
         isTreeLoaded: state.isTreeLoaded,

@@ -252,27 +252,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     }
   };
 
-  // Step 2: Send OTP to new phone (old Step 3)
-  const handleSendNewOtp = async () => {
-    if (!checkBeforeAction('إرسال رمز التحقق')) return;
-
-    setLoading(true);
-    setError('');
-
-    try {
-      await sendCurrentPhoneOtp(currentPhone);
-      setCountdown(60);
-      setStep(2);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (_) {
-      setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 2: Verify current phone OTP
+  // Step 1: Verify current phone OTP (auto-sent on open)
   const handleVerifyCurrentOtp = async (otpCode = currentOtp) => {
     if (otpCode.length !== 4) return;
 
@@ -285,7 +265,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     try {
       await verifyCurrentPhoneOtp(currentPhone, otpCode);
       triggerSuccessFlash();
-      setStep(3);
+      setStep(2);
       setCurrentOtp('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_) {
@@ -302,8 +282,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     }
   };
 
-  // Step 3: Send OTP to new phone
-  const handleSendNewOtp = async () => {
+  // Step 2: Auto-send OTP to new phone when entering Step 2
+  const handleInitiateNewPhoneOtp = async () => {
     if (!newPhone) {
       setError('يرجى إدخال رقم هاتف جديد');
       return;
@@ -335,7 +315,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       }
 
       setCountdown(60);
-      setStep(4);
+      setStep(3);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (_) {
       setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
@@ -345,7 +325,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     }
   };
 
-  // Step 4: Complete phone change
+  // Step 3: Complete phone change by verifying new phone OTP
   const handleCompleteChange = async (otpCode = newOtp) => {
     if (otpCode.length !== 4) return;
 
@@ -395,17 +375,17 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   };
 
   const handleResendOtp = async () => {
-    if (step === 2) {
-      await handleSendCurrentOtp();
-    } else if (step === 4) {
-      await handleSendNewOtp();
+    if (step === 1) {
+      await handleAutoSendCurrentOtp();
+    } else if (step === 3) {
+      await handleInitiateNewPhoneOtp();
     }
   };
 
-  // Progress indicator with animation
+  // Progress indicator with animation (3 steps)
   const renderProgressDots = () => (
     <View style={styles.progressContainer}>
-      {[1, 2, 3, 4].map((dot) => {
+      {[1, 2, 3].map((dot) => {
         const isActive = step >= dot;
         return (
           <Animated.View
@@ -435,7 +415,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       transparent={true}
       onRequestClose={handleCancel}
     >
-      <BlurView intensity={80} style={styles.container}>
+      <BlurView intensity={35} style={styles.container}>
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
@@ -446,6 +426,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
               styles.modal,
               {
                 opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
               },
             ]}
           >
@@ -483,31 +464,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
               {/* Content */}
               <View style={styles.content}>
-                {/* Step 1: Verify Current Phone */}
+                {/* Step 1: Verify Current Phone OTP (auto-sent on open) */}
                 {step === 1 && (
-                  <View style={styles.step}>
-                    <Text style={styles.title}>تأكيد رقمك الحالي</Text>
-                    <Text style={styles.subtitle}>
-                      سنرسل رمز تحقق إلى {currentPhone}
-                    </Text>
-                    <TouchableOpacity
-                      style={[styles.button, loading && styles.buttonDisabled]}
-                      onPress={handleSendCurrentOtp}
-                      onPressIn={() => buttonScale.setValue(0.98)}
-                      onPressOut={() => buttonScale.setValue(1)}
-                      disabled={loading || !currentPhone}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color={colors.alJassWhite} />
-                      ) : (
-                        <Text style={styles.buttonText}>إرسال رمز التحقق</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* Step 2: Enter Current Phone OTP */}
-                {step === 2 && (
                   <View style={styles.step}>
                     <Text style={styles.title}>أدخل رمز التحقق</Text>
                     <Text style={styles.subtitle}>تم إرسال الرمز إلى {currentPhone}</Text>
@@ -550,8 +508,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                   </View>
                 )}
 
-                {/* Step 3: Enter New Phone */}
-                {step === 3 && (
+                {/* Step 2: Enter New Phone */}
+                {step === 2 && (
                   <View style={styles.step}>
                     <Text style={styles.title}>رقم الهاتف الجديد</Text>
                     <Text style={styles.subtitle}>
@@ -567,22 +525,26 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                       error={error}
                     />
 
-                    <TouchableOpacity
-                      style={[styles.button, (loading || !newPhone) && styles.buttonDisabled]}
-                      onPress={handleSendNewOtp}
-                      disabled={loading || !newPhone}
-                    >
-                      {loading ? (
-                        <ActivityIndicator color={colors.alJassWhite} />
-                      ) : (
-                        <Text style={styles.buttonText}>إرسال رمز التحقق</Text>
-                      )}
-                    </TouchableOpacity>
+                    <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                      <TouchableOpacity
+                        style={[styles.button, (loading || !newPhone) && styles.buttonDisabled]}
+                        onPress={handleInitiateNewPhoneOtp}
+                        onPressIn={() => buttonScale.setValue(0.96)}
+                        onPressOut={() => buttonScale.setValue(1)}
+                        disabled={loading || !newPhone}
+                      >
+                        {loading ? (
+                          <ActivityIndicator color={colors.alJassWhite} />
+                        ) : (
+                          <Text style={styles.buttonText}>إرسال رمز التحقق</Text>
+                        )}
+                      </TouchableOpacity>
+                    </Animated.View>
                   </View>
                 )}
 
-                {/* Step 4: Verify New Phone OTP */}
-                {step === 4 && (
+                {/* Step 3: Verify New Phone OTP */}
+                {step === 3 && (
                   <View style={styles.step}>
                     <Text style={styles.title}>تأكيد الرقم الجديد</Text>
                     <Text style={styles.subtitle}>
