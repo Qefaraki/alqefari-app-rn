@@ -35,6 +35,7 @@
 import React from 'react';
 import { PixelRatio } from 'react-native';
 import { Group, Circle, RoundedRect, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
+import { IMAGE_BUCKETS } from '../utils/constants/nodes';
 
 export interface ImageNodeProps {
   // Image source
@@ -90,15 +91,15 @@ export function calculatePixelSize(width: number, scale: number): number {
  * Select image bucket size
  *
  * Chooses closest bucket that meets or exceeds pixel size.
- * Uses 2x multiplier for retina display quality.
+ * Uses 1.2x multiplier to balance quality with performance.
  *
  * @param pixelSize - Required pixel size
- * @param imageBuckets - Available bucket sizes (default: [40, 60, 80, 120, 256])
+ * @param imageBuckets - Available bucket sizes (default: imported from constants)
  * @returns Selected bucket size
  */
 export function selectImageBucket(
   pixelSize: number,
-  imageBuckets: number[] = [40, 60, 80, 120, 180, 256]
+  imageBuckets: number[] = IMAGE_BUCKETS
 ): number {
   // Use 1.2x multiplier instead of 2x to avoid over-fetching
   // PixelRatio.get() already accounts for device retina, don't double-apply
@@ -241,7 +242,7 @@ export const ImageNode: React.FC<ImageNodeProps> = React.memo(
     // Select bucket (with hysteresis if function provided)
     const bucket = shouldLoad
       ? selectBucket && nodeId
-        ? selectBucket(nodeId, pixelSize * 2)
+        ? selectBucket(nodeId, pixelSize)
         : selectImageBucket(pixelSize)
       : null;
 
@@ -267,9 +268,9 @@ ImageNode.displayName = 'ImageNode';
 
 // Export constants for testing
 export const IMAGE_NODE_CONSTANTS = {
-  DEFAULT_BUCKETS: [40, 60, 80, 120, 256],
-  FALLBACK_BUCKET: 512,
-  RETINA_MULTIPLIER: 2,
+  DEFAULT_BUCKETS: [40, 60, 80, 120, 180, 256],
+  FALLBACK_BUCKET: 256,
+  RETINA_MULTIPLIER: 1.2,
   SKELETON_COLOR: '#D1BBA320', // Camel Hair Beige 20%
   SKELETON_STROKE_COLOR: '#D1BBA310', // Camel Hair Beige 10%
   SKELETON_STROKE_WIDTH: 0.5,

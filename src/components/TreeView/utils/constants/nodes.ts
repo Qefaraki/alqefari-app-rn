@@ -1,14 +1,17 @@
 /**
  * Node dimensions and styling constants
  * Phase 1 Day 2 - Constants extraction
+ *
+ * DEPRECATED: This file is legacy. Prefer importing from rendering/nodeConstants.ts
+ * Maintained for backwards compatibility only.
  */
 
-// Node Dimensions
-export const NODE_WIDTH_WITH_PHOTO = 85;
-export const NODE_WIDTH_TEXT_ONLY = 60;
-export const NODE_HEIGHT_WITH_PHOTO = 75;  // Reduced from 90 for tighter spacing
+// Node Dimensions (now from nodeConstants.ts as authoritative source)
+export const NODE_WIDTH_WITH_PHOTO = 58;  // 50px photo + 4px padding × 2
+export const NODE_WIDTH_TEXT_ONLY = 58;   // Matches photo width for consistency
+export const NODE_HEIGHT_WITH_PHOTO = 75; // 50px photo + 4px padding × 2 + 17px name
 export const NODE_HEIGHT_TEXT_ONLY = 35;
-export const PHOTO_SIZE = 60;
+export const PHOTO_SIZE = 50;  // Matches authoritative nodeConstants.ts
 
 // Visual Styling
 export const LINE_COLOR = '#D1BBA340'; // Camel Hair Beige 40%
