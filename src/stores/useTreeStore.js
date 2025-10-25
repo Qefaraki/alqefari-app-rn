@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DEFAULT_BOUNDS,
   clampStageToBounds,
@@ -8,7 +10,25 @@ import {
 // This forces cache invalidation after migrations
 export const TREE_DATA_SCHEMA_VERSION = 3; // v3: Force reload to include version field in all cached profiles
 
-export const useTreeStore = create((set, get) => ({
+/**
+ * Tree Store with AsyncStorage Persistence
+ *
+ * Persisted fields (survives app restarts):
+ * - treeData: Full tree structure loaded from Phase 1 (2114 profiles = ~0.32MB)
+ * - isTreeLoaded: Loading state flag (set when cache is valid)
+ * - cachedSchemaVersion: Schema version for invalidation on migrations
+ *
+ * Unpersisted fields (reset on app restart):
+ * - stage, treeBounds, zoom, selection: User's current viewport + interaction state
+ * - profileSheetProgress, selectedPersonId, etc.: Temporary UI state
+ *
+ * Behavior:
+ * - First launch: Skeleton → Network fetch (194ms) → Tree rendered → Cache saved to disk
+ * - Subsequent launches: AsyncStorage loaded → Tree appears instantly (no skeleton)
+ */
+export const useTreeStore = create(
+  persist(
+    (set, get) => ({
   // Camera State
   stage: {
     x: 0,
@@ -431,4 +451,15 @@ export const useTreeStore = create((set, get) => ({
 
     requestAnimationFrame(tick);
   },
-}));
+    }),
+    {
+      name: 'tree-cache-v3',
+      storage: AsyncStorage,
+      partialize: (state) => ({
+        treeData: state.treeData,
+        isTreeLoaded: state.isTreeLoaded,
+        cachedSchemaVersion: state.cachedSchemaVersion,
+      }),
+    }
+  )
+);
