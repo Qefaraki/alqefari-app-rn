@@ -438,6 +438,50 @@ import {
 - Usage Examples & Import Guides
 - Test Results & Performance Data
 
+## 🔄 Batch Operations & Version Control
+
+**Pattern**: All multi-profile updates use batch RPCs with version validation
+
+**Critical Rules**:
+- ✅ Always include `version` field in SELECT queries
+- ✅ Use `version ?? 1` fallback for null/undefined
+- ✅ Batch RPCs > RPC loops (atomicity + 10-25x performance)
+- ❌ NEVER use direct `.update()` for multi-row changes (no version check = data corruption)
+- ❌ NEVER loop RPC calls from frontend (partial failure risk + slow)
+
+**Example - Reorder Children with Version Validation**:
+
+```javascript
+// ✅ CORRECT: Single batch RPC call (atomic + version-safe)
+const reorderOps = children.map((child, index) => ({
+  id: child.id,
+  new_sibling_order: index,
+  version: child.version ?? 1  // Handles null/undefined
+}));
+
+const { data, error } = await supabase.rpc('admin_batch_reorder_children', {
+  p_reorder_operations: reorderOps,
+  p_parent_id: parentId
+});
+
+if (error?.message.includes('version')) {
+  Alert.alert('خطأ', 'تم تحديث البيانات من قبل مستخدم آخر');  // Version conflict
+  loadChildren();  // Reload to sync
+  return;
+}
+```
+
+**RPC Features**:
+- Optimistic locking via version field
+- Single parent permission check (not N+1 loop per child)
+- Advisory lock prevents concurrent operations
+- Operation group integration for grouped undo
+- Comprehensive input validation (empty, duplicates, negatives, parent-child)
+- Version increment after successful update
+- Performance: <200ms for 50 children
+
+📖 Full documentation: [`/docs/FIELD_MAPPING.md`](docs/FIELD_MAPPING.md#-batch-operations-pattern) (Batch Operations section)
+
 ## 🔑 Key Implementation Rules
 
 ### RTL Support
