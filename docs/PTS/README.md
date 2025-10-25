@@ -76,19 +76,19 @@ Extracted custom hooks and cleaned up dead code to further reduce TreeView.js si
 - Dead code removal (36 lines)
 - Stability improvements for 2,000+ profiles
 
-### 📁 Phase 3: Performance Optimization (Future)
-**Status**: 📋 Planned | **Estimated**: 120-140 hours | **Priority**: CRITICAL for 2,000+ profiles
+### 📁 Phase 3: Performance Optimization (In Progress)
+**Status**: 📋 Phase 3 Preliminary Complete ✅ (Rendering fixes) | **Phase 3A-E**: Planned | **Priority**: CRITICAL for 2,000+ profiles
 
-Future performance enhancements for scaling to 10,000+ profiles.
+Performance enhancements for scaling to 10,000+ profiles. Phase 3 is organized into modular sub-phases that can proceed independently.
 
 - **[Phase 3 Index](./phase3/README.md)** - Overview & planning
 - **[Master Plan](./phase3/01-PLAN.md)** - Comprehensive Phase 3 plan
-- **[Progressive Loading](./phase3/progressive-loading/)** - Viewport-based loading (25h) - **CRITICAL**
+- **[Progressive Loading](./phase3/progressive-loading/)** - Viewport-based loading (25h) - **CRITICAL - NEXT PRIORITY**
 - **[Theme System](./phase3/theme-system/)** - Design tokens & dark mode (20h)
 - **[Advanced Navigation](./phase3/advanced-navigation/)** - Minimap, quick access (30h)
 - **[Enhanced Highlighting](./phase3/enhanced-highlighting/)** - Ancestry overlay (15h)
 
-**Note**: Level of Detail (LOD) system has been postponed to a later date. Photos are now controlled via UI toggle for simplicity.
+**Note**: Level of Detail (LOD) system has been **POSTPONED**. Photos are now controlled via UI toggle for simplicity. Progressive Loading (3B) does not depend on LOD and is the immediate next priority.
 
 ### 📁 Research
 Background research that informed the Perfect Tree design.

@@ -37,12 +37,12 @@ This is the **ACTIONABLE ROADMAP** for implementing Phase 3 of the Perfect Tree 
 
 ### Critical Path: What MUST Be Done First
 
-**Phase 3A + 3B are CRITICAL** - The app currently has 2,000+ profiles and:
-- LOD bugs cause visual issues at scale
+**Phase 3B is CRITICAL** - The app currently has 2,000+ profiles and:
+- ~~LOD bugs cause visual issues at scale~~ (POSTPONED - photos now UI-controlled)
 - Loading all profiles on mount won't scale beyond 3,000-5,000
 - Backend supports progressive loading, just needs integration
 
-**Recommendation**: Start 3A and 3B immediately, defer 3C-E to Phase 4.
+**Recommendation**: Start 3B immediately, defer 3A to Phase 4 (or never), defer 3C-E as nice-to-haves.
 
 ---
 
@@ -52,36 +52,42 @@ This is the **ACTIONABLE ROADMAP** for implementing Phase 3 of the Perfect Tree 
 
 | Phase | Name | Priority | Effort | Duration | Status |
 |-------|------|----------|--------|----------|--------|
-| **3A** | LOD System Redesign | 🚨 CRITICAL | 30h | 4-5 days | 📋 Planned |
-| **3B** | Progressive Loading | 🚨 CRITICAL | 25h | 3-4 days | 📋 Planned |
-| **3C** | Theme System | ⚠️ HIGH | 20h | 3 days | 📋 Planned |
-| **3D** | Advanced Navigation | ⚠️ HIGH | 30h | 4-5 days | 📋 Planned |
-| **3E** | Enhanced Highlighting | 📌 MEDIUM | 15h | 2-3 days | 📋 Planned |
-| **3F** | Testing & Documentation | 🎯 CRITICAL | 20h | 3 days | 📋 Planned |
+| **3A** | LOD System Redesign | 📋 POSTPONED | 30h | 4-5 days | ⏸️ Deferred to Phase 4 |
+| **3B** | Progressive Loading | 🚨 CRITICAL | 25h | 3-4 days | 📋 Ready to Start 🚀 |
+| **3C** | Theme System | ⚠️ HIGH | 20h | 3 days | 📋 Planned (parallel) |
+| **3D** | Advanced Navigation | ⚠️ HIGH | 30h | 4-5 days | 📋 Planned (parallel) |
+| **3E** | Enhanced Highlighting | 📌 MEDIUM | 15h | 2-3 days | 📋 Planned (parallel) |
+| **3F** | Testing & Documentation | 🎯 CRITICAL | 20h | 3 days | 📋 Planned (after 3B) |
 
-**Total**: 140 hours (20 days)
-**Critical Path**: 55 hours (8-9 days) for 3A + 3B
+**Total**: 110 hours (16-17 days) - Reduced from 140 after deferring 3A
+**Critical Path**: 25 hours (3-4 days) for 3B only
 
 ### Dependencies Map
 
 ```
-Phase 3A (LOD System)
-    └─> Phase 3B (Progressive Loading) ⚠️ Depends on working LOD
-        └─> Phase 3C (Theme System) - Independent
-            └─> Phase 3D (Advanced Navigation) - Independent
-                └─> Phase 3E (Enhanced Highlighting) - Independent
-                    └─> Phase 3F (Testing & Docs) - Depends on all
+Phase 3B (Progressive Loading) - CRITICAL, NO DEPENDENCIES
+    ├─> Phase 3C (Theme System) - Independent, can run in parallel
+    ├─> Phase 3D (Advanced Navigation) - Independent, can run in parallel
+    └─> Phase 3E (Enhanced Highlighting) - Independent, can run in parallel
+        └─> Phase 3F (Testing & Docs) - Depends on 3B, 3C-E
+
+Phase 3A (LOD System) - POSTPONED to Phase 4 or later
+    └─> Not required for any current work
 ```
 
-**Key Insight**: 3C, 3D, 3E can run in parallel AFTER 3A+3B are complete.
+**Key Insight**:
+- 3B is now independent and can start immediately
+- 3C, 3D, 3E can run in parallel with or after 3B
+- 3A is deferred indefinitely (photos now UI-controlled, not critical)
 
 ---
 
-## 🚀 Phase 3A: LOD System Redesign (CRITICAL)
+## ⏸️ Phase 3A: LOD System Redesign (POSTPONED)
 
 **Effort**: 30 hours
-**Duration**: 4-5 days
-**Priority**: 🚨 CRITICAL - Blocking scaling to 2,000+ profiles
+**Duration**: 4-5 days (if resumed)
+**Priority**: 📋 POSTPONED - Not blocking any current work
+**Status**: Deferred to Phase 4 or later (photos now UI-controlled)
 
 ### Problem Statement
 
@@ -234,12 +240,12 @@ Phase 3A (LOD System)
 
 ---
 
-## 🔄 Phase 3B: Progressive Loading (CRITICAL)
+## 🚀 Phase 3B: Progressive Loading (CRITICAL - NEXT PRIORITY)
 
 **Effort**: 25 hours
 **Duration**: 3-4 days
 **Priority**: 🚨 CRITICAL - Required for 2,000+ profile scale
-**Depends On**: Phase 3A (needs working LOD)
+**Depends On**: None - Can start immediately ✅
 
 ### Problem Statement
 
@@ -587,36 +593,37 @@ Features to implement:
 
 ## 📅 Recommended Timeline
 
-### Critical Path (Start Immediately)
+### Critical Path (Start Immediately with Phase 3B)
 
 **Week 1:**
-- Mon-Thu: Phase 3A (LOD System Redesign) - 4 days
-- Fri: Phase 3B Day 1 (Backend RPC Validation) - 1 day
+- Mon-Wed: Phase 3B (Progressive Loading) - 3 days ✅ CRITICAL
+- Thu-Fri: Phase 3F Day 1 (Testing Progressive Loading) - 1 day
 
 **Week 2:**
-- Mon-Wed: Phase 3B Days 2-4 (Progressive Loading) - 3 days
-- Thu-Fri: Phase 3C Days 1-2 (Theme System) - 2 days
+- Mon: Phase 3F Days 2-3 (Testing & Documentation) - 2 days
+- Tue-Fri: Phase 3C Days 1-3 (Theme System - OPTIONAL) - 3 days (can run in parallel)
 
 **Week 3:**
-- Mon: Phase 3C Day 3 (Theme System polish) - 1 day
-- Tue-Fri: Phase 3D Days 1-4 (Advanced Navigation) - 4 days
+- Mon-Fri: Phase 3D (Advanced Navigation - OPTIONAL) - 4 days (can run in parallel)
 
-**Week 4:**
-- Mon-Tue: Phase 3E Days 1-2 (Enhanced Highlighting) - 2 days
-- Wed-Fri: Phase 3F Days 1-3 (Testing & Documentation) - 3 days
+**Total**: 2-3 weeks for CRITICAL 3B work + testing
 
-**Total**: 4 weeks (20 days)
+### Parallel Work (After 3B Starts)
 
-### Alternative: Critical Work Only
+Can run 3C, 3D, 3E in parallel:
+- **3C (Theme System)**: 3 days
+- **3D (Advanced Navigation)**: 4 days
+- **3E (Enhanced Highlighting)**: 2-3 days
 
-**Just do 3A + 3B + 3F (testing):**
-- Week 1: Phase 3A (4-5 days)
-- Week 2: Phase 3B (3-4 days)
-- Week 3: Phase 3F (3 days)
+### Alternative: Just Critical Work
 
-**Total**: 2-3 weeks, addresses CRITICAL needs
+**Do 3B + 3F only (essential for scale):**
+- Week 1: Phase 3B (3-4 days)
+- Week 2: Phase 3F (3 days)
 
-**Defer 3C, 3D, 3E to Phase 4** (future enhancement)
+**Total**: 1 week, addresses critical scaling needs
+
+**Defer 3A, 3C, 3D, 3E to Phase 4** (future enhancements)
 
 ---
 

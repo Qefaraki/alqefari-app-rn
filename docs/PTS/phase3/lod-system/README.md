@@ -1,13 +1,21 @@
 # Phase 3A: LOD System Redesign
 
-**Status**: 📋 Planned
+**Status**: ⏸️ POSTPONED
 **Effort**: 30 hours
-**Duration**: 4-5 days
-**Priority**: 🚨 CRITICAL - Blocking 2,000+ profile scale
+**Duration**: 4-5 days (if resumed in future)
+**Priority**: 📋 DEFERRED - Not blocking current work
+**Target**: Phase 4 or later
 
 ## Overview
 
-Fix the disabled LOD (Level of Detail) system to enable smooth tier transitions without size jumping, tier thrashing, or visual flicker.
+~~Fix the disabled LOD (Level of Detail) system to enable smooth tier transitions without size jumping, tier thrashing, or visual flicker.~~
+
+**Postponement Rationale:**
+- Photos are now controlled via UI toggle (showPhotos state), providing a simpler UX
+- LOD system was causing tier thrashing and size jumping issues
+- User prioritized progressive loading (3B) as more critical for scaling
+- Not blocking any current performance requirements
+- Can be revisited if needed for sub-pixel rendering optimization at 10,000+ profile scale
 
 ## Problem Statement
 
