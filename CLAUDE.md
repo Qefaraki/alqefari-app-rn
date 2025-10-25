@@ -122,6 +122,64 @@ Settings → Account Management → "تغيير رقم الهاتف"
 - ✅ Offline handling (network guard)
 - ✅ OTP expiration & resend
 
+## 🗑️ Delete Account (Settings)
+
+**Status**: ✅ Complete - Secure 3-step deletion with OTP verification and rate limiting
+
+**Flow**:
+1. Settings → Advanced Settings (expand) → "حذف الحساب نهائياً"
+2. Initial confirmation alert
+3. OTP verification (sent to current phone)
+4. Text confirmation (type "نعم" exactly)
+5. Account deleted + global sign-out
+
+**Components**:
+- **DeleteAccountModal**: `src/components/settings/DeleteAccountModal.js` (3-stage modal)
+- **Service**: `src/services/deleteAccountOtp.js` (send/verify OTP + rate limit check)
+- **Migrations**: `supabase/migrations/20251026120000_update_delete_account_audit_log.sql`
+
+**Key Implementation Details**:
+- Hidden under collapsible "Advanced Settings" section (not immediately visible)
+- OTP verification proves phone access (security layer)
+- 10-minute OTP expiration window
+- Rate limiting: 3 attempts per 24 hours with 24-hour lockout after 3rd attempt
+- Session validation (5-minute freshness check before deletion)
+- Concurrent deletion protection (prevents double-deletes)
+- Edge case handling:
+  - Root node protection (generation 1, no father)
+  - Admin/moderator role warnings
+  - Children in tree warnings
+  - OTP expiration checks
+  - Network offline protection (via network guard)
+- Audit logging to `audit_log_enhanced` with action_type='account_deletion'
+- Global sign-out (all sessions invalidated, not just current)
+- Profile unlinking (user_id → NULL, can_edit → false)
+- Full RTL/Arabic support with Najdi Sadu design system
+
+**Data Deletion Details**:
+- ❌ Profile data DELETED: user_id link, admin access, notifications, requests
+- ✅ Profile data RETAINED: Names, dates, photos (preserves family history)
+- Profile becomes read-only (can_edit = false) but remains visible in tree
+
+**Usage (in Settings)**:
+```
+Settings → "إظهار الإعدادات المتقدمة" → "حذف الحساب نهائياً"
+```
+
+**Testing**:
+- ✅ Collapsible section expand/collapse
+- ✅ Rate limiting (3 attempts, lockout, retry time display)
+- ✅ OTP send and verification (correct/incorrect codes)
+- ✅ Text input validation (requires exact "نعم")
+- ✅ Edge cases (root node, admin role, children in tree)
+- ✅ OTP expiration and resend
+- ✅ Session validation
+- ✅ Global sign-out execution
+- ✅ RTL/Arabic numerals support
+- ✅ Network offline protection
+
+**Commit**: `65abafa4a` - "feat(delete-account): Implement secure 3-step account deletion with OTP verification"
+
 ## 📑 SegmentedControl Component Quick Ref
 
 **Status**: ✅ Complete - Standard iOS pill-style tabs
