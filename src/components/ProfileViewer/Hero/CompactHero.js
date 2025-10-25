@@ -126,10 +126,10 @@ const CompactHero = ({
   };
 
   return (
-    <View style={styles.headerRow}>
-      {/* Close/Dismiss Button - Left */}
+    <View style={styles.container}>
+      {/* Close/Dismiss Button - Top Left (Absolute) */}
       <TouchableOpacity
-        style={styles.headerButton}
+        style={styles.closeButton}
         onPress={onMenuPress}
         accessibilityRole="button"
         accessibilityLabel="إغلاق"
@@ -138,13 +138,11 @@ const CompactHero = ({
         <Ionicons name="chevron-down" size={24} color="#000000" />
       </TouchableOpacity>
 
-      <View style={{ flex: 1 }} />
-
-      {/* Action Buttons - Right */}
-      <View style={styles.actionButtonsRight}>
+      {/* Action Buttons - Top Right (Absolute) */}
+      <View style={styles.actionButtonsContainer}>
         {canEdit && (
           <TouchableOpacity
-            style={styles.headerButton}
+            style={styles.actionButton}
             onPress={onEdit}
             accessibilityRole="button"
             accessibilityLabel="تحرير الملف"
@@ -154,7 +152,7 @@ const CompactHero = ({
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={styles.headerButton}
+          style={styles.actionButton}
           onPress={onMenuPress}
           accessibilityRole="button"
           accessibilityLabel="المزيد من الخيارات"
@@ -163,8 +161,6 @@ const CompactHero = ({
           <Ionicons name="ellipsis-horizontal" size={22} color="#000000" />
         </TouchableOpacity>
       </View>
-
-    <View style={styles.container}>
 
       {/* Avatar - Centered */}
       <TouchableOpacity
@@ -228,23 +224,6 @@ const CompactHero = ({
 };
 
 const styles = StyleSheet.create({
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    backgroundColor: colors.najdi.background,
-  },
-  headerButton: {
-    padding: spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButtonsRight: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    alignItems: 'center',
-  },
   container: {
     backgroundColor: colors.najdi.background,
     borderRadius: tokens.radii.lg,
@@ -252,9 +231,29 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     flexDirection: 'column',
     alignItems: 'center',
-    minHeight: 104,
+    minHeight: 180,
     position: 'relative',
     overflow: 'visible',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    padding: spacing.sm,
+    zIndex: 10,
+  },
+  actionButtonsContainer: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    gap: spacing.md,
+    zIndex: 10,
+  },
+  actionButton: {
+    padding: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarWrapper: {
     width: AVATAR_SIZE,
