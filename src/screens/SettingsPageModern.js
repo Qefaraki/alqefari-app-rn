@@ -371,7 +371,6 @@ export default function SettingsPageModern({ user }) {
       if (!forceRefresh) {
         const cached = await profileCacheUtils.get(user.id);
         if (cached) {
-          console.log('[Cache] Using cached profile');
           setUserProfile(cached);
           setLoadingProfile(false);
           return; // Cache hit - done!

@@ -117,8 +117,6 @@ export const SettingsProvider = ({ children }) => {
       }
 
       // Force a new object reference for React to detect the change
-      console.log('[SettingsContext] Updating setting:', key, '=', value);
-      console.log('[SettingsContext] New settings:', newSettings);
       setSettings({ ...newSettings });
 
       // Persist to storage (excluding dateDisplay as it's computed)

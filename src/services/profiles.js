@@ -247,8 +247,6 @@ export const profilesService = {
       return [];
     }
 
-    console.log('[getPersonMarriages] Fetching marriages for profile:', personId);
-
     try {
       // Try the RPC function first
       const { data, error } = await supabase.rpc("get_person_marriages", {
@@ -335,20 +333,16 @@ export const profilesService = {
         });
 
         const transformed = this._transformMarriageData(rawMarriages, 'fallback');
-        console.log('[getPersonMarriages] Transformed count:', transformed.length);
         return transformed;
       }
 
       // RPC path succeeded
-      console.log('[getPersonMarriages] RPC path succeeded, raw count:', data?.length || 0);
-
       if (!data || !Array.isArray(data)) {
         console.warn('[getPersonMarriages] RPC returned invalid data type:', typeof data);
         return [];
       }
 
       const transformed = this._transformMarriageData(data, 'RPC');
-      console.log('[getPersonMarriages] Transformed count:', transformed.length);
       return transformed;
 
     } catch (error) {

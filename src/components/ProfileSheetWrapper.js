@@ -110,11 +110,6 @@ const ProfileSheetWrapper = ({ editMode }) => {
     // 1. Try tree store (Al-Qefari family members with HID)
     const treeNode = nodesMap.get(selectedPersonId);
     if (treeNode) {
-      console.log('[ProfileSheetWrapper] Person loaded from tree:', {
-        name: treeNode.name,
-        version: treeNode.version,
-        source: 'nodesMap'
-      });
       return treeNode;
     }
 

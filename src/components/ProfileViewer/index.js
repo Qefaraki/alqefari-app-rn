@@ -385,21 +385,16 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   // Pure declarative control - state drives BottomSheet index prop
   useEffect(() => {
     if (person?.id) {
-      console.log('[ProfileViewer] Opening sheet for person:', person.id);
-
       // If sheet is already open (currentSnapIndex >= 0), maintain current position
       // If sheet is closed (currentSnapIndex === -1), open at default 36%
       if (currentSnapIndex >= 0) {
         // Already open - maintain current position when navigating between profiles
-        console.log('[ProfileViewer] Sheet already open - maintaining snap index:', currentSnapIndex);
         // Don't change currentSnapIndex
       } else {
         // Sheet was closed - open at default 36%
-        console.log('[ProfileViewer] Opening from closed state - setting to 36%');
         setCurrentSnapIndex(0);
       }
     } else if (!loading) {
-      console.log('[ProfileViewer] Closing sheet (no person)');
       setCurrentSnapIndex(-1);
     }
   }, [person?.id, loading, currentSnapIndex]);
@@ -516,8 +511,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   useEffect(() => {
     if (!person?.id) return;
 
-    console.log('[ProfileViewer] Setting up real-time subscription for profile:', person.id);
-
     const channel = supabase
       .channel(`profile-updates-${person.id}`)
       .on(
@@ -549,7 +542,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       .subscribe();
 
     return () => {
-      console.log('[ProfileViewer] Cleaning up real-time subscription for profile:', person.id);
       supabase.removeChannel(channel);
     };
   }, [person?.id]); // Removed onUpdate from dependencies to prevent subscription recreation

@@ -346,11 +346,6 @@ const TreeView = ({
   // Extract tree display settings
   const { showPhotos, highlightMyLine } = settings;
 
-  // Debug: Log settings on every render
-  console.log('[TreeView] Received settings:', { showPhotos, highlightMyLine });
-  console.log('[TreeView] Full settings object:', settings);
-  console.log('[TreeView] authProfile:', authProfile);
-
   // Store settings in ref for access in callbacks (prevents stale closures)
   // NOTE: We use ref pattern because settings are accessed in debounced
   // callbacks that would otherwise capture stale closures. Direct useState
@@ -367,7 +362,6 @@ const TreeView = ({
   // Update ref whenever ANY settings change (needed for event handlers)
   useEffect(() => {
     settingsRef.current = settings;
-    console.log('[TreeView] Settings ref updated:', settings);
   }, [settings]);
 
   const dimensions = useWindowDimensions();
@@ -889,25 +883,17 @@ const TreeView = ({
   // Recalculate viewport bounds when LAYOUT-AFFECTING settings change
   // This ensures visibleNodes filters correctly after layout recalculation
   useEffect(() => {
-    console.log('[TreeView] Layout-affecting settings changed, syncing viewport');
-
     // Safety check: Skip if nodes not loaded yet
     if (nodes.length === 0) {
-      console.log('[TreeView] Skipping sync - nodes not loaded');
       return;
     }
 
     // Safety check: Skip if dimensions not initialized (screen size not ready)
     if (dimensions.width === 0 || dimensions.height === 0) {
-      console.log('[TreeView] Skipping sync - dimensions not initialized');
       return;
     }
 
-    // Performance monitoring
-    const startTime = performance.now();
     syncTransform();
-    const duration = performance.now() - startTime;
-    console.log(`[TreeView] Viewport sync completed in ${duration.toFixed(2)}ms`);
   }, [layoutAffectingSettings, syncTransform, nodes.length, dimensions.width, dimensions.height]);
 
   // Track previous visible nodes for debugging
@@ -1327,18 +1313,10 @@ const TreeView = ({
 
   // Calculate and display user lineage when toggle is ON (UNIFIED SYSTEM)
   useEffect(() => {
-    console.log('[TreeView] Lineage useEffect triggered');
-    console.log('[TreeView] highlightMyLine:', highlightMyLine);
-    console.log('[TreeView] authProfile?.id:', authProfile?.id);
-    console.log('[TreeView] nodes.length:', nodes.length);
-
     // Only calculate if toggle is ON and user has profile
     if (highlightMyLine && authProfile?.id && nodes.length > 0) {
-      console.log('[TreeView] Calculating user lineage path...');
-
       // Use NEW unified system
       const pathData = calculatePathData('USER_LINEAGE', authProfile.id);
-      console.log('[TreeView] Calculated lineage pathData:', pathData);
 
       if (!pathData || pathData.pathNodeIds.length === 0) {
         // User not in loaded tree
@@ -1354,8 +1332,6 @@ const TreeView = ({
           userLineage: null
         }));
       } else {
-        console.log('[TreeView] Setting user lineage in unified state');
-
         // Set in unified state
         setActiveHighlights(prev => ({
           ...prev,
@@ -1364,20 +1340,14 @@ const TreeView = ({
 
         // Fade in if no search/cousin marriage highlight active
         if (!activeHighlights.search && !activeHighlights.cousinMarriage) {
-          console.log('[TreeView] Fading in user lineage (no search active)');
           cancelAnimation(pathOpacity);
           pathOpacity.value = withTiming(0.52, {
             duration: 400,
             easing: Easing.out(Easing.ease)
           });
-        } else {
-          console.log('[TreeView] Search/cousin highlight active, user lineage will show after cleared');
         }
-
-        console.log(`User lineage path set: ${pathData.pathNodeIds.length} nodes`);
       }
     } else {
-      console.log('[TreeView] Clearing user lineage (toggle OFF or no profile)');
       // Toggle OFF or no profile - clear user lineage
       if (activeHighlights.userLineage) {
         cancelAnimation(pathOpacity);
@@ -1468,8 +1438,6 @@ const TreeView = ({
   // Handle cousin marriage dual-path highlighting from navigation params (Munasib Manager)
   useEffect(() => {
     if (spouse1Id && spouse2Id && focusOnProfile && nodes.length > 0) {
-      console.log(`[TreeView] Cousin marriage params detected: ${spouse1Id} & ${spouse2Id}`);
-
       // Small delay to ensure tree is fully rendered
       const timer = setTimeout(() => {
         // Validate both spouses are in loaded tree
@@ -1503,7 +1471,6 @@ const TreeView = ({
             })
           );
 
-          console.log(`[TreeView] Cousin marriage dual paths set from router params`);
         }
       }, 500);
 
@@ -1514,16 +1481,9 @@ const TreeView = ({
   // Handle cousin marriage highlighting from Zustand store (set by nested components like TabFamily)
   const pendingCousinHighlight = useTreeStore(state => state.pendingCousinHighlight);
 
-  // DEBUG: Track all changes to pendingCousinHighlight
-  useEffect(() => {
-    console.log('[TreeView] pendingCousinHighlight changed:', pendingCousinHighlight, 'nodes.length:', nodes.length);
-  }, [pendingCousinHighlight, nodes.length]);
-
   useEffect(() => {
     if (pendingCousinHighlight && nodes.length > 0) {
       const { spouse1Id, spouse2Id, highlightProfileId } = pendingCousinHighlight;
-
-      console.log(`[TreeView] Pending cousin highlight detected: ${spouse1Id} & ${spouse2Id}`);
 
       // Small delay to ensure tree is fully rendered
       const timer = setTimeout(() => {
@@ -2152,8 +2112,6 @@ const TreeView = ({
   // Render highlighted ancestry path
   // UNIFIED RENDERING: Render all active highlights using renderer factory
   const renderAllHighlights = useCallback(() => {
-    console.log('[TreeView] renderAllHighlights called, activeHighlights:', activeHighlights);
-
     // Explicit mapping from state keys to registry keys (safer than string replacement)
     const TYPE_KEY_MAP = {
       'search': 'SEARCH',
@@ -2177,14 +2135,11 @@ const TreeView = ({
       .sort((a, b) => a.config.priority - b.config.priority);
 
     if (activeTypes.length === 0) {
-      console.log('[TreeView] No active highlights to render');
       return null;
     }
 
     // Render each highlight type using appropriate renderer
     const allElements = activeTypes.flatMap(({ typeId, config, data }) => {
-      console.log(`[TreeView] Rendering highlight type: ${typeId}`, { config, data });
-
       const renderer = createRenderer(typeId, config, data, {
         nodes,
         connections,
@@ -2203,7 +2158,6 @@ const TreeView = ({
       return elements || [];
     });
 
-    console.log(`[TreeView] Rendered ${allElements.length} highlight elements`);
     return allElements;
   }, [activeHighlights, nodes, connections, showPhotos]); // pathOpacity is stable shared value, no need in deps
 

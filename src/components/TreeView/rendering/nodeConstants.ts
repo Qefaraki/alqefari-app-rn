@@ -16,14 +16,14 @@
  * - Increased photo size from 50px to 54px for better visual density
  *
  * Oct 26 Final Update:
- * - Reduced card width to 38px (25% smaller than 50px) for ultra-compact layout
- * - Photo overflow effect: 50px photo extends 6px beyond 38px card edges
- * - Creates floating circular photo design on narrower card background
+ * - Card width set to 50px (matches photo size exactly)
+ * - Photo fills card completely with no overflow
+ * - Clean, aligned design with perfect photo-to-card fit
  */
 
-// Padding - single configurable source (compact spacing with overflow)
+// Padding - single configurable source (photo fills card with no overflow)
 export const NODE_PADDING = {
-  HORIZONTAL: -6,  // Negative padding - photo overflows card edges by 6px on each side
+  HORIZONTAL: 0,  // No padding - photo fills card edges exactly
   VERTICAL: 4,    // Vertical padding maintains visual balance
 } as const;
 
@@ -32,13 +32,13 @@ export const PHOTO_SIZE = 50; // Circle diameter in pixels
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {
-  // Photo nodes: 50px photo with -6px padding = 38px card width (photo overflows by 6px on each side)
-  // Creates floating circular photo effect on narrower card background
-  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 38px (50 + (-6)×2)
+  // Photo nodes: 50px photo with 0px padding = 50px card width (photo fills card exactly)
+  // Clean alignment with no overflow
+  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 50px (50 + 0×2)
   HEIGHT: PHOTO_SIZE + NODE_PADDING.VERTICAL * 2 + 17,  // 75px (photo + padding + name space)
 
-  // Text-only nodes: same width for consistency (38px card, but no photo overflow)
-  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 38px (matches photo card width)
+  // Text-only nodes: same width for consistency (50px card width)
+  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 50px (matches photo card width)
   HEIGHT_TEXT_ONLY: 35,
 
   CORNER_RADIUS: 10,
