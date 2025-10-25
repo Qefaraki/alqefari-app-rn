@@ -83,11 +83,38 @@ Database verification: No corrupted UUIDs found in profiles table ✅
 ✅ No data conflicts or overwriting
 ✅ Database clean (no corrupted UUIDs)
 
+### Implementation Details
+
+**Form State During Editing** (stays synced):
+- CountryPicker displays: "🇸🇦 السعودية" (with emoji)
+- SaudiCityPicker displays: "الرياض" (just city)
+- `current_residence` (form value): "🇸🇦 السعودية"
+- `current_residence_normalized`: {country: {...}, city: {...}}
+
+**Transform on Save**:
+```javascript
+if (normalized?.country?.ar === 'السعودية' && normalized?.city?.ar) {
+  // Saudi + City: store just city
+  current_residence = "الرياض"
+} else if (normalized?.country?.ar) {
+  // Other country: store country name (no emoji)
+  current_residence = "مصر"
+}
+```
+
+**Database Result**:
+- Saudi location: `current_residence = "الرياض"`
+- Egypt: `current_residence = "مصر"`
+- No emoji in database ✅
+
 ### Commits
-1. Commit: `d8897f5f2` - "fix: Resolve country selector flashing + add UUID validation"
-   - Fixed country flashing issue
-   - Added UUID validation before RPC
-   - Database verification
+1. `d8897f5f2` - "fix: Resolve country selector flashing + add UUID validation"
+   - Initial attempt (reverted due to logic flaw)
+2. `bf967531e` - Documentation update
+3. `d331fc3d7` - "fix: Correct country/city selector - transform on save"
+   - Correct implementation
+   - Transform logic in directSave
+   - Clean database values (no emoji)
 
 ---
 
