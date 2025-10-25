@@ -78,9 +78,38 @@ import { TextPillRenderer } from './TreeView/rendering/TextPillRenderer';
 import { T3ChipRenderer } from './TreeView/rendering/T3ChipRenderer';
 import { NodeRenderer } from './TreeView/rendering/NodeRenderer';
 
-// Phase 1 Day 4a - Import extracted utilities
+// Phase 1 Day 4a - Import node constants from centralized source
 import {
-  // Constants
+  // Node dimensions
+  NODE_WIDTH_WITH_PHOTO,
+  NODE_HEIGHT_WITH_PHOTO,
+  NODE_WIDTH_TEXT_ONLY,
+  NODE_HEIGHT_TEXT_ONLY,
+  PHOTO_SIZE,
+  // Image buckets
+  IMAGE_BUCKETS,
+  DEFAULT_IMAGE_BUCKET,
+  BUCKET_HYSTERESIS,
+  // Connection styling
+  LINE_COLOR,
+  LINE_WIDTH,
+  CORNER_RADIUS,
+  // Shadow styling
+  SHADOW_OPACITY,
+  SHADOW_RADIUS,
+  SHADOW_OFFSET_Y,
+  // Layout spacing
+  DEFAULT_SIBLING_GAP,
+  DEFAULT_GENERATION_GAP,
+  MIN_SIBLING_GAP,
+  MAX_SIBLING_GAP,
+  MIN_GENERATION_GAP,
+  MAX_GENERATION_GAP,
+} from './TreeView/rendering/nodeConstants';
+
+// Phase 1 Day 4a - Import viewport, animation, and utility functions
+import {
+  // Viewport constants
   VIEWPORT_MARGIN_X,
   VIEWPORT_MARGIN_Y,
   MAX_TREE_SIZE,
@@ -88,36 +117,19 @@ import {
   CRITICAL_THRESHOLD,
   LOD_T1_THRESHOLD,
   LOD_T2_THRESHOLD,
-  NODE_WIDTH_WITH_PHOTO,
-  NODE_HEIGHT_WITH_PHOTO,
-  NODE_WIDTH_TEXT_ONLY,
-  NODE_HEIGHT_TEXT_ONLY,
-  PHOTO_SIZE,
-  LINE_COLOR,
-  LINE_WIDTH,
-  CORNER_RADIUS,
-  SHADOW_OPACITY,
-  SHADOW_RADIUS,
-  SHADOW_OFFSET_Y,
-  DEFAULT_SIBLING_GAP,
-  DEFAULT_GENERATION_GAP,
-  MIN_SIBLING_GAP,
-  MAX_SIBLING_GAP,
-  MIN_GENERATION_GAP,
-  MAX_GENERATION_GAP,
-  IMAGE_BUCKETS,
-  DEFAULT_IMAGE_BUCKET,
-  BUCKET_HYSTERESIS,
+  // Animation constants
   ANIMATION_DURATION_SHORT,
   ANIMATION_DURATION_MEDIUM,
   ANIMATION_DURATION_LONG,
+  // Gesture constants
   GESTURE_ACTIVE_OFFSET,
   GESTURE_DECELERATION,
   GESTURE_RUBBER_BAND_FACTOR,
+  // Zoom constants
   MIN_ZOOM,
   MAX_ZOOM,
   DEFAULT_ZOOM,
-  // Utilities
+  // Utility functions
   hexToRgba,
   createDimMatrix,
   createGrayscaleMatrix,

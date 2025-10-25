@@ -115,3 +115,42 @@ export const NODE_HEIGHT_TEXT_ONLY = STANDARD_NODE.HEIGHT_TEXT_ONLY;
 export const IMAGE_BUCKETS = [40, 60, 80, 120, 180, 256] as const;
 export const DEFAULT_IMAGE_BUCKET = 80;
 export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing
+
+// Connection line styling (Najdi Sadu palette)
+export const CONNECTION_STYLES = {
+  LINE_COLOR: '#D1BBA340',  // Camel Hair Beige 40%
+  LINE_WIDTH: 2,
+  CORNER_RADIUS: 8,
+} as const;
+
+// d3 Tree Layout spacing (used by layout and connection rendering)
+export const LAYOUT_SPACING = {
+  DEFAULT_SIBLING_GAP: 80,
+  DEFAULT_GENERATION_GAP: 180,
+  MIN_SIBLING_GAP: 60,
+  MAX_SIBLING_GAP: 150,
+  MIN_GENERATION_GAP: 120,
+  MAX_GENERATION_GAP: 240,
+} as const;
+
+// Rendering shadow styling (used by node and connection rendering)
+export const RENDERING_SHADOWS = {
+  OPACITY: 0.05,
+  RADIUS: 8,
+  OFFSET_Y: 2,
+} as const;
+
+// Legacy flat exports for TreeView.js backwards compatibility
+// TODO (Phase 2): Update TreeView.js to use structured exports (CONNECTION_STYLES, LAYOUT_SPACING, RENDERING_SHADOWS)
+export const LINE_COLOR = CONNECTION_STYLES.LINE_COLOR;
+export const LINE_WIDTH = CONNECTION_STYLES.LINE_WIDTH;
+export const CORNER_RADIUS = CONNECTION_STYLES.CORNER_RADIUS;
+export const SHADOW_OPACITY = RENDERING_SHADOWS.OPACITY;
+export const SHADOW_RADIUS = RENDERING_SHADOWS.RADIUS;
+export const SHADOW_OFFSET_Y = RENDERING_SHADOWS.OFFSET_Y;
+export const DEFAULT_SIBLING_GAP = LAYOUT_SPACING.DEFAULT_SIBLING_GAP;
+export const DEFAULT_GENERATION_GAP = LAYOUT_SPACING.DEFAULT_GENERATION_GAP;
+export const MIN_SIBLING_GAP = LAYOUT_SPACING.MIN_SIBLING_GAP;
+export const MAX_SIBLING_GAP = LAYOUT_SPACING.MAX_SIBLING_GAP;
+export const MIN_GENERATION_GAP = LAYOUT_SPACING.MIN_GENERATION_GAP;
+export const MAX_GENERATION_GAP = LAYOUT_SPACING.MAX_GENERATION_GAP;
