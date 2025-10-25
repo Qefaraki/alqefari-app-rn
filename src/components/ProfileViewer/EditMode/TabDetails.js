@@ -172,8 +172,8 @@ const TabDetails = ({ form, updateField }) => {
             <SaudiCityPicker
               label=""
               value={draft?.current_residence_normalized?.city?.ar || ''}
-              onChange={(city) => {
-                updateField('current_residence', city);
+              onChange={() => {
+                // No-op: normalized data handled by onNormalizedChange
               }}
               onNormalizedChange={(normalized) => {
                 // Merge city into existing normalized data
