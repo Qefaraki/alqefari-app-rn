@@ -83,6 +83,45 @@
 
 _See full documentation: [`/docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)_
 
+## 📱 Phone Number Change (Settings)
+
+**Status**: ✅ Complete - Secure 4-step phone change with OTP verification
+
+**Flow**:
+1. Send OTP to current phone → Verify
+2. Enter new phone → Send OTP to new phone → Verify
+3. Complete change + audit log
+4. Session remains valid (no forced re-login)
+
+**Components**:
+- **PhoneInputField**: `src/components/ui/PhoneInputField.js` (reusable, used in auth & settings)
+- **PhoneChangeModal**: `src/components/settings/PhoneChangeModal.js` (4-step modal)
+- **Service**: `src/services/phoneChange.js` (7 functions)
+- **Migration**: `supabase/migrations/20251025000000_add_phone_change_support.sql`
+
+**Key Implementation Details**:
+- Uses Supabase Auth native flow (`auth.updateUser()` + `verifyOtp` with type: 'phone_change')
+- **Profile phone** and **auth phone** are SEPARATE - no sync needed
+- Dynamic OTP rate limit detection (not hardcoded "3 attempts")
+- Audit logging to `audit_log_enhanced` with action_type='phone_change'
+- Non-blocking logging (phone change succeeds even if audit log fails)
+- Network guard on all OTP operations (offline protection)
+- Resend button appears after OTP countdown expires
+- RTL-compatible layouts with Arabic numerals support
+
+**Usage (in Settings)**:
+```
+Settings → Account Management → "تغيير رقم الهاتف"
+```
+
+**Testing**:
+- ✅ Basic 4-step flow
+- ✅ Error handling (rate limits, invalid OTP, phone in use)
+- ✅ RTL/Arabic numerals
+- ✅ Session persistence
+- ✅ Offline handling (network guard)
+- ✅ OTP expiration & resend
+
 ## 📑 SegmentedControl Component Quick Ref
 
 **Status**: ✅ Complete - Standard iOS pill-style tabs

@@ -30,6 +30,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { PhoneInputField } from '../ui/PhoneInputField';
+import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import {
   sendCurrentPhoneOtp,
   verifyCurrentPhoneOtp,
@@ -57,6 +58,7 @@ const colors = {
  * - onCancel: Callback when user cancels
  */
 export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onCancel = () => {} }) {
+  const { checkBeforeAction } = useNetworkGuard();
   const [step, setStep] = useState(1); // 1: Verify current, 2: Enter new, 3: Verify new, 4: Complete
   const [currentPhone, setCurrentPhone] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -141,6 +143,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
 
   // Step 1: Send OTP to current phone
   const handleSendCurrentOtp = async () => {
+    if (!checkBeforeAction('إرسال رمز التحقق')) return;
+
     setLoading(true);
     setError('');
 
@@ -160,6 +164,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   // Step 2: Verify current phone OTP
   const handleVerifyCurrentOtp = async () => {
     if (currentOtp.length !== 4) return;
+
+    if (!checkBeforeAction('التحقق من الرمز')) return;
 
     setLoading(true);
     setError('');
@@ -195,6 +201,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       return;
     }
 
+    if (!checkBeforeAction('إرسال رمز التحقق')) return;
+
     setLoading(true);
     setError('');
     Keyboard.dismiss();
@@ -227,6 +235,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   // Step 4: Complete phone change
   const handleCompleteChange = async () => {
     if (newOtp.length !== 4) return;
+
+    if (!checkBeforeAction('التحقق من الرمز')) return;
 
     setLoading(true);
     setError('');
@@ -266,6 +276,14 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       setStep(step - 1);
       setError('');
       setCountdown(0);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (step === 2) {
+      await handleSendCurrentOtp();
+    } else if (step === 4) {
+      await handleSendNewOtp();
     }
   };
 
@@ -388,10 +406,17 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                       }}
                     />
 
-                    {countdown > 0 && (
+                    {countdown > 0 ? (
                       <Text style={styles.countdownText}>
                         إعادة الإرسال بعد {countdown} ثانية
                       </Text>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={handleResendOtp}
+                        disabled={loading}
+                      >
+                        <Text style={styles.resendButton}>إعادة إرسال الرمز</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 )}
@@ -458,10 +483,17 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                       }}
                     />
 
-                    {countdown > 0 && (
+                    {countdown > 0 ? (
                       <Text style={styles.countdownText}>
                         إعادة الإرسال بعد {countdown} ثانية
                       </Text>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={handleResendOtp}
+                        disabled={loading}
+                      >
+                        <Text style={styles.resendButton}>إعادة إرسال الرمز</Text>
+                      </TouchableOpacity>
                     )}
                   </View>
                 )}
@@ -614,6 +646,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'SF Arabic',
     color: `${colors.alJassWhite}60`,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  resendButton: {
+    fontSize: 14,
+    fontFamily: 'SF Arabic',
+    color: colors.najdiCrimson,
+    fontWeight: '600',
     textAlign: 'center',
     marginTop: 8,
   },
