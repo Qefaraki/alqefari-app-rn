@@ -649,9 +649,11 @@ const styles = StyleSheet.create({
   modal: {
     backgroundColor: `${colors.saduNight}F0`,
     borderRadius: 20,
-    width: '92%',
+    alignSelf: 'stretch',
+    marginHorizontal: 20,
     maxWidth: 420,
-    padding: 28,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     shadowColor: '#000',
