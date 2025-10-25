@@ -1,9 +1,11 @@
--- Migration: Optimize get_structure_only RPC for progressive loading
--- Issue: OR join prevents index usage, causing 5927ms query time
--- Fix: Split into UNION paths for independent index optimization
--- Expected improvement: 5927ms → ~250ms (23.7x faster)
+-- Migration: Fix get_structure_only RPC field casing for progressive loading
+-- Issue: RPC returns lowercase 'nodewidth' but frontend expects camelCase 'nodeWidth'
+-- This causes layoutKeys memoization in TreeView to fail silently
+-- Fix: Quote identifier in RETURNS TABLE to preserve camelCase casing
 --
--- Also fixes: Field casing issue (nodewidth → "nodeWidth")
+-- Note: UNION optimization for OR join deferred to future migration
+-- (Requires restructuring recursive CTE to separate father/mother paths)
+-- Current OR join performance is ~5927ms (no improvement from this migration)
 
 -- Drop old version (explicit replacement)
 DROP FUNCTION IF EXISTS get_structure_only(VARCHAR, INT, INT);
@@ -140,18 +142,19 @@ ANALYZE profiles;
 
 -- Comment for documentation
 COMMENT ON FUNCTION get_structure_only IS
-'Phase 3B Progressive Loading: Optimized structure-only RPC with UNION-based index optimization
+'Phase 3B Progressive Loading: RPC field casing fix for progressive loading
 
-Performance improvements:
-- Before: 5927ms (OR join prevented index usage)
-- After: ~250ms (UNION allows independent index scans)
-- Improvement: 23.7x faster
+Issue: Returns lowercase "nodewidth" instead of camelCase "nodeWidth"
+Impact: Frontend layoutKeys memoization fails silently, causing subtle bugs
+Solution: Quoted identifier "nodeWidth" in RETURNS TABLE clause
+
+Current performance: ~5927ms (unchanged - OR join performance limitation)
+Future optimization: UNION-based index optimization planned for future migration
+(Requires restructuring recursive CTE to separate father/mother join paths)
 
 Changes from previous version:
-1. Split OR join into two UNION ALL paths for independent index optimization
-2. First path (father): Uses idx_profiles_father_id
-3. Second path (mother-only): Uses idx_profiles_mother_id_not_deleted
-4. Fixed field casing: "nodeWidth" quoted for camelCase preservation
+1. Fixed field casing: "nodeWidth" quoted for camelCase preservation
+2. Maintains original query structure and performance characteristics
 
 Returns: Minimal profile data for layout calculation
 - id, hid, name: Profile identification
@@ -166,5 +169,10 @@ Parameters:
 - p_max_depth: Maximum recursion depth (1-15, default 6)
 - p_limit: Maximum results (1-10000, default 10000)
 
+Frontend impact: Fixes layoutKeys memoization in TreeView.js
+- layoutKeys now receives correct "nodeWidth" (camelCase) field name
+- Prevents unnecessary layout recalculations during enrichment
+
 Generated: October 25, 2025
+Updated: October 25, 2025 (corrected migration comment for accuracy)
 Migration: 20251025000001_optimize_structure_only_rpc.sql';

@@ -25,6 +25,7 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
   // Phase 1: Batch state management
   const pendingUpdatesRef = useRef(new Map());
   const batchTimeoutRef = useRef(null);
+  const maxWaitTimeoutRef = useRef(null);  // ✅ CRITICAL FIX: Force flush after 300ms even if scrolling
   const isMountedRef = useRef(true);
   const currentRequestIdRef = useRef(0);
 
@@ -82,12 +83,13 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
         `✅ [Phase 3] Batched ${updates.length} enrichments in ${duration.toFixed(0)}ms`
       );
 
-      // Clear pending updates
+      // ✅ CRITICAL FIX: Clear AFTER successful update (was clearing before, causing data loss on error)
       pendingUpdatesRef.current.clear();
     } catch (error) {
       console.error('❌ [Phase 3] Batch flush failed:', error);
-      // Partial recovery: clear batch to prevent infinite retry
-      pendingUpdatesRef.current.clear();
+      // ✅ CRITICAL FIX: DO NOT clear on error - let retry happen on next enrichment
+      // If we clear here, pending updates are lost forever
+      console.warn('⚠️ [Phase 3] Pending updates retained for retry on next enrichment');
     }
   }, []);
 
@@ -135,16 +137,44 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
 
         // Phase 1: Batch accumulation instead of direct updateNode
         data.forEach(enrichedProfile => {
+          // ✅ PRODUCTION-SAFE VALIDATION: Catch missing version field
+          if (!('version' in enrichedProfile)) {
+            console.warn(
+              `[Phase 3] Profile ${enrichedProfile.id} missing version field. ` +
+              `Edits may fail. Auto-applying fallback. ` +
+              `Fix in src/services/profiles.js:enrichVisibleNodes()`
+            );
+            // Automatic fallback to prevent edit failures
+            enrichedProfile.version = 1;
+          }
+
           // Accumulate in pending batch
           pendingUpdatesRef.current.set(enrichedProfile.id, enrichedProfile);
           enrichedNodesRef.current.add(enrichedProfile.id);
         });
 
-        // Debounced batch flush (100ms delay to batch multiple enrichments)
+        // ✅ CRITICAL FIX: Debounced batch flush with maxWait
+        // Without maxWait, rapid scrolling can cause flush to never fire
         if (batchTimeoutRef.current) {
           clearTimeout(batchTimeoutRef.current);
         }
+
+        // First time seeing enrichment in this scroll cycle - set maxWait timer
+        if (!maxWaitTimeoutRef.current) {
+          maxWaitTimeoutRef.current = setTimeout(() => {
+            // Force flush after 300ms even if scrolling continues
+            console.log('⏰ [Phase 3] maxWait timeout - forcing batch flush');
+            flushBatch();
+            maxWaitTimeoutRef.current = null;
+          }, 300);
+        }
+
+        // Normal debounce - reset on each scroll event
         batchTimeoutRef.current = setTimeout(() => {
+          if (maxWaitTimeoutRef.current) {
+            clearTimeout(maxWaitTimeoutRef.current);
+            maxWaitTimeoutRef.current = null;
+          }
           flushBatch();
         }, 100);
 
@@ -163,6 +193,9 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       }
       if (batchTimeoutRef.current) {
         clearTimeout(batchTimeoutRef.current);
+      }
+      if (maxWaitTimeoutRef.current) {
+        clearTimeout(maxWaitTimeoutRef.current);
       }
     };
   }, [visibleNodeIds, flushBatch]);
@@ -199,6 +232,9 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       }
       if (batchTimeoutRef.current) {
         clearTimeout(batchTimeoutRef.current);
+      }
+      if (maxWaitTimeoutRef.current) {
+        clearTimeout(maxWaitTimeoutRef.current);
       }
     };
   }, []);
