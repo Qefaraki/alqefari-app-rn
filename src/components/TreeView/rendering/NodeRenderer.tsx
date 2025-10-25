@@ -57,14 +57,14 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 import { ImageNode } from './ImageNode';
 
 // Node dimensions constants - Glassmorphism Design (October 2025)
-// Photo nodes: 54x72px (only 2px left/right padding around 50x50 photo)
+// Photo nodes: 52x72px (only 1px padding all around 50x50 photo)
 // Text nodes: Dynamic width (text + 12px padding), 28px height
-const NODE_WIDTH_WITH_PHOTO = 54;  // 2px padding + 50px photo + 2px padding
-const NODE_HEIGHT_WITH_PHOTO = 72; // 4px top + 50px photo + 2px gap + 10pt text + 4px bottom
+const NODE_WIDTH_WITH_PHOTO = 52;  // 1px padding + 50px photo + 1px padding (ultra minimal)
+const NODE_HEIGHT_WITH_PHOTO = 72; // 1px top + 50px photo + gap + 10pt text + 1px bottom
 const NODE_WIDTH_TEXT_ONLY = 75;   // Will be overridden by dynamic calculation
 const NODE_HEIGHT_TEXT_ONLY = 28;  // Compact: 4px top + 10pt text + 4px bottom + line height
 const PHOTO_SIZE = 50;
-const PHOTO_BORDER_RADIUS = 14; // Squircle (42% for iOS-style rounded square)
+const PHOTO_BORDER_RADIUS = 8;  // Subtle rounded corners (less bulbous than 14px)
 const CORNER_RADIUS = 8; // Tight modern corners for glassmorphism
 
 export interface LayoutNode {
@@ -418,10 +418,10 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
       {hasPhoto ? (
         <>
-          {/* Photo placeholder - squircle style (4px top padding) */}
+          {/* Photo placeholder - subtle rounded corners (1px padding) */}
           {renderPhotoPlaceholder(
             node.x - PHOTO_SIZE / 2,
-            node.y - 7 - PHOTO_SIZE / 2,
+            node.y - 35,
             PHOTO_SIZE
           )}
 
@@ -430,7 +430,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             <ImageNode
               url={node.photo_url}
               x={node.x - PHOTO_SIZE / 2}
-              y={node.y - 7 - PHOTO_SIZE / 2}
+              y={node.y - 35}
               width={PHOTO_SIZE}
               height={PHOTO_SIZE}
               radius={PHOTO_BORDER_RADIUS}
@@ -455,10 +455,10 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
             if (!nameParagraph) return null;
 
-            // Position text 2px below photo (minimal gap)
-            // Photo is at y + 4 (top padding), size 50, ends at y + 54
-            // Text starts at y + 54 + 2 = y + 56
-            const textY = y + 56;
+            // Position text below photo with minimal gap
+            // Photo is at y + 1 (top padding), size 50, ends at y + 51
+            // Text starts at y + 51 + 1 (gap) = y + 52
+            const textY = y + 52;
 
             return <Paragraph paragraph={nameParagraph} x={x} y={textY} width={width} />;
           })()}
@@ -490,20 +490,20 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
 // Export constants for testing
 export const NODE_RENDERER_CONSTANTS = {
-  // Glassmorphism design (October 2025) - Ultra compact, minimal padding
-  NODE_WIDTH_WITH_PHOTO: 54,  // 2px padding + 50px photo + 2px padding (ultra tight)
-  NODE_HEIGHT_WITH_PHOTO: 72, // 4px + 50px photo + 2px gap + 10pt text + 4px = 72px
+  // Glassmorphism design (October 2025) - Ultra minimal padding, less rounded corners
+  NODE_WIDTH_WITH_PHOTO: 52,  // 1px padding + 50px photo + 1px padding
+  NODE_HEIGHT_WITH_PHOTO: 72, // 1px + 50px photo + gap + text + 1px = 72px
   NODE_WIDTH_TEXT_ONLY: 75,   // Dynamic, overridden per-node
   NODE_HEIGHT_TEXT_ONLY: 28,  // 4px + 10pt text + 4px = 28px compact
   PHOTO_SIZE: 50,
-  PHOTO_BORDER_RADIUS: 14,    // Squircle (42% for iOS style)
+  PHOTO_BORDER_RADIUS: 8,     // Subtle rounded corners (less bulbous)
   CORNER_RADIUS: 8,           // Tight modern corners for glassmorphism
   // Root node (no change)
   ROOT_WIDTH: 120,
   ROOT_HEIGHT: 100,
   ROOT_BORDER_RADIUS: 20,
   // G2 parent nodes
-  G2_PHOTO_WIDTH: 54,         // Same as regular photo nodes (ultra compact)
+  G2_PHOTO_WIDTH: 52,         // Same as regular photo nodes
   G2_TEXT_WIDTH: 75,
   G2_BORDER_RADIUS: 8,        // Tight corners
 };
