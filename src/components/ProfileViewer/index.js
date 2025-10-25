@@ -55,9 +55,10 @@ import { profilesService } from '../../services/profiles';
 import suggestionService, {
   ALLOWED_SUGGESTION_FIELDS,
 } from '../../services/suggestionService';
-import { supabase } from '../../services/supabase';
+import { supabase, handleSupabaseError } from '../../services/supabase';
 import { useTreeStore } from '../../stores/useTreeStore';
 import { fetchWithTimeout } from '../../utils/fetchWithTimeout';
+import { useNetworkGuard } from '../../hooks/useNetworkGuard';
 import tokens from '../ui/tokens';
 
 const PRE_EDIT_KEY = 'profileViewer.preEditModalDismissed';
@@ -266,6 +267,7 @@ SkeletonContent.displayName = 'SkeletonContent';
 
 const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading = false }) => {
   const insets = useSafeAreaInsets();
+  const { checkBeforeAction } = useNetworkGuard();
 
   const bottomSheetRef = useRef(null);
   const viewScrollRef = useRef(null);
@@ -609,9 +611,43 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     // Don't force snap - maintain current position
   }, [form, person, setMode, setActiveTab]);
 
-  const handleEditPress = useCallback(() => {
+  const handleEditPress = useCallback(async () => {
+    // Check if user is online before allowing edit
+    const canProceed = await checkBeforeAction('تحرير الملف الشخصي');
+    if (!canProceed) {
+      return;
+    }
+
     if (!canEdit) {
       Alert.alert('غير متاح', 'ليس لديك صلاحية التعديل.');
+      return;
+    }
+
+    // Verify permission online before entering edit mode
+    try {
+      const { data: permission, error } = await supabase.rpc('check_family_permission_v4', {
+        p_user_id: person?.user_id,
+        p_target_id: person?.id,
+      });
+
+      if (error) throw error;
+
+      // Check if user still has permission
+      if (!['admin', 'moderator', 'inner'].includes(permission)) {
+        Alert.alert(
+          'تم رفع الصلاحيات',
+          'لم تعد لديك صلاحية لتعديل هذا الملف الشخصي',
+          [{ text: 'حسناً', onPress: () => onClose?.() }]
+        );
+        return;
+      }
+    } catch (error) {
+      console.error('[ProfileViewer] Permission check failed:', error);
+      Alert.alert(
+        'خطأ',
+        'فشل التحقق من الصلاحيات. حاول مرة أخرى.',
+        [{ text: 'حسناً' }]
+      );
       return;
     }
 
@@ -621,7 +657,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     }
 
     enterEditMode();
-  }, [accessMode, canEdit, enterEditMode, rememberChoice]);
+  }, [accessMode, canEdit, checkBeforeAction, enterEditMode, rememberChoice, person, onClose]);
 
   // Memoize menu options to prevent array recreation on every press
   const menuOptions = useMemo(() => {
