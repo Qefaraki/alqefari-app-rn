@@ -32,7 +32,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import tokens, { useAccessibilitySize, hexWithOpacity } from '../../ui/tokens';
+import tokens, { useAccessibilitySize, hexWithOpacity } from '../../../ui/tokens';
 
 const { colors, spacing, profileViewer } = tokens;
 const { inlineRow } = profileViewer;

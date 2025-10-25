@@ -36,7 +36,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Galeria } from '@nandorojo/galeria';
-import tokens, { useAccessibilitySize } from '../../ui/tokens';
+import tokens, { useAccessibilitySize } from '../../../ui/tokens';
 import { formatNameWithTitle } from '../../../services/professionalTitleService';
 import { useTreeStore } from '../../../stores/useTreeStore';
 import { toArabicNumerals } from '../../../utils/dateUtils';

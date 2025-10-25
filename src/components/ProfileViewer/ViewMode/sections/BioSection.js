@@ -22,7 +22,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import tokens, { useAccessibilitySize } from '../../ui/tokens';
+import tokens, { useAccessibilitySize } from '../../../ui/tokens';
 
 const { colors, spacing, typography, profileViewer } = tokens;
 const { bio: bioTokens } = profileViewer;

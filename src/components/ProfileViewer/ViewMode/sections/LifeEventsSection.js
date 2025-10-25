@@ -21,7 +21,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import tokens, { useAccessibilitySize, hexWithOpacity } from '../../ui/tokens';
+import tokens, { useAccessibilitySize, hexWithOpacity } from '../../../ui/tokens';
 import { toArabicNumerals } from '../../../utils/dateUtils';
 
 const { colors, spacing, typography, profileViewer } = tokens;

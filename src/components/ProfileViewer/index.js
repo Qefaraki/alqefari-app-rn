@@ -18,7 +18,6 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import * as Crypto from 'expo-crypto';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheet, {
   BottomSheetScrollView,
@@ -337,6 +336,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
   const [rememberChoice, setRememberChoice] = useState(false);
   const rememberStoreKey = useMemo(() => `${PRE_EDIT_KEY}-${person?.id}`, [person?.id]);
   const [saving, setSaving] = useState(false);
+  const [lastSaveAttempt, setLastSaveAttempt] = useState(0); // For debouncing rapid saves
   const [marriages, setMarriages] = useState([]);
 
   // Loading states for progressive skeleton rendering
@@ -727,10 +727,6 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
 
   const directSave = useCallback(
     async (changes) => {
-      // Generate unique request ID for idempotency (prevent duplicate saves on retry)
-      const requestId = Crypto.randomUUID();
-      console.log('[ProfileViewer] Save initiated with requestId:', requestId);
-
       const payload = { ...changes };
 
       // DEBUG: Find UUID "2" error source
@@ -843,6 +839,14 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
       Alert.alert('لا تغييرات', 'قم بتعديل الحقول قبل الحفظ.');
       return;
     }
+
+    // Debounce: Prevent rapid saves (prevent duplicate submissions)
+    const now = Date.now();
+    if (now - lastSaveAttempt < 500) {
+      console.warn('[ProfileViewer] Ignoring rapid save attempt (debounce)');
+      return;
+    }
+    setLastSaveAttempt(now);
 
     try {
       setSaving(true);
@@ -984,6 +988,7 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     form.draft,
     form.isDirty,
     form.original,
+    lastSaveAttempt,
     refreshPending,
     submitReview,
   ]);

@@ -25,7 +25,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import tokens from '../../ui/tokens';
+import tokens from '../../../ui/tokens';
 import InlineFieldRow from './InlineFieldRow';
 
 const { colors, spacing, typography } = tokens;

@@ -27,7 +27,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import tokens, { useAccessibilitySize } from '../../ui/tokens';
+import tokens, { useAccessibilitySize } from '../../../ui/tokens';
 
 const { colors, spacing, typography, profileViewer } = tokens;
 const { social: socialTokens } = profileViewer;

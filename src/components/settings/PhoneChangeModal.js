@@ -13,7 +13,7 @@
  * - Design system colors and typography
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,8 @@ import {
   Animated,
   Keyboard,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { OtpInput } from 'react-native-otp-entry';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,8 +76,12 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   const newOtpRef = useRef(null);
   const countdownInterval = useRef(null);
 
-  // Animation
+  // Animation refs
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const successAnim = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+  const countdownColor = useRef(new Animated.Value(0)).current;
 
   // Initialize modal - get current phone
   React.useEffect(() => {
@@ -329,6 +335,15 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
               {/* Header */}
               <View style={styles.header}>
                 <TouchableOpacity
+                  onPress={handleCancel}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close" size={24} color={colors.alJassWhite} />
+                </TouchableOpacity>
+
+                <Text style={styles.headerTitle}>تغيير رقم الهاتف</Text>
+
+                <TouchableOpacity
                   onPress={handleBackStep}
                   disabled={step === 1 || loading}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -338,15 +353,6 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                     size={24}
                     color={step === 1 ? 'transparent' : colors.alJassWhite}
                   />
-                </TouchableOpacity>
-
-                <Text style={styles.headerTitle}>تغيير رقم الهاتف</Text>
-
-                <TouchableOpacity
-                  onPress={handleCancel}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="close" size={24} color={colors.alJassWhite} />
                 </TouchableOpacity>
               </View>
 
