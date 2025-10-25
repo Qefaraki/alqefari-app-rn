@@ -57,9 +57,9 @@ import { Group, RoundedRect, Circle, Paragraph, Shadow } from '@shopify/react-na
 import { ImageNode } from './ImageNode';
 
 // Node dimensions constants - Glassmorphism Design (October 2025)
-// Photo nodes: 58x72px (minimal padding around 50x50 photo)
+// Photo nodes: 54x72px (only 2px left/right padding around 50x50 photo)
 // Text nodes: Dynamic width (text + 12px padding), 28px height
-const NODE_WIDTH_WITH_PHOTO = 58;  // 4px padding + 50px photo + 4px padding
+const NODE_WIDTH_WITH_PHOTO = 54;  // 2px padding + 50px photo + 2px padding
 const NODE_HEIGHT_WITH_PHOTO = 72; // 4px top + 50px photo + 2px gap + 10pt text + 4px bottom
 const NODE_WIDTH_TEXT_ONLY = 75;   // Will be overridden by dynamic calculation
 const NODE_HEIGHT_TEXT_ONLY = 28;  // Compact: 4px top + 10pt text + 4px bottom + line height
@@ -418,10 +418,10 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
       {hasPhoto ? (
         <>
-          {/* Photo placeholder - squircle style */}
+          {/* Photo placeholder - squircle style (4px top padding) */}
           {renderPhotoPlaceholder(
             node.x - PHOTO_SIZE / 2,
-            node.y - 10 - PHOTO_SIZE / 2,
+            node.y - 7 - PHOTO_SIZE / 2,
             PHOTO_SIZE
           )}
 
@@ -430,7 +430,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
             <ImageNode
               url={node.photo_url}
               x={node.x - PHOTO_SIZE / 2}
-              y={node.y - 10 - PHOTO_SIZE / 2}
+              y={node.y - 7 - PHOTO_SIZE / 2}
               width={PHOTO_SIZE}
               height={PHOTO_SIZE}
               radius={PHOTO_BORDER_RADIUS}
@@ -490,8 +490,8 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
 
 // Export constants for testing
 export const NODE_RENDERER_CONSTANTS = {
-  // Glassmorphism design (October 2025) - Ultra compact
-  NODE_WIDTH_WITH_PHOTO: 58,  // 4px padding + 50px photo + 4px padding
+  // Glassmorphism design (October 2025) - Ultra compact, minimal padding
+  NODE_WIDTH_WITH_PHOTO: 54,  // 2px padding + 50px photo + 2px padding (ultra tight)
   NODE_HEIGHT_WITH_PHOTO: 72, // 4px + 50px photo + 2px gap + 10pt text + 4px = 72px
   NODE_WIDTH_TEXT_ONLY: 75,   // Dynamic, overridden per-node
   NODE_HEIGHT_TEXT_ONLY: 28,  // 4px + 10pt text + 4px = 28px compact
@@ -503,7 +503,7 @@ export const NODE_RENDERER_CONSTANTS = {
   ROOT_HEIGHT: 100,
   ROOT_BORDER_RADIUS: 20,
   // G2 parent nodes
-  G2_PHOTO_WIDTH: 58,         // Same as regular photo nodes
+  G2_PHOTO_WIDTH: 54,         // Same as regular photo nodes (ultra compact)
   G2_TEXT_WIDTH: 75,
   G2_BORDER_RADIUS: 8,        // Tight corners
 };

@@ -77,7 +77,6 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
-  const [isInitialSending, setIsInitialSending] = useState(true); // Auto-send OTP on open
 
   // Refs
   const currentOtpRef = useRef(null);
@@ -90,10 +89,10 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const successAnim = useRef(new Animated.Value(0)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
-  const countdownColor = useRef(new Animated.Value(0)).current;
+  const resendScale = useRef(new Animated.Value(1)).current;
 
   // Initialize modal - get current phone and auto-send OTP
-  React.useEffect(() => {
+  useEffect(() => {
     if (isVisible) {
       loadCurrentPhone();
 
@@ -121,20 +120,10 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     } else {
       resetModal();
     }
-
-    // Cleanup: Stop animations on unmount
-    return () => {
-      shakeAnim.stopAnimation?.();
-      successAnim.stopAnimation?.();
-      buttonScale.stopAnimation?.();
-      countdownColor.stopAnimation?.();
-      fadeAnim.stopAnimation?.();
-      slideAnim.stopAnimation?.();
-    };
   }, [isVisible]);
 
   // Countdown timer
-  React.useEffect(() => {
+  useEffect(() => {
     if (countdown > 0) {
       countdownInterval.current = setInterval(() => {
         setCountdown((prev) => prev - 1);
@@ -168,10 +157,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     setNewOtp('');
     setError('');
     setCountdown(0);
-    setIsInitialSending(true);
     shakeAnim.setValue(0);
     successAnim.setValue(0);
-    countdownColor.setValue(0);
     slideAnim.setValue(600);
     fadeAnim.setValue(0);
   };
@@ -236,18 +223,16 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   // Auto-send OTP to current phone when modal opens
   const handleAutoSendCurrentOtp = async () => {
     if (!checkBeforeAction('إرسال رمز التحقق')) {
-      setIsInitialSending(false);
       return;
     }
 
     try {
       await sendCurrentPhoneOtp(currentPhone);
       setCountdown(60);
-      setIsInitialSending(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (_) {
+    } catch (err) {
+      console.error('[PhoneChange] Auto-send OTP error:', err);
       setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
-      setIsInitialSending(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
   };
@@ -289,7 +274,9 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       return;
     }
 
-    if (newPhone === currentPhone.replace(/^\+/, '').replace(/[^\d]/g, '')) {
+    // Build full phone with country code and compare
+    const fullNewPhone = selectedCountry?.code + newPhone;
+    if (fullNewPhone === currentPhone) {
       setError('رقم الهاتف الجديد يجب أن يكون مختلفاً');
       return;
     }
@@ -711,7 +698,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   buttonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     fontFamily: 'SF Arabic',
     color: colors.alJassWhite,
@@ -719,7 +706,7 @@ const styles = StyleSheet.create({
   otpContainer: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
     width: '100%',
     marginBottom: 20,
   },
@@ -768,6 +755,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginTop: 12,
+    paddingVertical: 12,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -779,10 +767,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     marginTop: 20,
-    gap: 10,
+    gap: 12,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'SF Arabic',
     color: '#FF7B7B',
     flex: 1,
