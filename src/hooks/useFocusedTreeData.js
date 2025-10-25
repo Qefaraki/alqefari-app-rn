@@ -86,14 +86,8 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
       // Mark this branch as loaded
       loadedBranches.current.add(focusPersonId);
 
-      // Add layout properties to nodes
-      const nodesWithLayout = branchData.map(node => ({
-        ...node,
-        nodeWidth: 38, // Ultra-compact width (50px photo overflows 6px card edges)
-        nodeHeight: node.photo_url ? 60 : 35,
-      }));
-
-      setNodes(nodesWithLayout);
+      // Renderer handles dimensions via nodeConstants (STANDARD_NODE.WIDTH = 38px)
+      setNodes(branchData);
     } catch (err) {
       console.error('Error loading focused tree data:', err);
       setError(err);
@@ -198,13 +192,8 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
       );
 
       // Add layout properties
-      const nodesWithLayout = uniqueNodes.map(node => ({
-        ...node,
-        nodeWidth: 38, // Ultra-compact width (50px photo overflows 6px card edges)
-        nodeHeight: node.photo_url ? 60 : 35,
-      }));
-
-      setNodes(nodesWithLayout);
+      // Renderer handles dimensions via nodeConstants (STANDARD_NODE.WIDTH = 38px)
+      setNodes(uniqueNodes);
       loadedBranches.current.add(personId);
     } catch (err) {
       console.error('Error in manual branch loading:', err);
@@ -234,11 +223,7 @@ export const useFocusedTreeData = (focusPersonId, initialDepth = 3) => {
         branchData.forEach(node => {
           if (!nodesMap.current.has(node.id)) {
             nodesMap.current.set(node.id, node);
-            newNodes.push({
-              ...node,
-              nodeWidth: 38, // Ultra-compact width (50px photo overflows 6px card edges)
-              nodeHeight: node.photo_url ? 60 : 35,
-            });
+            newNodes.push(node);  // Renderer handles dimensions via nodeConstants
           }
         });
 

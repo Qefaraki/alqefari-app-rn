@@ -35,18 +35,8 @@ export function useStructureLoader() {
         if (cachedJson) {
           const cachedStructure = JSON.parse(cachedJson);
 
-          // CRITICAL: Detect and clear stale mock data cache
-          // Mock data has nodeWidth property (85px old width)
-          // Real Supabase data should NOT have nodeWidth
-          const hasMockDataMarker = cachedStructure && cachedStructure.length > 0 &&
-                                   cachedStructure[0].nodeWidth !== undefined;
-
-          if (hasMockDataMarker) {
-            console.warn('⚠️  [Phase 1] Detected stale MOCK DATA in cache (has nodeWidth property)');
-            console.warn('⚠️  [Phase 1] Clearing cache to force reload from Supabase...');
-            await AsyncStorage.removeItem('tree-structure-v3');
-            // Continue to network fetch below
-          } else if (cachedStructure && cachedStructure.length >= 50) {
+          // Use cache if it has >= 50 profiles (indicates valid, populated structure)
+          if (cachedStructure && cachedStructure.length >= 50) {
             console.log(`🚀 [Phase 1] Using cached structure (${cachedStructure.length} profiles)`);
             setStructure(cachedStructure);
             useTreeStore.getState().setTreeData(cachedStructure);
