@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { useNetworkStore } from "../stores/networkStore";
 
 class StorageService {
   constructor() {
@@ -19,6 +20,15 @@ class StorageService {
     customPath = null,
     onProgress = null,
   ) {
+    // Pre-flight network check
+    const networkState = useNetworkStore.getState();
+    if (!networkState.isConnected || networkState.isInternetReachable === false) {
+      return {
+        url: null,
+        error: new Error('لا يوجد اتصال بالإنترنت. تحقق من الاتصال وحاول مرة أخرى.'),
+      };
+    }
+
     const maxRetries = 3;
     let lastError = null;
 
