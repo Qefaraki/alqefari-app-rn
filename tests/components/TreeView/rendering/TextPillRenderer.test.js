@@ -35,7 +35,7 @@ describe('TextPillRenderer', () => {
 
   describe('PILL_CONSTANTS', () => {
     test('should export expected dimensions', () => {
-      expect(PILL_CONSTANTS.WIDTH).toBe(58);  // Consolidated with photo node width (8px grid)
+      expect(PILL_CONSTANTS.WIDTH).toBe(54);  // Consolidated with photo node width (compact)
       expect(PILL_CONSTANTS.HEIGHT).toBe(26);
       expect(PILL_CONSTANTS.CORNER_RADIUS).toBe(4); // Smooth corners
     });
@@ -140,7 +140,7 @@ describe('TextPillRenderer', () => {
         'regular',
         10,
         '#242121',
-        58  // Consolidated width (8px grid)
+        54  // Consolidated width (compact)
       );
     });
 
@@ -160,9 +160,9 @@ describe('TextPillRenderer', () => {
       );
 
       expect(onFrameCalculated).toHaveBeenCalledWith({
-        x: 100 - 29, // centerX - width/2 (58/2 = 29)
+        x: 100 - 27, // centerX - width/2 (54/2 = 27)
         y: 200 - 13, // centerY - height/2
-        width: 58,   // Consolidated width (8px grid)
+        width: 54,   // Consolidated width (compact)
         height: 26,
         borderRadius: 4, // Smooth corners
       });
@@ -184,9 +184,9 @@ describe('TextPillRenderer', () => {
       );
 
       expect(onFrameCalculated).toHaveBeenCalledWith({
-        x: -100 - 29, // -100 - 29 (width/2)
+        x: -100 - 27, // -100 - 27 (width/2)
         y: -200 - 13, // -200 - 13
-        width: 58,   // Consolidated width (8px grid)
+        width: 54,   // Consolidated width (compact)
         height: 26,
         borderRadius: 4, // Smooth corners
       });
@@ -208,9 +208,9 @@ describe('TextPillRenderer', () => {
       );
 
       expect(onFrameCalculated).toHaveBeenCalledWith({
-        x: -29, // 0 - 29 (width/2)
+        x: -27, // 0 - 27 (width/2)
         y: -13, // 0 - 13
-        width: 58,   // Consolidated width (8px grid)
+        width: 54,   // Consolidated width (compact)
         height: 26,
         borderRadius: 4, // Smooth corners
       });
@@ -447,9 +447,9 @@ describe('TextPillRenderer', () => {
       );
 
       // All pills should have same dimensions regardless of name or selection
-      expect(onFrameCalculated1.mock.calls[0][0].width).toBe(58);  // Consolidated width (8px grid)
+      expect(onFrameCalculated1.mock.calls[0][0].width).toBe(54);  // Consolidated width (compact)
       expect(onFrameCalculated1.mock.calls[0][0].height).toBe(26);
-      expect(onFrameCalculated2.mock.calls[0][0].width).toBe(58);  // Consolidated width (8px grid)
+      expect(onFrameCalculated2.mock.calls[0][0].width).toBe(54);  // Consolidated width (compact)
       expect(onFrameCalculated2.mock.calls[0][0].height).toBe(26);
     });
   });

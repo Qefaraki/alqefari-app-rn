@@ -5,17 +5,20 @@
  * Used by both renderer (NodeRenderer, TextPillRenderer) and layout system (treeLayout.js).
  *
  * Phase 1 Consolidation (Oct 25 - Audited & Fixed):
- * - Standard node width: 58px (50px photo + 4px padding × 2)
- * - Follows 8px Design System grid for spacing
+ * - Standard node width: 54px (50px photo + 2px padding × 2)
  * - Unified layout system and renderer dimensions
- * - Eliminated 31px delta between d3 (85px) and renderer (58px)
+ * - Eliminated 31px delta between d3 (85px) and renderer (54px)
  * - Selection border: 2.5px for visibility
+ *
+ * Oct 26 Update:
+ * - Reduced horizontal padding to 2px for tighter visual appearance
+ * - Reduced sibling spacing by 25% for denser layout
  */
 
-// Padding - single configurable source (follows 8px grid design system)
+// Padding - single configurable source (compact spacing)
 export const NODE_PADDING = {
-  HORIZONTAL: 4,  // Follows 8px Design System grid (minimum value)
-  VERTICAL: 4,    // Follows 8px Design System grid
+  HORIZONTAL: 2,  // Compact padding for tighter nodes
+  VERTICAL: 4,    // Vertical padding maintains visual balance
 } as const;
 
 // Photo dimensions
@@ -23,16 +26,16 @@ export const PHOTO_SIZE = 50; // Circle diameter in pixels
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {
-  // Photo nodes: 50px photo + 4px padding × 2 (follows 8px grid)
-  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 58px (50 + 4×2)
+  // Photo nodes: 50px photo + 2px padding × 2 (compact spacing)
+  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (50 + 2×2)
   HEIGHT: PHOTO_SIZE + NODE_PADDING.VERTICAL * 2 + 17,  // 75px (photo + padding + name space)
 
   // Text-only nodes: same width for consistency
-  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 58px (matches photo)
+  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (matches photo)
   HEIGHT_TEXT_ONLY: 35,
 
   CORNER_RADIUS: 10,
-  SELECTION_BORDER: 2.5,  // Restored for visibility (fits within 4px padding)
+  SELECTION_BORDER: 2.5,  // Fits within 2px padding
 } as const;
 
 // Root node (generation 1, no father) - unchanged
@@ -55,7 +58,7 @@ export const G2_NODE = {
 
 // LOD Tier 2 (compact text pills)
 export const TEXT_PILL = {
-  WIDTH: 58,  // Matches standard node width for visual consistency
+  WIDTH: 54,  // Matches standard node width for visual consistency
   HEIGHT: 26,
   CORNER_RADIUS: 4,
   FONT_SIZE: 10,
@@ -125,10 +128,10 @@ export const CONNECTION_STYLES = {
 
 // d3 Tree Layout spacing (used by layout and connection rendering)
 export const LAYOUT_SPACING = {
-  DEFAULT_SIBLING_GAP: 80,
+  DEFAULT_SIBLING_GAP: 60,      // Reduced 25% from 80px
   DEFAULT_GENERATION_GAP: 180,
-  MIN_SIBLING_GAP: 60,
-  MAX_SIBLING_GAP: 150,
+  MIN_SIBLING_GAP: 45,          // Reduced 25% from 60px
+  MAX_SIBLING_GAP: 112,         // Reduced 25% from 150px (112.5 → 112)
   MIN_GENERATION_GAP: 120,
   MAX_GENERATION_GAP: 240,
 } as const;

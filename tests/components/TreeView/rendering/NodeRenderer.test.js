@@ -63,9 +63,9 @@ describe('NodeRenderer', () => {
 
   describe('NODE_RENDERER_CONSTANTS', () => {
     test('should export expected constants', () => {
-      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_WITH_PHOTO).toBe(58); // 50px photo + 4px padding × 2 (8px grid)
-      expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_WITH_PHOTO).toBe(75); // 50px photo + 4px padding × 2 + 17px name space
-      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_TEXT_ONLY).toBe(58);  // Same as photo width (consolidated)
+      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_WITH_PHOTO).toBe(54); // 50px photo + 2px padding × 2 (compact)
+      expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_WITH_PHOTO).toBe(75); // 50px photo + 2px padding × 2 + 17px name space
+      expect(NODE_RENDERER_CONSTANTS.NODE_WIDTH_TEXT_ONLY).toBe(54);  // Same as photo width (consolidated)
       expect(NODE_RENDERER_CONSTANTS.NODE_HEIGHT_TEXT_ONLY).toBe(35);
       expect(NODE_RENDERER_CONSTANTS.PHOTO_SIZE).toBe(50);
       expect(NODE_RENDERER_CONSTANTS.CORNER_RADIUS).toBe(10); // Smooth corners
@@ -142,8 +142,8 @@ describe('NodeRenderer', () => {
 
       const result = calculateNodeDimensions(node, true, false);
 
-      expect(result.width).toBe(58); // 50px photo + 4px padding × 2 (8px grid)
-      expect(result.height).toBe(75); // 50px photo + 4px padding × 2 + 17px name space
+      expect(result.width).toBe(54); // 50px photo + 2px padding × 2 (compact)
+      expect(result.height).toBe(75); // 50px photo + 2px padding × 2 + 17px name space
       expect(result.borderRadius).toBe(10); // Smooth corners
     });
 
@@ -159,7 +159,7 @@ describe('NodeRenderer', () => {
 
       const result = calculateNodeDimensions(node, false, false);
 
-      expect(result.width).toBe(58); // Matches photo width (consolidated)
+      expect(result.width).toBe(54); // Matches photo width (consolidated)
       expect(result.height).toBe(35);
       expect(result.borderRadius).toBe(10); // Smooth corners
     });
@@ -192,7 +192,7 @@ describe('NodeRenderer', () => {
 
       const result = calculateNodeDimensions(node, false, false);
 
-      expect(result.width).toBe(58); // Standard, not G2 parent (consolidated width, 8px grid)
+      expect(result.width).toBe(54); // Standard, not G2 parent (consolidated width, compact)
       expect(result.borderRadius).toBe(10); // Smooth corners
     });
   });

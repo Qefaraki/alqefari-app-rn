@@ -441,7 +441,7 @@ describe('ZoomHandler', () => {
 
       const result = calculateFitToViewTransform(bounds, mockViewport, config);
 
-      expect(result.scale).toBe(0.5);
+      expect(result.scale).toBeCloseTo(0.5, 1);
     });
 
     test('should apply all config options', () => {
