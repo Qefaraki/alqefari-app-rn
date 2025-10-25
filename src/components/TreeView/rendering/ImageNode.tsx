@@ -35,7 +35,7 @@
 import React from 'react';
 import { PixelRatio } from 'react-native';
 import { Group, Circle, RoundedRect, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
-import { IMAGE_BUCKETS } from '../utils/constants/nodes';
+import { IMAGE_BUCKETS } from './nodeConstants';
 
 export interface ImageNodeProps {
   // Image source

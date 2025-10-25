@@ -44,8 +44,8 @@ describe('LODCalculator', () => {
       // Zoom out gradually to trigger T1 → T2 transition
       // T1_BASE = 48px, HYSTERESIS = 0.15
       // Transition happens when nodePx < 48 * (1 - 0.15) = 40.8px
-      // nodePx = 85 * pixelRatio * scale
-      // Assuming pixelRatio = 2, scale needs to be < 0.24
+      // nodePx = NODE_WIDTH_WITH_PHOTO (58px) * pixelRatio * scale
+      // With pixelRatio = 2, scale needs to be < 0.352
 
       const tier = calculateLODTier(0.2, state); // Way below threshold
 
@@ -124,7 +124,8 @@ describe('LODCalculator', () => {
 
       // Zoom in to trigger T2 → T1
       // T1_BASE * (1 + HYSTERESIS) = 48 * 1.15 = 55.2px
-      // scale needs to be > 0.32
+      // With NODE_WIDTH_WITH_PHOTO = 58px and pixelRatio = 2
+      // scale needs to be > 55.2 / (58 * 2) = 0.476
 
       const tier = calculateLODTier(0.8, state);
 

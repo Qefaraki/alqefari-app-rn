@@ -146,13 +146,13 @@ describe('ImageNode', () => {
 
       const result = selectImageBucket(60, customBuckets);
 
-      // Need 120+, so select 200
-      expect(result).toBe(200);
+      // pixelSize = 60, targetSize = 72, first >= 72 in [100, 200, 300] is 100
+      expect(result).toBe(100);
     });
 
-    test('should fallback to 512 if all buckets too small', () => {
+    test('should fallback to 256 if all buckets too small', () => {
       const result = selectImageBucket(300, [40, 60, 80]);
-      expect(result).toBe(512);
+      expect(result).toBe(256);
     });
   });
 
@@ -331,10 +331,10 @@ describe('ImageNode', () => {
       render(<ImageNode {...defaultProps} width={50} scale={1.0} />);
 
       // pixelSize = 50 * 2 * 1.0 = 100
-      // 2x = 200, needs bucket >= 200, so 256
+      // 1.2x = 120, needs bucket >= 120, so 120
       expect(mockUseBatchedSkiaImage).toHaveBeenCalledWith(
         'https://example.com/photo.jpg',
-        256,
+        120,
         'visible'
       );
     });
