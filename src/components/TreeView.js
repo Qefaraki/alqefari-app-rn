@@ -369,11 +369,34 @@ const TreeView = ({
   // Derived state (not stored locally) - prevents state desync
   const showSkeleton = !isTreeLoaded;
 
-  // Initialize animations based on hydrated store state
-  const hasCacheOnMount = isTreeLoaded;
+  // Initialize animations based on actual cache state
+  // CRITICAL FIX: Check store state directly, not isTreeLoaded (which is always false on mount)
+  const hasCacheOnMount = useTreeStore.getState().treeData?.length >= 50;
   const skeletonFadeAnim = useRef(new RNAnimated.Value(hasCacheOnMount ? 0 : 1)).current;
   const contentFadeAnim = useRef(new RNAnimated.Value(hasCacheOnMount ? 1 : 0)).current;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
+
+  // Fade animation effect: Trigger when tree loads from network (if no cache on mount)
+  useEffect(() => {
+    if (isTreeLoaded && !hasCacheOnMount) {
+      console.log('🎬 [TreeView] Triggering fade animation: skeleton → content');
+      RNAnimated.parallel([
+        RNAnimated.timing(skeletonFadeAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        RNAnimated.timing(contentFadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        console.log('✅ [TreeView] Fade animation complete');
+      });
+    }
+  }, [isTreeLoaded, hasCacheOnMount, skeletonFadeAnim, contentFadeAnim]);
+
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);

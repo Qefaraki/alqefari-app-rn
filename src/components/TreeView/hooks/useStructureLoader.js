@@ -28,13 +28,13 @@ export function useStructureLoader() {
 
   const loadStructure = useCallback(async () => {
     try {
-      // Check cache first using store's atomic validation (Phase 3B: Skeleton-in-Store Pattern)
-      // The store validates cache quality (50+ nodes with required fields) and sets isTreeLoaded atomically
+      // Check cache first - independent of loading state
+      // Cache is valid if it has 50+ nodes (minimum threshold for real data)
+      // CRITICAL FIX: Don't require isTreeLoaded - it's always false on mount!
       const storeState = useTreeStore.getState();
-      const isTreeLoaded = storeState.isTreeLoaded;
       const cachedStructure = storeState.treeData;
 
-      if (isTreeLoaded && cachedStructure && cachedStructure.length > 0) {
+      if (cachedStructure && cachedStructure.length >= 50) {
         const startTime = performance.now();
         console.log(`🚀 [Phase 1] Using cached structure (${cachedStructure.length} profiles)`);
         setStructure(cachedStructure);
