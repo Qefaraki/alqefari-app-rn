@@ -362,21 +362,12 @@ const TreeView = ({
   const dimensions = useWindowDimensions();
   const [fontReady, setFontReady] = useState(false);
 
-  // Phase 3B: Skeleton-in-Store Pattern - PROVEN SOLUTION
-  // Direct store subscription: Always reads current hydrated state
-  // No race conditions: Zustand hydration is atomic with isTreeLoaded flag
+  // Phase 3B: Skeleton-in-Store Pattern - SIMPLIFIED
+  // Direct store subscription: Single source of truth for loading state
   const isTreeLoaded = useTreeStore((s) => s.isTreeLoaded);
 
-  // Local state follows store (initially based on hydrated state)
-  const [showSkeleton, setShowSkeleton] = useState(() => !isTreeLoaded);
-
-  // Effect: Sync skeleton visibility with store state
-  useEffect(() => {
-    if (isTreeLoaded && showSkeleton) {
-      console.log('💾 [TreeView] Cache detected, hiding skeleton');
-      setShowSkeleton(false);
-    }
-  }, [isTreeLoaded, showSkeleton]);
+  // Derived state (not stored locally) - prevents state desync
+  const showSkeleton = !isTreeLoaded;
 
   // Initialize animations based on hydrated store state
   const hasCacheOnMount = isTreeLoaded;
@@ -386,7 +377,6 @@ const TreeView = ({
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
-  const [setIsLoading] = useState(() => () => {}); // Dummy setter for traditional loader (not used in progressive mode)
 
   // Admin mode state
   const { isAdminMode } = useAdminMode();
@@ -644,18 +634,21 @@ const TreeView = ({
     ? useProgressiveTreeView(stage, dimensions)
     : null;
 
-  const traditionalResult = !USE_PROGRESSIVE_LOADING
-    ? useTreeDataLoader({
-        setTreeData,
-        setIsLoading,
-        setNetworkError,
-        setShowSkeleton,
-        setIsRetrying,
-        skeletonFadeAnim,
-        contentFadeAnim,
-        settingsRef,
-      })
-    : null;
+  // TRADITIONAL LOADER - COMMENTED OUT (Progressive loading enabled via USE_PROGRESSIVE_LOADING=true)
+  // Kept as fallback if progressive loading needs to be disabled
+  // const traditionalResult = !USE_PROGRESSIVE_LOADING
+  //   ? useTreeDataLoader({
+  //       setTreeData,
+  //       setIsLoading,
+  //       setNetworkError,
+  //       setShowSkeleton,
+  //       setIsRetrying,
+  //       skeletonFadeAnim,
+  //       contentFadeAnim,
+  //       settingsRef,
+  //     })
+  //   : null;
+  const traditionalResult = null;
 
   // Unified API: Both loading strategies update the Zustand store
   // For progressive loading, we create stub functions since it handles loading internally
@@ -674,65 +667,10 @@ const TreeView = ({
       }
     : traditionalResult;
 
-  // Phase 3B: Extract stable layout keys to prevent enrichment-triggered recalc
-  // Only layout-affecting fields: id, parent IDs, sibling order, photo dimensions
-  // Enrichment-only fields (bio, education, kunya) don't affect this key
-  const layoutKeys = useMemo(() => {
-    if (!treeData || treeData.length === 0) return '';
-
-    return treeData
-      .map(n =>
-        `${n.id}|${n.father_id || ''}|${n.mother_id || ''}|${n.sibling_order}|${n.photo_url || ''}|${n.nodeWidth}`
-      )
-      .join(',');
-  }, [treeData]);
-
-  // Calculate layout - based on layout keys and showPhotos prop
-  // Phase 3B: Add error handling with fallback to prevent app crash on corrupted cache
-  const { nodes, connections } = useMemo(() => {
-    if (!treeData || treeData.length === 0) {
-      return { nodes: [], connections: [] };
-    }
-
-    try {
-      // Phase 1 Day 4d: Performance monitoring
-      const layoutStartTime = performance.now();
-      const layout = calculateTreeLayout(treeData, showPhotos);
-      const layoutDuration = performance.now() - layoutStartTime;
-
-      // Log layout performance
-      performanceMonitor.logLayoutTime(layoutDuration, treeData.length);
-
-      // Note: Layout logging moved to effect to prevent useMemo spam
-
-      // NOTE: Root node -80 offset is now baked into treeLayout.js
-      // No adjustedNodes transformation needed anymore
-      // Layout returns final positions (node.y includes root offset + top-alignment)
-
-      // DEBUG: Log canvas coordinates summary
-      if (layout.nodes.length > 0) {
-        console.log('🎯 LAYOUT CALCULATED:');
-        console.log(`  Nodes: ${layout.nodes.length}, Connections: ${layout.connections.length}`);
-        console.log(`  TreeData length: ${treeData.length}`);
-        console.log(`  Show photos: ${showPhotos}`);
-      }
-
-      return { nodes: layout.nodes, connections: layout.connections };
-    } catch (error) {
-      // Phase 3B: Error recovery for corrupted cache or layout computation failure
-      console.error('❌ [TreeView] Layout computation failed:', error);
-
-      // If we were showing cached content and it fails, clear cache and show skeleton
-      if (isTreeLoaded) {
-        console.warn('⚠️ [TreeView] Clearing corrupted cache and showing skeleton');
-        useTreeStore.getState().clearTreeData();
-        setShowSkeleton(true);
-      }
-
-      // Return empty to prevent crash (next render will have fresh data or skeleton)
-      return { nodes: [], connections: [] };
-    }
-  }, [layoutKeys, showPhotos, isTreeLoaded]);
+  // SIMPLIFIED: Use progressive loading results directly (already calculated layout)
+  // Progressive hook handles: Phase 1 (load structure) + Phase 2 (calculate layout)
+  // No duplicate calculation needed - just use the result
+  const { nodes = [], connections = [] } = progressiveResult || { nodes: [], connections: [] };
 
   // Build indices for node lookup and relationships with O(N) complexity
   const indices = useMemo(() => {
@@ -2432,7 +2370,7 @@ const TreeView = ({
     );
   }
 
-  if (showSkeleton && !isTreeLoaded) {
+  if (showSkeleton) {
     return (
       <View style={{ flex: 1 }}>
         {/* Skeleton with fade out */}

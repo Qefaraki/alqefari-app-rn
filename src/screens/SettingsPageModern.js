@@ -35,6 +35,7 @@ import { formatNameWithTitle } from "../services/professionalTitleService";
 import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 import tokens from '../components/ui/tokens';
 import MySuggestions from "./MySuggestions";
+import { PhoneChangeModal } from "../components/settings/PhoneChangeModal";
 
 // Use design system tokens
 const colors = {
@@ -313,6 +314,7 @@ export default function SettingsPageModern({ user }) {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showMySuggestions, setShowMySuggestions] = useState(false);
+  const [showPhoneChangeModal, setShowPhoneChangeModal] = useState(false);
 
   // New settings states
   const [notifications, setNotifications] = useState({
@@ -1219,6 +1221,17 @@ export default function SettingsPageModern({ user }) {
         <SettingsSection title="إدارة الحساب">
           {currentUser && !isGuestMode && (
             <SettingsCell
+              label="تغيير رقم الهاتف"
+              description="تحديث رقم الهاتف المرتبط بحسابك"
+              onPress={() => {
+                handleFeedback();
+                setShowPhoneChangeModal(true);
+              }}
+              rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
+            />
+          )}
+          {currentUser && !isGuestMode && (
+            <SettingsCell
               label="تسجيل الخروج"
               description={isSigningOut ? "جاري تنفيذ تسجيل الخروج..." : "إنهاء الجلسة الحالية"}
               onPress={handleSignOut}
@@ -1307,6 +1320,17 @@ export default function SettingsPageModern({ user }) {
       >
         <MySuggestions onClose={() => setShowMySuggestions(false)} />
       </Modal>
+
+      {/* Phone Change Modal */}
+      <PhoneChangeModal
+        isVisible={showPhoneChangeModal}
+        onComplete={(newPhone) => {
+          setShowPhoneChangeModal(false);
+          // Optional: Show success message or refresh profile
+          console.log('[Settings] Phone changed to:', newPhone);
+        }}
+        onCancel={() => setShowPhoneChangeModal(false)}
+      />
     </SafeAreaView>
   );
 }

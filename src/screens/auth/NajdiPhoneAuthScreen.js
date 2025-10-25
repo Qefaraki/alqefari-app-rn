@@ -23,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { OtpInput } from "react-native-otp-entry";
 import DuolingoProgressBar from "../../components/DuolingoProgressBar";
+import { PhoneInputField } from "../../components/ui/PhoneInputField";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { phoneAuthService } from "../../services/phoneAuth";
@@ -41,25 +42,13 @@ const colors = {
   focus: "#957EB5",
 };
 
-// Country codes list - English numbers only
-const countryCodes = [
-  { code: "+966", country: "السعودية", flag: "🇸🇦", key: "SA" },
-  { code: "+971", country: "الإمارات", flag: "🇦🇪", key: "AE" },
-  { code: "+965", country: "الكويت", flag: "🇰🇼", key: "KW" },
-  { code: "+973", country: "البحرين", flag: "🇧🇭", key: "BH" },
-  { code: "+974", country: "قطر", flag: "🇶🇦", key: "QA" },
-  { code: "+968", country: "عُمان", flag: "🇴🇲", key: "OM" },
-  { code: "+20", country: "مصر", flag: "🇪🇬", key: "EG" },
-  { code: "+962", country: "الأردن", flag: "🇯🇴", key: "JO" },
-  { code: "+1", country: "أمريكا", flag: "🇺🇸", key: "US" },
-  { code: "+44", country: "بريطانيا", flag: "🇬🇧", key: "GB" },
-];
+// Default Saudi country code (used as initial selection)
+const DEFAULT_COUNTRY = { code: "+966", country: "السعودية", flag: "🇸🇦", key: "SA" };
 
 export default function NajdiPhoneAuthScreen({ onOTPSent }) {
   const [step, setStep] = useState("phone"); // 'phone' or 'otp'
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]); // Saudi default
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY); // Saudi default
   const [otp, setOtp] = useState(""); // Changed to string for the library
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -151,7 +140,7 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
     ]).start();
   };
 
-  // Convert Arabic numerals to Western numerals
+  // Convert Arabic numerals to Western numerals (for OTP only)
   const convertArabicToWestern = (text) => {
     const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
     const westernNumerals = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -161,20 +150,6 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
       converted = converted.replace(new RegExp(arabicNumerals[i], 'g'), westernNumerals[i]);
     }
     return converted;
-  };
-
-  const formatPhoneDisplay = (text) => {
-    // Simply return the digits without spacing for display
-    // This prevents confusing cursor jumps while typing
-    return text;
-  };
-
-  const handlePhoneChange = (text) => {
-    // Convert Arabic numerals to Western first
-    const convertedText = convertArabicToWestern(text);
-    // Only allow digits
-    const digitsOnly = convertedText.replace(/\D/g, "");
-    setPhoneNumber(digitsOnly.slice(0, 9)); // Max 9 digits for Saudi numbers
   };
 
   const handleSendOTP = async () => {
@@ -309,55 +284,6 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
     buttonPulse.setValue(1);
   };
 
-  const CountryPicker = () => (
-    <Modal
-      visible={showCountryPicker}
-      animationType="fade"
-      transparent={true}
-      onRequestClose={() => setShowCountryPicker(false)}
-    >
-      <TouchableOpacity
-        style={styles.modalOverlay}
-        activeOpacity={1}
-        onPress={() => setShowCountryPicker(false)}
-      >
-        <BlurView intensity={80} style={styles.modalBlur}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>اختر رمز الدولة</Text>
-              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
-                <Ionicons name="close" size={24} color={colors.alJassWhite} />
-              </TouchableOpacity>
-            </View>
-            <FlatList
-              data={countryCodes}
-              keyExtractor={(item) => item.key}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.countryItem,
-                    selectedCountry.key === item.key &&
-                      styles.countryItemSelected,
-                  ]}
-                  onPress={() => {
-                    setSelectedCountry(item);
-                    setShowCountryPicker(false);
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                >
-                  <View style={styles.countryInfo}>
-                    <Text style={styles.countryFlag}>{item.flag}</Text>
-                    <Text style={styles.countryName}>{item.country}</Text>
-                  </View>
-                  <Text style={styles.countryCode}>{item.code}</Text>
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </BlurView>
-      </TouchableOpacity>
-    </Modal>
-  );
 
   // Phone step opacity/transform
   const phoneStepStyle = {
@@ -468,53 +394,14 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
                           سنرسل لك رمز التحقق للدخول
                         </Text>
 
-                        <View style={styles.phoneInputWrapper}>
-                          {/* Phone Number Input */}
-                          <TextInput
-                            testID="phone-input"
-                            style={[
-                              styles.phoneInput,
-                              {
-                                textAlign: "left",
-                                writingDirection: "ltr",
-                              },
-                            ]}
-                            placeholder="50 123 4567"
-                            placeholderTextColor={`${colors.alJassWhite  }40`}
-                            value={formatPhoneDisplay(phoneNumber)}
-                            onChangeText={handlePhoneChange}
-                            keyboardType="number-pad"
-                            maxLength={11} // 9 digits + 2 spaces
-                            returnKeyType="done"
-                            onSubmitEditing={handleSendOTP}
-                          />
-
-                          {/* Country Code Selector */}
-                          <TouchableOpacity
-                            style={styles.countrySelector}
-                            onPress={() => {
-                              Haptics.impactAsync(
-                                Haptics.ImpactFeedbackStyle.Light,
-                              );
-                              setShowCountryPicker(true);
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={styles.countryFlag}>
-                              {selectedCountry.flag}
-                            </Text>
-                            <Text style={styles.countryCodeText}>
-                              {selectedCountry.code}
-                            </Text>
-                            <Ionicons
-                              name="chevron-down"
-                              size={16}
-                              color={`${colors.alJassWhite  }99`}
-                            />
-                          </TouchableOpacity>
-                        </View>
-
-                        {error && <Text style={styles.errorText}>{error}</Text>}
+                        <PhoneInputField
+                          value={phoneNumber}
+                          onChangeText={setPhoneNumber}
+                          selectedCountry={selectedCountry}
+                          onCountryChange={setSelectedCountry}
+                          disabled={loading}
+                          error={error}
+                        />
 
                         <TouchableOpacity
                           testID="send-code-button"
@@ -645,8 +532,6 @@ export default function NajdiPhoneAuthScreen({ onOTPSent }) {
           </View>
         </SafeAreaView>
       </View>
-
-      <CountryPicker />
     </View>
   );
 }
@@ -781,45 +666,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.najdiCrimson,
   },
-  phoneInputWrapper: {
-    flexDirection: "row",
-    marginBottom: 24,
-    gap: 12,
-    width: "100%",
-  },
-  countrySelector: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    gap: 6,
-  },
-  countryFlag: {
-    fontSize: 20,
-  },
-  countryCodeText: {
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: colors.alJassWhite,
-  },
-  phoneInput: {
-    flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    fontWeight: "500",
-    fontFamily: "SF Arabic",
-    color: colors.alJassWhite,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-  },
   otpContainer: {
     flexDirection: "row-reverse", // RTL direction
     justifyContent: "space-between",
@@ -911,65 +757,5 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: "SF Arabic",
     color: colors.najdiCrimson,
-  },
-
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-  },
-  modalBlur: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "rgba(36, 33, 33, 0.95)",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 24,
-    maxHeight: SCREEN_HEIGHT * 0.6,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    fontFamily: "SF Arabic",
-    color: colors.alJassWhite,
-  },
-  countryItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.05)",
-  },
-  countryItemSelected: {
-    backgroundColor: `${colors.najdiCrimson  }15`,
-  },
-  countryInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  countryName: {
-    fontSize: 16,
-    fontWeight: "500",
-    fontFamily: "SF Arabic",
-    color: colors.alJassWhite,
-  },
-  countryCode: {
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: "SF Arabic",
-    color: `${colors.alJassWhite  }99`,
   },
 });
