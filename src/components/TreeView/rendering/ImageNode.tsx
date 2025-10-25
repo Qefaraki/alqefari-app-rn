@@ -36,7 +36,7 @@ import React from 'react';
 import { PixelRatio } from 'react-native';
 import { Group, Circle, Mask, Image as SkiaImage } from '@shopify/react-native-skia';
 import { IMAGE_BUCKETS } from './nodeConstants';
-import { usePhotoMorphTransition } from '../../hooks/usePhotoMorphTransition';
+import { usePhotoMorphTransition } from '../../../hooks/usePhotoMorphTransition';
 
 export interface ImageNodeProps {
   // Image source
