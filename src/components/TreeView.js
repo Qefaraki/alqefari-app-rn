@@ -367,10 +367,11 @@ const TreeView = ({
   const hasPreloadedData = treeData && treeData.length > 0;
 
   // Initialize loading state - skip if we have preloaded data
-  const [isLoading, setIsLoading] = useState(!hasPreloadedData);
-  const [showSkeleton, setShowSkeleton] = useState(!hasPreloadedData);
-  const skeletonFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 0 : 1)).current;
-  const contentFadeAnim = useRef(new RNAnimated.Value(hasPreloadedData ? 1 : 0)).current;
+  // Phase 3B: For progressive loading, skip skeleton entirely (tree appears instantly)
+  const [isLoading, setIsLoading] = useState(USE_PROGRESSIVE_LOADING ? false : !hasPreloadedData);
+  const [showSkeleton, setShowSkeleton] = useState(USE_PROGRESSIVE_LOADING ? false : !hasPreloadedData);
+  const skeletonFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING ? 0 : (hasPreloadedData ? 0 : 1))).current;
+  const contentFadeAnim = useRef(new RNAnimated.Value(USE_PROGRESSIVE_LOADING ? 1 : (hasPreloadedData ? 1 : 0))).current;
   const shimmerAnim = useRef(new RNAnimated.Value(0.3)).current;
   const [currentScale, setCurrentScale] = useState(1);
   const [networkError, setNetworkError] = useState(null);
