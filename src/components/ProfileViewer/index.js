@@ -35,6 +35,13 @@ import ContactCard from './ViewMode/cards/ContactCard';
 import FamilyList from './ViewMode/cards/FamilyList';
 import TimelineCard from './ViewMode/cards/TimelineCard';
 import PhotosCard from './ViewMode/cards/PhotosCard';
+import {
+  EnhancedHero,
+  BioSection,
+  DataFieldsSection,
+  SocialMediaSection,
+  LifeEventsSection,
+} from './ViewMode/sections';
 import HeroSkeleton from '../ui/skeletons/HeroSkeleton';
 import FamilyCardSkeleton from '../ui/skeletons/FamilyCardSkeleton';
 import GenericCardSkeleton from '../ui/skeletons/GenericCardSkeleton';
@@ -116,6 +123,22 @@ const ViewModeContent = React.memo(({
 
     <PhotosCard person={person} accessMode={accessMode} />
 
+    {/* Bio Section - Wikipedia-style biography */}
+    {!loadingStates.permissions && (
+      <BioSection bio={person?.bio} />
+    )}
+
+    {/* Social Media Section - Icon grid with links */}
+    {!loadingStates.permissions && person?.social_links && (
+      <SocialMediaSection socialLinks={person.social_links} />
+    )}
+
+    {/* Life Events Timeline - Birth/Death events */}
+    {!loadingStates.permissions && (
+      <LifeEventsSection person={person} />
+    )}
+
+    {/* Professional & Contact Data Fields */}
     {loadingStates.permissions ? (
       <>
         <GenericCardSkeleton rows={3} titleWidth={90} />

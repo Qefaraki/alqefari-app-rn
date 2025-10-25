@@ -11,10 +11,12 @@
  * - 1000 char bio with 150 char preview + expand button
  * - Wikipedia-style biographical display
  *
- * Pattern 3: InlineFieldRow (+ SocialMediaSection variant)
+ * Pattern 3: InlineFieldRow (+ SocialMediaSection & DataFieldsSection variants)
  * - Flexible row with icon + text
  * - Supports unlimited multi-line text wrapping
  * - Base for all data field displays
+ * - DataFieldsSection: wrapper for grouping multiple rows
+ * - SocialMediaSection: variant for social media icons
  *
  * Pattern 4: LifeEventsSection
  * - Vertical timeline for birth/death events
@@ -24,5 +26,6 @@
 export { default as EnhancedHero } from './EnhancedHero';
 export { default as BioSection } from './BioSection';
 export { default as InlineFieldRow } from './InlineFieldRow';
+export { default as DataFieldsSection } from './DataFieldsSection';
 export { default as SocialMediaSection } from './SocialMediaSection';
 export { default as LifeEventsSection } from './LifeEventsSection';

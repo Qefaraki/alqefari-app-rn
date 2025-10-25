@@ -113,13 +113,13 @@ const TabDetails = ({ form, updateField }) => {
       <View style={styles.stack}>
         <FormSection
           title="السيرة الذاتية"
-          description="اكتب نبذة مختصرة عن الشخصية والإنجازات الأبرز."
+          description="اكتب سيرة ذاتية شاملة مثل ويكيبيديا - يمكنك استخدام حتى 1000 حرف."
         >
           <FormField>
             <BioEditor
               value={draft?.bio || draft?.biography || ''}
               onChange={(text) => updateField('bio', text)}
-              maxLength={500}
+              maxLength={1000}
             />
           </FormField>
         </FormSection>

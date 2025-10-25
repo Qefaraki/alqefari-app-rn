@@ -35,12 +35,6 @@ const buildRelative = (node, { fallbackId, fallbackName, label }) => {
     const shortened = getFirstAndLastWord(baseName);
     const abbrev = getTitleAbbreviation(node || {});
     name = abbrev ? `${abbrev} ${shortened || baseName}`.trim() : (shortened || baseName);
-  } else if (label === 'الزوجة' || label === 'الزوج') {
-    if (node?.hid !== null && node?.hid !== undefined) {
-      name = getCompleteNameChain(node) || formatNameWithTitle(node) || node?.name || fallbackName || '';
-    } else {
-      name = formatNameWithTitle(node) || node?.name || fallbackName || '';
-    }
   } else {
     name = formatNameWithTitle(node) || node?.name || fallbackName || '';
   }
@@ -74,41 +68,8 @@ const FamilyList = React.memo(({
       list.push({ ...buildRelative(mother, { label: 'الوالدة' }), type: 'member' });
     }
 
-    const shouldDisplayMarriages = Array.isArray(marriages) && marriages.length > 0;
-    if (shouldDisplayMarriages) {
-      const currentMarriages = marriages.filter((marriage) => marriage?.status === 'current' || marriage?.status === 'married');
-      if (currentMarriages.length > 0) {
-        const spouseCount = currentMarriages.length;
-        const singularLabel = person?.gender === 'male' ? 'الزوجة' : 'الزوج';
-        const pluralLabel = person?.gender === 'male' ? 'الزوجات' : 'الأزواج';
-        const dividerLabel = spouseCount > 1
-          ? `${pluralLabel} (${toArabicNumerals(String(spouseCount))})`
-          : singularLabel;
-
-        list.push({ type: 'divider', key: 'divider-spouses', label: dividerLabel });
-
-        currentMarriages.forEach((marriage, index) => {
-          const spouse = marriage?.spouse_profile;
-          if (spouse && !spouse.deleted_at && spouse.id !== person?.id) {
-            const relationship = person?.gender === 'male' ? 'الزوجة' : 'الزوج';
-            list.push({
-              ...buildRelative(spouse, { label: relationship }),
-              type: 'member',
-            });
-          } else if (marriage?.spouse_name) {
-            const relationship = person?.gender === 'male' ? 'الزوجة' : 'الزوج';
-            list.push({
-              ...buildRelative(null, {
-                fallbackId: `spouse-${index}`,
-                fallbackName: marriage.spouse_name,
-                label: relationship,
-              }),
-              type: 'member',
-            });
-          }
-        });
-      }
-    }
+    // Note: Spouses/wives are intentionally NOT displayed per user requirement
+    // All marriage/spouse rendering logic has been removed
 
     const hasChildren = Array.isArray(children) && children.length > 0;
     if (hasChildren) {
@@ -134,7 +95,7 @@ const FamilyList = React.memo(({
     }
 
     return list.filter(Boolean);
-  }, [father, mother, marriages, children, person?.gender, person?.id]);
+  }, [father, mother, children, person?.gender, person?.id]);
 
   const hasFamilyData = familyMembers.some((item) => item.type === 'member');
 
