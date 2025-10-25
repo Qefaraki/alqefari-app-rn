@@ -323,10 +323,11 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     }
 
     // View mode with Galeria integration
-    // ✅ Image wrapped DIRECTLY by Galeria.Image (no TouchableOpacity - Galeria handles taps)
+    // ✅ View wrapper OUTSIDE Galeria.Image for styling
+    // ✅ Galeria.Image wraps image DIRECTLY (no intermediate wrapper)
     return (
-      <Galeria.Image index={index} key={item.id}>
-        <View style={styles.photoTile}>
+      <View style={styles.photoTile} key={item.id}>
+        <Galeria.Image index={index}>
           <RobustImage
             source={{ uri: item.photo_url }}
             style={styles.photoImage}
@@ -338,8 +339,8 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
             recyclingKey={item.id}
             transition={180}
           />
-        </View>
-      </Galeria.Image>
+        </Galeria.Image>
+      </View>
     );
   };
 
@@ -388,19 +389,17 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
   // View mode with Galeria integration
   const columns = photoCount <= 4 ? 2 : 3;
 
-  // Calculate dynamic itemDimension to ensure columns actually fit
-  const screenWidth = Dimensions.get('window').width;
-  const containerPadding = 16 * 2; // Horizontal padding from galleryContainer parent
-  const gridGaps = GAP * (columns - 1); // Total gap space
-  const itemDimension = Math.floor((screenWidth - containerPadding - gridGaps) / columns);
+  // Use baseline sizing (small enough to fit N+ items)
+  // SimpleGrid auto-expands items to fill width with exactly N columns
+  // This accounts for all parent padding (ProfileViewer paddingHorizontal: 16)
+  const baseItemDimension = columns === 3 ? 100 : 140;
 
   return (
     <View style={styles.galleryContainer}>
       <Galeria urls={galleryUrls}>
         <SimpleGrid
-          itemDimension={itemDimension}
+          itemDimension={baseItemDimension}
           maxItemsPerRow={columns}
-          fixed={true} // ✅ Force exact column count (don't fall back to fewer columns)
           data={photos}
           spacing={GAP}
           renderItem={renderItem}

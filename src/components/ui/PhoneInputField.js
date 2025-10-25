@@ -67,6 +67,7 @@ export function PhoneInputField({
   error = "",
   maxDigits = 9, // Max 9 digits for Saudi numbers by default
   placeholder = "50 123 4567",
+  containerStyle = {},
 }) {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
 
@@ -146,7 +147,7 @@ export function PhoneInputField({
   );
 
   return (
-    <>
+    <View style={[{ width: '100%', alignSelf: 'stretch' }, containerStyle]}>
       <View style={styles.phoneInputWrapper}>
         {/* Phone Number Input */}
         <TextInput
@@ -198,7 +199,7 @@ export function PhoneInputField({
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       <CountryPickerModal />
-    </>
+    </View>
   );
 }
 
