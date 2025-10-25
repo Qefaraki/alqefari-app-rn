@@ -38,9 +38,12 @@ export function useStructureLoader() {
         cachedStructure.length > 0 &&
         cachedVersion === TREE_STRUCTURE_SCHEMA_VERSION
       ) {
-        console.log('🚀 [Phase 1] Using cached structure');
+        const startTime = performance.now();
+        console.log(`🚀 [Phase 1] Using cached structure (${cachedStructure.length} profiles)`);
         setStructure(cachedStructure);
         setIsLoading(false);
+        const duration = performance.now() - startTime;
+        console.log(`✅ [Phase 1] Cache load complete in ${duration.toFixed(0)}ms (instant, no network))`);
         return;
       }
 

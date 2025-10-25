@@ -212,7 +212,14 @@ const BUCKET_DEBOUNCE_MS = 150; // ms
 // Phase 3B - Progressive Loading Feature Flag
 // Set to true to enable two-phase loading (0.45 MB structure + progressive enrichment)
 // Set to false to use traditional full-tree loading
-const USE_PROGRESSIVE_LOADING = false;
+const USE_PROGRESSIVE_LOADING = true;
+
+// Log which mode is being used
+if (USE_PROGRESSIVE_LOADING) {
+  console.log('🚀 [TreeView] PROGRESSIVE LOADING MODE ENABLED - Expecting 3 phases (structure → layout → enrichment)');
+} else {
+  console.log('📦 [TreeView] TRADITIONAL LOADING MODE - Full tree loading');
+}
 
 // Create font manager/provider once
 let fontMgr = null;
@@ -645,12 +652,12 @@ const TreeView = ({
   const { loadTreeData, handleRetry } = USE_PROGRESSIVE_LOADING
     ? {
         loadTreeData: async () => {
-          console.log('📦 [Progressive] Reload triggered');
+          console.log('🔄 [Progressive] Reload triggered - clearing store to restart progressive loading');
           // Progressive loading will automatically reload on store reset
           useTreeStore.getState().setTreeData([]);
         },
         handleRetry: async () => {
-          console.log('📦 [Progressive] Retry triggered');
+          console.log('🔄 [Progressive] Retry triggered - clearing store to restart progressive loading');
           // Progressive loading will automatically retry on next render
           useTreeStore.getState().setTreeData([]);
         },
