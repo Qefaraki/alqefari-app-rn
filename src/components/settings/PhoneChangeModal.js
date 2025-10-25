@@ -253,7 +253,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       setStep(2);
       setCurrentOtp('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (_) {
+    } catch (err) {
+      console.error('[PhoneChange] Verify current OTP error:', err);
       setError('رمز التحقق غير صحيح');
       triggerErrorShake();
       setCurrentOtp('');
@@ -304,7 +305,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       setCountdown(60);
       setStep(3);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (_) {
+    } catch (err) {
+      console.error('[PhoneChange] Initiate new phone OTP error:', err);
       setError('فشل إرسال رمز التحقق. يرجى المحاولة مرة أخرى.');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
@@ -339,7 +341,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       // Reset and call completion callback
       resetModal();
       onComplete(fullNewPhone);
-    } catch (_) {
+    } catch (err) {
+      console.error('[PhoneChange] Complete phone change error:', err);
       setError('رمز التحقق غير صحيح');
       triggerErrorShake();
       setNewOtp('');
@@ -425,6 +428,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
               {/* Header */}
               <View style={styles.header}>
                 <TouchableOpacity
+                  accessibilityLabel="إغلاق"
+                  accessibilityRole="button"
                   onPress={handleCancel}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -434,6 +439,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                 <Text style={styles.headerTitle}>تغيير رقم الهاتف</Text>
 
                 <TouchableOpacity
+                  accessibilityLabel="رجوع"
+                  accessibilityRole="button"
                   onPress={handleBackStep}
                   disabled={step === 1 || loading}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -485,12 +492,18 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                         إعادة الإرسال بعد {countdown} ثانية
                       </Text>
                     ) : (
-                      <TouchableOpacity
-                        onPress={handleResendOtp}
-                        disabled={loading}
-                      >
-                        <Text style={styles.resendButton}>إعادة إرسال الرمز</Text>
-                      </TouchableOpacity>
+                      <Animated.View style={{ transform: [{ scale: resendScale }] }}>
+                        <TouchableOpacity
+                          accessibilityLabel="إعادة إرسال رمز التحقق"
+                          accessibilityRole="button"
+                          onPress={handleResendOtp}
+                          onPressIn={() => resendScale.setValue(0.96)}
+                          onPressOut={() => resendScale.setValue(1)}
+                          disabled={loading}
+                        >
+                          <Text style={styles.resendButton}>إعادة إرسال الرمز</Text>
+                        </TouchableOpacity>
+                      </Animated.View>
                     )}
                   </View>
                 )}
@@ -566,12 +579,18 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                         إعادة الإرسال بعد {countdown} ثانية
                       </Text>
                     ) : (
-                      <TouchableOpacity
-                        onPress={handleResendOtp}
-                        disabled={loading}
-                      >
-                        <Text style={styles.resendButton}>إعادة إرسال الرمز</Text>
-                      </TouchableOpacity>
+                      <Animated.View style={{ transform: [{ scale: resendScale }] }}>
+                        <TouchableOpacity
+                          accessibilityLabel="إعادة إرسال رمز التحقق"
+                          accessibilityRole="button"
+                          onPress={handleResendOtp}
+                          onPressIn={() => resendScale.setValue(0.96)}
+                          onPressOut={() => resendScale.setValue(1)}
+                          disabled={loading}
+                        >
+                          <Text style={styles.resendButton}>إعادة إرسال الرمز</Text>
+                        </TouchableOpacity>
+                      </Animated.View>
                     )}
                   </View>
                 )}
