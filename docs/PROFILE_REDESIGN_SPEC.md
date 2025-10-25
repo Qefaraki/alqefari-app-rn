@@ -1,1088 +1,1058 @@
-# Profile Sheet Redesign - Design & Implementation Specification
+# Profile Screen Redesign - Implementation Specification
+
 **Version**: 1.0
 **Date**: October 25, 2025
 **Status**: Ready for Implementation
-**Estimated Time**: 8-10 hours
 
 ---
 
-## 1. Overview
+## 🎯 Design Goals
 
-Transform the ProfileSheet from a form-like layout with oversized hero image to a modern, Instagram/LinkedIn-inspired design with compact circular photo, optimized information hierarchy, and graceful handling of missing data.
-
-### Current Problems
-- **Oversized hero**: 375x375px square photo consumes 45% of viewport
-- **Low information density**: Only 3-4 data points visible above fold
-- **Inefficient layouts**: Horizontal parent cards waste vertical space
-- **Poor hierarchy**: All elements have similar visual weight
-- **Scattered family data**: Parents and children in separate sections
-
-### Goals
-- **Space efficiency**: Reduce hero from 755px to ~220px (71% reduction)
-- **Information density**: Show 7-9 data points above fold
-- **Modern feel**: Match Instagram/LinkedIn patterns
-- **Unified family section**: Single scrollable "العائلة" list
-- **Graceful degradation**: Hide missing data without gaps
+1. **Compact hero** - Instagram-style small avatar (~60-70px)
+2. **Information-dense** - Personal info integrated into hero
+3. **Photos first** - Gallery positioned high in layout
+4. **Family at bottom** - Vertical single-column list (no horizontal scroll)
+5. **Simplified actions** - Edit button + 3-dot menu only
+6. **No gaps** - Empty sections collapse completely
 
 ---
 
-## 2. Design System Reference
+## 📐 Layout Structure
 
-### Najdi Sadu Color Palette
-```
-Al-Jass White:      #F9F7F3  (backgrounds, light surfaces)
-Camel Hair Beige:   #D1BBA3  (borders, containers, accents)
-Sadu Night:         #242121  (all text)
-Najdi Crimson:      #A13333  (primary actions, avatars)
-Desert Ochre:       #D58C4A  (avatars, accents)
-```
+### Content Order (Top to Bottom)
 
-### Typography Scale (iOS Standard)
 ```
-34px (largeTitle) - Not used
-28px (title1)     - Not used
-22px (title2)     - Primary name
-20px (title3)     - Section titles
-17px (body)       - Default text, buttons
-15px (subheadline)- Facts row
-13px (footnote)   - Name chain, relationship labels
-11px (caption1)   - Badges
-```
+1. Hero Section (~100-120px)
+   ├─ Small avatar (60-70px circle)
+   ├─ Name + lineage
+   ├─ Generation + siblings inline
+   ├─ Personal info inline (birth place, birth year)
+   └─ Action buttons (top-right: Edit + Menu)
 
-### Spacing Grid (8px Base)
-```
-4px  - Tight gaps (bullet spacing)
-8px  - Standard element gaps
-12px - Section spacing
-16px - Page margins, card padding
-20px - Larger section spacing
-24px - Major section breaks
-```
+2. Photo Gallery (adaptive height)
+   ├─ 1-2 photos: Vertical stack (260px each)
+   ├─ 3-5 photos: Horizontal carousel (~240px)
+   └─ 6+ photos: Grid mosaic
 
-### Shadows (iOS Standard)
-```javascript
-{
-  shadowColor: '#000',
-  shadowOpacity: 0.07,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 8 },
-}
+3. Timeline Section (if exists)
+   └─ Chronological events
+
+4. Professional Info Section (if exists)
+   ├─ Education
+   └─ Achievements (bullets)
+
+5. Contact Section (if exists)
+   ├─ Phone (tappable row)
+   ├─ Email (tappable row)
+   └─ Social media
+
+6. Family Section (bottom, vertical list)
+   ├─ Parents
+   ├─ Spouse(s)
+   └─ Children
+   (All in single-column list format)
 ```
 
-### Border Radius
-```
-6px  - Small badges
-10px - Buttons, inline containers
-12px - Cards, sections
-50px - Circular elements (100px photo = 50px radius)
-```
+**Estimated Scroll Heights:**
+- **Full schema**: ~900-1100px (vs 1200px before) - 8-16% reduction
+- **Medium schema**: ~600-700px
+- **Empty schema**: ~300-400px
 
 ---
 
-## 3. Component Architecture
+## 🎨 Hero Section - Detailed Specification
 
-### 3.1 Extract Colored Circle Avatar Component
-
-**File**: `src/components/ui/ColoredCircleAvatar.js`
-
-**Source**: Copy from `/src/components/search/SearchResultCard.js` lines 73-85
-
-**Features**:
-- Colored circle background with desert palette rotation
-- White text showing first letter of Arabic name
-- Multiple sizes: 36px (list), 44px (thumbnail), 100px (hero)
-- Deterministic color based on index/ID
-
-**Desert Color Palette** (from SearchResultCard.js lines 31-44):
-```javascript
-const desertPalette = [
-  "#A13333",   // Najdi Crimson
-  "#D58C4A",   // Desert Ochre
-  "#D1BBA3",   // Camel Hair Beige
-  "#A13333CC", // Najdi Crimson 80%
-  "#D58C4ACC", // Desert Ochre 80%
-  "#D1BBA3CC", // Camel Hair Beige 80%
-  "#A1333399", // Najdi Crimson 60%
-  "#D58C4A99", // Desert Ochre 60%
-  "#D1BBA399", // Camel Hair Beige 60%
-  "#A13333",   // Repeat
-];
-```
-
-**API**:
-```javascript
-<ColoredCircleAvatar
-  name="لجين"                 // For extracting initial
-  photoUrl={person.photo_url} // Shows photo if exists
-  size={100}                  // 36 | 44 | 100
-  index={person.id}           // For color rotation
-/>
-```
-
-**Implementation Notes**:
-- If photoUrl exists → Show `<Image>` with circular mask
-- If no photoUrl → Show colored circle with initial
-- Initial: `name ? name.charAt(0) : "؟"`
-- Background color: `desertPalette[index % desertPalette.length]`
-- Text color: Always `#F9F7F3` (Al-Jass White)
-- Font size: `size < 50 ? 18 : 40` (scale with avatar size)
-
----
-
-## 4. Hero Section Redesign
-
-### 4.1 Layout Structure
-
-**Instagram/LinkedIn Pattern**: Photo above, name below
+### Visual Layout
 
 ```
-┌─────────────────────────────────┐
-│         ╔═══════╗               │  16px top margin
-│         ║ Photo ║               │  100x100px circular
-│         ║ 100px ║               │
-│         ╚═══════╝               │
-│                                 │  12px gap
-│      لجين • أم خالد             │  22px name + kunya
-│                                 │  4px gap
-│  بنت عبدالله سليمان علي...     │  13px name chain
-│                                 │  8px gap
-│      ┌─────────────────┐        │  (Only if deceased)
-│      │  الله يرحمه     │        │  Death badge
-│      └─────────────────┘        │
-│                                 │  12px gap
-│ ┌─────────────────────────────┐ │  Facts row (if data exists)
-│ │ الجيل السادس • 4 إخوة       │ │  44px height
-│ └─────────────────────────────┘ │
-└─────────────────────────────────┘
-Total height: ~220px (vs 755px current)
+┌─────────────────────────────────────────────────────┐
+│  ┌──────┐  لجين القفاري                  [✏️] [⋯]  │
+│  │      │  بنت عبدالله سليمان علي القفاري           │
+│  │ 60px │  الجيل السادس • ٤ إخوة                   │
+│  │  👤  │  📍 الرياض • 📅 1990                      │
+│  └──────┘                                           │
+└─────────────────────────────────────────────────────┘
+Total height: ~100-120px
 ```
 
-### 4.2 Name Display Logic
+### Component Breakdown
 
-**CRITICAL**: Name chain first, THEN kunya
+#### 1. Avatar
+- **Size**: 60-70px circular
+- **Position**: Left-aligned (RTL), 16px margin from left
+- **Border**: 3px white stroke
+- **Shadow**: iOS standard (0-2px-4px rgba(36,33,33,0.08))
+- **Fallback**: Beige circle (#D1BBA3) with first letter initials (32pt Bold)
+- **Top margin**: 16px
+- **Tappable**: Opens full-screen photo
 
-```javascript
-// Current (WRONG):
-person.name • person.kunya
-fullName (ancestry chain)
+#### 2. Name Block
+- **Position**: Right of avatar (RTL), 12px gap
+- **Top align**: Avatar top + 8px
 
-// New (CORRECT):
-fullName (person.name + بنت/بن + ancestors)
-person.kunya (if exists)
-```
+**Name Text:**
+- Font: 20pt SF Arabic Bold
+- Color: Sadu Night (#242121)
+- Lines: 1 line, ellipsis if overflow
+- Include title: `formatNameWithTitle(person)`
 
-**Display Format**:
-```
-Primary Line: "لجين بنت عبدالله سليمان علي جريبوع سليمان القفاري"
-Secondary Line (if kunya exists): "أم خالد"
-```
+**Lineage Text:**
+- Font: 15pt SF Arabic Regular
+- Color: Sadu Night 70% opacity (#242121B3)
+- Lines: 1-2 lines max, ellipsis if overflow
+- Margin top: 4px below name
 
-**Code Implementation**:
-```javascript
-{/* Primary Name Chain - Large, Bold */}
-<Text style={styles.nameChain} numberOfLines={2}>
-  {fullName || person.name || "بدون اسم"}
-</Text>
+**Metadata Row:**
+- Font: 13pt SF Arabic Semibold
+- Color: Sadu Night 85%
+- Format: `الجيل ${generation} • ${siblingsCount} إخوة`
+- Margin top: 8px below lineage
+- Icon: Small generation badge circle (optional)
 
-{/* Kunya - Smaller, Secondary */}
-{person.kunya && (
-  <Text style={styles.kunya}>{person.kunya}</Text>
-)}
-```
+**Personal Info Row:**
+- Font: 13pt SF Arabic Regular
+- Color: Desert Ochre (#D58C4A)
+- Format: `📍 ${birthPlace} • 📅 ${birthYear}`
+- Margin top: 4px below metadata
+- Conditional: Only show if data exists
+- Icons: Ionicons 16px size
 
-**Typography**:
-- **Name Chain**: 22px (title2), weight 700, color #242121, line height 28
-- **Kunya**: 17px (body), weight 400, color #242121CC (80% opacity)
+#### 3. Action Buttons
+- **Position**: Top-right corner, absolute positioning
+- **Top**: 16px
+- **Right**: 16px (RTL)
+- **Layout**: Horizontal flex, 8px gap
 
-### 4.3 Status Badge (Deceased Only)
+**Edit Button:**
+- Size: 36×36px
+- Background: Najdi Crimson (#A13333)
+- Icon: `create-outline` (Ionicons), 20px, white
+- Border radius: 8px
+- Shadow: 0-1px-3px rgba(161,51,51,0.2)
+- Conditional: Only show if user has edit permission
 
-**Rule**: ONLY show badge if `person.status === 'deceased'`
-**Text**: "الله يرحمه" (May Allah have mercy on him)
-**Never show**: "على قيد الحياة" or any "alive" indicator
+**Menu Button (3-dot):**
+- Size: 36×36px
+- Background: Camel Hair Beige (#D1BBA3)
+- Icon: `ellipsis-horizontal` (Ionicons), 20px, Sadu Night
+- Border radius: 8px
+- Shadow: 0-1px-3px rgba(209,187,163,0.2)
 
-**Design**:
-```javascript
-{person.status === 'deceased' && (
-  <View style={styles.deathBadge}>
-    <Text style={styles.deathText}>الله يرحمه</Text>
-  </View>
-)}
+**Menu Options:**
+- Share Profile
+- View in Tree
+- Copy Link
+- Report Issue (conditional)
 
-// Styling
-deathBadge: {
-  backgroundColor: '#6B7280',    // Neutral gray
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 6,
-  marginTop: 8,
-  alignSelf: 'center',           // Center horizontally
-},
-deathText: {
-  fontSize: 11,                  // caption1
-  color: '#F9F7F3',              // Al-Jass White
-  fontWeight: '600',
-  fontFamily: 'SF Arabic',
-}
-```
-
-### 4.4 Quick Facts Row
-
-**Position**: Inside hero section (below name/kunya/status)
-
-**Content**: Bullet-separated inline facts
-```
-"الجيل السادس • 4 إخوة • 23 من الأحفاد"
-```
-
-**Logic**:
-```javascript
-const validFacts = useMemo(() => {
-  const facts = [];
-
-  // Only show generation if person has HID (not Munasib)
-  if (person.generation && person.hid !== null) {
-    facts.push(getArabicOrdinal(person.generation));
-  }
-
-  // Only show if count > 0
-  if (siblingsCount > 0) {
-    facts.push(`${siblingsCount} إخوة`);
-  }
-
-  if (descendantsCount > 0) {
-    facts.push(`${descendantsCount} من الأحفاد`);
-  }
-
-  return facts;
-}, [person, siblingsCount, descendantsCount]);
-
-// CRITICAL: Don't render if no facts
-const hasFacts = validFacts.length > 0;
-```
-
-**Design**:
-```javascript
-{hasFacts && (
-  <View style={styles.factsRow}>
-    <Text style={styles.factsText}>
-      {validFacts.join(' • ')}
-    </Text>
-  </View>
-)}
-
-// Styling
-factsRow: {
-  marginTop: 12,
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  backgroundColor: '#D1BBA320',   // Camel Hair 20% opacity
-  borderRadius: 10,
-  minHeight: 44,                  // Touch target
-  alignSelf: 'stretch',
-  marginHorizontal: 16,
-  justifyContent: 'center',
-},
-factsText: {
-  fontSize: 15,                   // subheadline
-  fontWeight: '600',
-  color: '#242121',               // Sadu Night
-  textAlign: 'center',
-  fontFamily: 'SF Arabic',
-}
-```
-
-**Interaction**: Tappable → scrolls to family section
-```javascript
-<Pressable onPress={scrollToFamily}>
-  <View style={styles.factsRow}>
-    {/* content */}
-  </View>
-</Pressable>
-```
-
-### 4.5 Complete Hero Styling
+### Code Structure
 
 ```javascript
-compactHero: {
-  alignItems: 'center',
-  paddingTop: 16,
-  paddingBottom: 20,
-  paddingHorizontal: 16,
-  backgroundColor: '#F9F7F3',     // Al-Jass White
-},
-heroPhoto: {
-  width: 100,
-  height: 100,
-  borderRadius: 50,               // Circular
-  borderWidth: 3,
-  borderColor: '#F9F7F3',         // White border
-  backgroundColor: '#D1BBA3',     // Fallback color
-  shadowColor: '#000',
-  shadowOpacity: 0.07,
-  shadowRadius: 12,
-  shadowOffset: { width: 0, height: 8 },
-},
-nameChain: {
-  fontSize: 22,                   // title2
-  fontWeight: '700',
-  color: '#242121',               // Sadu Night
-  textAlign: 'center',
-  marginTop: 12,
-  paddingHorizontal: 16,
-  fontFamily: 'SF Arabic',
-  lineHeight: 28,
-  maxWidth: '90%',
-},
-kunya: {
-  fontSize: 17,                   // body
-  color: '#242121CC',             // 80% opacity
-  fontWeight: '400',
-  textAlign: 'center',
-  marginTop: 4,
-  fontFamily: 'SF Arabic',
-}
-```
+// src/components/ProfileViewer/Hero/CompactHero.js
 
----
+const CompactHero = ({ person, onEdit, onMenuPress, canEdit }) => {
+  const generation = person.generation || 'غير معروف';
+  const siblingsCount = person.siblings?.length || 0;
+  const birthPlace = person.birth_place;
+  const birthYear = person.dob_data?.year;
 
-## 5. Action Buttons
+  return (
+    <View style={styles.heroContainer}>
+      {/* Avatar */}
+      <TouchableOpacity onPress={() => openFullPhoto(person.photo_url)}>
+        {person.photo_url ? (
+          <Image source={{ uri: person.photo_url }} style={styles.avatar} />
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.initials}>{person.name[0]}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
 
-### 5.1 Layout
-
-**Position**: Below hero, above family section
-
-**Structure**: 2-button row (Edit + Share)
-
-```
-┌─────────────────────────────────┐
-│ ┌───────────────┬─────────────┐ │
-│ │  تعديل الملف  │   [share]   │ │  48px height
-│ │   (flex: 2)   │  (flex: 1)  │ │  12px gap
-│ └───────────────┴─────────────┘ │
-└─────────────────────────────────┘
-```
-
-### 5.2 Primary Button (Edit/Suggest)
-
-**Text Logic**:
-```javascript
-const buttonText = permissionLevel === 'inner'
-                || permissionLevel === 'admin'
-                || permissionLevel === 'moderator'
-  ? 'تعديل الملف'
-  : 'اقتراح تعديل';
-```
-
-**Design**:
-```javascript
-primaryButton: {
-  flex: 2,
-  backgroundColor: '#A13333',     // Najdi Crimson
-  borderRadius: 10,
-  height: 48,
-  alignItems: 'center',
-  justifyContent: 'center',
-  shadowColor: '#000',
-  shadowOpacity: 0.05,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 4 },
-},
-primaryButtonText: {
-  fontSize: 17,                   // body
-  fontWeight: '600',
-  color: '#F9F7F3',               // Al-Jass White
-  fontFamily: 'SF Arabic',
-}
-```
-
-**Press Animation**:
-```javascript
-<TouchableOpacity
-  onPress={handleEdit}
-  activeOpacity={0.85}
-  style={({ pressed }) => [
-    styles.primaryButton,
-    pressed && { transform: [{ scale: 0.96 }] }
-  ]}
->
-```
-
-### 5.3 Secondary Button (Share)
-
-**Icon**: SF Symbol (iOS) / Material (Android)
-```javascript
-<Ionicons
-  name={Platform.OS === 'ios' ? 'share-outline' : 'share-social-outline'}
-  size={22}
-  color="#242121"
-/>
-```
-
-**Design**:
-```javascript
-secondaryButton: {
-  flex: 1,
-  backgroundColor: 'transparent',
-  borderWidth: 1.5,
-  borderColor: '#D1BBA3',         // Camel Hair Beige
-  borderRadius: 10,
-  height: 48,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-```
-
-### 5.4 Container Styling
-
-```javascript
-actionButtonsRow: {
-  flexDirection: 'row',
-  gap: 12,
-  paddingHorizontal: 16,
-  marginTop: 16,
-  marginBottom: 16,
-}
-```
-
----
-
-## 6. Unified Family Section
-
-### 6.1 Section Structure
-
-**Title**: "العائلة" (single section, not separate parents/children)
-
-**Order**: Father → Mother → Children (oldest to youngest)
-
-**Conditional Rendering**:
-```javascript
-// CRITICAL: Hide entire section if no family data
-{(father || mother || sortedChildren.length > 0) && (
-  <SectionCard title="العائلة" style={styles.familySection}>
-    {/* content */}
-  </SectionCard>
-)}
-```
-
-### 6.2 Family Row Component
-
-**Reusable Row**: Used for father, mother, and all children
-
-**Layout** (60px height, RTL-aware):
-```
-┌────────────────────────────────┐
-│ [›] [Name         ] [Photo 44] │  60px
-│     [الوالد       ]            │  Relationship label
-└────────────────────────────────┘
-```
-
-**Implementation**:
-```javascript
-const FamilyRow = ({ person, relationship, onPress, showDivider }) => (
-  <>
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.familyRow,
-        pressed && styles.familyRowPressed
-      ]}
-    >
-      {/* Chevron - Left side (LTR, auto-flips to right in RTL) */}
-      <Text style={styles.chevron}>›</Text>
-
-      {/* Content - Center */}
-      <View style={styles.familyInfo}>
-        <View style={styles.familyTextContainer}>
-          <Text style={styles.familyName}>{person.name}</Text>
-          <Text style={styles.familyRelation}>{relationship}</Text>
-        </View>
-
-        {/* Avatar - Right side (LTR, auto-flips to left in RTL) */}
-        <ColoredCircleAvatar
-          name={person.name}
-          photoUrl={person.photo_url}
-          size={44}
-          index={person.id}
-        />
+      {/* Name Block */}
+      <View style={styles.nameBlock}>
+        <Text style={styles.name} numberOfLines={1}>
+          {formatNameWithTitle(person)}
+        </Text>
+        <Text style={styles.lineage} numberOfLines={2}>
+          {person.full_name_chain || person.name_chain}
+        </Text>
+        <Text style={styles.metadata}>
+          الجيل {generation} • {siblingsCount} إخوة
+        </Text>
+        {(birthPlace || birthYear) && (
+          <View style={styles.personalInfo}>
+            {birthPlace && (
+              <Text style={styles.infoText}>
+                <Ionicons name="location" size={16} /> {birthPlace}
+              </Text>
+            )}
+            {birthYear && (
+              <Text style={styles.infoText}>
+                <Ionicons name="calendar" size={16} /> {birthYear}
+              </Text>
+            )}
+          </View>
+        )}
       </View>
-    </Pressable>
 
-    {/* Divider between rows */}
-    {showDivider && <View style={styles.familyDivider} />}
-  </>
-);
-```
-
-### 6.3 Family Row Styling
-
-```javascript
-familyRow: {
-  flexDirection: 'row',           // LTR: [chevron] [content] [avatar]
-  alignItems: 'center',           // Auto-flips to RTL
-  paddingVertical: 10,
-  paddingHorizontal: 16,
-  minHeight: 60,                  // Touch target
-  backgroundColor: 'transparent',
-},
-familyRowPressed: {
-  backgroundColor: '#D1BBA310',   // Subtle highlight
-},
-familyInfo: {
-  flex: 1,
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginLeft: 12,                 // Space after chevron
-},
-familyTextContainer: {
-  flex: 1,
-  alignItems: 'flex-start',       // Flips to right in RTL
-  marginRight: 12,                // Space before avatar
-},
-familyName: {
-  fontSize: 17,                   // body
-  fontWeight: '600',
-  color: '#242121',
-  marginBottom: 2,
-  fontFamily: 'SF Arabic',
-},
-familyRelation: {
-  fontSize: 13,                   // footnote
-  fontWeight: '400',
-  color: '#24212199',             // 60% opacity
-  fontFamily: 'SF Arabic',
-},
-chevron: {
-  fontSize: 20,
-  color: '#D1BBA3',               // Camel Hair Beige
-  fontWeight: '300',
-},
-familyDivider: {
-  height: 1,
-  backgroundColor: '#D1BBA320',   // 20% opacity
-  marginLeft: 60,                 // Indent to align with text
-}
-```
-
-### 6.4 Container Styling
-
-```javascript
-familySection: {
-  marginBottom: 12,
-  marginHorizontal: 16,
-},
-familyContainer: {
-  backgroundColor: '#F9F7F3',     // Al-Jass White
-  borderRadius: 12,
-  overflow: 'hidden',
-  borderWidth: 1,
-  borderColor: '#D1BBA340',       // Camel Hair 40%
-}
-```
-
-### 6.5 Usage Example
-
-```javascript
-<SectionCard title="العائلة">
-  <CardSurface style={styles.familyContainer}>
-    {father && (
-      <FamilyRow
-        person={father}
-        relationship="الوالد"
-        onPress={() => navigateToPerson(father.id)}
-        showDivider={mother || sortedChildren.length > 0}
-      />
-    )}
-
-    {mother && (
-      <FamilyRow
-        person={mother}
-        relationship="الوالدة"
-        onPress={() => navigateToPerson(mother.id)}
-        showDivider={sortedChildren.length > 0}
-      />
-    )}
-
-    {sortedChildren.map((child, idx) => (
-      <FamilyRow
-        key={child.id}
-        person={child}
-        relationship={child.gender === 'male' ? 'ابن' : 'ابنة'}
-        onPress={() => navigateToPerson(child.id)}
-        showDivider={idx < sortedChildren.length - 1}
-      />
-    ))}
-  </CardSurface>
-</SectionCard>
-```
-
----
-
-## 7. Graceful Handling of Missing Data
-
-### 7.1 Design Principle
-
-**Never show empty states** - Hide sections completely if no data
-
-**No gaps** - Remaining sections flow naturally without spacing issues
-
-**No placeholders** - Don't show "لا توجد بيانات" or similar messages
-
-### 7.2 Conditional Rendering Patterns
-
-**Hero Section** (Always visible):
-```javascript
-{/* Photo - show avatar if no photo */}
-<ColoredCircleAvatar
-  name={person.name}
-  photoUrl={person.photo_url}    // Handles undefined gracefully
-  size={100}
-  index={person.id}
-/>
-
-{/* Name chain - always show something */}
-<Text style={styles.nameChain}>
-  {fullName || person.name || "بدون اسم"}
-</Text>
-
-{/* Kunya - hide if not present */}
-{person.kunya && person.kunya.trim() && (
-  <Text style={styles.kunya}>{person.kunya}</Text>
-)}
-
-{/* Death badge - only if deceased */}
-{person.status === 'deceased' && (
-  <View style={styles.deathBadge}>
-    <Text>الله يرحمه</Text>
-  </View>
-)}
-
-{/* Facts row - only if has facts */}
-{validFacts.length > 0 && (
-  <View style={styles.factsRow}>
-    {/* content */}
-  </View>
-)}
-```
-
-**Bio Section**:
-```javascript
-{person.biography && person.biography.trim().length > 0 && (
-  <View style={styles.bioSection}>
-    <Text numberOfLines={bioExpanded ? undefined : 3}>
-      {person.biography}
-    </Text>
-  </View>
-)}
-```
-
-**Family Section**:
-```javascript
-{(father || mother || sortedChildren.length > 0) && (
-  <SectionCard title="العائلة">
-    {/* Only render rows for existing family members */}
-  </SectionCard>
-)}
-```
-
-**Photo Gallery**:
-```javascript
-{/* CRITICAL: Don't show in view mode at all */}
-{/* Only show in edit mode */}
-{isEditing && person.id && (
-  <PhotoGalleryMaps
-    profileId={person.id}
-    isEditMode={true}
-  />
-)}
-
-{/* For read-only gallery (if implemented later): */}
-{!isEditing && photos && photos.length > 0 && (
-  <PhotoGallerySection photos={photos} />
-)}
-```
-
-### 7.3 Edge Cases
-
-**Munasib Profile** (hid === null):
-```javascript
-// Don't show generation in facts row
-if (person.generation && person.hid !== null) {
-  facts.push(getArabicOrdinal(person.generation));
-}
-```
-
-**No Family Data**:
-```javascript
-// Entire family section hidden - no gap left behind
-{(father || mother || sortedChildren.length > 0) && (
-  <SectionCard title="العائلة">
-    {/* ... */}
-  </SectionCard>
-)}
-```
-
-**Very Long Name Chain**:
-```javascript
-// Allow 2-line wrapping
-<Text
-  style={styles.nameChain}
-  numberOfLines={2}
-  ellipsizeMode="tail"
->
-  {fullName}
-</Text>
-```
-
-**No Siblings/Descendants**:
-```javascript
-// Filter out from facts array
-if (siblingsCount > 0) {  // Not >= 0, strictly > 0
-  facts.push(`${siblingsCount} إخوة`);
-}
-```
-
----
-
-## 8. Animation & Interaction
-
-### 8.1 Hero Photo Entrance
-
-**Pattern**: Fade in + subtle scale
-
-```javascript
-import { useEffect, useRef } from 'react';
-import { Animated } from 'react-native';
-
-const fadeAnim = useRef(new Animated.Value(0)).current;
-const scaleAnim = useRef(new Animated.Value(0.9)).current;
-
-useEffect(() => {
-  Animated.parallel([
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }),
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 8,
-      tension: 40,
-      useNativeDriver: true,
-    }),
-  ]).start();
-}, [person.id]);
-
-// Usage
-<Animated.View
-  style={{
-    opacity: fadeAnim,
-    transform: [{ scale: scaleAnim }]
-  }}
->
-  <ColoredCircleAvatar {...} />
-</Animated.View>
-```
-
-### 8.2 Facts Row Press Feedback
-
-```javascript
-import * as Haptics from 'expo-haptics';
-
-const handleFactsPress = () => {
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  scrollToFamily();
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
+        {canEdit && (
+          <TouchableOpacity style={styles.editButton} onPress={onEdit}>
+            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity style={styles.menuButton} onPress={onMenuPress}>
+          <Ionicons name="ellipsis-horizontal" size={20} color="#242121" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 };
 
-<Pressable
-  onPress={handleFactsPress}
-  style={({ pressed }) => [
-    styles.factsRow,
-    pressed && {
-      opacity: 0.85,
-      transform: [{ scale: 0.98 }]
-    }
-  ]}
->
+const styles = StyleSheet.create({
+  heroContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: '#F9F7F3', // Al-Jass White
+    minHeight: 100,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#242121',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  avatarFallback: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#D1BBA3', // Camel Hair Beige
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initials: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#242121',
+  },
+  nameBlock: {
+    flex: 1,
+    marginLeft: 12, // RTL - this becomes right margin
+    paddingTop: 8,
+    paddingRight: 80, // Space for action buttons
+  },
+  name: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#242121',
+  },
+  lineage: {
+    fontSize: 15,
+    color: '#242121B3', // 70% opacity
+    marginTop: 4,
+  },
+  metadata: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#242121D9', // 85% opacity
+    marginTop: 8,
+  },
+  personalInfo: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+    flexWrap: 'wrap',
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#D58C4A', // Desert Ochre
+  },
+  actionButtons: {
+    position: 'absolute',
+    top: 16,
+    right: 16, // RTL
+    flexDirection: 'row',
+    gap: 8,
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#A13333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#A13333',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  menuButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#D1BBA3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#D1BBA3',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+});
 ```
 
-### 8.3 Family Row Press Feedback
+---
+
+## 📸 Photo Gallery - Adaptive Strategy
+
+### Decision Logic
 
 ```javascript
-<Pressable
-  onPress={() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigateToPerson(person.id);
-  }}
-  style={({ pressed }) => [
-    styles.familyRow,
-    pressed && {
-      backgroundColor: '#D1BBA310',
-      transform: [{ scale: 0.99 }]
-    }
-  ]}
->
+const photoCount = photos?.length || 0;
+
+if (photoCount === 0) {
+  // Section collapses completely
+  return null;
+} else if (photoCount === 1 || photoCount === 2) {
+  // Vertical stack: full-width cards
+  return <VerticalPhotoStack photos={photos} />;
+} else if (photoCount >= 3 && photoCount <= 5) {
+  // Horizontal carousel: swipeable cards
+  return <HorizontalPhotoCarousel photos={photos} />;
+} else {
+  // Grid mosaic: for edge cases with 6+ photos
+  return <PhotoGridMosaic photos={photos} />;
+}
 ```
 
-### 8.4 Action Button Press
+### Option A: Vertical Stack (1-2 photos)
+
+```
+┌─────────────────────────────────┐
+│ الصور                           │
+│                                 │
+│ ┌─────────────────────────────┐ │
+│ │                             │ │
+│ │         Photo 1             │ │ 260px
+│ │      (full-width)           │ │
+│ │                             │ │
+│ └─────────────────────────────┘ │
+│                                 │ 8px gap
+│ ┌─────────────────────────────┐ │
+│ │         Photo 2             │ │ 260px
+│ └─────────────────────────────┘ │
+└─────────────────────────────────┘
+```
+
+**Specs:**
+- Card width: Full width minus 32px padding (16px each side)
+- Card height: 260px
+- Border radius: 12px
+- Gap: 8px between cards
+- Image fit: Cover (centered)
+- Tap: Opens full-screen gallery
+
+### Option B: Horizontal Carousel (3-5 photos)
+
+```
+┌─────────────────────────────────────┐
+│ الصور                      [2/5]    │
+│                                     │
+│ ┌──────────┐ ┌──────────┐ ┌───     │
+│ │          │ │          │ │        │
+│ │  Photo 1 │ │  Photo 2 │ │ Photo  │ 200px
+│ │          │ │          │ │        │
+│ └──────────┘ └──────────┘ └───     │
+│                                     │
+│         ● ● ○ ○ ○                   │
+└─────────────────────────────────────┘
+```
+
+**Specs:**
+- Card width: 280px
+- Card height: 200px
+- Border radius: 12px
+- Gap: 12px between cards
+- Shows: 1.2 cards on screen (peek next)
+- Scroll: Horizontal, momentum, snap to interval
+- Pagination dots: 8px circles, 6px gap, Najdi Crimson active
+- Counter: "2/5" format, top-right
+
+---
+
+## 👨‍👩‍👧‍👦 Family Section - Vertical List
+
+### Layout
+
+```
+┌─────────────────────────────────────┐
+│ العائلة                             │
+│                                     │
+│ ┌─────────────────────────────────┐ │
+│ │ ┌────┐  د. عبدالله القفاري     │ │
+│ │ │ 44 │  الوالد             ›   │ │ 60px row
+│ │ └────┘                          │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ┌─────────────────────────────────┐ │
+│ │ ┌────┐  مريم السعودي          │ │
+│ │ │ م  │  الوالدة            ›   │ │ 60px row
+│ │ └────┘                          │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ───────── الزوجة ─────────          │ Divider
+│                                     │
+│ ┌─────────────────────────────────┐ │
+│ │ ┌────┐  نورة القفاري           │ │
+│ │ │ 44 │  الزوجة             ›   │ │
+│ │ └────┘                          │ │
+│ └─────────────────────────────────┘ │
+│                                     │
+│ ───────── الأبناء (٣) ─────────     │
+│                                     │
+│ ┌─────────────────────────────────┐ │
+│ │ ┌────┐  سليمان عبدالله         │ │
+│ │ │ 44 │  الابن              ›   │ │
+│ │ └────┘                          │ │
+│ └─────────────────────────────────┘ │
+│ ... (continues for all children)    │
+└─────────────────────────────────────┘
+```
+
+### Specifications
+
+**Section Title:**
+- Font: 22pt SF Arabic Semibold
+- Color: Sadu Night
+- Padding: 16px top, 8px bottom
+- Margin top: 24px (section spacing)
+
+**Family Row:**
+- Height: 60px (minimum 44px touch target)
+- Background: White (#FFFFFF)
+- Border radius: 12px
+- Padding: 8px horizontal
+- Margin bottom: 4px
+- Shadow: 0-1px-2px rgba(36,33,33,0.04)
+
+**Avatar:**
+- Size: 44×44px circular
+- Position: Left-aligned (RTL), 8px from edge
+- Border: 2px white stroke
+- Fallback: Beige circle with initials (20pt)
+
+**Name Text:**
+- Font: 17pt SF Arabic Semibold
+- Color: Sadu Night
+- Position: 12px right of avatar
+- Lines: 1, ellipsis
+
+**Relationship Label:**
+- Font: 15pt SF Arabic Regular
+- Color: Sadu Night 60% opacity
+- Position: Below name, 2px gap
+- Format: "الوالد", "الوالدة", "الزوجة", "الابن", etc.
+
+**Chevron:**
+- Icon: `chevron-back` (Ionicons) - correct for RTL
+- Size: 20px
+- Color: Camel Hair Beige
+- Position: Right-aligned (RTL), 12px from edge
+
+**Section Dividers:**
+- Between parents/spouse/children groups
+- Font: 13pt SF Arabic Semibold
+- Color: Sadu Night 50%
+- Background: Line with text overlay
+- Format: "───── الأبناء (٣) ─────"
+- Margin: 12px vertical
+
+### Code Structure
 
 ```javascript
-<TouchableOpacity
-  onPress={() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    handleEdit();
-  }}
-  activeOpacity={0.85}
-  style={({ pressed }) => [
-    styles.primaryButton,
-    pressed && {
-      transform: [{ scale: 0.96 }],
-      shadowOpacity: 0.02,
-    }
-  ]}
->
+// src/components/ProfileViewer/ViewMode/cards/FamilyList.js
+
+const FamilyList = ({ parents, spouses, children, onNavigate }) => {
+  // Build list with section dividers
+  const familyMembers = [];
+
+  // Parents
+  if (parents && parents.length > 0) {
+    parents.forEach(parent => {
+      familyMembers.push({
+        type: 'member',
+        person: parent,
+        relationship: parent.gender === 'male' ? 'الوالد' : 'الوالدة',
+      });
+    });
+  }
+
+  // Spouse section
+  if (spouses && spouses.length > 0) {
+    familyMembers.push({ type: 'divider', label: 'الزوجة' });
+    spouses.forEach(spouse => {
+      familyMembers.push({
+        type: 'member',
+        person: spouse,
+        relationship: spouse.gender === 'male' ? 'الزوج' : 'الزوجة',
+      });
+    });
+  }
+
+  // Children section
+  if (children && children.length > 0) {
+    familyMembers.push({
+      type: 'divider',
+      label: `الأبناء (${children.length})`
+    });
+    children.forEach(child => {
+      familyMembers.push({
+        type: 'member',
+        person: child,
+        relationship: child.gender === 'male' ? 'الابن' : 'الابنة',
+      });
+    });
+  }
+
+  if (familyMembers.length === 0) {
+    return null; // Section collapses
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.sectionTitle}>العائلة</Text>
+      {familyMembers.map((item, index) => {
+        if (item.type === 'divider') {
+          return (
+            <View key={`divider-${index}`} style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>{item.label}</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          );
+        }
+
+        return (
+          <TouchableOpacity
+            key={item.person.id}
+            style={styles.familyRow}
+            onPress={() => onNavigate(item.person.id)}
+            accessibilityLabel={`فتح ملف ${item.person.name}`}
+          >
+            {item.person.photo_url ? (
+              <Image
+                source={{ uri: item.person.photo_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarInitial}>
+                  {item.person.name[0]}
+                </Text>
+              </View>
+            )}
+            <View style={styles.nameBlock}>
+              <Text style={styles.name} numberOfLines={1}>
+                {formatNameWithTitle(item.person)}
+              </Text>
+              <Text style={styles.relationship}>
+                {item.relationship}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              color="#D1BBA3"
+            />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#242121',
+    marginBottom: 12,
+  },
+  familyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 60,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+    shadowColor: '#242121',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#D1BBA3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#242121',
+  },
+  nameBlock: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  name: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#242121',
+  },
+  relationship: {
+    fontSize: 15,
+    color: '#24212199', // 60% opacity
+    marginTop: 2,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#24212180', // 50% opacity
+  },
+  dividerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#24212180',
+    paddingHorizontal: 12,
+  },
+});
 ```
 
 ---
 
-## 9. Implementation Checklist
+## 📋 Other Sections (Timeline, Professional, Contact)
 
-### Phase 1: Component Setup (1-2 hours)
-- [ ] Create `src/components/ui/ColoredCircleAvatar.js`
-- [ ] Copy avatar logic from SearchResultCard.js lines 73-85
-- [ ] Add support for 36px, 44px, 100px sizes
-- [ ] Test with and without photo_url
+### Timeline Section
+- **Keep existing component** from `TimelineCard.js`
+- **No changes needed** - vertical list works well
+- Just ensure it's ordered correctly in main layout
 
-### Phase 2: Hero Section (2-3 hours)
-- [ ] Remove old hero image (375x375px)
-- [ ] Add ColoredCircleAvatar (100px)
-- [ ] Update name display: name_chain THEN kunya
-- [ ] Add death badge (deceased only)
-- [ ] Add inline facts row with conditional logic
-- [ ] Update styling per spec
+### Professional Info Section
+- **Keep existing component** from `ProfessionalCard.js`
+- **No changes needed**
+- Displays education + achievements
 
-### Phase 3: Action Buttons (1 hour)
-- [ ] Remove three-dot menu from top
-- [ ] Add 2-button row below hero
-- [ ] Primary button: Text ("تعديل" or "اقتراح")
-- [ ] Secondary button: Share icon (SF Symbol iOS)
-- [ ] Add press animations
-
-### Phase 4: Family Section (2-3 hours)
-- [ ] Remove separate parent cards
-- [ ] Remove separate children section
-- [ ] Create unified "العائلة" section
-- [ ] Implement FamilyRow component (father, mother, children)
-- [ ] Add dividers between rows
-- [ ] Ensure scrollable for large families
-
-### Phase 5: Missing Data Handling (1 hour)
-- [ ] Facts row: Only show if validFacts.length > 0
-- [ ] Family section: Only show if father || mother || children
-- [ ] Bio: Only show if biography.trim().length > 0
-- [ ] Gallery: Hide in view mode, show in edit mode only
-- [ ] Test with minimal profile (name only)
-
-### Phase 6: Animations & Polish (1 hour)
-- [ ] Hero photo fade in
-- [ ] Facts row press feedback
-- [ ] Family row press feedback
-- [ ] Button press animations
-- [ ] Haptic feedback for all interactions
-
-### Phase 7: Testing (2 hours)
-- [ ] Complete profile (all fields)
-- [ ] Minimal profile (name only)
-- [ ] Deceased profile (verify badge)
-- [ ] Large family (20+ children scrollable)
-- [ ] Munasib profile (no HID, no generation)
-- [ ] RTL mode verification
-- [ ] iPhone SE, 14 Pro, 14 Pro Max
+### Contact Section
+- **Keep existing component** from `ContactCard.js`
+- **No changes needed**
+- Tappable rows for phone/email/WhatsApp
 
 ---
 
-## 10. Visual Design Mockup
+## 🗂️ File Structure
 
-### Before (Current)
+### New Files to Create
+
 ```
-┌─────────────────────────────────┐
-│                                 │
-│                                 │
-│      ╔═══════════════════╗      │  375px
-│      ║                   ║      │  Square
-│      ║   HUGE PHOTO      ║      │  Photo
-│      ║                   ║      │
-│      ╚═══════════════════╝      │
-│                                 │
-│         لجين                    │  Name
-│  بنت عبدالله سليمان...          │  Chain
-│                                 │
-│  ┌──────────┐  ┌──────────┐    │  Metrics
-│  │ الجيل 6  │  │ 4 إخوة   │    │  Pills
-│  └──────────┘  └──────────┘    │
-│                                 │
-└─────────────────────────────────┘
-Above fold: 755px, 3-4 data points
+src/components/ProfileViewer/
+├── Hero/
+│   └── CompactHero.js         # NEW - Compact hero component
+└── ViewMode/
+    └── cards/
+        └── FamilyList.js       # NEW - Vertical family list
 ```
 
-### After (Proposed)
+### Files to Modify
+
 ```
-┌─────────────────────────────────┐
-│         ╔═══════╗               │  100px
-│         ║ Photo ║               │  Circular
-│         ╚═══════╝               │  Photo
-│                                 │
-│  لجين بنت عبدالله سليمان...    │  Name Chain
-│         أم خالد                 │  Kunya
-│                                 │
-│ ┌─────────────────────────────┐ │  Facts
-│ │ الجيل السادس • 4 إخوة       │ │  Row
-│ └─────────────────────────────┘ │
-│                                 │
-│ ┌───────────────┬─────────────┐ │  Action
-│ │  تعديل الملف  │   [share]   │ │  Buttons
-│ └───────────────┴─────────────┘ │
-│                                 │
-│ العائلة                         │  Family
-│ ┌─────────────────────────────┐ │  Section
-│ │ › د. عبدالله         [📷]  │ │
-│ │   الوالد                    │ │
-│ ├─────────────────────────────┤ │
-│ │ › مريم السعدي        [📷]  │ │
-│ │   الوالدة                   │ │
-│ └─────────────────────────────┘ │
-└─────────────────────────────────┘
-Above fold: 220px, 9 data points
+src/components/ProfileViewer/
+├── index.js                    # Reorder sections, use CompactHero
+└── ViewMode/
+    └── cards/
+        ├── PersonalCard.js     # DELETE or mark deprecated
+        └── DatesCard.js        # DELETE or mark deprecated
+```
+
+### Files to Keep As-Is
+
+```
+src/components/ProfileViewer/ViewMode/cards/
+├── TimelineCard.js             # Keep
+├── ProfessionalCard.js         # Keep
+├── ContactCard.js              # Keep
+└── PhotosCard.js               # Keep (or use new adaptive gallery)
 ```
 
 ---
 
-## 11. Files to Modify
+## 🔄 Main Layout Changes
 
-### Create New
-- `src/components/ui/ColoredCircleAvatar.js`
+### Current Structure (ProfileViewer/index.js or ViewModeContent.js)
 
-### Modify Existing
-- `src/components/ProfileSheet.js`
-  - Lines 1050-1200: Hero section
-  - Lines 2100-2230: Family section
-  - Add action buttons section
-  - Update conditional rendering logic
+```javascript
+// OLD ORDER
+<ScrollView>
+  <Hero />                  // 180px
+  <MetricsRow />           // Complex pills
+  <FamilyCard />           // Horizontal scroll
+  <PersonalCard />         // Separate section
+  <DatesCard />            // Separate section
+  <ProfessionalCard />
+  <TimelineCard />
+  <PhotosCard />
+  <ContactCard />
+</ScrollView>
+```
 
-### Do NOT Modify
-- Name chain calculation (`fullName` useMemo) - Keep as is
-- Existing data fetching logic
-- Bottom sheet behavior
-- Edit mode functionality
-- Photo gallery component (only change visibility logic)
+### New Structure
+
+```javascript
+// NEW ORDER
+<ScrollView>
+  <CompactHero />          // 100-120px - includes personal info
+  <PhotoGallery />         // Adaptive (260-600px)
+  <TimelineCard />         // If exists
+  <ProfessionalCard />     // If exists
+  <ContactCard />          // If exists
+  <FamilyList />           // Bottom, vertical list
+</ScrollView>
+```
+
+### Implementation
+
+```javascript
+// src/components/ProfileViewer/index.js
+
+import CompactHero from './Hero/CompactHero';
+import PhotoGallery from './ViewMode/cards/PhotoGallery'; // Or adaptive gallery
+import TimelineCard from './ViewMode/cards/TimelineCard';
+import ProfessionalCard from './ViewMode/cards/ProfessionalCard';
+import ContactCard from './ViewMode/cards/ContactCard';
+import FamilyList from './ViewMode/cards/FamilyList';
+
+const ProfileViewer = ({ person, canEdit }) => {
+  // Extract data
+  const photos = person.photos || [];
+  const timeline = person.timeline || [];
+  const parents = [person.father, person.mother].filter(Boolean);
+  const spouses = person.marriages?.filter(m => m.status === 'current') || [];
+  const children = person.children || [];
+
+  return (
+    <ScrollView style={styles.container}>
+      {/* 1. Compact Hero */}
+      <CompactHero
+        person={person}
+        canEdit={canEdit}
+        onEdit={handleEdit}
+        onMenuPress={handleMenu}
+      />
+
+      {/* 2. Photo Gallery - Adaptive */}
+      {photos.length > 0 && (
+        <PhotoGallery photos={photos} />
+      )}
+
+      {/* 3. Timeline */}
+      {timeline.length > 0 && (
+        <TimelineCard timeline={timeline} />
+      )}
+
+      {/* 4. Professional */}
+      <ProfessionalCard person={person} />
+
+      {/* 5. Contact */}
+      <ContactCard person={person} />
+
+      {/* 6. Family List - Bottom */}
+      <FamilyList
+        parents={parents}
+        spouses={spouses}
+        children={children}
+        onNavigate={handleNavigateToProfile}
+      />
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F9F7F3', // Al-Jass White
+  },
+});
+```
 
 ---
 
-## 12. Success Metrics
+## 🎨 Design Tokens Reference
 
-### Quantitative
-✅ Hero height: 755px → 220px (71% reduction)
-✅ Data points above fold: 3-4 → 9 (125% increase)
-✅ Components created: 1 (ColoredCircleAvatar)
-✅ Lines modified: ~200 (ProfileSheet.js)
-✅ Breaking changes: 0
+```javascript
+// src/components/ui/tokens.js
 
-### Qualitative
-✅ Feels like Instagram/LinkedIn
-✅ No visual gaps from missing data
-✅ Family data easy to scan (vertical list)
-✅ Clear visual hierarchy
-✅ Native iOS animations
-✅ RTL perfect
+export const colors = {
+  najdi: {
+    background: '#F9F7F3',      // Al-Jass White
+    container: '#D1BBA3',        // Camel Hair Beige
+    text: '#242121',             // Sadu Night
+    primary: '#A13333',          // Najdi Crimson
+    secondary: '#D58C4A',        // Desert Ochre
+  },
+};
 
----
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+};
 
-## 13. Risks & Mitigations
+export const sizing = {
+  heroAvatar: 64,              // Small hero avatar
+  familyAvatar: 44,            // Family list avatar
+  touchTarget: 44,             // Minimum touch target
+  photoCardHeight: 260,        // Vertical stack photo
+  carouselCardHeight: 200,     // Carousel photo
+  carouselCardWidth: 280,
+};
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Name chain display wrong | High | Preserve existing `fullName` logic, only change display order |
-| RTL layout breaks | High | Use standard `flexDirection: 'row'`, test thoroughly |
-| Avatar colors inconsistent | Low | Use exact desert palette from SearchResultCard.js |
-| Large families crash | Medium | Test with 50+ children, ensure ScrollView performance |
-| Missing data shows gaps | Medium | Strict conditional rendering, hide entire sections |
+export const typography = {
+  heroName: { fontSize: 20, fontWeight: '700' },
+  heroLineage: { fontSize: 15, fontWeight: '400' },
+  heroMeta: { fontSize: 13, fontWeight: '600' },
+  sectionTitle: { fontSize: 22, fontWeight: '600' },
+  bodyLarge: { fontSize: 17, fontWeight: '600' },
+  body: { fontSize: 17, fontWeight: '400' },
+  caption: { fontSize: 15, fontWeight: '400' },
+  small: { fontSize: 13, fontWeight: '400' },
+};
 
----
-
-## 14. Testing Scenarios
-
-### Scenario 1: Complete Profile
-**Data**: Photo, kunya, bio, both parents, 5 children, 3 photos
-**Expected**: All sections visible, no gaps, smooth scrolling
-**Verify**: Death badge not shown, facts row shows 3 items
-
-### Scenario 2: Minimal Profile
-**Data**: Name only (no photo, kunya, parents, children)
-**Expected**: Colored avatar, name chain, action buttons only
-**Verify**: No empty sections, no gaps, layout looks intentional
-
-### Scenario 3: Deceased Profile
-**Data**: Deceased status set
-**Expected**: "الله يرحمه" badge visible below name
-**Verify**: Badge color #6B7280, text white, centered
-
-### Scenario 4: Large Family
-**Data**: 25 children
-**Expected**: Scrollable family list, all children visible
-**Verify**: 60fps scrolling, proper dividers, no layout issues
-
-### Scenario 5: Munasib Profile
-**Data**: hid === null, no generation
-**Expected**: Facts row hides generation, shows siblings only
-**Verify**: No "undefined" or "null" text displayed
-
-### Scenario 6: No Facts Data
-**Data**: No generation, 0 siblings, 0 descendants
-**Expected**: Facts row completely hidden
-**Verify**: No empty container, hero flows to buttons
-
-### Scenario 7: RTL Verification
-**Platform**: iOS with Arabic locale
-**Expected**: All layouts flip correctly
-**Verify**: Avatar right, chevron left, text right-aligned
+export const shadow = {
+  ios: {
+    shadowColor: '#242121',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
+  subtle: {
+    shadowColor: '#242121',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+};
+```
 
 ---
 
-## 15. Handoff Notes
+## ✅ Implementation Checklist
 
-### For the Developer
+### Phase 1: Compact Hero (2-3 hours)
+- [ ] Create `CompactHero.js` component
+- [ ] Implement small avatar (64px) with fallback
+- [ ] Add name + lineage text
+- [ ] Add metadata row (generation + siblings)
+- [ ] Integrate personal info (birth place + year)
+- [ ] Add action buttons (Edit + Menu) top-right
+- [ ] Test with full/medium/empty data schemas
+- [ ] Verify RTL layout correctness
 
-1. **Start with ColoredCircleAvatar** - This is self-contained and can be built/tested independently
+### Phase 2: Family Vertical List (3-4 hours)
+- [ ] Create `FamilyList.js` component
+- [ ] Implement single-column row layout
+- [ ] Add section dividers (parents/spouse/children)
+- [ ] Style avatars (44px with fallback)
+- [ ] Add name + relationship labels
+- [ ] Add chevron navigation icon
+- [ ] Test with various family structures
+- [ ] Verify no horizontal scrolling
 
-2. **Preserve existing logic** - Don't change:
-   - `fullName` calculation (lines 310-332)
-   - Permission checking
-   - Navigation functions
-   - Data fetching
+### Phase 3: Layout Reordering (1 hour)
+- [ ] Modify main ProfileViewer component
+- [ ] Reorder sections: Hero → Photos → Timeline → Professional → Contact → Family
+- [ ] Remove PersonalCard/DatesCard (data now in hero)
+- [ ] Verify all sections collapse when empty
+- [ ] Test scroll performance
 
-3. **Test incrementally**:
-   - Build hero → Test with real data
-   - Build buttons → Test permissions
-   - Build family section → Test with varying data
-   - Test missing data scenarios last
+### Phase 4: Photo Gallery (optional enhancement, 2-3 hours)
+- [ ] Create adaptive photo gallery logic
+- [ ] Implement vertical stack (1-2 photos)
+- [ ] Implement horizontal carousel (3-5 photos)
+- [ ] Implement grid mosaic (6+ photos fallback)
+- [ ] Test transitions between layouts
 
-4. **Use existing components**:
-   - Keep using `SectionCard`, `CardSurface`, `ProgressiveImage`
-   - Reuse existing animations patterns
-   - Follow existing press feedback patterns
+### Phase 5: Testing (2 hours)
+- [ ] Test with full data profile
+- [ ] Test with medium data profile
+- [ ] Test with minimal/empty data profile
+- [ ] Verify no empty gaps/cards
+- [ ] Test on multiple screen sizes (iPhone SE, 13, 14 Pro Max)
+- [ ] Verify RTL layout on all sections
+- [ ] Test all tap actions (edit, menu, family navigation)
+- [ ] Test scroll performance with large family lists
 
-5. **Questions?**
-   - Name display order: name_chain first, kunya second
-   - Avatar source: SearchResultCard.js lines 73-85
-   - Color palette: Exact colors from SearchResultCard.js
-   - Death badge: Only if status === 'deceased', never show "alive"
+### Phase 6: Polish (1 hour)
+- [ ] Add loading states
+- [ ] Add error boundaries
+- [ ] Add accessibility labels
+- [ ] Optimize images (lazy loading, blurhash)
+- [ ] Add subtle animations (button press, transitions)
 
-### Design Files
-- Figma: N/A (spec is comprehensive)
-- Color tokens: See section 2
-- Typography: iOS standard scale
-- Reference: Instagram profile screen, LinkedIn mobile
+---
+
+## 🚨 Edge Cases to Handle
+
+### Empty Data Scenarios
+
+1. **No photo**: Show beige circle with initials
+2. **No lineage**: Show name only, skip lineage row
+3. **No personal info**: Skip personal info row in hero
+4. **No photos**: Collapse photo gallery section completely
+5. **No timeline**: Collapse timeline section
+6. **No family**: Collapse family section (show "لا توجد معلومات عائلية" empty state)
+7. **No achievements/education**: Collapse professional section
+8. **No contact info**: Collapse contact section
+
+### Data Privacy
+
+- **DOB privacy**: Check `dob_is_public` flag
+  - If `false`: Show year only or "مخفي"
+  - Show privacy badge when restricted
+- **Phone privacy**: Respect profile settings
+- **Photo privacy**: Handle missing photo gracefully
+
+### Permission-Based UI
+
+- **Edit button**: Only show if `canEdit === true`
+- **Share button**: Show in menu for all users
+- **Contact actions**: Only show if user has access permission
+
+### RTL Considerations
+
+- **Avatar**: Left-aligned in RTL (becomes visually right)
+- **Action buttons**: Top-right in RTL (visually top-left)
+- **Chevrons**: Use `chevron-back` (points right in RTL)
+- **Flex direction**: Verify all layouts work in RTL
+- **Text alignment**: Use `textAlign: 'left'` (auto-flips in RTL)
+
+---
+
+## 📊 Expected Improvements
+
+### Space Efficiency
+
+| Schema | Old Height | New Height | Improvement |
+|--------|-----------|-----------|-------------|
+| Full | ~1200px | ~1000px | 16% reduction |
+| Medium | ~700px | ~650px | 7% reduction |
+| Empty | ~450px | ~350px | 22% reduction |
+
+### Scan Efficiency
+
+| Task | Old Scrolls | New Scrolls | Improvement |
+|------|-------------|-------------|-------------|
+| Find family | 1 scroll | 3 scrolls | Moved to bottom |
+| Find photos | 3 scrolls | 1 scroll | Moved up |
+| View personal info | 2 scrolls | 0 scrolls | In hero |
+| Complete scan | 3 swipes | 2-3 swipes | Similar |
+
+### User Experience
+
+- ✅ **Compact hero**: Less scrolling to reach content
+- ✅ **Photos prominent**: Higher visual engagement
+- ✅ **No horizontal scroll**: Better mobile UX (family section)
+- ✅ **Personal info accessible**: Visible without scrolling
+- ✅ **Simplified actions**: Edit + Menu (less clutter)
+- ✅ **No empty gaps**: Cleaner layout with missing data
+
+---
+
+## 🎯 Success Criteria
+
+### Visual Design
+- [ ] Hero height ≤ 120px (vs 180px before)
+- [ ] Avatar size 60-70px (Instagram-like)
+- [ ] Personal info integrated in hero (no separate card)
+- [ ] Action buttons simplified (Edit + Menu only)
+- [ ] No horizontal scrolling anywhere
+
+### Functionality
+- [ ] All sections collapse when empty
+- [ ] Family list supports unlimited vertical scroll
+- [ ] Photo gallery adapts to photo count (1-2 vs 3-5)
+- [ ] All tap actions work (edit, menu, navigation)
+- [ ] RTL layout correct throughout
+
+### Performance
+- [ ] Scroll maintains 60fps
+- [ ] Images load progressively (blurhash/placeholder)
+- [ ] No layout shifts during render
+- [ ] Memory usage stable with large family lists
+
+### Accessibility
+- [ ] All buttons have accessibility labels
+- [ ] VoiceOver navigation works correctly
+- [ ] Touch targets ≥ 44px
+- [ ] Text contrast meets WCAG AA
+
+---
+
+## 📝 Notes for Implementation
+
+1. **Start with CompactHero** - This is the most critical change and affects overall layout
+2. **Test incrementally** - Verify each section works before moving to next
+3. **Use existing components** where possible (Timeline, Professional, Contact)
+4. **Delete carefully** - PersonalCard/DatesCard are being merged into Hero
+5. **Monitor performance** - Large family lists (20+ members) should still scroll smoothly
+6. **RTL testing is critical** - Test on actual device with Arabic content
+7. **Empty state testing** - Verify graceful degradation with missing data
+
+---
+
+## 🔗 Related Documentation
+
+- **Design System**: `/docs/DESIGN_SYSTEM.md`
+- **Najdi Sadu Colors**: `/src/components/ui/tokens.js`
+- **Permission System**: `/docs/PERMISSION_SYSTEM_V4.md`
+- **Professional Titles**: `/src/services/professionalTitleService.js`
+- **Name Chains**: `/src/utils/nameChainUtils.js`
 
 ---
 
 **End of Specification**
+
+**Questions? Clarifications needed?**
+Contact: Refer to original discussion or design review session.
+
+**Implementation Timeline**: 11-13 hours total
+**Priority**: High - Improves core UX significantly
+**Risk Level**: Medium - Major layout changes, thorough testing required

@@ -61,13 +61,16 @@ export const useTreeStore = create((set, get) => ({
   setSelectedPersonId: (personId) => set({ selectedPersonId: personId }),
 
   setTreeData: (data) => {
-    // DEBUG: Log first 3 nodes to verify kunya field
+    // DEBUG: Log first 3 nodes to verify all fields including version
     if (data && data.length > 0) {
       console.log('📦 [useTreeStore] setTreeData called with', data.length, `nodes, schema v${  TREE_DATA_SCHEMA_VERSION}`);
+      console.log('📦 First node keys:', Object.keys(data[0]).sort());
       console.log('📦 Sample nodes (first 3):');
       data.slice(0, 3).forEach((node, i) => {
         console.log(`  [${i}] ${node.name}:`, {
           id: node.id,
+          hasVersion: 'version' in node,
+          version: node.version,
           hasKunya: !!node.kunya,
           kunya: node.kunya || 'null'
         });

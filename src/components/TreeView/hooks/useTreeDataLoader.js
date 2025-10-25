@@ -197,6 +197,17 @@ export function useTreeDataLoader({
           );
         }
 
+        // DEBUG: Log before setTreeData
+        if (data && data.length > 0) {
+          console.log('[useTreeDataLoader] First node before setTreeData:', {
+            id: data[0].id,
+            name: data[0].name,
+            hasVersion: 'version' in data[0],
+            version: data[0].version,
+            allKeys: Object.keys(data[0]).sort()
+          });
+        }
+
         setTreeData(data || []);
         setNetworkError(null); // Clear any previous errors
       }

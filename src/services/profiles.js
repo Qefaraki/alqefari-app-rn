@@ -17,6 +17,17 @@ export const profilesService = {
       // Note: .range() not supported on RPC calls in Supabase JS v2
       // PostgREST max-rows setting controls row limit (configured to 5000 in dashboard)
 
+      // DEBUG: Log first node to verify version field from database
+      if (data && data.length > 0) {
+        console.log('[profilesService] First node from database:', {
+          id: data[0].id,
+          name: data[0].name,
+          hasVersion: 'version' in data[0],
+          version: data[0].version,
+          allKeys: Object.keys(data[0]).sort()
+        });
+      }
+
       if (error) throw error;
       return { data, error: null };
     } catch (error) {
