@@ -19,7 +19,7 @@
  */
 
 import { PixelRatio } from 'react-native';
-import { NODE_WIDTH_WITH_PHOTO } from '../utils';
+import { NODE_WIDTH_WITH_PHOTO } from '../rendering/nodeConstants';
 
 // LOD System Constants
 // Note: These remain in TreeView.js as they're specific to LOD system logic
