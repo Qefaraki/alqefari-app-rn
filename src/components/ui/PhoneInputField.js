@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import PropTypes from "prop-types";
 import {
   View,
   Text,
@@ -40,22 +41,34 @@ const countryCodes = [
 ];
 
 /**
- * PhoneInputField - Reusable phone input component
+ * PhoneInputField - Saudi-optimized phone number input with country picker
  *
  * Handles:
  * - Phone number input with Arabic to Western numeral conversion
- * - Country code selection
+ * - Country code selection with modal picker
  * - Formatting and validation
- * - RTL support
+ * - RTL support (native mode compatible)
  *
- * Usage:
+ * @param {string} value - Phone number (digits only, no formatting)
+ * @param {function} onChangeText - Callback when phone number changes
+ * @param {Object} selectedCountry - Country object { code, country, flag, key }
+ * @param {function} onCountryChange - Callback when selected country changes
+ * @param {boolean} disabled - Disable input and picker (default: false)
+ * @param {string} error - Error message to display below input
+ * @param {number} maxDigits - Maximum digits allowed (default: 9 for Saudi numbers)
+ * @param {string} placeholder - Placeholder text (default: "50 123 4567")
+ * @param {Object} containerStyle - Custom styles for outermost container
+ *                                  Defaults to { width: '100%', alignSelf: 'stretch' }
+ *                                  ⚠️ Avoid overriding width/alignSelf to prevent layout issues
+ *
+ * @example
  * <PhoneInputField
- *   value={phoneNumber}
- *   onChangeText={setPhoneNumber}
- *   selectedCountry={selectedCountry}
- *   onCountryChange={setSelectedCountry}
- *   disabled={false}
- *   error={errorMessage}
+ *   value={phone}
+ *   onChangeText={setPhone}
+ *   selectedCountry={countryCode}
+ *   onCountryChange={setCountryCode}
+ *   error={validationError}
+ *   containerStyle={{ marginTop: 16 }}
  * />
  */
 export function PhoneInputField({
@@ -146,6 +159,8 @@ export function PhoneInputField({
     </Modal>
   );
 
+  // Wrap in View to prevent fragment flattening when parent uses alignItems: 'center'
+  // This ensures component maintains full width in modal/step containers (similar to OtpInput pattern)
   return (
     <View style={[{ width: '100%', alignSelf: 'stretch' }, containerStyle]}>
       <View style={styles.phoneInputWrapper}>
@@ -318,3 +333,21 @@ const styles = StyleSheet.create({
     color: `${colors.alJassWhite}99`,
   },
 });
+
+// PropTypes for type safety
+PhoneInputField.propTypes = {
+  value: PropTypes.string,
+  onChangeText: PropTypes.func,
+  selectedCountry: PropTypes.shape({
+    code: PropTypes.string.isRequired,
+    country: PropTypes.string.isRequired,
+    flag: PropTypes.string.isRequired,
+    key: PropTypes.string.isRequired,
+  }),
+  onCountryChange: PropTypes.func,
+  disabled: PropTypes.bool,
+  error: PropTypes.string,
+  maxDigits: PropTypes.number,
+  placeholder: PropTypes.string,
+  containerStyle: PropTypes.object,
+};
