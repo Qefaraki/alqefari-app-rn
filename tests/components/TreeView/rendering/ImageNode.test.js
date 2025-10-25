@@ -53,9 +53,9 @@ describe('ImageNode', () => {
 
   describe('IMAGE_NODE_CONSTANTS', () => {
     test('should export expected constants', () => {
-      expect(IMAGE_NODE_CONSTANTS.DEFAULT_BUCKETS).toEqual([40, 60, 80, 120, 256]);
-      expect(IMAGE_NODE_CONSTANTS.FALLBACK_BUCKET).toBe(512);
-      expect(IMAGE_NODE_CONSTANTS.RETINA_MULTIPLIER).toBe(2);
+      expect(IMAGE_NODE_CONSTANTS.DEFAULT_BUCKETS).toEqual([40, 60, 80, 120, 180, 256]);
+      expect(IMAGE_NODE_CONSTANTS.FALLBACK_BUCKET).toBe(256);
+      expect(IMAGE_NODE_CONSTANTS.RETINA_MULTIPLIER).toBe(1.2);
       expect(IMAGE_NODE_CONSTANTS.SKELETON_COLOR).toBe('#D1BBA320');
       expect(IMAGE_NODE_CONSTANTS.SKELETON_STROKE_COLOR).toBe('#D1BBA310');
       expect(IMAGE_NODE_CONSTANTS.SKELETON_STROKE_WIDTH).toBe(0.5);
@@ -115,25 +115,25 @@ describe('ImageNode', () => {
   // ============================================================================
 
   describe('selectImageBucket', () => {
-    test('should select smallest bucket that meets 2x pixel size', () => {
-      // pixelSize = 30, need 60+ bucket
+    test('should select smallest bucket that meets 1.2x pixel size', () => {
+      // pixelSize = 30, targetSize = 36, first bucket >= 36 is 40
       const result = selectImageBucket(30);
+
+      expect(result).toBe(40);
+    });
+
+    test('should use next bucket if exact match not available', () => {
+      // pixelSize = 35, targetSize = 42, first bucket >= 42 is 60
+      const result = selectImageBucket(35);
 
       expect(result).toBe(60);
     });
 
-    test('should use next bucket if exact match not available', () => {
-      // pixelSize = 35, need 70+ bucket
-      const result = selectImageBucket(35);
-
-      expect(result).toBe(80);
-    });
-
     test('should use largest bucket for large images', () => {
-      // pixelSize = 200, need 400+ bucket
+      // pixelSize = 200, targetSize = 240, first bucket >= 240 is 256
       const result = selectImageBucket(200);
 
-      expect(result).toBe(512); // Fallback
+      expect(result).toBe(256); // Falls back to 256
     });
 
     test('should handle very small images', () => {
@@ -365,10 +365,10 @@ describe('ImageNode', () => {
       render(<ImageNode {...defaultProps} width={25} scale={2.0} />);
 
       // pixelSize = 25 * 2 * 2.0 = 100
-      // 2x = 200, needs bucket >= 200, so 256
+      // 1.2x = 120, needs bucket >= 120, so 120
       expect(mockUseBatchedSkiaImage).toHaveBeenCalledWith(
         'https://example.com/photo.jpg',
-        256,
+        120,
         'visible'
       );
     });
@@ -454,7 +454,18 @@ describe('ImageNode', () => {
 
       // Zoomed out (scale 0.5)
       render(<ImageNode {...baseProps} scale={0.5} />);
-      // pixelSize = 50 * 2 * 0.5 = 50, 2x = 100, bucket = 120
+      // pixelSize = 50 * 2 * 0.5 = 50, 1.2x = 60, bucket = 60
+      expect(mockUseBatchedSkiaImage).toHaveBeenCalledWith(
+        expect.anything(),
+        60,
+        'visible'
+      );
+
+      mockUseBatchedSkiaImage.mockClear();
+
+      // Normal (scale 1.0)
+      render(<ImageNode {...baseProps} scale={1.0} />);
+      // pixelSize = 50 * 2 * 1.0 = 100, 1.2x = 120, bucket = 120
       expect(mockUseBatchedSkiaImage).toHaveBeenCalledWith(
         expect.anything(),
         120,
@@ -463,23 +474,12 @@ describe('ImageNode', () => {
 
       mockUseBatchedSkiaImage.mockClear();
 
-      // Normal (scale 1.0)
-      render(<ImageNode {...baseProps} scale={1.0} />);
-      // pixelSize = 50 * 2 * 1.0 = 100, 2x = 200, bucket = 256
+      // Zoomed in (scale 2.0)
+      render(<ImageNode {...baseProps} scale={2.0} />);
+      // pixelSize = 50 * 2 * 2.0 = 200, 1.2x = 240, bucket = 256
       expect(mockUseBatchedSkiaImage).toHaveBeenCalledWith(
         expect.anything(),
         256,
-        'visible'
-      );
-
-      mockUseBatchedSkiaImage.mockClear();
-
-      // Zoomed in (scale 2.0)
-      render(<ImageNode {...baseProps} scale={2.0} />);
-      // pixelSize = 50 * 2 * 2.0 = 200, 2x = 400, bucket = 512
-      expect(mockUseBatchedSkiaImage).toHaveBeenCalledWith(
-        expect.anything(),
-        512,
         'visible'
       );
     });

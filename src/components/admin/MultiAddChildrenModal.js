@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../services/supabase";
 import profilesService from "../../services/profiles";
+import { useNetworkGuard } from "../../hooks/useNetworkGuard";
 import GlassSurface from "../glass/GlassSurface";
 import GlassButton from "../glass/GlassButton";
 import useStore from "../../hooks/useStore";
@@ -32,6 +33,9 @@ const MultiAddChildrenModal = ({
   ]);
   const [loading, setLoading] = useState(false);
   const { refreshProfile } = useStore();
+
+  // Network guard for offline protection
+  const { checkBeforeAction } = useNetworkGuard();
 
   const addChildRow = useCallback(() => {
     setChildren((prev) => [
@@ -85,6 +89,11 @@ const MultiAddChildrenModal = ({
 
   const submitChildren = async (skipValidation = false) => {
     if (!skipValidation && !validateChildren()) return;
+
+    // Network guard: prevent submit if offline
+    if (!await checkBeforeAction('إضافة أطفال')) {
+      return;
+    }
 
     setLoading(true);
     try {

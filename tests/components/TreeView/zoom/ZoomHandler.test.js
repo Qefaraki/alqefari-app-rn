@@ -93,8 +93,7 @@ describe('ZoomHandler', () => {
   describe('calculateMinScaleForT2', () => {
     test('should calculate min scale with default buffer', () => {
       const pixelRatio = PixelRatio.get();
-      const nodeWidth = 85; // NODE_WIDTH_WITH_PHOTO
-      const expectedBase = 48 / (nodeWidth * pixelRatio);
+      const expectedBase = 48 / (NODE_WIDTH_WITH_PHOTO * pixelRatio);
       const expected = expectedBase * 1.2; // 20% buffer
 
       const result = calculateMinScaleForT2();
@@ -104,8 +103,7 @@ describe('ZoomHandler', () => {
 
     test('should use custom buffer percentage', () => {
       const pixelRatio = PixelRatio.get();
-      const nodeWidth = 85;
-      const expectedBase = 48 / (nodeWidth * pixelRatio);
+      const expectedBase = 48 / (NODE_WIDTH_WITH_PHOTO * pixelRatio);
       const expected = expectedBase * 1.5; // 50% buffer
 
       const result = calculateMinScaleForT2(0.5);
@@ -115,8 +113,7 @@ describe('ZoomHandler', () => {
 
     test('should handle zero buffer', () => {
       const pixelRatio = PixelRatio.get();
-      const nodeWidth = 85;
-      const expected = 48 / (nodeWidth * pixelRatio);
+      const expected = 48 / (NODE_WIDTH_WITH_PHOTO * pixelRatio);
 
       const result = calculateMinScaleForT2(0.0);
 

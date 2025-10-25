@@ -24,6 +24,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import profilesService from "../../services/profiles";
 import useStore from "../../hooks/useStore";
+import { useNetworkGuard } from "../../hooks/useNetworkGuard";
 import MotherSelectorSimple from "./fields/MotherSelectorSimple";
 import FatherSelectorSimple from "./fields/FatherSelectorSimple";
 import ChildListCard from "./ChildListCard";
@@ -50,6 +51,9 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   const statusAnim = useRef(new Animated.Value(0)).current;
   const addButtonScale = useRef(new Animated.Value(1)).current;
   const parentDisplayName = parentNode?.name?.trim?.() || "العائلة";
+
+  // Network guard for offline protection
+  const { checkBeforeAction } = useNetworkGuard();
 
   // Warning banner state for duplicate sibling_order detection
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
@@ -433,6 +437,12 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
   // Save all changes
   const handleSave = async () => {
     if (!parentNode) return;
+
+    // Network guard: prevent save if offline
+    if (!await checkBeforeAction('إضافة أطفال جدد')) {
+      return;
+    }
+
     clearStatusBanner();
 
     const newChildren = allChildren.filter((c) => c.isNew);

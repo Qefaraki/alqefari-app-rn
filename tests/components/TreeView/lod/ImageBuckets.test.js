@@ -98,7 +98,7 @@ describe('ImageBuckets', () => {
       // Start at 80px bucket
       bucketStates.set('n1', 80);
 
-      // Zoom in significantly (150px) - target is 256
+      // Zoom in significantly (150px) - target is 180
       const bucket1 = selectBucketWithHysteresis('n1', 150, bucketStates, bucketTimers);
 
       expect(bucket1).toBe(80); // Still at 80 (debouncing)
@@ -107,7 +107,7 @@ describe('ImageBuckets', () => {
       // Fast forward 150ms
       jest.advanceTimersByTime(150);
 
-      expect(bucketStates.get('n1')).toBe(256); // State updated after debounce
+      expect(bucketStates.get('n1')).toBe(180); // State updated after debounce
     });
 
     it('should downgrade immediately', () => {
@@ -125,7 +125,7 @@ describe('ImageBuckets', () => {
       // Start at 80px bucket
       bucketStates.set('n1', 80);
 
-      // First upgrade request (150px → 256)
+      // First upgrade request (150px → 180)
       selectBucketWithHysteresis('n1', 150, bucketStates, bucketTimers);
       expect(bucketTimers.has('n1')).toBe(true);
 
@@ -139,7 +139,7 @@ describe('ImageBuckets', () => {
       // Fast forward 150ms
       jest.advanceTimersByTime(150);
 
-      // Should upgrade to 256 (second request)
+      // Should upgrade to 256 (second request takes precedence)
       expect(bucketStates.get('n1')).toBe(256);
     });
 
@@ -149,9 +149,9 @@ describe('ImageBuckets', () => {
       // Node 2: 120px bucket
       bucketStates.set('n2', 120);
 
-      // Node 1: upgrade to 256 (debounced)
+      // Node 1: upgrade to 256 (debounced, 200px → 256)
       const bucket1 = selectBucketWithHysteresis('n1', 200, bucketStates, bucketTimers);
-      // Node 2: stay at 120 (hysteresis)
+      // Node 2: stay at 120 (hysteresis, 110px within threshold)
       const bucket2 = selectBucketWithHysteresis('n2', 110, bucketStates, bucketTimers);
 
       expect(bucket1).toBe(80); // Still debouncing
@@ -257,7 +257,7 @@ describe('ImageBuckets', () => {
     });
 
     it('should export BUCKETS array', () => {
-      expect(BUCKET_CONSTANTS.BUCKETS).toEqual([40, 60, 80, 120, 256]);
+      expect(BUCKET_CONSTANTS.BUCKETS).toEqual([40, 60, 80, 120, 180, 256]);
     });
   });
 });
