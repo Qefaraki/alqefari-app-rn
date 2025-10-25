@@ -13,23 +13,23 @@
 -- 3. Maintains all existing optimizations (indexes, deduplication)
 -- 4. Preserves SECURITY DEFINER for public access
 
-DROP FUNCTION IF EXISTS get_structure_only(VARCHAR, INT, INT);
+DROP FUNCTION IF EXISTS get_structure_only(text, integer, integer);
 
 CREATE FUNCTION get_structure_only(
-    p_hid VARCHAR DEFAULT NULL,
-    p_max_depth INT DEFAULT 6,
-    p_limit INT DEFAULT 10000
+    p_hid text DEFAULT NULL,
+    p_max_depth integer DEFAULT 6,
+    p_limit integer DEFAULT 10000
 )
 RETURNS TABLE (
     id UUID,
-    hid VARCHAR,
-    name VARCHAR,
+    hid text,
+    name text,
     father_id UUID,
     mother_id UUID,
     generation INT,
     sibling_order INT,
-    gender VARCHAR,
-    photo_url VARCHAR,
+    gender text,
+    photo_url text,
     "nodeWidth" INT,
     version INT  -- NEW: Version field for optimistic locking
 ) AS $$
@@ -62,8 +62,7 @@ BEGIN
 
         UNION ALL
 
-        -- Recursive case: children via father relationship
-        -- Uses idx_profiles_father_id index exclusively
+        -- Recursive case: children (uses both father and mother relationships)
         SELECT
             p.id,
             p.hid,
@@ -78,35 +77,10 @@ BEGIN
             p.version,  -- NEW: Include version
             b.depth + 1
         FROM profiles p
-        INNER JOIN branch b ON p.father_id = b.id
+        INNER JOIN branch b ON (p.father_id = b.id OR p.mother_id = b.id)
         WHERE
             p.hid IS NOT NULL
             AND p.deleted_at IS NULL
-            AND b.depth < p_max_depth
-
-        UNION ALL
-
-        -- Recursive case: children via mother relationship (for profiles without father)
-        -- Uses idx_profiles_mother_id_not_deleted index exclusively
-        SELECT
-            p.id,
-            p.hid,
-            p.name,
-            p.father_id,
-            p.mother_id,
-            p.generation,
-            p.sibling_order,
-            p.gender,
-            p.photo_url,
-            CASE WHEN p.photo_url IS NOT NULL THEN 85 ELSE 60 END as nodeWidth,
-            p.version,  -- NEW: Include version
-            b.depth + 1
-        FROM profiles p
-        INNER JOIN branch b ON p.mother_id = b.id
-        WHERE
-            p.hid IS NOT NULL
-            AND p.deleted_at IS NULL
-            AND p.father_id IS NULL  -- Only for profiles without father (prevents duplicates)
             AND b.depth < p_max_depth
     ),
     deduplicated AS (
