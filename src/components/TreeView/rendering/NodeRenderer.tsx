@@ -399,7 +399,7 @@ export const NodeRenderer: React.FC<NodeRendererProps> = ({
     y,
     width,
     height,
-    borderRadius: isRoot ? 20 : isT1 ? 16 : isT2 ? 13 : CORNER_RADIUS,
+    borderRadius: isRoot ? ROOT_NODE.BORDER_RADIUS : isT1 ? 16 : isT2 ? 13 : STANDARD_NODE.CORNER_RADIUS,
   });
 
   return (

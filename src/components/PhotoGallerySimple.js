@@ -21,7 +21,8 @@ import storageService from '../services/storage';
 import RobustImage from './ui/RobustImage';
 import tokens from './ui/tokens';
 
-const GAP = 8;
+const GAP = 3; // Instagram-style tight spacing
+const BORDER_RADIUS = 3; // Instagram-style sharp corners
 const MAX_IMAGE_SIZE = 1920;
 const palette = tokens.colors.najdi;
 

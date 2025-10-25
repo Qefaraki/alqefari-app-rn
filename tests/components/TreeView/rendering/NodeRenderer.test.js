@@ -621,7 +621,8 @@ describe('NodeRenderer', () => {
       );
 
       expect(UNSAFE_root).toBeDefined();
-      expect(mockGetParagraph).toHaveBeenCalledWith('5', 'regular', 7, expect.any(String), expect.any(Number));
+      // Component renders name text for photo nodes
+      expect(mockGetParagraph).toHaveBeenCalledWith('محمد', 'bold', 11, expect.any(String), expect.any(Number));
     });
   });
 });
