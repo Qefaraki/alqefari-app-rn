@@ -29,7 +29,7 @@ import {
   NODE_HEIGHT_WITH_PHOTO,
   NODE_WIDTH_TEXT_ONLY,
   NODE_HEIGHT_TEXT_ONLY,
-} from '../utils/constants/nodes';
+} from '../rendering/nodeConstants';
 
 export interface LayoutNode {
   id: string;

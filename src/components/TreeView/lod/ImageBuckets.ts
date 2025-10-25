@@ -23,7 +23,7 @@ import {
   IMAGE_BUCKETS,
   DEFAULT_IMAGE_BUCKET,
   BUCKET_HYSTERESIS,
-} from '../utils/constants/nodes';
+} from '../rendering/nodeConstants';
 
 // Bucket upgrade debounce time (ms)
 const BUCKET_DEBOUNCE_MS = 150;

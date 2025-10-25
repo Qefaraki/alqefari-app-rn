@@ -4,16 +4,18 @@
  * Centralized constants for all tree node dimensions, padding, and styling.
  * Used by both renderer (NodeRenderer, TextPillRenderer) and layout system (treeLayout.js).
  *
- * Phase 1 Consolidation (Oct 25):
- * - Reduced horizontal padding by 70% (7.5px → 2px)
+ * Phase 1 Consolidation (Oct 25 - Audited & Fixed):
+ * - Standard node width: 58px (50px photo + 4px padding × 2)
+ * - Follows 8px Design System grid for spacing
  * - Unified layout system and renderer dimensions
- * - Eliminated 31px delta between d3 (85px) and renderer (54px)
+ * - Eliminated 31px delta between d3 (85px) and renderer (58px)
+ * - Selection border: 2.5px for visibility
  */
 
-// Padding - single configurable source
+// Padding - single configurable source (follows 8px grid design system)
 export const NODE_PADDING = {
-  HORIZONTAL: 2,  // 70% reduction from ~7.5px per side
-  VERTICAL: 4,
+  HORIZONTAL: 4,  // Follows 8px Design System grid (minimum value)
+  VERTICAL: 4,    // Follows 8px Design System grid
 } as const;
 
 // Photo dimensions
@@ -21,16 +23,16 @@ export const PHOTO_SIZE = 50; // Circle diameter in pixels
 
 // Standard node (photo + text nodes at regular zoom)
 export const STANDARD_NODE = {
-  // Photo nodes: 50px photo + 2px padding × 2
-  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px
+  // Photo nodes: 50px photo + 4px padding × 2 (follows 8px grid)
+  WIDTH: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 58px (50 + 4×2)
   HEIGHT: PHOTO_SIZE + NODE_PADDING.VERTICAL * 2 + 17,  // 75px (photo + padding + name space)
 
   // Text-only nodes: same width for consistency
-  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 54px (matches photo)
+  WIDTH_TEXT_ONLY: PHOTO_SIZE + NODE_PADDING.HORIZONTAL * 2,  // 58px (matches photo)
   HEIGHT_TEXT_ONLY: 35,
 
   CORNER_RADIUS: 10,
-  SELECTION_BORDER: 2,  // Reduced from 2.5px to fit in 2px padding
+  SELECTION_BORDER: 2.5,  // Restored for visibility (fits within 4px padding)
 } as const;
 
 // Root node (generation 1, no father) - unchanged
@@ -53,7 +55,7 @@ export const G2_NODE = {
 
 // LOD Tier 2 (compact text pills)
 export const TEXT_PILL = {
-  WIDTH: 54,  // Matches standard node width for visual consistency
+  WIDTH: 58,  // Matches standard node width for visual consistency
   HEIGHT: 26,
   CORNER_RADIUS: 4,
   FONT_SIZE: 10,
@@ -102,3 +104,14 @@ export const NODE_CONSTANTS = {
   SHADOW_STYLES,
   COLORS,
 } as const;
+
+// Legacy exports for backwards compatibility (older imports should migrate to STANDARD_NODE, ROOT_NODE)
+export const NODE_WIDTH_WITH_PHOTO = STANDARD_NODE.WIDTH;
+export const NODE_WIDTH_TEXT_ONLY = STANDARD_NODE.WIDTH_TEXT_ONLY;
+export const NODE_HEIGHT_WITH_PHOTO = STANDARD_NODE.HEIGHT;
+export const NODE_HEIGHT_TEXT_ONLY = STANDARD_NODE.HEIGHT_TEXT_ONLY;
+
+// Image bucket constants (from old constants/nodes.ts)
+export const IMAGE_BUCKETS = [40, 60, 80, 120, 180, 256] as const;
+export const DEFAULT_IMAGE_BUCKET = 80;
+export const BUCKET_HYSTERESIS = 0.15; // ±15% prevents bucket thrashing

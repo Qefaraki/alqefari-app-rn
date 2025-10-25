@@ -323,13 +323,10 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
     }
 
     // View mode with Galeria integration
+    // ✅ Image wrapped DIRECTLY by Galeria.Image (no TouchableOpacity - Galeria handles taps)
     return (
       <Galeria.Image index={index} key={item.id}>
-        <TouchableOpacity
-          activeOpacity={0.95}
-          style={styles.photoTile}
-          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-        >
+        <View style={styles.photoTile}>
           <RobustImage
             source={{ uri: item.photo_url }}
             style={styles.photoImage}
@@ -341,7 +338,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
             recyclingKey={item.id}
             transition={180}
           />
-        </TouchableOpacity>
+        </View>
       </Galeria.Image>
     );
   };
@@ -390,12 +387,20 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
 
   // View mode with Galeria integration
   const columns = photoCount <= 4 ? 2 : 3;
+
+  // Calculate dynamic itemDimension to ensure columns actually fit
+  const screenWidth = Dimensions.get('window').width;
+  const containerPadding = 16 * 2; // Horizontal padding from galleryContainer parent
+  const gridGaps = GAP * (columns - 1); // Total gap space
+  const itemDimension = Math.floor((screenWidth - containerPadding - gridGaps) / columns);
+
   return (
     <View style={styles.galleryContainer}>
       <Galeria urls={galleryUrls}>
         <SimpleGrid
-          itemDimension={160}
+          itemDimension={itemDimension}
           maxItemsPerRow={columns}
+          fixed={true} // ✅ Force exact column count (don't fall back to fewer columns)
           data={photos}
           spacing={GAP}
           renderItem={renderItem}

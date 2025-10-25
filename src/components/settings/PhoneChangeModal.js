@@ -414,7 +414,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       transparent={true}
       onRequestClose={handleCancel}
     >
-      <BlurView intensity={35} style={styles.container}>
+      <BlurView intensity={7} style={styles.container}>
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
@@ -693,9 +693,11 @@ const styles = StyleSheet.create({
   },
   content: {
     minHeight: 288,
+    width: '100%',
   },
   step: {
     alignItems: 'center',
+    alignSelf: 'stretch',
   },
   title: {
     fontSize: 20,

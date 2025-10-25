@@ -76,16 +76,21 @@ export interface NodeTapResult {
  */
 export type TapResult = ChipTapResult | NodeTapResult | null;
 
+import {
+  ROOT_NODE,
+  STANDARD_NODE,
+} from '../rendering/nodeConstants';
+
 /**
- * Node dimension constants (imported from TreeView.js)
+ * Node dimension constants (imported from centralized nodeConstants)
  */
 export const NODE_DIMENSIONS = {
-  ROOT_WIDTH: 120,
-  ROOT_HEIGHT: 100,
-  CHIP_WIDTH_BASE: 100,
-  CHIP_HEIGHT_BASE: 36,
-  CHIP_SCALE_ROOT: 1.3,
-  CHIP_SCALE_NORMAL: 1.0,
+  ROOT_WIDTH: ROOT_NODE.WIDTH,      // 120
+  ROOT_HEIGHT: ROOT_NODE.HEIGHT,    // 100
+  CHIP_WIDTH_BASE: 100,             // T3 chip base width
+  CHIP_HEIGHT_BASE: 36,             // T3 chip base height
+  CHIP_SCALE_ROOT: 1.3,             // Root chips are 1.3x larger
+  CHIP_SCALE_NORMAL: 1.0,           // Standard chips at 1.0x
 };
 
 /**

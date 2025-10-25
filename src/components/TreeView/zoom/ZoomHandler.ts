@@ -25,7 +25,7 @@
  */
 
 import { PixelRatio } from 'react-native';
-import { NODE_WIDTH_WITH_PHOTO } from '../utils/constants/nodes';
+import { NODE_WIDTH_WITH_PHOTO } from '../rendering/nodeConstants';
 
 // LOD tier thresholds (must match LODCalculator values)
 const T2_BASE = 48; // pixels - from LODCalculator T2 threshold
