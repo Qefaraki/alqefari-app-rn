@@ -9,18 +9,17 @@ import { supabase } from '../../../services/supabase';
 /**
  * MarriageDeletionSheet
  *
- * Enhanced confirmation sheet for marriage deletion with real-time consequences.
+ * Minimal, direct confirmation sheet for marriage deletion.
  *
- * Fetches actual data to show:
- * - Marriage type (cousin vs Munasib)
- * - Whether spouse profile will be deleted
- * - How many children will be affected
- * - Clear, accurate warnings
+ * Shows:
+ * - Who will be deleted (spouse name)
+ * - Whether spouse profile survives (cousin marriage or munasib with other marriages)
+ * - Permanent warning
  *
  * Features:
  * - Network timeout (10 seconds) to prevent infinite loading
  * - Retry button on network errors
- * - Real-time data fetching (accurate counts, not stale props)
+ * - Simplified messaging (no children, profile, or marriage type explanations)
  */
 
 // Timeout wrapper for network operations
@@ -62,25 +61,10 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
         throw new Error('بيانات الزوج/الزوجة غير متوفرة');
       }
 
-      // 1. Determine if cousin marriage (Al-Qefari family member)
+      // Determine if cousin marriage (Al-Qefari family member)
       const isCousinMarriage = spouse.hid !== null && spouse.hid?.trim() !== '';
 
-      // 2. Count ALL children who will lose parent reference
-      // Important: Count ALL children with this parent, not just from this marriage
-      const parentColumn = spouse.gender === 'male' ? 'father_id' : 'mother_id';
-
-      const childrenQuery = supabase
-        .from('profiles')
-        .select('id', { count: 'exact', head: true })
-        .eq(parentColumn, spouseId)
-        .is('deleted_at', null);
-
-      const { count: affectedChildren, error: childrenError } = await fetchWithTimeout(childrenQuery);
-
-      if (childrenError) throw childrenError;
-
-      // 3. For Munasib only: Check if spouse has other marriages
-      let otherMarriagesCount = 0;
+      // For Munasib only: Check if spouse has other marriages
       let willDeleteProfile = false;
 
       if (!isCousinMarriage) {
@@ -95,17 +79,13 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
 
         if (marriageError) throw marriageError;
 
-        otherMarriagesCount = count || 0;
+        const otherMarriagesCount = count || 0;
         willDeleteProfile = otherMarriagesCount === 0;
       }
 
       setDeletionInfo({
-        isCousinMarriage,
-        affectedChildren: affectedChildren || 0,
         willDeleteProfile,
-        otherMarriagesCount,
         spouseName: spouse.name,
-        spouseGender: spouse.gender,
       });
     } catch (err) {
       if (__DEV__) {
@@ -121,35 +101,13 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
   const getWarningText = () => {
     if (!deletionInfo) return '';
 
-    const { isCousinMarriage, willDeleteProfile, affectedChildren, spouseName } = deletionInfo;
+    const { willDeleteProfile, spouseName } = deletionInfo;
 
-    const warnings = [];
-
-    // Marriage type warning
-    if (isCousinMarriage) {
-      warnings.push(`الزواج سيتم حذفه. ملف ${spouseName} سيبقى في الشجرة (زواج قريب).`);
-    } else if (willDeleteProfile) {
-      warnings.push(`الزواج وملف ${spouseName} سيتم حذفهما معاً من الشجرة.`);
+    if (willDeleteProfile) {
+      return `سيتم حذف ${spouseName} نهائياً من الشجرة.`;
     } else {
-      warnings.push(
-        `الزواج سيتم حذفه فقط. ملف ${spouseName} سيبقى (لديه زيجات أخرى).`
-      );
+      return `سيتم حذف الزواج فقط.\n\n${spouseName} سيبقى في الشجرة.`;
     }
-
-    // Children warning
-    if (affectedChildren > 0) {
-      const childrenLabel =
-        affectedChildren === 1
-          ? 'طفل واحد'
-          : affectedChildren === 2
-          ? 'طفلين'
-          : `${affectedChildren} أطفال`;
-
-      const parentLabel = deletionInfo.spouseGender === 'male' ? 'الأب' : 'الأم';
-      warnings.push(`سيتم إزالة رابط ${parentLabel} من ${childrenLabel}.`);
-    }
-
-    return warnings.join('\n\n');
   };
 
   const handleConfirm = () => {
@@ -171,7 +129,7 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
       animationType="fade"
       onRequestClose={handleCancel}
     >
-      <BlurView intensity={40} style={styles.overlay} tint="dark">
+      <BlurView intensity={20} style={styles.overlay} tint="dark">
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
@@ -189,7 +147,7 @@ const MarriageDeletionSheet = ({ visible, marriage, onConfirm, onCancel }) => {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>حذف زواج خاطئ</Text>
+          <Text style={styles.title}>حذف زواج</Text>
 
           {/* Content: Loading, Error, or Data */}
           {loading ? (
@@ -358,10 +316,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: tokens.spacing.sm,
     padding: tokens.spacing.md,
-    backgroundColor: tokens.colors.najdi.background,
-    borderRadius: tokens.radii.lg,
-    borderWidth: 1,
-    borderColor: `${tokens.colors.najdi.crimson  }33`,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
   },
   warningText: {
     flex: 1,
