@@ -1238,25 +1238,17 @@ export default function SettingsPageModern({ user }) {
               disabled={isSigningOut}
             />
           )}
-          <SettingsCell
-            label="إعادة تعيين الإعدادات"
-            description="إرجاع التفضيلات إلى القيم الافتراضية"
-            onPress={() => {
-              Alert.alert(
-                "إعادة تعيين الإعدادات",
-                "سيتم إرجاع جميع الإعدادات إلى القيم الافتراضية",
-                [
-                  { text: "إلغاء", style: "cancel" },
-                  {
-                    text: "إعادة تعيين",
-                    style: "destructive",
-                    onPress: resetSettings,
-                  },
-                ],
-              );
-            }}
-            rightAccessory={<Ionicons name="refresh-outline" size={18} color={colors.muted} />}
-          />
+          {currentUser && !isGuestMode && (
+            <SettingsCell
+              label="تغيير رقم الهاتف"
+              description="تحديث رقم الهاتف المرتبط بحسابك"
+              onPress={() => {
+                handleFeedback();
+                setShowPhoneChangeModal(true);
+              }}
+              rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
+            />
+          )}
           <SettingsCell
             label="تواصل مع الإدارة"
             description="أرسل رسالة فورية عبر الواتساب"
@@ -1294,21 +1286,9 @@ export default function SettingsPageModern({ user }) {
             />
           </TouchableOpacity>
 
-          {/* Advanced Settings (Phone Change + Delete Account) */}
+          {/* Advanced Settings (Delete Account Only) */}
           {showAdvancedSettings && (
             <>
-              {currentUser && !isGuestMode && (
-                <SettingsCell
-                  label="تغيير رقم الهاتف"
-                  description="تحديث رقم الهاتف المرتبط بحسابك"
-                  onPress={() => {
-                    handleFeedback();
-                    setShowPhoneChangeModal(true);
-                  }}
-                  rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
-                />
-              )}
-
               {currentUser && !isGuestMode && (
                 <SettingsCell
                   label="حذف الحساب نهائياً"
