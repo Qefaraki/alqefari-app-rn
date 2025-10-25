@@ -101,11 +101,6 @@ const LifeEventsSection = ({ person = {} }) => {
     return eventsList;
   }, [person]);
 
-  // Guard: if no events, don't render
-  if (events.length === 0) {
-    return null;
-  }
-
   // Memoize styles
   const styles = useMemo(
     () =>
@@ -170,6 +165,11 @@ const LifeEventsSection = ({ person = {} }) => {
       }),
     [shouldUseAlternateLayout]
   );
+
+  // Guard: if no events, don't render (must be after all hooks)
+  if (events.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
