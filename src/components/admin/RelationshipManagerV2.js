@@ -174,6 +174,7 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
           generation,
           sibling_order,
           photo_url,
+          version,
           mother_id,
           mother:profiles!mother_id(id, name)
         `,
@@ -293,56 +294,91 @@ const RelationshipManagerV2 = ({ profile, onUpdate, visible, onClose }) => {
     }
   };
 
-  // Handle children reorder
+  // Handle children reorder with version validation & batch RPC
   const handleChildrenReorder = async (newOrder) => {
-    // Update local state immediately for responsive UI
-    setChildren(newOrder);
+    const previousOrder = [...children]; // Backup for rollback
 
-    // Update sibling order in database
-    // IMPORTANT: Since we display reversed, we need to reverse the indices
     try {
+      // Optimistic UI update
+      setChildren(newOrder);
+
+      // Convert display order to database sibling_order values
+      // Display: youngest at top (index 0), oldest at bottom
+      // Database: oldest = 0, youngest = highest number
       const totalChildren = newOrder.length;
-      const updates = newOrder.map((child, displayIndex) => {
-        // Convert display position back to actual sibling_order
-        // Display: youngest at top (index 0), oldest at bottom
-        // Database: oldest = 0, youngest = highest number
+      const reorderOps = newOrder.map((child, displayIndex) => {
         const actualSiblingOrder = totalChildren - 1 - displayIndex;
-        return supabase
-          .from("profiles")
-          .update({ sibling_order: actualSiblingOrder })
-          .eq("id", child.id);
+        return {
+          id: child.id,
+          new_sibling_order: actualSiblingOrder,
+          version: child.version ?? 1  // ✅ FIX: Handles both null and undefined
+        };
       });
 
-      await Promise.all(updates);
+      // Call batch RPC (atomic, version-validated)
+      const { data, error } = await supabase.rpc('admin_batch_reorder_children', {
+        p_reorder_operations: reorderOps,
+        p_parent_id: profile.id
+      });
 
-      // Update the tree store to reflect new order
+      // ✅ FIX: Comprehensive error handling
+      if (error) {
+        console.error('[RelationshipManagerV2] Reorder error:', error);
+
+        // Rollback optimistic update
+        setChildren(previousOrder);
+
+        // User-friendly error messages (Arabic)
+        if (error.message.includes('version') || error.message.includes('تحديث البيانات')) {
+          Alert.alert(
+            'خطأ',
+            'تم تحديث البيانات من قبل مستخدم آخر. يرجى إعادة المحاولة.',
+            [{ text: 'حسناً', onPress: () => loadChildren() }]
+          );
+        } else if (error.message.includes('permission') || error.message.includes('صلاحية')) {
+          Alert.alert('خطأ', 'لا تملك صلاحية إعادة ترتيب هذه العناصر.');
+        } else if (error.message.includes('lock_not_available')) {
+          Alert.alert('خطأ', 'عملية أخرى قيد التنفيذ. يرجى المحاولة بعد قليل.');
+        } else {
+          Alert.alert('خطأ', 'فشل تحديث الترتيب. يرجى المحاولة مرة أخرى.');
+        }
+
+        return;
+      }
+
+      // ✅ FIX: Validate response structure
+      if (!data?.success) {
+        setChildren(previousOrder);
+        Alert.alert('خطأ', 'فشل تحديث الترتيب');
+        loadChildren();
+        return;
+      }
+
+      // Success - update tree store with new sibling_order values
       const treeStore = useTreeStore.getState();
-
-      // Create updated tree data with new sibling_order values
       const updatedTreeData = treeStore.treeData.map((node) => {
-        const displayIndex = newOrder.findIndex(
-          (child) => child.id === node.id,
-        );
-        if (displayIndex !== -1) {
-          // Convert display position back to actual sibling_order
-          const actualSiblingOrder = totalChildren - 1 - displayIndex;
-          return { ...node, sibling_order: actualSiblingOrder };
+        const reorderOp = reorderOps.find(op => op.id === node.id);
+        if (reorderOp) {
+          return { ...node, sibling_order: reorderOp.new_sibling_order, version: (node.version ?? 1) + 1 };
         }
         return node;
       });
-
-      // Set the updated tree data which will trigger layout recalculation
       treeStore.setTreeData(updatedTreeData);
 
-      // Don't trigger onUpdate to avoid disruptive reloads
-      // The tree will update automatically from the store change
-
+      Alert.alert('نجح', `تم تحديث ترتيب ${data.updated_count} أطفال`);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Reload to get fresh versions from database
+      loadChildren();
+
     } catch (error) {
-      console.error("Error updating order:", error);
-      Alert.alert("خطأ", "فشل تحديث الترتيب");
-      // Don't reload children - just show error
-      // This avoids disrupting the UI
+      // Rollback on unexpected error
+      setChildren(previousOrder);
+
+      console.error('[RelationshipManagerV2] Unexpected error:', error);
+      Alert.alert('خطأ', 'حدث خطأ غير متوقع');
+
+      loadChildren(); // Reload to sync state
     }
   };
 

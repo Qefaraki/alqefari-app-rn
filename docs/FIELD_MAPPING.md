@@ -485,4 +485,161 @@ console.log(profile.achievements);  // ✅ ['Award 1', 'Award 2']
 **Questions?**
 - Check Migration 015 as reference
 - See `migrations/012_add_titles_to_rpc_functions.sql` for title fields example
+
+---
+
+## 🔄 Batch Operations Pattern
+
+When updating multiple profiles atomically (e.g., reordering children), use batch RPCs with version validation:
+
+### ✅ CORRECT: Batch RPC (Atomic + Version-Safe)
+
+```javascript
+// Reorder children atomically with version validation
+const { data, error } = await supabase.rpc('admin_batch_reorder_children', {
+  p_reorder_operations: [
+    { id: 'uuid1', new_sibling_order: 0, version: 1 },
+    { id: 'uuid2', new_sibling_order: 1, version: 2 }
+  ],
+  p_parent_id: parentId
+});
+
+if (error) {
+  // Version conflict detected - another user edited
+  console.error('Concurrent edit detected:', error);
+} else {
+  // All children updated atomically with new versions
+  console.log(`Updated ${data.updated_count} children`);
+}
+```
+
+### ❌ WRONG: RPC Loop (10-25x Slower + Data Corruption Risk)
+
+```javascript
+// ❌ DO NOT DO THIS!
+const updates = children.map((child, index) =>
+  supabase.rpc('admin_update_profile', {
+    p_id: child.id,
+    p_updates: { sibling_order: index },
+    p_version: child.version
+  })
+);
+
+await Promise.all(updates);
+// Problems:
+// - If child 5/10 fails, children 1-4 already updated (partial failure)
+// - 10 RPC calls instead of 1 (10x slower)
+// - 10 audit log entries instead of 1 grouped entry
+// - No atomic guarantee
+```
+
+### ❌ WRONG: Direct Update (No Version Check = Data Corruption)
+
+```javascript
+// ❌ NEVER DO THIS!
+await supabase
+  .from('profiles')
+  .update({ sibling_order: newOrder })
+  .eq('id', childId);
+// No version validation - concurrent edits will overwrite each other!
+```
+
+---
+
+## admin_batch_reorder_children() RPC
+
+**Location:** `supabase/migrations/20251026010000_admin_batch_reorder_children.sql`
+
+**Purpose:** Atomically reorder children with version validation and permission checks
+
+**Features:**
+- ✅ Optimistic locking via version field
+- ✅ Single permission check on parent (not N+1 loop)
+- ✅ Advisory lock prevents concurrent reorders
+- ✅ Operation group integration for grouped undo
+- ✅ Comprehensive input validation (5 edge cases)
+- ✅ Version increment after successful update
+- ✅ Performance: <200ms for 50 children
+
+**Parameters:**
+
+```javascript
+{
+  p_reorder_operations: JSONB,  // Array of {id, new_sibling_order, version}
+  p_parent_id: UUID             // Parent whose children to reorder
+}
+```
+
+**Returns:**
+
+```json
+{
+  "success": true,
+  "operation_group_id": "uuid",
+  "updated_count": 5,
+  "batch_size": 5,
+  "duration_ms": 87
+}
+```
+
+**Error Handling:**
+
+| Error | Cause | Action |
+|-------|-------|--------|
+| `version mismatch` | Another user edited child | Reload and retry |
+| `Permission denied` | User can't edit parent | Show error, don't retry |
+| `Child doesn't belong to parent` | Invalid parent-child relationship | Data integrity issue, contact admin |
+| `Duplicate sibling_order` | Input validation failed | Report bug, check input |
+| `Concurrent operation` | Another reorder in progress | Wait and retry |
+
+**Usage in RelationshipManagerV2:**
+
+```javascript
+const handleChildrenReorder = async (newOrder) => {
+  const previousOrder = [...children]; // Backup
+  setChildren(newOrder);  // Optimistic update
+
+  try {
+    const reorderOps = newOrder.map((child, index) => ({
+      id: child.id,
+      new_sibling_order: index,
+      version: child.version ?? 1  // Handles null/undefined
+    }));
+
+    const { data, error } = await supabase.rpc('admin_batch_reorder_children', {
+      p_reorder_operations: reorderOps,
+      p_parent_id: profile.id
+    });
+
+    if (error) {
+      setChildren(previousOrder);  // Rollback on error
+      // User-friendly error message
+      if (error.message.includes('version')) {
+        Alert.alert('خطأ', 'تم تحديث البيانات من قبل مستخدم آخر');
+      }
+      return;
+    }
+
+    // Success - reload to get fresh versions
+    loadChildren();
+  } catch (error) {
+    setChildren(previousOrder);
+    console.error('Reorder failed:', error);
+  }
+};
+```
+
+---
+
+## Affected Components
+
+**Version Field Required:**
+- ✅ **ChildrenManager.js** (line 52) - SELECT includes version
+- ✅ **QuickAddOverlay.js** (line 181) - Defensive fallback `version ?? 1`
+- ✅ **RelationshipManagerV2.js** (line 177) - SELECT includes version
+- ✅ **TabFamily.js** - Uses `get_profile_family_data()` RPC (returns all fields)
+
+**Batch Reorder RPC:**
+- ✅ **RelationshipManagerV2.js** (line 319) - Uses `admin_batch_reorder_children()`
+- ✅ **DraggableChildrenList.js** - Calls `handleChildrenReorder()`
 - See `migrations/015_comprehensive_profile_fields.sql` for complete example

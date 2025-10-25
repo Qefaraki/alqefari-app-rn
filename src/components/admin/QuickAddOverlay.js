@@ -175,8 +175,14 @@ const QuickAddOverlay = ({ visible, parentNode, siblings = [], onClose, onChildA
             });
           }
 
-          return {
+          // ✅ DEFENSIVE: Ensure version exists (handles both null and undefined)
+          const safeChild = {
             ...s,
+            version: s.version ?? 1  // Fallback if data loader fails
+          };
+
+          return {
+            ...safeChild,
             isNew: false,
             isExisting: true,
             isEdited: false,
