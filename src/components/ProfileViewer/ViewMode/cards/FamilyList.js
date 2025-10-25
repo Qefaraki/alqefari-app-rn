@@ -85,11 +85,11 @@ const FamilyList = React.memo(({
       list.push({
         type: 'divider',
         key: 'divider-children',
-        label: `الأبناء (${toArabicNumerals(String(sortedChildren.length))})`,
+        label: `الأبناء (${settings.arabicNumerals ? toArabicNumerals(String(sortedChildren.length)) : sortedChildren.length})`,
       });
 
       sortedChildren.forEach((child) => {
-        const relationship = child?.gender === 'female' ? 'الابنة' : 'الابن';
+        const relationship = child?.gender === 'female' ? 'ابنة' : 'ابن';
         list.push({
           ...buildRelative(child, { label: relationship }),
           type: 'member',
@@ -98,7 +98,7 @@ const FamilyList = React.memo(({
     }
 
     return list.filter(Boolean);
-  }, [father, mother, children, person?.gender, person?.id]);
+  }, [father, mother, children, person?.gender, person?.id, settings.arabicNumerals]);
 
   const hasFamilyData = familyMembers.some((item) => item.type === 'member');
 
@@ -118,9 +118,7 @@ const FamilyList = React.memo(({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>
-        العائلة{childrenCount > 0 ? ` (${settings.arabicNumerals ? toArabicNumerals(String(childrenCount)) : childrenCount})` : ''}
-      </Text>
+      <Text style={styles.sectionTitle}>العائلة</Text>
       {familyMembers.map((item, index) => {
         if (item.type === 'divider') {
           return (
