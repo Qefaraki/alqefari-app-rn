@@ -155,6 +155,8 @@ import { getCachedParagraph } from './TreeView/rendering/ParagraphCache';
 
 // Phase 2 Day 10 - Import custom hooks
 import { useTreeDataLoader } from './TreeView/hooks/useTreeDataLoader';
+// Phase 3B - Import progressive loading hook (two-phase loading strategy)
+import { useProgressiveTreeView } from './TreeView/hooks/useProgressiveTreeView';
 
 import { familyData } from "../data/family-data";
 import { Asset } from "expo-asset";
@@ -206,6 +208,11 @@ const MAX_VISIBLE_EDGES = 10000; // Increased for unfiltered rendering (useMemo 
 const LOD_ENABLED = true; // Kill switch
 const AGGREGATION_ENABLED = true; // T3 chips toggle
 const BUCKET_DEBOUNCE_MS = 150; // ms
+
+// Phase 3B - Progressive Loading Feature Flag
+// Set to true to enable two-phase loading (0.45 MB structure + progressive enrichment)
+// Set to false to use traditional full-tree loading
+const USE_PROGRESSIVE_LOADING = false;
 
 // Create font manager/provider once
 let fontMgr = null;
@@ -613,17 +620,42 @@ const TreeView = ({
     initialFocalY,
   };
 
-  // Phase 2 Day 10a: Extract tree data loading logic to useTreeDataLoader hook
-  const { loadTreeData, handleRetry } = useTreeDataLoader({
-    setTreeData,
-    setIsLoading,
-    setNetworkError,
-    setShowSkeleton,
-    setIsRetrying,
-    skeletonFadeAnim,
-    contentFadeAnim,
-    settingsRef,
-  });
+  // Phase 2 Day 10a / Phase 3B: Tree data loading with progressive loading support
+  // Progressive loading: Use two-phase strategy (structure + enrichment)
+  // Traditional loading: Use full tree with real-time subscriptions
+  const progressiveResult = USE_PROGRESSIVE_LOADING
+    ? useProgressiveTreeView(stage, dimensions)
+    : null;
+
+  const traditionalResult = !USE_PROGRESSIVE_LOADING
+    ? useTreeDataLoader({
+        setTreeData,
+        setIsLoading,
+        setNetworkError,
+        setShowSkeleton,
+        setIsRetrying,
+        skeletonFadeAnim,
+        contentFadeAnim,
+        settingsRef,
+      })
+    : null;
+
+  // Unified API: Both loading strategies update the Zustand store
+  // For progressive loading, we create stub functions since it handles loading internally
+  const { loadTreeData, handleRetry } = USE_PROGRESSIVE_LOADING
+    ? {
+        loadTreeData: async () => {
+          console.log('📦 [Progressive] Reload triggered');
+          // Progressive loading will automatically reload on store reset
+          useTreeStore.getState().setTreeData([]);
+        },
+        handleRetry: async () => {
+          console.log('📦 [Progressive] Retry triggered');
+          // Progressive loading will automatically retry on next render
+          useTreeStore.getState().setTreeData([]);
+        },
+      }
+    : traditionalResult;
 
   // Calculate layout - based on treeData and showPhotos prop
   const { nodes, connections } = useMemo(() => {

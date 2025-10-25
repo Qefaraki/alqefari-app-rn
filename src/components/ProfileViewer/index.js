@@ -648,6 +648,32 @@ const ProfileViewer = ({ person, onClose, onNavigateToProfile, onUpdate, loading
     async (changes) => {
       const payload = { ...changes };
 
+      // DEBUG: Find UUID "2" error source
+      console.log('[DEBUG] Full payload before processing:', JSON.stringify(payload, null, 2));
+
+      // Search for "2" in all fields
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === 2 || value === "2") {
+          console.error(`[DEBUG] Found "2" in top-level field: ${key} = ${value}`);
+        }
+        // Check nested objects
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          Object.entries(value).forEach(([nestedKey, nestedValue]) => {
+            if (nestedValue === 2 || nestedValue === "2") {
+              console.error(`[DEBUG] Found "2" in nested field: ${key}.${nestedKey} = ${nestedValue}`);
+            }
+          });
+        }
+        // Check arrays
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => {
+            if (item === 2 || item === "2") {
+              console.error(`[DEBUG] Found "2" in array: ${key}[${idx}] = ${item}`);
+            }
+          });
+        }
+      });
+
       // UUID validation helper - prevent RPC errors from corrupted UUID fields
       const isValidUUID = (value) => {
         if (!value) return true; // null/undefined is fine
