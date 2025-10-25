@@ -12,7 +12,7 @@
  * Key: Data enrichment is independent of layout, so no jumping occurs
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useTreeStore } from '../../../../stores/useTreeStore';
 import profilesService from '../../../../services/profiles';
@@ -21,6 +21,12 @@ import { getVisibleNodeIds } from './utils';
 export function useViewportEnrichment({ nodes = [], stage = null, dimensions = null }) {
   const enrichedNodesRef = useRef(new Set());
   const enrichTimeoutRef = useRef(null);
+
+  // Phase 1: Batch state management
+  const pendingUpdatesRef = useRef(new Map());
+  const batchTimeoutRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const currentRequestIdRef = useRef(0);
 
   // Get stage/dimensions from TreeView context if not provided
   const defaultStage = useSharedValue({ x: 0, y: 0, scale: 1 });
@@ -38,6 +44,53 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
     );
   }, [nodes, actualStage, actualDimensions]);
 
+  // Phase 1: Debounced batch flush function
+  const flushBatch = useCallback(() => {
+    if (!isMountedRef.current) return;
+
+    const updates = Array.from(pendingUpdatesRef.current.values());
+    if (updates.length === 0) return;
+
+    const startTime = performance.now();
+
+    try {
+      // Single batch write to Zustand
+      const treeStore = useTreeStore.getState();
+
+      // Create new treeData with all updates applied at once
+      const updatesMap = new Map(updates.map(u => [u.id, u]));
+      const newTreeData = treeStore.treeData.map(node =>
+        updatesMap.has(node.id)
+          ? { ...node, ...updatesMap.get(node.id) }
+          : node
+      );
+
+      // Update nodesMap
+      const newNodesMap = new Map(treeStore.nodesMap);
+      updates.forEach(update => {
+        const existing = newNodesMap.get(update.id);
+        if (existing) {
+          newNodesMap.set(update.id, { ...existing, ...update });
+        }
+      });
+
+      // Single state update (triggers 1 layout recalc instead of 18)
+      treeStore.setTreeData(newTreeData);
+
+      const duration = performance.now() - startTime;
+      console.log(
+        `✅ [Phase 3] Batched ${updates.length} enrichments in ${duration.toFixed(0)}ms`
+      );
+
+      // Clear pending updates
+      pendingUpdatesRef.current.clear();
+    } catch (error) {
+      console.error('❌ [Phase 3] Batch flush failed:', error);
+      // Partial recovery: clear batch to prevent infinite retry
+      pendingUpdatesRef.current.clear();
+    }
+  }, []);
+
   // Enrich visible nodes
   useEffect(() => {
     // Clear previous timeout
@@ -51,6 +104,9 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
 
     // Debounce: Wait for user to stop scrolling before loading (300ms)
     enrichTimeoutRef.current = setTimeout(async () => {
+      // Track concurrent requests to avoid applying stale data
+      const requestId = ++currentRequestIdRef.current;
+
       try {
         console.log(
           `📦 [Phase 3] Enriching ${visibleNodeIds.length} visible nodes...`
@@ -60,6 +116,12 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
         const { data, error } = await profilesService.enrichVisibleNodes(
           visibleNodeIds
         );
+
+        // Discard stale request if newer one was issued
+        if (requestId !== currentRequestIdRef.current) {
+          console.log('⚠️ [Phase 3] Stale enrichment request, discarding');
+          return;
+        }
 
         if (error) {
           console.error('❌ [Phase 3] Enrichment failed:', error);
@@ -71,15 +133,24 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
           return;
         }
 
-        // Merge enriched data into store WITHOUT recalculating layout
+        // Phase 1: Batch accumulation instead of direct updateNode
         data.forEach(enrichedProfile => {
-          useTreeStore.getState().updateNode(enrichedProfile.id, enrichedProfile);
+          // Accumulate in pending batch
+          pendingUpdatesRef.current.set(enrichedProfile.id, enrichedProfile);
           enrichedNodesRef.current.add(enrichedProfile.id);
         });
 
+        // Debounced batch flush (100ms delay to batch multiple enrichments)
+        if (batchTimeoutRef.current) {
+          clearTimeout(batchTimeoutRef.current);
+        }
+        batchTimeoutRef.current = setTimeout(() => {
+          flushBatch();
+        }, 100);
+
         const duration = performance.now() - startTime;
         console.log(
-          `✅ [Phase 3] Enriched ${data.length} nodes in ${duration.toFixed(0)}ms`
+          `📦 [Phase 3] Queued ${data.length} nodes for batch enrichment (${duration.toFixed(0)}ms)`
         );
       } catch (err) {
         console.error('❌ [Phase 3] Enrichment exception:', err);
@@ -90,8 +161,47 @@ export function useViewportEnrichment({ nodes = [], stage = null, dimensions = n
       if (enrichTimeoutRef.current) {
         clearTimeout(enrichTimeoutRef.current);
       }
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
+      }
     };
-  }, [visibleNodeIds]);
+  }, [visibleNodeIds, flushBatch]);
+
+  // Phase 1: Unmount flush to prevent data loss
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+
+      // Synchronous flush on unmount to prevent data loss
+      if (pendingUpdatesRef.current.size > 0) {
+        console.log(
+          `⚠️ [Phase 3] Flushing ${pendingUpdatesRef.current.size} pending updates on unmount`
+        );
+
+        const updates = Array.from(pendingUpdatesRef.current.values());
+        const treeStore = useTreeStore.getState();
+        const updatesMap = new Map(updates.map(u => [u.id, u]));
+        const newTreeData = treeStore.treeData.map(node =>
+          updatesMap.has(node.id)
+            ? { ...node, ...updatesMap.get(node.id) }
+            : node
+        );
+        treeStore.setTreeData(newTreeData);
+
+        pendingUpdatesRef.current.clear();
+      }
+
+      // Clear all timeouts on unmount
+      if (enrichTimeoutRef.current) {
+        clearTimeout(enrichTimeoutRef.current);
+      }
+      if (batchTimeoutRef.current) {
+        clearTimeout(batchTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // No render output - this hook handles side effects only
   return null;
