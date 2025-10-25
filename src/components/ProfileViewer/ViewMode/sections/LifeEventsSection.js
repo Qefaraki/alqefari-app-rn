@@ -21,7 +21,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import tokens, { useAccessibilitySize } from '../../ui/tokens';
+import tokens, { useAccessibilitySize, hexWithOpacity } from '../../ui/tokens';
 import { toArabicNumerals } from '../../../utils/dateUtils';
 
 const { colors, spacing, typography, profileViewer } = tokens;
@@ -143,7 +143,7 @@ const LifeEventsSection = ({ person = {} }) => {
         line: {
           width: timelineTokens.lineWidth,
           flex: 1,
-          backgroundColor: `${colors.najdi.text}${Math.round(timelineTokens.lineColorOpacity * 255).toString(16).padStart(2, '0')}`,
+          backgroundColor: hexWithOpacity(colors.najdi.text, timelineTokens.lineColorOpacity),  // ✅ Cleaner, reusable
         },
         // Event content (right side of timeline)
         eventContent: {

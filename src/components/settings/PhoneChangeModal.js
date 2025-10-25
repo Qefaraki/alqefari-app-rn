@@ -161,8 +161,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   };
 
   // Step 2: Verify current phone OTP
-  const handleVerifyCurrentOtp = async () => {
-    if (currentOtp.length !== 4) return;
+  const handleVerifyCurrentOtp = async (otpCode = currentOtp) => {
+    if (otpCode.length !== 4) return;
 
     if (!checkBeforeAction('التحقق من الرمز')) return;
 
@@ -171,7 +171,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
     Keyboard.dismiss();
 
     try {
-      await verifyCurrentPhoneOtp(currentPhone, currentOtp);
+      await verifyCurrentPhoneOtp(currentPhone, otpCode);
       setStep(3);
       setCurrentOtp('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -232,8 +232,8 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
   };
 
   // Step 4: Complete phone change
-  const handleCompleteChange = async () => {
-    if (newOtp.length !== 4) return;
+  const handleCompleteChange = async (otpCode = newOtp) => {
+    if (otpCode.length !== 4) return;
 
     if (!checkBeforeAction('التحقق من الرمز')) return;
 
@@ -245,7 +245,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
       const fullNewPhone = selectedCountry?.code + newPhone;
 
       // Complete the phone change
-      await completePhoneChange(fullNewPhone, newOtp);
+      await completePhoneChange(fullNewPhone, otpCode);
 
       // Log to audit_log (non-blocking)
       logPhoneChange(currentPhone, fullNewPhone);
@@ -387,7 +387,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                       numberOfDigits={4}
                       focusColor={colors.alJassWhite}
                       onTextChange={setCurrentOtp}
-                      onFilled={handleVerifyCurrentOtp}
+                      onFilled={(code) => handleVerifyCurrentOtp(code)}
                       type="numeric"
                       autoFocus={true}
                       disabled={loading}
@@ -464,7 +464,7 @@ export function PhoneChangeModal({ isVisible = false, onComplete = () => {}, onC
                       numberOfDigits={4}
                       focusColor={colors.alJassWhite}
                       onTextChange={setNewOtp}
-                      onFilled={handleCompleteChange}
+                      onFilled={(code) => handleCompleteChange(code)}
                       type="numeric"
                       autoFocus={true}
                       disabled={loading}

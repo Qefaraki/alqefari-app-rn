@@ -32,7 +32,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import tokens, { useAccessibilitySize } from '../../ui/tokens';
+import tokens, { useAccessibilitySize, hexWithOpacity } from '../../ui/tokens';
 
 const { colors, spacing, profileViewer } = tokens;
 const { inlineRow } = profileViewer;
@@ -64,7 +64,9 @@ const InlineFieldRow = ({
           alignItems: 'flex-start',  // Top align for multi-line content
           justifyContent: 'flex-start',
           borderBottomWidth: showDivider ? 1 : 0,
-          borderBottomColor: showDivider ? `${colors.najdi.text}${Math.round(inlineRow.borderBottomOpacity * 255).toString(16).padStart(2, '0')}` : 'transparent',
+          borderBottomColor: showDivider
+            ? hexWithOpacity(colors.najdi.text, inlineRow.borderBottomOpacity)  // ✅ Cleaner, reusable
+            : 'transparent',
         },
         iconContainer: {
           width: inlineRow.iconSize,

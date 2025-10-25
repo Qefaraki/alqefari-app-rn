@@ -30,6 +30,15 @@ const tokens = {
       modified: '#007AFF',    // iOS blue for changes
       modifiedBg: '#007AFF15', // 8% opacity
     },
+    // Social media brand colors
+    socialMedia: {
+      twitter: '#1DA1F2',
+      instagram: '#E1306C',
+      facebook: '#1877F2',
+      linkedin: '#0A66C2',
+      youtube: '#FF0000',
+      tiktok: '#000000',
+    },
   },
   // iOS-standard typography scale
   typography: {
@@ -134,6 +143,17 @@ const tokens = {
       labelFontWeight: '500',
     },
   },
+};
+
+// Hex color with opacity - converts opacity decimal (0-1) to hex alpha channel
+// Example: hexWithOpacity('#242121', 0.06) → '#24212110'
+export const hexWithOpacity = (hex, opacity) => {
+  if (opacity < 0 || opacity > 1) {
+    console.warn(`[hexWithOpacity] Invalid opacity: ${opacity}. Expected value between 0 and 1.`);
+    return hex;
+  }
+  const alpha = Math.round(opacity * 255).toString(16).padStart(2, '0');
+  return `${hex}${alpha}`;
 };
 
 // Dynamic Type scaling - scales values proportionally with system text size

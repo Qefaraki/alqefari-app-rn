@@ -37,32 +37,32 @@ const SOCIAL_PLATFORMS = {
   twitter: {
     label: 'تويتر',
     icon: 'logo-twitter',
-    color: '#1DA1F2',
+    color: colors.socialMedia.twitter,
   },
   instagram: {
     label: 'إنستغرام',
     icon: 'logo-instagram',
-    color: '#E1306C',
+    color: colors.socialMedia.instagram,
   },
   facebook: {
     label: 'فيسبوك',
     icon: 'logo-facebook',
-    color: '#1877F2',
+    color: colors.socialMedia.facebook,
   },
   linkedin: {
     label: 'لينكدإن',
     icon: 'logo-linkedin',
-    color: '#0A66C2',
+    color: colors.socialMedia.linkedin,
   },
   youtube: {
     label: 'يوتيوب',
     icon: 'logo-youtube',
-    color: '#FF0000',
+    color: colors.socialMedia.youtube,
   },
   tiktok: {
     label: 'تيك توك',
     icon: 'logo-tiktok',
-    color: '#000000',
+    color: colors.socialMedia.tiktok,
   },
 };
 
@@ -146,21 +146,23 @@ const SocialMediaSection = ({ socialLinks = {} }) => {
     <View style={styles.container}>
       <View style={styles.gridContainer}>
         {availableLinks.map((link) => (
-          <View key={link.platform} style={styles.socialItem}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => handleSocialPress(link.platform, link.url)}
-              accessible={true}
-              accessibilityRole="button"
-              accessibilityLabel={`فتح ${link.label}`}
-              activeOpacity={0.7}
-            >
+          <TouchableOpacity
+            key={link.platform}
+            style={styles.socialItem}
+            onPress={() => handleSocialPress(link.platform, link.url)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={`فتح ${link.label}`}
+            activeOpacity={0.7}
+          >
+            <View style={styles.iconButton}>
               <Ionicons
                 name={link.icon}
                 size={socialTokens.iconSize}
                 color={link.color}
+                accessible={false}  // Icon is decorative, label is sufficient
               />
-            </TouchableOpacity>
+            </View>
             <Text
               style={[
                 styles.label,
@@ -170,7 +172,7 @@ const SocialMediaSection = ({ socialLinks = {} }) => {
             >
               {link.label}
             </Text>
-          </View>
+          </TouchableOpacity>
         ))}
       </View>
     </View>

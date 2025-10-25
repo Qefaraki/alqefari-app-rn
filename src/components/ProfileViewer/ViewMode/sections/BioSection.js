@@ -31,6 +31,11 @@ const BioSection = ({ bio = '', onBioPress = null }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { shouldUseAlternateLayout } = useAccessibilitySize();
 
+  // Reset expansion state when bio changes (user navigates to different profile)
+  React.useEffect(() => {
+    setIsExpanded(false);
+  }, [bio]);
+
   // Determine if bio should be truncated
   const shouldTruncate = bio && bio.length > bioTokens.previewChars && !isExpanded;
   const displayedBio = shouldTruncate

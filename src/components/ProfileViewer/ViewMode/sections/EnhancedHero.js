@@ -82,6 +82,7 @@ const EnhancedHero = ({
   canEdit = false,
   onEdit = null,
   onMenuPress = null,
+  onClose = null,
 }) => {
   if (!person) {
     return null;
@@ -220,7 +221,7 @@ const EnhancedHero = ({
         },
         lineage: {
           fontSize: typography.subheadline.fontSize,
-          color: `${colors.najdi.text}B3`,
+          color: colors.najdi.textMuted,  // ✅ WCAG AA compliant (4.5:1 contrast)
           marginTop: spacing.xs,
           textAlign: 'center',
           numberOfLines: 2,
@@ -228,7 +229,7 @@ const EnhancedHero = ({
         metadata: {
           fontSize: typography.footnote.fontSize,
           fontWeight: '600',
-          color: `${colors.najdi.text}D9`,
+          color: colors.najdi.textMuted,  // ✅ WCAG AA compliant (4.5:1 contrast)
           marginTop: spacing.sm,
           textAlign: 'center',
           numberOfLines: 1,
@@ -285,7 +286,7 @@ const EnhancedHero = ({
       {/* Close/Dismiss Button - Top Left (Absolute) */}
       <TouchableOpacity
         style={styles.closeButton}
-        onPress={onMenuPress}
+        onPress={onClose || onMenuPress}  // ✅ Prefer onClose, fallback to menu
         accessible={true}
         accessibilityRole="button"
         accessibilityLabel="إغلاق"
