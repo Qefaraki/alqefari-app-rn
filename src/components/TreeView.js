@@ -175,7 +175,6 @@ import MarriageEditor from "./admin/MarriageEditor";
 import skiaImageCache from "../services/skiaImageCache";
 import { useBatchedSkiaImage } from "../hooks/useBatchedSkiaImage";
 import NodeContextMenu from "./admin/NodeContextMenu";
-import EditProfileScreen from "../screens/EditProfileScreen";
 import QuickAddOverlay from "./admin/QuickAddOverlay";
 import SearchBar from "./SearchBar";
 import { supabase } from "../services/supabase";
@@ -387,8 +386,6 @@ const TreeView = ({
     x: 0,
     y: 0,
   });
-  const [editingProfile, setEditingProfile] = useState(null);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showMarriageModal, setShowMarriageModal] = useState(false);
   const [marriagePerson, setMarriagePerson] = useState(null);
 
@@ -845,20 +842,15 @@ const TreeView = ({
     };
   }, [nodes]);
 
-  // Visible bounds for culling
-  const [visibleBounds, setVisibleBounds] = useState({
-    minX: -VIEWPORT_MARGIN_X,
-    maxX: dimensions.width + VIEWPORT_MARGIN_X,
-    minY: -VIEWPORT_MARGIN_Y,
-    maxY: dimensions.height + VIEWPORT_MARGIN_Y,
-  });
+  // Note: visibleBounds is now derived from currentTransform (see useMemo below)
 
   // Track last stable scale to detect significant changes
   const lastStableScale = useRef(1);
 
   // Helper: Sync transform and bounds from animated values (on-demand, not continuous)
   // Called on gesture end and before user actions (tap, overlay, search)
-  const syncTransformAndBounds = useCallback(() => {
+  // visibleBounds now derives automatically from currentTransform (see useMemo below)
+  const syncTransform = useCallback(() => {
     const current = {
       x: translateX.value,
       y: translateY.value,
@@ -871,26 +863,13 @@ const TreeView = ({
     // Simple LOD: Show/hide photos based on zoom level
     // Photos disabled at scale < 0.4 to save memory when zoomed out
     frameStatsRef.current.tier = 1; // Always T1 (full cards), just toggle photos
-
-    // Calculate visible bounds
-    const dynamicMarginX = VIEWPORT_MARGIN_X / current.scale;
-    const dynamicMarginY = VIEWPORT_MARGIN_Y / current.scale;
-
-    const newBounds = {
-      minX: (-current.x - dynamicMarginX) / current.scale,
-      maxX: (-current.x + dimensions.width + dynamicMarginX) / current.scale,
-      minY: (-current.y - dynamicMarginY) / current.scale,
-      maxY: (-current.y + dimensions.height + dynamicMarginY) / current.scale,
-    };
-
-    setVisibleBounds(newBounds);
-  }, [dimensions.width, dimensions.height]);
+  }, []);
 
   // Load more nodes when viewport changes (for future viewport-based loading)
   useEffect(() => {
     // TODO: Implement viewport-based loading when backend supports it
     // This would call profilesService.getVisibleNodes(visibleBounds, scale.value)
-  }, [visibleBounds]);
+  }, []);
 
   // Recalculate viewport bounds when LAYOUT-AFFECTING settings change
   // This ensures visibleNodes filters correctly after layout recalculation
@@ -911,10 +890,10 @@ const TreeView = ({
 
     // Performance monitoring
     const startTime = performance.now();
-    syncTransformAndBounds();
+    syncTransform();
     const duration = performance.now() - startTime;
     console.log(`[TreeView] Viewport sync completed in ${duration.toFixed(2)}ms`);
-  }, [layoutAffectingSettings, syncTransformAndBounds, nodes.length, dimensions.width, dimensions.height]);
+  }, [layoutAffectingSettings, syncTransform, nodes.length, dimensions.width, dimensions.height]);
 
   // Track previous visible nodes for debugging
   const prevVisibleNodesRef = useRef(new Set());
@@ -1129,6 +1108,8 @@ const TreeView = ({
         savedTranslateY.value = offsetY;
 
         setStage({ x: offsetX, y: offsetY, scale: targetScale });
+        // Fix race condition: Update currentTransform so visibleBounds derives correctly
+        setCurrentTransform({ x: offsetX, y: offsetY, scale: targetScale });
       } else {
         // Fallback to old centering logic if no target found
         const offsetX =
@@ -1141,6 +1122,8 @@ const TreeView = ({
         savedTranslateY.value = offsetY;
 
         setStage({ x: offsetX, y: offsetY, scale: 1 });
+        // Fix race condition: Update currentTransform so visibleBounds derives correctly
+        setCurrentTransform({ x: offsetX, y: offsetY, scale: 1 });
       }
     }
   }, [nodes, dimensions, treeBounds, linkedProfileId, profile?.id]);
@@ -1210,22 +1193,11 @@ const TreeView = ({
 
       // Immediately update React state with target transform
       // This makes nodes visible during animation flight
-      const dynamicMarginX = VIEWPORT_MARGIN_X / targetScale;
-      const dynamicMarginY = VIEWPORT_MARGIN_Y / targetScale;
-
-      const targetBounds = {
-        minX: (-targetX - dynamicMarginX) / targetScale,
-        maxX: (-targetX + dimensions.width + dynamicMarginX) / targetScale,
-        minY: (-targetY - dynamicMarginY) / targetScale,
-        maxY: (-targetY + dimensions.height + dynamicMarginY) / targetScale,
-      };
-
-      setVisibleBounds(targetBounds);
+      // visibleBounds will derive automatically from setCurrentTransform
       setCurrentTransform({ x: targetX, y: targetY, scale: targetScale });
       setCurrentScale(targetScale);
 
       console.log('[TreeView] Pre-set bounds for search navigation:', {
-        targetBounds,
         nodeCoords: { x: targetNode.x, y: targetNode.y },
       });
 
@@ -1248,7 +1220,7 @@ const TreeView = ({
       }, (finished) => {
         // Only sync if this navigation wasn't cancelled by a newer one
         if (finished && lastNavigationRef.current === navigationId) {
-          runOnJS(syncTransformAndBounds)();
+          runOnJS(syncTransform)();
         }
       });
       translateY.value = withSpring(targetY, {
@@ -1283,7 +1255,7 @@ const TreeView = ({
       // Trigger highlight immediately - opacity delay handles visibility during flight
       highlightNode(nodeId);
     },
-    [nodes, dimensions, highlightNode, syncTransformAndBounds],
+    [nodes, dimensions, highlightNode, syncTransform],
   );
 
   useEffect(() => {
@@ -1691,13 +1663,13 @@ const TreeView = ({
   const gestureCallbacks = useMemo(() => ({
     // Called when pan/pinch ends (for transform sync)
     onGestureEnd: () => {
-      syncTransformAndBounds();
+      syncTransform();
     },
 
     // Phase 3 - Called when tap detected (with pre-sync and hit detection)
     onTap: (x, y) => {
       // 1. Sync transform FIRST (critical for accurate coordinates)
-      syncTransformAndBounds();
+      syncTransform();
 
       // 2. Update gestureStateRef with fresh transform values
       gestureStateRef.current = {
@@ -1737,7 +1709,7 @@ const TreeView = ({
       }
 
       // 2. Sync transform before admin action for accurate coordinates
-      syncTransformAndBounds();
+      syncTransform();
 
       // 3. Update gestureStateRef with fresh transform values
       gestureStateRef.current = {
@@ -1801,7 +1773,7 @@ const TreeView = ({
       }
     },
   }), [
-    syncTransformAndBounds,
+    syncTransform,
     handleChipTap,
     handleNodeTap,
     profile?.role,
@@ -1907,13 +1879,13 @@ const TreeView = ({
           savedScale.value = targetScale;
           savedTranslateX.value = targetX;
           savedTranslateY.value = targetY;
-          runOnJS(syncTransformAndBounds)();
+          runOnJS(syncTransform)();
         }
       });
       translateX.value = withTiming(targetX, { duration: 500 });
       translateY.value = withTiming(targetY, { duration: 500 });
     },
-    [indices, dimensions, minZoom, maxZoom, syncTransformAndBounds],
+    [indices, dimensions, minZoom, maxZoom, syncTransform],
   );
 
   // Handle context menu actions
@@ -1934,8 +1906,7 @@ const TreeView = ({
           setShowMarriageModal(true);
           break;
         case "edit":
-          setEditingProfile(contextMenuNode);
-          setShowEditModal(true);
+          setSelectedPersonId(contextMenuNode.id);
           break;
         case "viewDetails":
           setSelectedPersonId(contextMenuNode.id);
@@ -2296,13 +2267,27 @@ const TreeView = ({
 
   // Store current tier and transform in state
   // Always T1 (full cards) - Simple LOD just toggles photo loading
-  // Updated by syncTransformAndBounds callback after gestures end
+  // Updated by syncTransform callback after gestures end
   const [tier, setTier] = useState(1);
   const [currentTransform, setCurrentTransform] = useState({
     x: 0,
     y: 0,
     scale: 1,
   });
+
+  // Derived visible bounds - auto-updates when currentTransform changes
+  // Replaces manual setVisibleBounds calls (React best practice)
+  const visibleBounds = useMemo(() => {
+    const dynamicMarginX = VIEWPORT_MARGIN_X / currentTransform.scale;
+    const dynamicMarginY = VIEWPORT_MARGIN_Y / currentTransform.scale;
+
+    return {
+      minX: (-currentTransform.x - dynamicMarginX) / currentTransform.scale,
+      maxX: (-currentTransform.x + dimensions.width + dynamicMarginX) / currentTransform.scale,
+      minY: (-currentTransform.y - dynamicMarginY) / currentTransform.scale,
+      maxY: (-currentTransform.y + dimensions.height + dynamicMarginY) / currentTransform.scale,
+    };
+  }, [currentTransform.x, currentTransform.y, currentTransform.scale, dimensions.width, dimensions.height]);
 
   // Calculate culled nodes (with loading fallback)
   const culledNodes = useMemo(() => {
@@ -2575,7 +2560,7 @@ const TreeView = ({
           scale: scale,
         }}
         focusPersonId={linkedProfileId || profile?.id}
-        onAnimationComplete={syncTransformAndBounds}
+        onAnimationComplete={syncTransform}
       />
 
 
@@ -2611,20 +2596,6 @@ const TreeView = ({
           parentGender={contextMenuNode?.gender || "male"}
         />
       )}
-
-      {/* Edit Profile Modal */}
-      <EditProfileScreen
-        visible={showEditModal}
-        profile={editingProfile}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingProfile(null);
-        }}
-        onSave={async (updatedProfile) => {
-          // Reload tree data to reflect changes
-          await loadTreeData();
-        }}
-      />
 
       {/* Marriage Editor Modal */}
       <MarriageEditor

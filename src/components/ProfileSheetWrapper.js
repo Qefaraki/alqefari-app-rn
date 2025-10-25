@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { runOnUI } from "react-native-reanimated";
-import ProfileSheet from "./ProfileSheet";
 import ProfileViewer from "./ProfileViewer";
 import { useAdminMode } from "../contexts/AdminModeContext";
 import { useTreeStore } from "../stores/useTreeStore";
-import { featureFlags } from "../config/featureFlags";
 import { supabase } from "../services/supabase";
 
 const ProfileSheetWrapper = ({ editMode }) => {
@@ -172,20 +170,15 @@ const ProfileSheetWrapper = ({ editMode }) => {
 
   // Always render ProfileViewer (with loading state if needed)
   // This provides consistent skeleton loading instead of ActivityIndicator
-  if (featureFlags.profileViewer) {
-    return (
-      <ProfileViewer
-        person={person}
-        loading={loadingMunasib || isTransitioning || (!person && !!selectedPersonId)}
-        onClose={handleClose}
-        onNavigateToProfile={navigateToProfile}
-        onUpdate={handleUpdate}
-      />
-    );
-  }
-
-  // Show ProfileSheet with edit mode enabled when in admin mode
-  return <ProfileSheet editMode={editMode || isAdminMode} />;
+  return (
+    <ProfileViewer
+      person={person}
+      loading={loadingMunasib || isTransitioning || (!person && !!selectedPersonId)}
+      onClose={handleClose}
+      onNavigateToProfile={navigateToProfile}
+      onUpdate={handleUpdate}
+    />
+  );
 };
 
 export default ProfileSheetWrapper;
