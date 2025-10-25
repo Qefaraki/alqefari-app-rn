@@ -213,7 +213,7 @@ const EnhancedHero = ({
           width: heroTokens.nameMaxWidth,
         },
         name: {
-          fontSize: typography.title3.fontSize,
+          fontSize: typography.title2.fontSize,
           fontWeight: '700',
           color: colors.najdi.text,
           textAlign: 'center',

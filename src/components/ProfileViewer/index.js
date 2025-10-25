@@ -27,7 +27,7 @@ import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reani
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import CompactHero from './Hero/CompactHero';
+// Removed CompactHero - now using EnhancedHero from ViewMode/sections
 import PendingReviewBanner from './ViewMode/PendingReviewBanner';
 import ProfessionalCard from './ViewMode/cards/ProfessionalCard';
 import ContactCard from './ViewMode/cards/ContactCard';
@@ -106,13 +106,14 @@ const ViewModeContent = React.memo(({
     scrollEventThrottle={16}
     accessibilityLiveRegion="polite"
   >
-    <CompactHero
+    <EnhancedHero
       person={person}
       metrics={metrics}
       onCopyChain={handleCopyChain}
       canEdit={canEdit}
       onEdit={handleEditPress}
       onMenuPress={handleMenuPress}
+      onClose={handleMenuPress}
     />
 
     <PendingReviewBanner

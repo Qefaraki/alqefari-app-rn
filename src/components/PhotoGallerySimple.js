@@ -279,8 +279,7 @@ const PhotoGallerySimple = ({ profileId, isEditMode = false, onPhotosLoaded = ()
 
   const columns = useMemo(() => {
     if (photoCount <= 1) return 1;
-    if (photoCount === 2) return 2;
-    return 3;
+    return 2;
   }, [photoCount]);
 
   const tileSize = useMemo(() => {
