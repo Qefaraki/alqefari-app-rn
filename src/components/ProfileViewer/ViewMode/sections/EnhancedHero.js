@@ -6,8 +6,8 @@
  * - Avatar support with fallback initial
  * - Name with professional title
  * - Lineage/common name with tap-to-copy
- * - Metadata (generation, siblings count)
- * - Personal info (birth place, birth year)
+ * - Metadata (generation)
+ * - Personal info (current residence, birth year)
  * - Action buttons absolutely positioned (close LEFT, edit/menu RIGHT)
  * - Full Dynamic Type support
  * - Token system for all styling
@@ -101,8 +101,7 @@ const EnhancedHero = ({
 
   // Metadata assembly
   const generationLabel = metrics?.generationLabel;
-  const siblingsCount = metrics?.siblingsCount ?? person?.siblings_count ?? 0;
-  const birthPlace = person?.birth_place;
+  const currentResidence = person?.current_residence;
   const birthYear = person?.dob_data?.year;
   const dobIsPublic = person?.dob_is_public !== false;
   const isDobApproximate = Boolean(person?.dob_data?.approximate);
@@ -111,11 +110,7 @@ const EnhancedHero = ({
   if (generationLabel) {
     metadataSegments.push(`الجيل ${generationLabel}`);
   }
-  if (siblingsCount > 0) {
-    const formatted = toArabicNumerals(String(siblingsCount));
-    metadataSegments.push(`${formatted} إخوة`);
-  }
-  const metadata = metadataSegments.join(' • ');
+  const metadata = metadataSegments.join(' | ');
 
   let birthYearDisplay = null;
   if (person?.dob_data) {
@@ -127,7 +122,7 @@ const EnhancedHero = ({
     }
   }
 
-  const hasPersonalInfo = Boolean(birthPlace) || Boolean(birthYearDisplay);
+  const hasPersonalInfo = Boolean(currentResidence) || Boolean(birthYearDisplay);
 
   // Memoize styles
   const styles = useMemo(
@@ -222,7 +217,7 @@ const EnhancedHero = ({
         lineage: {
           fontSize: typography.subheadline.fontSize,
           color: colors.najdi.textMuted,  // ✅ WCAG AA compliant (4.5:1 contrast)
-          marginTop: spacing.xs,
+          marginTop: 2,
           textAlign: 'center',
           numberOfLines: 2,
         },
@@ -377,7 +372,7 @@ const EnhancedHero = ({
 
         {hasPersonalInfo ? (
           <View style={styles.personalRow}>
-            {birthPlace ? (
+            {currentResidence ? (
               <View style={styles.personalItem}>
                 <Ionicons
                   name="location-outline"
@@ -386,7 +381,7 @@ const EnhancedHero = ({
                   accessible={false}
                 />
                 <Text style={styles.personalText} numberOfLines={1}>
-                  {birthPlace}
+                  {currentResidence}
                 </Text>
               </View>
             ) : null}

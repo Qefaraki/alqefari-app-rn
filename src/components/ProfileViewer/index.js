@@ -121,12 +121,12 @@ const ViewModeContent = React.memo(({
       onPress={() => Alert.alert('التغييرات المعلقة', pendingSummary)}
     />
 
-    <PhotosCard person={person} accessMode={accessMode} />
-
     {/* Bio Section - Wikipedia-style biography */}
     {!loadingStates.permissions && (
       <BioSection bio={person?.bio} />
     )}
+
+    <PhotosCard person={person} accessMode={accessMode} />
 
     {/* Social Media Section - Icon grid with links */}
     {!loadingStates.permissions && person?.social_links && (

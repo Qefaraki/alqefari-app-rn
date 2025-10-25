@@ -110,6 +110,9 @@ const FamilyList = React.memo(({
     );
   }
 
+  // Calculate children count for summary
+  const childrenCount = Array.isArray(children) ? children.length : 0;
+
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>العائلة</Text>
@@ -174,6 +177,14 @@ const FamilyList = React.memo(({
           </TouchableOpacity>
         );
       })}
+
+      {/* Children Count Summary Footer */}
+      {childrenCount > 0 && (
+        <View style={styles.summaryFooter}>
+          <Text style={styles.summaryLabel}>إجمالي الأبناء</Text>
+          <Text style={styles.summaryValue}>{toArabicNumerals(String(childrenCount))}</Text>
+        </View>
+      )}
     </View>
   );
 });
@@ -273,6 +284,25 @@ const styles = StyleSheet.create({
   },
   chevron: {
     marginStart: spacing.sm,
+  },
+  summaryFooter: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: `${palette.container}20`,
+    borderRadius: tokens.radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: `${palette.text}80`,
+    marginBottom: spacing.xxs,
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: palette.secondary,
   },
 });
 
