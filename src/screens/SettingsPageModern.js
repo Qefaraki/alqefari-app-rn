@@ -36,6 +36,8 @@ import LargeTitleHeader from "../components/ios/LargeTitleHeader";
 import tokens from '../components/ui/tokens';
 import MySuggestions from "./MySuggestions";
 import { PhoneChangeModal } from "../components/settings/PhoneChangeModal";
+import { DeleteAccountModal } from "../components/settings/DeleteAccountModal";
+import { checkDeletionRateLimit } from "../services/deleteAccountOtp";
 
 // Use design system tokens
 const colors = {
@@ -315,6 +317,8 @@ export default function SettingsPageModern({ user }) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [showMySuggestions, setShowMySuggestions] = useState(false);
   const [showPhoneChangeModal, setShowPhoneChangeModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // New settings states
   const [notifications, setNotifications] = useState({
@@ -1221,17 +1225,6 @@ export default function SettingsPageModern({ user }) {
         <SettingsSection title="إدارة الحساب">
           {currentUser && !isGuestMode && (
             <SettingsCell
-              label="تغيير رقم الهاتف"
-              description="تحديث رقم الهاتف المرتبط بحسابك"
-              onPress={() => {
-                handleFeedback();
-                setShowPhoneChangeModal(true);
-              }}
-              rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
-            />
-          )}
-          {currentUser && !isGuestMode && (
-            <SettingsCell
               label="تسجيل الخروج"
               description={isSigningOut ? "جاري تنفيذ تسجيل الخروج..." : "إنهاء الجلسة الحالية"}
               onPress={handleSignOut}
@@ -1282,22 +1275,86 @@ export default function SettingsPageModern({ user }) {
             }}
             rightAccessory={<Ionicons name="logo-whatsapp" size={18} color="#25D366" />}
           />
-          {currentUser && !isGuestMode && (
-            <SettingsCell
-              label="حذف الحساب"
-              description="إزالة حسابك وبياناتك نهائياً"
-              onPress={handleDeleteAccount}
-              rightAccessory={
-                isDeletingAccount ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Ionicons name="trash-outline" size={18} color="#DC2626" />
-                )
-              }
-              disabled={isDeletingAccount}
-              labelStyle={styles.destructiveLabel}
-              descriptionStyle={styles.destructiveDescription}
+
+          {/* Collapsible Advanced Settings */}
+          <TouchableOpacity
+            style={styles.expandButton}
+            onPress={() => {
+              handleFeedback();
+              setShowAdvancedSettings(!showAdvancedSettings);
+            }}
+          >
+            <Text style={styles.expandText}>
+              {showAdvancedSettings ? 'إخفاء الإعدادات المتقدمة' : 'إظهار الإعدادات المتقدمة'}
+            </Text>
+            <Ionicons
+              name={showAdvancedSettings ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.primary}
             />
+          </TouchableOpacity>
+
+          {/* Advanced Settings (Phone Change + Delete Account) */}
+          {showAdvancedSettings && (
+            <>
+              {currentUser && !isGuestMode && (
+                <SettingsCell
+                  label="تغيير رقم الهاتف"
+                  description="تحديث رقم الهاتف المرتبط بحسابك"
+                  onPress={() => {
+                    handleFeedback();
+                    setShowPhoneChangeModal(true);
+                  }}
+                  rightAccessory={<Ionicons name="call-outline" size={18} color={colors.muted} />}
+                />
+              )}
+
+              {currentUser && !isGuestMode && (
+                <SettingsCell
+                  label="حذف الحساب نهائياً"
+                  description="إزالة حسابك وبياناتك من النظام"
+                  onPress={async () => {
+                    handleFeedback();
+
+                    // Check rate limit
+                    const limitCheck = await checkDeletionRateLimit();
+                    if (!limitCheck.allowed) {
+                      if (limitCheck.reason === 'locked') {
+                        Alert.alert(
+                          'الحساب مقفل',
+                          'لقد تجاوزت الحد المسموح من محاولات الحذف. يرجى التواصل مع الإدارة.'
+                        );
+                      } else if (limitCheck.reason === 'rate_limited') {
+                        const hours = Math.ceil(limitCheck.retry_after / 3600);
+                        Alert.alert(
+                          'تم تجاوز الحد',
+                          `يمكنك المحاولة مرة أخرى بعد ${hours} ساعة`
+                        );
+                      }
+                      return;
+                    }
+
+                    // Initial confirmation
+                    Alert.alert(
+                      'حذف الحساب',
+                      'هل أنت متأكد من رغبتك في حذف حسابك نهائياً؟',
+                      [
+                        { text: 'إلغاء', style: 'cancel' },
+                        {
+                          text: 'نعم، متأكد',
+                          style: 'destructive',
+                          onPress: () => setShowDeleteAccountModal(true),
+                        },
+                      ]
+                    );
+                  }}
+                  rightAccessory={<Ionicons name="trash-outline" size={18} color="#DC2626" />}
+                  labelStyle={styles.destructiveLabel}
+                  descriptionStyle={styles.destructiveDescription}
+                  isLast={true}
+                />
+              )}
+            </>
           )}
         </SettingsSection>
 
@@ -1330,6 +1387,18 @@ export default function SettingsPageModern({ user }) {
           console.log('[Settings] Phone changed to:', newPhone);
         }}
         onCancel={() => setShowPhoneChangeModal(false)}
+      />
+
+      {/* Delete Account Modal */}
+      <DeleteAccountModal
+        isVisible={showDeleteAccountModal}
+        userProfile={userProfile}
+        onComplete={() => {
+          setShowDeleteAccountModal(false);
+          // Account deleted + signed out, navigate to auth
+          console.log('[Settings] Account deletion completed');
+        }}
+        onCancel={() => setShowDeleteAccountModal(false)}
       />
     </SafeAreaView>
   );
@@ -1689,6 +1758,23 @@ const styles = StyleSheet.create({
   destructiveDescription: {
     color: "#DC2626",
     opacity: 0.75,
+  },
+
+  // Advanced Settings
+  expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  expandText: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
+    ...fontStyles.semibold,
   },
 
   // App Info
