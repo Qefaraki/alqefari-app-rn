@@ -1,5 +1,22 @@
 import { create } from 'zustand';
-import NetInfo from '@react-native-community/netinfo';
+
+// Gracefully handle NetInfo - it's a native module that requires native linking
+// For Expo Go development, we'll provide a fallback
+let NetInfo = null;
+try {
+  NetInfo = require('@react-native-community/netinfo').default;
+} catch (e) {
+  console.warn('[NetworkStore] NetInfo not available (requires native build). Using fallback.');
+  // Fallback for development/testing
+  NetInfo = {
+    addEventListener: () => () => {},
+    fetch: async () => ({
+      isConnected: true,
+      isInternetReachable: true,
+      type: 'unknown',
+    }),
+  };
+}
 
 /**
  * Network Store
